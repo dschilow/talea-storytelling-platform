@@ -3,10 +3,10 @@ import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "./generate";
 import { ai } from "~encore/clients";
 
-// ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
-const MODEL = "gpt-4o-mini"; // Zurück zu gpt-4o-mini da gpt-5-nano noch nicht verfügbar
-const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token
-const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token
+// ---- OpenAI Modell & Pricing (GPT-5-nano) ----
+const MODEL = "gpt-5-nano";
+const INPUT_COST_PER_1M = 0.05;   // $/1M Input-Token (GPT-5-nano offizieller Preis)
+const OUTPUT_COST_PER_1M = 0.40;  // $/1M Output-Token (GPT-5-nano offizieller Preis)
 
 const openAIKey = secret("OpenAIKey");
 
@@ -30,6 +30,7 @@ interface GenerateStoryContentResponse {
     tokensUsed: {
       prompt: number;
       completion: number;
+      reasoning: number;
       total: number;
     };
     model: string;
@@ -67,7 +68,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
   async (req) => {
     const startTime = Date.now();
     const metadata: GenerateStoryContentResponse["metadata"] = {
-      tokensUsed: { prompt: 0, completion: 0, total: 0 },
+      tokensUsed: { prompt: 0, completion: 0, reasoning: 0, total: 0 },
       model: MODEL,
       processingTime: 0,
       imagesGenerated: 0,
@@ -80,10 +81,13 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
       console.log("✅ Generated story content:", storyContent.title);
 
-      metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
+      metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, reasoning: 0, total: 0 };
+      
+      // GPT-5-nano Kostenberechnung (berücksichtigt reasoning_tokens)
+      const outputTokens = metadata.tokensUsed.completion + metadata.tokensUsed.reasoning;
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
-        (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
+        (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
       // Referenzbilder (Avatare) zusammenstellen - nur die ersten 3 um Request-Größe zu begrenzen
       const referenceImages = req.avatarDetails
@@ -238,9 +242,12 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_tokens: 2400,
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+      // GPT-5-nano spezifische Parameter
+      max_completion_tokens: 2400,  // Geändert von max_tokens für GPT-5
+      response_format: { type: "json_object" },
+      reasoning_effort: "minimal",   // Für Kostenoptimierung bei GPT-5-nano
+      verbosity: "medium"            // Ausgewogene Ausgabelänge für GPT-5-nano
+      // temperature wird nicht gesetzt - GPT-5-nano verwendet Default (1.0)
     }),
   });
 
@@ -267,6 +274,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
     tokensUsed: {
       prompt: data.usage?.prompt_tokens ?? 0,
       completion: data.usage?.completion_tokens ?? 0,
+      reasoning: data.usage?.reasoning_tokens ?? 0,  // GPT-5-nano reasoning tokens
       total: data.usage?.total_tokens ?? 0,
     }
   };
