@@ -108,11 +108,13 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
           `The main characters must look identical to the reference images (same child identity, hairstyle, hair color, skin tone, eye color, clothing style). ` +
           `${req.config.genre} story scene, ${req.config.setting} background, ` +
           `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children, high quality.`,
+        model: "runware:101@1",
         width: chapterDimensions.width,
         height: chapterDimensions.height,
         steps: 20,
         seed: (seedBase + index * 101) >>> 0,
         referenceImages,
+        outputFormat: "WEBP" as const,
       }));
 
       // Batch Request: Cover + Kapitel gemeinsam in EINEM Call generieren
@@ -120,11 +122,13 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
         images: [
           {
             prompt: coverPrompt,
+            model: "runware:101@1",
             width: coverDimensions.width,
             height: coverDimensions.height,
             steps: 25,
             seed: seedBase,
             referenceImages,
+            outputFormat: "WEBP" as const,
           },
           ...chapterInputs,
         ],
@@ -273,17 +277,23 @@ async function generateFallbackStoryWithImages(
     images: [
       {
         prompt: `Children's book cover, ${config.genre} story, colorful, magical. Keep characters consistent with reference images.`,
+        model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
+        steps: 25,
         seed: seedBase,
         referenceImages,
+        outputFormat: "WEBP" as const,
       },
       ...fallbackStory.chapters.map((chapter, index) => ({
         prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story. Match reference characters.`,
+        model: "runware:101@1",
         width: chapterDimensions.width,
         height: chapterDimensions.height,
+        steps: 20,
         seed: (seedBase + index * 101) >>> 0,
         referenceImages,
+        outputFormat: "WEBP" as const,
       })),
     ],
   };
