@@ -12,7 +12,7 @@ import backend from '~backend/client';
 
 interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable';
   timestamp: string;
   request: any;
   response: any;
@@ -52,8 +52,8 @@ const LogViewerScreen: React.FC = () => {
         backend.log.getSources()
       ]);
 
-      setLogs(logsResponse.logs);
-      setSources(sourcesResponse.sources);
+      setLogs(logsResponse.logs as any);
+      setSources(sourcesResponse.sources as any);
     } catch (error) {
       console.error('Error loading logs:', error);
     } finally {
@@ -81,6 +81,7 @@ const LogViewerScreen: React.FC = () => {
       case 'runware-batch-image':
         return '🎨';
       case 'openai-avatar-analysis':
+      case 'openai-avatar-analysis-stable':
         return '🔬';
       default:
         return '📋';
@@ -96,13 +97,14 @@ const LogViewerScreen: React.FC = () => {
       case 'runware-batch-image':
         return 'Batch Bild Generierung';
       case 'openai-avatar-analysis':
+      case 'openai-avatar-analysis-stable':
         return 'Avatar Analyse';
       default:
         return source;
     }
   };
 
-  const formatJson = (obj: any, maxDepth: number = 3) => {
+  const formatJson = (obj: any, _maxDepth: number = 3) => {
     return JSON.stringify(obj, null, 2);
   };
 

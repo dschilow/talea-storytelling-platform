@@ -176,7 +176,7 @@ ${req.hints.stylePreference ? `- Style Preference: ${req.hints.stylePreference}`
       source: 'openai-avatar-analysis-stable',
       timestamp: new Date(),
       request: {
-        model: payload.model,
+        model: (payload as any).model,
         hasImage: true,
         hintsProvided: !!req.hints
       },

@@ -33,6 +33,7 @@ const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
  * Client is an API client for the  Encore application.
  */
 export class Client {
+    public readonly admin: admin.ServiceClient
     public readonly ai: ai.ServiceClient
     public readonly avatar: avatar.ServiceClient
     public readonly log: log.ServiceClient
@@ -52,6 +53,7 @@ export class Client {
         this.target = target
         this.options = options ?? {}
         const base = new BaseClient(this.target, this.options)
+        this.admin = new admin.ServiceClient(base)
         this.ai = new ai.ServiceClient(base)
         this.avatar = new avatar.ServiceClient(base)
         this.log = new log.ServiceClient(base)
@@ -73,6 +75,11 @@ export class Client {
 }
 
 /**
+ * Import the auth handler to be able to derive the auth type
+ */
+import type { auth as auth_auth } from "~backend/auth/auth";
+
+/**
  * ClientOptions allows you to override any default behaviour within the generated Encore client.
  */
 export interface ClientOptions {
@@ -85,6 +92,141 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+
+    /**
+     * Allows you to set the authentication data to be used for each
+     * request either by passing in a static object or by passing in
+     * a function which returns a new object for each request.
+     */
+    auth?: RequestType<typeof auth_auth> | AuthDataGenerator
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { listAvatarsAdmin as api_admin_avatars_list_listAvatarsAdmin } from "~backend/admin/avatars_list";
+import { updateAvatarAdmin as api_admin_avatars_update_updateAvatarAdmin } from "~backend/admin/avatars_update";
+import { promoteToAdmin as api_admin_promote_promoteToAdmin } from "~backend/admin/promote";
+import { getStats as api_admin_stats_getStats } from "~backend/admin/stats";
+import { deleteUser as api_admin_users_delete_deleteUser } from "~backend/admin/users_delete";
+import { listUsers as api_admin_users_list_listUsers } from "~backend/admin/users_list";
+import { updateUser as api_admin_users_update_updateUser } from "~backend/admin/users_update";
+
+export namespace admin {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.deleteUser = this.deleteUser.bind(this)
+            this.getStats = this.getStats.bind(this)
+            this.listAvatarsAdmin = this.listAvatarsAdmin.bind(this)
+            this.listUsers = this.listUsers.bind(this)
+            this.promoteToAdmin = this.promoteToAdmin.bind(this)
+            this.updateAvatarAdmin = this.updateAvatarAdmin.bind(this)
+            this.updateUser = this.updateUser.bind(this)
+        }
+
+        /**
+         * Deletes a user and their related content (avatars and stories).
+         */
+        public async deleteUser(params: { id: string }): Promise<ResponseType<typeof api_admin_users_delete_deleteUser>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_delete_deleteUser>
+        }
+
+        /**
+         * Returns aggregate admin statistics for users, avatars, and stories.
+         */
+        public async getStats(): Promise<ResponseType<typeof api_admin_stats_getStats>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/stats`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_stats_getStats>
+        }
+
+        /**
+         * Lists avatars across all users (admin only).
+         */
+        public async listAvatarsAdmin(params: RequestType<typeof api_admin_avatars_list_listAvatarsAdmin>): Promise<ResponseType<typeof api_admin_avatars_list_listAvatarsAdmin>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                cursor: params.cursor,
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                q:      params.q,
+                userId: params.userId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/avatars`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_avatars_list_listAvatarsAdmin>
+        }
+
+        /**
+         * Lists users with optional search and pagination for the admin panel.
+         */
+        public async listUsers(params: RequestType<typeof api_admin_users_list_listUsers>): Promise<ResponseType<typeof api_admin_users_list_listUsers>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                cursor: params.cursor,
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                q:      params.q,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/users`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_list_listUsers>
+        }
+
+        /**
+         * Allows the first-ever user to promote themselves to an admin.
+         * This endpoint is a one-time-use mechanism for bootstrapping the first admin account.
+         */
+        public async promoteToAdmin(): Promise<ResponseType<typeof api_admin_promote_promoteToAdmin>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/promote-first-admin`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_promote_promoteToAdmin>
+        }
+
+        /**
+         * Updates any avatar fields (admin only).
+         */
+        public async updateAvatarAdmin(params: RequestType<typeof api_admin_avatars_update_updateAvatarAdmin>): Promise<ResponseType<typeof api_admin_avatars_update_updateAvatarAdmin>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                description:       params.description,
+                imageUrl:          params.imageUrl,
+                isPublic:          params.isPublic,
+                name:              params.name,
+                originalAvatarId:  params.originalAvatarId,
+                personalityTraits: params.personalityTraits,
+                physicalTraits:    params.physicalTraits,
+                visualProfile:     params.visualProfile,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/avatars/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_avatars_update_updateAvatarAdmin>
+        }
+
+        /**
+         * Updates basic fields for a user (admin only).
+         */
+        public async updateUser(params: RequestType<typeof api_admin_users_update_updateUser>): Promise<ResponseType<typeof api_admin_users_update_updateUser>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                email:        params.email,
+                name:         params.name,
+                role:         params.role,
+                subscription: params.subscription,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_update_updateUser>
+        }
+    }
 }
 
 /**
@@ -148,6 +290,10 @@ export namespace ai {
     }
 }
 
+
+export namespace auth {
+}
+
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
@@ -172,7 +318,7 @@ export namespace avatar {
         }
 
         /**
-         * Creates a new avatar.
+         * Creates a new avatar for the authenticated user.
          */
         public async create(params: RequestType<typeof api_avatar_create_create>): Promise<ResponseType<typeof api_avatar_create_create>> {
             // Now make the actual call to the API
@@ -197,11 +343,11 @@ export namespace avatar {
         }
 
         /**
-         * Retrieves all avatars for a user.
+         * Retrieves all avatars for the authenticated user.
          */
-        public async list(params: { userId: string }): Promise<ResponseType<typeof api_avatar_list_list>> {
+        public async list(): Promise<ResponseType<typeof api_avatar_list_list>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/avatar/user/${encodeURIComponent(params.userId)}`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/avatars`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_list_list>
         }
 
@@ -213,6 +359,7 @@ export namespace avatar {
             const body: Record<string, any> = {
                 description:       params.description,
                 imageUrl:          params.imageUrl,
+                isPublic:          params.isPublic,
                 name:              params.name,
                 personalityTraits: params.personalityTraits,
                 physicalTraits:    params.physicalTraits,
@@ -289,6 +436,7 @@ import { deleteStory as api_story_delete_deleteStory } from "~backend/story/dele
 import { generate as api_story_generate_generate } from "~backend/story/generate";
 import { get as api_story_get_get } from "~backend/story/get";
 import { list as api_story_list_list } from "~backend/story/list";
+import { update as api_story_update_update } from "~backend/story/update";
 
 export namespace story {
 
@@ -302,6 +450,7 @@ export namespace story {
             this.generateStoryContent = this.generateStoryContent.bind(this)
             this.get = this.get.bind(this)
             this.list = this.list.bind(this)
+            this.update = this.update.bind(this)
         }
 
         /**
@@ -336,12 +485,28 @@ export namespace story {
         }
 
         /**
-         * Retrieves all stories for a user, without chapters.
+         * Retrieves all stories for the authenticated user.
          */
-        public async list(params: { userId: string }): Promise<ResponseType<typeof api_story_list_list>> {
+        public async list(): Promise<ResponseType<typeof api_story_list_list>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/user/${encodeURIComponent(params.userId)}`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/stories`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_list_list>
+        }
+
+        /**
+         * Updates an existing story's metadata.
+         */
+        public async update(params: RequestType<typeof api_story_update_update>): Promise<ResponseType<typeof api_story_update_update>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                description: params.description,
+                isPublic:    params.isPublic,
+                title:       params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_update_update>
         }
     }
 }
@@ -351,7 +516,8 @@ export namespace story {
  */
 import {
     create as api_user_profile_create,
-    get as api_user_profile_get
+    get as api_user_profile_get,
+    me as api_user_profile_me
 } from "~backend/user/profile";
 
 export namespace user {
@@ -363,6 +529,7 @@ export namespace user {
             this.baseClient = baseClient
             this.create = this.create.bind(this)
             this.get = this.get.bind(this)
+            this.me = this.me.bind(this)
         }
 
         /**
@@ -381,6 +548,16 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_get>
+        }
+
+        /**
+         * Returns the authenticated user's profile.
+         * The auth handler ensures the user exists in the database.
+         */
+        public async me(): Promise<ResponseType<typeof api_user_profile_me>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/me`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_me>
         }
     }
 }
@@ -639,6 +816,11 @@ type CallParameters = Omit<RequestInit, "headers"> & {
     query?: Record<string, string | string[]>
 }
 
+// AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
+export type AuthDataGenerator = () =>
+  | RequestType<typeof auth_auth>
+  | Promise<RequestType<typeof auth_auth> | undefined>
+  | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
@@ -650,6 +832,7 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -669,9 +852,41 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
+
+        // Setup an authentication data generator using the auth data token option
+        if (options.auth !== undefined) {
+            const auth = options.auth
+            if (typeof auth === "function") {
+                this.authGenerator = auth
+            } else {
+                this.authGenerator = () => auth
+            }
+        }
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
+        let authData: RequestType<typeof auth_auth> | undefined;
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator();
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise;
+            } else {
+                authData = mayBePromise;
+            }
+        }
+
+        if (authData) {
+            const data: CallParameters = {};
+
+            data.headers = makeRecord<string, string>({
+                authorization: authData.authorization,
+            });
+
+            return data;
+        }
+
         return undefined;
     }
 

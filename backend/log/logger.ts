@@ -3,7 +3,12 @@ import { Bucket } from "encore.dev/storage/objects";
 
 // LogEvent defines the structure for log messages.
 export interface LogEvent {
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis';
+  source:
+    | 'openai-story-generation'
+    | 'runware-single-image'
+    | 'runware-batch-image'
+    | 'openai-avatar-analysis'
+    | 'openai-avatar-analysis-stable';
   timestamp: Date;
   request: any;
   response: any;

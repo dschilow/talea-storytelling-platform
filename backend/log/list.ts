@@ -3,7 +3,7 @@ import { logBucket } from "./logger";
 
 export interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable';
   timestamp: Date;
   request: any;
   response: any;
@@ -21,7 +21,13 @@ interface ListLogsResponse {
   totalCount: number;
 }
 
-const ALL_SOURCES = ['openai-story-generation', 'runware-single-image', 'runware-batch-image', 'openai-avatar-analysis'];
+const ALL_SOURCES = [
+  'openai-story-generation',
+  'runware-single-image',
+  'runware-batch-image',
+  'openai-avatar-analysis',
+  'openai-avatar-analysis-stable',
+];
 
 // Lists log entries from the bucket.
 export const list = api<ListLogsRequest, ListLogsResponse>(
@@ -45,7 +51,6 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
         }
       } else {
         // No date filter, scan recent days to find latest logs.
-        // This is a workaround for object stores not supporting reverse listing.
         const sources = sourceFilter ? [sourceFilter] : ALL_SOURCES;
         const datesToScan: string[] = [];
         for (let i = 0; i < 7; i++) { // Scan last 7 days
