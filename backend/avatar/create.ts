@@ -8,8 +8,6 @@ const avatarDB = new SQLDatabase("avatar", {
 export interface PhysicalTraits {
   characterType: string;
   appearance: string;
-  age?: number;
-  gender?: "male" | "female" | "non-binary" | "other";
 }
 
 export interface PersonalityTraits {
