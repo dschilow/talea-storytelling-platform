@@ -95,9 +95,15 @@ const StoryWizardScreen: React.FC = () => {
       setGenerating(true);
       console.log('Starting story generation with config:', storyConfig);
       
+      // Begrenze die Anzahl der Avatare um Request-Größe zu reduzieren
+      const limitedConfig = {
+        ...storyConfig,
+        avatarIds: storyConfig.avatarIds.slice(0, 3) // Maximal 3 Avatare
+      };
+      
       const story = await backend.story.generate({
         userId: 'demo-user-123', // Mock user ID
-        config: storyConfig,
+        config: limitedConfig,
       });
 
       console.log('Story generated successfully:', story.title);
@@ -105,7 +111,19 @@ const StoryWizardScreen: React.FC = () => {
       window.location.href = '/';
     } catch (error) {
       console.error('Error generating story:', error);
-      alert('Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.');
+      
+      // Bessere Fehlerbehandlung
+      let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('length limit exceeded')) {
+          errorMessage = 'Die Anfrage ist zu groß. Bitte wähle weniger Avatare oder kleinere Bilder aus.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Die Generierung dauert zu lange. Bitte versuche es mit einer kürzeren Geschichte.';
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setGenerating(false);
     }

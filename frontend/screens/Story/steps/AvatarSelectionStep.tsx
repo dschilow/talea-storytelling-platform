@@ -45,7 +45,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
     if (isSelected) {
       onSelectionChange(selectedAvatarIds.filter(id => id !== avatarId));
     } else {
-      if (selectedAvatarIds.length < 4) { // Limit to 4 avatars
+      if (selectedAvatarIds.length < 3) { // Reduziert auf 3 Avatare um Request-Größe zu begrenzen
         onSelectionChange([...selectedAvatarIds, avatarId]);
       }
     }
@@ -81,12 +81,12 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
       <Card variant="elevated">
         <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Wähle deine Helden</h2>
         <p className="text-gray-600 text-center mb-4">
-          Wähle bis zu 4 Avatare für deine Geschichte aus
+          Wähle bis zu 3 Avatare für deine Geschichte aus
         </p>
         
         <div className="text-center mb-6">
           <span className="text-purple-600 font-semibold">
-            {selectedAvatarIds.length} von 4 ausgewählt
+            {selectedAvatarIds.length} von 3 ausgewählt
           </span>
         </div>
 
@@ -105,12 +105,20 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
                   }`}
                 >
                   <div className="relative">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 ${
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 overflow-hidden ${
                       isSelected ? 'bg-purple-100' : 'bg-gray-100'
                     }`}>
-                      <span className="text-2xl">
-                        {avatar.creationType === 'ai-generated' ? '🤖' : '📷'}
-                      </span>
+                      {avatar.imageUrl ? (
+                        <img 
+                          src={avatar.imageUrl} 
+                          alt={avatar.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">
+                          {avatar.creationType === 'ai-generated' ? '🤖' : '📷'}
+                        </span>
+                      )}
                     </div>
                     
                     {isSelected && (

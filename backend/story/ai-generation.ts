@@ -4,9 +4,9 @@ import type { StoryConfig, Chapter } from "./generate";
 import { ai } from "~encore/clients";
 
 // ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
-const MODEL = "gpt-5-nano";
-const INPUT_COST_PER_1M = 0.05;   // $/1M Input-Token (GPT-5-nano offizieller Preis)
-const OUTPUT_COST_PER_1M = 0.40;  // $/1M Output-Token (GPT-5-nano offizieller Preis)
+const MODEL = "gpt-4o-mini"; // Zurück zu gpt-4o-mini da gpt-5-nano noch nicht verfügbar
+const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token
+const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token
 
 const openAIKey = secret("OpenAIKey");
 
@@ -81,17 +81,26 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       console.log("✅ Generated story content:", storyContent.title);
 
       metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
-      
-      // GPT-5-nano Kostenberechnung (berücksichtigt reasoning_tokens)
-      const outputTokens = metadata.tokensUsed.completion + (storyContent.tokensUsed?.reasoning ?? 0);
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
-        (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
+        (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      // Referenzbilder (Avatare) zusammenstellen
+      // Referenzbilder (Avatare) zusammenstellen - nur die ersten 3 um Request-Größe zu begrenzen
       const referenceImages = req.avatarDetails
+        .slice(0, 3) // Begrenze auf 3 Avatare um Request-Größe zu reduzieren
         .map(a => a.imageUrl)
-        .filter((u): u is string => !!u && u.length > 0);
+        .filter((u): u is string => !!u && u.length > 0)
+        .map(url => {
+          // Komprimiere Base64-Bilder falls sie zu groß sind
+          if (url.startsWith('data:image/') && url.length > 100000) {
+            console.log("⚠️ Large image detected, skipping to reduce request size");
+            return null;
+          }
+          return url;
+        })
+        .filter((u): u is string => !!u);
+
+      console.log(`🖼️ Using ${referenceImages.length} reference images for batch generation`);
 
       // Gemeinsamer Seed für die Geschichte (konsistente Charaktere)
       const seedBase = deterministicSeedFrom(req.avatarDetails.map(a => a.id).join("|"));
@@ -229,12 +238,9 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      // GPT-5-nano Parameter
-      max_completion_tokens: 2400,  // Geändert von max_tokens
-      // temperature: 0.7,          // Entfernt - GPT-5-nano unterstützt nur Default (1)
-      response_format: { type: "json_object" },
-      reasoning_effort: "minimal",   // Für Kostenoptimierung
-      verbosity: "medium"            // Ausgewogene Ausgabelänge
+      max_tokens: 2400,
+      temperature: 0.7,
+      response_format: { type: "json_object" }
     }),
   });
 
@@ -261,7 +267,6 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
     tokensUsed: {
       prompt: data.usage?.prompt_tokens ?? 0,
       completion: data.usage?.completion_tokens ?? 0,
-      reasoning: data.usage?.reasoning_tokens ?? 0,  // GPT-5 reasoning tokens
       total: data.usage?.total_tokens ?? 0,
     }
   };
@@ -274,7 +279,12 @@ async function generateFallbackStoryWithImages(
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
 
-  const referenceImages = avatars.map(a => a.imageUrl).filter((u): u is string => !!u);
+  // Begrenze Referenzbilder für Fallback
+  const referenceImages = avatars
+    .slice(0, 2) // Nur 2 Avatare für Fallback
+    .map(a => a.imageUrl)
+    .filter((u): u is string => !!u && u.length < 50000); // Kleinere Bilder nur
+
   const seedBase = deterministicSeedFrom(avatars.map(a => (a as any).id ?? a.name).join("|"));
 
   const coverDimensions = normalizeRunwareDimensions(600, 800);
