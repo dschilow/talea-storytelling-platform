@@ -5,10 +5,11 @@ import FadeInView from "../../components/animated/FadeInView";
 import { colors } from "../../utils/constants/colors";
 import { typography } from "../../utils/constants/typography";
 import { spacing, radii, shadows } from "../../utils/constants/spacing";
-import { Shield, Users, Search, Trash2, Edit3, RefreshCw, BarChart3, Crown } from "lucide-react";
+import { Shield, Users, Search, Trash2, Edit3, RefreshCw, BarChart3, Crown, UserPlus } from "lucide-react";
 import { useBackend } from "../../hooks/useBackend";
 import type { UserProfile } from "~backend/user/profile";
 import type { Avatar } from "~backend/avatar/create";
+import Button from "../../components/common/Button";
 
 interface AdminStats {
   totals: { users: number; avatars: number; stories: number };
@@ -28,6 +29,7 @@ const AdminDashboard: React.FC = () => {
 
   const [authorized, setAuthorized] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [isPromoting, setIsPromoting] = useState(false);
 
   // Stats
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -146,6 +148,20 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handlePromote = async () => {
+    setIsPromoting(true);
+    try {
+      const resp = await backend.admin.promoteToAdmin();
+      alert(resp.message);
+      window.location.reload();
+    } catch (e: any) {
+      console.error("Failed to promote to admin", e);
+      alert(`Promotion failed: ${e.message}`);
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
   const header = useMemo(() => {
     return (
       <div style={{
@@ -212,11 +228,18 @@ const AdminDashboard: React.FC = () => {
           <Card variant="glass" style={{ maxWidth: 640, margin: "0 auto", padding: spacing.xl, textAlign: "center" }}>
             <Shield size={32} style={{ color: colors.error, marginBottom: spacing.md }} />
             <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: spacing.sm }}>
-              Kein Zugriff
+              Kein Admin-Zugriff
             </div>
-            <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
-              Dein Konto verfügt nicht über Admin-Rechte.
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: spacing.lg }}>
+              Dein Konto verfügt nicht über Admin-Rechte. Wenn noch kein Admin existiert, kannst du dich hier zum ersten Admin machen.
             </div>
+            <Button
+              title={isPromoting ? "Wird ausgeführt..." : "Erster Admin werden"}
+              onPress={handlePromote}
+              loading={isPromoting}
+              icon={<UserPlus size={16} />}
+              variant="fun"
+            />
           </Card>
         ) : (
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
