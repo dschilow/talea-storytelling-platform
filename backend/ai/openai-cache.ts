@@ -19,12 +19,11 @@ export async function callOpenAIWithCache(promptId: string, payload: OpenAIReque
 
   if (cached?.cache_key) {
     console.log(`✅ Using cached prompt with key: ${cached.cache_key}`);
-    finalPayload.cache_key = cached.cache_key;
-    // When using a cache_key, we only need to send the last user message if the prefix is cached.
-    // For simplicity and robustness, we send all messages and let OpenAI handle the diff.
+    finalPayload.cache_control = { cache_key: cached.cache_key };
   } else {
     console.log(`🔍 No cache key found for prompt ID: ${promptId}. Creating one.`);
-    finalPayload.cache = true;
+    // Use cache_control to enable caching, not 'cache'.
+    finalPayload.cache_control = { ttl: 86400 }; // 24-hour TTL
   }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -45,13 +44,15 @@ export async function callOpenAIWithCache(promptId: string, payload: OpenAIReque
   const data = await res.json();
 
   // If we created a new cache entry, store the key for future use.
-  if (!cached?.cache_key && data.system_fingerprint) {
-    console.log(`🔑 New cache key generated: ${data.system_fingerprint}. Storing for prompt ID: ${promptId}`);
+  // The key is in `cache_control.cache_key`, not `system_fingerprint`.
+  if (!cached?.cache_key && data.cache_control?.cache_key) {
+    const newCacheKey = data.cache_control.cache_key;
+    console.log(`🔑 New cache key generated: ${newCacheKey}. Storing for prompt ID: ${promptId}`);
     await aiDB.exec`
       INSERT INTO openai_prompt_cache (id, cache_key, created_at)
-      VALUES (${promptId}, ${data.system_fingerprint}, ${new Date()})
+      VALUES (${promptId}, ${newCacheKey}, ${new Date()})
       ON CONFLICT (id) DO UPDATE SET
-        cache_key = ${data.system_fingerprint},
+        cache_key = ${newCacheKey},
         created_at = ${new Date()}
     `;
   }
