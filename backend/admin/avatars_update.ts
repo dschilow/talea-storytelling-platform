@@ -13,7 +13,7 @@ interface AdminUpdateAvatarRequest {
   personalityTraits?: PersonalityTraits;
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
-  isShared?: boolean;
+  isPublic?: boolean;
   originalAvatarId?: string | null;
 }
 
@@ -31,7 +31,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
     const now = new Date();
 
     const physicalTraits = req.physicalTraits ? JSON.stringify(req.physicalTraits) : existing.physical_traits;
-    const personalityTraits = req.personalityTraits ? JSON.stringify(req.personality_traits ?? req.personalityTraits) : existing.personality_traits;
+    const personalityTraits = req.personalityTraits ? JSON.stringify(req.personalityTraits ?? req.personalityTraits) : existing.personality_traits;
     const visualProfile = req.visualProfile ? JSON.stringify(req.visualProfile) : existing.visual_profile;
 
     await avatarDB.exec`
@@ -42,7 +42,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
         personality_traits = ${personalityTraits},
         image_url = ${req.imageUrl ?? existing.image_url},
         visual_profile = ${visualProfile ?? null},
-        is_shared = ${typeof req.isShared === "boolean" ? req.isShared : existing.is_shared},
+        is_public = ${typeof req.isPublic === "boolean" ? req.isPublic : existing.is_public},
         original_avatar_id = ${req.originalAvatarId === undefined ? existing.original_avatar_id : req.originalAvatarId},
         updated_at = ${now}
       WHERE id = ${req.id}
@@ -59,7 +59,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
       imageUrl: updated.image_url || undefined,
       visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
       creationType: updated.creation_type,
-      isShared: updated.is_shared,
+      isPublic: updated.is_public,
       originalAvatarId: updated.original_avatar_id || undefined,
       createdAt: updated.created_at,
       updatedAt: updated.updated_at,

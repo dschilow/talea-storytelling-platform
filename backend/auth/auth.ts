@@ -28,24 +28,10 @@ export interface AuthData {
   role: "admin" | "user";
 }
 
-// 🔧 FIXED: Erweiterte authorized parties für alle Leap.new Umgebungen
+// Configure the authorized parties.
+// TODO: Configure this for your own domain when deploying to production.
 const AUTHORIZED_PARTIES = [
-  // Development
-  "http://localhost:3000",
-  "http://localhost:5173", // Vite Dev Server
-  "http://localhost:4000", // Encore Dev Server
-  
-  // Leap.new Patterns - Alle möglichen Varianten
   "https://*.lp.dev",
-  "https://talea-storytelling-platform-*.lp.dev",
-  "https://talea-storytelling-platform-4ot2.lp.dev", // Aus encore.app
-  
-  // 🎯 SPECIFIC FIX: Die exakte Domain aus dem Fehler
-  "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
-  
-  // Production (wenn du später deployed)
-  // "https://your-domain.com",
-  // "https://api.your-domain.com",
 ];
 
 const auth = authHandler<AuthParams, AuthData>(
@@ -56,22 +42,12 @@ const auth = authHandler<AuthParams, AuthData>(
     }
 
     try {
-      console.log("🔐 Starting token verification...");
-      console.log("🎯 Authorized parties:", AUTHORIZED_PARTIES);
-
       const verifiedToken = await verifyToken(token, {
         authorizedParties: AUTHORIZED_PARTIES,
         secretKey: clerkSecretKey(),
-        // 🔧 FIXED: Erhöhte Clock Skew Tolerance
-        clockSkewInSeconds: 120, // 2 Minuten statt 60 Sekunden
-      });
-
-      console.log("✅ Token verified successfully!");
-      console.log("📋 Token info:", {
-        sub: verifiedToken.sub,
-        azp: verifiedToken.azp,
-        iss: verifiedToken.iss,
-        exp: new Date(verifiedToken.exp * 1000).toISOString()
+        // Add a 60-second clock skew tolerance to handle potential time sync issues
+        // between the local environment and Clerk's servers.
+        clockSkewInSeconds: 60,
       });
 
       const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
@@ -83,7 +59,6 @@ const auth = authHandler<AuthParams, AuthData>(
       `;
 
       if (!user) {
-        console.log("👤 Creating new user in database:", clerkUser.id);
         const now = new Date();
         const name = clerkUser.firstName || clerkUser.username || email?.split("@")[0] || "New User";
         const role: "admin" | "user" = "user"; // New users are always 'user' role.
@@ -96,49 +71,23 @@ const auth = authHandler<AuthParams, AuthData>(
         user = { id: clerkUser.id, role };
       }
 
-      console.log("🎉 Authentication successful for user:", user.id);
-
       return {
         userID: clerkUser.id,
         email,
         imageUrl: clerkUser.imageUrl,
         role: user.role,
       };
-
     } catch (err: any) {
-      // Enhanced error logging for debugging
-      console.error("❌ Authentication failed:", err.message);
-      console.error("🔍 Error reason:", err.reason || "unknown");
-      
+      // Log the actual error for debugging, but return a generic message.
+      console.error("Authentication failed:", err.message);
       if (err.longMessage) {
-        console.error("📝 Details:", err.longMessage);
+        console.error("Details:", err.longMessage);
       }
       if (err.code) {
-        console.error("🏷️ Error Code:", err.code);
+        console.error("Error Code:", err.code);
       }
-      
-      // Log the token info for debugging (but not the full token for security)
-      if (token) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.error("🎫 Token azp claim:", payload.azp);
-            console.error("🎫 Token iss claim:", payload.iss);
-            console.error("🎫 Token aud claim:", payload.aud);
-          }
-        } catch {
-          console.error("🎫 Could not decode token for debugging");
-        }
-      }
-      
-      // Full error object for maximum debuggability
-      console.error("📊 Full auth error object:", {
-        reason: err.reason,
-        message: err.message,
-        code: err.code,
-        longMessage: err.longMessage
-      });
+      // Also log the full error object for maximum debuggability
+      console.error("Full auth error object:", JSON.stringify(err, null, 2));
       
       // The error thrown to the client should remain generic for security.
       throw APIError.unauthenticated("invalid token");

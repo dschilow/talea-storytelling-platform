@@ -48,7 +48,7 @@ export const listAvatarsAdmin = api<ListAvatarsParams, ListAvatarsResponse>(
       imageUrl: row.image_url || undefined,
       visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
       creationType: row.creation_type,
-      isShared: row.is_shared,
+      isPublic: row.is_public,
       originalAvatarId: row.original_avatar_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
