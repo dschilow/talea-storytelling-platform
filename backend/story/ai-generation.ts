@@ -4,10 +4,10 @@ import type { StoryConfig, Chapter } from "./generate";
 import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 
-// ---- OpenAI Modell & Pricing (GPT-5-nano) ----
-const MODEL = "gpt-5-nano";
-const INPUT_COST_PER_1M = 0.05;
-const OUTPUT_COST_PER_1M = 0.40;
+// ---- OpenAI Modell & Pricing (GPT-4o) ----
+const MODEL = "gpt-4o";
+const INPUT_COST_PER_1M = 5.0;
+const OUTPUT_COST_PER_1M = 15.0;
 
 const openAIKey = secret("OpenAIKey");
 

@@ -136,6 +136,7 @@ const AIGeneratedTab: React.FC = () => {
   const generateAvatarImage = async () => {
     try {
       setGeneratingImage(true);
+      setVisualProfile(null);
       console.log('🎨 Starting avatar image generation...');
       console.log('📋 Physical traits:', physicalTraits);
       console.log('🧠 Personality traits:', personalityTraits);
@@ -153,6 +154,7 @@ const AIGeneratedTab: React.FC = () => {
       setDebugInfo(result.debugInfo);
 
       // Immediately analyze the generated image to obtain a canonical visual profile
+      console.log("🔬 Analyzing generated image to create visual profile...");
       try {
         const analysis = await backend.ai.analyzeAvatarImage({
           imageUrl: result.imageUrl,
@@ -163,7 +165,7 @@ const AIGeneratedTab: React.FC = () => {
           }
         });
         setVisualProfile(analysis.visualProfile);
-        console.log('🔍 Visual profile extracted:', analysis.visualProfile);
+        console.log('✅ Visual profile extracted:', analysis.visualProfile);
       } catch (analysisErr) {
         console.error('❌ Error analyzing avatar image:', analysisErr);
         setVisualProfile(null);
@@ -619,20 +621,15 @@ const AIGeneratedTab: React.FC = () => {
 
             {/* Visual profile debug/preview */}
             {visualProfile && (
-              <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(255, 255, 255, 0.12)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px`, marginBottom: spacing.lg }}>
-                <div style={{ ...typography.textStyles.label, color: colors.textInverse, marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                  🎯 Kanonische Erscheinung (Kurz)
-                </div>
-                <div style={{ ...typography.textStyles.body, color: colors.textInverse, fontSize: '14px' }}>
-                  Haut: {visualProfile.skin?.tone}{visualProfile.skin?.undertone ? ` (${visualProfile.skin.undertone})` : ''}
-                  {visualProfile.skin?.distinctiveFeatures?.length ? ` — Merkmale: ${visualProfile.skin.distinctiveFeatures.join(', ')}` : ''}
-                  <br />
-                  Haare: {visualProfile.hair?.color} {visualProfile.hair?.type}, {visualProfile.hair?.length}, {visualProfile.hair?.style}
-                  <br />
-                  Augen: {visualProfile.eyes?.color}{visualProfile.eyes?.shape ? ` (${visualProfile.eyes.shape})` : ''}{visualProfile.eyes?.size ? `, ${visualProfile.eyes.size}` : ''}
-                  <br />
-                  Accessoires: {visualProfile.accessories?.length ? visualProfile.accessories.join(', ') : 'keine'}
-                </div>
+              <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(0, 0, 0, 0.15)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px`, marginBottom: spacing.lg }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', ...typography.textStyles.label, color: colors.textInverse, fontSize: '16px' }}>
+                    🎯 Kanonische Erscheinung (Debug)
+                  </summary>
+                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'white', fontSize: '12px', marginTop: spacing.md, maxHeight: '200px', overflowY: 'auto' }}>
+                    {JSON.stringify(visualProfile, null, 2)}
+                  </pre>
+                </details>
               </div>
             )}
 
@@ -656,22 +653,16 @@ const AIGeneratedTab: React.FC = () => {
             {/* Debug Info */}
             {debugInfo && (
               <div style={debugStyle}>
-                <div style={{ fontWeight: 'bold', marginBottom: `${spacing.sm}px` }}>🔍 Debug Information</div>
-                <div>✅ Erfolgreich: {debugInfo.success ? 'Ja' : 'Nein'}</div>
-                <div>⏱️ Verarbeitungszeit: {debugInfo.processingTime}ms</div>
-                <div>📄 Status: {debugInfo.responseStatus ?? 'n/a'}</div>
-                {debugInfo.contentType && <div>🧾 Content-Type: {debugInfo.contentType}</div>}
-                {debugInfo.extractedFromPath && <div>🗂️ Pfad: {debugInfo.extractedFromPath}</div>}
-                {debugInfo.errorMessage && <div>❌ Fehler: {debugInfo.errorMessage}</div>}
-                <div>📏 Bild-URL Länge: {generatedImageUrl?.length || 0}</div>
-                <div style={{ marginTop: spacing.sm }}>
-                  <details>
-                    <summary style={{ cursor: 'pointer', color: colors.textInverse }}>Roh-Antwort ansehen</summary>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>
-{JSON.stringify(debugInfo.responseReceived ?? {}, null, 2)}
-                    </pre>
-                  </details>
-                </div>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: `${spacing.sm}px` }}>🔍 Bild-Generierung (Debug)</summary>
+                  <div>✅ Erfolgreich: {debugInfo.success ? 'Ja' : 'Nein'}</div>
+                  <div>⏱️ Verarbeitungszeit: {debugInfo.processingTime}ms</div>
+                  <div>📄 Status: {debugInfo.responseStatus ?? 'n/a'}</div>
+                  {debugInfo.contentType && <div>🧾 Content-Type: {debugInfo.contentType}</div>}
+                  {debugInfo.extractedFromPath && <div>🗂️ Pfad: {debugInfo.extractedFromPath}</div>}
+                  {debugInfo.errorMessage && <div>❌ Fehler: {debugInfo.errorMessage}</div>}
+                  <div>📏 Bild-URL Länge: {generatedImageUrl?.length || 0}</div>
+                </details>
               </div>
             )}
           </div>

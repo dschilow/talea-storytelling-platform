@@ -29,6 +29,7 @@ export interface AnalyzeAvatarImageResponse {
 export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/analyze-avatar-image" },
   async (req) => {
+    console.log("🔬 Analyzing avatar image...");
     const system = `You are an expert visual character profiler for children's books.
 You receive one portrait-like image of a child character (avatar). 
 Extract a precise, canonical visual profile to keep this character's look consistent across future illustrations.
@@ -125,18 +126,25 @@ ${req.hints.personalityTraits ? `- Personality: ${JSON.stringify(req.hints.perso
 
     if (!res.ok) {
       const errorText = await res.text();
+      console.error("❌ OpenAI analyze error:", errorText);
       throw new Error(`OpenAI analyze error: ${res.status} - ${errorText}`);
     }
 
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error("Empty analyze response");
+    if (!content) {
+      console.error("❌ Empty analyze response from OpenAI");
+      throw new Error("Empty analyze response");
+    }
 
     let parsed: AvatarVisualProfile;
     try {
       const clean = content.replace(/```json\s*|\s*```/g, "").trim();
       parsed = JSON.parse(clean) as AvatarVisualProfile;
+      console.log("✅ Successfully parsed visual profile.");
     } catch (e: any) {
+      console.error("❌ Analyze JSON parse error:", e.message);
+      console.error("Raw content from OpenAI:", content);
       throw new Error(`Analyze JSON parse error: ${e?.message || String(e)}`);
     }
 
