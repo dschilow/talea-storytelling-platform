@@ -4,7 +4,6 @@ import type { StoryConfig, Chapter } from "./generate";
 import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
-import { callOpenAIWithCache } from "../ai/openai-cache";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
 const MODEL = "gpt-5-nano";
@@ -389,7 +388,7 @@ async function generateEnhancedStoryWithOpenAI(
     const vp = avatar.visualProfile;
 
     const canon = vp ? [
-      `- Kanonische Erscheinung:`,
+      `- Kanonische Erscheinung (aus Bildanalyse):`,
       `  - Haut: ${vp.skin?.tone}${vp.skin?.undertone ? ` (${vp.skin.undertone})` : ""}${vp.skin?.distinctiveFeatures && vp.skin.distinctiveFeatures.length ? `; Merkmale: ${vp.skin.distinctiveFeatures.join(", ")}` : ""}`,
       `  - Haare: ${vp.hair?.color} ${vp.hair?.type}, ${vp.hair?.length}, Stil: ${vp.hair?.style}`,
       `  - Augen: ${vp.eyes?.color}${vp.eyes?.shape ? `, Form: ${vp.eyes.shape}` : ""}${vp.eyes?.size ? `, Größe: ${vp.eyes.size}` : ""}`,
@@ -544,9 +543,21 @@ Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
     verbosity: "high"
   };
 
-  const promptId = `story-generation-prompt-v3`;
-  const data = await callOpenAIWithCache(promptId, payload);
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify(payload),
+  });
 
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
   const content = data.choices[0].message.content;
 
   if (!content) {
