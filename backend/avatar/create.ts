@@ -30,7 +30,7 @@ export interface AvatarVisualProfile {
   gender: string;
   skin: {
     tone: string;
-    undertone?: string;
+    undertone?: string | null;
     distinctiveFeatures?: string[];
   };
   hair: {
@@ -41,22 +41,22 @@ export interface AvatarVisualProfile {
   };
   eyes: {
     color: string;
-    shape?: string;
-    size?: string;
+    shape?: string | null;
+    size?: string | null;
   };
   face: {
-    shape?: string;
-    nose?: string;
-    mouth?: string;
-    eyebrows?: string;
+    shape?: string | null;
+    nose?: string | null;
+    mouth?: string | null;
+    eyebrows?: string | null;
     freckles?: boolean;
     otherFeatures?: string[];
   };
   accessories: string[];
   clothingCanonical?: {
-    top?: string;
-    bottom?: string;
-    outfit?: string;
+    top?: string | null;
+    bottom?: string | null;
+    outfit?: string | null;
     colors?: string[];
     patterns?: string[];
   };
