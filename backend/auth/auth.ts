@@ -45,6 +45,9 @@ const auth = authHandler<AuthParams, AuthData>(
       const verifiedToken = await verifyToken(token, {
         authorizedParties: AUTHORIZED_PARTIES,
         secretKey: clerkSecretKey(),
+        // Add a 60-second clock skew tolerance to handle potential time sync issues
+        // between the local environment and Clerk's servers.
+        clockSkewInSeconds: 60,
       });
 
       const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
