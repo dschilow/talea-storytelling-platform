@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Sparkles, BookOpen, Globe } from 'lucide-react';
+import { Home, User, Sparkles, BookOpen, Globe, Code } from 'lucide-react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
@@ -14,6 +14,7 @@ const Navigation: React.FC = () => {
     { path: '/avatar', label: 'Avatare', icon: User },
     { path: '/story', label: 'Generieren', icon: Sparkles },
     { path: '/stories', label: 'Stories', icon: BookOpen },
+    { path: '/logs', label: 'Logs', icon: Code },
     { path: '/community', label: 'Community', icon: Globe },
   ];
 
@@ -47,8 +48,8 @@ const Navigation: React.FC = () => {
     position: 'absolute',
     top: spacing.sm,
     bottom: spacing.sm,
-    left: spacing.sm + activeIdx * (72 + spacing.sm),
-    width: 72,
+    left: spacing.sm + activeIdx * (62 + spacing.sm),
+    width: 62,
     borderRadius: `${radii.pill}px`,
     background: colors.glass.indicator,
     transition: 'left 300ms cubic-bezier(0.2, 0, 0, 1)',
@@ -61,7 +62,7 @@ const Navigation: React.FC = () => {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    width: 72,
+    width: 62,
     padding: `${spacing.sm}px ${spacing.md}px`,
     borderRadius: `${radii.pill}px`,
     background: 'transparent',

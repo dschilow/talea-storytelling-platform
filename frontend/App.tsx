@@ -8,6 +8,7 @@ import AvatarCreationScreen from './screens/Avatar/AvatarCreationScreen';
 import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
 import StoryWizardScreen from './screens/Story/StoryWizardScreen';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
+import LogViewerScreen from './screens/Logs/LogViewerScreen';
 import Navigation from './components/navigation/Navigation';
 import { colors } from './utils/constants/colors';
 
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/story-reader/:storyId" element={<StoryReaderScreen />} />
             <Route path="/stories" element={<HomeScreen />} />
             <Route path="/community" element={<HomeScreen />} />
+            <Route path="/logs" element={<LogViewerScreen />} />
           </Routes>
           <Navigation />
         </div>

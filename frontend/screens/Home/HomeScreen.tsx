@@ -362,7 +362,7 @@ const HomeScreen: React.FC = () => {
               <Heart style={{ position: 'absolute', top: 24, right: 40, opacity: 0.15 }} size={18} />
               <Sparkles style={{ position: 'absolute', bottom: 14, left: 60, opacity: 0.15 }} size={26} />
             </div>
-            <div style={greetingStyle}>Willkommenn bei Talea! 🌟</div>
+            <div style={greetingStyle}>Willkommen bei Talea! 🌟</div>
             <div style={subtitleStyle}>
               Erschaffe magische Geschichten mit deinen Avataren
             </div>
