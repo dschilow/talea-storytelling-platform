@@ -21,64 +21,73 @@ interface ListLogsResponse {
   totalCount: number;
 }
 
+const ALL_SOURCES = ['openai-story-generation', 'runware-single-image', 'runware-batch-image', 'openai-avatar-analysis'];
+
 // Lists log entries from the bucket.
 export const list = api<ListLogsRequest, ListLogsResponse>(
   { expose: true, method: "GET", path: "/logs" },
   async (req) => {
-    const logs: LogEntry[] = [];
-    const limit = req.limit || 100;
+    const limit = req.limit || 50;
     const sourceFilter = req.source;
     const dateFilter = req.date;
 
     try {
-      const prefixes: string[] = [];
-      if (sourceFilter) {
-        let prefix = `${sourceFilter}/`;
-        if (dateFilter) {
-          prefix += `${dateFilter}/`;
-        }
-        prefixes.push(prefix);
-      } else if (dateFilter) {
-        const allSources = ['openai-story-generation', 'runware-single-image', 'runware-batch-image', 'openai-avatar-analysis'];
-        for (const source of allSources) {
-          prefixes.push(`${source}/${dateFilter}/`);
-        }
-      }
+      const logNames: string[] = [];
 
-      const logEntries: { name: string }[] = [];
-      if (prefixes.length > 0) {
-        for (const prefix of prefixes) {
+      if (dateFilter) {
+        // Efficiently list for a specific date
+        const sources = sourceFilter ? [sourceFilter] : ALL_SOURCES;
+        for (const source of sources) {
+          const prefix = `${source}/${dateFilter}/`;
           for await (const entry of logBucket.list({ prefix })) {
-            logEntries.push(entry);
+            logNames.push(entry.name);
           }
         }
       } else {
-        // No filters, list everything (this will be slow)
-        for await (const entry of logBucket.list({})) {
-          logEntries.push(entry);
+        // No date filter, scan recent days to find latest logs.
+        // This is a workaround for object stores not supporting reverse listing.
+        const sources = sourceFilter ? [sourceFilter] : ALL_SOURCES;
+        const datesToScan: string[] = [];
+        for (let i = 0; i < 7; i++) { // Scan last 7 days
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            datesToScan.push(d.toISOString().split('T')[0]);
+        }
+
+        for (const date of datesToScan) {
+            for (const source of sources) {
+                const prefix = `${source}/${date}/`;
+                for await (const entry of logBucket.list({ prefix })) {
+                    logNames.push(entry.name);
+                }
+            }
+            // Optimization: if we have enough logs after scanning a day, we can stop.
+            if (logNames.length >= limit) break;
         }
       }
 
-      // Sort by name descending to get newest first, as name contains timestamp
-      logEntries.sort((a, b) => b.name.localeCompare(a.name));
+      // Sort by name descending to get newest first, as name contains sortable timestamp.
+      logNames.sort((a, b) => b.localeCompare(a));
 
-      // Download only the limited number of logs
-      for (const entry of logEntries.slice(0, limit)) {
+      const logsToDownload = logNames.slice(0, limit);
+      const logs: LogEntry[] = [];
+
+      // Use Promise.all for concurrent downloads
+      await Promise.all(logsToDownload.map(async (name) => {
         try {
-          const logData = await logBucket.download(entry.name);
-          const logEntry = JSON.parse(logData.toString('utf-8')) as LogEntry;
-          logs.push(logEntry);
+          const logData = await logBucket.download(name);
+          logs.push(JSON.parse(logData.toString('utf-8')) as LogEntry);
         } catch (err) {
-          console.warn(`Failed to parse log entry ${entry.name}:`, err);
+          console.warn(`Failed to parse log entry ${name}:`, err);
         }
-      }
+      }));
 
       // Final sort by actual timestamp, as filename sort is an approximation
       logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       return {
         logs,
-        totalCount: logEntries.length,
+        totalCount: logNames.length,
       };
     } catch (error) {
       console.error("Error listing logs:", error);

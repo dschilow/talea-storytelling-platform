@@ -1,4 +1,4 @@
-import { Topic, Subscription } from "encore.dev/pubsub";
+import { Topic, Subscription, Context } from "encore.dev/pubsub";
 import { Bucket } from "encore.dev/storage/objects";
 
 // LogEvent defines the structure for log messages.
@@ -22,9 +22,10 @@ export const logTopic = new Topic<LogEvent>("log-events", {});
 // This subscription listens for log events and saves them to the bucket.
 // This happens asynchronously, so it doesn't slow down the main request flow.
 export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", {
-  handler: async (event, context) => {
+  handler: async (event: LogEvent, context: Context) => {
     console.log(`📝 Received log event from source: ${event.source}`);
-    const id = context.message.id || crypto.randomUUID();
+    // FIX: Use optional chaining to prevent crash if context or message is undefined.
+    const id = context?.message?.id || crypto.randomUUID();
     
     // Create a safe filename by replacing colons.
     const safeTimestamp = event.timestamp.toISOString().replace(/:/g, '-');

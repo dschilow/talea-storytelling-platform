@@ -61,6 +61,8 @@ export interface Story {
   updatedAt: Date;
 }
 
+export type StorySummary = Omit<Story, 'chapters'>;
+
 interface GenerateStoryRequest {
   userId: string;
   config: StoryConfig;
