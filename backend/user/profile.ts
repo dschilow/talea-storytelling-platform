@@ -76,36 +76,32 @@ export const get = api<GetUserParams, UserProfile>(
   }
 );
 
-// Returns the authenticated user's profile, creating it if missing (based on Clerk auth).
+// Returns the authenticated user's profile.
+// The auth handler ensures the user exists in the database.
 export const me = api<void, UserProfile>(
   { expose: true, method: "GET", path: "/user/me", auth: true },
   async () => {
     const auth = getAuthData()!;
-    // Attempt to fetch user by auth.userID (we store Clerk userId as our id if present).
-    let user = await userDB.queryRow<UserProfile & { createdAt: Date; updatedAt: Date }>`
-      SELECT id, email, name, subscription, role, created_at as "createdAt", updated_at as "updatedAt"
+    
+    const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date }>`
+      SELECT id, email, name, subscription, role, created_at, updated_at
       FROM users WHERE id = ${auth.userID}
     `;
 
     if (!user) {
-      const now = new Date();
-      // Derive a name from email if not provided by Clerk.
-      const name = (auth.email?.split("@")[0] || "User");
-      await userDB.exec`
-        INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-        VALUES (${auth.userID}, ${auth.email || ""}, ${name}, 'starter', ${auth.role || "user"}, ${now}, ${now})
-      `;
-      user = {
-        id: auth.userID,
-        email: auth.email || "",
-        name,
-        subscription: "starter",
-        role: (auth.role || "user") as "admin" | "user",
-        createdAt: now,
-        updatedAt: now,
-      };
+      // This should not happen anymore since the auth handler creates the user,
+      // but it's a good safeguard.
+      throw APIError.internal("Authenticated user not found in database.");
     }
 
-    return user;
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      subscription: user.subscription,
+      role: user.role,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+    };
   }
 );

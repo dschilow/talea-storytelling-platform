@@ -47,25 +47,37 @@ const auth = authHandler<AuthParams, AuthData>(
         secretKey: clerkSecretKey(),
       });
 
-      // Fetch user details from Clerk
-      const user = await clerkClient.users.getUser(verifiedToken.sub);
-      const email = user.emailAddresses?.[0]?.emailAddress ?? null;
-      const imageUrl = user.imageUrl ?? null;
+      const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
+      const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
 
-      // Resolve role from database, default to 'user' if not found.
-      const existing = await userDB.queryRow<{ role: "admin" | "user" }>`
-        SELECT role FROM users WHERE id = ${user.id}
+      // Check if user exists in our DB, create if not (upsert-like logic).
+      let user = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
+        SELECT id, role FROM users WHERE id = ${clerkUser.id}
       `;
-      const role = existing?.role ?? "user";
+
+      if (!user) {
+        const now = new Date();
+        const name = clerkUser.firstName || clerkUser.username || email?.split("@")[0] || "New User";
+        const role: "admin" | "user" = "user"; // New users are always 'user' role.
+        
+        await userDB.exec`
+          INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
+          VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
+          ON CONFLICT (id) DO NOTHING
+        `;
+        user = { id: clerkUser.id, role };
+      }
 
       return {
-        userID: user.id,
+        userID: clerkUser.id,
         email,
-        imageUrl,
-        role,
+        imageUrl: clerkUser.imageUrl,
+        role: user.role,
       };
-    } catch (err) {
-      throw APIError.unauthenticated("invalid token", err);
+    } catch (err: any) {
+      // Log the actual error for debugging, but return a generic message.
+      console.error("Auth error:", err.message);
+      throw APIError.unauthenticated("invalid token");
     }
   }
 );
