@@ -6,7 +6,7 @@ import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 
 // ---- OpenAI Modell & Pricing ----
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4o";
 const INPUT_COST_PER_1M = 5.00;
 const OUTPUT_COST_PER_1M = 15.00;
 
@@ -254,7 +254,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
   async (req) => {
     const startTime = Date.now();
     const metadata: GenerateStoryContentResponse["metadata"] = {
-      tokensUsed: { prompt: 0, completion: 0, reasoning: 0, total: 0 },
+      tokensUsed: { prompt: 0, completion: 0, total: 0 },
       model: MODEL,
       processingTime: 0,
       imagesGenerated: 0,
@@ -267,9 +267,9 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       const storyResult = await generateEnhancedStoryWithOpenAI(req.config, req.avatarDetails);
       console.log("✅ Geschichte generiert:", storyResult.title);
 
-      metadata.tokensUsed = storyResult.tokensUsed ?? { prompt: 0, completion: 0, reasoning: 0, total: 0 };
+      metadata.tokensUsed = storyResult.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
       
-      const outputTokens = metadata.tokensUsed.completion + (metadata.tokensUsed.reasoning ?? 0);
+      const outputTokens = metadata.tokensUsed.completion;
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
@@ -411,7 +411,7 @@ Deine Aufgabe ist es, eine fesselnde, altersgerechte Geschichte zu erschaffen, d
 Halte dich strikt an die folgenden Regeln:
 1.  **Spannungsbogen (HOOK):** Jedes Kapitel MUSS mit einem Cliffhanger, einer offenen Frage oder einer überraschenden Wendung enden, die neugierig auf das nächste Kapitel macht. Vermeide abgeschlossene, moralisierende Kapitelenden.
 2.  **Show, Don't Tell:** Zeige Charakterentwicklung und Emotionen durch Handlungen, Dialoge und innere Gedanken, anstatt sie nur zu benennen. (FALSCH: "Sie lernte, mutig zu sein." RICHTIG: "Obwohl ihr Herz hämmerte, machte sie einen Schritt nach vorn.")
-3.  **Avatar-Konsistenz:** Halte dich exakt an die visuellen Beschreibungen der Avatare (Haare, Augen, Haut, Accessoires, Größe, besondere Merkmale), die im User-Prompt unter "AVATARE" bereitgestellt werden. Diese Merkmale dürfen sich nicht ändern und müssen in den Bildbeschreibungen berücksichtigt werden.
+3.  **Avatar-Konsistenz:** Halte dich exakt an die visuellen und charakterlichen Beschreibungen der Avatare, die unter "AVATARE" bereitgestellt werden. Dies ist die absolute Wahrheit für die Charaktere. Merkmale wie Größe, Statur, Farbe, besondere Kennzeichen (z.B. Zahnlücke) müssen in allen Kapiteln und Bildbeschreibungen konsistent sein.
 4.  **Strukturierte Ausgabe:** Antworte ausschließlich mit einem gültigen JSON-Objekt, das dem im User-Prompt gezeigten Schema entspricht. Kein einleitender oder abschließender Text.`;
 
   const userPrompt = `Erstelle eine ${config.genre}-Geschichte in ${config.setting} für Kinder im Alter ${config.ageGroup}.
@@ -423,7 +423,7 @@ GESCHICHTE-PARAMETER:
 - Komplexität: ${config.complexity}
 - Zielgruppe: ${config.ageGroup} Jahre
 
-AVATARE (alle bisherigen Erfahrungen berücksichtigen, Erscheinung KONSTANT halten!):
+AVATARE (Diese Beschreibungen sind der "Kanon". Halte dich für Text und Bildbeschreibungen exakt daran!):
 ${avatarDescriptions}
 
 ${config?.learningMode?.enabled ? `
@@ -548,18 +548,32 @@ Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
   }
 
   const data = await response.json();
-  const content = data.choices[0].message.content;
-
-  if (!content) {
-    throw new Error("Leere Antwort von OpenAI erhalten");
-  }
-
+  
   await logTopic.publish({
     source: 'openai-story-generation',
     timestamp: new Date(),
     request: payload,
     response: data,
   });
+
+  const choice = data.choices?.[0];
+
+  if (!choice) {
+    console.error("OpenAI-Antwort enthält keine 'choices'. Vollständige Antwort:", JSON.stringify(data));
+    throw new Error("Ungültige Antwort von OpenAI (keine 'choices')");
+  }
+
+  if (choice.finish_reason === 'content_filter') {
+    console.error("Anfrage vom OpenAI Inhaltsfilter blockiert. Details:", JSON.stringify(choice));
+    throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
+  }
+  
+  const content = choice.message?.content;
+
+  if (!content) {
+    console.error("Leere Inhaltsantwort von OpenAI. Finish Reason:", choice.finish_reason, "Full choice:", JSON.stringify(choice));
+    throw new Error(`Leere Antwort von OpenAI erhalten (Finish Reason: ${choice.finish_reason})`);
+  }
 
   let parsed;
   try {
@@ -576,7 +590,6 @@ Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
     tokensUsed: {
       prompt: data.usage?.prompt_tokens ?? 0,
       completion: data.usage?.completion_tokens ?? 0,
-      reasoning: data.usage?.reasoning_tokens ?? 0,
       total: data.usage?.total_tokens ?? 0,
     }
   };
