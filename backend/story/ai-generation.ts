@@ -1,7 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import { generateImage } from "../ai/image-generation";
 import type { StoryConfig, Chapter } from "./generate";
+import { ai } from "~encore/clients";
 
 // ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
 const MODEL = "gpt-4o-mini";
@@ -93,50 +93,59 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       // Gemeinsamer Seed für die Geschichte (konsistente Charaktere)
       const seedBase = deterministicSeedFrom(req.avatarDetails.map(a => a.id).join("|"));
 
-      // Cover
+      // Prompts & Dimensionen vorbereiten (Cover + Kapitel)
       const coverDimensions = normalizeRunwareDimensions(600, 800);
       const coverPrompt =
         `Children's book cover illustration for "${storyContent.title}". ` +
         `Keep character identity consistent with the provided reference images (same faces, hair, and outfits). ` +
         `${req.config.genre} adventure, ${req.config.setting} setting, ` +
         `Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality, safe for children.`;
-      const coverImage = await generateImage({
-        prompt: coverPrompt,
-        width: coverDimensions.width,
-        height: coverDimensions.height,
-        steps: 25,
-        seed: seedBase,
-        referenceImages,
-      });
-      metadata.imagesGenerated++;
 
-      // Kapitelbilder
       const chapterDimensions = normalizeRunwareDimensions(400, 300);
-      const chaptersWithImages = await Promise.all(
-        storyContent.chapters.map(async (chapter, index) => {
-          const chapterPrompt =
-            `Children's book illustration for the scene "${chapter.title}". ` +
-            `The main characters must look identical to the reference images (same child identity, hairstyle, hair color, skin tone, eye color, clothing style). ` +
-            `${req.config.genre} story scene, ${req.config.setting} background, ` +
-            `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children, high quality.`;
-          const chapterImage = await generateImage({
-            prompt: chapterPrompt,
-            width: chapterDimensions.width,
-            height: chapterDimensions.height,
-            steps: 20,
-            seed: (seedBase + index * 101) >>> 0,
-            referenceImages,
-          });
-          metadata.imagesGenerated++;
-          return { ...chapter, imageUrl: chapterImage.imageUrl };
-        })
-      );
+      const chapterInputs = storyContent.chapters.map((chapter, index) => ({
+        prompt:
+          `Children's book illustration for the scene "${chapter.title}". ` +
+          `The main characters must look identical to the reference images (same child identity, hairstyle, hair color, skin tone, eye color, clothing style). ` +
+          `${req.config.genre} story scene, ${req.config.setting} background, ` +
+          `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children, high quality.`,
+        width: chapterDimensions.width,
+        height: chapterDimensions.height,
+        steps: 20,
+        seed: (seedBase + index * 101) >>> 0,
+        referenceImages,
+      }));
 
-      // (Platzhalter) Bildkosten
-      const imageCostPer1 = 0.0006;
+      // Batch Request: Cover + Kapitel gemeinsam in EINEM Call generieren
+      const batchReq = {
+        images: [
+          {
+            prompt: coverPrompt,
+            width: coverDimensions.width,
+            height: coverDimensions.height,
+            steps: 25,
+            seed: seedBase,
+            referenceImages,
+          },
+          ...chapterInputs,
+        ],
+      };
+
+      const batchResp = await ai.generateImagesBatch(batchReq);
+      const allImages = batchResp.images;
+      if (!allImages || allImages.length !== batchReq.images.length) {
+        console.warn("⚠️ Batch response size mismatch, falling back to available results");
+      }
+
+      const coverImageUrl = allImages[0]?.imageUrl ?? "";
+      const chaptersWithImages = storyContent.chapters.map((chapter, index) => {
+        const img = allImages[index + 1];
+        return { ...chapter, imageUrl: img?.imageUrl };
+      });
+
+      metadata.imagesGenerated = allImages.length;
+      const imageCostPer1 = 0.0006; // Placeholder cost
       metadata.totalCost.images = metadata.imagesGenerated * imageCostPer1;
       metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
-
       metadata.processingTime = Date.now() - startTime;
 
       console.log("💰 Generation costs:", metadata.totalCost);
@@ -146,7 +155,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       return {
         title: storyContent.title,
         description: storyContent.description,
-        coverImageUrl: coverImage.imageUrl,
+        coverImageUrl,
         chapters: chaptersWithImages,
         metadata,
       };
@@ -164,7 +173,6 @@ async function generateStoryWithOpenAI(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any; imageUrl?: string | null }>
 ): Promise<{ title: string; description: string; chapters: Omit<Chapter, "id" | "imageUrl">[]; tokensUsed?: any }> {
-  
   const avatarDescriptions = avatars
     .map((avatar) => `${avatar.name}: ${getAvatarDescription(avatar.physicalTraits, avatar.personalityTraits)}`)
     .join("\n");
@@ -172,7 +180,7 @@ async function generateStoryWithOpenAI(
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
   const systemPrompt = "Du bist ein professioneller Kinderbuchautor. Erstelle Geschichten im JSON-Format basierend auf den gegebenen Parametern. Halte die Inhalte kindgerecht und sicher.";
-  
+
   const userPrompt = `Erstelle eine ${config.genre} Geschichte in ${config.setting} für die Altersgruppe ${config.ageGroup}.
 
 Parameter:
@@ -202,7 +210,6 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
   ]
 }`;
 
-  // Direkte einfache Lösung ohne komplexe Fallbacks
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -229,11 +236,9 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
 
   const data = await response.json();
   const content = data.choices[0].message.content;
-  
-  // Versuche JSON zu parsen
+
   let parsed;
   try {
-    // Bereinige potentielle Markdown-Blöcke
     const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
     parsed = JSON.parse(cleanContent);
   } catch (e) {
@@ -259,36 +264,42 @@ async function generateFallbackStoryWithImages(
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
 
   const referenceImages = avatars.map(a => a.imageUrl).filter((u): u is string => !!u);
-
-  const seedBase = deterministicSeedFrom(avatars.map(a => a.id ?? a.name).join("|"));
+  const seedBase = deterministicSeedFrom(avatars.map(a => (a as any).id ?? a.name).join("|"));
 
   const coverDimensions = normalizeRunwareDimensions(600, 800);
-  const coverImage = await generateImage({
-    prompt: `Children's book cover, ${config.genre} story, colorful, magical. Keep characters consistent with reference images.`,
-    width: coverDimensions.width,
-    height: coverDimensions.height,
-    seed: seedBase,
-    referenceImages,
-  });
-
   const chapterDimensions = normalizeRunwareDimensions(400, 300);
-  const chaptersWithImages = await Promise.all(
-    fallbackStory.chapters.map(async (chapter, index) => {
-      const chapterImage = await generateImage({
+
+  const batchReq = {
+    images: [
+      {
+        prompt: `Children's book cover, ${config.genre} story, colorful, magical. Keep characters consistent with reference images.`,
+        width: coverDimensions.width,
+        height: coverDimensions.height,
+        seed: seedBase,
+        referenceImages,
+      },
+      ...fallbackStory.chapters.map((chapter, index) => ({
         prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story. Match reference characters.`,
         width: chapterDimensions.width,
         height: chapterDimensions.height,
         seed: (seedBase + index * 101) >>> 0,
         referenceImages,
-      });
-      return { ...chapter, imageUrl: chapterImage.imageUrl };
-    })
-  );
+      })),
+    ],
+  };
+
+  const batchResp = await ai.generateImagesBatch(batchReq);
+  const all = batchResp.images;
+  const coverImageUrl = all[0]?.imageUrl ?? "";
+  const chaptersWithImages = fallbackStory.chapters.map((chapter, i) => ({
+    ...chapter,
+    imageUrl: all[i + 1]?.imageUrl,
+  }));
 
   return {
     title: fallbackStory.title,
     description: fallbackStory.description,
-    coverImageUrl: coverImage.imageUrl,
+    coverImageUrl,
     chapters: chaptersWithImages,
   };
 }
