@@ -3,9 +3,9 @@ import { runwareGenerateImage } from "./image-generation";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/create";
 
 interface GenerateAvatarImageRequest {
-  physicalTraits: PhysicalTraits;
+  characterType: string;
+  appearance: string;
   personalityTraits: PersonalityTraits;
-  description?: string;
   style?: "realistic" | "disney" | "anime";
 }
 
@@ -19,12 +19,12 @@ interface GenerateAvatarImageResponse {
 export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/generate-avatar" },
   async (req) => {
-    const prompt = buildAvatarPrompt(req.physicalTraits, req.personalityTraits, req.description, req.style);
+    const prompt = buildAvatarPrompt(req.characterType, req.appearance, req.personalityTraits, req.style);
 
     console.log("🎨 Generating avatar with prompt:", prompt);
-    console.log("👤 Physical traits:", JSON.stringify(req.physicalTraits, null, 2));
+    console.log("👤 Character Type:", req.characterType);
+    console.log("🎨 Appearance:", req.appearance);
     console.log("🧠 Personality traits:", JSON.stringify(req.personalityTraits, null, 2));
-    console.log("📝 Description:", req.description);
     console.log("🎭 Style:", req.style);
 
     const imageResult = await runwareGenerateImage({
@@ -50,24 +50,11 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
 );
 
 function buildAvatarPrompt(
-  physical: PhysicalTraits,
+  characterType: string,
+  appearance: string,
   personality: PersonalityTraits,
-  description: string | undefined,
   style: string = "disney"
 ): string {
-  const ageDescriptor =
-    physical.age <= 5 ? "toddler" :
-    physical.age <= 8 ? "young child" :
-    physical.age <= 12 ? "child" : "teenager";
-
-  const genderDescriptor =
-    physical.gender === "male" ? "boy" :
-    physical.gender === "female" ? "girl" : "child";
-
-  const hairDescriptor = `${physical.hairColor} ${physical.hairType} hair`;
-  const eyeDescriptor = `${physical.eyeColor} eyes`;
-  const skinDescriptor = `${physical.skinTone} skin`;
-
   const personalityDescriptor = getPersonalityDescriptor(personality);
 
   const styleDescriptor =
@@ -75,9 +62,7 @@ function buildAvatarPrompt(
     style === "anime" ? "vibrant anime manga style, colorful and expressive" :
     "beautiful realistic children's book illustration style, warm and inviting";
 
-  const freeTextDescription = description ? `, ${description}` : "";
-
-  return `Portrait of a cute ${ageDescriptor} ${genderDescriptor}, ${personalityDescriptor}, with ${skinDescriptor}, ${hairDescriptor} and ${eyeDescriptor}${freeTextDescription}. Style: ${styleDescriptor}. high quality, detailed, colorful, friendly expression, safe for children, clean background.`;
+  return `Portrait of a ${characterType}, ${personalityDescriptor}, with the following appearance: ${appearance}. Style: ${styleDescriptor}. high quality, detailed, colorful, friendly expression, safe for children, clean background.`;
 }
 
 function getPersonalityDescriptor(personality: PersonalityTraits): string {

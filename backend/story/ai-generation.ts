@@ -1,25 +1,18 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "./generate";
-import type { AvatarVisualProfile } from "../avatar/create";
+import type { Avatar, AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 
-// ---- OpenAI Modell & Pricing (GPT-4o) ----
-const MODEL = "gpt-5-nano";
-const INPUT_COST_PER_1M = 0.05;
-const OUTPUT_COST_PER_1M = 0.40;
+// ---- OpenAI Modell & Pricing ----
+const MODEL = "gpt-4o";
+const INPUT_COST_PER_1M = 5.00;
+const OUTPUT_COST_PER_1M = 15.00;
 
 const openAIKey = secret("OpenAIKey");
 
-interface ExtendedAvatarDetails {
-  id: string;
-  name: string;
-  description?: string;
-  physicalTraits: any;
-  personalityTraits: any;
-  imageUrl?: string | null;
-  visualProfile?: AvatarVisualProfile;
+type ExtendedAvatarDetails = Omit<Avatar, 'userId' | 'isShared' | 'originalAvatarId' | 'createdAt' | 'updatedAt'> & {
   memory?: {
     experiences: string[];
     learnedSkills: string[];
@@ -32,7 +25,7 @@ interface ExtendedAvatarDetails {
     social: number;
     creativity: number;
   };
-}
+};
 
 interface GenerateStoryContentRequest {
   config: StoryConfig;
@@ -123,7 +116,6 @@ interface GenerateStoryContentResponse {
     tokensUsed: {
       prompt: number;
       completion: number;
-      reasoning: number;
       total: number;
     };
     model: string;
@@ -406,9 +398,9 @@ async function generateEnhancedStoryWithOpenAI(
 
     return `
 **${avatar.name}:**
-- Basis-Info: ${physical.age || 8} Jahre alt, ${physical.height || 130} cm groß, ${physical.gender === "male" ? "Junge" : physical.gender === "female" ? "Mädchen" : "Kind"}.
-- Aussehen (Basis): ${physical.hairColor || "braune"} Haare, ${physical.eyeColor || "braune"} Augen, ${physical.skinTone || "helle"} Haut.
-- Besondere Merkmale: ${avatar.description || "keine"}.
+- Charakter-Typ: ${physical.characterType || "Kind"}
+- Aussehen (Basis): ${physical.appearance || "Keine Beschreibung"}
+- Besondere Merkmale (aus Beschreibung): ${avatar.description || "keine"}.
 - Persönlichkeit: ${Object.entries(personality).map(([trait, value]) => `${trait}: ${value}/10`).join(", ")}
 - Bisherige Erfahrungen: ${memory.experiences.join(", ") || "Erste Geschichte"}
 ${canon}`;
@@ -539,8 +531,6 @@ Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
     ],
     max_completion_tokens: 12000,
     response_format: { type: "json_object" },
-    reasoning_effort: "medium",
-    verbosity: "high"
   };
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {

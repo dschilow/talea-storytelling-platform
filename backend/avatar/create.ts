@@ -6,14 +6,10 @@ const avatarDB = new SQLDatabase("avatar", {
 });
 
 export interface PhysicalTraits {
-  age: number;
-  height: number;
-  gender: "male" | "female" | "non-binary";
-  skinTone: string;
-  hairColor: string;
-  hairType: string;
-  eyeColor: string;
-  bodyType: number;
+  characterType: string;
+  appearance: string;
+  age?: number;
+  gender?: "male" | "female" | "non-binary" | "other";
 }
 
 export interface PersonalityTraits {

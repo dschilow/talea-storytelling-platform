@@ -9,54 +9,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import backend from '~backend/client';
-
-interface PhysicalTraits {
-  age: number;
-  height: number;
-  gender: 'male' | 'female' | 'non-binary';
-  skinTone: string;
-  hairColor: string;
-  hairType: string;
-  eyeColor: string;
-  bodyType: number;
-}
-
-interface PersonalityTraits {
-  courage: number;
-  intelligence: number;
-  creativity: number;
-  empathy: number;
-  strength: number;
-  humor: number;
-  adventure: number;
-  patience: number;
-  curiosity: number;
-  leadership: number;
-}
-
-interface AvatarVisualProfile {
-  ageApprox: string;
-  gender: string;
-  skin: { tone: string; undertone?: string; distinctiveFeatures?: string[] };
-  hair: { color: string; type: string; length: string; style: string };
-  eyes: { color: string; shape?: string; size?: string };
-  face: { shape?: string; nose?: string; mouth?: string; eyebrows?: string; freckles?: boolean; otherFeatures?: string[] };
-  accessories: string[];
-  clothingCanonical?: { top?: string; bottom?: string; outfit?: string; colors?: string[]; patterns?: string[] };
-  palette?: { primary: string[]; secondary?: string[] };
-  consistentDescriptors: string[];
-}
-
-interface Avatar {
-  id: string;
-  name: string;
-  description?: string;
-  physicalTraits: PhysicalTraits;
-  personalityTraits: PersonalityTraits;
-  imageUrl?: string;
-  visualProfile?: AvatarVisualProfile;
-  creationType: 'ai-generated' | 'photo-upload';
-}
+import type { Avatar, PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from '~backend/avatar/create';
 
 const EditAvatarScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
@@ -70,14 +23,8 @@ const EditAvatarScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [physicalTraits, setPhysicalTraits] = useState<PhysicalTraits>({
-    age: 8,
-    height: 130,
-    gender: 'male',
-    skinTone: 'light',
-    hairColor: 'brown',
-    hairType: 'curly',
-    eyeColor: 'blue',
-    bodyType: 5,
+    characterType: '',
+    appearance: '',
   });
   const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
     courage: 7,
@@ -161,20 +108,18 @@ const EditAvatarScreen: React.FC = () => {
       setRegeneratingImage(true);
       
       const result = await backend.ai.generateAvatarImage({
-        physicalTraits,
+        characterType: physicalTraits.characterType,
+        appearance: physicalTraits.appearance,
         personalityTraits,
-        description,
         style: 'disney',
       });
 
-      // Analyze new image for a refreshed canonical profile
       let newVisualProfile: AvatarVisualProfile | undefined = undefined;
       try {
         const analysis = await backend.ai.analyzeAvatarImage({
           imageUrl: result.imageUrl,
           hints: {
             name,
-            physicalTraits,
             personalityTraits,
           }
         });
@@ -198,19 +143,6 @@ const EditAvatarScreen: React.FC = () => {
       setRegeneratingImage(false);
     }
   };
-
-  const genderOptions = [
-    { key: 'male', label: 'Junge', icon: '👦' },
-    { key: 'female', label: 'Mädchen', icon: '👧' },
-    { key: 'non-binary', label: 'Divers', icon: '🧒' },
-  ];
-
-  const hairTypes = [
-    { key: 'straight', label: 'Glatt', icon: '💇‍♀️' },
-    { key: 'wavy', label: 'Wellig', icon: '🌊' },
-    { key: 'curly', label: 'Lockig', icon: '🌀' },
-    { key: 'coily', label: 'Kraus', icon: '🔄' },
-  ];
 
   const personalityLabels = {
     courage: { label: 'Mut', icon: '🦁', color: colors.error },
@@ -294,25 +226,6 @@ const EditAvatarScreen: React.FC = () => {
     cursor: 'pointer',
   };
 
-  const optionGridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: `${spacing.md}px`,
-  };
-
-  const optionButtonStyle = (isSelected: boolean): React.CSSProperties => ({
-    padding: `${spacing.lg}px`,
-    borderRadius: `${radii.lg}px`,
-    border: `3px solid ${isSelected ? colors.primary : colors.border}`,
-    backgroundColor: isSelected ? colors.softPink : colors.elevatedSurface,
-    color: isSelected ? colors.primary : colors.textPrimary,
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    textAlign: 'center' as const,
-    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-    boxShadow: isSelected ? shadows.colorful : shadows.sm,
-  });
-
   const previewStyle: React.CSSProperties = {
     textAlign: 'center' as const,
     padding: `${spacing.xl}px`,
@@ -369,12 +282,6 @@ const EditAvatarScreen: React.FC = () => {
             <button
               style={backButtonStyle}
               onClick={() => navigate('/')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0px)';
-              }}
             >
               <ArrowLeft size={20} />
             </button>
@@ -393,12 +300,6 @@ const EditAvatarScreen: React.FC = () => {
           <button
             style={backButtonStyle}
             onClick={() => navigate('/')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0px)';
-            }}
           >
             <ArrowLeft size={20} />
           </button>
@@ -410,231 +311,65 @@ const EditAvatarScreen: React.FC = () => {
         {/* Basic Info */}
         <FadeInView delay={100}>
           <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px` }}>
               ⭐ Grundinformationen
             </h2>
 
             <div style={{ marginBottom: `${spacing.lg}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Name deines Avatars ✨
+              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                Name
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Wie soll dein Avatar heißen?"
                 style={inputStyle}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = colors.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 4px ${colors.softPink}`;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = colors.border;
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: `${spacing.lg}px` }}>
+              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                Charakter-Typ
+              </label>
+              <input
+                type="text"
+                value={physicalTraits.characterType}
+                onChange={(e) => updatePhysicalTrait('characterType', e.target.value)}
+                style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Beschreibung (optional) 📝
+              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                Aussehen & Merkmale
               </label>
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Erzähle etwas über deinen Avatar..."
-                rows={3}
-                style={{ ...inputStyle, resize: 'none' as const, minHeight: '100px' }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = colors.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 4px ${colors.softPink}`;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = colors.border;
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                value={physicalTraits.appearance}
+                onChange={(e) => updatePhysicalTrait('appearance', e.target.value)}
+                rows={4}
+                style={{ ...inputStyle, minHeight: '120px' }}
               />
-            </div>
-          </Card>
-        </FadeInView>
-
-        {/* Physical Traits */}
-        <FadeInView delay={200}>
-          <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-              🎨 Aussehen anpassen
-            </h2>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Alter: {physicalTraits.age} Jahre 🎂
-              </label>
-              <input
-                type="range"
-                min="3"
-                max="16"
-                step="1"
-                value={physicalTraits.age}
-                onChange={(e) => updatePhysicalTrait('age', parseInt(e.target.value))}
-                style={{
-                  ...sliderStyle,
-                  background: `linear-gradient(to right, ${colors.primary} 0%, ${colors.primary} ${((physicalTraits.age - 3) / 13) * 100}%, ${colors.border} ${((physicalTraits.age - 3) / 13) * 100}%, ${colors.border} 100%)`,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Größe: {physicalTraits.height} cm 📏
-              </label>
-              <input
-                type="range"
-                min="80"
-                max="180"
-                step="5"
-                value={physicalTraits.height}
-                onChange={(e) => updatePhysicalTrait('height', parseInt(e.target.value))}
-                style={{
-                  ...sliderStyle,
-                  background: `linear-gradient(to right, ${colors.teal} 0%, ${colors.teal} ${((physicalTraits.height - 80) / 100) * 100}%, ${colors.border} ${((physicalTraits.height - 80) / 100) * 100}%, ${colors.border} 100%)`,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Hautton 🎨
-              </label>
-              <input
-                type="text"
-                value={physicalTraits.skinTone}
-                onChange={(e) => updatePhysicalTrait('skinTone', e.target.value)}
-                placeholder="z.B. hell, dunkel, oliv, gebräunt"
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Haarfarbe 💇
-              </label>
-              <input
-                type="text"
-                value={physicalTraits.hairColor}
-                onChange={(e) => updatePhysicalTrait('hairColor', e.target.value)}
-                placeholder="z.B. blond, braun, rot, schwarz"
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                Augenfarbe 👁️
-              </label>
-              <input
-                type="text"
-                value={physicalTraits.eyeColor}
-                onChange={(e) => updatePhysicalTrait('eyeColor', e.target.value)}
-                placeholder="z.B. blau, grün, braun, grau"
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
-                Geschlecht 👶
-              </label>
-              <div style={optionGridStyle}>
-                {genderOptions.map((option) => (
-                  <button
-                    key={option.key}
-                    onClick={() => updatePhysicalTrait('gender', option.key as any)}
-                    style={optionButtonStyle(physicalTraits.gender === option.key)}
-                    onMouseEnter={(e) => {
-                      if (physicalTraits.gender !== option.key) {
-                        e.currentTarget.style.borderColor = colors.primary;
-                        e.currentTarget.style.transform = 'scale(1.02)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (physicalTraits.gender !== option.key) {
-                        e.currentTarget.style.borderColor = colors.border;
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }
-                    }}
-                  >
-                    <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>{option.icon}</div>
-                    <div style={{ ...typography.textStyles.label, fontSize: '15px' }}>{option.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: `${spacing.xl}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
-                Haartyp 💇
-              </label>
-              <div style={optionGridStyle}>
-                {hairTypes.map((option) => (
-                  <button
-                    key={option.key}
-                    onClick={() => updatePhysicalTrait('hairType', option.key)}
-                    style={optionButtonStyle(physicalTraits.hairType === option.key)}
-                    onMouseEnter={(e) => {
-                      if (physicalTraits.hairType !== option.key) {
-                        e.currentTarget.style.borderColor = colors.primary;
-                        e.currentTarget.style.transform = 'scale(1.02)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (physicalTraits.hairType !== option.key) {
-                        e.currentTarget.style.borderColor = colors.border;
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }
-                    }}
-                  >
-                    <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>{option.icon}</div>
-                    <div style={{ ...typography.textStyles.label, fontSize: '15px' }}>{option.label}</div>
-                  </button>
-                ))}
-              </div>
             </div>
           </Card>
         </FadeInView>
 
         {/* Personality Traits */}
-        <FadeInView delay={300}>
+        <FadeInView delay={200}>
           <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px` }}>
               💫 Persönlichkeit anpassen
             </h2>
-            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.xl}px`, fontSize: '16px' }}>
-              Bestimme die Charakterzüge deines Avatars (1-10) ⭐
-            </div>
-
             {Object.entries(personalityTraits).map(([key, value], index) => {
               const trait = personalityLabels[key as keyof PersonalityTraits];
               return (
-                <FadeInView key={key} delay={350 + index * 50}>
-                  <div style={{ marginBottom: `${spacing.xl}px` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: `${spacing.md}px` }}>
+                <FadeInView key={key} delay={250 + index * 30}>
+                  <div style={{ marginBottom: `${spacing.lg}px` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: `${spacing.sm}px` }}>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <span style={{ fontSize: '24px', marginRight: `${spacing.md}px` }}>{trait.icon}</span>
-                        <span style={{ ...typography.textStyles.label, color: colors.textPrimary, fontSize: '16px' }}>{trait.label}</span>
+                        <span style={{ ...typography.textStyles.label, color: colors.textPrimary }}>{trait.label}</span>
                       </div>
-                      <div
-                        style={{
-                          padding: `${spacing.sm}px ${spacing.md}px`,
-                          borderRadius: `${radii.lg}px`,
-                          backgroundColor: trait.color,
-                          color: colors.textInverse,
-                          fontSize: '16px',
-                          fontWeight: typography.textStyles.label.fontWeight,
-                          minWidth: '40px',
-                          textAlign: 'center' as const,
-                          boxShadow: shadows.sm,
-                        }}
-                      >
+                      <div style={{ padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: `${radii.lg}px`, backgroundColor: trait.color, color: colors.textInverse, fontWeight: 'bold' }}>
                         {value}
                       </div>
                     </div>
@@ -658,7 +393,7 @@ const EditAvatarScreen: React.FC = () => {
         </FadeInView>
 
         {/* Preview */}
-        <FadeInView delay={400}>
+        <FadeInView delay={300}>
           <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
             <div style={previewStyle}>
               <div style={avatarPreviewStyle}>
@@ -667,54 +402,24 @@ const EditAvatarScreen: React.FC = () => {
                     src={avatar.imageUrl}
                     alt="Avatar Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = 'none';
-                    }}
                   />
                 ) : (
                   <span>🤖</span>
                 )}
               </div>
-
-              <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'center', marginBottom: spacing.lg }}>
-                <Button
-                  title={regeneratingImage ? 'Generiere...' : '🎨 Neues Bild'}
-                  onPress={handleRegenerateImage}
-                  loading={regeneratingImage}
-                  icon={<Sparkles size={16} />}
-                  variant="secondary"
-                />
-              </div>
-
-              <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
-                {name || 'Dein Avatar'} ⭐
-              </div>
-              <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, opacity: 0.9 }}>
-                {description || 'Keine Beschreibung verfügbar'}
-              </div>
-
-              <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(255, 255, 255, 0.2)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px` }}>
-                <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-                  🌟 Stärkste Eigenschaften:
-                </div>
-                {Object.entries(personalityTraits)
-                  .sort(([, a], [, b]) => b - a)
-                  .slice(0, 3)
-                  .map(([key, value]) => {
-                    const trait = personalityLabels[key as keyof PersonalityTraits];
-                    return (
-                      <div key={key} style={{ ...typography.textStyles.body, color: colors.textPrimary, marginBottom: `${spacing.xs}px`, fontSize: '15px' }}>
-                        {trait.icon} {trait.label}: {value}/10
-                      </div>
-                    );
-                  })}
-              </div>
+              <Button
+                title={regeneratingImage ? 'Generiere...' : '🎨 Neues Bild'}
+                onPress={handleRegenerateImage}
+                loading={regeneratingImage}
+                icon={<Sparkles size={16} />}
+                variant="secondary"
+              />
             </div>
           </Card>
         </FadeInView>
 
         {/* Action Buttons */}
-        <FadeInView delay={500}>
+        <FadeInView delay={400}>
           <div style={{ display: 'flex', gap: spacing.lg }}>
             <Button
               title="Abbrechen"
@@ -739,7 +444,6 @@ const EditAvatarScreen: React.FC = () => {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Fredoka+One&display=swap');
       `}</style>
     </div>
   );
