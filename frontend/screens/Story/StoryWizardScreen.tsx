@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useUser } from '@clerk/clerk-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -9,7 +10,7 @@ import GenreSettingStep from './steps/GenreSettingStep';
 import StoryParametersStep from './steps/StoryParametersStep';
 import LearningModeStep from './steps/LearningModeStep';
 import GenerationStep from './steps/GenerationStep';
-import backend from '~backend/client';
+import { useBackend } from '../../hooks/useBackend';
 
 type StepType = 'avatar' | 'genre' | 'parameters' | 'learning' | 'generation';
 
@@ -40,6 +41,8 @@ const StoryWizardScreen: React.FC = () => {
     complexity: 'medium',
     ageGroup: '6-8',
   });
+  const backend = useBackend();
+  const { user } = useUser();
 
   const steps = [
     { key: 'avatar', title: 'Avatare', icon: '👤' },
@@ -91,18 +94,22 @@ const StoryWizardScreen: React.FC = () => {
   };
 
   const handleGenerateStory = async () => {
+    if (!user) {
+      alert("Bitte melde dich an, um eine Geschichte zu erstellen.");
+      return;
+    }
+
     try {
       setGenerating(true);
       console.log('Starting story generation with config:', storyConfig);
       
-      // Begrenze die Anzahl der Avatare um Request-Größe zu reduzieren
       const limitedConfig = {
         ...storyConfig,
-        avatarIds: storyConfig.avatarIds.slice(0, 3) // Maximal 3 Avatare
+        avatarIds: storyConfig.avatarIds.slice(0, 3)
       };
       
       const story = await backend.story.generate({
-        userId: 'demo-user-123', // Mock user ID
+        userId: user.id,
         config: limitedConfig,
       });
 
@@ -112,7 +119,6 @@ const StoryWizardScreen: React.FC = () => {
     } catch (error) {
       console.error('Error generating story:', error);
       
-      // Bessere Fehlerbehandlung
       let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
       
       if (error instanceof Error) {

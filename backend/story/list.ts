@@ -1,21 +1,19 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { StorySummary } from "./generate";
+import { getAuthData } from "~encore/auth";
 
 const storyDB = SQLDatabase.named("story");
-
-interface ListStoriesParams {
-  userId: string;
-}
 
 interface ListStoriesResponse {
   stories: StorySummary[];
 }
 
-// Retrieves all stories for a user, without chapters.
-export const list = api<ListStoriesParams, ListStoriesResponse>(
-  { expose: true, method: "GET", path: "/story/user/:userId" },
-  async ({ userId }) => {
+// Retrieves all stories for the authenticated user.
+export const list = api<void, ListStoriesResponse>(
+  { expose: true, method: "GET", path: "/stories", auth: true },
+  async () => {
+    const auth = getAuthData()!;
     const storyRows = await storyDB.queryAll<{
       id: string;
       user_id: string;
@@ -25,12 +23,13 @@ export const list = api<ListStoriesParams, ListStoriesResponse>(
       config: string;
       metadata: string | null;
       status: "generating" | "complete" | "error";
+      is_public: boolean;
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT id, user_id, title, description, cover_image_url, config, metadata, status, created_at, updated_at 
+      SELECT id, user_id, title, description, cover_image_url, config, metadata, status, is_public, created_at, updated_at 
       FROM stories 
-      WHERE user_id = ${userId} ORDER BY created_at DESC
+      WHERE user_id = ${auth.userID} ORDER BY created_at DESC
     `;
 
     const stories: StorySummary[] = storyRows.map(storyRow => ({
@@ -42,6 +41,7 @@ export const list = api<ListStoriesParams, ListStoriesResponse>(
       config: JSON.parse(storyRow.config),
       metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
       status: storyRow.status,
+      isPublic: storyRow.is_public,
       createdAt: storyRow.created_at,
       updatedAt: storyRow.updated_at,
     }));

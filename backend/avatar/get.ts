@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { Avatar, AvatarVisualProfile } from "./create";
+import { getAuthData } from "~encore/auth";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -10,8 +11,9 @@ interface GetAvatarParams {
 
 // Retrieves a specific avatar by ID.
 export const get = api<GetAvatarParams, Avatar>(
-  { expose: true, method: "GET", path: "/avatar/:id" },
+  { expose: true, method: "GET", path: "/avatar/:id", auth: true },
   async ({ id }) => {
+    const auth = getAuthData()!;
     const row = await avatarDB.queryRow<{
       id: string;
       user_id: string;
@@ -22,7 +24,7 @@ export const get = api<GetAvatarParams, Avatar>(
       image_url: string | null;
       visual_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
-      is_shared: boolean;
+      is_public: boolean;
       original_avatar_id: string | null;
       created_at: Date;
       updated_at: Date;
@@ -32,6 +34,10 @@ export const get = api<GetAvatarParams, Avatar>(
 
     if (!row) {
       throw APIError.notFound("Avatar not found");
+    }
+
+    if (row.user_id !== auth.userID && auth.role !== 'admin' && !row.is_public) {
+      throw APIError.permissionDenied("You do not have permission to view this avatar.");
     }
 
     return {
@@ -44,7 +50,7 @@ export const get = api<GetAvatarParams, Avatar>(
       imageUrl: row.image_url || undefined,
       visualProfile: row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined,
       creationType: row.creation_type,
-      isShared: row.is_shared,
+      isPublic: row.is_public,
       originalAvatarId: row.original_avatar_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

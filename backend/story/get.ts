@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { Story } from "./generate";
+import { getAuthData } from "~encore/auth";
 
 const storyDB = SQLDatabase.named("story");
 
@@ -10,8 +11,9 @@ interface GetStoryParams {
 
 // Retrieves a specific story by ID with all chapters.
 export const get = api<GetStoryParams, Story>(
-  { expose: true, method: "GET", path: "/story/:id" },
+  { expose: true, method: "GET", path: "/story/:id", auth: true },
   async ({ id }) => {
+    const auth = getAuthData()!;
     const storyRow = await storyDB.queryRow<{
       id: string;
       user_id: string;
@@ -21,6 +23,7 @@ export const get = api<GetStoryParams, Story>(
       config: string;
       metadata: string | null;
       status: "generating" | "complete" | "error";
+      is_public: boolean;
       created_at: Date;
       updated_at: Date;
     }>`
@@ -29,6 +32,10 @@ export const get = api<GetStoryParams, Story>(
 
     if (!storyRow) {
       throw APIError.notFound("Story not found");
+    }
+
+    if (storyRow.user_id !== auth.userID && auth.role !== 'admin' && !storyRow.is_public) {
+      throw APIError.permissionDenied("You do not have permission to view this story.");
     }
 
     const chapterRows = await storyDB.queryAll<{
@@ -60,6 +67,7 @@ export const get = api<GetStoryParams, Story>(
         order: ch.chapter_order,
       })),
       status: storyRow.status,
+      isPublic: storyRow.is_public,
       createdAt: storyRow.created_at,
       updatedAt: storyRow.updated_at,
     };

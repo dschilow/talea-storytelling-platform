@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { User, Check } from 'lucide-react';
+import { useUser } from '@clerk/clerk-react';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
-import backend from '~backend/client';
+import { useBackend } from '../../../hooks/useBackend';
 
 interface Avatar {
   id: string;
@@ -23,15 +24,19 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
 }) => {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
+  const backend = useBackend();
+  const { user } = useUser();
 
   useEffect(() => {
-    loadAvatars();
-  }, []);
+    if (user) {
+      loadAvatars();
+    }
+  }, [user]);
 
   const loadAvatars = async () => {
     try {
-      const response = await backend.avatar.list({ userId: 'demo-user-123' });
-      setAvatars(response.avatars);
+      const response = await backend.avatar.list();
+      setAvatars(response.avatars as any[]);
     } catch (error) {
       console.error('Error loading avatars:', error);
     } finally {
@@ -45,7 +50,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
     if (isSelected) {
       onSelectionChange(selectedAvatarIds.filter(id => id !== avatarId));
     } else {
-      if (selectedAvatarIds.length < 3) { // Reduziert auf 3 Avatare um Request-Größe zu begrenzen
+      if (selectedAvatarIds.length < 3) {
         onSelectionChange([...selectedAvatarIds, avatarId]);
       }
     }

@@ -1,5 +1,6 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { getAuthData } from "~encore/auth";
 
 const avatarDB = new SQLDatabase("avatar", {
   migrations: "./migrations",
@@ -77,14 +78,13 @@ export interface Avatar {
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
   creationType: "ai-generated" | "photo-upload";
-  isShared: boolean;
+  isPublic: boolean;
   originalAvatarId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 interface CreateAvatarRequest {
-  userId: string;
   name: string;
   description?: string;
   physicalTraits: PhysicalTraits;
@@ -94,19 +94,20 @@ interface CreateAvatarRequest {
   creationType: "ai-generated" | "photo-upload";
 }
 
-// Creates a new avatar.
+// Creates a new avatar for the authenticated user.
 export const create = api<CreateAvatarRequest, Avatar>(
-  { expose: true, method: "POST", path: "/avatar" },
+  { expose: true, method: "POST", path: "/avatar", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
     const id = crypto.randomUUID();
     const now = new Date();
 
     await avatarDB.exec`
       INSERT INTO avatars (
         id, user_id, name, description, physical_traits, personality_traits,
-        image_url, visual_profile, creation_type, is_shared, created_at, updated_at
+        image_url, visual_profile, creation_type, is_public, created_at, updated_at
       ) VALUES (
-        ${id}, ${req.userId}, ${req.name}, ${req.description},
+        ${id}, ${auth.userID}, ${req.name}, ${req.description},
         ${JSON.stringify(req.physicalTraits)}, ${JSON.stringify(req.personalityTraits)},
         ${req.imageUrl}, ${req.visualProfile ? JSON.stringify(req.visualProfile) : null},
         ${req.creationType}, false, ${now}, ${now}
@@ -115,7 +116,7 @@ export const create = api<CreateAvatarRequest, Avatar>(
 
     return {
       id,
-      userId: req.userId,
+      userId: auth.userID,
       name: req.name,
       description: req.description,
       physicalTraits: req.physicalTraits,
@@ -123,7 +124,7 @@ export const create = api<CreateAvatarRequest, Avatar>(
       imageUrl: req.imageUrl,
       visualProfile: req.visualProfile,
       creationType: req.creationType,
-      isShared: false,
+      isPublic: false,
       createdAt: now,
       updatedAt: now,
     };
