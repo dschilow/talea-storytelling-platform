@@ -5,7 +5,7 @@ import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4o";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
@@ -181,7 +181,7 @@ function convertImageDescriptionToPrompt(
     let prompt = `Professionelle Kinderbuch-Illustration: ${chapterDesc.scene}. `;
 
     // Charaktere beschreiben, inkl. kanonischer Merkmale
-    const characterDescriptions = Object.entries(chapterDesc.characters)
+    const characterDescriptions = Object.entries(chapterDesc.characters ?? {})
       .map(([name, details]) => {
         const canon = canonicalFromVisualProfile(avatarProfilesByName?.[name]);
         const canonTokens = avatarProfilesByName?.[name]?.consistentDescriptors?.slice(0, 6)?.join(", ");
@@ -194,16 +194,16 @@ function convertImageDescriptionToPrompt(
     prompt += `Charaktere: ${characterDescriptions}. `;
     
     // Umgebung
-    prompt += `Umgebung: ${chapterDesc.environment.setting} mit ${chapterDesc.environment.lighting}. `;
-    prompt += `Atmosphäre: ${chapterDesc.environment.atmosphere}. `;
-    if (chapterDesc.environment.objects.length > 0) {
+    prompt += `Umgebung: ${chapterDesc.environment?.setting} mit ${chapterDesc.environment?.lighting}. `;
+    prompt += `Atmosphäre: ${chapterDesc.environment?.atmosphere}. `;
+    if (chapterDesc.environment?.objects?.length > 0) {
       prompt += `Sichtbare Objekte: ${chapterDesc.environment.objects.join(", ")}. `;
     }
     
     // Komposition
-    prompt += `Bildkomposition: Im Vordergrund ${chapterDesc.composition.foreground}, `;
-    prompt += `im Hintergrund ${chapterDesc.composition.background}, `;
-    prompt += `Fokus liegt auf ${chapterDesc.composition.focus}. `;
+    prompt += `Bildkomposition: Im Vordergrund ${chapterDesc.composition?.foreground}, `;
+    prompt += `im Hintergrund ${chapterDesc.composition?.background}, `;
+    prompt += `Fokus liegt auf ${chapterDesc.composition?.focus}. `;
     
     // Stil
     prompt += `Disney-Pixar-Stil, kindgerecht, hochwertige digitale Illustration, warme Farben, ausdrucksstarke Gesichter. `;
@@ -223,7 +223,7 @@ function convertImageDescriptionToPrompt(
     let prompt = `Kinderbuch-Cover-Illustration: ${coverDesc.mainScene}. `;
     
     // Charaktere für Cover inkl. kanonischer Merkmale
-    const characterDescriptions = Object.entries(coverDesc.characters)
+    const characterDescriptions = Object.entries(coverDesc.characters ?? {})
       .map(([name, details]) => {
         const canon = canonicalFromVisualProfile(avatarProfilesByName?.[name]);
         const canonTokens = avatarProfilesByName?.[name]?.consistentDescriptors?.slice(0, 6)?.join(", ");
@@ -236,13 +236,13 @@ function convertImageDescriptionToPrompt(
     prompt += `Charaktere: ${characterDescriptions}. `;
     
     // Cover-Umgebung
-    prompt += `Umgebung: ${coverDesc.environment.setting} mit ${coverDesc.environment.mood} Stimmung. `;
-    prompt += `Farbpalette: ${coverDesc.environment.colorPalette.join(", ")}. `;
+    prompt += `Umgebung: ${coverDesc.environment?.setting} mit ${coverDesc.environment?.mood} Stimmung. `;
+    prompt += `Farbpalette: ${coverDesc.environment?.colorPalette?.join(", ")}. `;
     
     // Cover-Komposition
-    prompt += `Layout: ${coverDesc.composition.layout}, `;
-    prompt += `Platz für Titel: ${coverDesc.composition.titleSpace}, `;
-    prompt += `visueller Fokus: ${coverDesc.composition.visualFocus}. `;
+    prompt += `Layout: ${coverDesc.composition?.layout}, `;
+    prompt += `Platz für Titel: ${coverDesc.composition?.titleSpace}, `;
+    prompt += `visueller Fokus: ${coverDesc.composition?.visualFocus}. `;
     
     prompt += `Professionelles Kinderbuch-Cover, Disney-Pixar-Stil, ansprechend für Kinder und Eltern, hochwertige Illustration. `;
 
@@ -275,7 +275,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
 
       metadata.tokensUsed = storyResult.tokensUsed ?? { prompt: 0, completion: 0, reasoning: 0, total: 0 };
       
-      const outputTokens = metadata.tokensUsed.completion + metadata.tokensUsed.reasoning;
+      const outputTokens = metadata.tokensUsed.completion + (metadata.tokensUsed.reasoning ?? 0);
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
@@ -415,11 +415,12 @@ ${canon}`;
   }).join("\n");
 
   const systemPrompt = `Du bist ein preisgekrönter Kinderbuchautor mit Sinn für Spannung, Humor und Herz.
-Schreibe lebendige, bildhafte Geschichten mit klarem Spannungsbogen pro Kapitel.
-'Show, don't tell' — vermeide platte Zusammenfassungen und Moral am Kapitelende.
-Baue am Ende jedes Kapitels einen HOOK (Cliffhanger, offenes Detail, überraschende Wendung) ein, der Lust auf das nächste Kapitel macht.
-Halte die AVATAR-ERSCHEINUNG strikt KONSISTENT, gemäß den kanonischen Profilen (Haar, Augen, Haut, Accessoires, Gesichtszüge).
-Stil: klare, warme Sprache, abwechslungsreicher Satzbau, kindgerecht ohne zu verniedlichen.`;
+Deine Aufgabe ist es, eine fesselnde, altersgerechte Geschichte zu erschaffen, die sich wie ein echtes Buch liest.
+Halte dich strikt an die folgenden Regeln:
+1.  **Spannungsbogen (HOOK):** Jedes Kapitel MUSS mit einem Cliffhanger, einer offenen Frage oder einer überraschenden Wendung enden, die neugierig auf das nächste Kapitel macht. Vermeide abgeschlossene, moralisierende Kapitelenden.
+2.  **Show, Don't Tell:** Beschreibe Gefühle und Entwicklungen durch Handlungen und Dialoge, anstatt sie nur zu benennen. (FALSCH: "Sie lernte, mutig zu sein." RICHTIG: "Obwohl ihr Herz hämmerte, machte sie einen Schritt nach vorn.")
+3.  **Avatar-Konsistenz:** Halte dich exakt an die visuellen Beschreibungen der Avatare (Haare, Augen, Haut, Accessoires), die im User-Prompt unter "Kanonische Erscheinung" bereitgestellt werden. Diese Merkmale dürfen sich nicht ändern.
+4.  **Strukturierte Ausgabe:** Antworte ausschließlich mit einem gültigen JSON-Objekt, das dem im User-Prompt gezeigten Schema entspricht. Kein einleitender oder abschließender Text.`;
 
   const userPrompt = `Erstelle eine ${config.genre}-Geschichte in ${config.setting} für Kinder im Alter ${config.ageGroup}.
 
@@ -452,7 +453,7 @@ ERWARTETE JSON-STRUKTUR:
   "chapters": [
     {
       "title": "Kapitel-Titel",
-      "content": "Detaillierter Kapitel-Inhalt (400-1000 Zeichen) mit spannender Entwicklung und HOOK am Ende",
+      "content": "Lebhafter, detaillierter Kapitel-Inhalt (ca. 150-250 Wörter) mit Dialogen und Handlungen. Das Ende MUSS einen spannenden Hook für das nächste Kapitel enthalten.",
       "order": 0,
       "imageDescription": {
         "scene": "Präzise Szenen-Beschreibung",
