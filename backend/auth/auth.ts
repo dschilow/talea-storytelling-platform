@@ -79,7 +79,17 @@ const auth = authHandler<AuthParams, AuthData>(
       };
     } catch (err: any) {
       // Log the actual error for debugging, but return a generic message.
-      console.error("Auth error:", err.message);
+      console.error("Authentication failed:", err.message);
+      if (err.longMessage) {
+        console.error("Details:", err.longMessage);
+      }
+      if (err.code) {
+        console.error("Error Code:", err.code);
+      }
+      // Also log the full error object for maximum debuggability
+      console.error("Full auth error object:", JSON.stringify(err, null, 2));
+      
+      // The error thrown to the client should remain generic for security.
       throw APIError.unauthenticated("invalid token");
     }
   }
