@@ -4,6 +4,7 @@ import type { StoryConfig, Chapter } from "./generate";
 import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
+import { callOpenAIWithCache } from "../ai/openai-cache";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
 const MODEL = "gpt-5-nano";
@@ -15,6 +16,7 @@ const openAIKey = secret("OpenAIKey");
 interface ExtendedAvatarDetails {
   id: string;
   name: string;
+  description?: string;
   physicalTraits: any;
   personalityTraits: any;
   imageUrl?: string | null;
@@ -405,13 +407,11 @@ async function generateEnhancedStoryWithOpenAI(
 
     return `
 **${avatar.name}:**
-- Aussehen (Basis): ${physical.age || 8} Jahre, ${physical.gender === "male" ? "Junge" : physical.gender === "female" ? "Mädchen" : "Kind"}, ${physical.hairColor || "braune"} Haare, ${physical.eyeColor || "braune"} Augen, ${physical.skinTone || "helle"} Haut
+- Basis-Info: ${physical.age || 8} Jahre alt, ${physical.height || 130} cm groß, ${physical.gender === "male" ? "Junge" : physical.gender === "female" ? "Mädchen" : "Kind"}.
+- Aussehen (Basis): ${physical.hairColor || "braune"} Haare, ${physical.eyeColor || "braune"} Augen, ${physical.skinTone || "helle"} Haut.
+- Besondere Merkmale: ${avatar.description || "keine"}.
 - Persönlichkeit: ${Object.entries(personality).map(([trait, value]) => `${trait}: ${value}/10`).join(", ")}
 - Bisherige Erfahrungen: ${memory.experiences.join(", ") || "Erste Geschichte"}
-- Gelernte Fähigkeiten: ${memory.learnedSkills.join(", ") || "Keine besonderen"}
-- Persönliche Entwicklung: ${memory.personalGrowth.join(", ") || "Am Anfang der Entwicklung"}
-- Beziehungen: ${Object.entries(memory.relationships).map(([name, rel]) => `${name}: ${rel}`).join(", ") || "Neue Freundschaften"}
-- Aktuelles Level: Wissen ${level.knowledge}, Emotional ${level.emotional}, Sozial ${level.social}, Kreativität ${level.creativity}
 ${canon}`;
   }).join("\n");
 
@@ -420,7 +420,7 @@ Deine Aufgabe ist es, eine fesselnde, altersgerechte Geschichte zu erschaffen, d
 Halte dich strikt an die folgenden Regeln:
 1.  **Spannungsbogen (HOOK):** Jedes Kapitel MUSS mit einem Cliffhanger, einer offenen Frage oder einer überraschenden Wendung enden, die neugierig auf das nächste Kapitel macht. Vermeide abgeschlossene, moralisierende Kapitelenden.
 2.  **Show, Don't Tell:** Zeige Charakterentwicklung und Emotionen durch Handlungen, Dialoge und innere Gedanken, anstatt sie nur zu benennen. (FALSCH: "Sie lernte, mutig zu sein." RICHTIG: "Obwohl ihr Herz hämmerte, machte sie einen Schritt nach vorn.")
-3.  **Avatar-Konsistenz:** Halte dich exakt an die visuellen Beschreibungen der Avatare (Haare, Augen, Haut, Accessoires), die im User-Prompt unter "Kanonische Erscheinung" bereitgestellt werden. Diese Merkmale dürfen sich nicht ändern.
+3.  **Avatar-Konsistenz:** Halte dich exakt an die visuellen Beschreibungen der Avatare (Haare, Augen, Haut, Accessoires, Größe, besondere Merkmale), die im User-Prompt unter "AVATARE" bereitgestellt werden. Diese Merkmale dürfen sich nicht ändern und müssen in den Bildbeschreibungen berücksichtigt werden.
 4.  **Strukturierte Ausgabe:** Antworte ausschließlich mit einem gültigen JSON-Objekt, das dem im User-Prompt gezeigten Schema entspricht. Kein einleitender oder abschließender Text.`;
 
   const userPrompt = `Erstelle eine ${config.genre}-Geschichte in ${config.setting} für Kinder im Alter ${config.ageGroup}.
@@ -443,7 +443,7 @@ LERNMODUS (subtil integrieren, KEINE Moral-Floskeln am Schluss!):
 - Bewertungsart: ${config.learningMode.assessmentType}` : ""}
 
 WICHTIG:
-- Jede Szene und Bildbeschreibung muss die kanonische AVATAR-ERSCHEINUNG beachten.
+- Jede Szene und Bildbeschreibung muss die kanonische AVATAR-ERSCHEINUNG (inkl. Größe, Statur, besondere Merkmale) beachten.
 - Kapitel enden mit einem spannenden HOOK, nicht mit einem Lern-Fazit.
 - Bildbeschreibungen enthalten für jeden Charakter konkrete Hinweise auf Haare, Augen, Haut, Accessoires (kurz), plus Kleidung der Szene.
 
@@ -544,21 +544,9 @@ Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
     verbosity: "high"
   };
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const promptId = `story-generation-prompt-v3`;
+  const data = await callOpenAIWithCache(promptId, payload);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
   const content = data.choices[0].message.content;
 
   if (!content) {
