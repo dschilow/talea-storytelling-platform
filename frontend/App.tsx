@@ -26,7 +26,7 @@ import DokusScreen from './screens/Doku/DokusScreen';
 
 const AppContent = () => (
   <Router>
-    <div style={{ minHeight: '100vh', backgroundColor: colors.background }}>
+    <div style={{ minHeight: '100vh', background: colors.gradients.background }}>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
         <Route path="/avatar" element={<AvatarsScreen />} />
@@ -38,19 +38,28 @@ const AppContent = () => (
         <Route path="/stories" element={<StoriesScreen />} />
         <Route path="/community" element={<HomeScreen />} />
         <Route path="/logs" element={<LogViewerScreen />} />
-        {/* Doku / Galileo mode */}
         <Route path="/doku" element={<DokusScreen />} />
         <Route path="/doku/create" element={<DokuWizardScreen />} />
         <Route path="/doku-reader/:dokuId" element={<DokuReaderScreen />} />
-
-        {/* Auth routes */}
         <Route path="/auth" element={<AuthScreen />} />
-        {/* Hidden admin route */}
         <Route path="/_admin" element={<AdminDashboard />} />
       </Routes>
       <Navigation />
       <TaviButton />
-      <Toaster position="top-right" richColors closeButton />
+      <Toaster 
+        position="top-right" 
+        richColors 
+        closeButton
+        toastOptions={{
+          style: {
+            background: colors.glass.backgroundAlt,
+            backdropFilter: 'blur(20px)',
+            border: `2px solid ${colors.border.light}`,
+            borderRadius: '16px',
+            color: colors.text.primary,
+          },
+        }}
+      />
     </div>
   </Router>
 );
@@ -61,29 +70,58 @@ const MissingKeyScreen = () => (
     alignItems: 'center',
     justifyContent: 'center',
     height: '100vh',
-    background: colors.appBackground,
+    background: colors.gradients.background,
     padding: '2rem',
     textAlign: 'center',
-    fontFamily: 'sans-serif',
+    fontFamily: '"Nunito", system-ui, sans-serif',
   }}>
     <div style={{
       maxWidth: '600px',
-      padding: '2rem',
-      borderRadius: '1rem',
-      background: 'white',
-      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+      padding: '2.5rem',
+      borderRadius: '24px',
+      background: colors.glass.backgroundAlt,
+      border: `2px solid ${colors.border.light}`,
+      boxShadow: '0 20px 60px rgba(169, 137, 242, 0.2)',
     }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: colors.textPrimary, marginBottom: '1rem' }}>
-        Clerk Publishable Key Missing
+      <div style={{ fontSize: '64px', marginBottom: '1.5rem' }}>🔐</div>
+      <h1 style={{ 
+        fontSize: '28px', 
+        fontWeight: '700', 
+        color: colors.text.primary, 
+        marginBottom: '1rem',
+        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
+      }}>
+        Clerk Publishable Key fehlt
       </h1>
-      <p style={{ color: colors.textSecondary, marginBottom: '1.5rem' }}>
-        To use authentication features, you need to provide your Clerk Publishable Key.
+      <p style={{ color: colors.text.secondary, marginBottom: '1.5rem', fontSize: '16px' }}>
+        Um die Authentifizierung zu nutzen, benötigst du einen Clerk Publishable Key.
       </p>
-      <p style={{ color: colors.textSecondary }}>
-        Please open the file <code style={{ background: '#f3f4f6', padding: '0.2rem 0.4rem', borderRadius: '0.25rem', color: colors.primary }}>frontend/config.ts</code> and set the value of <code style={{ background: '#f3f4f6', padding: '0.2rem 0.4rem', borderRadius: '0.25rem', color: colors.primary }}>clerkPublishableKey</code>.
+      <p style={{ color: colors.text.secondary, fontSize: '15px' }}>
+        Bitte öffne die Datei <code style={{ 
+          background: colors.lavender[100], 
+          padding: '0.3rem 0.6rem', 
+          borderRadius: '8px', 
+          color: colors.lavender[700],
+          fontFamily: 'monospace',
+        }}>frontend/config.ts</code> und setze den Wert von <code style={{ 
+          background: colors.lavender[100], 
+          padding: '0.3rem 0.6rem', 
+          borderRadius: '8px', 
+          color: colors.lavender[700],
+          fontFamily: 'monospace',
+        }}>clerkPublishableKey</code>.
       </p>
-      <p style={{ color: colors.textSecondary, marginTop: '1rem' }}>
-        You can get your key from the <a href="https://dashboard.clerk.com" target="_blank" rel="noopener noreferrer" style={{ color: colors.primary, textDecoration: 'underline' }}>Clerk Dashboard</a>.
+      <p style={{ color: colors.text.secondary, marginTop: '1.5rem', fontSize: '14px' }}>
+        Du erhältst deinen Key im <a 
+          href="https://dashboard.clerk.com" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          style={{ 
+            color: colors.lavender[600], 
+            textDecoration: 'none',
+            fontWeight: '600',
+          }}
+        >Clerk Dashboard</a>.
       </p>
     </div>
   </div>

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 import Button from './Button';
 import { useBackend } from '../../hooks/useBackend';
 import type { TaviChatRequest, TaviChatResponse } from '../../types/tavi';
@@ -55,7 +55,6 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     const text = e.target.value;
     setInputMessage(text);
     
-    // Count words
     const words = text.trim().split(/\s+/).filter(word => word.length > 0);
     setWordCount(words.length);
   };
@@ -76,16 +75,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      // Temporary manual API call until Encore client includes tavi service
       const backendClient = backend as any;
       const baseUrl = backendClient.target || 'http://localhost:4005';
       
-      // Get auth headers from Clerk
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
-      // Get Clerk auth token
       const token = await getToken();
       if (token) {
         headers.Authorization = `Bearer ${token}`;
@@ -115,20 +111,10 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     } catch (error) {
       console.error('Tavi chat error:', error);
       
-      // More detailed error handling for debugging
       let errorText = 'Entschuldige, meine magischen Kräfte sind momentan gestört! ⚡ Versuche es gleich nochmal.';
       
-      if (error instanceof Error) {
-        console.error('Detailed error:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        });
-        
-        // Show more specific error in development
-        if (process.env.NODE_ENV === 'development') {
-          errorText = `Debug: ${error.message}`;
-        }
+      if (error instanceof Error && process.env.NODE_ENV === 'development') {
+        errorText = `Debug: ${error.message}`;
       }
       
       const errorMessage: Message = {
@@ -159,8 +145,9 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0, 0, 0, 0.5)',
-    backdropFilter: 'blur(4px)',
+    background: 'rgba(169, 137, 242, 0.2)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
     zIndex: 1000,
     display: 'flex',
     alignItems: 'center',
@@ -169,16 +156,16 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   };
 
   const chatCardStyle: React.CSSProperties = {
-    width: '400px',
+    width: '450px',
     maxWidth: '90vw',
-    height: '600px',
-    maxHeight: '80vh',
-    background: colors.glass.heroBackground,
-    backdropFilter: 'blur(20px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-    border: `1px solid ${colors.glass.border}`,
-    borderRadius: `${radii.xl}px`,
-    boxShadow: colors.glass.shadowStrong,
+    height: '650px',
+    maxHeight: '85vh',
+    background: colors.glass.backgroundAlt,
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    border: `2px solid ${colors.border.light}`,
+    borderRadius: `${radii.xxl}px`,
+    boxShadow: shadows.xl,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -186,50 +173,50 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   };
 
   const headerStyle: React.CSSProperties = {
-    padding: `${spacing.lg}px`,
-    borderBottom: `1px solid ${colors.glass.border}`,
+    padding: `${spacing.xl}px`,
+    borderBottom: `2px solid ${colors.border.light}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: colors.lavender[50] + '40',
   };
 
   const titleStyle: React.CSSProperties = {
     ...typography.textStyles.headingMd,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     display: 'flex',
     alignItems: 'center',
     gap: `${spacing.sm}px`,
   };
 
   const taviIconStyle: React.CSSProperties = {
-    width: '32px',
-    height: '32px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
     backgroundImage: 'url(/tavi.png)',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    border: `2px solid ${colors.primary}`,
-    boxShadow: `0 0 12px ${colors.primary}50`,
+    border: `3px solid ${colors.lavender[400]}`,
+    boxShadow: shadows.glow.lavender,
   };
 
   const closeButtonStyle: React.CSSProperties = {
-    width: '32px',
-    height: '32px',
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
-    border: 'none',
-    background: colors.glass.buttonBackground,
-    color: colors.textPrimary,
+    border: `2px solid ${colors.border.light}`,
+    background: colors.background.card,
+    color: colors.text.primary,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'all 0.2s ease',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
   };
 
   const messagesContainerStyle: React.CSSProperties = {
     flex: 1,
-    padding: `${spacing.lg}px`,
+    padding: `${spacing.xl}px`,
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
@@ -237,34 +224,35 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   };
 
   const messageBaseStyle: React.CSSProperties = {
-    maxWidth: '85%',
-    padding: `${spacing.sm}px ${spacing.md}px`,
+    maxWidth: '80%',
+    padding: `${spacing.md}px ${spacing.lg}px`,
     borderRadius: `${radii.lg}px`,
-    fontSize: typography.textStyles.body.fontSize,
-    lineHeight: '1.4',
+    ...typography.textStyles.body,
+    lineHeight: '1.6',
     wordWrap: 'break-word',
-    boxShadow: shadows.sm,
   };
 
   const taviMessageStyle: React.CSSProperties = {
     ...messageBaseStyle,
     alignSelf: 'flex-start',
-    background: colors.glass.cardBackground,
-    color: colors.textPrimary,
-    border: `1px solid ${colors.glass.border}`,
+    background: colors.glass.background,
+    color: colors.text.primary,
+    border: `2px solid ${colors.border.light}`,
+    boxShadow: shadows.soft,
   };
 
   const userMessageStyle: React.CSSProperties = {
     ...messageBaseStyle,
     alignSelf: 'flex-end',
-    background: colors.primary,
-    color: colors.textInverse,
+    background: colors.gradients.primary,
+    color: colors.text.inverse,
+    boxShadow: shadows.colored.lavender,
   };
 
   const inputContainerStyle: React.CSSProperties = {
-    padding: `${spacing.lg}px`,
-    borderTop: `1px solid ${colors.glass.border}`,
-    background: 'rgba(255, 255, 255, 0.05)',
+    padding: `${spacing.xl}px`,
+    borderTop: `2px solid ${colors.border.light}`,
+    background: colors.lavender[50] + '40',
   };
 
   const inputWrapperStyle: React.CSSProperties = {
@@ -275,22 +263,23 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
 
   const inputStyle: React.CSSProperties = {
     flex: 1,
-    padding: `${spacing.sm}px ${spacing.md}px`,
+    padding: `${spacing.md}px ${spacing.lg}px`,
     borderRadius: `${radii.lg}px`,
-    border: `1px solid ${colors.glass.border}`,
-    background: colors.glass.buttonBackground,
-    color: colors.textPrimary,
-    fontSize: typography.textStyles.body.fontSize,
+    border: `2px solid ${colors.border.light}`,
+    background: colors.background.card,
+    color: colors.text.primary,
+    ...typography.textStyles.body,
     outline: 'none',
     resize: 'none',
-    minHeight: '44px',
+    minHeight: '48px',
     maxHeight: '120px',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
   };
 
   const wordCountStyle: React.CSSProperties = {
     ...typography.textStyles.caption,
-    color: wordCount > 50 ? colors.error || '#ef4444' : colors.textSecondary,
-    fontSize: '12px',
+    color: wordCount > 50 ? colors.semantic.error : colors.text.tertiary,
+    fontWeight: '600',
     marginBottom: `${spacing.xs}px`,
     textAlign: 'right',
   };
@@ -298,45 +287,45 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const loadingStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    gap: `${spacing.xs}px`,
-    padding: `${spacing.sm}px ${spacing.md}px`,
-    background: colors.glass.cardBackground,
-    border: `1px solid ${colors.glass.border}`,
+    gap: `${spacing.sm}px`,
+    padding: `${spacing.md}px ${spacing.lg}px`,
+    background: colors.glass.background,
+    border: `2px solid ${colors.border.light}`,
     borderRadius: `${radii.lg}px`,
     alignSelf: 'flex-start',
-    maxWidth: '85%',
-  };
-
-  const sparkleAnimation = {
-    animation: 'sparkle 2s infinite',
+    maxWidth: '80%',
+    boxShadow: shadows.soft,
   };
 
   return (
     <div style={containerStyle} onClick={onClose}>
       <div style={chatCardStyle} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div style={headerStyle}>
           <div style={titleStyle}>
             <div style={taviIconStyle} />
-            Tavi - Dein Geschichten-Genie
+            <div>
+              <div>Tavi - Dein Genie</div>
+              <div style={{ ...typography.textStyles.caption, color: colors.text.tertiary, fontWeight: '500' }}>
+                ✨ Immer bereit zu helfen
+              </div>
+            </div>
           </div>
           <button
             style={closeButtonStyle}
             onClick={onClose}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.borderColor = colors.lavender[400];
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.background = colors.glass.buttonBackground;
+              e.currentTarget.style.borderColor = colors.border.light;
             }}
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Messages */}
         <div style={messagesContainerStyle}>
           {messages.map((message) => (
             <div
@@ -347,11 +336,10 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             </div>
           ))}
           
-          {/* Loading indicator */}
           {isLoading && (
             <div style={loadingStyle}>
-              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-              <span style={{ color: colors.textSecondary, fontSize: '14px' }}>
+              <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: colors.lavender[600] }} />
+              <span style={{ color: colors.text.secondary, ...typography.textStyles.bodySm }}>
                 Tavi denkt nach... ✨
               </span>
             </div>
@@ -360,7 +348,6 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div style={inputContainerStyle}>
           <div style={wordCountStyle}>
             {wordCount}/50 Wörter
@@ -372,17 +359,23 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               value={inputMessage}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
-              placeholder="Frage Tavi etwas... (max. 50 Wörter)"
+              placeholder="Frage Tavi etwas... 🌟"
               disabled={isLoading}
               maxLength={300}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = colors.lavender[400];
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = colors.border.light;
+              }}
             />
             <Button
               title=""
               onPress={handleSendMessage}
               variant={wordCount > 50 || !inputMessage.trim() ? 'ghost' : 'primary'}
-              size="sm"
+              size="md"
               disabled={isLoading || !inputMessage.trim() || wordCount > 50}
-              icon={<Send size={16} />}
+              icon={<Send size={18} />}
             />
           </div>
         </div>
@@ -391,11 +384,6 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-          }
-          
-          @keyframes sparkle {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
           }
         `}</style>
       </div>

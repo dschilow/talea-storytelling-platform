@@ -1,10 +1,10 @@
-"use client";
-
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Heart, Edit3, Play, User, Trash2 } from 'lucide-react';
+import { Edit3, Play, User, Trash2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Avatar } from '../../types/avatar';
+import { colors } from '../../utils/constants/colors';
+import { typography } from '../../utils/constants/typography';
+import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 
 interface AvatarCardProps {
   avatar: Avatar;
@@ -37,88 +37,247 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
     }
   };
 
+  const cardStyle: React.CSSProperties = {
+    background: colors.glass.background,
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    border: `2px solid ${colors.border.light}`,
+    borderRadius: `${radii.xl}px`,
+    overflow: 'hidden',
+    boxShadow: shadows.md,
+    transition: `all ${animations.duration.normal} ${animations.easing.smooth}`,
+    cursor: 'pointer',
+  };
+
+  const imageContainerStyle: React.CSSProperties = {
+    position: 'relative',
+    height: '200px',
+    overflow: 'hidden',
+  };
+
+  const imageStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    transition: `transform ${animations.duration.slow} ${animations.easing.smooth}`,
+  };
+
+  const defaultImageStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    background: colors.gradients.lavender,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const statusIndicatorStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    backgroundColor: 
+      avatar.status === 'complete' ? colors.semantic.success : 
+      avatar.status === 'generating' ? colors.semantic.warning : 
+      colors.semantic.error,
+    boxShadow: shadows.glow.lavender,
+  };
+
+  const memoryBadgeStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    background: colors.glass.background,
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.xs}px ${spacing.md}px`,
+    ...typography.textStyles.caption,
+    fontWeight: '600',
+    color: colors.text.primary,
+    border: `1px solid ${colors.border.light}`,
+  };
+
+  const overlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(180deg, rgba(169, 137, 242, 0) 0%, rgba(169, 137, 242, 0.3) 100%)',
+    opacity: 0,
+    transition: `opacity ${animations.duration.normal} ${animations.easing.smooth}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const overlayTextStyle: React.CSSProperties = {
+    background: colors.glass.background,
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px ${spacing.xl}px`,
+    ...typography.textStyles.label,
+    color: colors.text.primary,
+    border: `2px solid ${colors.border.light}`,
+  };
+
+  const contentStyle: React.CSSProperties = {
+    padding: `${spacing.lg}px`,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    ...typography.textStyles.headingMd,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+    transition: `color ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const descriptionStyle: React.CSSProperties = {
+    ...typography.textStyles.bodySm,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+  };
+
+  const traitsContainerStyle: React.CSSProperties = {
+    marginBottom: spacing.md,
+  };
+
+  const traitsLabelStyle: React.CSSProperties = {
+    ...typography.textStyles.caption,
+    color: colors.text.tertiary,
+    marginBottom: spacing.xs,
+  };
+
+  const traitsGridStyle: React.CSSProperties = {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  };
+
+  const traitBadgeStyle: React.CSSProperties = {
+    padding: `${spacing.xxs}px ${spacing.sm}px`,
+    background: colors.lavender[50],
+    color: colors.lavender[700],
+    borderRadius: `${radii.pill}px`,
+    ...typography.textStyles.caption,
+    fontWeight: '600',
+    border: `1px solid ${colors.lavender[200]}`,
+  };
+
+  const actionsStyle: React.CSSProperties = {
+    display: 'flex',
+    gap: spacing.sm,
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: `${spacing.sm}px ${spacing.md}px`,
+    background: colors.gradients.primary,
+    color: colors.text.inverse,
+    border: 'none',
+    borderRadius: `${radii.md}px`,
+    ...typography.textStyles.label,
+    cursor: 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const iconButtonStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: `${spacing.sm}px`,
+    background: colors.background.card,
+    border: `2px solid ${colors.border.light}`,
+    borderRadius: `${radii.md}px`,
+    cursor: 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const deleteButtonStyle: React.CSSProperties = {
+    ...iconButtonStyle,
+    background: colors.semantic.error + '15',
+    borderColor: colors.semantic.error + '30',
+  };
+
   return (
-    <motion.div
-      className="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-xl"
-      whileHover={{ y: -4 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+    <div
+      style={cardStyle}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-8px)';
+        e.currentTarget.style.boxShadow = shadows.xl;
+        const img = e.currentTarget.querySelector('img') as HTMLElement;
+        if (img) img.style.transform = 'scale(1.08)';
+        const overlay = e.currentTarget.querySelector('[data-overlay]') as HTMLElement;
+        if (overlay) overlay.style.opacity = '1';
+        const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
+        if (title) title.style.color = colors.lavender[600];
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = shadows.md;
+        const img = e.currentTarget.querySelector('img') as HTMLElement;
+        if (img) img.style.transform = 'scale(1)';
+        const overlay = e.currentTarget.querySelector('[data-overlay]') as HTMLElement;
+        if (overlay) overlay.style.opacity = '0';
+        const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
+        if (title) title.style.color = colors.text.primary;
+      }}
     >
-      {/* Image Section */}
-      <div 
-        onClick={handleViewDetails}
-        className="relative overflow-hidden cursor-pointer"
-      >
+      <div style={imageContainerStyle} onClick={handleViewDetails}>
         {avatar.imageUrl ? (
-          <motion.img
+          <img
             src={avatar.imageUrl}
             alt={avatar.name}
-            className="w-full h-56 object-cover"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            style={imageStyle}
           />
         ) : (
-          <div className="w-full h-56 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
-            <User className="w-16 h-16 text-white/80" />
+          <div style={defaultImageStyle}>
+            <User size={64} style={{ color: colors.text.inverse, opacity: 0.8 }} />
           </div>
         )}
         
-        {/* Status indicator */}
-        <div className="absolute top-3 left-3">
-          <div 
-            className={`w-3 h-3 rounded-full ${
-              avatar.status === 'complete' ? 'bg-green-500' : 
-              avatar.status === 'generating' ? 'bg-yellow-500 animate-pulse' : 
-              'bg-red-500'
-            }`}
-          />
-        </div>
+        <div style={statusIndicatorStyle} />
 
-        {/* Personality/Memory count */}
-        {(avatar.personality?.traits?.length || avatar.memories?.length) && (
-          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-medium text-gray-700">
+        {(avatar.personality?.traits?.length || avatar.memories?.length) ? (
+          <div style={memoryBadgeStyle}>
+            <Sparkles size={12} style={{ display: 'inline', marginRight: '4px' }} />
             {avatar.memories?.length || 0} Erinnerungen
           </div>
-        )}
+        ) : null}
         
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 text-sm font-medium text-gray-800">
+        <div style={overlayStyle} data-overlay>
+          <div style={overlayTextStyle}>
             Details anzeigen
           </div>
         </div>
       </div>
 
-      {/* Content Section */}
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1 min-w-0">
-            <h3 
-              onClick={handleViewDetails}
-              className="font-bold text-lg text-gray-800 dark:text-white truncate group-hover:text-purple-600 transition-colors cursor-pointer"
-            >
-              {avatar.name}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-              {avatar.description || 'Keine Beschreibung'}
-            </p>
-          </div>
-        </div>
+      <div style={contentStyle}>
+        <h3 
+          onClick={handleViewDetails}
+          style={titleStyle}
+          data-title
+        >
+          {avatar.name}
+        </h3>
+        <p style={descriptionStyle}>
+          {avatar.description || 'Keine Beschreibung'}
+        </p>
 
-        {/* Personality traits preview */}
         {avatar.personality?.traits && avatar.personality.traits.length > 0 && (
-          <div className="mb-3">
-            <div className="text-xs text-gray-500 mb-1">Persönlichkeit:</div>
-            <div className="flex flex-wrap gap-1">
+          <div style={traitsContainerStyle}>
+            <div style={traitsLabelStyle}>Persönlichkeit:</div>
+            <div style={traitsGridStyle}>
               {avatar.personality.traits.slice(0, 3).map((trait) => (
-                <span
-                  key={trait.trait}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                >
+                <span key={trait.trait} style={traitBadgeStyle}>
                   {trait.trait}: {trait.value}%
                 </span>
               ))}
               {avatar.personality.traits.length > 3 && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                <span style={traitBadgeStyle}>
                   +{avatar.personality.traits.length - 3}
                 </span>
               )}
@@ -126,31 +285,54 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
           </div>
         )}
 
-        {/* Action buttons */}
-        <div className="flex gap-2">
+        <div style={actionsStyle}>
           <button
             onClick={handleUse}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors"
+            style={primaryButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = shadows.colored.lavender;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           >
-            <Play className="w-4 h-4" />
+            <Play size={16} />
             Verwenden
           </button>
           <button
             onClick={handleEdit}
-            className="flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+            style={iconButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.borderColor = colors.lavender[300];
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.borderColor = colors.border.light;
+            }}
           >
-            <Edit3 className="w-4 h-4" />
+            <Edit3 size={18} style={{ color: colors.lavender[600] }} />
           </button>
           {onDelete && (
             <button
               onClick={handleDelete}
-              className="flex items-center justify-center px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition-colors"
+              style={deleteButtonStyle}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.background = colors.semantic.error + '30';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.background = colors.semantic.error + '15';
+              }}
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={18} style={{ color: colors.semantic.error }} />
             </button>
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

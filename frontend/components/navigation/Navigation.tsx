@@ -1,32 +1,29 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Sparkles, BookOpen, Globe, Code, FlaskConical } from 'lucide-react';
+import { Home, User, BookOpen, FlaskConical, Code } from 'lucide-react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const tabs = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/avatar', label: 'Avatare', icon: User },
-    { path: '/stories', label: 'Stories', icon: BookOpen },
-    { path: '/doku', label: 'Doku', icon: FlaskConical },
-    { path: '/logs', label: 'Logs', icon: Code },
-    { path: '/community', label: 'Community', icon: Globe },
+    { path: '/', label: 'Home', icon: Home, color: colors.primary[500] },
+    { path: '/avatar', label: 'Avatare', icon: User, color: colors.lavender[500] },
+    { path: '/stories', label: 'Stories', icon: BookOpen, color: colors.rose[500] },
+    { path: '/doku', label: 'Doku', icon: FlaskConical, color: colors.mint[500] },
+    { path: '/logs', label: 'Logs', icon: Code, color: colors.sky[500] },
   ];
 
   const activeIdx = Math.max(0, tabs.findIndex(tab => tab.path === location.pathname));
 
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
-    bottom: spacing.lg,
-    left: 0,
-    right: 0,
-    display: 'flex',
-    justifyContent: 'center',
+    bottom: spacing.xl,
+    left: '50%',
+    transform: 'translateX(-50%)',
     zIndex: 1000,
     pointerEvents: 'none',
   };
@@ -34,25 +31,27 @@ const Navigation: React.FC = () => {
   const navStyle: React.CSSProperties = {
     pointerEvents: 'auto',
     display: 'flex',
-    gap: spacing.sm,
-    background: colors.glass.navBackground,
-    backdropFilter: 'blur(18px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-    border: `1px solid ${colors.glass.border}`,
+    gap: spacing.xs,
+    background: colors.glass.background,
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    border: `2px solid ${colors.border.light}`,
     borderRadius: `${radii.pill}px`,
     padding: `${spacing.sm}px`,
-    boxShadow: colors.glass.shadowStrong,
+    boxShadow: shadows.lg,
+    position: 'relative',
   };
 
   const indicatorStyle: React.CSSProperties = {
     position: 'absolute',
     top: spacing.sm,
     bottom: spacing.sm,
-    left: spacing.sm + activeIdx * (62 + spacing.sm),
-    width: 62,
+    left: spacing.sm + activeIdx * (70 + spacing.xs),
+    width: 70,
     borderRadius: `${radii.pill}px`,
-    background: colors.glass.indicator,
-    transition: 'left 300ms cubic-bezier(0.2, 0, 0, 1)',
+    background: tabs[activeIdx]?.color || colors.primary[500],
+    opacity: 0.15,
+    transition: `all ${animations.duration.normal} ${animations.easing.spring}`,
     zIndex: 0,
   };
 
@@ -60,61 +59,63 @@ const Navigation: React.FC = () => {
     position: 'relative',
     zIndex: 1,
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     alignItems: 'center',
-    width: 62,
-    padding: `${spacing.sm}px ${spacing.md}px`,
+    gap: spacing.xxs,
+    width: 70,
+    padding: `${spacing.sm}px ${spacing.xs}px`,
     borderRadius: `${radii.pill}px`,
     background: 'transparent',
     border: 'none',
-    color: colors.textPrimary,
     cursor: 'pointer',
-    transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
+    transition: `all ${animations.duration.normal} ${animations.easing.smooth}`,
   };
 
   const labelStyle: React.CSSProperties = {
-    fontSize: typography.textStyles.caption.fontSize,
-    fontWeight: typography.textStyles.caption.fontWeight,
-    marginTop: `${spacing.xs}px`,
-    fontFamily: typography.fonts.primary,
+    ...typography.textStyles.tiny,
+    fontWeight: '600',
   };
 
   return (
     <div style={containerStyle}>
-      <div style={{ position: 'relative' }}>
-        <div style={navStyle}>
-          <div style={indicatorStyle} />
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = location.pathname === tab.path;
-            return (
-              <button
-                key={tab.path}
-                onClick={() => navigate(tab.path)}
-                style={{
-                  ...buttonBase,
-                  color: isActive ? colors.textPrimary : colors.textSecondary,
-                  transform: isActive ? 'translateY(-2px)' : 'translateY(0px)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.color = colors.textPrimary;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.transform = 'translateY(0px)';
-                    e.currentTarget.style.color = colors.textSecondary;
-                  }
-                }}
-              >
-                <Icon size={22} style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.08))' }} />
-                <span style={labelStyle}>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      <div style={navStyle}>
+        <div style={indicatorStyle} />
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = location.pathname === tab.path;
+          return (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              style={{
+                ...buttonBase,
+                color: isActive ? tab.color : colors.text.secondary,
+                transform: isActive ? 'translateY(-4px)' : 'translateY(0px)',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.transform = 'translateY(-4px) scale(1.05)';
+                  e.currentTarget.style.color = tab.color;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                  e.currentTarget.style.color = colors.text.secondary;
+                }
+              }}
+            >
+              <Icon 
+                size={24} 
+                strokeWidth={isActive ? 2.5 : 2}
+                style={{ 
+                  filter: isActive ? `drop-shadow(0 2px 4px ${tab.color}40)` : 'none',
+                }} 
+              />
+              <span style={labelStyle}>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

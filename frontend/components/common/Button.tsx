@@ -1,18 +1,15 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { CSSProperties } from 'react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'fun';
   size?: 'sm' | 'md' | 'lg';
-  disabled?: boolean;
-  loading?: boolean;
-  className?: string;
   icon?: React.ReactNode;
+  disabled?: boolean;
   fullWidth?: boolean;
 }
 
@@ -21,156 +18,128 @@ const Button: React.FC<ButtonProps> = ({
   onPress,
   variant = 'primary',
   size = 'md',
-  disabled = false,
-  loading = false,
-  className = '',
   icon,
-  fullWidth = false
+  disabled = false,
+  fullWidth = false,
 }) => {
-  const baseStyles = {
+  const getVariantStyles = (): CSSProperties => {
+    const baseStyles: CSSProperties = {
+      border: 'none',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      transition: `all ${animations.duration.normal} ${animations.easing.smooth}`,
+      opacity: disabled ? 0.5 : 1,
+    };
+
+    switch (variant) {
+      case 'primary':
+        return {
+          ...baseStyles,
+          background: colors.gradients.primary,
+          color: colors.text.inverse,
+          boxShadow: shadows.colored.pink,
+        };
+      case 'secondary':
+        return {
+          ...baseStyles,
+          background: colors.gradients.secondary,
+          color: colors.text.inverse,
+          boxShadow: shadows.colored.mint,
+        };
+      case 'outline':
+        return {
+          ...baseStyles,
+          background: 'transparent',
+          color: colors.text.primary,
+          border: `2px solid ${colors.border.normal}`,
+        };
+      case 'ghost':
+        return {
+          ...baseStyles,
+          background: 'transparent',
+          color: colors.text.primary,
+        };
+      case 'fun':
+        return {
+          ...baseStyles,
+          background: colors.gradients.sunset,
+          color: colors.text.inverse,
+          boxShadow: shadows.colored.peach,
+        };
+      default:
+        return baseStyles;
+    }
+  };
+
+  const getSizeStyles = (): CSSProperties => {
+    switch (size) {
+      case 'sm':
+        return {
+          padding: `${spacing.xs}px ${spacing.md}px`,
+          ...typography.textStyles.bodySm,
+          borderRadius: `${radii.md}px`,
+        };
+      case 'md':
+        return {
+          padding: `${spacing.sm}px ${spacing.lg}px`,
+          ...typography.textStyles.body,
+          borderRadius: `${radii.md}px`,
+        };
+      case 'lg':
+        return {
+          padding: `${spacing.md}px ${spacing.xl}px`,
+          ...typography.textStyles.bodyLg,
+          borderRadius: `${radii.lg}px`,
+        };
+      default:
+        return {};
+    }
+  };
+
+  const buttonStyle: CSSProperties = {
+    ...getVariantStyles(),
+    ...getSizeStyles(),
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontFamily: typography.fonts.primary,
-    fontSize: typography.textStyles.label.fontSize,
-    fontWeight: typography.textStyles.label.fontWeight,
-    lineHeight: typography.textStyles.label.lineHeight,
-    borderRadius: `${radii.lg}px`,
-    border: 'none',
-    cursor: disabled || loading ? 'not-allowed' : 'pointer',
-    transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
-    outline: 'none',
-    textDecoration: 'none',
-    userSelect: 'none' as const,
+    gap: spacing.sm,
+    fontWeight: '600',
     width: fullWidth ? '100%' : 'auto',
-    position: 'relative' as const,
-    overflow: 'hidden' as const,
-  };
-
-  const sizeStyles = {
-    sm: {
-      height: '40px',
-      paddingLeft: `${spacing.lg}px`,
-      paddingRight: `${spacing.lg}px`,
-      fontSize: '13px',
-    },
-    md: {
-      height: '48px',
-      paddingLeft: `${spacing.xl}px`,
-      paddingRight: `${spacing.xl}px`,
-      fontSize: '15px',
-    },
-    lg: {
-      height: '56px',
-      paddingLeft: `${spacing.xxl}px`,
-      paddingRight: `${spacing.xxl}px`,
-      fontSize: '16px',
-    },
-  };
-
-  const variantStyles = {
-    primary: {
-      background: 'linear-gradient(135deg, #FF6B9D 0%, #4ECDC4 100%)',
-      color: colors.textInverse,
-      boxShadow: shadows.colorful,
-    },
-    secondary: {
-      background: 'linear-gradient(135deg, #4299E1 0%, #9F7AEA 100%)',
-      color: colors.textInverse,
-      boxShadow: shadows.soft,
-    },
-    fun: {
-      background: 'linear-gradient(135deg, #FFD93D 0%, #ED8936 100%)',
-      color: colors.textPrimary,
-      boxShadow: shadows.md,
-    },
-    outline: {
-      backgroundColor: 'transparent',
-      color: colors.primary,
-      border: `2px solid ${colors.primary}`,
-      boxShadow: 'none',
-    },
-    ghost: {
-      backgroundColor: 'transparent',
-      color: colors.primary,
-      boxShadow: 'none',
-    },
-  };
-
-  const hoverStyles = {
-    primary: {
-      transform: 'translateY(-2px) scale(1.02)',
-      boxShadow: '0 12px 28px 0 rgba(255, 107, 157, 0.4)',
-    },
-    secondary: {
-      transform: 'translateY(-2px) scale(1.02)',
-      boxShadow: '0 8px 24px 0 rgba(78, 205, 196, 0.3)',
-    },
-    fun: {
-      transform: 'translateY(-2px) scale(1.02)',
-      boxShadow: '0 12px 28px 0 rgba(255, 217, 61, 0.4)',
-    },
-    outline: {
-      backgroundColor: colors.softPink,
-      transform: 'translateY(-1px)',
-    },
-    ghost: {
-      backgroundColor: colors.softPink,
-      transform: 'translateY(-1px)',
-    },
-  };
-
-  const disabledStyles = {
-    opacity: 0.6,
-    transform: 'none',
-    boxShadow: 'none',
-    cursor: 'not-allowed',
-  };
-
-  const activeStyles = {
-    transform: 'translateY(0px) scale(0.98)',
-  };
-
-  const buttonStyle = {
-    ...baseStyles,
-    ...sizeStyles[size],
-    ...variantStyles[variant],
-    ...(disabled || loading ? disabledStyles : {}),
   };
 
   return (
     <button
-      style={buttonStyle}
       onClick={onPress}
-      disabled={disabled || loading}
-      className={`button-${variant} ${className}`}
+      disabled={disabled}
+      style={buttonStyle}
       onMouseEnter={(e) => {
-        if (!disabled && !loading) {
-          Object.assign(e.currentTarget.style, hoverStyles[variant]);
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+          if (variant === 'primary') {
+            e.currentTarget.style.boxShadow = shadows.glow.pink;
+          } else if (variant === 'secondary') {
+            e.currentTarget.style.boxShadow = shadows.glow.mint;
+          } else if (variant === 'fun') {
+            e.currentTarget.style.boxShadow = '0 0 32px rgba(255, 155, 92, 0.5)';
+          }
         }
       }}
       onMouseLeave={(e) => {
-        if (!disabled && !loading) {
-          Object.assign(e.currentTarget.style, variantStyles[variant]);
-        }
-      }}
-      onMouseDown={(e) => {
-        if (!disabled && !loading) {
-          Object.assign(e.currentTarget.style, { ...variantStyles[variant], ...activeStyles });
-        }
-      }}
-      onMouseUp={(e) => {
-        if (!disabled && !loading) {
-          Object.assign(e.currentTarget.style, hoverStyles[variant]);
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(0) scale(1)';
+          if (variant === 'primary') {
+            e.currentTarget.style.boxShadow = shadows.colored.pink;
+          } else if (variant === 'secondary') {
+            e.currentTarget.style.boxShadow = shadows.colored.mint;
+          } else if (variant === 'fun') {
+            e.currentTarget.style.boxShadow = shadows.colored.peach;
+          } else {
+            e.currentTarget.style.boxShadow = 'none';
+          }
         }
       }}
     >
-      {loading ? (
-        <Loader2 size={16} className="animate-spin mr-2" />
-      ) : (
-        icon && <span style={{ marginRight: `${spacing.sm}px` }}>{icon}</span>
-      )}
-      {title}
+      {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}
+      <span>{title}</span>
     </button>
   );
 };

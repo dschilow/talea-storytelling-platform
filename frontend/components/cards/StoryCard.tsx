@@ -1,9 +1,9 @@
-"use client";
-
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Heart, Trash2 } from 'lucide-react';
+import { BookOpen, Trash2, Clock, Users } from 'lucide-react';
 import type { Story } from '../../types/story';
+import { colors } from '../../utils/constants/colors';
+import { typography } from '../../utils/constants/typography';
+import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 
 interface StoryCardProps {
   story: Story;
@@ -19,37 +19,210 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     }
   };
 
+  const cardStyle: React.CSSProperties = {
+    background: colors.glass.background,
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    border: `2px solid ${colors.border.light}`,
+    borderRadius: `${radii.xl}px`,
+    overflow: 'hidden',
+    boxShadow: shadows.md,
+    transition: `all ${animations.duration.normal} ${animations.easing.smooth}`,
+    cursor: 'pointer',
+  };
+
+  const imageContainerStyle: React.CSSProperties = {
+    position: 'relative',
+    height: '220px',
+    overflow: 'hidden',
+    background: colors.gradients.sunset,
+  };
+
+  const imageStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    transition: `transform ${animations.duration.slow} ${animations.easing.smooth}`,
+  };
+
+  const defaultImageStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const statusBadgeStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    background: colors.glass.background,
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.xs}px ${spacing.md}px`,
+    ...typography.textStyles.caption,
+    fontWeight: '700',
+    color: story.status === 'complete' ? colors.semantic.success : colors.semantic.warning,
+    border: `2px solid ${story.status === 'complete' ? colors.semantic.success + '40' : colors.semantic.warning + '40'}`,
+  };
+
+  const deleteButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    background: colors.semantic.error + '90',
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    border: 'none',
+    cursor: 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const overlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 100%)',
+  };
+
+  const contentStyle: React.CSSProperties = {
+    padding: `${spacing.lg}px`,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    ...typography.textStyles.headingMd,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+    transition: `color ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const descriptionStyle: React.CSSProperties = {
+    ...typography.textStyles.bodySm,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+  };
+
+  const metaContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  };
+
+  const metaItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    ...typography.textStyles.caption,
+    color: colors.text.tertiary,
+  };
+
+  const avatarContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    padding: `${spacing.sm}px`,
+    background: colors.rose[50],
+    borderRadius: `${radii.md}px`,
+    border: `1px solid ${colors.rose[200]}`,
+  };
+
   return (
     <div
       onClick={() => onRead(story)}
-      className="cursor-pointer group bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-lg"
+      style={cardStyle}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-8px)';
+        e.currentTarget.style.boxShadow = shadows.xl;
+        const img = e.currentTarget.querySelector('img') as HTMLElement;
+        if (img) img.style.transform = 'scale(1.1)';
+        const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
+        if (title) title.style.color = colors.rose[600];
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = shadows.md;
+        const img = e.currentTarget.querySelector('img') as HTMLElement;
+        if (img) img.style.transform = 'scale(1)';
+        const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
+        if (title) title.style.color = colors.text.primary;
+      }}
     >
-      <div className="relative overflow-hidden rounded-t-md">
-        <motion.img
-          src={story.coverImageUrl || '/placeholder-story.jpg'}
-          alt={story.title}
-          className="w-full h-56 object-cover"
-          whileHover={{ scale: 1.05 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        />
-        <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-md">
-          <Heart className="w-4 h-4 text-red-500" />
-        </div>
+      <div style={imageContainerStyle}>
+        {story.coverImageUrl ? (
+          <img
+            src={story.coverImageUrl}
+            alt={story.title}
+            style={imageStyle}
+          />
+        ) : (
+          <div style={defaultImageStyle}>
+            <BookOpen size={72} style={{ color: colors.text.inverse, opacity: 0.6 }} />
+          </div>
+        )}
+        
+        <div style={overlayStyle} />
+
+        {story.status === 'generating' && (
+          <div style={statusBadgeStyle}>
+            ✨ Wird erstellt...
+          </div>
+        )}
+
         {onDelete && (
           <button
             onClick={handleDelete}
-            className="absolute top-3 left-3 bg-red-500/80 backdrop-blur-sm rounded-full p-1.5 shadow-md hover:bg-red-600 transition-colors"
+            style={deleteButtonStyle}
             title="Geschichte löschen"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15)';
+              e.currentTarget.style.background = colors.semantic.error;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = colors.semantic.error + '90';
+            }}
           >
-            <Trash2 className="w-4 h-4 text-white" />
+            <Trash2 size={16} style={{ color: colors.text.inverse }} />
           </button>
         )}
       </div>
-      <div className="p-4">
-        <h3 className="font-bold text-md text-gray-800 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+
+      <div style={contentStyle}>
+        <h3 style={titleStyle} data-title>
           {story.title}
         </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">By Talea</p>
+        <p style={descriptionStyle}>
+          {story.description || 'Eine magische Geschichte voller Abenteuer'}
+        </p>
+
+        {story.avatarParticipants && story.avatarParticipants.length > 0 && (
+          <div style={avatarContainerStyle}>
+            <Users size={14} style={{ color: colors.rose[600] }} />
+            <span style={{ ...typography.textStyles.caption, color: colors.rose[700], fontWeight: '600' }}>
+              {story.avatarParticipants.length} {story.avatarParticipants.length === 1 ? 'Avatar' : 'Avatare'}
+            </span>
+          </div>
+        )}
+
+        <div style={metaContainerStyle}>
+          <div style={metaItemStyle}>
+            <Clock size={14} />
+            <span>{new Date(story.createdAt).toLocaleDateString('de-DE')}</span>
+          </div>
+          {story.pages && (
+            <div style={metaItemStyle}>
+              <BookOpen size={14} />
+              <span>{story.pages.length} Seiten</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
