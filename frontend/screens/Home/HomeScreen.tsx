@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart, Clock, DollarSign, Zap, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -163,9 +164,6 @@ const HomeScreen: React.FC = () => {
   };
 
   const refreshButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
     padding: `${spacing.md}px`,
     borderRadius: `${radii.pill}px`,
     background: colors.glass.buttonBackground,
@@ -366,21 +364,29 @@ const HomeScreen: React.FC = () => {
             <div style={subtitleStyle}>
               Erschaffe magische Geschichten mit deinen Avataren
             </div>
-            <button
-              style={refreshButtonStyle}
-              onClick={onRefresh}
-              disabled={refreshing}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <RefreshCw size={20} style={{ 
-                animation: refreshing ? 'spin 1s linear infinite' : 'none' 
-              }} />
-            </button>
+            <div style={{ position: 'absolute', top: spacing.lg, right: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              <button
+                style={refreshButtonStyle}
+                onClick={onRefresh}
+                disabled={refreshing}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.06)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <RefreshCw size={20} style={{ 
+                  animation: refreshing ? 'spin 1s linear infinite' : 'none' 
+                }} />
+              </button>
+              <SignedIn>
+                <UserButton afterSignOutUrl="/" />
+              </SignedIn>
+              <SignedOut>
+                <Button title="Anmelden" onPress={() => navigate('/auth')} variant="secondary" size="sm" />
+              </SignedOut>
+            </div>
           </div>
         </div>
       </FadeInView>
