@@ -34,6 +34,19 @@ interface PersonalityTraits {
   leadership: number;
 }
 
+interface AvatarVisualProfile {
+  ageApprox: string;
+  gender: string;
+  skin: { tone: string; undertone?: string; distinctiveFeatures?: string[] };
+  hair: { color: string; type: string; length: string; style: string };
+  eyes: { color: string; shape?: string; size?: string };
+  face: { shape?: string; nose?: string; mouth?: string; eyebrows?: string; freckles?: boolean; otherFeatures?: string[] };
+  accessories: string[];
+  clothingCanonical?: { top?: string; bottom?: string; outfit?: string; colors?: string[]; patterns?: string[] };
+  palette?: { primary: string[]; secondary?: string[] };
+  consistentDescriptors: string[];
+}
+
 interface Avatar {
   id: string;
   name: string;
@@ -41,6 +54,7 @@ interface Avatar {
   physicalTraits: PhysicalTraits;
   personalityTraits: PersonalityTraits;
   imageUrl?: string;
+  visualProfile?: AvatarVisualProfile;
   creationType: 'ai-generated' | 'photo-upload';
 }
 
@@ -141,7 +155,7 @@ const EditAvatarScreen: React.FC = () => {
   };
 
   const handleRegenerateImage = async () => {
-    if (!avatar) return;
+    if (!avatar || !avatarId) return;
 
     try {
       setRegeneratingImage(true);
@@ -153,12 +167,29 @@ const EditAvatarScreen: React.FC = () => {
         style: 'disney',
       });
 
+      // Analyze new image for a refreshed canonical profile
+      let newVisualProfile: AvatarVisualProfile | undefined = undefined;
+      try {
+        const analysis = await backend.ai.analyzeAvatarImage({
+          imageUrl: result.imageUrl,
+          hints: {
+            name,
+            physicalTraits,
+            personalityTraits,
+          }
+        });
+        newVisualProfile = analysis.visualProfile;
+      } catch (err) {
+        console.error('Error analyzing new avatar image:', err);
+      }
+
       await backend.avatar.update({
         id: avatarId!,
         imageUrl: result.imageUrl,
+        visualProfile: newVisualProfile,
       });
 
-      setAvatar(prev => prev ? { ...prev, imageUrl: result.imageUrl } : null);
+      setAvatar(prev => prev ? { ...prev, imageUrl: result.imageUrl, visualProfile: newVisualProfile } : null);
       alert('Avatar-Bild wurde erfolgreich neu generiert! 🎨');
     } catch (error) {
       console.error('Error regenerating avatar image:', error);

@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "./generate";
+import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 
 // ---- OpenAI Modell & Pricing (GPT-5-nano) ----
@@ -16,6 +17,7 @@ interface ExtendedAvatarDetails {
   physicalTraits: any;
   personalityTraits: any;
   imageUrl?: string | null;
+  visualProfile?: AvatarVisualProfile;
   memory?: {
     experiences: string[];
     learnedSkills: string[];
@@ -151,18 +153,43 @@ function deterministicSeedFrom(str: string): number {
   return Math.abs(hash >>> 0);
 }
 
-// Konvertiere strukturierte Bildbeschreibung in natürlichen deutschen Prompt
-function convertImageDescriptionToPrompt(description: ChapterImageDescription | CoverImageDescription, isChapter: boolean = true): string {
+// Build a short canonical appearance string from a visual profile.
+function canonicalFromVisualProfile(vp?: AvatarVisualProfile): string | null {
+  if (!vp) return null;
+  const parts: string[] = [];
+  parts.push(`${vp.skin?.tone ?? ""} skin`.trim());
+  if (vp.hair?.color && vp.hair?.type) parts.push(`${vp.hair.color} ${vp.hair.type} hair`);
+  if (vp.hair?.length) parts.push(`${vp.hair.length} length`);
+  if (vp.hair?.style) parts.push(vp.hair.style);
+  if (vp.eyes?.color) parts.push(`${vp.eyes.color} eyes`);
+  if (vp.face?.freckles) parts.push("freckles");
+  if (vp.accessories && vp.accessories.length > 0) parts.push(...vp.accessories);
+  return parts.filter(Boolean).join(", ");
+}
+
+// Konvertiere strukturierte Bildbeschreibung in natürlichen Prompt und injiziere Avatar-Kanon
+function convertImageDescriptionToPrompt(
+  description: ChapterImageDescription | CoverImageDescription,
+  isChapter: boolean = true,
+  avatarProfilesByName?: Record<string, AvatarVisualProfile>
+): string {
+  const canonicalAppendix: string[] = [];
+
   if (isChapter) {
     const chapterDesc = description as ChapterImageDescription;
     
     let prompt = `Professionelle Kinderbuch-Illustration: ${chapterDesc.scene}. `;
-    
-    // Charaktere beschreiben
+
+    // Charaktere beschreiben, inkl. kanonischer Merkmale
     const characterDescriptions = Object.entries(chapterDesc.characters)
-      .map(([name, details]) => 
-        `${name} ist ${details.position}, zeigt ${details.expression}, ${details.action}, trägt ${details.clothing}`
-      ).join('. ');
+      .map(([name, details]) => {
+        const canon = canonicalFromVisualProfile(avatarProfilesByName?.[name]);
+        const canonTokens = avatarProfilesByName?.[name]?.consistentDescriptors?.slice(0, 6)?.join(", ");
+        if (canonTokens) {
+          canonicalAppendix.push(`${name}: ${canonTokens}`);
+        }
+        return `${name} ist ${details.position}, zeigt ${details.expression}, ${details.action}, trägt ${details.clothing}${canon ? `, konsistente Merkmale: ${canon}` : ""}`;
+      }).join(". ");
     
     prompt += `Charaktere: ${characterDescriptions}. `;
     
@@ -170,7 +197,7 @@ function convertImageDescriptionToPrompt(description: ChapterImageDescription | 
     prompt += `Umgebung: ${chapterDesc.environment.setting} mit ${chapterDesc.environment.lighting}. `;
     prompt += `Atmosphäre: ${chapterDesc.environment.atmosphere}. `;
     if (chapterDesc.environment.objects.length > 0) {
-      prompt += `Sichtbare Objekte: ${chapterDesc.environment.objects.join(', ')}. `;
+      prompt += `Sichtbare Objekte: ${chapterDesc.environment.objects.join(", ")}. `;
     }
     
     // Komposition
@@ -178,33 +205,52 @@ function convertImageDescriptionToPrompt(description: ChapterImageDescription | 
     prompt += `im Hintergrund ${chapterDesc.composition.background}, `;
     prompt += `Fokus liegt auf ${chapterDesc.composition.focus}. `;
     
-    prompt += `Disney-Pixar-Stil, kindgerecht, hochwertige digitale Illustration, warme Farben, ausdrucksstarke Gesichter.`;
-    
+    // Stil
+    prompt += `Disney-Pixar-Stil, kindgerecht, hochwertige digitale Illustration, warme Farben, ausdrucksstarke Gesichter. `;
+
+    // Kanonische Kurz-Tokens für absolute Konsistenz
+    if (canonicalAppendix.length > 0) {
+      prompt += `Kanonische Erscheinung beibehalten — Profile: ${canonicalAppendix.join(" | ")}. `;
+    }
+
+    // Anti-Drift
+    prompt += `Wichtig: Gesichter nicht verzerren, Augenfarbe korrekt, Haarfarbe/-stil konsistent, Proportionen kindgerecht.`;
+
     return prompt;
   } else {
     const coverDesc = description as CoverImageDescription;
     
     let prompt = `Kinderbuch-Cover-Illustration: ${coverDesc.mainScene}. `;
     
-    // Charaktere für Cover
+    // Charaktere für Cover inkl. kanonischer Merkmale
     const characterDescriptions = Object.entries(coverDesc.characters)
-      .map(([name, details]) => 
-        `${name} ist ${details.position} und zeigt ${details.expression}, in ${details.pose}`
-      ).join('. ');
+      .map(([name, details]) => {
+        const canon = canonicalFromVisualProfile(avatarProfilesByName?.[name]);
+        const canonTokens = avatarProfilesByName?.[name]?.consistentDescriptors?.slice(0, 6)?.join(", ");
+        if (canonTokens) {
+          canonicalAppendix.push(`${name}: ${canonTokens}`);
+        }
+        return `${name} ist ${details.position} und zeigt ${details.expression}, in ${details.pose}${canon ? `, konsistente Merkmale: ${canon}` : ""}`;
+      }).join(". ");
     
     prompt += `Charaktere: ${characterDescriptions}. `;
     
     // Cover-Umgebung
     prompt += `Umgebung: ${coverDesc.environment.setting} mit ${coverDesc.environment.mood} Stimmung. `;
-    prompt += `Farbpalette: ${coverDesc.environment.colorPalette.join(', ')}. `;
+    prompt += `Farbpalette: ${coverDesc.environment.colorPalette.join(", ")}. `;
     
     // Cover-Komposition
     prompt += `Layout: ${coverDesc.composition.layout}, `;
     prompt += `Platz für Titel: ${coverDesc.composition.titleSpace}, `;
     prompt += `visueller Fokus: ${coverDesc.composition.visualFocus}. `;
     
-    prompt += `Professionelles Kinderbuch-Cover, Disney-Pixar-Stil, ansprechend für Kinder und Eltern, hochwertige Illustration.`;
-    
+    prompt += `Professionelles Kinderbuch-Cover, Disney-Pixar-Stil, ansprechend für Kinder und Eltern, hochwertige Illustration. `;
+
+    if (canonicalAppendix.length > 0) {
+      prompt += `Kanonische Erscheinung beibehalten — Profile: ${canonicalAppendix.join(" | ")}. `;
+    }
+    prompt += `Wichtig: Gesichter nicht verzerren, Augen-/Haarfarben korrekt, Proportionen kindgerecht.`;
+
     return prompt;
   }
 }
@@ -239,9 +285,15 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       const seedBase = deterministicSeedFrom(req.avatarDetails.map(a => a.id).join("|"));
       const coverDimensions = normalizeRunwareDimensions(600, 800);
       const chapterDimensions = normalizeRunwareDimensions(512, 512);
+
+      // Build name->visualProfile map for consistency injection
+      const avatarMap: Record<string, AvatarVisualProfile> = {};
+      for (const a of req.avatarDetails) {
+        if (a.visualProfile) avatarMap[a.name] = a.visualProfile;
+      }
       
       // Cover-Bild generieren
-      const coverPrompt = convertImageDescriptionToPrompt(storyResult.coverImageDescription, false);
+      const coverPrompt = convertImageDescriptionToPrompt(storyResult.coverImageDescription, false, avatarMap);
       console.log("🎨 Cover-Prompt:", coverPrompt);
       
       const coverResponse = await ai.generateImage({
@@ -260,7 +312,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       const chapterResponses = [];
       for (let i = 0; i < storyResult.chapters.length; i++) {
         const chapter = storyResult.chapters[i];
-        const chapterPrompt = convertImageDescriptionToPrompt(chapter.imageDescription, true);
+        const chapterPrompt = convertImageDescriptionToPrompt(chapter.imageDescription, true, avatarMap);
         
         console.log(`🎨 Kapitel ${i + 1} Prompt:`, chapterPrompt);
         
@@ -325,69 +377,91 @@ async function generateEnhancedStoryWithOpenAI(
   
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  // Detaillierte Avatar-Beschreibungen für Prompt
+  // Detaillierte Avatar-Beschreibungen für Prompt inkl. visueller Kanon
   const avatarDescriptions = avatars.map(avatar => {
     const physical = avatar.physicalTraits || {};
     const personality = avatar.personalityTraits || {};
     const memory = avatar.memory || { experiences: [], learnedSkills: [], personalGrowth: [], relationships: {} };
     const level = avatar.currentLevel || { knowledge: 1, emotional: 1, social: 1, creativity: 1 };
-    
+    const vp = avatar.visualProfile;
+
+    const canon = vp ? [
+      `- Kanonische Erscheinung:`,
+      `  - Haut: ${vp.skin?.tone}${vp.skin?.undertone ? ` (${vp.skin.undertone})` : ""}${vp.skin?.distinctiveFeatures && vp.skin.distinctiveFeatures.length ? `; Merkmale: ${vp.skin.distinctiveFeatures.join(", ")}` : ""}`,
+      `  - Haare: ${vp.hair?.color} ${vp.hair?.type}, ${vp.hair?.length}, Stil: ${vp.hair?.style}`,
+      `  - Augen: ${vp.eyes?.color}${vp.eyes?.shape ? `, Form: ${vp.eyes.shape}` : ""}${vp.eyes?.size ? `, Größe: ${vp.eyes.size}` : ""}`,
+      `  - Gesicht: ${[
+        vp.face?.shape ? `Form: ${vp.face.shape}` : "",
+        vp.face?.nose ? `Nase: ${vp.face.nose}` : "",
+        vp.face?.mouth ? `Mund: ${vp.face.mouth}` : "",
+        vp.face?.eyebrows ? `Augenbrauen: ${vp.face.eyebrows}` : "",
+        vp.face?.freckles ? "Sommersprossen: ja" : "",
+        vp.face?.otherFeatures?.length ? `Weitere: ${vp.face.otherFeatures.join(", ")}` : "",
+      ].filter(Boolean).join("; ")}`,
+      `  - Accessoires: ${vp.accessories?.length ? vp.accessories.join(", ") : "keine"}`,
+      `  - Prompt-Tokens: ${vp.consistentDescriptors?.slice(0, 8).join(", ") || "-"}`,
+    ].join("\n") : `- Kanonische Erscheinung: (noch nicht festgelegt)`;
+
     return `
 **${avatar.name}:**
-- Aussehen: ${physical.age || 8} Jahre, ${physical.gender === "male" ? "Junge" : "Mädchen"}, ${physical.hairColor || "braune"} Haare, ${physical.eyeColor || "braune"} Augen, ${physical.skinTone || "helle"} Haut
+- Aussehen (Basis): ${physical.age || 8} Jahre, ${physical.gender === "male" ? "Junge" : physical.gender === "female" ? "Mädchen" : "Kind"}, ${physical.hairColor || "braune"} Haare, ${physical.eyeColor || "braune"} Augen, ${physical.skinTone || "helle"} Haut
 - Persönlichkeit: ${Object.entries(personality).map(([trait, value]) => `${trait}: ${value}/10`).join(", ")}
 - Bisherige Erfahrungen: ${memory.experiences.join(", ") || "Erste Geschichte"}
 - Gelernte Fähigkeiten: ${memory.learnedSkills.join(", ") || "Keine besonderen"}
 - Persönliche Entwicklung: ${memory.personalGrowth.join(", ") || "Am Anfang der Entwicklung"}
 - Beziehungen: ${Object.entries(memory.relationships).map(([name, rel]) => `${name}: ${rel}`).join(", ") || "Neue Freundschaften"}
-- Aktuelles Level: Wissen ${level.knowledge}, Emotional ${level.emotional}, Sozial ${level.social}, Kreativität ${level.creativity}`;
+- Aktuelles Level: Wissen ${level.knowledge}, Emotional ${level.emotional}, Sozial ${level.social}, Kreativität ${level.creativity}
+${canon}`;
   }).join("\n");
 
-  const systemPrompt = `Du bist ein Experte für Kinderliteratur und Charakterentwicklung. Du erstellst hochwertige Geschichten die:
-
-1. **CHARAKTERENTWICKLUNG**: Jeder Avatar entwickelt sich realistisch basierend auf seinen bisherigen Erfahrungen
-2. **LERNZIELE**: Subtile aber effektive Integration der gewünschten Lernziele
-3. **PRÄZISE BILDBESCHREIBUNGEN**: Jede Szene wird detailliert für die Bildgenerierung beschrieben
-4. **EMOTIONALE TIEFE**: Kinder können sich mit den Charakteren identifizieren
-5. **PÄDAGOGISCHEN WERT**: Vermittlung wichtiger Werte und Fähigkeiten
-
-Du gibst strukturierte JSON-Antworten zurück mit allen erforderlichen Feldern.`;
+  const systemPrompt = `Du bist ein preisgekrönter Kinderbuchautor mit Sinn für Spannung, Humor und Herz.
+Schreibe lebendige, bildhafte Geschichten mit klarem Spannungsbogen pro Kapitel.
+'Show, don't tell' — vermeide platte Zusammenfassungen und Moral am Kapitelende.
+Baue am Ende jedes Kapitels einen HOOK (Cliffhanger, offenes Detail, überraschende Wendung) ein, der Lust auf das nächste Kapitel macht.
+Halte die AVATAR-ERSCHEINUNG strikt KONSISTENT, gemäß den kanonischen Profilen (Haar, Augen, Haut, Accessoires, Gesichtszüge).
+Stil: klare, warme Sprache, abwechslungsreicher Satzbau, kindgerecht ohne zu verniedlichen.`;
 
   const userPrompt = `Erstelle eine ${config.genre}-Geschichte in ${config.setting} für Kinder im Alter ${config.ageGroup}.
 
-**GESCHICHTE-PARAMETER:**
+GESCHICHTE-PARAMETER:
 - Genre: ${config.genre}
 - Setting: ${config.setting}  
 - Länge: ${config.length} (${chapterCount} Kapitel)
 - Komplexität: ${config.complexity}
 - Zielgruppe: ${config.ageGroup} Jahre
 
-**AVATARE (alle bisherigen Erfahrungen berücksichtigen):**
+AVATARE (alle bisherigen Erfahrungen berücksichtigen, Erscheinung KONSTANT halten!):
 ${avatarDescriptions}
 
 ${config?.learningMode?.enabled ? `
-**LERNZIELE (subtil integrieren):**
+LERNMODUS (subtil integrieren, KEINE Moral-Floskeln am Schluss!):
 - Fächer: ${config.learningMode.subjects.join(", ")}
 - Schwierigkeit: ${config.learningMode.difficulty}
-- Lernziele: ${config.learningMode.learningObjectives.join(", ")}` : ""}
+- Lernziele: ${config.learningMode.learningObjectives.join(", ")}
+- Bewertungsart: ${config.learningMode.assessmentType}` : ""}
 
-**ERWARTETE JSON-STRUKTUR:**
+WICHTIG:
+- Jede Szene und Bildbeschreibung muss die kanonische AVATAR-ERSCHEINUNG beachten.
+- Kapitel enden mit einem spannenden HOOK, nicht mit einem Lern-Fazit.
+- Bildbeschreibungen enthalten für jeden Charakter konkrete Hinweise auf Haare, Augen, Haut, Accessoires (kurz), plus Kleidung der Szene.
+
+ERWARTETE JSON-STRUKTUR:
 {
   "title": "Spannender Titel der Geschichte",
   "description": "Packende Kurzbeschreibung (50-200 Zeichen)",
   "chapters": [
     {
       "title": "Kapitel-Titel",
-      "content": "Detaillierter Kapitel-Inhalt mit Charakterentwicklung (400-1000 Zeichen)",
+      "content": "Detaillierter Kapitel-Inhalt (400-1000 Zeichen) mit spannender Entwicklung und HOOK am Ende",
       "order": 0,
       "imageDescription": {
         "scene": "Präzise Szenen-Beschreibung",
         "characters": {
-          "Charaktername": {
+          "AvatarName": {
             "position": "genaue Position im Bild",
             "expression": "Gesichtsausdruck",
             "action": "was macht der Charakter",
-            "clothing": "Kleidungsbeschreibung"
+            "clothing": "Kleidungsbeschreibung (nur für Szene, Erscheinung sonst kanonisch)"
           }
         },
         "environment": {
@@ -407,7 +481,7 @@ ${config?.learningMode?.enabled ? `
   "coverImageDescription": {
     "mainScene": "Hauptszene des Covers",
     "characters": {
-      "Charaktername": {
+      "AvatarName": {
         "position": "Position auf dem Cover",
         "expression": "Gesichtsausdruck",
         "pose": "Körperhaltung"

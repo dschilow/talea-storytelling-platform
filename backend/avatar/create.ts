@@ -29,6 +29,50 @@ export interface PersonalityTraits {
   leadership: number;
 }
 
+// Canonical, detailed visual profile extracted from an avatar image.
+// This is used to ensure consistent appearance across all generated images.
+export interface AvatarVisualProfile {
+  ageApprox: string;
+  gender: string;
+  skin: {
+    tone: string;
+    undertone?: string;
+    distinctiveFeatures?: string[];
+  };
+  hair: {
+    color: string;
+    type: string;
+    length: string;
+    style: string;
+  };
+  eyes: {
+    color: string;
+    shape?: string;
+    size?: string;
+  };
+  face: {
+    shape?: string;
+    nose?: string;
+    mouth?: string;
+    eyebrows?: string;
+    freckles?: boolean;
+    otherFeatures?: string[];
+  };
+  accessories: string[];
+  clothingCanonical?: {
+    top?: string;
+    bottom?: string;
+    outfit?: string;
+    colors?: string[];
+    patterns?: string[];
+  };
+  palette?: {
+    primary: string[];
+    secondary?: string[];
+  };
+  consistentDescriptors: string[]; // Ready-to-use short tokens for prompts.
+}
+
 export interface Avatar {
   id: string;
   userId: string;
@@ -37,6 +81,7 @@ export interface Avatar {
   physicalTraits: PhysicalTraits;
   personalityTraits: PersonalityTraits;
   imageUrl?: string;
+  visualProfile?: AvatarVisualProfile;
   creationType: "ai-generated" | "photo-upload";
   isShared: boolean;
   originalAvatarId?: string;
@@ -51,6 +96,7 @@ interface CreateAvatarRequest {
   physicalTraits: PhysicalTraits;
   personalityTraits: PersonalityTraits;
   imageUrl?: string;
+  visualProfile?: AvatarVisualProfile;
   creationType: "ai-generated" | "photo-upload";
 }
 
@@ -64,11 +110,12 @@ export const create = api<CreateAvatarRequest, Avatar>(
     await avatarDB.exec`
       INSERT INTO avatars (
         id, user_id, name, description, physical_traits, personality_traits,
-        image_url, creation_type, is_shared, created_at, updated_at
+        image_url, visual_profile, creation_type, is_shared, created_at, updated_at
       ) VALUES (
         ${id}, ${req.userId}, ${req.name}, ${req.description},
         ${JSON.stringify(req.physicalTraits)}, ${JSON.stringify(req.personalityTraits)},
-        ${req.imageUrl}, ${req.creationType}, false, ${now}, ${now}
+        ${req.imageUrl}, ${req.visualProfile ? JSON.stringify(req.visualProfile) : null},
+        ${req.creationType}, false, ${now}, ${now}
       )
     `;
 
@@ -80,6 +127,7 @@ export const create = api<CreateAvatarRequest, Avatar>(
       physicalTraits: req.physicalTraits,
       personalityTraits: req.personalityTraits,
       imageUrl: req.imageUrl,
+      visualProfile: req.visualProfile,
       creationType: req.creationType,
       isShared: false,
       createdAt: now,

@@ -33,6 +33,19 @@ interface PersonalityTraits {
   leadership: number;
 }
 
+interface AvatarVisualProfile {
+  ageApprox: string;
+  gender: string;
+  skin: { tone: string; undertone?: string; distinctiveFeatures?: string[] };
+  hair: { color: string; type: string; length: string; style: string };
+  eyes: { color: string; shape?: string; size?: string };
+  face: { shape?: string; nose?: string; mouth?: string; eyebrows?: string; freckles?: boolean; otherFeatures?: string[] };
+  accessories: string[];
+  clothingCanonical?: { top?: string; bottom?: string; outfit?: string; colors?: string[]; patterns?: string[] };
+  palette?: { primary: string[]; secondary?: string[] };
+  consistentDescriptors: string[];
+}
+
 const AIGeneratedTab: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -40,6 +53,7 @@ const AIGeneratedTab: React.FC = () => {
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [visualProfile, setVisualProfile] = useState<AvatarVisualProfile | null>(null);
 
   const [physicalTraits, setPhysicalTraits] = useState<PhysicalTraits>({
     age: 8,
@@ -94,6 +108,7 @@ const AIGeneratedTab: React.FC = () => {
   const updatePhysicalTrait = <K extends keyof PhysicalTraits>(key: K, value: PhysicalTraits[K]) => {
     setPhysicalTraits(prev => ({ ...prev, [key]: value }));
     setGeneratedImageUrl(null);
+    setVisualProfile(null);
     setDebugInfo(null);
   };
 
@@ -134,33 +149,24 @@ const AIGeneratedTab: React.FC = () => {
       });
 
       console.log('✅ Avatar image generated successfully');
-      console.log('🖼️ Image URL length:', result.imageUrl?.length);
-      console.log('🔍 Debug info:', result.debugInfo);
-
       setGeneratedImageUrl(result.imageUrl);
       setDebugInfo(result.debugInfo);
 
-      // Quick validation if the data URL seems plausible
-      if (!result.imageUrl || !result.imageUrl.startsWith('data:image/')) {
-        console.warn('Unexpected image URL format:', result.imageUrl?.substring(0, 50));
-      }
-
-      if (result.debugInfo?.success) {
-        alert(
-          `✅ Avatar-Bild erfolgreich generiert!\n\n` +
-          `🔍 Debug Info:\n` +
-          `- Verarbeitungszeit: ${result.debugInfo.processingTime}ms\n` +
-          `- Content-Type: ${result.debugInfo.contentType || 'unbekannt'}\n` +
-          `- Pfad: ${result.debugInfo.extractedFromPath || 'n/a'}\n` +
-          `- Bild-URL Länge: ${result.imageUrl.length} Zeichen`
-        );
-      } else {
-        alert(
-          `⚠️ Avatar-Bild mit Fallback generiert.\n\n` +
-          `🔍 Debug Info:\n` +
-          `- Fehler: ${result.debugInfo?.errorMessage || 'Unbekannt'}\n` +
-          `- Verarbeitungszeit: ${result.debugInfo?.processingTime}ms`
-        );
+      // Immediately analyze the generated image to obtain a canonical visual profile
+      try {
+        const analysis = await backend.ai.analyzeAvatarImage({
+          imageUrl: result.imageUrl,
+          hints: {
+            name: name || undefined,
+            physicalTraits,
+            personalityTraits,
+          }
+        });
+        setVisualProfile(analysis.visualProfile);
+        console.log('🔍 Visual profile extracted:', analysis.visualProfile);
+      } catch (analysisErr) {
+        console.error('❌ Error analyzing avatar image:', analysisErr);
+        setVisualProfile(null);
       }
     } catch (error) {
       console.error('❌ Error generating avatar image:', error);
@@ -186,6 +192,7 @@ const AIGeneratedTab: React.FC = () => {
         physicalTraits,
         personalityTraits,
         imageUrl: generatedImageUrl || undefined,
+        visualProfile: visualProfile || undefined,
         creationType: 'ai-generated',
       });
 
@@ -193,6 +200,7 @@ const AIGeneratedTab: React.FC = () => {
       setName('');
       setDescription('');
       setGeneratedImageUrl(null);
+      setVisualProfile(null);
       setDebugInfo(null);
     } catch (error) {
       console.error('Error creating avatar:', error);
@@ -608,6 +616,25 @@ const AIGeneratedTab: React.FC = () => {
             <div style={{ ...typography.textStyles.body, color: colors.textInverse, marginBottom: `${spacing.lg}px`, opacity: 0.9 }}>
               {description || 'Keine Beschreibung verfügbar'}
             </div>
+
+            {/* Visual profile debug/preview */}
+            {visualProfile && (
+              <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(255, 255, 255, 0.12)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px`, marginBottom: spacing.lg }}>
+                <div style={{ ...typography.textStyles.label, color: colors.textInverse, marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+                  🎯 Kanonische Erscheinung (Kurz)
+                </div>
+                <div style={{ ...typography.textStyles.body, color: colors.textInverse, fontSize: '14px' }}>
+                  Haut: {visualProfile.skin?.tone}{visualProfile.skin?.undertone ? ` (${visualProfile.skin.undertone})` : ''}
+                  {visualProfile.skin?.distinctiveFeatures?.length ? ` — Merkmale: ${visualProfile.skin.distinctiveFeatures.join(', ')}` : ''}
+                  <br />
+                  Haare: {visualProfile.hair?.color} {visualProfile.hair?.type}, {visualProfile.hair?.length}, {visualProfile.hair?.style}
+                  <br />
+                  Augen: {visualProfile.eyes?.color}{visualProfile.eyes?.shape ? ` (${visualProfile.eyes.shape})` : ''}{visualProfile.eyes?.size ? `, ${visualProfile.eyes.size}` : ''}
+                  <br />
+                  Accessoires: {visualProfile.accessories?.length ? visualProfile.accessories.join(', ') : 'keine'}
+                </div>
+              </div>
+            )}
 
             <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px` }}>
               <div style={{ ...typography.textStyles.label, color: colors.textInverse, marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>

@@ -1,6 +1,6 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import type { Avatar } from "./create";
+import type { Avatar, AvatarVisualProfile } from "./create";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -24,6 +24,7 @@ export const list = api<ListAvatarsParams, ListAvatarsResponse>(
       physical_traits: string;
       personality_traits: string;
       image_url: string | null;
+      visual_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
       is_shared: boolean;
       original_avatar_id: string | null;
@@ -41,6 +42,7 @@ export const list = api<ListAvatarsParams, ListAvatarsResponse>(
       physicalTraits: JSON.parse(row.physical_traits),
       personalityTraits: JSON.parse(row.personality_traits),
       imageUrl: row.image_url || undefined,
+      visualProfile: row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined,
       creationType: row.creation_type,
       isShared: row.is_shared,
       originalAvatarId: row.original_avatar_id || undefined,

@@ -84,7 +84,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     `;
 
     try {
-      // Fetch avatar details including image URLs
+      // Fetch avatar details including image URLs and visual profiles
       const avatarDetails = await Promise.all(
         req.config.avatarIds.map(async (avatarId) => {
           const avatarData = await avatar.get({ id: avatarId });
@@ -93,7 +93,8 @@ export const generate = api<GenerateStoryRequest, Story>(
             name: avatarData.name,
             physicalTraits: avatarData.physicalTraits,
             personalityTraits: avatarData.personalityTraits,
-            imageUrl: avatarData.imageUrl, // Include the avatar image URL
+            imageUrl: avatarData.imageUrl,
+            visualProfile: avatarData.visualProfile, // include canonical visual profile
           };
         })
       );
@@ -101,10 +102,10 @@ export const generate = api<GenerateStoryRequest, Story>(
       console.log("🎭 Avatar details for story generation:", avatarDetails.map(a => ({ 
         name: a.name, 
         hasImage: !!a.imageUrl,
-        imageUrlLength: a.imageUrl?.length 
+        hasVisualProfile: !!a.visualProfile
       })));
 
-      // Generate story content using AI with avatar image references
+      // Generate story content using AI with avatar canonical appearance
       const generatedStory = await generateStoryContent({
         config: req.config,
         avatarDetails,
