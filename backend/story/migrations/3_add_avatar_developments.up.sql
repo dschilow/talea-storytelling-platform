@@ -1,1 +1,0 @@
-ALTER TABLE stories ADD COLUMN avatar_developments TEXT;

@@ -8,26 +8,7 @@ import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
-// Lokale Typs (Frontend) statt Backend-Typs
-type PersonalityTraits = {
-  courage: number;
-  intelligence: number;
-  creativity: number;
-  empathy: number;
-  strength: number;
-  humor: number;
-  adventure: number;
-  patience: number;
-  curiosity: number;
-  leadership: number;
-};
-
-type PhysicalTraits = {
-  characterType: string;
-  appearance: string;
-};
-
-type AvatarVisualProfile = any;
+import type { PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from '~backend/avatar/create';
 
 const AIGeneratedTab: React.FC = () => {
   const [name, setName] = useState('');
@@ -67,19 +48,14 @@ const AIGeneratedTab: React.FC = () => {
   };
 
   const updatePersonalityTrait = <K extends keyof PersonalityTraits>(key: K, value: PersonalityTraits[K]) => {
-    setPersonalityTraits((prev: PersonalityTraits) => ({ ...prev, [key]: value }));
+    setPersonalityTraits(prev => ({ ...prev, [key]: value }));
   };
 
   const openImageInNewTab = () => {
     if (!generatedImageUrl) return;
-    const w = window.open('', '_blank', 'noopener,noreferrer');
+    const w = window.open();
     if (w) {
-      const img = w.document.createElement('img');
-      img.src = generatedImageUrl;
-      img.alt = name || 'Avatar';
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
-      w.document.body.appendChild(img);
+      w.document.write(`<img src="${generatedImageUrl}" style="max-width:100%"/>`);
       w.document.title = name || 'Avatar';
     }
   };
@@ -119,7 +95,7 @@ const AIGeneratedTab: React.FC = () => {
           imageUrl: result.imageUrl,
           hints: {
             name: name || undefined,
-            
+            personalityTraits,
           }
         });
         setVisualProfile(analysis.visualProfile);
@@ -154,7 +130,7 @@ const AIGeneratedTab: React.FC = () => {
         appearance,
       };
 
-      const avatar = await (backend.avatar as any).create({
+      const avatar = await backend.avatar.create({
         name: name.trim(),
         description: `${characterType}: ${appearance}`,
         physicalTraits,
@@ -314,8 +290,8 @@ const AIGeneratedTab: React.FC = () => {
             Bestimme die Charakterzüge deines Avatars (1-10) ⭐
           </div>
 
-          {(Object.entries(personalityTraits) as [keyof PersonalityTraits, number][]).map(([key, value], index) => {
-            const trait = personalityLabels[key];
+          {Object.entries(personalityTraits).map(([key, value], index) => {
+            const trait = personalityLabels[key as keyof PersonalityTraits];
             return (
               <FadeInView key={key} delay={250 + index * 50}>
                 <div style={{ marginBottom: `${spacing.xl}px` }}>
@@ -345,8 +321,8 @@ const AIGeneratedTab: React.FC = () => {
                     min="1"
                     max="10"
                     step="1"
-                    value={value as number}
-                    onChange={(e) => updatePersonalityTrait(key, parseInt(e.target.value))}
+                    value={value}
+                    onChange={(e) => updatePersonalityTrait(key as keyof PersonalityTraits, parseInt(e.target.value))}
                     style={{
                       ...sliderStyle,
                       background: `linear-gradient(to right, ${trait.color} 0%, ${trait.color} ${value * 10}%, ${colors.border} ${value * 10}%, ${colors.border} 100%)`,
@@ -389,6 +365,11 @@ const AIGeneratedTab: React.FC = () => {
                 loading={generatingImage}
                 icon={<Sparkles size={16} />}
                 variant="ghost"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  color: colors.textInverse,
+                  border: `2px solid ${colors.textInverse}`,
+                }}
               />
               {generatedImageUrl && (
                 <>

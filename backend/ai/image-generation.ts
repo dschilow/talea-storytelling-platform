@@ -89,28 +89,18 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     taskUUID: crypto.randomUUID(),
     outputType: "base64Data",
     outputFormat: req.outputFormat || "WEBP",
-    outputQuality: 95,
     
     model: req.model || "runware:101@1",
-    positivePrompt: enhancePromptForRunware(req.prompt),
-    negativePrompt: req.negativePrompt || getDefaultNegativePrompt(),
+    positivePrompt: req.prompt,
+    negativePrompt: req.negativePrompt,
     
     width: normalizeToMultiple64(req.width || 512),
     height: normalizeToMultiple64(req.height || 512),
     
     numberResults: 1,
-    steps: req.steps || 30,
-    CFGScale: req.CFGScale || 8.5,
-    scheduler: "DDIM",
+    steps: req.steps || 20,
+    CFGScale: req.CFGScale || 7.5,
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
-    
-    // Erweiterte Qualitätsparameter
-    checkNSFW: false,
-    includeCost: true,
-    acceleratorOptions: {
-      teaCache: true,
-      teaCacheDistance: 0.3
-    }
   };
 
   try {
@@ -236,6 +226,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
         conditioningWeight: 0.8
       }),
       acceleratorOptions: { teaCache: true, teaCacheDistance: 0.5 },
+      promptWeighting: "compel",
       checkNSFW: false,
       includeCost: true
     };
@@ -381,113 +372,51 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
 
 // Verbessere den Prompt für Runware mit spezifischen Optimierungen
 function enhancePromptForRunware(prompt: string): string {
-  // Prüfe, ob bereits erweitert
-  if (prompt.includes("enhanced for runware")) {
-    return prompt;
-  }
-
-  // Strukturiere den Prompt für bessere Runware-Ergebnisse
-  const enhancedPrompt = restructurePromptForRunware(prompt);
-  return `${enhancedPrompt} enhanced for runware`;
-}
-
-// Strukturiere Prompts für bessere Runware-Ergebnisse
-function restructurePromptForRunware(prompt: string): string {
-  // Extrahiere wichtige Elemente
-  const isPortrait = prompt.toLowerCase().includes("portrait");
-  const isFullBody = prompt.toLowerCase().includes("ganzkörper") || prompt.toLowerCase().includes("full body");
-  const isScene = prompt.toLowerCase().includes("scene") || prompt.toLowerCase().includes("szene");
-  
-  // Basis-Qualitäts-Tags
-  const qualityTags = [
-    "masterpiece",
-    "best quality", 
-    "ultra detailed",
-    "8k resolution",
-    "professional digital art"
-  ];
-  
-  // Style-spezifische Tags
-  const styleTags = [
-    "Disney Pixar style",
-    "3D rendered",
-    "smooth lighting",
+  // Füge Runware-spezifische Optimierungen hinzu
+  const enhancements = [
+    "high quality",
+    "detailed",
+    "professional illustration",
+    "sharp focus",
     "vibrant colors",
-    "child-friendly",
-    "clean composition"
+    "consistent character design",
+    "8K resolution"
   ];
   
-  // Negative Prompt Ergänzungen
-  const negativeElements = [
-    "blurry",
-    "low quality", 
-    "distorted",
-    "scary",
-    "adult content",
-    "realistic photography",
-    "amateur art"
-  ];
+  // Prüfe, ob der Prompt bereits erweitert ist
+  const hasEnhancements = enhancements.some(e => prompt.toLowerCase().includes(e.toLowerCase()));
   
-  // Strukturiere den Prompt neu
-  let structuredPrompt = prompt;
-  
-  // Füge Qualitäts-Tags am Anfang hinzu
-  structuredPrompt = `${qualityTags.join(", ")}, ${structuredPrompt}`;
-  
-  // Füge Style-Tags hinzu
-  structuredPrompt = `${structuredPrompt}, ${styleTags.join(", ")}`;
-  
-  // Spezifische Verbesserungen basierend auf Prompt-Typ
-  if (isPortrait) {
-    structuredPrompt += ", perfect facial features, expressive eyes, detailed hair texture";
+  if (!hasEnhancements) {
+    return `${prompt}, ${enhancements.slice(0, 4).join(", ")}`;
   }
   
-  if (isFullBody) {
-    structuredPrompt += ", full body shot, proper proportions, dynamic pose";
-  }
-  
-  if (isScene) {
-    structuredPrompt += ", detailed background, atmospheric lighting, rich environment";
-  }
-  
-  return structuredPrompt;
+  return prompt;
 }
 
 // Standard Negative Prompt für bessere Qualität
 function getDefaultNegativePrompt(): string {
   return [
-    // Qualitätsprobleme
-    "blurry", "low quality", "poor quality", "bad quality",
-    "pixelated", "jpeg artifacts", "compression artifacts",
-    "amateur art", "sketch", "unfinished",
-    
-    // Anatomie-Probleme
-    "bad anatomy", "wrong anatomy", "distorted faces", "deformed faces",
-    "extra limbs", "missing limbs", "malformed hands", "extra fingers",
-    "bad proportions", "asymmetric features",
-    
-    // Stil-Probleme
-    "realistic photography", "photorealistic", "live action", "real person",
-    "black and white", "monochrome", "sepia",
-    
-    // Unerwünschte Inhalte
-    "adult content", "mature content", "scary", "horror", "dark themes",
-    "violence", "weapons", "blood", "disturbing",
-    
-    // Text und Wasserzeichen
-    "text", "words", "letters", "watermark", "signature", "logo",
-    "copyright", "username", "artist name",
-    
-    // Technische Probleme
-    "cropped", "cut off", "out of frame", "duplicate", "multiple heads",
-    "floating objects", "disconnected parts",
-    
-    // Konsistenz-Probleme
-    "inconsistent character", "wrong hair color", "wrong eye color",
-    "different appearance", "style inconsistency",
-    
-    // Hintergrund-Probleme
-    "cluttered background", "distracting background", "busy composition"
+    "realistic photography",
+    "live action",
+    "adult content", 
+    "scary",
+    "dark",
+    "horror",
+    "blurry",
+    "low quality",
+    "distorted faces",
+    "bad anatomy",
+    "inconsistent character appearance",
+    "wrong hair color",
+    "wrong eye color",
+    "text",
+    "watermarks",
+    "signatures",
+    "deformed",
+    "ugly",
+    "duplicate",
+    "morbid",
+    "mutilated"
   ].join(", ");
 }
 

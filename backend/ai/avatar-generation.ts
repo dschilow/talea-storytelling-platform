@@ -1,11 +1,11 @@
 import { api } from "encore.dev/api";
 import { runwareGenerateImage } from "./image-generation";
-import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
+import type { PhysicalTraits, PersonalityTraits } from "../avatar/create";
 
 interface GenerateAvatarImageRequest {
   characterType: string;
   appearance: string;
-  personalityTraits: any; // Make this flexible to accept any personality trait structure
+  personalityTraits: PersonalityTraits;
   style?: "realistic" | "disney" | "anime";
 }
 

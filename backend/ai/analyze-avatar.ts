@@ -1,6 +1,6 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
+import type { PhysicalTraits, PersonalityTraits } from "../avatar/create";
 import { logTopic } from "../log/logger";
 
 const openAIKey = secret("OpenAIKey");
@@ -35,70 +35,63 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
     const startTime = Date.now();
     console.log("🔬 Analyzing avatar image with STABLE analysis...");
 
-    // Check if the image is an SVG placeholder (unsupported by OpenAI)
-    if (req.imageUrl.startsWith("data:image/svg+xml")) {
-      console.warn("⚠️ Cannot analyze SVG placeholder images - skipping analysis");
-      return {
-        success: false,
-        visualProfile: null,
-        processingTime: Date.now() - startTime,
-      };
-    }
+    const system = `You are an expert visual character profiler for children's books.
+You receive one portrait-like image of a child character (avatar). 
+Handelt es sich dabei um einen menschen oder tier?
+du muss beschreiben was du siehst.
+Extract a precise, canonical visual profile to keep this character's look consistent across future illustrations.
 
-    const system = `Du bist ein Experte für visuelle Charakter-Profile in Geschichten und Illustrationen. Du erhältst ein Bild (Avatar), das ein Wesen darstellen kann – Mensch, Tier, Fantasiefigur oder Anime-Stil. Deine Aufgabe: Beschreibe den Avatar so präzise und konsistent wie möglich, damit er in allen zukünftigen Illustrationen gleich aussieht.
+STRICT OUTPUT: JSON object with the exact schema below. No additional text.
+Be concise but specific. Use strings and arrays only.`;
 
-### Regeln
-- Antworte streng nur als JSON im untenstehenden Schema, ohne zusätzlichen Text.
-- Beschreibe sichtbare Merkmale exakt: Haut/Fell/Federn/Schuppen (Farbe, Muster, Besonderheiten), Haare/Mähne, Augen, Gesichtsform, Hörner, Schnauze usw.
-- Kleidung nur beschreiben, wenn klar sichtbar; ansonsten leer lassen.
-- Accessories (z. B. Brille, Schmuck, Rucksack) immer angeben, wenn vorhanden, sonst [].
-- consistentDescriptors: exakt 8–10 kurze Tokens (3–6 Wörter), die die wichtigsten visuellen Merkmale festhalten. Keine Kleidung, nur konstante körperliche Eigenschaften.
-- Nutze einfache, klare Begriffe, keine Markennamen oder urheberrechtlich geschützten Bezüge.
+    const userText = `Analyze this avatar image and describe the canonical appearance for consistent future illustrations.
 
-### Stil & Qualität
-- Stil: „Illustration, konsistentes Charakterdesign, kindgerecht, sauberer Zeichenstil"
-- Detailgrad: „detailliert, hochauflösend, klare Linien, konsistente Proportionen"
-- Licht: „weiches Umgebungslicht, natürliche Beleuchtung"
-- Textur: „authentische Materialeigenschaften, natürliche Farbverläufe"
-- Vermeide: „digitale Artefakte, verzerrte Proportionen, unnatürlich gesättigte Farben"`;
+Rules:
+- Describe SKIN tone and undertone, and any distinctive features (freckles, birthmarks).
+- Describe HAIR: color (plain words), type (straight/wavy/curly/coily), length, style details.
+- Describe EYES: color (plain words), shape, relative size.
+- Describe FACE: overall shape, typical eyebrows, nose, mouth, any notable features (e.g., missing tooth).
+- ACCESSORIES: list consistent items (e.g., glasses) or [].
+- CLOTHING_CANONICAL: If a clear consistent outfit is visible, summarize it and main colors/patterns. Keep generic, e.g., "light-blue jumpsuit".
+- PALETTE: main colors present (primary, optional secondary).
+- CONSISTENT_DESCRIPTORS: return 6-12 short tokens (3-6 words each) suitable to append to image prompts, focused on appearance only (hair/skin/eyes/face/accessories). No clothing here unless intrinsic (e.g., glasses).
 
-    const userText = `Analysiere dieses Avatar-Bild und gib die kanonische Beschreibung exakt gemäß Schema als JSON aus.
-
-Falls Hinweise zu Avatar-Eigenschaften bereitgestellt werden, berücksichtige diese bei der Analyse und integriere sie in die Beschreibung, wenn sie mit dem sichtbaren Bild übereinstimmen oder es ergänzen.
+If hints are provided, include them only when they do not contradict the image.
+Avoid brand words or copyrighted characters.
 
 Schema:
 {
-  "ageApprox": "string (z. B. '5-7' oder 'unbekannt')",
+  "ageApprox": "string (e.g., '5-7')",
   "gender": "male | female | non-binary | unknown",
   "skin": {
-    "tone": "string (z. B. 'blass beige', 'blaues Fell')",
+    "tone": "string",
     "undertone": "string (optional)",
-    "distinctiveFeatures": ["string", ...]
+    "distinctiveFeatures": ["string", ...] // optional
   },
   "hair": {
     "color": "string",
-    "type": "straight|wavy|curly|coily|none",
-    "length": "short|medium|long|none",
+    "type": "straight|wavy|curly|coily",
+    "length": "short|medium|long",
     "style": "string"
   },
   "eyes": {
     "color": "string",
-    "shape": "string",
-    "size": "small|medium|large"
+    "shape": "string (optional)",
+    "size": "small|medium|large (optional)"
   },
   "face": {
-    "shape": "string",
-    "nose": "string",
-    "mouth": "string",
-    "eyebrows": "string (falls vorhanden)",
+    "shape": "string (optional)",
+    "nose": "string (optional)",
+    "mouth": "string (optional)",
+    "eyebrows": "string (optional)",
     "freckles": false,
-    "otherFeatures": ["string", ...]
+    "otherFeatures": ["string", ...] // optional
   },
   "accessories": ["string", ...],
   "clothingCanonical": {
-    "top": "string",
-    "bottom": "string",
-    "outfit": "string",
+    "top": "string (optional)",
+    "bottom": "string (optional)",
+    "outfit": "string (optional)",
     "colors": ["string", ...],
     "patterns": ["string", ...]
   },
@@ -106,18 +99,16 @@ Schema:
     "primary": ["string", ...],
     "secondary": ["string", ...]
   },
-  "consistentDescriptors": ["string", ...] // genau 8-10 Tokens
+  "consistentDescriptors": ["string", "string", ...]
 }`;
 
-    const hintsText = req.hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
-${req.hints.name ? `- Name des Avatars: ${req.hints.name}` : ""}
-${req.hints.physicalTraits ? `- Physische Eigenschaften vom Ersteller: ${JSON.stringify(req.hints.physicalTraits, null, 2)}` : ""}
-${req.hints.personalityTraits ? `- Persönlichkeitsmerkmale: ${JSON.stringify(req.hints.personalityTraits, null, 2)}` : ""}
-${req.hints.expectedType ? `- Erwarteter Charakter-Typ: ${req.hints.expectedType}` : ""}
-${req.hints.culturalContext ? `- Kultureller Kontext: ${req.hints.culturalContext}` : ""}
-${req.hints.stylePreference ? `- Stil-Präferenz: ${req.hints.stylePreference}` : ""}
-
-Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild übereinstimmen oder es sinnvoll ergänzen.` : "";
+    const hintsText = req.hints ? `HINTS:
+${req.hints.name ? `- Name: ${req.hints.name}` : ""}
+${req.hints.physicalTraits ? `- Physical: ${JSON.stringify(req.hints.physicalTraits)}` : ""}
+${req.hints.personalityTraits ? `- Personality: ${JSON.stringify(req.hints.personalityTraits)}` : ""}
+${req.hints.expectedType ? `- Expected Type: ${req.hints.expectedType}` : ""}
+${req.hints.culturalContext ? `- Cultural Context: ${req.hints.culturalContext}` : ""}
+${req.hints.stylePreference ? `- Style Preference: ${req.hints.stylePreference}` : ""}` : "";
 
     const payload = {
       model: "gpt-5-nano",
@@ -149,93 +140,20 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       });
     } catch (fetchError: any) {
       console.error("❌ Network error calling OpenAI:", fetchError.message);
-      
-      // Log network errors
-      await logTopic.publish({
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
-        response: {
-          success: false,
-          errorType: 'network_error',
-          errorMessage: fetchError.message,
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-      
       throw new Error(`Network error: ${fetchError.message}`);
     }
 
     if (!res.ok) {
       const errorText = await res.text();
       console.error("❌ OpenAI API error:", res.status, errorText);
-      
-      // Log API errors
-      await logTopic.publish({
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
-        response: {
-          success: false,
-          errorType: 'openai_api_error',
-          errorMessage: errorText,
-          httpStatus: res.status,
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-      
       throw new Error(`OpenAI API error: ${res.status} - ${errorText}`);
     }
 
-    let data: any;
+    let data;
     try {
       data = await res.json();
     } catch (jsonError: any) {
       console.error("❌ Failed to parse OpenAI response as JSON:", jsonError.message);
-      
-      // Log JSON parsing errors
-      await logTopic.publish({
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
-        response: {
-          success: false,
-          errorType: 'json_parse_error',
-          errorMessage: jsonError.message,
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-      
       throw new Error(`JSON parse error: ${jsonError.message}`);
     }
 
@@ -246,37 +164,27 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       firstChoiceContent: data.choices?.[0]?.message?.content ? "present" : "missing"
     });
 
-    const content = (data as any).choices?.[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
     if (!content || content.trim() === "") {
       console.error("❌ Empty content from OpenAI");
       console.error("Full response:", JSON.stringify(data, null, 2));
-      
-      // Log empty content errors
-      await logTopic.publish({
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
-        response: {
-          success: false,
-          errorType: 'empty_content',
-          errorMessage: "OpenAI returned empty content",
-          fullOpenAIResponse: data,
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-      
       throw new Error("OpenAI returned empty content");
     }
+
+    // Log für Monitoring
+    await logTopic.publish({
+      source: 'openai-avatar-analysis-stable',
+      timestamp: new Date(),
+      request: {
+        model: (payload as any).model,
+        hasImage: true,
+        hintsProvided: !!req.hints
+      },
+      response: {
+        tokensUsed: data.usage,
+        success: true
+      },
+    });
 
     let parsed: any;
     try {
@@ -293,68 +201,11 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     } catch (parseError: any) {
       console.error("❌ JSON parse error:", parseError.message);
       console.error("Raw content from OpenAI:", content.substring(0, 500));
-      
-      // Log analysis parsing errors
-      await logTopic.publish({
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
-        response: {
-          success: false,
-          errorType: 'analysis_parse_error',
-          errorMessage: parseError.message,
-          rawContent: content,
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-      
       throw new Error(`Failed to parse analysis result: ${parseError.message}`);
     }
 
     const processingTime = Date.now() - startTime;
     console.log(`✅ Analysis completed successfully in ${processingTime}ms`);
-
-    // Erweiterte Logs für bessere Analyse
-    await logTopic.publish({
-      source: 'openai-avatar-analysis-stable',
-      timestamp: new Date(),
-      request: {
-        model: (payload as any).model,
-        imageUrl: req.imageUrl,
-        hints: req.hints,
-        systemPrompt: system,
-        userPrompt: userText,
-        hintsText: hintsText,
-        hasImage: true,
-        hintsProvided: !!req.hints,
-        maxTokens: (payload as any).max_completion_tokens
-      },
-      response: {
-        tokensUsed: data.usage,
-        success: true,
-        visualProfile: parsed,
-        rawContent: content,
-        processingTimeMs: processingTime,
-        fullOpenAIResponse: {
-          choices: data.choices,
-          usage: data.usage,
-          model: data.model,
-          id: data.id,
-          created: data.created,
-          object: data.object
-        }
-      },
-    });
 
     return {
       success: true,

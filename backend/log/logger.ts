@@ -1,4 +1,4 @@
-import { Topic, Subscription } from "encore.dev/pubsub";
+import { Topic, Subscription, Context } from "encore.dev/pubsub";
 import { Bucket } from "encore.dev/storage/objects";
 
 // LogEvent defines the structure for log messages.
@@ -9,8 +9,7 @@ export interface LogEvent {
     | 'runware-batch-image'
     | 'openai-avatar-analysis'
     | 'openai-avatar-analysis-stable'
-    | 'openai-doku-generation'
-    | 'openai-tavi-chat';
+    | 'openai-doku-generation';
   timestamp: Date;
   request: any;
   response: any;
@@ -24,18 +23,15 @@ export const logBucket = new Bucket("avatales-ai-logs", {
 });
 
 // logTopic is the central topic for all AI-related logging events.
-export const logTopic = new Topic<LogEvent>("log-events", {
-  deliveryGuarantee: "at-least-once",
-});
+export const logTopic = new Topic<LogEvent>("log-events", {});
 
 // This subscription listens for log events and saves them to the bucket.
 // This happens asynchronously, so it doesn't slow down the main request flow.
 export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", {
-  handler: async (event: LogEvent) => {
-    console.log(`🚀 LOG SUBSCRIPTION HANDLER CALLED!`);
+  handler: async (event: LogEvent, context: Context) => {
     console.log(`📝 Received log event from source: ${event.source}`);
-    // Generate unique ID for the log entry
-    const id = crypto.randomUUID();
+    // FIX: Use optional chaining to prevent crash if context or message is undefined.
+    const id = context?.message?.id || crypto.randomUUID();
     
     // Create a safe filename by replacing colons.
     const safeTimestamp = event.timestamp.toISOString().replace(/:/g, '-');

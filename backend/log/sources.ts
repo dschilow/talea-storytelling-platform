@@ -13,13 +13,13 @@ interface GetLogSourcesResponse {
 
 // Gets available log sources with statistics.
 export const getSources = api<void, GetLogSourcesResponse>(
-  { expose: true, method: "GET", path: "/log/getSources" },
+  { expose: true, method: "GET", path: "/logs/sources" },
   async () => {
     const sourceCounts = new Map<string, { count: number; lastActivity: Date | null }>();
 
     try {
       for await (const entry of logBucket.list({})) {
-        const pathParts = entry.name.split(/[/\\]/);
+        const pathParts = entry.name.split('/');
         if (pathParts.length >= 2) {
           const source = pathParts[0];
           const current = sourceCounts.get(source) || { count: 0, lastActivity: null };
@@ -28,10 +28,7 @@ export const getSources = api<void, GetLogSourcesResponse>(
           const filename = pathParts[pathParts.length - 1];
           const timestampMatch = filename.match(/^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z)/);
           if (timestampMatch) {
-            const timestampStr = timestampMatch[1];
-            // Replace only the time portion hyphens with colons: YYYY-MM-DDTHH-MM-SS.sssZ -> YYYY-MM-DDTHH:MM:SS.sssZ
-            const correctedTimestamp = timestampStr.replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3');
-            const timestamp = new Date(correctedTimestamp);
+            const timestamp = new Date(timestampMatch[1].replace(/-/g, ':'));
             if (!current.lastActivity || timestamp > current.lastActivity) {
               current.lastActivity = timestamp;
             }

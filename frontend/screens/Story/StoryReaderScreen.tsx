@@ -1,235 +1,225 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@clerk/clerk-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, Volume2, VolumeX } from 'lucide-react';
 
-import { useBackend } from '../../hooks/useBackend';
-import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
-import type { Story, Chapter } from '../../types/story';
-import type { Avatar } from '../../types/avatar';
+import Button from '../../components/common/Button';
+import FadeInView from '../../components/animated/FadeInView';
+import PageFlip from '../../components/reader/PageFlip';
+import { colors } from '../../utils/constants/colors';
+import { typography } from '../../utils/constants/typography';
+import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import { useBackend } from '../../hooks/useBackend';
 
+interface Chapter {
+  id: string;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  order: number;
+}
+
+interface Story {
+  id: string;
+  title: string;
+  description: string;
+  coverImageUrl?: string;
+  chapters: Chapter[];
+  status: 'generating' | 'complete' | 'error';
+}
 
 const StoryReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const backend = useBackend();
-  const { getToken } = useAuth();
-
   const [story, setStory] = useState<Story | null>(null);
+  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [isReading, setIsReading] = useState(false);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
-  const [showNav, setShowNav] = useState(false);
-  const [animationDirection, setAnimationDirection] = useState(1);
-  
-  // Lese-Status
-  const [storyCompleted, setStoryCompleted] = useState(false);
-
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
 
   useEffect(() => {
     if (storyId) {
       loadStory();
     }
-    
-    // Keine Avatar-Auswahl mehr nötig – Updates erfolgen serverseitig bei Generierung
-  }, [storyId, location.state]);
-
-  useEffect(() => {
-    const contentEl = contentRef.current;
-    if (!contentEl) return;
-
-    const handleScroll = () => {
-      const isAtBottom = contentEl.scrollHeight - contentEl.scrollTop <= contentEl.clientHeight + 5; // 5px tolerance
-      setShowNav(isAtBottom);
-    };
-
-    contentEl.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial check
-
-    return () => contentEl.removeEventListener('scroll', handleScroll);
-  }, [currentChapterIndex, isReading]);
+  }, [storyId]);
 
   const loadStory = async () => {
     if (!storyId) return;
     try {
       setLoading(true);
       setError(null);
-      const storyData = await backend.story.get(storyId);
-      setStory(storyData as unknown as Story);
-    } catch (err) {
-      console.error('Error loading story:', err);
-      setError('Geschichte konnte nicht geladen werden.');
+      const storyData = await backend.story.get({ id: storyId });
+      setStory(storyData as any);
+    } catch (error) {
+      console.error('Error loading story:', error);
+      setError('Geschichte konnte nicht geladen werden');
     } finally {
       setLoading(false);
     }
   };
 
-  // Keine Avatar-Auswahl-Funktionalität mehr erforderlich
-
-  const startReading = () => {
-    setIsReading(true);
-    setShowNav(false);
-  };
-
-  const goToChapter = async (index: number) => {
-    if (!story || index < 0 || index >= story.chapters!.length) return;
-    
-    setAnimationDirection(index > currentChapterIndex ? 1 : -1);
-    setCurrentChapterIndex(index);
-    setShowNav(false);
-    
-    // Check if story is completed (reached last chapter)
-    if (index === story.chapters!.length - 1 && !storyCompleted) {
-      await handleStoryCompletion();
+  const goToPreviousChapter = () => {
+    if (currentChapterIndex > 0) {
+      setDirection('prev');
+      setCurrentChapterIndex(currentChapterIndex - 1);
     }
   };
 
-  const handleStoryCompletion = async () => {
-    console.log('📖 Story completed - triggering personality updates for all eligible avatars');
-    if (!story || !storyId) {
-      console.log('Story completion aborted - missing requirements');
-      return;
-    }
-
-    try {
-      setStoryCompleted(true);
-
-      // Get auth token and call story markRead endpoint to apply personality updates
-      const token = await getToken();
-      const target = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4000';
-      const response = await fetch(`${target}/story/mark-read`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          storyId: storyId,
-          storyTitle: story.title,
-          genre: story.genre,
-          // No avatarId = update all eligible avatars
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Personality updates applied:', result);
-
-        // Show success notification with compact personality changes
-        import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-          // Build compact message with trait changes
-          let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
-
-          if (result.personalityChanges && result.personalityChanges.length > 0) {
-            result.personalityChanges.forEach((avatarChange: any) => {
-              const changes = avatarChange.changes.map((change: any) => {
-                // Extract trait name and points from description
-                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
-                return `${points} ${getTraitDisplayName(change.trait)}`;
-              }).join(', ');
-              message += `${avatarChange.avatarName}: ${changes}\n`;
-            });
-          }
-
-          showSuccessToast(message.trim());
-        });
-
-        // Helper function to get German trait names
-        function getTraitDisplayName(trait: string): string {
-          // Handle subcategories like "knowledge.history"
-          const parts = trait.split('.');
-          const subcategory = parts.length > 1 ? parts[1] : null;
-          const mainTrait = parts[0];
-
-          const names: Record<string, string> = {
-            // Main traits
-            'knowledge': 'Wissen',
-            'creativity': 'Kreativität',
-            'vocabulary': 'Wortschatz',
-            'courage': 'Mut',
-            'curiosity': 'Neugier',
-            'teamwork': 'Teamgeist',
-            'empathy': 'Empathie',
-            'persistence': 'Ausdauer',
-            'logic': 'Logik',
-            // Subcategories
-            'history': 'Geschichte',
-            'science': 'Wissenschaft',
-            'geography': 'Geografie',
-            'physics': 'Physik',
-            'biology': 'Biologie',
-            'chemistry': 'Chemie',
-            'mathematics': 'Mathematik',
-            'kindness': 'Freundlichkeit',
-            'humor': 'Humor',
-            'determination': 'Entschlossenheit',
-            'wisdom': 'Weisheit'
-          };
-
-          // If it's a subcategory, return only the subcategory name
-          if (subcategory) {
-            return names[subcategory.toLowerCase()] || subcategory;
-          }
-
-          return names[mainTrait.toLowerCase()] || trait;
-        }
-      } else {
-        const errorText = await response.text();
-        console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-
-        // Show error notification but still show completion
-        import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-          showErrorToast('❌ Fehler bei der Persönlichkeitsentwicklung');
-          showStoryCompletionToast(story.title);
-        });
-      }
-
-    } catch (error) {
-      console.error('❌ Error during story completion processing:', error);
-
-      // Show error notification but still show completion
-      import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-        showErrorToast('❌ Netzwerkfehler bei der Persönlichkeitsentwicklung');
-        showStoryCompletionToast(story.title);
-      });
+  const goToNextChapter = () => {
+    if (story && currentChapterIndex < story.chapters.length - 1) {
+      setDirection('next');
+      setCurrentChapterIndex(currentChapterIndex + 1);
     }
   };
 
-  const variants = {
-    enter: (direction: number) => ({
-      opacity: 0,
-      filter: 'blur(10px)',
-      x: direction * 100,
-    }),
-    center: {
-      opacity: 1,
-      filter: 'blur(0px)',
-      x: 0,
-      transition: { duration: 0.5 },
-    },
-    exit: (direction: number) => ({
-      opacity: 0,
-      filter: 'blur(10px)',
-      x: direction * -100,
-      transition: { duration: 0.3 },
-    }),
+  const toggleReading = () => {
+    setIsReading(!isReading);
+    // Here you would implement text-to-speech functionality
   };
 
-  // --- Render Functions ---
+  const containerStyle: React.CSSProperties = {
+    minHeight: '100vh',
+    background: colors.appBackground,
+    paddingBottom: '120px',
+  };
+
+  const headerStyle: React.CSSProperties = {
+    background: colors.glass.navBackground,
+    border: `1px solid ${colors.glass.border}`,
+    padding: `${spacing.lg}px`,
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
+    boxShadow: colors.glass.shadow,
+    backdropFilter: 'blur(14px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(14px) saturate(160%)',
+  };
+
+  const headerContentStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    maxWidth: '880px',
+    margin: '0 auto',
+  };
+
+  const backButtonStyle: React.CSSProperties = {
+    padding: `${spacing.sm}px`,
+    borderRadius: `${radii.pill}px`,
+    background: colors.glass.buttonBackground,
+    border: `1px solid ${colors.glass.border}`,
+    color: colors.textPrimary,
+    cursor: 'pointer',
+    marginRight: `${spacing.md}px`,
+    transition: 'all 0.2s ease',
+  };
+
+  const titleStyle: React.CSSProperties = {
+    ...typography.textStyles.headingMd,
+    color: colors.textPrimary,
+    flex: 1,
+    textAlign: 'center' as const,
+  };
+
+  const readerStyle: React.CSSProperties = {
+    maxWidth: '880px',
+    margin: '0 auto',
+    padding: `${spacing.xl}px`,
+  };
+
+  const chapterHeaderStyle: React.CSSProperties = {
+    textAlign: 'center' as const,
+    marginBottom: `${spacing.xl}px`,
+  };
+
+  const chapterTitleStyle: React.CSSProperties = {
+    ...typography.textStyles.headingLg,
+    color: colors.textPrimary,
+    marginBottom: `${spacing.lg}px`,
+  };
+
+  const chapterImageStyle: React.CSSProperties = {
+    width: '100%',
+    maxWidth: '520px',
+    height: '320px',
+    borderRadius: `${radii.lg}px`,
+    objectFit: 'cover' as const,
+    margin: `0 auto ${spacing.xl}px auto`,
+    display: 'block',
+    boxShadow: colors.glass.shadow,
+    border: `1px solid ${colors.glass.border}`,
+    background: colors.glass.cardBackground,
+  };
+
+  const chapterContentStyle: React.CSSProperties = {
+    ...typography.textStyles.body,
+    color: colors.textPrimary,
+    lineHeight: '1.85',
+    marginBottom: `${spacing.xl}px`,
+    textAlign: 'justify' as const,
+    background: colors.glass.cardBackground,
+    border: `1px solid ${colors.glass.border}`,
+    borderRadius: `${radii.xl}px`,
+    padding: `${spacing.xl}px`,
+    boxShadow: colors.glass.shadow,
+  };
+
+  const navigationStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: `${spacing.xl}px`,
+    padding: `${spacing.lg}px`,
+  };
+
+  const progressStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: `${spacing.sm}px`,
+  };
+
+  const progressBarStyle: React.CSSProperties = {
+    width: '220px',
+    height: '6px',
+    background: 'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.04))',
+    borderRadius: `${radii.sm}px`,
+    overflow: 'hidden' as const,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: colors.glass.shadow,
+    backdropFilter: 'blur(8px)',
+  };
+
+  const progressFillStyle: React.CSSProperties = {
+    height: '100%',
+    background: `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`,
+    borderRadius: `${radii.sm}px`,
+    width: story ? `${((currentChapterIndex + 1) / story.chapters.length) * 100}%` : '0%',
+    transition: 'width 300ms ease',
+  };
+
+  const controlsStyle: React.CSSProperties = {
+    display: 'flex',
+    gap: `${spacing.sm}px`,
+    alignItems: 'center',
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg text-gray-600 dark:text-gray-300">Lade Geschichte...</p>
+      <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ 
+            width: '48px', 
+            height: '48px', 
+            border: `4px solid rgba(255,255,255,0.6)`,
+            borderTop: `4px solid ${colors.primary}`,
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: `0 auto ${spacing.lg}px auto`
+          }} />
+          <p style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+            Lade Geschichte...
+          </p>
         </div>
       </div>
     );
@@ -237,141 +227,229 @@ const StoryReaderScreen: React.FC = () => {
 
   if (error || !story) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">Fehler</h2>
-          <p className="text-gray-700 dark:text-gray-200 mb-6">{error || 'Die Geschichte konnte nicht gefunden werden.'}</p>
-          <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center mx-auto">
-            <ArrowLeft size={18} className="mr-2" /> Zurück
-          </button>
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <div style={headerContentStyle}>
+            <button
+              style={backButtonStyle}
+              onClick={() => navigate('/')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div style={titleStyle}>Geschichte nicht gefunden</div>
+          </div>
+        </div>
+        <div style={readerStyle}>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+            <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+              {error || 'Geschichte nicht gefunden'}
+            </div>
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              Die angeforderte Geschichte konnte nicht geladen werden.
+            </div>
+            <Button
+              title="Zurück zur Startseite"
+              onPress={() => navigate('/')}
+              icon={<ArrowLeft size={16} />}
+            />
+          </Card>
         </div>
       </div>
     );
   }
 
-  const currentChapter = story.chapters?.[currentChapterIndex];
+  // Safety check for chapters
+  if (!story.chapters || story.chapters.length === 0) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <div style={headerContentStyle}>
+            <button
+              style={backButtonStyle}
+              onClick={() => navigate('/')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div style={titleStyle}>{story.title}</div>
+          </div>
+        </div>
+        <div style={readerStyle}>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+            <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+              Geschichte wird noch erstellt
+            </div>
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              Diese Geschichte wird gerade generiert. Bitte versuche es in ein paar Minuten erneut.
+            </div>
+            <Button
+              title="Zurück zur Startseite"
+              onPress={() => navigate('/')}
+              icon={<ArrowLeft size={16} />}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const currentChapter = story.chapters[currentChapterIndex];
+
+  // Safety check for current chapter
+  if (!currentChapter) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <div style={headerContentStyle}>
+            <button
+              style={backButtonStyle}
+              onClick={() => navigate('/')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div style={titleStyle}>{story.title}</div>
+          </div>
+        </div>
+        <div style={readerStyle}>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+            <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+              Kapitel nicht verfügbar
+            </div>
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              Das angeforderte Kapitel konnte nicht gefunden werden.
+            </div>
+            <Button
+              title="Zurück zur Startseite"
+              onPress={() => navigate('/')}
+              icon={<ArrowLeft size={16} />}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-screen h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-      <button onClick={() => isReading ? setIsReading(false) : navigate('/stories')} className="absolute top-4 left-4 z-20 p-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition-transform">
-        <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-      </button>
-
-      <AnimatePresence initial={false}>
-        {!isReading ? (
-          <motion.div
-            key="summary"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="w-full h-full flex flex-col items-center justify-center p-8 text-center"
+    <div style={containerStyle}>
+      {/* Header */}
+      <div style={headerStyle}>
+        <div style={headerContentStyle}>
+          <button
+            style={backButtonStyle}
+            onClick={() => navigate('/')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0px)';
+            }}
           >
-            <motion.img 
-              src={story.coverImageUrl || '/placeholder-story.jpg'} 
-              alt={story.title} 
-              className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover"
-              layoutId={`story-cover-${story.id}`}
-            />
-            <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{story.title}</h1>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{story.summary}</p>
-            <button onClick={startReading} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105">
-              Lesen
-            </button>
-          </motion.div>
-        ) : (
-          <div key="reader" className="w-full h-full flex flex-col">
-            <AnimatePresence initial={false} custom={animationDirection}>
-              <motion.div
-                key={currentChapterIndex}
-                custom={animationDirection}
-                variants={variants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                className="w-full h-full flex flex-col pt-20 pb-32 absolute inset-0"
-              >
-                <div className="text-center px-4">
-                  <img 
-                    src={currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`} 
-                    alt={currentChapter?.title || ''}
-                    className="w-full max-w-4xl max-h-[40vh] object-cover rounded-lg shadow-lg mx-auto mb-4"
-                  />
-                  <h2 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6">{currentChapter?.title}</h2>
-                </div>
-                <div ref={contentRef} className="flex-1 overflow-y-auto px-4 md:px-12">
-                  <div className="max-w-3xl mx-auto text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-relaxed space-y-6">
-                    {currentChapter?.content.split('\n').map((p, i) => <p key={i}>{p}</p>)}
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
+            <ArrowLeft size={20} />
+          </button>
+          <div style={titleStyle}>{story.title}</div>
+          <button
+            style={backButtonStyle}
+            onClick={toggleReading}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0px)';
+            }}
+          >
+            {isReading ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
+        </div>
+      </div>
 
-            {/* Navigation & Progress */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
-              <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-                <motion.button 
-                  onClick={() => goToChapter(currentChapterIndex - 1)} 
-                  disabled={currentChapterIndex === 0}
-                  className="p-3 rounded-full disabled:opacity-30 transition-opacity"
-                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                  animate={{ opacity: showNav || currentChapterIndex > 0 ? 1 : 0 }}
-                >
-                  <ChevronLeft className="w-8 h-8" />
-                </motion.button>
-                
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
-                    <motion.div 
-                      className="bg-blue-600 h-2.5 rounded-full"
-                      initial={{ width: '0%' }}
-                      animate={{ width: `${((currentChapterIndex + 1) / (story.chapters?.length || 1)) * 100}%` }}
-                      transition={{ ease: "easeInOut" }}
-                    />
-                  </div>
-                  <span className="text-xs mt-1.5">Kapitel {currentChapterIndex + 1} / {story.chapters?.length || 1}</span>
-                </div>
+      {/* Reader Content */}
+      <div style={readerStyle}>
+        <PageFlip direction={direction} pageKey={currentChapter.id}>
+          <div>
+            <div style={chapterHeaderStyle}>
+              <div style={chapterTitleStyle}>{currentChapter.title}</div>
+              {currentChapter.imageUrl && (
+                <img
+                  src={currentChapter.imageUrl}
+                  alt={currentChapter.title}
+                  style={chapterImageStyle}
+                  onError={(e) => {
+                    // Hide image if it fails to load
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              )}
+            </div>
 
-{/* Next Chapter / Complete Story Button */}
-                {story.chapters && currentChapterIndex === story.chapters.length - 1 ? (
-                  // Last chapter - show "Complete Story" button
-                  <motion.button 
-                    onClick={() => {
-                      if (!storyCompleted) {
-                        handleStoryCompletion();
-                      }
-                    }}
-                    disabled={storyCompleted}
-                    className={`px-6 py-3 rounded-full font-bold text-white transition-all ${
-                      storyCompleted 
-                        ? 'bg-green-600 cursor-default' 
-                        : 'bg-purple-600 hover:bg-purple-700 hover:scale-105'
-                    }`}
-                    whileHover={!storyCompleted ? { scale: 1.05 } : {}} 
-                    whileTap={!storyCompleted ? { scale: 0.95 } : {}}
-                    animate={{ opacity: showNav ? 1 : 0.7 }}
-                  >
-                    {storyCompleted ? '🎉 Abgeschlossen!' : '🏁 Geschichte abschließen'}
-                  </motion.button>
-                ) : (
-                  // Regular "Next Chapter" button
-                  <motion.button 
-                    onClick={() => goToChapter(currentChapterIndex + 1)} 
-                    disabled={!story.chapters || currentChapterIndex === story.chapters.length - 1}
-                    className="p-3 rounded-full disabled:opacity-30 transition-opacity"
-                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                    animate={{ opacity: showNav || (story.chapters && currentChapterIndex < story.chapters.length - 1) ? 1 : 0 }}
-                  >
-                    <ChevronRight className="w-8 h-8" />
-                  </motion.button>
-                )}
-              </div>
+            <div style={chapterContentStyle}>
+              {currentChapter.content.split('\n').map((paragraph, index) => (
+                <p key={index} style={{ marginBottom: `${spacing.lg}px` }}>
+                  {paragraph}
+                </p>
+              ))}
             </div>
           </div>
-        )}
-      </AnimatePresence>
-      
-      {/* Keine Avatar-Auswahl mehr notwendig */}
+        </PageFlip>
 
+        {/* Navigation */}
+        <Card variant="glass" style={navigationStyle}>
+          <div style={controlsStyle}>
+            <Button
+              title=""
+              onPress={goToPreviousChapter}
+              disabled={currentChapterIndex === 0}
+              variant="outline"
+              icon={<ChevronLeft size={20} />}
+            />
+          </div>
+
+        <div style={progressStyle}>
+          <span style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+            {currentChapterIndex + 1} / {story.chapters.length}
+          </span>
+          <div style={progressBarStyle}>
+            <div style={progressFillStyle} />
+          </div>
+        </div>
+
+          <div style={controlsStyle}>
+            <Button
+              title=""
+              onPress={goToNextChapter}
+              disabled={currentChapterIndex === story.chapters.length - 1}
+              variant="outline"
+              icon={<ChevronRight size={20} />}
+            />
+          </div>
+        </Card>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

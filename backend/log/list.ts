@@ -3,7 +3,7 @@ import { logBucket } from "./logger";
 
 export interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation' | 'openai-tavi-chat';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation';
   timestamp: Date;
   request: any;
   response: any;
@@ -28,12 +28,11 @@ const ALL_SOURCES = [
   'openai-avatar-analysis',
   'openai-avatar-analysis-stable',
   'openai-doku-generation',
-  'openai-tavi-chat',
 ];
 
 // Lists log entries from the bucket.
 export const list = api<ListLogsRequest, ListLogsResponse>(
-  { expose: true, method: "GET", path: "/log/list" },
+  { expose: true, method: "GET", path: "/logs" },
   async (req) => {
     const limit = req.limit || 50;
     const sourceFilter = req.source;
@@ -46,7 +45,7 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
         // Efficiently list for a specific date
         const sources = sourceFilter ? [sourceFilter] : ALL_SOURCES;
         for (const source of sources) {
-          const prefix = `${source}/${dateFilter}/`.replace(/\//g, '\\');
+          const prefix = `${source}/${dateFilter}/`;
           for await (const entry of logBucket.list({ prefix })) {
             logNames.push(entry.name);
           }
@@ -63,7 +62,7 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
 
         for (const date of datesToScan) {
             for (const source of sources) {
-                const prefix = `${source}/${date}/`.replace(/\//g, '\\');
+                const prefix = `${source}/${date}/`;
                 for await (const entry of logBucket.list({ prefix })) {
                     logNames.push(entry.name);
                 }

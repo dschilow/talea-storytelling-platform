@@ -21,7 +21,6 @@ export const get = api<GetStoryParams, Story>(
       description: string;
       cover_image_url: string | null;
       config: string;
-      avatar_developments: string | null;
       metadata: string | null;
       status: "generating" | "complete" | "error";
       is_public: boolean;
@@ -59,7 +58,6 @@ export const get = api<GetStoryParams, Story>(
       description: storyRow.description,
       coverImageUrl: storyRow.cover_image_url || undefined,
       config: JSON.parse(storyRow.config),
-      avatarDevelopments: storyRow.avatar_developments ? JSON.parse(storyRow.avatar_developments) : undefined,
       metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
       chapters: chapterRows.map(ch => ({
         id: ch.id,

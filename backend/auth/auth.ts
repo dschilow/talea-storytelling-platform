@@ -32,12 +32,7 @@ export interface AuthData {
 const AUTHORIZED_PARTIES = [
   // Development
   "http://localhost:3000",
-  "http://localhost:5171", // Vite Dev Server (custom port)
   "http://localhost:5173", // Vite Dev Server
-  "http://localhost:5174", // Vite Dev Server (alternative port)
-  "http://localhost:5175", // Vite Dev Server (alternative port)
-  "http://localhost:5176", // Vite Dev Server (alternative port)
-  "http://localhost:5177", // Vite Dev Server (alternative port)
   "http://localhost:4000", // Encore Dev Server
   
   // Leap.new Patterns - Alle möglichen Varianten

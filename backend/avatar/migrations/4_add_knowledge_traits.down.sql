@@ -1,2 +1,0 @@
--- Reverse migration for knowledge traits
--- No action needed as this was a placeholder migration

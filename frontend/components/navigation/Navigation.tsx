@@ -12,8 +12,9 @@ const Navigation: React.FC = () => {
   const tabs = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/avatar', label: 'Avatare', icon: User },
-    { path: '/stories', label: 'Stories', icon: BookOpen },
+    { path: '/story', label: 'Generieren', icon: Sparkles },
     { path: '/doku', label: 'Doku', icon: FlaskConical },
+    { path: '/stories', label: 'Stories', icon: BookOpen },
     { path: '/logs', label: 'Logs', icon: Code },
     { path: '/community', label: 'Community', icon: Globe },
   ];
