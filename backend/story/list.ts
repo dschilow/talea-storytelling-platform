@@ -31,42 +31,53 @@ export const list = api<ListStoriesParams, ListStoriesResponse>(
       SELECT * FROM stories WHERE user_id = ${userId} ORDER BY created_at DESC
     `;
 
-    const stories: Story[] = [];
+    if (storyRows.length === 0) {
+      return { stories: [] };
+    }
 
-    for (const storyRow of storyRows) {
-      const chapterRows = await storyDB.queryAll<{
-        id: string;
-        title: string;
-        content: string;
-        image_url: string | null;
-        chapter_order: number;
-      }>`
-        SELECT id, title, content, image_url, chapter_order 
-        FROM chapters 
-        WHERE story_id = ${storyRow.id} 
-        ORDER BY chapter_order
-      `;
+    const storyIds = storyRows.map(s => s.id);
 
-      stories.push({
-        id: storyRow.id,
-        userId: storyRow.user_id,
-        title: storyRow.title,
-        description: storyRow.description,
-        coverImageUrl: storyRow.cover_image_url || undefined,
-        config: JSON.parse(storyRow.config),
-        metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
-        chapters: chapterRows.map(ch => ({
-          id: ch.id,
-          title: ch.title,
-          content: ch.content,
-          imageUrl: ch.image_url || undefined,
-          order: ch.chapter_order,
-        })),
-        status: storyRow.status,
-        createdAt: storyRow.created_at,
-        updatedAt: storyRow.updated_at,
+    const chapterRows = await storyDB.queryAll<{
+      id: string;
+      story_id: string;
+      title: string;
+      content: string;
+      image_url: string | null;
+      chapter_order: number;
+    }>`
+      SELECT id, story_id, title, content, image_url, chapter_order 
+      FROM chapters 
+      WHERE story_id = ANY(${storyIds}) 
+      ORDER BY story_id, chapter_order
+    `;
+
+    const chaptersByStoryId = new Map<string, any[]>();
+    for (const chapter of chapterRows) {
+      if (!chaptersByStoryId.has(chapter.story_id)) {
+        chaptersByStoryId.set(chapter.story_id, []);
+      }
+      chaptersByStoryId.get(chapter.story_id)!.push({
+        id: chapter.id,
+        title: chapter.title,
+        content: chapter.content,
+        imageUrl: chapter.image_url || undefined,
+        order: chapter.chapter_order,
       });
     }
+
+    const stories: Story[] = storyRows.map(storyRow => ({
+      id: storyRow.id,
+      userId: storyRow.user_id,
+      title: storyRow.title,
+      description: storyRow.description,
+      coverImageUrl: storyRow.cover_image_url || undefined,
+      config: JSON.parse(storyRow.config),
+      metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
+      chapters: chaptersByStoryId.get(storyRow.id) || [],
+      status: storyRow.status,
+      createdAt: storyRow.created_at,
+      updatedAt: storyRow.updated_at,
+    }));
 
     return { stories };
   }

@@ -31,42 +31,54 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
     const dateFilter = req.date;
 
     try {
-      let count = 0;
-      for await (const entry of logBucket.list({})) {
-        if (count >= limit) break;
-
-        // Apply source filter
-        if (sourceFilter) {
-          const pathParts = entry.name.split('/');
-          if (pathParts.length < 2 || pathParts[0] !== sourceFilter) {
-            continue;
-          }
-        }
-
-        // Apply date filter
+      const prefixes: string[] = [];
+      if (sourceFilter) {
+        let prefix = `${sourceFilter}/`;
         if (dateFilter) {
-          const pathParts = entry.name.split('/');
-          if (pathParts.length < 2 || pathParts[1] !== dateFilter) {
-            continue;
+          prefix += `${dateFilter}/`;
+        }
+        prefixes.push(prefix);
+      } else if (dateFilter) {
+        const allSources = ['openai-story-generation', 'runware-single-image', 'runware-batch-image', 'openai-avatar-analysis'];
+        for (const source of allSources) {
+          prefixes.push(`${source}/${dateFilter}/`);
+        }
+      }
+
+      const logEntries: { name: string }[] = [];
+      if (prefixes.length > 0) {
+        for (const prefix of prefixes) {
+          for await (const entry of logBucket.list({ prefix })) {
+            logEntries.push(entry);
           }
         }
+      } else {
+        // No filters, list everything (this will be slow)
+        for await (const entry of logBucket.list({})) {
+          logEntries.push(entry);
+        }
+      }
 
+      // Sort by name descending to get newest first, as name contains timestamp
+      logEntries.sort((a, b) => b.name.localeCompare(a.name));
+
+      // Download only the limited number of logs
+      for (const entry of logEntries.slice(0, limit)) {
         try {
           const logData = await logBucket.download(entry.name);
           const logEntry = JSON.parse(logData.toString('utf-8')) as LogEntry;
           logs.push(logEntry);
-          count++;
         } catch (err) {
           console.warn(`Failed to parse log entry ${entry.name}:`, err);
         }
       }
 
-      // Sort by timestamp (newest first)
+      // Final sort by actual timestamp, as filename sort is an approximation
       logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       return {
         logs,
-        totalCount: logs.length,
+        totalCount: logEntries.length,
       };
     } catch (error) {
       console.error("Error listing logs:", error);
