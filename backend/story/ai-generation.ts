@@ -17,6 +17,7 @@ interface GenerateStoryContentRequest {
     name: string;
     physicalTraits: any;
     personalityTraits: any;
+    imageUrl?: string | null;
   }>;
 }
 
@@ -50,6 +51,17 @@ function normalizeRunwareDimensions(width: number, height: number): { width: num
   return { width: normalizedWidth, height: normalizedHeight };
 }
 
+// Deterministischer Seed basierend auf Avatar-IDs, damit Charaktere konsistent aussehen
+function deterministicSeedFrom(str: string): number {
+  // FNV-1a 32-bit
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = (hash >>> 0) * 0x01000193;
+  }
+  return Math.abs(hash >>> 0);
+}
+
 export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
   { expose: true, method: "POST", path: "/ai/generate-story" },
   async (req) => {
@@ -73,17 +85,28 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
 
+      // Referenzbilder (Avatare) zusammenstellen
+      const referenceImages = req.avatarDetails
+        .map(a => a.imageUrl)
+        .filter((u): u is string => !!u && u.length > 0);
+
+      // Gemeinsamer Seed für die Geschichte (konsistente Charaktere)
+      const seedBase = deterministicSeedFrom(req.avatarDetails.map(a => a.id).join("|"));
+
       // Cover
       const coverDimensions = normalizeRunwareDimensions(600, 800);
       const coverPrompt =
-        `Children's book cover illustration for "${storyContent.title}", ` +
+        `Children's book cover illustration for "${storyContent.title}". ` +
+        `Keep character identity consistent with the provided reference images (same faces, hair, and outfits). ` +
         `${req.config.genre} adventure, ${req.config.setting} setting, ` +
-        `Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality`;
+        `Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality, safe for children.`;
       const coverImage = await generateImage({
         prompt: coverPrompt,
         width: coverDimensions.width,
         height: coverDimensions.height,
         steps: 25,
+        seed: seedBase,
+        referenceImages,
       });
       metadata.imagesGenerated++;
 
@@ -92,14 +115,17 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       const chaptersWithImages = await Promise.all(
         storyContent.chapters.map(async (chapter, index) => {
           const chapterPrompt =
-            `Children's book illustration for chapter "${chapter.title}", ` +
+            `Children's book illustration for the scene "${chapter.title}". ` +
+            `The main characters must look identical to the reference images (same child identity, hairstyle, hair color, skin tone, eye color, clothing style). ` +
             `${req.config.genre} story scene, ${req.config.setting} background, ` +
-            `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children`;
+            `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children, high quality.`;
           const chapterImage = await generateImage({
             prompt: chapterPrompt,
             width: chapterDimensions.width,
             height: chapterDimensions.height,
             steps: 20,
+            seed: (seedBase + index * 101) >>> 0,
+            referenceImages,
           });
           metadata.imagesGenerated++;
           return { ...chapter, imageUrl: chapterImage.imageUrl };
@@ -136,7 +162,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
 
 async function generateStoryWithOpenAI(
   config: StoryConfig,
-  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any; imageUrl?: string | null }>
 ): Promise<{ title: string; description: string; chapters: Omit<Chapter, "id" | "imageUrl">[]; tokensUsed?: any }> {
   
   const avatarDescriptions = avatars
@@ -145,7 +171,7 @@ async function generateStoryWithOpenAI(
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  const systemPrompt = "Du bist ein professioneller Kinderbuchautor. Erstelle Geschichten im JSON-Format basierend auf den gegebenen Parametern.";
+  const systemPrompt = "Du bist ein professioneller Kinderbuchautor. Erstelle Geschichten im JSON-Format basierend auf den gegebenen Parametern. Halte die Inhalte kindgerecht und sicher.";
   
   const userPrompt = `Erstelle eine ${config.genre} Geschichte in ${config.setting} für die Altersgruppe ${config.ageGroup}.
 
@@ -160,6 +186,8 @@ ${config?.learningMode?.enabled ?
 - Fächer: ${config.learningMode.subjects.join(", ")}
 - Schwierigkeit: ${config.learningMode.difficulty}
 - Lernziele: ${config.learningMode.learningObjectives.join(", ")}` : ""}
+
+Wichtig: Die Charaktere sollen über die Kapitel hinweg konsistent bleiben (Aussehen, Merkmale, Persönlichkeit).
 
 Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
 {
@@ -225,25 +253,33 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
 
 async function generateFallbackStoryWithImages(
   config: StoryConfig,
-  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any; imageUrl?: string | null }>
 ): Promise<{ title: string; description: string; coverImageUrl: string; chapters: Omit<Chapter, "id">[] }> {
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
 
+  const referenceImages = avatars.map(a => a.imageUrl).filter((u): u is string => !!u);
+
+  const seedBase = deterministicSeedFrom(avatars.map(a => a.id ?? a.name).join("|"));
+
   const coverDimensions = normalizeRunwareDimensions(600, 800);
   const coverImage = await generateImage({
-    prompt: `Children's book cover, ${config.genre} story, colorful, magical`,
+    prompt: `Children's book cover, ${config.genre} story, colorful, magical. Keep characters consistent with reference images.`,
     width: coverDimensions.width,
     height: coverDimensions.height,
+    seed: seedBase,
+    referenceImages,
   });
 
   const chapterDimensions = normalizeRunwareDimensions(400, 300);
   const chaptersWithImages = await Promise.all(
     fallbackStory.chapters.map(async (chapter, index) => {
       const chapterImage = await generateImage({
-        prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story`,
+        prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story. Match reference characters.`,
         width: chapterDimensions.width,
         height: chapterDimensions.height,
+        seed: (seedBase + index * 101) >>> 0,
+        referenceImages,
       });
       return { ...chapter, imageUrl: chapterImage.imageUrl };
     })

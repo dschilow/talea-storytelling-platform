@@ -5,7 +5,7 @@ import { spacing, radii, shadows } from '../../utils/constants/spacing';
 interface CardProps {
   children: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'elevated' | 'outlined' | 'playful';
+  variant?: 'default' | 'elevated' | 'outlined' | 'playful' | 'glass';
   padding?: keyof typeof spacing;
   onPress?: () => void;
   style?: React.CSSProperties;
@@ -30,30 +30,42 @@ const Card: React.FC<CardProps> = ({
     ...style,
   };
 
+  const glassStyles: React.CSSProperties = {
+    background: colors.glass.background,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: colors.glass.shadow,
+    backdropFilter: 'blur(18px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+  };
+
   const variantStyles = {
     default: {
       backgroundColor: colors.surface,
       border: `1px solid ${colors.border}`,
     },
     elevated: {
-      backgroundColor: colors.elevatedSurface,
-      boxShadow: shadows.md,
+      // Adopt subtle glass effect for elevated cards
+      ...glassStyles,
     },
     outlined: {
       backgroundColor: colors.elevatedSurface,
       border: `2px solid ${colors.border}`,
     },
     playful: {
-      background: 'linear-gradient(135deg, #FFF8F3 0%, #FFFFFF 100%)',
-      border: `2px solid ${colors.softPink}`,
+      // Playful with glass warmth
+      ...glassStyles,
+      background: colors.glass.warmBackground,
+      border: `1px solid ${colors.glass.border}`,
       boxShadow: shadows.soft,
+    },
+    glass: {
+      ...glassStyles,
     },
   };
 
   const hoverStyles = onPress ? {
     transform: 'translateY(-4px) scale(1.02)',
-    boxShadow: variant === 'elevated' ? shadows.lg : 
-               variant === 'playful' ? shadows.colorful : shadows.md,
+    boxShadow: shadows.lg,
   } : {};
 
   const activeStyles = onPress ? {
@@ -93,6 +105,21 @@ const Card: React.FC<CardProps> = ({
         }
       }}
     >
+      {/* Glossy highlight */}
+      {(variant === 'glass' || variant === 'elevated' || variant === 'playful') && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '-20%',
+            right: '-20%',
+            height: '80px',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.0) 100%)',
+            filter: 'blur(8px)',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {children}
     </Component>
   );

@@ -5,7 +5,8 @@ import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, Volume2, VolumeX } from
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
-import { colors, gradients } from '../../utils/constants/colors';
+import PageFlip from '../../components/reader/PageFlip';
+import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import backend from '~backend/client';
@@ -35,6 +36,7 @@ const StoryReaderScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isReading, setIsReading] = useState(false);
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
 
   useEffect(() => {
     if (storyId) {
@@ -60,12 +62,14 @@ const StoryReaderScreen: React.FC = () => {
 
   const goToPreviousChapter = () => {
     if (currentChapterIndex > 0) {
+      setDirection('prev');
       setCurrentChapterIndex(currentChapterIndex - 1);
     }
   };
 
   const goToNextChapter = () => {
     if (story && currentChapterIndex < story.chapters.length - 1) {
+      setDirection('next');
       setCurrentChapterIndex(currentChapterIndex + 1);
     }
   };
@@ -77,33 +81,35 @@ const StoryReaderScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    backgroundColor: colors.background,
-    paddingBottom: '100px',
+    background: colors.appBackground,
+    paddingBottom: '120px',
   };
 
   const headerStyle: React.CSSProperties = {
-    backgroundColor: colors.elevatedSurface,
-    borderBottom: `1px solid ${colors.border}`,
+    background: colors.glass.navBackground,
+    border: `1px solid ${colors.glass.border}`,
     padding: `${spacing.lg}px`,
     position: 'sticky',
     top: 0,
     zIndex: 100,
-    boxShadow: shadows.sm,
+    boxShadow: colors.glass.shadow,
+    backdropFilter: 'blur(14px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(14px) saturate(160%)',
   };
 
   const headerContentStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    maxWidth: '800px',
+    maxWidth: '880px',
     margin: '0 auto',
   };
 
   const backButtonStyle: React.CSSProperties = {
     padding: `${spacing.sm}px`,
     borderRadius: `${radii.pill}px`,
-    backgroundColor: 'transparent',
-    border: 'none',
-    color: colors.textSecondary,
+    background: colors.glass.buttonBackground,
+    border: `1px solid ${colors.glass.border}`,
+    color: colors.textPrimary,
     cursor: 'pointer',
     marginRight: `${spacing.md}px`,
     transition: 'all 0.2s ease',
@@ -117,7 +123,7 @@ const StoryReaderScreen: React.FC = () => {
   };
 
   const readerStyle: React.CSSProperties = {
-    maxWidth: '800px',
+    maxWidth: '880px',
     margin: '0 auto',
     padding: `${spacing.xl}px`,
   };
@@ -135,21 +141,28 @@ const StoryReaderScreen: React.FC = () => {
 
   const chapterImageStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: '400px',
-    height: '250px',
+    maxWidth: '520px',
+    height: '320px',
     borderRadius: `${radii.lg}px`,
     objectFit: 'cover' as const,
     margin: `0 auto ${spacing.xl}px auto`,
     display: 'block',
-    boxShadow: shadows.md,
+    boxShadow: colors.glass.shadow,
+    border: `1px solid ${colors.glass.border}`,
+    background: colors.glass.cardBackground,
   };
 
   const chapterContentStyle: React.CSSProperties = {
     ...typography.textStyles.body,
     color: colors.textPrimary,
-    lineHeight: '1.8',
+    lineHeight: '1.85',
     marginBottom: `${spacing.xl}px`,
     textAlign: 'justify' as const,
+    background: colors.glass.cardBackground,
+    border: `1px solid ${colors.glass.border}`,
+    borderRadius: `${radii.xl}px`,
+    padding: `${spacing.xl}px`,
+    boxShadow: colors.glass.shadow,
   };
 
   const navigationStyle: React.CSSProperties = {
@@ -158,8 +171,6 @@ const StoryReaderScreen: React.FC = () => {
     alignItems: 'center',
     marginTop: `${spacing.xl}px`,
     padding: `${spacing.lg}px`,
-    backgroundColor: colors.surface,
-    borderRadius: `${radii.lg}px`,
   };
 
   const progressStyle: React.CSSProperties = {
@@ -169,19 +180,22 @@ const StoryReaderScreen: React.FC = () => {
   };
 
   const progressBarStyle: React.CSSProperties = {
-    width: '200px',
-    height: '4px',
-    backgroundColor: colors.border,
+    width: '220px',
+    height: '6px',
+    background: 'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.04))',
     borderRadius: `${radii.sm}px`,
     overflow: 'hidden' as const,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: colors.glass.shadow,
+    backdropFilter: 'blur(8px)',
   };
 
   const progressFillStyle: React.CSSProperties = {
     height: '100%',
-    backgroundColor: colors.primary,
+    background: `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`,
     borderRadius: `${radii.sm}px`,
     width: story ? `${((currentChapterIndex + 1) / story.chapters.length) * 100}%` : '0%',
-    transition: 'width 0.3s ease',
+    transition: 'width 300ms ease',
   };
 
   const controlsStyle: React.CSSProperties = {
@@ -197,7 +211,7 @@ const StoryReaderScreen: React.FC = () => {
           <div style={{ 
             width: '48px', 
             height: '48px', 
-            border: `4px solid ${colors.surface}`,
+            border: `4px solid rgba(255,255,255,0.6)`,
             borderTop: `4px solid ${colors.primary}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
@@ -220,10 +234,10 @@ const StoryReaderScreen: React.FC = () => {
               style={backButtonStyle}
               onClick={() => navigate('/')}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = colors.surface;
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0px)';
               }}
             >
               <ArrowLeft size={20} />
@@ -232,7 +246,7 @@ const StoryReaderScreen: React.FC = () => {
           </div>
         </div>
         <div style={readerStyle}>
-          <Card variant="outlined" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
             <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
             <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
               {error || 'Geschichte nicht gefunden'}
@@ -261,10 +275,10 @@ const StoryReaderScreen: React.FC = () => {
               style={backButtonStyle}
               onClick={() => navigate('/')}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = colors.surface;
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0px)';
               }}
             >
               <ArrowLeft size={20} />
@@ -273,7 +287,7 @@ const StoryReaderScreen: React.FC = () => {
           </div>
         </div>
         <div style={readerStyle}>
-          <Card variant="outlined" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
             <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
             <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
               Geschichte wird noch erstellt
@@ -304,10 +318,10 @@ const StoryReaderScreen: React.FC = () => {
               style={backButtonStyle}
               onClick={() => navigate('/')}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = colors.surface;
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0px)';
               }}
             >
               <ArrowLeft size={20} />
@@ -316,7 +330,7 @@ const StoryReaderScreen: React.FC = () => {
           </div>
         </div>
         <div style={readerStyle}>
-          <Card variant="outlined" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
             <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
             <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
               Kapitel nicht verfügbar
@@ -344,10 +358,10 @@ const StoryReaderScreen: React.FC = () => {
             style={backButtonStyle}
             onClick={() => navigate('/')}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = colors.surface;
+              e.currentTarget.style.transform = 'translateY(-2px)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.transform = 'translateY(0px)';
             }}
           >
             <ArrowLeft size={20} />
@@ -357,10 +371,10 @@ const StoryReaderScreen: React.FC = () => {
             style={backButtonStyle}
             onClick={toggleReading}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = colors.surface;
+              e.currentTarget.style.transform = 'translateY(-2px)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.transform = 'translateY(0px)';
             }}
           >
             {isReading ? <VolumeX size={20} /> : <Volume2 size={20} />}
@@ -370,33 +384,35 @@ const StoryReaderScreen: React.FC = () => {
 
       {/* Reader Content */}
       <div style={readerStyle}>
-        <FadeInView key={currentChapterIndex} delay={0}>
-          <div style={chapterHeaderStyle}>
-            <div style={chapterTitleStyle}>{currentChapter.title}</div>
-            {currentChapter.imageUrl && (
-              <img
-                src={currentChapter.imageUrl}
-                alt={currentChapter.title}
-                style={chapterImageStyle}
-                onError={(e) => {
-                  // Hide image if it fails to load
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            )}
-          </div>
+        <PageFlip direction={direction} pageKey={currentChapter.id}>
+          <div>
+            <div style={chapterHeaderStyle}>
+              <div style={chapterTitleStyle}>{currentChapter.title}</div>
+              {currentChapter.imageUrl && (
+                <img
+                  src={currentChapter.imageUrl}
+                  alt={currentChapter.title}
+                  style={chapterImageStyle}
+                  onError={(e) => {
+                    // Hide image if it fails to load
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+            </div>
 
-          <div style={chapterContentStyle}>
-            {currentChapter.content.split('\n').map((paragraph, index) => (
-              <p key={index} style={{ marginBottom: `${spacing.lg}px` }}>
-                {paragraph}
-              </p>
-            ))}
+            <div style={chapterContentStyle}>
+              {currentChapter.content.split('\n').map((paragraph, index) => (
+                <p key={index} style={{ marginBottom: `${spacing.lg}px` }}>
+                  {paragraph}
+                </p>
+              ))}
+            </div>
           </div>
-        </FadeInView>
+        </PageFlip>
 
         {/* Navigation */}
-        <Card variant="elevated" style={navigationStyle}>
+        <Card variant="glass" style={navigationStyle}>
           <div style={controlsStyle}>
             <Button
               title=""

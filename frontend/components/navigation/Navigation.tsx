@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, Sparkles, BookOpen, Globe } from 'lucide-react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii } from '../../utils/constants/spacing';
+import { spacing, radii, shadows } from '../../utils/constants/spacing';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
@@ -17,93 +17,105 @@ const Navigation: React.FC = () => {
     { path: '/community', label: 'Community', icon: Globe },
   ];
 
-  const navStyle: React.CSSProperties = {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.elevatedSurface,
-    borderTop: `1px solid ${colors.border}`,
-    padding: `${spacing.sm}px ${spacing.lg}px`,
-    paddingBottom: `${spacing.lg}px`,
-    zIndex: 1000,
-  };
+  const activeIdx = tabs.findIndex(tab => tab.path === location.pathname);
 
   const containerStyle: React.CSSProperties = {
+    position: 'fixed',
+    bottom: spacing.lg,
+    left: 0,
+    right: 0,
     display: 'flex',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    maxWidth: '500px',
-    margin: '0 auto',
+    justifyContent: 'center',
+    zIndex: 1000,
+    pointerEvents: 'none',
+  };
+
+  const navStyle: React.CSSProperties = {
+    pointerEvents: 'auto',
+    display: 'flex',
+    gap: spacing.sm,
+    background: colors.glass.navBackground,
+    backdropFilter: 'blur(18px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+    border: `1px solid ${colors.glass.border}`,
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    boxShadow: colors.glass.shadowStrong,
   };
 
   const indicatorStyle: React.CSSProperties = {
     position: 'absolute',
-    top: 0,
-    height: '3px',
-    backgroundColor: colors.primary,
-    borderRadius: `${radii.sm}px`,
-    width: `${100 / tabs.length}%`,
-    left: `${(tabs.findIndex(tab => tab.path === location.pathname) * 100) / tabs.length}%`,
-    transition: 'left 0.3s cubic-bezier(0.2, 0.0, 0.0, 1.0)',
+    top: spacing.sm,
+    bottom: spacing.sm,
+    left: spacing.sm + activeIdx * (72 + spacing.sm),
+    width: 72,
+    borderRadius: `${radii.pill}px`,
+    background: colors.glass.indicator,
+    transition: 'left 300ms cubic-bezier(0.2, 0, 0, 1)',
+    zIndex: 0,
+  };
+
+  const buttonBase: React.CSSProperties = {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: 72,
+    padding: `${spacing.sm}px ${spacing.md}px`,
+    borderRadius: `${radii.pill}px`,
+    background: 'transparent',
+    border: 'none',
+    color: colors.textPrimary,
+    cursor: 'pointer',
+    transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: typography.textStyles.caption.fontSize,
+    fontWeight: typography.textStyles.caption.fontWeight,
+    marginTop: `${spacing.xs}px`,
+    fontFamily: typography.fonts.primary,
   };
 
   return (
-    <nav style={navStyle}>
+    <div style={containerStyle}>
       <div style={{ position: 'relative' }}>
-        <div style={indicatorStyle} />
-        <div style={containerStyle}>
-          {tabs.map((tab) => {
+        <div style={navStyle}>
+          <div style={indicatorStyle} />
+          {tabs.map((tab, idx) => {
             const Icon = tab.icon;
             const isActive = location.pathname === tab.path;
-            
-            const buttonStyle: React.CSSProperties = {
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: `${spacing.sm}px ${spacing.md}px`,
-              borderRadius: `${radii.md}px`,
-              backgroundColor: isActive ? colors.surface : 'transparent',
-              color: isActive ? colors.primary : colors.textSecondary,
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s cubic-bezier(0.2, 0.0, 0.0, 1.0)',
-              minWidth: '60px',
-            };
-
-            const labelStyle: React.CSSProperties = {
-              fontSize: typography.textStyles.caption.fontSize,
-              fontWeight: typography.textStyles.caption.fontWeight,
-              marginTop: `${spacing.xs}px`,
-              fontFamily: typography.fonts.primary,
-            };
-
             return (
               <button
                 key={tab.path}
                 onClick={() => navigate(tab.path)}
-                style={buttonStyle}
+                style={{
+                  ...buttonBase,
+                  color: isActive ? colors.textPrimary : colors.textSecondary,
+                  transform: isActive ? 'translateY(-2px)' : 'translateY(0px)',
+                }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
-                    e.currentTarget.style.color = colors.primary;
-                    e.currentTarget.style.backgroundColor = colors.surface;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.color = colors.textPrimary;
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) {
+                    e.currentTarget.style.transform = 'translateY(0px)';
                     e.currentTarget.style.color = colors.textSecondary;
-                    e.currentTarget.style.backgroundColor = 'transparent';
                   }
                 }}
               >
-                <Icon size={24} />
+                <Icon size={22} style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.08))' }} />
                 <span style={labelStyle}>{tab.label}</span>
               </button>
             );
           })}
         </div>
       </div>
-    </nav>
+    </div>
   );
 };
 

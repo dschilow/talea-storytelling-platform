@@ -94,56 +94,62 @@ const HomeScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #FFF8F3 0%, #F0F9FF 100%)',
-    paddingBottom: '100px',
+    background: colors.appBackground,
+    paddingBottom: '120px',
+    position: 'relative',
+  };
+
+  const glassBlob: React.CSSProperties = {
+    position: 'absolute',
+    filter: 'blur(60px)',
+    opacity: 0.6,
+    borderRadius: '50%',
+    transform: 'translate(-50%, -50%)',
+  };
+
+  const headerCardStyle: React.CSSProperties = {
+    borderRadius: `${radii.xl}px`,
+    padding: `${spacing.xl}px`,
+    background: colors.glass.heroBackground,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: colors.glass.shadowStrong,
+    backdropFilter: 'blur(18px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(18px) saturate(160%)',
   };
 
   const headerStyle: React.CSSProperties = {
-    background: gradients.primary,
-    color: colors.textInverse,
     padding: `${spacing.xl}px`,
-    borderBottomLeftRadius: `${radii.xl}px`,
-    borderBottomRightRadius: `${radii.xl}px`,
     marginBottom: `${spacing.xl}px`,
     position: 'relative',
-    overflow: 'hidden',
-  };
-
-  const decorativeElementsStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none',
   };
 
   const greetingStyle: React.CSSProperties = {
     ...typography.textStyles.displayLg,
-    color: colors.textInverse,
+    color: colors.textPrimary,
     marginBottom: `${spacing.sm}px`,
-    textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    textShadow: '0 1px 1px rgba(255,255,255,0.35)',
   };
 
   const subtitleStyle: React.CSSProperties = {
     ...typography.textStyles.body,
-    color: colors.textInverse,
-    opacity: 0.95,
+    color: colors.textSecondary,
     fontSize: '18px',
   };
 
   const refreshButtonStyle: React.CSSProperties = {
     position: 'absolute',
-    top: `${spacing.xl}px`,
-    right: `${spacing.xl}px`,
+    top: spacing.lg,
+    right: spacing.lg,
     padding: `${spacing.md}px`,
     borderRadius: `${radii.pill}px`,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    border: 'none',
-    color: colors.textInverse,
+    background: colors.glass.buttonBackground,
+    border: `1px solid ${colors.glass.border}`,
+    color: colors.textPrimary,
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    boxShadow: shadows.sm,
   };
 
   const sectionStyle: React.CSSProperties = {
@@ -170,9 +176,6 @@ const HomeScreen: React.FC = () => {
   const actionCardStyle: React.CSSProperties = {
     textAlign: 'center' as const,
     padding: `${spacing.xl}px`,
-    background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
-    border: `2px solid transparent`,
-    backgroundClip: 'padding-box',
   };
 
   const avatarGridStyle: React.CSSProperties = {
@@ -187,21 +190,21 @@ const HomeScreen: React.FC = () => {
     minWidth: '140px',
     textAlign: 'center' as const,
     padding: `${spacing.lg}px`,
-    background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F3 100%)',
   };
 
   const avatarImageStyle: React.CSSProperties = {
-    width: '80px',
-    height: '80px',
+    width: '84px',
+    height: '84px',
     borderRadius: `${radii.pill}px`,
-    backgroundColor: colors.softPink,
+    background: colors.glass.avatarBackground,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     margin: `0 auto ${spacing.md}px auto`,
     fontSize: '32px',
-    border: `3px solid ${colors.primary}`,
-    boxShadow: shadows.soft,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: colors.glass.shadow,
+    overflow: 'hidden',
   };
 
   const storyGridStyle: React.CSSProperties = {
@@ -213,12 +216,10 @@ const HomeScreen: React.FC = () => {
   const storyCardStyle: React.CSSProperties = {
     position: 'relative' as const,
     overflow: 'hidden' as const,
-    background: 'linear-gradient(135deg, #FFFFFF 0%, #F0F9FF 100%)',
   };
 
   const storyCoverStyle: React.CSSProperties = {
-    height: '180px',
-    background: 'linear-gradient(135deg, #FED7E2 0%, #BEE3F8 100%)',
+    height: '200px',
     borderRadius: `${radii.lg}px`,
     display: 'flex',
     alignItems: 'center',
@@ -226,7 +227,10 @@ const HomeScreen: React.FC = () => {
     marginBottom: `${spacing.md}px`,
     fontSize: '48px',
     position: 'relative' as const,
-    border: `2px solid ${colors.softPink}`,
+    border: `1px solid ${colors.glass.border}`,
+    background: colors.glass.cardBackground,
+    boxShadow: colors.glass.shadow,
+    overflow: 'hidden',
   };
 
   const metadataStyle: React.CSSProperties = {
@@ -235,9 +239,10 @@ const HomeScreen: React.FC = () => {
     gap: `${spacing.sm}px`,
     marginTop: `${spacing.md}px`,
     padding: `${spacing.sm}px`,
-    backgroundColor: colors.softBlue,
+    background: colors.glass.badgeBackground,
     borderRadius: `${radii.md}px`,
     fontSize: '11px',
+    border: `1px solid ${colors.glass.border}`,
   };
 
   const metadataItemStyle: React.CSSProperties = {
@@ -250,7 +255,6 @@ const HomeScreen: React.FC = () => {
   const emptyStateStyle: React.CSSProperties = {
     textAlign: 'center' as const,
     padding: `${spacing.xxl}px`,
-    background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F3 100%)',
   };
 
   if (loading) {
@@ -260,7 +264,7 @@ const HomeScreen: React.FC = () => {
           <div style={{ 
             width: '60px', 
             height: '60px', 
-            border: `4px solid ${colors.softPink}`,
+            border: `4px solid rgba(255,255,255,0.6)`,
             borderTop: `4px solid ${colors.primary}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
@@ -276,35 +280,40 @@ const HomeScreen: React.FC = () => {
 
   return (
     <div style={containerStyle}>
+      {/* Liquid background blobs */}
+      <div style={{ ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: gradients.primary }} />
+      <div style={{ ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: gradients.cool }} />
+      <div style={{ ...glassBlob, width: 240, height: 240, bottom: -40, left: '50%', background: gradients.warm }} />
+
       {/* Header */}
       <FadeInView delay={0}>
         <div style={headerStyle}>
-          <div style={decorativeElementsStyle}>
-            <Star style={{ position: 'absolute', top: '20px', left: '20px', opacity: 0.3 }} size={24} />
-            <Heart style={{ position: 'absolute', top: '40px', right: '80px', opacity: 0.3 }} size={20} />
-            <Sparkles style={{ position: 'absolute', bottom: '30px', left: '60px', opacity: 0.3 }} size={28} />
+          <div style={headerCardStyle}>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <Star style={{ position: 'absolute', top: 10, left: 10, opacity: 0.15 }} size={22} />
+              <Heart style={{ position: 'absolute', top: 24, right: 40, opacity: 0.15 }} size={18} />
+              <Sparkles style={{ position: 'absolute', bottom: 14, left: 60, opacity: 0.15 }} size={26} />
+            </div>
+            <div style={greetingStyle}>Willkommen bei Talea! 🌟</div>
+            <div style={subtitleStyle}>
+              Erschaffe magische Geschichten mit deinen Avataren
+            </div>
+            <button
+              style={refreshButtonStyle}
+              onClick={onRefresh}
+              disabled={refreshing}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.06)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <RefreshCw size={20} style={{ 
+                animation: refreshing ? 'spin 1s linear infinite' : 'none' 
+              }} />
+            </button>
           </div>
-          <div style={greetingStyle}>Willkommen bei Talea! 🌟</div>
-          <div style={subtitleStyle}>
-            Erschaffe magische Geschichten mit deinen Avataren
-          </div>
-          <button
-            style={refreshButtonStyle}
-            onClick={onRefresh}
-            disabled={refreshing}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            <RefreshCw size={20} style={{ 
-              animation: refreshing ? 'spin 1s linear infinite' : 'none' 
-            }} />
-          </button>
         </div>
       </FadeInView>
 
@@ -316,19 +325,20 @@ const HomeScreen: React.FC = () => {
             Schnellaktionen
           </div>
           <div style={quickActionsStyle}>
-            <Card variant="playful" style={actionCardStyle} onPress={() => navigate('/avatar')}>
+            <Card variant="glass" style={actionCardStyle} onPress={() => navigate('/avatar')}>
               <div style={{ 
                 width: '60px', 
                 height: '60px', 
-                background: gradients.primary, 
+                background: colors.glass.iconBackground, 
                 borderRadius: `${radii.pill}px`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: `0 auto ${spacing.md}px auto`,
-                boxShadow: shadows.colorful
+                boxShadow: shadows.colorful,
+                border: `1px solid ${colors.glass.border}`,
               }}>
-                <User size={28} style={{ color: colors.textInverse }} />
+                <User size={28} style={{ color: colors.textPrimary }} />
               </div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
                 Avatar erstellen
@@ -338,19 +348,20 @@ const HomeScreen: React.FC = () => {
               </div>
             </Card>
 
-            <Card variant="playful" style={actionCardStyle} onPress={() => navigate('/story')}>
+            <Card variant="glass" style={actionCardStyle} onPress={() => navigate('/story')}>
               <div style={{ 
                 width: '60px', 
                 height: '60px', 
-                background: gradients.secondary, 
+                background: colors.glass.iconBackground, 
                 borderRadius: `${radii.pill}px`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: `0 auto ${spacing.md}px auto`,
-                boxShadow: shadows.soft
+                boxShadow: shadows.soft,
+                border: `1px solid ${colors.glass.border}`,
               }}>
-                <BookOpen size={28} style={{ color: colors.textInverse }} />
+                <BookOpen size={28} style={{ color: colors.textPrimary }} />
               </div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
                 Geschichte erstellen
@@ -372,7 +383,7 @@ const HomeScreen: React.FC = () => {
           </div>
           
           {avatars.length === 0 ? (
-            <Card variant="playful" style={emptyStateStyle}>
+            <Card variant="glass" style={emptyStateStyle}>
               <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>👤</div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
                 Noch keine Avatare
@@ -391,7 +402,7 @@ const HomeScreen: React.FC = () => {
             <div style={avatarGridStyle}>
               {avatars.map((avatar, index) => (
                 <FadeInView key={avatar.id} delay={300 + index * 50}>
-                  <Card variant="playful" style={avatarCardStyle}>
+                  <Card variant="glass" style={avatarCardStyle}>
                     <div style={avatarImageStyle}>
                       {avatar.imageUrl ? (
                         <img 
@@ -426,7 +437,7 @@ const HomeScreen: React.FC = () => {
           </div>
           
           {stories.length === 0 ? (
-            <Card variant="playful" style={emptyStateStyle}>
+            <Card variant="glass" style={emptyStateStyle}>
               <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📚</div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
                 Noch keine Geschichten
@@ -445,13 +456,13 @@ const HomeScreen: React.FC = () => {
             <div style={storyGridStyle}>
               {stories.map((story, index) => (
                 <FadeInView key={story.id} delay={400 + index * 50}>
-                  <Card variant="playful" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
+                  <Card variant="glass" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
                     <div style={storyCoverStyle}>
                       {story.coverImageUrl ? (
                         <img 
                           src={story.coverImageUrl} 
                           alt={story.title}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: `${radii.lg}px` }}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
                         <span>📖</span>
@@ -461,13 +472,14 @@ const HomeScreen: React.FC = () => {
                           position: 'absolute',
                           top: `${spacing.sm}px`,
                           right: `${spacing.sm}px`,
-                          background: gradients.warm,
+                          background: colors.glass.badgeBackground,
                           color: colors.textPrimary,
                           padding: `${spacing.xs}px ${spacing.sm}px`,
                           borderRadius: `${radii.lg}px`,
                           fontSize: typography.textStyles.caption.fontSize,
                           fontWeight: typography.textStyles.label.fontWeight,
                           boxShadow: shadows.sm,
+                          border: `1px solid ${colors.glass.border}`,
                         }}>
                           ✨ Wird erstellt...
                         </div>
@@ -528,7 +540,7 @@ const HomeScreen: React.FC = () => {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-        
+
         @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Fredoka+One&display=swap');
         
         * {

@@ -10,6 +10,8 @@ export interface ImageGenerationRequest {
   height?: number;
   steps?: number;
   seed?: number;
+  // Base64 or data URLs for avatar reference images to keep character identity consistent.
+  referenceImages?: string[];
   outputFormat?: "WEBP" | "PNG" | "JPEG";
 }
 
@@ -25,6 +27,7 @@ export interface ImageGenerationResponse {
     contentType?: string;
     extractedFromPath?: string;
     responseStatus?: number;
+    referencesCount?: number;
   };
 }
 
@@ -40,9 +43,14 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     contentType: undefined,
     extractedFromPath: undefined,
     responseStatus: undefined,
+    referencesCount: req.referenceImages?.length ?? 0,
   };
 
   try {
+    const refImagesBase64 = (req.referenceImages ?? [])
+      .map(stripDataUrl)
+      .filter((s): s is string => !!s && s.length > 0);
+
     const requestBody = {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
@@ -52,13 +60,36 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       height: req.height || 512,
       numberResults: 1,
       steps: req.steps || 20,
-      seed: req.seed || Math.floor(Math.random() * 1000000),
+      seed: req.seed ?? Math.floor(Math.random() * 1000000),
       outputFormat: req.outputFormat || "WEBP",
       outputType: "base64Data",
+
+      // Try multiple plausible fields for reference images to maximize compatibility.
+      // Runware commonly supports passing images for img2img/IP-Adapter-like conditioning.
+      // We include several shapes; the backend will ignore unknown fields.
+      // 1) imageList with objects
+      imageList: refImagesBase64.length > 0
+        ? refImagesBase64.map((b64) => ({ imageBase64Data: b64 }))
+        : undefined,
+
+      // 2) Flat arrays as alternatives
+      inputImages: refImagesBase64.length > 0 ? refImagesBase64 : undefined,
+      initImages: refImagesBase64.length > 0 ? refImagesBase64 : undefined,
+
+      // 3) Optional hint to enable image conditioning (if supported)
+      // Some providers use "conditioning" or "ipAdapter" flags.
+      // These are best-effort toggles and may be ignored by the provider.
+      conditioning: refImagesBase64.length > 0 ? "image" : undefined,
+      ipAdapter: refImagesBase64.length > 0 ? { enabled: true, weight: 0.8 } : undefined,
     };
 
-    debugInfo.requestSent = requestBody;
-    console.log("Runware request:", JSON.stringify(requestBody));
+    debugInfo.requestSent = { ...requestBody, // omit base64 in debug to avoid large logs
+      imageList: Array.isArray(requestBody.imageList) ? `[${requestBody.imageList.length} items]` : undefined,
+      inputImages: Array.isArray(requestBody.inputImages) ? `[${requestBody.inputImages.length} items]` : undefined,
+      initImages: Array.isArray(requestBody.initImages) ? `[${requestBody.initImages.length} items]` : undefined,
+    };
+
+    console.log("Runware request (sanitized):", JSON.stringify(debugInfo.requestSent));
 
     const res = await fetch("https://api.runware.ai/v1", {
       method: "POST",
@@ -307,7 +338,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         if (b64 && typeof b64 === "string") {
           console.log(`✅ Found base64 data in data.results[${rIdx}]`);
           const contentType = pickMime(res?.contentType || res?.mimeType || null, res?.format || null);
-          const seed = res?.seed || data?.seed;
+          const seed = res?.seed || (data as any)?.seed;
           return { b64, contentType, seed, fromPath: `data.results[${rIdx}]` };
         }
       }
@@ -328,23 +359,23 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       if (b64im && typeof b64im === "string") {
         console.log("✅ Found base64 data in data.images[0]");
         const contentType = pickMime(img0?.contentType || img0?.mimeType || null, img0?.format || null);
-        const seed = img0?.seed || data?.seed;
+        const seed = img0?.seed || (data as any)?.seed;
         return { b64: b64im, contentType, seed, fromPath: "data.images[0]" };
       }
     }
     
     // direct fields
     const b64Direct =
-      data?.imageBase64Data ||
-      data?.imageBase64 ||
-      data?.base64Data ||
-      data?.base64 ||
-      data?.b64 ||
-      data?.b64_json ||
-      data?.data;
+      (data as any)?.imageBase64Data ||
+      (data as any)?.imageBase64 ||
+      (data as any)?.base64Data ||
+      (data as any)?.base64 ||
+      (data as any)?.b64 ||
+      (data as any)?.b64_json ||
+      (data as any)?.data;
     if (b64Direct && typeof b64Direct === "string") {
       console.log("✅ Found base64 data directly in data object");
-      const contentType = pickMime(data?.contentType || data?.mimeType || null, (data as any)?.format || null);
+      const contentType = pickMime((data as any)?.contentType || (data as any)?.mimeType || null, (data as any)?.format || null);
       const seed = (data as any)?.seed;
       return { b64: b64Direct, contentType, seed, fromPath: "data" };
     }
@@ -352,6 +383,22 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
 
   console.log("❌ No base64 image data found in response");
   return null;
+}
+
+function stripDataUrl(s: string): string | null {
+  try {
+    if (!s) return null;
+    const idx = s.indexOf("base64,");
+    if (idx === -1) {
+      // Looks like pure base64 already
+      // Basic sanity: must be base64ish
+      if (/^[0-9a-zA-Z+/=]+$/.test(s)) return s;
+      return null;
+    }
+    return s.slice(idx + "base64,".length);
+  } catch {
+    return null;
+  }
 }
 
 function generatePlaceholderImage(prompt: string): string {
