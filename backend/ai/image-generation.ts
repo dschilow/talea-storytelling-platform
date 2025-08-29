@@ -46,7 +46,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     const requestBody = {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
-      model: req.model || "runware:100@1",
+      model: req.model || "runware:101@1",
       positivePrompt: req.prompt,
       width: req.width || 512,
       height: req.height || 512,
