@@ -44,7 +44,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
     const startTime = Date.now();
     let metadata = {
       tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano",
       processingTime: 0,
       imagesGenerated: 0,
       totalCost: { text: 0, images: 0, total: 0 }
@@ -190,7 +190,7 @@ Formatiere als JSON:
         "Authorization": `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-5-nano",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
