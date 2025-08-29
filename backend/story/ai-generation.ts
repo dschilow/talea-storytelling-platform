@@ -75,11 +75,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       
       // Calculate text generation costs based on gpt-4o-mini
 			metadata.model = MODEL; // ✅
-			metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 };
-			metadata.totalCost.text =
-			  (metadata.tokensUsed.prompt     / 1_000_000) * INPUT_COST_PER_1M +
-			  (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M
-      );
+			metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 }; metadata.totalCost.text = ( (metadata.tokensUsed.prompt / 1000000) * inputCostPer1M + (metadata.tokensUsed.completion / 1000000) * outputCostPer1M );
       
       // Generate cover image with corrected dimensions
       const coverDimensions = normalizeRunwareDimensions(600, 800); // ✅ 576x768 (vielfache von 64)
