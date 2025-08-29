@@ -210,7 +210,7 @@ Formatiere als JSON:
 	      { role: "system", content: systemPrompt },
 	      { role: "user", content: userPrompt }
 	    ],
-	    temperature: 0.8,
+	    temperature: 1,
 	    max_completion_tokens: 4000,
 	    top_p: 0.9,
 	    frequency_penalty: 0.1,
