@@ -37,6 +37,16 @@ interface GenerateStoryContentResponse {
   };
 }
 
+// Utility function to ensure dimensions are valid for Runware (multiples of 64)
+function normalizeRunwareDimensions(width: number, height: number): { width: number; height: number } {
+  const roundToMultiple64 = (n: number) => Math.round(n / 64) * 64;
+  
+  const normalizedWidth = Math.max(128, Math.min(2048, roundToMultiple64(width)));
+  const normalizedHeight = Math.max(128, Math.min(2048, roundToMultiple64(height)));
+  
+  return { width: normalizedWidth, height: normalizedHeight };
+}
+
 // Generates story content using OpenAI GPT-4 and Runware for images.
 export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
   { expose: true, method: "POST", path: "/ai/generate-story" },
@@ -44,7 +54,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
     const startTime = Date.now();
     let metadata = {
       tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      model: "gpt-5-nano",
+      model: "gpt-5-nano", // ✅ Günstigstes OpenAI Modell
       processingTime: 0,
       imagesGenerated: 0,
       totalCost: { text: 0, images: 0, total: 0 }
@@ -58,9 +68,9 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       
       console.log("✅ Generated story content:", storyContent.title);
       
-      // Calculate text generation costs (GPT-4o-mini pricing)
-      const inputCostPer1M = 0.15; // $0.15 per 1M input tokens
-      const outputCostPer1M = 0.60; // $0.60 per 1M output tokens
+      // Calculate text generation costs (GPT-5-nano pricing)
+      const inputCostPer1M = 0.05; // $0.05 per 1M input tokens
+      const outputCostPer1M = 0.40; // $0.40 per 1M output tokens
       
       metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 };
       metadata.totalCost.text = (
@@ -68,30 +78,32 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
         (metadata.tokensUsed.completion / 1000000) * outputCostPer1M
       );
       
-      // Generate cover image
+      // Generate cover image with corrected dimensions
+      const coverDimensions = normalizeRunwareDimensions(600, 800); // ✅ 576x768 (vielfache von 64)
       const coverPrompt = `Children's book cover illustration for "${storyContent.title}", ${req.config.genre} adventure story, ${req.config.setting} setting, Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality`;
       const coverImage = await generateImage({
         prompt: coverPrompt,
-        width: 600,
-        height: 800,
+        width: coverDimensions.width,
+        height: coverDimensions.height,
         steps: 25,
       });
 
-      console.log("🖼️ Generated cover image");
+      console.log(`🖼️ Generated cover image (${coverDimensions.width}x${coverDimensions.height})`);
       metadata.imagesGenerated++;
 
-      // Generate chapter images
+      // Generate chapter images with corrected dimensions
+      const chapterDimensions = normalizeRunwareDimensions(400, 300); // ✅ 384x320 (vielfache von 64)
       const chaptersWithImages = await Promise.all(
         storyContent.chapters.map(async (chapter, index) => {
           const chapterPrompt = `Children's book illustration for chapter "${chapter.title}", ${req.config.genre} story scene, ${req.config.setting} background, Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children`;
           const chapterImage = await generateImage({
             prompt: chapterPrompt,
-            width: 400,
-            height: 300,
+            width: chapterDimensions.width,
+            height: chapterDimensions.height,
             steps: 20,
           });
 
-          console.log(`🖼️ Generated image for chapter ${index + 1}`);
+          console.log(`🖼️ Generated image for chapter ${index + 1} (${chapterDimensions.width}x${chapterDimensions.height})`);
           metadata.imagesGenerated++;
 
           return {
@@ -190,7 +202,7 @@ Formatiere als JSON:
         "Authorization": `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-5-nano",
+        model: "gpt-5-nano", // ✅ Günstigstes verfügbares OpenAI Modell
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -242,19 +254,21 @@ async function generateFallbackStoryWithImages(
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
   
-  // Generate placeholder images
+  // Generate placeholder images with corrected dimensions
+  const coverDimensions = normalizeRunwareDimensions(600, 800);
   const coverImage = await generateImage({
     prompt: `Children's book cover, ${config.genre} story, colorful, magical`,
-    width: 600,
-    height: 800,
+    width: coverDimensions.width,
+    height: coverDimensions.height,
   });
 
+  const chapterDimensions = normalizeRunwareDimensions(400, 300);
   const chaptersWithImages = await Promise.all(
     fallbackStory.chapters.map(async (chapter, index) => {
       const chapterImage = await generateImage({
         prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story`,
-        width: 400,
-        height: 300,
+        width: chapterDimensions.width,
+        height: chapterDimensions.height,
       });
 
       return {
