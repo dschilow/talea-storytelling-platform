@@ -3,6 +3,11 @@ import { secret } from "encore.dev/config";
 import { generateImage } from "../ai/image-generation";
 import type { StoryConfig, Chapter } from "./generate";
 
+// ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
+const MODEL = "gpt-4o-mini";
+const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token
+const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token
+
 const openAIKey = secret("OpenAIKey");
 
 interface GenerateStoryContentRequest {
@@ -52,13 +57,13 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
   { expose: true, method: "POST", path: "/ai/generate-story" },
   async (req) => {
     const startTime = Date.now();
-    let metadata = {
-      tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      model: "gpt-4o-mini", // Will be updated based on which model actually works
-      processingTime: 0,
-      imagesGenerated: 0,
-      totalCost: { text: 0, images: 0, total: 0 }
-    };
+		let metadata = {
+		  tokensUsed: { prompt: 0, completion: 0, total: 0 },
+		  model: MODEL,
+		  processingTime: 0,
+		  imagesGenerated: 0,
+		  totalCost: { text: 0, images: 0, total: 0 }
+		};
 
     try {
       console.log("📚 Generating story with config:", JSON.stringify(req.config, null, 2));
@@ -69,11 +74,11 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       console.log("✅ Generated story content:", storyContent.title);
       
       // Calculate text generation costs based on gpt-4o-mini
-      metadata.model = model;
-      metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 };
-      metadata.totalCost.text = (
-        (metadata.tokensUsed.prompt / 1000000) * inputCostPer1M +
-        (metadata.tokensUsed.completion / 1000000) * outputCostPer1M
+			metadata.model = MODEL; // ✅
+			metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 };
+			metadata.totalCost.text =
+			  (metadata.tokensUsed.prompt     / 1_000_000) * INPUT_COST_PER_1M +
+			  (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
       );
       
       // Generate cover image with corrected dimensions
@@ -193,33 +198,28 @@ Formatiere als JSON:
 
     console.log("🤖 Sending request to OpenAI...");
 
-    // Vereinfacht: Direkt gpt-4o-mini verwenden (wie im funktionierenden Flutter-Code)
-    const model = "gpt-4o-mini";
-    const inputCostPer1M = 0.15;
-    const outputCostPer1M = 0.60;
-
-    console.log(`🧪 Using model: ${model}`);
+    console.log(`🧪 Using MODEL: ${MODEL}`);
     
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openAIKey()}`,
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.8,
-        max_tokens: 4000, // Wie im Flutter-Code
-        top_p: 0.9,
-        frequency_penalty: 0.1,
-        presence_penalty: 0.1,
-        response_format: { type: "json_object" }
-      }),
-    });
+	    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+	  method: "POST",
+	  headers: {
+	    "Content-Type": "application/json",
+	    "Authorization": `Bearer ${openAIKey()}`,
+	  },
+	  body: JSON.stringify({
+	    model: MODEL, // ✅
+	    messages: [
+	      { role: "system", content: systemPrompt },
+	      { role: "user", content: userPrompt }
+	    ],
+	    temperature: 0.8,
+	    max_tokens: 4000,
+	    top_p: 0.9,
+	    frequency_penalty: 0.1,
+	    presence_penalty: 0.1,
+	    response_format: { type: "json_object" }
+	  }),
+	});
 
     if (!response || !response.ok) {
       const errorText = response ? await response.text() : "Request failed";
