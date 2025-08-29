@@ -1,12 +1,11 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import { secret } from "encore.dev/config";
+import { generateStoryContent } from "./ai-generation";
+import { avatar } from "~encore/clients";
 
 const storyDB = new SQLDatabase("story", {
   migrations: "./migrations",
 });
-
-const openAIKey = secret("OpenAIKey");
 
 export interface StoryConfig {
   avatarIds: string[];
@@ -64,118 +63,121 @@ export const generate = api<GenerateStoryRequest, Story>(
       INSERT INTO stories (
         id, user_id, title, description, config, status, created_at, updated_at
       ) VALUES (
-        ${id}, ${req.userId}, 'Generating...', 'Story is being generated...', 
+        ${id}, ${req.userId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
         ${JSON.stringify(req.config)}, 'generating', ${now}, ${now}
       )
     `;
 
-    // Simulate AI story generation (in real implementation, this would call OpenAI)
-    const generatedStory = await generateStoryContent(req.config);
+    try {
+      // Fetch avatar details
+      const avatarDetails = await Promise.all(
+        req.config.avatarIds.map(async (avatarId) => {
+          const avatarData = await avatar.get({ id: avatarId });
+          return {
+            id: avatarData.id,
+            name: avatarData.name,
+            physicalTraits: avatarData.physicalTraits,
+            personalityTraits: avatarData.personalityTraits,
+          };
+        })
+      );
 
-    // Update story with generated content
-    await storyDB.exec`
-      UPDATE stories 
-      SET title = ${generatedStory.title}, 
-          description = ${generatedStory.description},
-          cover_image_url = ${generatedStory.coverImageUrl},
-          status = 'complete',
-          updated_at = ${new Date()}
-      WHERE id = ${id}
-    `;
+      // Generate story content using AI
+      const generatedStory = await generateStoryContent({
+        config: req.config,
+        avatarDetails,
+      });
 
-    // Insert chapters
-    for (const chapter of generatedStory.chapters) {
-      const chapterId = crypto.randomUUID();
+      // Update story with generated content
       await storyDB.exec`
-        INSERT INTO chapters (
-          id, story_id, title, content, image_url, chapter_order, created_at
-        ) VALUES (
-          ${chapterId}, ${id}, ${chapter.title}, ${chapter.content}, 
-          ${chapter.imageUrl}, ${chapter.order}, ${now}
-        )
+        UPDATE stories 
+        SET title = ${generatedStory.title}, 
+            description = ${generatedStory.description},
+            cover_image_url = ${generatedStory.coverImageUrl},
+            status = 'complete',
+            updated_at = ${new Date()}
+        WHERE id = ${id}
       `;
-    }
 
-    return {
-      id,
-      userId: req.userId,
-      title: generatedStory.title,
-      description: generatedStory.description,
-      coverImageUrl: generatedStory.coverImageUrl,
-      config: req.config,
-      chapters: generatedStory.chapters.map(ch => ({ ...ch, id: crypto.randomUUID() })),
-      status: "complete",
-      createdAt: now,
-      updatedAt: new Date(),
-    };
+      // Insert chapters
+      for (const chapter of generatedStory.chapters) {
+        const chapterId = crypto.randomUUID();
+        await storyDB.exec`
+          INSERT INTO chapters (
+            id, story_id, title, content, image_url, chapter_order, created_at
+          ) VALUES (
+            ${chapterId}, ${id}, ${chapter.title}, ${chapter.content}, 
+            ${chapter.imageUrl}, ${chapter.order}, ${now}
+          )
+        `;
+      }
+
+      // Return the complete story
+      const story = await getCompleteStory(id);
+      return story;
+
+    } catch (error) {
+      // Update story status to error
+      await storyDB.exec`
+        UPDATE stories 
+        SET status = 'error',
+            updated_at = ${new Date()}
+        WHERE id = ${id}
+      `;
+      
+      throw error;
+    }
   }
 );
 
-async function generateStoryContent(config: StoryConfig): Promise<{
-  title: string;
-  description: string;
-  coverImageUrl?: string;
-  chapters: Omit<Chapter, 'id'>[];
-}> {
-  // This is a simplified mock implementation
-  // In production, this would use OpenAI API with the secret key
-  
-  const genres = {
-    adventure: "Abenteuer",
-    fantasy: "Fantasy",
-    mystery: "Geheimnis",
-    friendship: "Freundschaft",
-    learning: "Lernen"
-  };
+async function getCompleteStory(storyId: string): Promise<Story> {
+  const storyRow = await storyDB.queryRow<{
+    id: string;
+    user_id: string;
+    title: string;
+    description: string;
+    cover_image_url: string | null;
+    config: string;
+    status: "generating" | "complete" | "error";
+    created_at: Date;
+    updated_at: Date;
+  }>`
+    SELECT * FROM stories WHERE id = ${storyId}
+  `;
 
-  const title = `Das große ${genres[config.genre as keyof typeof genres] || "Abenteuer"}`;
-  const description = `Eine spannende Geschichte über ${config.avatarIds.length} Freunde in einer ${config.setting} Welt.`;
-
-  const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
-  const chapters: Omit<Chapter, 'id'>[] = [];
-
-  for (let i = 0; i < chapterCount; i++) {
-    chapters.push({
-      title: `Kapitel ${i + 1}: ${getChapterTitle(i, config.genre)}`,
-      content: generateChapterContent(i, config),
-      order: i,
-      imageUrl: `https://picsum.photos/400/300?random=${i}`,
-    });
+  if (!storyRow) {
+    throw new Error("Story not found");
   }
 
+  const chapterRows = await storyDB.queryAll<{
+    id: string;
+    title: string;
+    content: string;
+    image_url: string | null;
+    chapter_order: number;
+  }>`
+    SELECT id, title, content, image_url, chapter_order 
+    FROM chapters 
+    WHERE story_id = ${storyId} 
+    ORDER BY chapter_order
+  `;
+
   return {
-    title,
-    description,
-    coverImageUrl: "https://picsum.photos/600/800?random=cover",
-    chapters,
+    id: storyRow.id,
+    userId: storyRow.user_id,
+    title: storyRow.title,
+    description: storyRow.description,
+    coverImageUrl: storyRow.cover_image_url || undefined,
+    config: JSON.parse(storyRow.config),
+    chapters: chapterRows.map(ch => ({
+      id: ch.id,
+      title: ch.title,
+      content: ch.content,
+      imageUrl: ch.image_url || undefined,
+      order: ch.chapter_order,
+    })),
+    status: storyRow.status,
+    createdAt: storyRow.created_at,
+    updatedAt: storyRow.updated_at,
   };
-}
-
-function getChapterTitle(index: number, genre: string): string {
-  const titles = {
-    0: "Der Beginn",
-    1: "Erste Herausforderungen",
-    2: "Unerwartete Wendung",
-    3: "Zusammenhalt",
-    4: "Die große Prüfung",
-    5: "Mut und Freundschaft",
-    6: "Das Finale",
-    7: "Ein neuer Anfang"
-  };
-  return titles[index as keyof typeof titles] || `Kapitel ${index + 1}`;
-}
-
-function generateChapterContent(index: number, config: StoryConfig): string {
-  return `Dies ist der Inhalt von Kapitel ${index + 1}. 
-
-In diesem Kapitel erleben unsere Helden spannende Abenteuer in der ${config.setting} Welt. 
-
-Die Geschichte entwickelt sich weiter und die Charaktere wachsen an ihren Herausforderungen.
-
-${config.learningMode?.enabled ? 
-  `\n\nLernziel: ${config.learningMode.learningObjectives.join(', ')}` : 
-  ''
-}
-
-Das war ein aufregendes Kapitel! Lass uns sehen, was als nächstes passiert...`;
 }

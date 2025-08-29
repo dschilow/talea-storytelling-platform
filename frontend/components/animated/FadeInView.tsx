@@ -5,13 +5,15 @@ interface FadeInViewProps {
   delay?: number;
   className?: string;
   from?: 'bottom' | 'top' | 'left' | 'right' | 'scale';
+  style?: React.CSSProperties;
 }
 
 const FadeInView: React.FC<FadeInViewProps> = ({
   children,
   delay = 0,
   className = '',
-  from = 'bottom'
+  from = 'bottom',
+  style = {}
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -23,30 +25,35 @@ const FadeInView: React.FC<FadeInViewProps> = ({
     return () => clearTimeout(timer);
   }, [delay]);
 
-  const getTransformClasses = () => {
+  const getTransform = () => {
     if (!isVisible) {
       switch (from) {
         case 'bottom':
-          return 'translate-y-8 opacity-0';
+          return 'translateY(20px)';
         case 'top':
-          return '-translate-y-8 opacity-0';
+          return 'translateY(-20px)';
         case 'left':
-          return '-translate-x-8 opacity-0';
+          return 'translateX(-20px)';
         case 'right':
-          return 'translate-x-8 opacity-0';
+          return 'translateX(20px)';
         case 'scale':
-          return 'scale-90 opacity-0';
+          return 'scale(0.96)';
         default:
-          return 'translate-y-8 opacity-0';
+          return 'translateY(20px)';
       }
     }
-    return 'translate-y-0 translate-x-0 scale-100 opacity-100';
+    return 'translateY(0px) translateX(0px) scale(1.0)';
+  };
+
+  const animationStyle: React.CSSProperties = {
+    opacity: isVisible ? 1 : 0,
+    transform: getTransform(),
+    transition: 'all 0.3s cubic-bezier(0.2, 0.0, 0.0, 1.0)',
+    ...style,
   };
 
   return (
-    <div
-      className={`transition-all duration-300 ease-out ${getTransformClasses()} ${className}`}
-    >
+    <div style={animationStyle} className={className}>
       {children}
     </div>
   );

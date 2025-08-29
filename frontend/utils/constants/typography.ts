@@ -1,32 +1,39 @@
 export const typography = {
   fonts: {
-    primary: 'System',
-    primaryBold: 'System',
-    secondary: 'System',
-    secondaryLight: 'System'
+    primary: 'Poppins, Inter, system-ui, sans-serif',
   },
-  sizes: {
-    xs: 12,
-    sm: 14,
-    md: 16,
-    lg: 18,
-    xl: 20,
-    xxl: 24,
-    xxxl: 32,
-    xxxxl: 40
+  textStyles: {
+    displayLg: {
+      fontSize: '32px',
+      fontWeight: '600',
+      lineHeight: '40px',
+      letterSpacing: '-0.2px',
+    },
+    headingLg: {
+      fontSize: '24px',
+      fontWeight: '600',
+      lineHeight: '30px',
+      letterSpacing: '-0.1px',
+    },
+    headingMd: {
+      fontSize: '20px',
+      fontWeight: '600',
+      lineHeight: '26px',
+    },
+    body: {
+      fontSize: '16px',
+      fontWeight: '400',
+      lineHeight: '22px',
+    },
+    label: {
+      fontSize: '14px',
+      fontWeight: '500',
+      lineHeight: '18px',
+    },
+    caption: {
+      fontSize: '12px',
+      fontWeight: '400',
+      lineHeight: '16px',
+    },
   },
-  weights: {
-    light: '300' as const,
-    normal: '400' as const,
-    medium: '500' as const,
-    semibold: '600' as const,
-    bold: '700' as const,
-    extrabold: '800' as const
-  },
-  lineHeights: {
-    tight: 1.2,
-    normal: 1.4,
-    relaxed: 1.6,
-    loose: 1.8
-  }
 };
