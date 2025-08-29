@@ -5,7 +5,7 @@ import { spacing, radii, shadows } from '../../utils/constants/spacing';
 interface CardProps {
   children: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'elevated' | 'outlined';
+  variant?: 'default' | 'elevated' | 'outlined' | 'playful';
   padding?: keyof typeof spacing;
   onPress?: () => void;
   style?: React.CSSProperties;
@@ -20,17 +20,20 @@ const Card: React.FC<CardProps> = ({
   style = {}
 }) => {
   const baseStyles: React.CSSProperties = {
-    borderRadius: `${radii.lg}px`,
-    transition: 'all 0.2s cubic-bezier(0.2, 0.0, 0.0, 1.0)',
+    borderRadius: `${radii.xl}px`,
+    transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
     padding: `${spacing[padding]}px`,
     cursor: onPress ? 'pointer' : 'default',
     userSelect: 'none',
+    position: 'relative',
+    overflow: 'hidden',
     ...style,
   };
 
   const variantStyles = {
     default: {
       backgroundColor: colors.surface,
+      border: `1px solid ${colors.border}`,
     },
     elevated: {
       backgroundColor: colors.elevatedSurface,
@@ -38,17 +41,23 @@ const Card: React.FC<CardProps> = ({
     },
     outlined: {
       backgroundColor: colors.elevatedSurface,
-      border: `1px solid ${colors.border}`,
+      border: `2px solid ${colors.border}`,
+    },
+    playful: {
+      background: 'linear-gradient(135deg, #FFF8F3 0%, #FFFFFF 100%)',
+      border: `2px solid ${colors.softPink}`,
+      boxShadow: shadows.soft,
     },
   };
 
   const hoverStyles = onPress ? {
-    transform: 'translateY(-2px) scale(1.02)',
-    boxShadow: variant === 'elevated' ? shadows.lg : shadows.md,
+    transform: 'translateY(-4px) scale(1.02)',
+    boxShadow: variant === 'elevated' ? shadows.lg : 
+               variant === 'playful' ? shadows.colorful : shadows.md,
   } : {};
 
   const activeStyles = onPress ? {
-    transform: 'translateY(0px) scale(0.98)',
+    transform: 'translateY(-1px) scale(0.98)',
   } : {};
 
   const cardStyle = {

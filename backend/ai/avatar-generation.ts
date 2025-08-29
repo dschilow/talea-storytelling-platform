@@ -19,6 +19,8 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
   async (req) => {
     const prompt = buildAvatarPrompt(req.physicalTraits, req.personalityTraits, req.style);
     
+    console.log("Generating avatar with prompt:", prompt);
+    
     const imageResult = await generateImage({
       prompt,
       width: 512,
@@ -49,11 +51,11 @@ function buildAvatarPrompt(
   
   const personalityDescriptor = getPersonalityDescriptor(personality);
   
-  const styleDescriptor = style === "disney" ? "Disney Pixar style" :
-                         style === "anime" ? "anime manga style" : 
-                         "realistic children's book illustration style";
+  const styleDescriptor = style === "disney" ? "Disney Pixar 3D animation style, cute and friendly" :
+                         style === "anime" ? "anime manga style, colorful and expressive" : 
+                         "realistic children's book illustration style, warm and inviting";
 
-  return `A ${ageDescriptor} ${genderDescriptor} with ${hairDescriptor}, ${personalityDescriptor}, ${styleDescriptor}, high quality, detailed, colorful, friendly, safe for children`;
+  return `A cute ${ageDescriptor} ${genderDescriptor} character with ${hairDescriptor}, ${personalityDescriptor}, ${styleDescriptor}, high quality, detailed, colorful, friendly expression, safe for children, portrait view, clean background`;
 }
 
 function getPersonalityDescriptor(personality: PersonalityTraits): string {
@@ -62,16 +64,16 @@ function getPersonalityDescriptor(personality: PersonalityTraits): string {
     .slice(0, 3)
     .map(([trait]) => {
       switch (trait) {
-        case "courage": return "brave and confident";
-        case "intelligence": return "smart and thoughtful";
-        case "creativity": return "creative and artistic";
-        case "empathy": return "kind and caring";
-        case "strength": return "strong and determined";
-        case "humor": return "cheerful and funny";
-        case "adventure": return "adventurous and curious";
-        case "patience": return "calm and patient";
-        case "curiosity": return "inquisitive and wondering";
-        case "leadership": return "confident and leading";
+        case "courage": return "brave and confident expression";
+        case "intelligence": return "smart and thoughtful look";
+        case "creativity": return "creative and artistic appearance";
+        case "empathy": return "kind and caring expression";
+        case "strength": return "strong and determined posture";
+        case "humor": return "cheerful and funny smile";
+        case "adventure": return "adventurous and curious eyes";
+        case "patience": return "calm and patient demeanor";
+        case "curiosity": return "inquisitive and wondering expression";
+        case "leadership": return "confident and leading stance";
         default: return trait;
       }
     });

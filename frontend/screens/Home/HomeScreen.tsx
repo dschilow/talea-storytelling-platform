@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Plus, User, BookOpen, Sparkles } from 'lucide-react';
+import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import Card from '../../components/common/Card';
@@ -65,7 +65,7 @@ const HomeScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    backgroundColor: colors.background,
+    background: 'linear-gradient(135deg, #FFF8F3 0%, #F0F9FF 100%)',
     paddingBottom: '100px',
   };
 
@@ -77,31 +77,44 @@ const HomeScreen: React.FC = () => {
     borderBottomRightRadius: `${radii.xl}px`,
     marginBottom: `${spacing.xl}px`,
     position: 'relative',
+    overflow: 'hidden',
+  };
+
+  const decorativeElementsStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
   };
 
   const greetingStyle: React.CSSProperties = {
     ...typography.textStyles.displayLg,
     color: colors.textInverse,
     marginBottom: `${spacing.sm}px`,
+    textShadow: '0 2px 4px rgba(0,0,0,0.1)',
   };
 
   const subtitleStyle: React.CSSProperties = {
     ...typography.textStyles.body,
     color: colors.textInverse,
-    opacity: 0.9,
+    opacity: 0.95,
+    fontSize: '18px',
   };
 
   const refreshButtonStyle: React.CSSProperties = {
     position: 'absolute',
     top: `${spacing.xl}px`,
     right: `${spacing.xl}px`,
-    padding: `${spacing.sm}px`,
+    padding: `${spacing.md}px`,
     borderRadius: `${radii.pill}px`,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     border: 'none',
     color: colors.textInverse,
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.3s ease',
+    backdropFilter: 'blur(10px)',
   };
 
   const sectionStyle: React.CSSProperties = {
@@ -113,6 +126,9 @@ const HomeScreen: React.FC = () => {
     ...typography.textStyles.headingLg,
     color: colors.textPrimary,
     marginBottom: `${spacing.lg}px`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: `${spacing.sm}px`,
   };
 
   const quickActionsStyle: React.CSSProperties = {
@@ -125,6 +141,9 @@ const HomeScreen: React.FC = () => {
   const actionCardStyle: React.CSSProperties = {
     textAlign: 'center' as const,
     padding: `${spacing.xl}px`,
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
+    border: `2px solid transparent`,
+    backgroundClip: 'padding-box',
   };
 
   const avatarGridStyle: React.CSSProperties = {
@@ -132,52 +151,59 @@ const HomeScreen: React.FC = () => {
     gap: `${spacing.lg}px`,
     overflowX: 'auto' as const,
     paddingBottom: `${spacing.sm}px`,
+    scrollbarWidth: 'none',
   };
 
   const avatarCardStyle: React.CSSProperties = {
-    minWidth: '120px',
+    minWidth: '140px',
     textAlign: 'center' as const,
     padding: `${spacing.lg}px`,
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F3 100%)',
   };
 
   const avatarImageStyle: React.CSSProperties = {
-    width: '64px',
-    height: '64px',
+    width: '80px',
+    height: '80px',
     borderRadius: `${radii.pill}px`,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.softPink,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     margin: `0 auto ${spacing.md}px auto`,
-    fontSize: '24px',
+    fontSize: '32px',
+    border: `3px solid ${colors.primary}`,
+    boxShadow: shadows.soft,
   };
 
   const storyGridStyle: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
     gap: `${spacing.lg}px`,
   };
 
   const storyCardStyle: React.CSSProperties = {
     position: 'relative' as const,
     overflow: 'hidden' as const,
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #F0F9FF 100%)',
   };
 
   const storyCoverStyle: React.CSSProperties = {
-    height: '160px',
-    backgroundColor: colors.surface,
-    borderRadius: `${radii.md}px`,
+    height: '180px',
+    background: 'linear-gradient(135deg, #FED7E2 0%, #BEE3F8 100%)',
+    borderRadius: `${radii.lg}px`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: `${spacing.md}px`,
-    fontSize: '32px',
+    fontSize: '48px',
     position: 'relative' as const,
+    border: `2px solid ${colors.softPink}`,
   };
 
   const emptyStateStyle: React.CSSProperties = {
     textAlign: 'center' as const,
-    padding: `${spacing.xl}px`,
+    padding: `${spacing.xxl}px`,
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F3 100%)',
   };
 
   if (loading) {
@@ -185,16 +211,16 @@ const HomeScreen: React.FC = () => {
       <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ 
-            width: '48px', 
-            height: '48px', 
-            border: `4px solid ${colors.surface}`,
+            width: '60px', 
+            height: '60px', 
+            border: `4px solid ${colors.softPink}`,
             borderTop: `4px solid ${colors.primary}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: `0 auto ${spacing.lg}px auto`
           }} />
-          <p style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
-            Lade deine Welt...
+          <p style={{ ...typography.textStyles.body, color: colors.textSecondary, fontSize: '18px' }}>
+            Lade deine magische Welt... ✨
           </p>
         </div>
       </div>
@@ -206,6 +232,11 @@ const HomeScreen: React.FC = () => {
       {/* Header */}
       <FadeInView delay={0}>
         <div style={headerStyle}>
+          <div style={decorativeElementsStyle}>
+            <Star style={{ position: 'absolute', top: '20px', left: '20px', opacity: 0.3 }} size={24} />
+            <Heart style={{ position: 'absolute', top: '40px', right: '80px', opacity: 0.3 }} size={20} />
+            <Sparkles style={{ position: 'absolute', bottom: '30px', left: '60px', opacity: 0.3 }} size={28} />
+          </div>
           <div style={greetingStyle}>Willkommen bei Talea! 🌟</div>
           <div style={subtitleStyle}>
             Erschaffe magische Geschichten mit deinen Avataren
@@ -216,9 +247,11 @@ const HomeScreen: React.FC = () => {
             disabled={refreshing}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'scale(1.1)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             <RefreshCw size={20} style={{ 
@@ -231,24 +264,51 @@ const HomeScreen: React.FC = () => {
       {/* Quick Actions */}
       <FadeInView delay={100}>
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Schnellaktionen</div>
+          <div style={sectionTitleStyle}>
+            <Sparkles size={28} style={{ color: colors.primary }} />
+            Schnellaktionen
+          </div>
           <div style={quickActionsStyle}>
-            <Card variant="elevated" style={actionCardStyle} onPress={() => navigate('/avatar')}>
-              <User size={32} style={{ color: colors.primary, marginBottom: `${spacing.md}px` }} />
+            <Card variant="playful" style={actionCardStyle} onPress={() => navigate('/avatar')}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                background: gradients.primary, 
+                borderRadius: `${radii.pill}px`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: `0 auto ${spacing.md}px auto`,
+                boxShadow: shadows.colorful
+              }}>
+                <User size={28} style={{ color: colors.textInverse }} />
+              </div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
                 Avatar erstellen
               </div>
-              <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+              <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '14px' }}>
                 Erschaffe einen neuen Charakter
               </div>
             </Card>
 
-            <Card variant="elevated" style={actionCardStyle} onPress={() => navigate('/story')}>
-              <Sparkles size={32} style={{ color: colors.primary, marginBottom: `${spacing.md}px` }} />
+            <Card variant="playful" style={actionCardStyle} onPress={() => navigate('/story')}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                background: gradients.secondary, 
+                borderRadius: `${radii.pill}px`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: `0 auto ${spacing.md}px auto`,
+                boxShadow: shadows.soft
+              }}>
+                <BookOpen size={28} style={{ color: colors.textInverse }} />
+              </div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
                 Geschichte erstellen
               </div>
-              <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+              <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '14px' }}>
                 Starte ein neues Abenteuer
               </div>
             </Card>
@@ -259,28 +319,32 @@ const HomeScreen: React.FC = () => {
       {/* Avatars Section */}
       <FadeInView delay={200}>
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Deine Avatare ({avatars.length})</div>
+          <div style={sectionTitleStyle}>
+            <User size={28} style={{ color: colors.primary }} />
+            Deine Avatare ({avatars.length})
+          </div>
           
           {avatars.length === 0 ? (
-            <Card variant="outlined" style={emptyStateStyle}>
-              <User size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <Card variant="playful" style={emptyStateStyle}>
+              <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>👤</div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
                 Noch keine Avatare
               </div>
-              <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                 Erstelle deinen ersten Avatar, um loszulegen!
               </div>
               <Button
                 title="Avatar erstellen"
                 onPress={() => navigate('/avatar')}
                 icon={<Plus size={16} />}
+                variant="fun"
               />
             </Card>
           ) : (
             <div style={avatarGridStyle}>
               {avatars.map((avatar, index) => (
                 <FadeInView key={avatar.id} delay={300 + index * 50}>
-                  <Card variant="elevated" style={avatarCardStyle}>
+                  <Card variant="playful" style={avatarCardStyle}>
                     <div style={avatarImageStyle}>
                       {avatar.imageUrl ? (
                         <img 
@@ -292,10 +356,10 @@ const HomeScreen: React.FC = () => {
                         <span>{avatar.creationType === 'ai-generated' ? '🤖' : '📷'}</span>
                       )}
                     </div>
-                    <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
+                    <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.xs}px`, fontSize: '16px' }}>
                       {avatar.name}
                     </div>
-                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '13px' }}>
                       {avatar.creationType === 'ai-generated' ? 'KI-generiert' : 'Foto-basiert'}
                     </div>
                   </Card>
@@ -309,34 +373,38 @@ const HomeScreen: React.FC = () => {
       {/* Stories Section */}
       <FadeInView delay={300}>
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Deine Geschichten ({stories.length})</div>
+          <div style={sectionTitleStyle}>
+            <BookOpen size={28} style={{ color: colors.primary }} />
+            Deine Geschichten ({stories.length})
+          </div>
           
           {stories.length === 0 ? (
-            <Card variant="outlined" style={emptyStateStyle}>
-              <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <Card variant="playful" style={emptyStateStyle}>
+              <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📚</div>
               <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
                 Noch keine Geschichten
               </div>
-              <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                 Erschaffe deine erste magische Geschichte!
               </div>
               <Button
                 title="Geschichte erstellen"
                 onPress={() => navigate('/story')}
                 icon={<Sparkles size={16} />}
+                variant="secondary"
               />
             </Card>
           ) : (
             <div style={storyGridStyle}>
               {stories.map((story, index) => (
                 <FadeInView key={story.id} delay={400 + index * 50}>
-                  <Card variant="elevated" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
+                  <Card variant="playful" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
                     <div style={storyCoverStyle}>
                       {story.coverImageUrl ? (
                         <img 
                           src={story.coverImageUrl} 
                           alt={story.title}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: `${radii.md}px` }}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: `${radii.lg}px` }}
                         />
                       ) : (
                         <span>📖</span>
@@ -346,25 +414,26 @@ const HomeScreen: React.FC = () => {
                           position: 'absolute',
                           top: `${spacing.sm}px`,
                           right: `${spacing.sm}px`,
-                          backgroundColor: colors.warning,
-                          color: colors.textInverse,
+                          background: gradients.warm,
+                          color: colors.textPrimary,
                           padding: `${spacing.xs}px ${spacing.sm}px`,
-                          borderRadius: `${radii.sm}px`,
+                          borderRadius: `${radii.lg}px`,
                           fontSize: typography.textStyles.caption.fontSize,
-                          fontWeight: typography.textStyles.caption.fontWeight,
+                          fontWeight: typography.textStyles.label.fontWeight,
+                          boxShadow: shadows.sm,
                         }}>
-                          Wird erstellt...
+                          ✨ Wird erstellt...
                         </div>
                       )}
                     </div>
                     <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
                       {story.title}
                     </div>
-                    <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.sm}px` }}>
+                    <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.sm}px`, fontSize: '15px' }}>
                       {story.description}
                     </div>
-                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
-                      {new Date(story.createdAt).toLocaleDateString('de-DE')}
+                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '13px' }}>
+                      📅 {new Date(story.createdAt).toLocaleDateString('de-DE')}
                     </div>
                   </Card>
                 </FadeInView>
@@ -378,6 +447,17 @@ const HomeScreen: React.FC = () => {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Fredoka+One&display=swap');
+        
+        * {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        
+        *::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </div>

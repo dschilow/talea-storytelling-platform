@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Wand2, Star } from 'lucide-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
-import { colors } from '../../utils/constants/colors';
+import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii } from '../../utils/constants/spacing';
+import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import backend from '~backend/client';
 
 interface PhysicalTraits {
@@ -65,8 +65,8 @@ const AIGeneratedTab: React.FC = () => {
   });
 
   const genderOptions = [
-    { key: 'male', label: 'Männlich', icon: '👦' },
-    { key: 'female', label: 'Weiblich', icon: '👧' },
+    { key: 'male', label: 'Junge', icon: '👦' },
+    { key: 'female', label: 'Mädchen', icon: '👧' },
     { key: 'non-binary', label: 'Divers', icon: '🧒' },
   ];
 
@@ -80,14 +80,14 @@ const AIGeneratedTab: React.FC = () => {
   const personalityLabels = {
     courage: { label: 'Mut', icon: '🦁', color: colors.error },
     intelligence: { label: 'Intelligenz', icon: '🧠', color: colors.primary },
-    creativity: { label: 'Kreativität', icon: '🎨', color: colors.accent },
-    empathy: { label: 'Empathie', icon: '❤️', color: colors.secondary },
-    strength: { label: 'Stärke', icon: '💪', color: colors.textSecondary },
-    humor: { label: 'Humor', icon: '😄', color: colors.warning },
-    adventure: { label: 'Abenteuer', icon: '🗺️', color: colors.primaryVariant },
-    patience: { label: 'Geduld', icon: '🧘', color: colors.success },
-    curiosity: { label: 'Neugier', icon: '🔍', color: colors.accent },
-    leadership: { label: 'Führung', icon: '👑', color: colors.warning },
+    creativity: { label: 'Kreativität', icon: '🎨', color: colors.orange },
+    empathy: { label: 'Empathie', icon: '❤️', color: colors.green },
+    strength: { label: 'Stärke', icon: '💪', color: colors.purple },
+    humor: { label: 'Humor', icon: '😄', color: colors.yellow },
+    adventure: { label: 'Abenteuer', icon: '🗺️', color: colors.blue },
+    patience: { label: 'Geduld', icon: '🧘', color: colors.teal },
+    curiosity: { label: 'Neugier', icon: '🔍', color: colors.orange },
+    leadership: { label: 'Führung', icon: '👑', color: colors.yellow },
   };
 
   const updatePhysicalTrait = <K extends keyof PhysicalTraits>(
@@ -95,7 +95,7 @@ const AIGeneratedTab: React.FC = () => {
     value: PhysicalTraits[K]
   ) => {
     setPhysicalTraits(prev => ({ ...prev, [key]: value }));
-    setGeneratedImageUrl(null); // Reset generated image when traits change
+    setGeneratedImageUrl(null);
   };
 
   const updatePersonalityTrait = <K extends keyof PersonalityTraits>(
@@ -108,11 +108,15 @@ const AIGeneratedTab: React.FC = () => {
   const generateAvatarImage = async () => {
     try {
       setGeneratingImage(true);
+      console.log('Starting avatar image generation...');
+      
       const result = await backend.ai.generateAvatarImage({
         physicalTraits,
         personalityTraits,
         style: 'disney',
       });
+      
+      console.log('Avatar image generated successfully');
       setGeneratedImageUrl(result.imageUrl);
     } catch (error) {
       console.error('Error generating avatar image:', error);
@@ -141,7 +145,7 @@ const AIGeneratedTab: React.FC = () => {
         creationType: 'ai-generated',
       });
 
-      alert(`Avatar "${avatar.name}" wurde erfolgreich erstellt!`);
+      alert(`Avatar "${avatar.name}" wurde erfolgreich erstellt! 🎉`);
       setName('');
       setDescription('');
       setGeneratedImageUrl(null);
@@ -161,24 +165,27 @@ const AIGeneratedTab: React.FC = () => {
     ...typography.textStyles.headingMd,
     color: colors.textPrimary,
     marginBottom: `${spacing.lg}px`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: `${spacing.sm}px`,
   };
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: `${spacing.md}px`,
-    border: `1px solid ${colors.border}`,
-    borderRadius: `${radii.md}px`,
+    padding: `${spacing.lg}px`,
+    border: `2px solid ${colors.border}`,
+    borderRadius: `${radii.lg}px`,
     fontSize: typography.textStyles.body.fontSize,
     fontFamily: typography.fonts.primary,
     backgroundColor: colors.elevatedSurface,
     color: colors.textPrimary,
     outline: 'none',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.3s ease',
   };
 
   const sliderStyle: React.CSSProperties = {
     width: '100%',
-    height: '6px',
+    height: '8px',
     borderRadius: `${radii.sm}px`,
     background: colors.border,
     outline: 'none',
@@ -188,50 +195,60 @@ const AIGeneratedTab: React.FC = () => {
 
   const optionGridStyle: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: `${spacing.md}px`,
   };
 
   const optionButtonStyle = (isSelected: boolean): React.CSSProperties => ({
-    padding: `${spacing.md}px`,
-    borderRadius: `${radii.md}px`,
-    border: `2px solid ${isSelected ? colors.primary : colors.border}`,
-    backgroundColor: isSelected ? colors.surface : colors.elevatedSurface,
+    padding: `${spacing.lg}px`,
+    borderRadius: `${radii.lg}px`,
+    border: `3px solid ${isSelected ? colors.primary : colors.border}`,
+    backgroundColor: isSelected ? colors.softPink : colors.elevatedSurface,
     color: isSelected ? colors.primary : colors.textPrimary,
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.3s ease',
     textAlign: 'center' as const,
+    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+    boxShadow: isSelected ? shadows.colorful : shadows.sm,
   });
 
   const previewStyle: React.CSSProperties = {
     textAlign: 'center' as const,
     padding: `${spacing.xl}px`,
+    background: gradients.primary,
+    borderRadius: `${radii.xl}px`,
+    color: colors.textInverse,
   };
 
   const avatarPreviewStyle: React.CSSProperties = {
-    width: '120px',
-    height: '120px',
+    width: '140px',
+    height: '140px',
     borderRadius: `${radii.pill}px`,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.elevatedSurface,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     margin: `0 auto ${spacing.lg}px auto`,
-    fontSize: '48px',
+    fontSize: '64px',
     overflow: 'hidden' as const,
     position: 'relative' as const,
+    border: `4px solid ${colors.textInverse}`,
+    boxShadow: shadows.lg,
   };
 
   return (
     <div style={{ paddingBottom: `${spacing.xl}px` }}>
       {/* Basic Info */}
       <FadeInView delay={100}>
-        <Card variant="elevated" style={sectionStyle}>
-          <div style={sectionTitleStyle}>Grundinformationen</div>
+        <Card variant="playful" style={sectionStyle}>
+          <div style={sectionTitleStyle}>
+            <Star size={24} style={{ color: colors.primary }} />
+            Grundinformationen
+          </div>
           
           <div style={{ marginBottom: `${spacing.lg}px` }}>
-            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-              Name *
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Name deines Avatars ✨
             </label>
             <input
               type="text"
@@ -241,7 +258,7 @@ const AIGeneratedTab: React.FC = () => {
               style={inputStyle}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = colors.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                e.currentTarget.style.boxShadow = `0 0 0 4px ${colors.softPink}`;
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = colors.border;
@@ -251,18 +268,18 @@ const AIGeneratedTab: React.FC = () => {
           </div>
 
           <div>
-            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-              Beschreibung (optional)
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Beschreibung (optional) 📝
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Erzähle etwas über deinen Avatar..."
               rows={3}
-              style={{ ...inputStyle, resize: 'none' as const }}
+              style={{ ...inputStyle, resize: 'none' as const, minHeight: '100px' }}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = colors.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                e.currentTarget.style.boxShadow = `0 0 0 4px ${colors.softPink}`;
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = colors.border;
@@ -275,12 +292,15 @@ const AIGeneratedTab: React.FC = () => {
 
       {/* Physical Traits */}
       <FadeInView delay={200}>
-        <Card variant="elevated" style={sectionStyle}>
-          <div style={sectionTitleStyle}>Körperliche Eigenschaften</div>
+        <Card variant="playful" style={sectionStyle}>
+          <div style={sectionTitleStyle}>
+            <Wand2 size={24} style={{ color: colors.primary }} />
+            Aussehen bestimmen
+          </div>
           
-          <div style={{ marginBottom: `${spacing.lg}px` }}>
-            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-              Alter: {physicalTraits.age} Jahre
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Alter: {physicalTraits.age} Jahre 🎂
             </label>
             <input
               type="range"
@@ -289,13 +309,16 @@ const AIGeneratedTab: React.FC = () => {
               step="1"
               value={physicalTraits.age}
               onChange={(e) => updatePhysicalTrait('age', parseInt(e.target.value))}
-              style={sliderStyle}
+              style={{
+                ...sliderStyle,
+                background: `linear-gradient(to right, ${colors.primary} 0%, ${colors.primary} ${((physicalTraits.age - 3) / 13) * 100}%, ${colors.border} ${((physicalTraits.age - 3) / 13) * 100}%, ${colors.border} 100%)`,
+              }}
             />
           </div>
 
-          <div style={{ marginBottom: `${spacing.lg}px` }}>
-            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-              Größe: {physicalTraits.height} cm
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Größe: {physicalTraits.height} cm 📏
             </label>
             <input
               type="range"
@@ -304,13 +327,16 @@ const AIGeneratedTab: React.FC = () => {
               step="5"
               value={physicalTraits.height}
               onChange={(e) => updatePhysicalTrait('height', parseInt(e.target.value))}
-              style={sliderStyle}
+              style={{
+                ...sliderStyle,
+                background: `linear-gradient(to right, ${colors.teal} 0%, ${colors.teal} ${((physicalTraits.height - 80) / 100) * 100}%, ${colors.border} ${((physicalTraits.height - 80) / 100) * 100}%, ${colors.border} 100%)`,
+              }}
             />
           </div>
 
-          <div style={{ marginBottom: `${spacing.lg}px` }}>
-            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-              Geschlecht
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
+              Geschlecht 👶
             </label>
             <div style={optionGridStyle}>
               {genderOptions.map((option) => (
@@ -321,24 +347,26 @@ const AIGeneratedTab: React.FC = () => {
                   onMouseEnter={(e) => {
                     if (physicalTraits.gender !== option.key) {
                       e.currentTarget.style.borderColor = colors.primary;
+                      e.currentTarget.style.transform = 'scale(1.02)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (physicalTraits.gender !== option.key) {
                       e.currentTarget.style.borderColor = colors.border;
+                      e.currentTarget.style.transform = 'scale(1)';
                     }
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: `${spacing.xs}px` }}>{option.icon}</div>
-                  <div style={{ ...typography.textStyles.label }}>{option.label}</div>
+                  <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>{option.icon}</div>
+                  <div style={{ ...typography.textStyles.label, fontSize: '15px' }}>{option.label}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div style={{ marginBottom: `${spacing.lg}px` }}>
-            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-              Haartyp
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
+              Haartyp 💇
             </label>
             <div style={optionGridStyle}>
               {hairTypes.map((option) => (
@@ -349,16 +377,18 @@ const AIGeneratedTab: React.FC = () => {
                   onMouseEnter={(e) => {
                     if (physicalTraits.hairType !== option.key) {
                       e.currentTarget.style.borderColor = colors.primary;
+                      e.currentTarget.style.transform = 'scale(1.02)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (physicalTraits.hairType !== option.key) {
                       e.currentTarget.style.borderColor = colors.border;
+                      e.currentTarget.style.transform = 'scale(1)';
                     }
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: `${spacing.xs}px` }}>{option.icon}</div>
-                  <div style={{ ...typography.textStyles.label }}>{option.label}</div>
+                  <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>{option.icon}</div>
+                  <div style={{ ...typography.textStyles.label, fontSize: '15px' }}>{option.label}</div>
                 </button>
               ))}
             </div>
@@ -368,31 +398,35 @@ const AIGeneratedTab: React.FC = () => {
 
       {/* Personality Traits */}
       <FadeInView delay={300}>
-        <Card variant="elevated" style={sectionStyle}>
-          <div style={sectionTitleStyle}>Persönlichkeitseigenschaften</div>
-          <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.xl}px` }}>
-            Bestimme die Charakterzüge deines Avatars (1-10)
+        <Card variant="playful" style={sectionStyle}>
+          <div style={sectionTitleStyle}>
+            <Heart size={24} style={{ color: colors.primary }} />
+            Persönlichkeit gestalten
+          </div>
+          <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.xl}px`, fontSize: '16px' }}>
+            Bestimme die Charakterzüge deines Avatars (1-10) ⭐
           </div>
           
           {Object.entries(personalityTraits).map(([key, value], index) => {
             const trait = personalityLabels[key as keyof PersonalityTraits];
             return (
               <FadeInView key={key} delay={350 + index * 50}>
-                <div style={{ marginBottom: `${spacing.lg}px` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: `${spacing.sm}px` }}>
+                <div style={{ marginBottom: `${spacing.xl}px` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: `${spacing.md}px` }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: '20px', marginRight: `${spacing.sm}px` }}>{trait.icon}</span>
-                      <span style={{ ...typography.textStyles.label, color: colors.textPrimary }}>{trait.label}</span>
+                      <span style={{ fontSize: '24px', marginRight: `${spacing.md}px` }}>{trait.icon}</span>
+                      <span style={{ ...typography.textStyles.label, color: colors.textPrimary, fontSize: '16px' }}>{trait.label}</span>
                     </div>
                     <div style={{
-                      padding: `${spacing.xs}px ${spacing.sm}px`,
-                      borderRadius: `${radii.sm}px`,
+                      padding: `${spacing.sm}px ${spacing.md}px`,
+                      borderRadius: `${radii.lg}px`,
                       backgroundColor: trait.color,
                       color: colors.textInverse,
-                      fontSize: typography.textStyles.caption.fontSize,
+                      fontSize: '16px',
                       fontWeight: typography.textStyles.label.fontWeight,
-                      minWidth: '32px',
+                      minWidth: '40px',
                       textAlign: 'center' as const,
+                      boxShadow: shadows.sm,
                     }}>
                       {value}
                     </div>
@@ -418,8 +452,7 @@ const AIGeneratedTab: React.FC = () => {
 
       {/* Preview */}
       <FadeInView delay={400}>
-        <Card variant="elevated" style={sectionStyle}>
-          <div style={sectionTitleStyle}>Vorschau</div>
+        <Card variant="playful" style={sectionStyle}>
           <div style={previewStyle}>
             <div style={avatarPreviewStyle}>
               {generatedImageUrl ? (
@@ -434,24 +467,29 @@ const AIGeneratedTab: React.FC = () => {
             </div>
             
             <Button
-              title={generatingImage ? "Generiere..." : "Avatar-Bild generieren"}
+              title={generatingImage ? "Magie wirkt... ✨" : "🎨 Avatar-Bild generieren"}
               onPress={generateAvatarImage}
               loading={generatingImage}
               icon={<Sparkles size={16} />}
-              variant="outline"
-              style={{ marginBottom: `${spacing.lg}px` }}
+              variant="ghost"
+              style={{ 
+                marginBottom: `${spacing.lg}px`,
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                color: colors.textInverse,
+                border: `2px solid ${colors.textInverse}`,
+              }}
             />
             
-            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
-              {name || 'Dein Avatar'}
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textInverse, marginBottom: `${spacing.sm}px` }}>
+              {name || 'Dein Avatar'} ⭐
             </div>
-            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+            <div style={{ ...typography.textStyles.body, color: colors.textInverse, marginBottom: `${spacing.lg}px`, opacity: 0.9 }}>
               {description || 'Keine Beschreibung verfügbar'}
             </div>
             
-            <div style={{ textAlign: 'left' as const }}>
-              <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
-                Stärkste Eigenschaften:
+            <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px` }}>
+              <div style={{ ...typography.textStyles.label, color: colors.textInverse, marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+                🌟 Stärkste Eigenschaften:
               </div>
               {Object.entries(personalityTraits)
                 .sort(([,a], [,b]) => b - a)
@@ -459,7 +497,7 @@ const AIGeneratedTab: React.FC = () => {
                 .map(([key, value]) => {
                   const trait = personalityLabels[key as keyof PersonalityTraits];
                   return (
-                    <div key={key} style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.xs}px` }}>
+                    <div key={key} style={{ ...typography.textStyles.body, color: colors.textInverse, marginBottom: `${spacing.xs}px`, fontSize: '15px' }}>
                       {trait.icon} {trait.label}: {value}/10
                     </div>
                   );
@@ -471,13 +509,19 @@ const AIGeneratedTab: React.FC = () => {
       
       <FadeInView delay={500}>
         <Button
-          title="Avatar erstellen"
+          title="🚀 Avatar erstellen"
           onPress={handleCreateAvatar}
           loading={loading}
           fullWidth
           icon={<Sparkles size={16} />}
+          variant="fun"
+          size="lg"
         />
       </FadeInView>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&family=Fredoka+One&display=swap');
+      `}</style>
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { spacing, radii, shadows } from '../../utils/constants/spacing';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'fun';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
@@ -38,40 +38,50 @@ const Button: React.FC<ButtonProps> = ({
     borderRadius: `${radii.lg}px`,
     border: 'none',
     cursor: disabled || loading ? 'not-allowed' : 'pointer',
-    transition: 'all 0.2s cubic-bezier(0.2, 0.0, 0.0, 1.0)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
     outline: 'none',
     textDecoration: 'none',
     userSelect: 'none' as const,
     width: fullWidth ? '100%' : 'auto',
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
   };
 
   const sizeStyles = {
     sm: {
-      height: '36px',
-      paddingLeft: `${spacing.md}px`,
-      paddingRight: `${spacing.md}px`,
+      height: '40px',
+      paddingLeft: `${spacing.lg}px`,
+      paddingRight: `${spacing.lg}px`,
+      fontSize: '13px',
     },
     md: {
       height: '48px',
-      paddingLeft: `${spacing.lg}px`,
-      paddingRight: `${spacing.lg}px`,
+      paddingLeft: `${spacing.xl}px`,
+      paddingRight: `${spacing.xl}px`,
+      fontSize: '15px',
     },
     lg: {
       height: '56px',
-      paddingLeft: `${spacing.xl}px`,
-      paddingRight: `${spacing.xl}px`,
+      paddingLeft: `${spacing.xxl}px`,
+      paddingRight: `${spacing.xxl}px`,
+      fontSize: '16px',
     },
   };
 
   const variantStyles = {
     primary: {
-      backgroundColor: colors.primary,
+      background: 'linear-gradient(135deg, #FF6B9D 0%, #4ECDC4 100%)',
       color: colors.textInverse,
-      boxShadow: shadows.md,
+      boxShadow: shadows.colorful,
     },
     secondary: {
-      backgroundColor: colors.secondary,
+      background: 'linear-gradient(135deg, #4299E1 0%, #9F7AEA 100%)',
       color: colors.textInverse,
+      boxShadow: shadows.soft,
+    },
+    fun: {
+      background: 'linear-gradient(135deg, #FFD93D 0%, #ED8936 100%)',
+      color: colors.textPrimary,
       boxShadow: shadows.md,
     },
     outline: {
@@ -89,29 +99,32 @@ const Button: React.FC<ButtonProps> = ({
 
   const hoverStyles = {
     primary: {
-      backgroundColor: colors.primaryVariant,
-      boxShadow: shadows.sm,
-      transform: 'translateY(-1px)',
+      transform: 'translateY(-2px) scale(1.02)',
+      boxShadow: '0 12px 28px 0 rgba(255, 107, 157, 0.4)',
     },
     secondary: {
-      backgroundColor: '#FF4A6B',
-      boxShadow: shadows.sm,
-      transform: 'translateY(-1px)',
+      transform: 'translateY(-2px) scale(1.02)',
+      boxShadow: '0 8px 24px 0 rgba(78, 205, 196, 0.3)',
+    },
+    fun: {
+      transform: 'translateY(-2px) scale(1.02)',
+      boxShadow: '0 12px 28px 0 rgba(255, 217, 61, 0.4)',
     },
     outline: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.softPink,
       transform: 'translateY(-1px)',
     },
     ghost: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.softPink,
       transform: 'translateY(-1px)',
     },
   };
 
   const disabledStyles = {
-    opacity: 0.5,
+    opacity: 0.6,
     transform: 'none',
     boxShadow: 'none',
+    cursor: 'not-allowed',
   };
 
   const activeStyles = {
