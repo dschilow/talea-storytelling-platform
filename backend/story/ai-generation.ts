@@ -1,4 +1,138 @@
-// -------- KOMPLETTE GPT-5-nano Lösung - Ersetze deine generateStoryWithOpenAI Funktion und alle Helper --------
+import { api } from "encore.dev/api";
+import { secret } from "encore.dev/config";
+import { generateImage } from "../ai/image-generation";
+import type { StoryConfig, Chapter } from "./generate";
+
+// ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
+const MODEL = "gpt-4o-mini";
+const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token
+const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token
+
+const openAIKey = secret("OpenAIKey");
+
+interface GenerateStoryContentRequest {
+  config: StoryConfig;
+  avatarDetails: Array<{
+    id: string;
+    name: string;
+    physicalTraits: any;
+    personalityTraits: any;
+  }>;
+}
+
+interface GenerateStoryContentResponse {
+  title: string;
+  description: string;
+  coverImageUrl: string;
+  chapters: Omit<Chapter, "id">[];
+  metadata: {
+    tokensUsed: {
+      prompt: number;
+      completion: number;
+      total: number;
+    };
+    model: string;
+    processingTime: number;
+    imagesGenerated: number;
+    totalCost: {
+      text: number;
+      images: number;
+      total: number;
+    };
+  };
+}
+
+// Vielfache-von-64 Hilfsfunktion für Runware
+function normalizeRunwareDimensions(width: number, height: number): { width: number; height: number } {
+  const roundToMultiple64 = (n: number) => Math.round(n / 64) * 64;
+  const normalizedWidth = Math.max(128, Math.min(2048, roundToMultiple64(width)));
+  const normalizedHeight = Math.max(128, Math.min(2048, roundToMultiple64(height)));
+  return { width: normalizedWidth, height: normalizedHeight };
+}
+
+export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
+  { expose: true, method: "POST", path: "/ai/generate-story" },
+  async (req) => {
+    const startTime = Date.now();
+    const metadata: GenerateStoryContentResponse["metadata"] = {
+      tokensUsed: { prompt: 0, completion: 0, total: 0 },
+      model: MODEL,
+      processingTime: 0,
+      imagesGenerated: 0,
+      totalCost: { text: 0, images: 0, total: 0 },
+    };
+
+    try {
+      console.log("📚 Generating story with config:", JSON.stringify(req.config, null, 2));
+
+      const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
+      console.log("✅ Generated story content:", storyContent.title);
+
+      metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
+      metadata.totalCost.text =
+        (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
+        (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
+
+      // Cover
+      const coverDimensions = normalizeRunwareDimensions(600, 800);
+      const coverPrompt =
+        `Children's book cover illustration for "${storyContent.title}", ` +
+        `${req.config.genre} adventure, ${req.config.setting} setting, ` +
+        `Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality`;
+      const coverImage = await generateImage({
+        prompt: coverPrompt,
+        width: coverDimensions.width,
+        height: coverDimensions.height,
+        steps: 25,
+      });
+      metadata.imagesGenerated++;
+
+      // Kapitelbilder
+      const chapterDimensions = normalizeRunwareDimensions(400, 300);
+      const chaptersWithImages = await Promise.all(
+        storyContent.chapters.map(async (chapter, index) => {
+          const chapterPrompt =
+            `Children's book illustration for chapter "${chapter.title}", ` +
+            `${req.config.genre} story scene, ${req.config.setting} background, ` +
+            `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children`;
+          const chapterImage = await generateImage({
+            prompt: chapterPrompt,
+            width: chapterDimensions.width,
+            height: chapterDimensions.height,
+            steps: 20,
+          });
+          metadata.imagesGenerated++;
+          return { ...chapter, imageUrl: chapterImage.imageUrl };
+        })
+      );
+
+      // (Platzhalter) Bildkosten
+      const imageCostPer1 = 0.0006;
+      metadata.totalCost.images = metadata.imagesGenerated * imageCostPer1;
+      metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
+
+      metadata.processingTime = Date.now() - startTime;
+
+      console.log("💰 Generation costs:", metadata.totalCost);
+      console.log("📊 Tokens used:", metadata.tokensUsed);
+      console.log("⏱️ Processing time:", metadata.processingTime, "ms");
+
+      return {
+        title: storyContent.title,
+        description: storyContent.description,
+        coverImageUrl: coverImage.imageUrl,
+        chapters: chaptersWithImages,
+        metadata,
+      };
+    } catch (error) {
+      console.error("❌ Error in story generation:", error);
+      metadata.processingTime = Date.now() - startTime;
+
+      const fallbackResult = await generateFallbackStoryWithImages(req.config, req.avatarDetails);
+      return { ...fallbackResult, metadata };
+    }
+  }
+);
 
 async function generateStoryWithOpenAI(
   config: StoryConfig,
@@ -53,9 +187,9 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_completion_tokens: 2400,
-      reasoning_effort: "minimal",
-      verbosity: "medium"
+      max_tokens: 2400,
+      temperature: 0.7,
+      response_format: { type: "json_object" }
     }),
   });
 
@@ -84,13 +218,11 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
     tokensUsed: {
       prompt: data.usage?.prompt_tokens ?? 0,
       completion: data.usage?.completion_tokens ?? 0,
-      reasoning: data.usage?.reasoning_tokens ?? 0,
       total: data.usage?.total_tokens ?? 0,
     }
   };
 }
 
-// -------- Fallback-Story inkl. Platzhalterbilder --------
 async function generateFallbackStoryWithImages(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
@@ -125,7 +257,6 @@ async function generateFallbackStoryWithImages(
   };
 }
 
-// -------- Helper Functions --------
 function getAvatarDescription(physical: any, personality: any): string {
   const age = physical?.age ?? "?";
   const gender =

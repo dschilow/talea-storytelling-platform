@@ -54,7 +54,6 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       steps: req.steps || 20,
       seed: req.seed || Math.floor(Math.random() * 1000000),
       outputFormat: req.outputFormat || "WEBP",
-      // According to docs, accepted values include "base64Data" for inline base64 payloads
       outputType: "base64Data",
     };
 
