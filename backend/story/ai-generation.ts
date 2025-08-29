@@ -3,10 +3,9 @@ import { secret } from "encore.dev/config";
 import { generateImage } from "../ai/image-generation";
 import type { StoryConfig, Chapter } from "./generate";
 
-// ---- OpenAI Modell, Tier & Pricing (Modul-weit gültig) ----
-// GPT-5-Nano über Responses API (empfohlen). Preise: Standard-Tier.
+// ---- OpenAI Modell, Tier & Pricing (Standard-Tier) ----
 const MODEL = "gpt-5-nano";
-const SERVICE_TIER: "standard" | "flex" = "standard"; // ggf. "flex" für günstiger aber langsamer
+const SERVICE_TIER: "standard" | "flex" = "standard";
 const INPUT_COST_PER_1M = 0.05;   // $/1M Input-Token (Standard)
 const OUTPUT_COST_PER_1M = 0.40;  // $/1M Output-Token (Standard)
 
@@ -44,20 +43,18 @@ interface GenerateStoryContentResponse {
   };
 }
 
-// Utility: Dimensionen auf Vielfache von 64 bringen (Runware-Anforderung)
+// Vielfache-von-64 für Runware
 function normalizeRunwareDimensions(
   width: number,
   height: number
 ): { width: number; height: number } {
-  const roundToMultiple64 = (n: number) => Math.round(n / 64) * 64;
-
-  const normalizedWidth = Math.max(128, Math.min(2048, roundToMultiple64(width)));
-  const normalizedHeight = Math.max(128, Math.min(2048, roundToMultiple64(height)));
-
-  return { width: normalizedWidth, height: normalizedHeight };
+  const round64 = (n: number) => Math.round(n / 64) * 64;
+  return {
+    width: Math.max(128, Math.min(2048, round64(width))),
+    height: Math.max(128, Math.min(2048, round64(height))),
+  };
 }
 
-// Generates story content using OpenAI (Responses API) and Runware for images.
 export const generateStoryContent = api<
   GenerateStoryContentRequest,
   GenerateStoryContentResponse
@@ -74,28 +71,19 @@ export const generateStoryContent = api<
     };
 
     try {
-      console.log(
-        "📚 Generating story with config:",
-        JSON.stringify(req.config, null, 2)
-      );
+      console.log("📚 Generating story with config:", JSON.stringify(req.config, null, 2));
 
-      // 1) Story-Inhalt via OpenAI (Responses API)
-      const storyContent = await generateStoryWithOpenAI(
-        req.config,
-        req.avatarDetails
-      );
-
+      // 1) Story vom LLM holen
+      const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
       console.log("✅ Generated story content:", storyContent.title);
 
-      // 2) Kosten Text-Generierung berechnen
-      metadata.tokensUsed =
-        storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
+      // 2) Textkosten
+      metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      // 3) Cover-Bild erzeugen (Dimensionen werden auf Vielfache von 64 normalisiert)
-      // Hinweis: 600x800 -> 576x832 (Vielfache von 64)
+      // 3) Cover-Bild (600x800 → 576x832)
       const coverDimensions = normalizeRunwareDimensions(600, 800); // ✅ 576x832
       const coverPrompt = `Children's book cover illustration for "${storyContent.title}", ${req.config.genre} adventure story, ${req.config.setting} setting, Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality`;
       const coverImage = await generateImage({
@@ -104,14 +92,10 @@ export const generateStoryContent = api<
         height: coverDimensions.height,
         steps: 25,
       });
-
-      console.log(
-        `🖼️ Generated cover image (${coverDimensions.width}x${coverDimensions.height})`
-      );
+      console.log(`🖼️ Generated cover image (${coverDimensions.width}x${coverDimensions.height})`);
       metadata.imagesGenerated++;
 
-      // 4) Kapitel-Bilder erzeugen
-      // Hinweis: 400x300 -> 384x320 (Vielfache von 64)
+      // 4) Kapitel-Bilder (400x300 → 384x320)
       const chapterDimensions = normalizeRunwareDimensions(400, 300); // ✅ 384x320
       const chaptersWithImages = await Promise.all(
         storyContent.chapters.map(async (chapter, index) => {
@@ -135,12 +119,10 @@ export const generateStoryContent = api<
         })
       );
 
-      // 5) Bildkosten kalkulieren (Runware Schätzung)
-      const imageCostPer1 = 0.0006; // $0.0006 pro Bild
-      metadata.totalCost.images = metadata.imagesGenerated * imageCostPer1;
-      metadata.totalCost.total =
-        metadata.totalCost.text + metadata.totalCost.images;
-
+      // 5) Bildkosten (Runware-Schätzung)
+      const IMAGE_COST = 0.0006; // $ pro Bild
+      metadata.totalCost.images = metadata.imagesGenerated * IMAGE_COST;
+      metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
       metadata.processingTime = Date.now() - startTime;
 
       console.log("💰 Generation costs:", metadata.totalCost);
@@ -159,26 +141,17 @@ export const generateStoryContent = api<
 
       // Fallback-Story inkl. Platzhalterbilder
       metadata.processingTime = Date.now() - startTime;
-      const fallbackResult = await generateFallbackStoryWithImages(
-        req.config,
-        req.avatarDetails
-      );
-
-      return {
-        ...fallbackResult,
-        metadata,
-      };
+      const fallbackResult = await generateFallbackStoryWithImages(req.config, req.avatarDetails);
+      return { ...fallbackResult, metadata };
     }
   }
 );
 
+// -------------------- LLM-Aufruf (Responses API) --------------------
+
 async function generateStoryWithOpenAI(
   config: StoryConfig,
-  avatars: Array<{
-    name: string;
-    physicalTraits: any;
-    personalityTraits: any;
-  }>
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
 ): Promise<{
   title: string;
   description: string;
@@ -188,16 +161,12 @@ async function generateStoryWithOpenAI(
   try {
     const avatarDescriptions = avatars
       .map(
-        (avatar) =>
-          `${avatar.name}: ${getAvatarDescription(
-            avatar.physicalTraits,
-            avatar.personalityTraits
-          )}`
+        (a) =>
+          `${a.name}: ${getAvatarDescription(a.physicalTraits, a.personalityTraits)}`
       )
       .join("\n");
 
-    const chapterCount =
-      config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
+    const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
     const systemPrompt =
       "Du bist ein professioneller Kinderbuchautor. Erstelle fesselnde, altersgerechte Geschichten, die sowohl lehrreich als auch unterhaltsam sind. Schreibe immer auf Deutsch und verwende eine kindgerechte, warme Sprache. Antworte ausschließlich als JSON (ohne Markdown).";
@@ -231,18 +200,13 @@ Formatiere als JSON:
   "title": "Geschichte Titel",
   "description": "Geschichte Beschreibung",
   "chapters": [
-    {
-      "title": "Kapitel 1 Titel",
-      "content": "Kapitelinhalt...",
-      "order": 0
-    }
+    { "title": "Kapitel 1 Titel", "content": "Kapitelinhalt...", "order": 0 }
   ]
 }`;
 
     console.log("🤖 Sending request to OpenAI (Responses API)...");
     console.log(`🧪 Using MODEL: ${MODEL} | TIER: ${SERVICE_TIER}`);
 
-    // Responses API Request
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -251,19 +215,19 @@ Formatiere als JSON:
       },
       body: JSON.stringify({
         model: MODEL,
+        // Responses API: System-Kontext in "instructions"
+        instructions: systemPrompt,
+        // User-Eingabe als Input-Item(s) mit "input_text"
         input: [
           {
-            role: "system",
-            content: [{ type: "text", text: systemPrompt }],
-          },
-          {
             role: "user",
-            content: [{ type: "text", text: userPrompt }],
+            content: [{ type: "input_text", text: userPrompt }],
           },
         ],
-        max_output_tokens: 1500, // genügt für 5 Kapitel à 200-300 Wörter
+        // JSON-Output über text.format
+        text: { format: "json" },
+        max_output_tokens: 1500,
         temperature: 0.8,
-        response_format: { type: "json_object" },
         service_tier: SERVICE_TIER,
       }),
     });
@@ -271,19 +235,16 @@ Formatiere als JSON:
     if (!response || !response.ok) {
       const errorText = response ? await response.text() : "Request failed";
       console.error("❌ OpenAI API error:", response?.status, errorText);
-      throw new Error(
-        `OpenAI API error: ${response?.status || "No response"} ${
-          response?.statusText || errorText
-        }`
-      );
+      throw new Error(`OpenAI API error: ${response?.status || "No response"} ${response?.statusText || errorText}`);
     }
 
     const data = await response.json();
     console.log("✅ OpenAI response received");
+    console.log("📊 Usage:", data?.usage);
 
-    // Responses API: Text robust extrahieren
+    // Robust extrahieren (output_text bevorzugt)
     const text: string =
-      data.output_text ??
+      (typeof data.output_text === "string" && data.output_text.trim()) ? data.output_text :
       (Array.isArray(data.output)
         ? data.output
             .flatMap((o: any) => o?.content ?? [])
@@ -291,48 +252,31 @@ Formatiere als JSON:
             .join("")
         : "");
 
-    console.log("📊 Usage:", data.usage);
-
-    // JSON parsen (harte JSON-Mode-Anforderung in systemPrompt/response_format)
     const parsedContent = JSON.parse(text);
 
     const tokensUsed = {
       prompt: data?.usage?.input_tokens ?? 0,
       completion: data?.usage?.output_tokens ?? 0,
-      total:
-        (data?.usage?.input_tokens ?? 0) + (data?.usage?.output_tokens ?? 0),
+      total: (data?.usage?.input_tokens ?? 0) + (data?.usage?.output_tokens ?? 0),
     };
 
     console.log("✅ Successfully parsed OpenAI response");
-
-    return {
-      ...parsedContent,
-      tokensUsed,
-    };
+    return { ...parsedContent, tokensUsed };
   } catch (error) {
     console.error("❌ OpenAI generation failed, using fallback");
     throw error;
   }
 }
 
+// -------------------- Fallback --------------------
+
 async function generateFallbackStoryWithImages(
   config: StoryConfig,
-  avatars: Array<{
-    name: string;
-    physicalTraits: any;
-    personalityTraits: any;
-  }>
-): Promise<{
-  title: string;
-  description: string;
-  coverImageUrl: string;
-  chapters: Omit<Chapter, "id">[];
-}> {
-  const chapterCount =
-    config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
+): Promise<{ title: string; description: string; coverImageUrl: string; chapters: Omit<Chapter, "id">[] }> {
+  const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
 
-  // Cover-Platzhalter erzeugen (normalisierte Dimensionen)
   const coverDimensions = normalizeRunwareDimensions(600, 800); // 600x800 -> 576x832
   const coverImage = await generateImage({
     prompt: `Children's book cover, ${config.genre} story, colorful, magical`,
@@ -340,7 +284,6 @@ async function generateFallbackStoryWithImages(
     height: coverDimensions.height,
   });
 
-  // Kapitel-Platzhalterbilder
   const chapterDimensions = normalizeRunwareDimensions(400, 300); // 400x300 -> 384x320
   const chaptersWithImages = await Promise.all(
     fallbackStory.chapters.map(async (chapter, index) => {
@@ -349,11 +292,7 @@ async function generateFallbackStoryWithImages(
         width: chapterDimensions.width,
         height: chapterDimensions.height,
       });
-
-      return {
-        ...chapter,
-        imageUrl: chapterImage.imageUrl,
-      };
+      return { ...chapter, imageUrl: chapterImage.imageUrl };
     })
   );
 
@@ -365,41 +304,30 @@ async function generateFallbackStoryWithImages(
   };
 }
 
+// -------------------- Hilfsfunktionen --------------------
+
 function getAvatarDescription(physical: any, personality: any): string {
   const age = physical.age;
   const gender =
-    physical.gender === "male"
-      ? "Junge"
-      : physical.gender === "female"
-      ? "Mädchen"
-      : "Kind";
+    physical.gender === "male" ? "Junge" :
+    physical.gender === "female" ? "Mädchen" : "Kind";
+
   const topTraits = Object.entries(personality)
     .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 2)
     .map(([trait]) => {
       switch (trait) {
-        case "courage":
-          return "mutig";
-        case "intelligence":
-          return "klug";
-        case "creativity":
-          return "kreativ";
-        case "empathy":
-          return "einfühlsam";
-        case "strength":
-          return "stark";
-        case "humor":
-          return "lustig";
-        case "adventure":
-          return "abenteuerlustig";
-        case "patience":
-          return "geduldig";
-        case "curiosity":
-          return "neugierig";
-        case "leadership":
-          return "führungsstark";
-        default:
-          return trait;
+        case "courage": return "mutig";
+        case "intelligence": return "klug";
+        case "creativity": return "kreativ";
+        case "empathy": return "einfühlsam";
+        case "strength": return "stark";
+        case "humor": return "lustig";
+        case "adventure": return "abenteuerlustig";
+        case "patience": return "geduldig";
+        case "curiosity": return "neugierig";
+        case "leadership": return "führungsstark";
+        default: return trait;
       }
     })
     .join(" und ");
@@ -409,18 +337,10 @@ function getAvatarDescription(physical: any, personality: any): string {
 
 function generateFallbackStory(
   config: StoryConfig,
-  avatars: Array<{
-    name: string;
-    physicalTraits: any;
-    personalityTraits: any;
-  }>,
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>,
   chapterCount: number
-): {
-  title: string;
-  description: string;
-  chapters: Omit<Chapter, "id" | "imageUrl">[];
-} {
-  const genreMap: { [key: string]: string } = {
+): { title: string; description: string; chapters: Omit<Chapter, "id" | "imageUrl">[] } {
+  const genreMap: Record<string, string> = {
     adventure: "Abenteuer",
     fantasy: "Fantasy-Abenteuer",
     mystery: "Geheimnis",
@@ -430,16 +350,8 @@ function generateFallbackStory(
     sciFi: "Weltraumabenteuer",
   };
 
-  const title = `Das große ${genreMap[config.genre] || "Abenteuer"} von ${
-    avatars[0]?.name || "unserem Helden"
-  }`;
-  const description = `Eine spannende Geschichte über ${
-    avatars.length
-  } Freund${
-    avatars.length === 1 ? "" : "e"
-  }, die ein aufregendes Abenteuer in ${
-    config.setting
-  } erleben und dabei wichtige Lektionen über Freundschaft und Mut lernen.`;
+  const title = `Das große ${genreMap[config.genre] || "Abenteuer"} von ${avatars[0]?.name || "unserem Helden"}`;
+  const description = `Eine spannende Geschichte über ${avatars.length} Freund${avatars.length === 1 ? "" : "e"}, die ein aufregendes Abenteuer in ${config.setting} erleben und dabei wichtige Lektionen über Freundschaft und Mut lernen.`;
 
   const chapters = Array.from({ length: chapterCount }, (_, i) => ({
     title: `Kapitel ${i + 1}: ${getChapterTitle(i)}`,
@@ -467,30 +379,20 @@ function getChapterTitle(index: number): string {
 function generateChapterContent(
   index: number,
   config: StoryConfig,
-  avatars: Array<{
-    name: string;
-    physicalTraits: any;
-    personalityTraits: any;
-  }>
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
 ): string {
   const names = avatars.map((a) => a.name).join(", ");
+  const learningBit = config.learningMode?.enabled
+    ? `
 
-  const baseContent = `In diesem aufregenden Kapitel erleben ${names} spannende Abenteuer in ${config.setting}. 
+In diesem Kapitel lernen wir auch etwas Wichtiges: ${(config.learningMode?.learningObjectives ?? []).join(", ")}. Das hilft uns, die Welt besser zu verstehen und klüger zu werden.`
+    : "";
+
+  return `In diesem aufregenden Kapitel erleben ${names} spannende Abenteuer in ${config.setting}. 
 
 Die Freunde müssen zusammenarbeiten und ihre besonderen Fähigkeiten einsetzen, um die Herausforderungen zu meistern. Jeder von ihnen bringt seine eigenen Stärken mit ein, und gemeinsam sind sie unschlagbar.
 
-Während sie ihr Abenteuer fortsetzen, lernen sie wichtige Lektionen über Freundschaft, Mut und Zusammenhalt. Die Welt um sie herum ist voller Wunder und Überraschungen, die darauf warten, entdeckt zu werden.
-${
-  config.learningMode?.enabled
-    ? `
-
-In diesem Kapitel lernen wir auch etwas Wichtiges: ${(config.learningMode?.learningObjectives ?? []).join(
-        ", "
-      )}. Das hilft uns, die Welt besser zu verstehen und klüger zu werden.`
-    : ""
-}
+Während sie ihr Abenteuer fortsetzen, lernen sie wichtige Lektionen über Freundschaft, Mut und Zusammenhalt. Die Welt um sie herum ist voller Wunder und Überraschungen, die darauf warten, entdeckt zu werden.${learningBit}
 
 Mit Mut, Freundschaft und einem Lächeln können unsere Helden jede Herausforderung meistern!`;
-
-  return baseContent;
 }
