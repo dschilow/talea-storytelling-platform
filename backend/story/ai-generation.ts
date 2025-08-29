@@ -4,12 +4,12 @@ import { generateImage } from "../ai/image-generation";
 import type { StoryConfig, Chapter } from "./generate";
 
 // ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
-// Du kannst "gpt-5" verwenden, aber für geringe Latenz/Kosten ist "gpt-5-nano" ideal.
+// Du kannst auch "gpt-5" nehmen; hier standardmäßig "gpt-5-nano" für geringere Kosten/Latenz.
 const MODEL = "gpt-5-nano";
 
-// TODO: Passe die Preise an die aktuelle Preisliste an.
-const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token (Platzhalter)
-const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token (Platzhalter)
+// TODO: Auf aktuelle Preise aus der Preisliste setzen.
+const INPUT_COST_PER_1M = 0.15;   // Platzhalter
+const OUTPUT_COST_PER_1M = 0.60;  // Platzhalter
 
 const openAIKey = secret("OpenAIKey");
 
@@ -45,7 +45,7 @@ interface GenerateStoryContentResponse {
   };
 }
 
-// Utility: Runware-Dimensionen auf Vielfache von 64 normalisieren
+// Vielfache-von-64 Hilfsfunktion für Runware
 function normalizeRunwareDimensions(width: number, height: number): { width: number; height: number } {
   const roundToMultiple64 = (n: number) => Math.round(n / 64) * 64;
   const normalizedWidth = Math.max(128, Math.min(2048, roundToMultiple64(width)));
@@ -53,7 +53,6 @@ function normalizeRunwareDimensions(width: number, height: number): { width: num
   return { width: normalizedWidth, height: normalizedHeight };
 }
 
-// --- Public API: Story generieren ---
 export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
   { expose: true, method: "POST", path: "/ai/generate-story" },
   async (req) => {
@@ -69,19 +68,16 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
     try {
       console.log("📚 Generating story with config:", JSON.stringify(req.config, null, 2));
 
-      // 1) Story über OpenAI erzeugen (Responses API + json_schema)
       const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
-
       console.log("✅ Generated story content:", storyContent.title);
 
-      // 2) Textkosten berechnen
       metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      // 3) Cover generieren
-      const coverDimensions = normalizeRunwareDimensions(600, 800); // z. B. 576x768
+      // Cover
+      const coverDimensions = normalizeRunwareDimensions(600, 800);
       const coverPrompt =
         `Children's book cover illustration for "${storyContent.title}", ` +
         `${req.config.genre} adventure, ${req.config.setting} setting, ` +
@@ -94,8 +90,8 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       });
       metadata.imagesGenerated++;
 
-      // 4) Kapitelbilder generieren
-      const chapterDimensions = normalizeRunwareDimensions(400, 300); // z. B. 384x320
+      // Kapitelbilder
+      const chapterDimensions = normalizeRunwareDimensions(400, 300);
       const chaptersWithImages = await Promise.all(
         storyContent.chapters.map(async (chapter, index) => {
           const chapterPrompt =
@@ -113,7 +109,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
         })
       );
 
-      // 5) Bildkosten (Schätzwert/Platzhalter)
+      // (Platzhalter) Bildkosten
       const imageCostPer1 = 0.0006;
       metadata.totalCost.images = metadata.imagesGenerated * imageCostPer1;
       metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
@@ -135,14 +131,13 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       console.error("❌ Error in story generation:", error);
       metadata.processingTime = Date.now() - startTime;
 
-      // Fallback: simple Story + Platzhalterbilder
       const fallbackResult = await generateFallbackStoryWithImages(req.config, req.avatarDetails);
       return { ...fallbackResult, metadata };
     }
   }
 );
 
-// --- OpenAI: Story via Responses API + Structured Outputs ---
+// -------- OpenAI: Responses API + text.format (Structured Outputs) --------
 async function generateStoryWithOpenAI(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
@@ -174,7 +169,7 @@ ${
 
 Gib NUR ein JSON-Objekt gemäß Schema zurück (ohne Codefences, Kommentare oder Erklärtexte).`;
 
-  // Strenges JSON-Schema (Structured Outputs)
+  // Strenges JSON-Schema
   const storySchema = {
     name: "StoryPayload",
     strict: true,
@@ -204,49 +199,75 @@ Gib NUR ein JSON-Objekt gemäß Schema zurück (ohne Codefences, Kommentare oder
     },
   };
 
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify({
+  // Hilfsfunktion: eine Anfrage an /v1/responses schicken
+  const callResponses = async (format: "json_schema" | "json_object") => {
+    const body: any = {
       model: MODEL,
       input: [
         { role: "developer", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      // Wichtig: Responses API -> max_output_tokens
+      // Responses API → max_output_tokens
       max_output_tokens: 2400,
-      temperature: 0.8,
-      // Keine frequency/presence_penalty verwenden; einige gpt-5(-nano) varianten unterstützen das nicht.
-      response_format: { type: "json_schema", json_schema: storySchema },
-    }),
-  });
+      // Kein frequency/presence_penalty verwenden (teilweise nicht unterstützt)
+      // Kompaktheit steuern:
+      text: {
+        // "verbosity": "low",   // optional – kann die Ausgabe knapper machen
+        format:
+          format === "json_schema"
+            ? { type: "json_schema", json_schema: storySchema }
+            : { type: "json_object" },
+      },
+      // reasoning: { effort: "minimal" }, // optional; manche Nano-Versionen ignorieren es
+    };
 
-  if (!res.ok) {
-    const t = await res.text();
-    console.error("❌ OpenAI API error:", res.status, t);
-    throw new Error(`OpenAI API error: ${res.status} ${res.statusText} - ${t}`);
+    const res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAIKey()}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`OpenAI API error: ${res.status} ${res.statusText} - ${t}`);
+    }
+    return res.json();
+  };
+
+  // Erst mit json_schema versuchen, bei „unsupported“ auf json_object zurückfallen
+  let data: any;
+  try {
+    data = await callResponses("json_schema");
+  } catch (e: any) {
+    const msg = String(e?.message || "");
+    if (msg.includes("json_schema") || msg.includes("unsupported_parameter") || msg.includes("not supported")) {
+      console.warn("⚠️ json_schema nicht unterstützt – Fallback auf json_object");
+      data = await callResponses("json_object");
+    } else {
+      throw e;
+    }
   }
 
-  const data = await res.json();
   console.log("✅ OpenAI response received");
 
-  // Output-Text robust extrahieren
+  // Output-Text extrahieren
   const outputText: string | undefined =
     data.output_text ??
-    (Array.isArray(data.output?.[0]?.content) ? data.output[0].content.find((c: any) => typeof c?.text === "string")?.text : undefined) ??
+    (Array.isArray(data.output?.[0]?.content)
+      ? data.output[0].content.find((c: any) => typeof c?.text === "string")?.text
+      : undefined) ??
     (typeof data.output === "string" ? data.output : undefined);
 
   if (!outputText || typeof outputText !== "string") {
     throw new Error("OpenAI: Konnte output_text nicht extrahieren.");
   }
 
-  // Structured Outputs => sollte valides JSON sein
   const parsed = JSON.parse(outputText);
 
-  // Usage normalisieren (Responses API verwendet input_tokens/output_tokens)
+  // Usage normalisieren (Responses API: input_tokens/output_tokens)
   const usage = data.usage ?? data.response?.usage ?? {};
   const tokensUsed = {
     prompt: usage.input_tokens ?? usage.prompt_tokens ?? 0,
@@ -257,7 +278,7 @@ Gib NUR ein JSON-Objekt gemäß Schema zurück (ohne Codefences, Kommentare oder
   return { ...parsed, tokensUsed };
 }
 
-// --- Fallback-Story inkl. Platzhalterbilder ---
+// -------- Fallback-Story inkl. Platzhalterbilder --------
 async function generateFallbackStoryWithImages(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
@@ -292,7 +313,7 @@ async function generateFallbackStoryWithImages(
   };
 }
 
-// --- Helper: Avatarbeschreibung kurz ---
+// -------- Helper --------
 function getAvatarDescription(physical: any, personality: any): string {
   const age = physical?.age ?? "?";
   const gender =
@@ -302,36 +323,23 @@ function getAvatarDescription(physical: any, personality: any): string {
     .slice(0, 2)
     .map(([trait]) => {
       switch (trait) {
-        case "courage":
-          return "mutig";
-        case "intelligence":
-          return "klug";
-        case "creativity":
-          return "kreativ";
-        case "empathy":
-          return "einfühlsam";
-        case "strength":
-          return "stark";
-        case "humor":
-          return "lustig";
-        case "adventure":
-          return "abenteuerlustig";
-        case "patience":
-          return "geduldig";
-        case "curiosity":
-          return "neugierig";
-        case "leadership":
-          return "führungsstark";
-        default:
-          return trait;
+        case "courage": return "mutig";
+        case "intelligence": return "klug";
+        case "creativity": return "kreativ";
+        case "empathy": return "einfühlsam";
+        case "strength": return "stark";
+        case "humor": return "lustig";
+        case "adventure": return "abenteuerlustig";
+        case "patience": return "geduldig";
+        case "curiosity": return "neugierig";
+        case "leadership": return "führungsstark";
+        default: return trait;
       }
     })
     .join(" und ");
-
   return `${age} Jahre alter ${gender}, besonders ${topTraits}`;
 }
 
-// --- Fallback-Story (Text) ---
 function generateFallbackStory(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>,
@@ -347,9 +355,7 @@ function generateFallbackStory(
 
   const firstName = avatars?.[0]?.name ?? "unserem Helden";
   const title = `Das große ${genreMap[config.genre] || "Abenteuer"} von ${firstName}`;
-  const description = `Eine spannende Geschichte über ${avatars.length} Freund${
-    avatars.length === 1 ? "" : "e"
-  }, die ein aufregendes Abenteuer in ${config.setting} erleben und dabei wichtige Lektionen über Freundschaft und Mut lernen.`;
+  const description = `Eine spannende Geschichte über ${avatars.length} Freund${avatars.length === 1 ? "" : "e"}, die ein aufregendes Abenteuer in ${config.setting} erleben und dabei wichtige Lektionen über Freundschaft und Mut lernen.`;
 
   const chapters = Array.from({ length: chapterCount }, (_, i) => ({
     title: `Kapitel ${i + 1}: ${getChapterTitle(i)}`,
@@ -389,9 +395,7 @@ Während sie ihr Abenteuer fortsetzen, lernen sie wichtige Lektionen über Freun
     config?.learningMode?.enabled
       ? `
 
-In diesem Kapitel lernen wir auch etwas Wichtiges: ${config.learningMode.learningObjectives.join(
-          ", "
-        )}.`
+In diesem Kapitel lernen wir auch etwas Wichtiges: ${config.learningMode.learningObjectives.join(", ")}.`
       : ""
   }
 
