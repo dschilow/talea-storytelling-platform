@@ -54,7 +54,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
     const startTime = Date.now();
     let metadata = {
       tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      model: "gpt-4o-mini"", // Will be updated based on which model actually works
+      model: "gpt-4o-mini", // Will be updated based on which model actually works
       processingTime: 0,
       imagesGenerated: 0,
       totalCost: { text: 0, images: 0, total: 0 }
