@@ -5,6 +5,7 @@ CREATE TABLE stories (
   description TEXT NOT NULL,
   cover_image_url TEXT,
   config TEXT NOT NULL,
+  metadata TEXT,
   status TEXT NOT NULL CHECK (status IN ('generating', 'complete', 'error')),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

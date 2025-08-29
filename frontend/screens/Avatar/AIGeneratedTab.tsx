@@ -39,6 +39,7 @@ const AIGeneratedTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   
   const [physicalTraits, setPhysicalTraits] = useState<PhysicalTraits>({
     age: 8,
@@ -96,6 +97,7 @@ const AIGeneratedTab: React.FC = () => {
   ) => {
     setPhysicalTraits(prev => ({ ...prev, [key]: value }));
     setGeneratedImageUrl(null);
+    setDebugInfo(null);
   };
 
   const updatePersonalityTrait = <K extends keyof PersonalityTraits>(
@@ -108,7 +110,10 @@ const AIGeneratedTab: React.FC = () => {
   const generateAvatarImage = async () => {
     try {
       setGeneratingImage(true);
-      console.log('Starting avatar image generation...');
+      console.log('🎨 Starting avatar image generation...');
+      console.log('📋 Physical traits:', physicalTraits);
+      console.log('🧠 Personality traits:', personalityTraits);
+      console.log('📝 Description:', description);
       
       const result = await backend.ai.generateAvatarImage({
         physicalTraits,
@@ -117,10 +122,21 @@ const AIGeneratedTab: React.FC = () => {
         style: 'disney',
       });
       
-      console.log('Avatar image generated successfully');
+      console.log('✅ Avatar image generated successfully');
+      console.log('🖼️ Image URL length:', result.imageUrl.length);
+      console.log('🔍 Debug info:', result.debugInfo);
+      
       setGeneratedImageUrl(result.imageUrl);
+      setDebugInfo(result.debugInfo);
+      
+      // Show success message with debug info
+      if (result.debugInfo?.success) {
+        alert(`✅ Avatar-Bild erfolgreich generiert!\n\n🔍 Debug Info:\n- Verarbeitungszeit: ${result.debugInfo.processingTime}ms\n- Runware API: ${result.debugInfo.success ? 'Erfolgreich' : 'Fehlgeschlagen'}\n- Bild-URL Länge: ${result.imageUrl.length} Zeichen`);
+      } else {
+        alert(`⚠️ Avatar-Bild mit Fallback generiert.\n\n🔍 Debug Info:\n- Fehler: ${result.debugInfo?.errorMessage || 'Unbekannt'}\n- Verarbeitungszeit: ${result.debugInfo?.processingTime}ms`);
+      }
     } catch (error) {
-      console.error('Error generating avatar image:', error);
+      console.error('❌ Error generating avatar image:', error);
       alert('Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.');
     } finally {
       setGeneratingImage(false);
@@ -150,6 +166,7 @@ const AIGeneratedTab: React.FC = () => {
       setName('');
       setDescription('');
       setGeneratedImageUrl(null);
+      setDebugInfo(null);
     } catch (error) {
       console.error('Error creating avatar:', error);
       alert('Avatar konnte nicht erstellt werden. Bitte versuche es erneut.');
@@ -237,6 +254,18 @@ const AIGeneratedTab: React.FC = () => {
     boxShadow: shadows.lg,
   };
 
+  const debugStyle: React.CSSProperties = {
+    marginTop: `${spacing.lg}px`,
+    padding: `${spacing.md}px`,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: `${radii.lg}px`,
+    fontSize: '12px',
+    textAlign: 'left' as const,
+    fontFamily: 'monospace',
+    maxHeight: '200px',
+    overflow: 'auto' as const,
+  };
+
   return (
     <div style={{ paddingBottom: `${spacing.xl}px` }}>
       {/* Basic Info */}
@@ -275,7 +304,7 @@ const AIGeneratedTab: React.FC = () => {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Erzähle etwas über deinen Avatar..."
+              placeholder="Erzähle etwas über deinen Avatar... z.B. 'hat eine Zahnlücke', 'trägt eine Brille', 'hat Sommersprossen'"
               rows={3}
               style={{ ...inputStyle, resize: 'none' as const, minHeight: '100px' }}
               onFocus={(e) => {
@@ -337,39 +366,39 @@ const AIGeneratedTab: React.FC = () => {
 
           <div style={{ marginBottom: `${spacing.xl}px` }}>
             <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-              Hautton
+              Hautton 🎨
             </label>
             <input
               type="text"
               value={physicalTraits.skinTone}
               onChange={(e) => updatePhysicalTrait('skinTone', e.target.value)}
-              placeholder="z.B. hell, dunkel, oliv"
+              placeholder="z.B. hell, dunkel, oliv, gebräunt"
               style={inputStyle}
             />
           </div>
 
           <div style={{ marginBottom: `${spacing.xl}px` }}>
             <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-              Haarfarbe
+              Haarfarbe 💇
             </label>
             <input
               type="text"
               value={physicalTraits.hairColor}
               onChange={(e) => updatePhysicalTrait('hairColor', e.target.value)}
-              placeholder="z.B. blond, braun, rot"
+              placeholder="z.B. blond, braun, rot, schwarz"
               style={inputStyle}
             />
           </div>
 
           <div style={{ marginBottom: `${spacing.xl}px` }}>
             <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
-              Augenfarbe
+              Augenfarbe 👁️
             </label>
             <input
               type="text"
               value={physicalTraits.eyeColor}
               onChange={(e) => updatePhysicalTrait('eyeColor', e.target.value)}
-              placeholder="z.B. blau, grün, braun"
+              placeholder="z.B. blau, grün, braun, grau"
               style={inputStyle}
             />
           </div>
@@ -500,6 +529,13 @@ const AIGeneratedTab: React.FC = () => {
                   src={generatedImageUrl} 
                   alt="Generated Avatar"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    console.error('❌ Failed to load generated image');
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('✅ Generated image loaded successfully');
+                  }}
                 />
               ) : (
                 <span>🤖</span>
@@ -543,6 +579,22 @@ const AIGeneratedTab: React.FC = () => {
                   );
                 })}
             </div>
+
+            {/* Debug Info */}
+            {debugInfo && (
+              <div style={debugStyle}>
+                <div style={{ fontWeight: 'bold', marginBottom: `${spacing.sm}px`, color: colors.textInverse }}>
+                  🔍 Debug Information:
+                </div>
+                <div>✅ Erfolgreich: {debugInfo.success ? 'Ja' : 'Nein'}</div>
+                <div>⏱️ Verarbeitungszeit: {debugInfo.processingTime}ms</div>
+                {debugInfo.errorMessage && (
+                  <div>❌ Fehler: {debugInfo.errorMessage}</div>
+                )}
+                <div>📏 Bild-URL Länge: {generatedImageUrl?.length || 0} Zeichen</div>
+                <div>🖼️ Bild-Format: {generatedImageUrl?.startsWith('data:image/') ? 'Data URL' : 'URL'}</div>
+              </div>
+            )}
           </div>
         </Card>
       </FadeInView>

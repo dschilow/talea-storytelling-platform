@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart } from 'lucide-react';
+import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart, Clock, DollarSign, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import Card from '../../components/common/Card';
@@ -24,6 +24,21 @@ interface Story {
   coverImageUrl?: string;
   status: 'generating' | 'complete' | 'error';
   createdAt: string;
+  metadata?: {
+    tokensUsed?: {
+      prompt: number;
+      completion: number;
+      total: number;
+    };
+    model?: string;
+    processingTime?: number;
+    imagesGenerated?: number;
+    totalCost?: {
+      text: number;
+      images: number;
+      total: number;
+    };
+  };
 }
 
 const HomeScreen: React.FC = () => {
@@ -61,6 +76,20 @@ const HomeScreen: React.FC = () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 4,
+    }).format(amount);
+  };
+
+  const formatDuration = (ms: number): string => {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${(ms / 60000).toFixed(1)}min`;
   };
 
   const containerStyle: React.CSSProperties = {
@@ -198,6 +227,24 @@ const HomeScreen: React.FC = () => {
     fontSize: '48px',
     position: 'relative' as const,
     border: `2px solid ${colors.softPink}`,
+  };
+
+  const metadataStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: `${spacing.sm}px`,
+    marginTop: `${spacing.md}px`,
+    padding: `${spacing.sm}px`,
+    backgroundColor: colors.softBlue,
+    borderRadius: `${radii.md}px`,
+    fontSize: '11px',
+  };
+
+  const metadataItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: `${spacing.xs}px`,
+    color: colors.textSecondary,
   };
 
   const emptyStateStyle: React.CSSProperties = {
@@ -432,9 +479,42 @@ const HomeScreen: React.FC = () => {
                     <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.sm}px`, fontSize: '15px' }}>
                       {story.description}
                     </div>
-                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '13px' }}>
+                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '13px', marginBottom: `${spacing.sm}px` }}>
                       📅 {new Date(story.createdAt).toLocaleDateString('de-DE')}
                     </div>
+
+                    {/* Metadata */}
+                    {story.metadata && (
+                      <div style={metadataStyle}>
+                        {story.metadata.tokensUsed && (
+                          <div style={metadataItemStyle}>
+                            <Zap size={12} />
+                            <span>{story.metadata.tokensUsed.total.toLocaleString()} Tokens</span>
+                          </div>
+                        )}
+                        
+                        {story.metadata.totalCost && (
+                          <div style={metadataItemStyle}>
+                            <DollarSign size={12} />
+                            <span>{formatCurrency(story.metadata.totalCost.total)}</span>
+                          </div>
+                        )}
+                        
+                        {story.metadata.processingTime && (
+                          <div style={metadataItemStyle}>
+                            <Clock size={12} />
+                            <span>{formatDuration(story.metadata.processingTime)}</span>
+                          </div>
+                        )}
+                        
+                        {story.metadata.imagesGenerated && (
+                          <div style={metadataItemStyle}>
+                            <Sparkles size={12} />
+                            <span>{story.metadata.imagesGenerated} Bilder</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </Card>
                 </FadeInView>
               ))}

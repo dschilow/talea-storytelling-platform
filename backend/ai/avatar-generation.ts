@@ -12,6 +12,7 @@ interface GenerateAvatarImageRequest {
 interface GenerateAvatarImageResponse {
   imageUrl: string;
   prompt: string;
+  debugInfo?: any;
 }
 
 // Generates an avatar image based on physical and personality traits.
@@ -20,7 +21,11 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
   async (req) => {
     const prompt = buildAvatarPrompt(req.physicalTraits, req.personalityTraits, req.description, req.style);
     
-    console.log("Generating avatar with prompt:", prompt);
+    console.log("🎨 Generating avatar with prompt:", prompt);
+    console.log("👤 Physical traits:", JSON.stringify(req.physicalTraits, null, 2));
+    console.log("🧠 Personality traits:", JSON.stringify(req.personalityTraits, null, 2));
+    console.log("📝 Description:", req.description);
+    console.log("🎭 Style:", req.style);
     
     const imageResult = await generateImage({
       prompt,
@@ -29,9 +34,15 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
       steps: 25,
     });
 
+    console.log("🖼️ Image generation result:");
+    console.log("✅ Success:", imageResult.debugInfo?.success);
+    console.log("📏 Image URL length:", imageResult.imageUrl.length);
+    console.log("🔍 Debug info:", JSON.stringify(imageResult.debugInfo, null, 2));
+
     return {
       imageUrl: imageResult.imageUrl,
       prompt,
+      debugInfo: imageResult.debugInfo,
     };
   }
 );

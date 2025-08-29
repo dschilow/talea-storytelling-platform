@@ -42,6 +42,21 @@ export interface Story {
   config: StoryConfig;
   chapters: Chapter[];
   status: "generating" | "complete" | "error";
+  metadata?: {
+    tokensUsed?: {
+      prompt: number;
+      completion: number;
+      total: number;
+    };
+    model?: string;
+    processingTime?: number;
+    imagesGenerated?: number;
+    totalCost?: {
+      text: number;
+      images: number;
+      total: number;
+    };
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,6 +109,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         SET title = ${generatedStory.title}, 
             description = ${generatedStory.description},
             cover_image_url = ${generatedStory.coverImageUrl},
+            metadata = ${JSON.stringify(generatedStory.metadata)},
             status = 'complete',
             updated_at = ${new Date()}
         WHERE id = ${id}
@@ -138,6 +154,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     description: string;
     cover_image_url: string | null;
     config: string;
+    metadata: string | null;
     status: "generating" | "complete" | "error";
     created_at: Date;
     updated_at: Date;
@@ -169,6 +186,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     description: storyRow.description,
     coverImageUrl: storyRow.cover_image_url || undefined,
     config: JSON.parse(storyRow.config),
+    metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
     chapters: chapterRows.map(ch => ({
       id: ch.id,
       title: ch.title,

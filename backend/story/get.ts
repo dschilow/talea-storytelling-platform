@@ -19,6 +19,7 @@ export const get = api<GetStoryParams, Story>(
       description: string;
       cover_image_url: string | null;
       config: string;
+      metadata: string | null;
       status: "generating" | "complete" | "error";
       created_at: Date;
       updated_at: Date;
@@ -50,6 +51,7 @@ export const get = api<GetStoryParams, Story>(
       description: storyRow.description,
       coverImageUrl: storyRow.cover_image_url || undefined,
       config: JSON.parse(storyRow.config),
+      metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
       chapters: chapterRows.map(ch => ({
         id: ch.id,
         title: ch.title,
