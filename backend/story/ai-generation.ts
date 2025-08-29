@@ -3,11 +3,11 @@ import { secret } from "encore.dev/config";
 import { generateImage } from "../ai/image-generation";
 import type { StoryConfig, Chapter } from "./generate";
 
-// ---- OpenAI Modell, Tier & Pricing (Standard-Tier) ----
+// ---- OpenAI Modell, Tier & Pricing (Default-Tier) ----
 const MODEL = "gpt-5-nano";
-const SERVICE_TIER: "standard" | "flex" = "standard";
-const INPUT_COST_PER_1M = 0.05;   // $/1M Input-Token (Standard)
-const OUTPUT_COST_PER_1M = 0.40;  // $/1M Output-Token (Standard)
+const SERVICE_TIER: "default" | "flex" | "priority" | "auto" = "default";
+const INPUT_COST_PER_1M = 0.05;   // $/1M Input-Token (Default)
+const OUTPUT_COST_PER_1M = 0.40;  // $/1M Output-Token (Default)
 
 const openAIKey = secret("OpenAIKey");
 
@@ -224,16 +224,16 @@ Formatiere als JSON:
       },
       body: JSON.stringify({
         model: MODEL,
-        // WICHTIG: System-Kontext über `instructions` (kein content-Block mit "text")
+        // System-Prompt über instructions
         instructions: systemPrompt,
-        // Nur User-Eingabe, und hier content.type IMMER "input_text"
+        // Nur User-Eingabe mit input_text
         input: [
           {
             role: "user",
             content: [{ type: "input_text", text: userPrompt }],
           },
         ],
-        // JSON-Output über text.format als Objekt (json_schema)
+        // JSON-Output via text.format (json_schema)
         text: {
           format: {
             type: "json_schema",
@@ -244,7 +244,7 @@ Formatiere als JSON:
         },
         max_output_tokens: 1500,
         temperature: 0.8,
-        service_tier: SERVICE_TIER,
+        service_tier: SERVICE_TIER, // <- "default" | "flex" | "priority" | "auto"
       }),
     });
 
