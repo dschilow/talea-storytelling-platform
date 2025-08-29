@@ -78,7 +78,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
 			metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 };
 			metadata.totalCost.text =
 			  (metadata.tokensUsed.prompt     / 1_000_000) * INPUT_COST_PER_1M +
-			  (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
+			  (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M
       );
       
       // Generate cover image with corrected dimensions
