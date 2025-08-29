@@ -211,7 +211,7 @@ Formatiere als JSON:
 	      { role: "user", content: userPrompt }
 	    ],
 	    temperature: 0.8,
-	    max_tokens: 4000,
+	    max_completion_tokens: 4000,
 	    top_p: 0.9,
 	    frequency_penalty: 0.1,
 	    presence_penalty: 0.1,
