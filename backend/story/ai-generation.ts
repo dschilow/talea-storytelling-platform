@@ -4,7 +4,7 @@ import { generateImage } from "../ai/image-generation";
 import type { StoryConfig, Chapter } from "./generate";
 
 // ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-5";
 const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token
 const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token
 
