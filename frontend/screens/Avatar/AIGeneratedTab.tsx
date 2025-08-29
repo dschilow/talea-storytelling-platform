@@ -44,10 +44,10 @@ const AIGeneratedTab: React.FC = () => {
     age: 8,
     height: 130,
     gender: 'male',
-    skinTone: '#F4C2A1',
-    hairColor: '#8B4513',
+    skinTone: 'light',
+    hairColor: 'brown',
     hairType: 'curly',
-    eyeColor: '#4A90E2',
+    eyeColor: 'blue',
     bodyType: 5,
   });
 
@@ -113,6 +113,7 @@ const AIGeneratedTab: React.FC = () => {
       const result = await backend.ai.generateAvatarImage({
         physicalTraits,
         personalityTraits,
+        description,
         style: 'disney',
       });
       
@@ -331,6 +332,45 @@ const AIGeneratedTab: React.FC = () => {
                 ...sliderStyle,
                 background: `linear-gradient(to right, ${colors.teal} 0%, ${colors.teal} ${((physicalTraits.height - 80) / 100) * 100}%, ${colors.border} ${((physicalTraits.height - 80) / 100) * 100}%, ${colors.border} 100%)`,
               }}
+            />
+          </div>
+
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Hautton
+            </label>
+            <input
+              type="text"
+              value={physicalTraits.skinTone}
+              onChange={(e) => updatePhysicalTrait('skinTone', e.target.value)}
+              placeholder="z.B. hell, dunkel, oliv"
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Haarfarbe
+            </label>
+            <input
+              type="text"
+              value={physicalTraits.hairColor}
+              onChange={(e) => updatePhysicalTrait('hairColor', e.target.value)}
+              placeholder="z.B. blond, braun, rot"
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: `${spacing.xl}px` }}>
+            <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
+              Augenfarbe
+            </label>
+            <input
+              type="text"
+              value={physicalTraits.eyeColor}
+              onChange={(e) => updatePhysicalTrait('eyeColor', e.target.value)}
+              placeholder="z.B. blau, grün, braun"
+              style={inputStyle}
             />
           </div>
 

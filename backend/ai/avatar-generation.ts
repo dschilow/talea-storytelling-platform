@@ -5,6 +5,7 @@ import type { PhysicalTraits, PersonalityTraits } from "../avatar/create";
 interface GenerateAvatarImageRequest {
   physicalTraits: PhysicalTraits;
   personalityTraits: PersonalityTraits;
+  description?: string;
   style?: "realistic" | "disney" | "anime";
 }
 
@@ -17,7 +18,7 @@ interface GenerateAvatarImageResponse {
 export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/generate-avatar" },
   async (req) => {
-    const prompt = buildAvatarPrompt(req.physicalTraits, req.personalityTraits, req.style);
+    const prompt = buildAvatarPrompt(req.physicalTraits, req.personalityTraits, req.description, req.style);
     
     console.log("Generating avatar with prompt:", prompt);
     
@@ -38,6 +39,7 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
 function buildAvatarPrompt(
   physical: PhysicalTraits, 
   personality: PersonalityTraits, 
+  description: string | undefined,
   style: string = "disney"
 ): string {
   const ageDescriptor = physical.age <= 5 ? "toddler" : 
@@ -48,14 +50,19 @@ function buildAvatarPrompt(
                           physical.gender === "female" ? "girl" : "child";
 
   const hairDescriptor = `${physical.hairColor} ${physical.hairType} hair`;
+  const eyeDescriptor = `${physical.eyeColor} eyes`;
+  const skinDescriptor = `${physical.skinTone} skin`;
   
   const personalityDescriptor = getPersonalityDescriptor(personality);
   
-  const styleDescriptor = style === "disney" ? "Disney Pixar 3D animation style, cute and friendly" :
-                         style === "anime" ? "anime manga style, colorful and expressive" : 
-                         "realistic children's book illustration style, warm and inviting";
+  const styleDescriptor = style === "disney" ? "charming Disney Pixar 3D animation style, cute and friendly" :
+                         style === "anime" ? "vibrant anime manga style, colorful and expressive" : 
+                         "beautiful realistic children's book illustration style, warm and inviting";
 
-  return `A cute ${ageDescriptor} ${genderDescriptor} character with ${hairDescriptor}, ${personalityDescriptor}, ${styleDescriptor}, high quality, detailed, colorful, friendly expression, safe for children, portrait view, clean background`;
+  const freeTextDescription = description ? `, ${description}` : '';
+
+  // Constructing a more robust prompt
+  return `Portrait of a cute ${ageDescriptor} ${genderDescriptor}, ${personalityDescriptor}, with ${skinDescriptor}, ${hairDescriptor} and ${eyeDescriptor}${freeTextDescription}. Style: ${styleDescriptor}. high quality, detailed, colorful, friendly expression, safe for children, clean background.`;
 }
 
 function getPersonalityDescriptor(personality: PersonalityTraits): string {
