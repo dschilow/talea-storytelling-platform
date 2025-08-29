@@ -43,11 +43,8 @@ interface GenerateStoryContentResponse {
   };
 }
 
-// Vielfache-von-64 für Runware
-function normalizeRunwareDimensions(
-  width: number,
-  height: number
-): { width: number; height: number } {
+// ---- Runware: Maße auf Vielfache von 64 normalisieren ----
+function normalizeRunwareDimensions(width: number, height: number) {
   const round64 = (n: number) => Math.round(n / 64) * 64;
   return {
     width: Math.max(128, Math.min(2048, round64(width))),
@@ -55,6 +52,7 @@ function normalizeRunwareDimensions(
   };
 }
 
+// ---- Haupt-Endpoint ----
 export const generateStoryContent = api<
   GenerateStoryContentRequest,
   GenerateStoryContentResponse
@@ -73,11 +71,11 @@ export const generateStoryContent = api<
     try {
       console.log("📚 Generating story with config:", JSON.stringify(req.config, null, 2));
 
-      // 1) Story vom LLM holen
+      // 1) Story-Inhalt via LLM
       const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
       console.log("✅ Generated story content:", storyContent.title);
 
-      // 2) Textkosten
+      // 2) Text-Kosten berechnen
       metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
@@ -106,21 +104,15 @@ export const generateStoryContent = api<
             height: chapterDimensions.height,
             steps: 20,
           });
-
-          console.log(
-            `🖼️ Generated image for chapter ${index + 1} (${chapterDimensions.width}x${chapterDimensions.height})`
-          );
+          console.log(`🖼️ Generated image for chapter ${index + 1} (${chapterDimensions.width}x${chapterDimensions.height})`);
           metadata.imagesGenerated++;
 
-          return {
-            ...chapter,
-            imageUrl: chapterImage.imageUrl,
-          };
+          return { ...chapter, imageUrl: chapterImage.imageUrl };
         })
       );
 
-      // 5) Bildkosten (Runware-Schätzung)
-      const IMAGE_COST = 0.0006; // $ pro Bild
+      // 5) Bildkosten kalkulieren (Runware-Schätzung)
+      const IMAGE_COST = 0.0006;
       metadata.totalCost.images = metadata.imagesGenerated * IMAGE_COST;
       metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
       metadata.processingTime = Date.now() - startTime;
@@ -138,29 +130,23 @@ export const generateStoryContent = api<
       };
     } catch (error) {
       console.error("❌ Error in story generation:", error);
+      metadata.processingTime = Date.now() - startTime;
 
       // Fallback-Story inkl. Platzhalterbilder
-      metadata.processingTime = Date.now() - startTime;
       const fallbackResult = await generateFallbackStoryWithImages(req.config, req.avatarDetails);
       return { ...fallbackResult, metadata };
     }
   }
 );
 
-// -------------------- LLM-Aufruf (Responses API) --------------------
-
+// ---- LLM-Aufruf (Responses API, strikt JSON via json_schema) ----
 async function generateStoryWithOpenAI(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
-): Promise<{
-  title: string;
-  description: string;
-  chapters: Omit<Chapter, "id" | "imageUrl">[];
-  tokensUsed?: any;
-}> {
+): Promise<{ title: string; description: string; chapters: Omit<Chapter, "id" | "imageUrl">[]; tokensUsed?: any }> {
   try {
     const avatarDescriptions = avatars
-      .map((a) => `${a.name}: ${getAvatarDescription(a.physicalTraits, a.personalityTraits)}`)
+      .map(a => `${a.name}: ${getAvatarDescription(a.physicalTraits, a.personalityTraits)}`)
       .join("\n");
 
     const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
@@ -204,7 +190,7 @@ Formatiere als JSON:
     console.log("🤖 Sending request to OpenAI (Responses API)...");
     console.log(`🧪 Using MODEL: ${MODEL} | TIER: ${SERVICE_TIER}`);
 
-    // JSON Schema für Strict-Output
+    // JSON Schema für strikten Output
     const storySchema = {
       type: "object",
       properties: {
@@ -238,18 +224,16 @@ Formatiere als JSON:
       },
       body: JSON.stringify({
         model: MODEL,
-        // System als separate Message (kompatibel & klar)
+        // WICHTIG: System-Kontext über `instructions` (kein content-Block mit "text")
+        instructions: systemPrompt,
+        // Nur User-Eingabe, und hier content.type IMMER "input_text"
         input: [
-          {
-            role: "system",
-            content: [{ type: "text", text: systemPrompt }],
-          },
           {
             role: "user",
             content: [{ type: "input_text", text: userPrompt }],
           },
         ],
-        // <- WICHTIG: text.format IST EIN OBJEKT (kein String)
+        // JSON-Output über text.format als Objekt (json_schema)
         text: {
           format: {
             type: "json_schema",
@@ -274,7 +258,7 @@ Formatiere als JSON:
     console.log("✅ OpenAI response received");
     console.log("📊 Usage:", data?.usage);
 
-    // Robust extrahieren
+    // Output robust extrahieren
     const text: string =
       (typeof data.output_text === "string" && data.output_text.trim())
         ? data.output_text
@@ -301,8 +285,7 @@ Formatiere als JSON:
   }
 }
 
-// -------------------- Fallback --------------------
-
+// ---- Fallback-Story inkl. Platzhalter-Bilder ----
 async function generateFallbackStoryWithImages(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
@@ -310,6 +293,7 @@ async function generateFallbackStoryWithImages(
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
 
+  // Cover
   const coverDimensions = normalizeRunwareDimensions(600, 800); // 600x800 -> 576x832
   const coverImage = await generateImage({
     prompt: `Children's book cover, ${config.genre} story, colorful, magical`,
@@ -317,6 +301,7 @@ async function generateFallbackStoryWithImages(
     height: coverDimensions.height,
   });
 
+  // Kapitel
   const chapterDimensions = normalizeRunwareDimensions(400, 300); // 400x300 -> 384x320
   const chaptersWithImages = await Promise.all(
     fallbackStory.chapters.map(async (chapter, index) => {
@@ -337,8 +322,7 @@ async function generateFallbackStoryWithImages(
   };
 }
 
-// -------------------- Hilfsfunktionen --------------------
-
+// ---- Hilfsfunktionen ----
 function getAvatarDescription(physical: any, personality: any): string {
   const age = physical.age;
   const gender =
