@@ -172,8 +172,9 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       // Common: item.results is an array of outputs
       if (item && Array.isArray(item.results)) {
         for (const [rIdx, res] of item.results.entries()) {
-          // Look for common fields carrying base64 image
+          // Look for common fields carrying base64 image - ERWEITERT!
           const b64 =
+            res?.imageBase64Data ||  // <- NEU: Das fehlende Feld!
             res?.imageBase64 ||
             res?.base64Data ||
             res?.base64 ||
@@ -188,7 +189,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
           // Sometimes nested deeper
           if (res?.images && Array.isArray(res.images) && res.images.length > 0) {
             const img = res.images[0];
-            const b64i = img?.imageBase64 || img?.base64Data || img?.base64 || img?.b64 || img?.b64_json || img?.data;
+            const b64i = img?.imageBase64Data || img?.imageBase64 || img?.base64Data || img?.base64 || img?.b64 || img?.b64_json || img?.data;
             if (b64i && typeof b64i === "string") {
               const contentType = pickMime(img?.contentType || img?.mimeType || null, img?.format || null);
               const seed = img?.seed || res?.seed || item?.seed;
@@ -198,8 +199,9 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         }
       }
 
-      // 2) Some variants may place image directly on the item
+      // 2) Some variants may place image directly on the item - ERWEITERT!
       const b64Direct =
+        item?.imageBase64Data ||  // <- NEU: Das fehlende Feld!
         item?.imageBase64 ||
         item?.base64Data ||
         item?.base64 ||
@@ -216,6 +218,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       if (Array.isArray(item?.images) && item.images.length > 0) {
         const img0 = item.images[0];
         const b64im =
+          img0?.imageBase64Data ||  // <- NEU!
           img0?.imageBase64 ||
           img0?.base64Data ||
           img0?.base64 ||
@@ -233,6 +236,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       if (Array.isArray(item?.output) && item.output.length > 0) {
         const out0 = item.output[0];
         const b64out =
+          out0?.imageBase64Data ||  // <- NEU!
           out0?.imageBase64 ||
           out0?.base64Data ||
           out0?.base64 ||
@@ -254,6 +258,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
     if (Array.isArray(data.results)) {
       for (const [rIdx, res] of data.results.entries()) {
         const b64 =
+          res?.imageBase64Data ||  // <- NEU!
           res?.imageBase64 ||
           res?.base64Data ||
           res?.base64 ||
@@ -271,6 +276,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
     if (Array.isArray(data.images) && data.images.length > 0) {
       const img0 = data.images[0];
       const b64im =
+        img0?.imageBase64Data ||  // <- NEU!
         img0?.imageBase64 ||
         img0?.base64Data ||
         img0?.base64 ||
@@ -283,8 +289,9 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         return { b64: b64im, contentType, seed, fromPath: "data.images[0]" };
       }
     }
-    // direct fields
+    // direct fields - ERWEITERT!
     const b64Direct =
+      data?.imageBase64Data ||  // <- NEU: Das fehlende Feld!
       data?.imageBase64 ||
       data?.base64Data ||
       data?.base64 ||
