@@ -33,6 +33,7 @@ const StoryReaderScreen: React.FC = () => {
   const [story, setStory] = useState<Story | null>(null);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isReading, setIsReading] = useState(false);
 
   useEffect(() => {
@@ -46,10 +47,12 @@ const StoryReaderScreen: React.FC = () => {
     
     try {
       setLoading(true);
+      setError(null);
       const storyData = await backend.story.get({ id: storyId });
       setStory(storyData);
     } catch (error) {
       console.error('Error loading story:', error);
+      setError('Geschichte konnte nicht geladen werden');
     } finally {
       setLoading(false);
     }
@@ -208,7 +211,7 @@ const StoryReaderScreen: React.FC = () => {
     );
   }
 
-  if (!story) {
+  if (error || !story) {
     return (
       <div style={containerStyle}>
         <div style={headerStyle}>
@@ -232,7 +235,7 @@ const StoryReaderScreen: React.FC = () => {
           <Card variant="outlined" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
             <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
             <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
-              Geschichte nicht gefunden
+              {error || 'Geschichte nicht gefunden'}
             </div>
             <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
               Die angeforderte Geschichte konnte nicht geladen werden.
@@ -248,7 +251,89 @@ const StoryReaderScreen: React.FC = () => {
     );
   }
 
+  // Safety check for chapters
+  if (!story.chapters || story.chapters.length === 0) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <div style={headerContentStyle}>
+            <button
+              style={backButtonStyle}
+              onClick={() => navigate('/')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.surface;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div style={titleStyle}>{story.title}</div>
+          </div>
+        </div>
+        <div style={readerStyle}>
+          <Card variant="outlined" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+            <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+              Geschichte wird noch erstellt
+            </div>
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              Diese Geschichte wird gerade generiert. Bitte versuche es in ein paar Minuten erneut.
+            </div>
+            <Button
+              title="Zurück zur Startseite"
+              onPress={() => navigate('/')}
+              icon={<ArrowLeft size={16} />}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   const currentChapter = story.chapters[currentChapterIndex];
+
+  // Safety check for current chapter
+  if (!currentChapter) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <div style={headerContentStyle}>
+            <button
+              style={backButtonStyle}
+              onClick={() => navigate('/')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.surface;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div style={titleStyle}>{story.title}</div>
+          </div>
+        </div>
+        <div style={readerStyle}>
+          <Card variant="outlined" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+            <BookOpen size={48} style={{ color: colors.textSecondary, marginBottom: `${spacing.lg}px` }} />
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+              Kapitel nicht verfügbar
+            </div>
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px` }}>
+              Das angeforderte Kapitel konnte nicht gefunden werden.
+            </div>
+            <Button
+              title="Zurück zur Startseite"
+              onPress={() => navigate('/')}
+              icon={<ArrowLeft size={16} />}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={containerStyle}>
@@ -293,6 +378,10 @@ const StoryReaderScreen: React.FC = () => {
                 src={currentChapter.imageUrl}
                 alt={currentChapter.title}
                 style={chapterImageStyle}
+                onError={(e) => {
+                  // Hide image if it fails to load
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             )}
           </div>

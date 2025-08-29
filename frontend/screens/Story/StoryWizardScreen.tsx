@@ -31,6 +31,7 @@ interface StoryConfig {
 
 const StoryWizardScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
+  const [generating, setGenerating] = useState(false);
   const [storyConfig, setStoryConfig] = useState<StoryConfig>({
     avatarIds: [],
     genre: '',
@@ -91,16 +92,22 @@ const StoryWizardScreen: React.FC = () => {
 
   const handleGenerateStory = async () => {
     try {
+      setGenerating(true);
+      console.log('Starting story generation with config:', storyConfig);
+      
       const story = await backend.story.generate({
         userId: 'demo-user-123', // Mock user ID
         config: storyConfig,
       });
 
-      alert(`Geschichte "${story.title}" wurde erfolgreich generiert!`);
+      console.log('Story generated successfully:', story.title);
+      alert(`Geschichte "${story.title}" wurde erfolgreich generiert! 🎉`);
       window.location.href = '/';
     } catch (error) {
       console.error('Error generating story:', error);
       alert('Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -145,6 +152,7 @@ const StoryWizardScreen: React.FC = () => {
           <GenerationStep
             storyConfig={storyConfig}
             onGenerate={handleGenerateStory}
+            generating={generating}
           />
         );
       default:
@@ -161,6 +169,7 @@ const StoryWizardScreen: React.FC = () => {
             <button
               onClick={goBack}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors mr-3"
+              disabled={generating}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -226,6 +235,7 @@ const StoryWizardScreen: React.FC = () => {
                 variant="outline"
                 className="flex-1"
                 icon={<ArrowLeft className="w-4 h-4" />}
+                disabled={generating}
               />
             )}
             
@@ -233,7 +243,7 @@ const StoryWizardScreen: React.FC = () => {
               <Button
                 title="Weiter"
                 onPress={goToNextStep}
-                disabled={!canProceed()}
+                disabled={!canProceed() || generating}
                 className="flex-1"
                 icon={<ArrowRight className="w-4 h-4" />}
               />

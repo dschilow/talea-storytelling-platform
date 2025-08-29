@@ -26,50 +26,57 @@ interface GenerateStoryContentResponse {
 export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
   { expose: true, method: "POST", path: "/ai/generate-story" },
   async (req) => {
-    console.log("Generating story with config:", JSON.stringify(req.config, null, 2));
-    
-    // Generate story structure and content with OpenAI
-    const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
-    
-    console.log("Generated story content:", storyContent.title);
-    
-    // Generate cover image
-    const coverPrompt = `Children's book cover illustration for "${storyContent.title}", ${req.config.genre} adventure story, ${req.config.setting} setting, Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality`;
-    const coverImage = await generateImage({
-      prompt: coverPrompt,
-      width: 600,
-      height: 800,
-      steps: 25,
-    });
+    try {
+      console.log("Generating story with config:", JSON.stringify(req.config, null, 2));
+      
+      // Generate story structure and content with OpenAI
+      const storyContent = await generateStoryWithOpenAI(req.config, req.avatarDetails);
+      
+      console.log("Generated story content:", storyContent.title);
+      
+      // Generate cover image
+      const coverPrompt = `Children's book cover illustration for "${storyContent.title}", ${req.config.genre} adventure story, ${req.config.setting} setting, Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality`;
+      const coverImage = await generateImage({
+        prompt: coverPrompt,
+        width: 600,
+        height: 800,
+        steps: 25,
+      });
 
-    console.log("Generated cover image");
+      console.log("Generated cover image");
 
-    // Generate chapter images
-    const chaptersWithImages = await Promise.all(
-      storyContent.chapters.map(async (chapter, index) => {
-        const chapterPrompt = `Children's book illustration for chapter "${chapter.title}", ${req.config.genre} story scene, ${req.config.setting} background, Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children`;
-        const chapterImage = await generateImage({
-          prompt: chapterPrompt,
-          width: 400,
-          height: 300,
-          steps: 20,
-        });
+      // Generate chapter images
+      const chaptersWithImages = await Promise.all(
+        storyContent.chapters.map(async (chapter, index) => {
+          const chapterPrompt = `Children's book illustration for chapter "${chapter.title}", ${req.config.genre} story scene, ${req.config.setting} background, Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children`;
+          const chapterImage = await generateImage({
+            prompt: chapterPrompt,
+            width: 400,
+            height: 300,
+            steps: 20,
+          });
 
-        console.log(`Generated image for chapter ${index + 1}`);
+          console.log(`Generated image for chapter ${index + 1}`);
 
-        return {
-          ...chapter,
-          imageUrl: chapterImage.imageUrl,
-        };
-      })
-    );
+          return {
+            ...chapter,
+            imageUrl: chapterImage.imageUrl,
+          };
+        })
+      );
 
-    return {
-      title: storyContent.title,
-      description: storyContent.description,
-      coverImageUrl: coverImage.imageUrl,
-      chapters: chaptersWithImages,
-    };
+      return {
+        title: storyContent.title,
+        description: storyContent.description,
+        coverImageUrl: coverImage.imageUrl,
+        chapters: chaptersWithImages,
+      };
+    } catch (error) {
+      console.error("Error in story generation:", error);
+      
+      // Return fallback story if generation fails
+      return generateFallbackStoryWithImages(req.config, req.avatarDetails);
+    }
   }
 );
 
@@ -77,15 +84,16 @@ async function generateStoryWithOpenAI(
   config: StoryConfig, 
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any; }>
 ): Promise<{ title: string; description: string; chapters: Omit<Chapter, 'id' | 'imageUrl'>[] }> {
-  const avatarDescriptions = avatars.map(avatar => 
-    `${avatar.name}: ${getAvatarDescription(avatar.physicalTraits, avatar.personalityTraits)}`
-  ).join('\n');
+  try {
+    const avatarDescriptions = avatars.map(avatar => 
+      `${avatar.name}: ${getAvatarDescription(avatar.physicalTraits, avatar.personalityTraits)}`
+    ).join('\n');
 
-  const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
-  
-  const systemPrompt = `Du bist ein professioneller Kinderbuchautor. Erstelle fesselnde, altersgerechte Geschichten, die sowohl lehrreich als auch unterhaltsam sind. Schreibe immer auf Deutsch und verwende eine kindgerechte, warme Sprache.`;
+    const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
+    
+    const systemPrompt = `Du bist ein professioneller Kinderbuchautor. Erstelle fesselnde, altersgerechte Geschichten, die sowohl lehrreich als auch unterhaltsam sind. Schreibe immer auf Deutsch und verwende eine kindgerechte, warme Sprache.`;
 
-  const userPrompt = `Erstelle eine ${config.genre} Geschichte in ${config.setting} für die Altersgruppe ${config.ageGroup}.
+    const userPrompt = `Erstelle eine ${config.genre} Geschichte in ${config.setting} für die Altersgruppe ${config.ageGroup}.
 
 Geschichte Parameter:
 - Länge: ${config.length} (${chapterCount} Kapitel)
@@ -119,46 +127,86 @@ Formatiere als JSON:
   ]
 }`;
 
-  console.log("Sending request to OpenAI...");
+    console.log("Sending request to OpenAI...");
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.8,
-      max_tokens: 4000,
-      response_format: { type: "json_object" }
-    }),
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openAIKey()}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 4000,
+        response_format: { type: "json_object" }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI API error:", response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("OpenAI response received");
+    
+    const content = data.choices[0].message.content;
+    
+    try {
+      const parsedContent = JSON.parse(content);
+      console.log("Successfully parsed OpenAI response");
+      return parsedContent;
+    } catch (error) {
+      console.error("Failed to parse OpenAI response, using fallback");
+      throw error;
+    }
+  } catch (error) {
+    console.error("OpenAI generation failed, using fallback");
+    throw error;
+  }
+}
+
+async function generateFallbackStoryWithImages(
+  config: StoryConfig, 
+  avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any; }>
+): Promise<{ title: string; description: string; coverImageUrl: string; chapters: Omit<Chapter, 'id'>[] }> {
+  const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
+  const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
+  
+  // Generate placeholder images
+  const coverImage = await generateImage({
+    prompt: `Children's book cover, ${config.genre} story, colorful, magical`,
+    width: 600,
+    height: 800,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI API error:", response.status, errorText);
-    throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-  }
+  const chaptersWithImages = await Promise.all(
+    fallbackStory.chapters.map(async (chapter, index) => {
+      const chapterImage = await generateImage({
+        prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story`,
+        width: 400,
+        height: 300,
+      });
 
-  const data = await response.json();
-  console.log("OpenAI response received");
-  
-  const content = data.choices[0].message.content;
-  
-  try {
-    const parsedContent = JSON.parse(content);
-    console.log("Successfully parsed OpenAI response");
-    return parsedContent;
-  } catch (error) {
-    console.error("Failed to parse OpenAI response, using fallback");
-    // Fallback if JSON parsing fails
-    return generateFallbackStory(config, avatars, chapterCount);
-  }
+      return {
+        ...chapter,
+        imageUrl: chapterImage.imageUrl,
+      };
+    })
+  );
+
+  return {
+    title: fallbackStory.title,
+    description: fallbackStory.description,
+    coverImageUrl: coverImage.imageUrl,
+    chapters: chaptersWithImages,
+  };
 }
 
 function getAvatarDescription(physical: any, personality: any): string {

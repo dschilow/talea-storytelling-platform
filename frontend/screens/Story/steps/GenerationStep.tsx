@@ -24,11 +24,13 @@ interface StoryConfig {
 interface GenerationStepProps {
   storyConfig: StoryConfig;
   onGenerate: () => void;
+  generating?: boolean;
 }
 
 const GenerationStep: React.FC<GenerationStepProps> = ({
   storyConfig,
   onGenerate,
+  generating = false,
 }) => {
   const getGenreLabel = (genre: string) => {
     const genres: { [key: string]: string } = {
@@ -148,45 +150,59 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
         <Card variant="elevated">
           <div className="text-center">
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600" />
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Bereit für die Magie?</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              {generating ? 'Magie wirkt... ✨' : 'Bereit für die Magie?'}
+            </h2>
             <p className="text-gray-600 mb-6">
-              Deine Geschichte wird mit modernster KI-Technologie erstellt. 
-              Dieser Prozess kann einige Minuten dauern, aber das Warten lohnt sich!
+              {generating 
+                ? 'Deine Geschichte wird gerade erstellt. Das kann einige Minuten dauern...'
+                : 'Deine Geschichte wird mit modernster KI-Technologie erstellt. Dieser Prozess kann einige Minuten dauern, aber das Warten lohnt sich!'
+              }
             </p>
             
-            <div className="space-y-3 text-left">
-              <div className="flex items-center">
-                <span className="text-lg mr-3">📖</span>
-                <span className="text-gray-700">Personalisierte Kapitel mit deinen Avataren</span>
-              </div>
-              
-              <div className="flex items-center">
-                <span className="text-lg mr-3">🎨</span>
-                <span className="text-gray-700">Wunderschöne Illustrationen für jedes Kapitel</span>
-              </div>
-              
-              <div className="flex items-center">
-                <span className="text-lg mr-3">🧠</span>
-                <span className="text-gray-700">Intelligente Handlung basierend auf deinen Einstellungen</span>
-              </div>
-              
-              {storyConfig.learningMode?.enabled && (
+            {!generating && (
+              <div className="space-y-3 text-left">
                 <div className="flex items-center">
-                  <span className="text-lg mr-3">🎓</span>
-                  <span className="text-gray-700">Integrierte Lernelemente für maximalen Bildungswert</span>
+                  <span className="text-lg mr-3">📖</span>
+                  <span className="text-gray-700">Personalisierte Kapitel mit deinen Avataren</span>
                 </div>
-              )}
-            </div>
+                
+                <div className="flex items-center">
+                  <span className="text-lg mr-3">🎨</span>
+                  <span className="text-gray-700">Wunderschöne Illustrationen für jedes Kapitel</span>
+                </div>
+                
+                <div className="flex items-center">
+                  <span className="text-lg mr-3">🧠</span>
+                  <span className="text-gray-700">Intelligente Handlung basierend auf deinen Einstellungen</span>
+                </div>
+                
+                {storyConfig.learningMode?.enabled && (
+                  <div className="flex items-center">
+                    <span className="text-lg mr-3">🎓</span>
+                    <span className="text-gray-700">Integrierte Lernelemente für maximalen Bildungswert</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {generating && (
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              </div>
+            )}
           </div>
         </Card>
       </FadeInView>
       
       <FadeInView delay={300}>
         <Button
-          title="🚀 Geschichte erstellen"
+          title={generating ? "Geschichte wird erstellt..." : "🚀 Geschichte erstellen"}
           onPress={onGenerate}
           size="lg"
           className="w-full"
+          disabled={generating}
+          loading={generating}
         />
       </FadeInView>
     </div>
