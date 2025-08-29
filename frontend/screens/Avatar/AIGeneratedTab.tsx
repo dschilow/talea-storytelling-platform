@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Wand2, Star, Heart } from 'lucide-react';
+import { Sparkles, Wand2, Star, Heart, ExternalLink } from 'lucide-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -40,7 +40,7 @@ const AIGeneratedTab: React.FC = () => {
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
-  
+
   const [physicalTraits, setPhysicalTraits] = useState<PhysicalTraits>({
     age: 8,
     height: 130,
@@ -91,20 +91,31 @@ const AIGeneratedTab: React.FC = () => {
     leadership: { label: 'Führung', icon: '👑', color: colors.yellow },
   };
 
-  const updatePhysicalTrait = <K extends keyof PhysicalTraits>(
-    key: K, 
-    value: PhysicalTraits[K]
-  ) => {
+  const updatePhysicalTrait = <K extends keyof PhysicalTraits>(key: K, value: PhysicalTraits[K]) => {
     setPhysicalTraits(prev => ({ ...prev, [key]: value }));
     setGeneratedImageUrl(null);
     setDebugInfo(null);
   };
 
-  const updatePersonalityTrait = <K extends keyof PersonalityTraits>(
-    key: K, 
-    value: PersonalityTraits[K]
-  ) => {
+  const updatePersonalityTrait = <K extends keyof PersonalityTraits>(key: K, value: PersonalityTraits[K]) => {
     setPersonalityTraits(prev => ({ ...prev, [key]: value }));
+  };
+
+  const openImageInNewTab = () => {
+    if (!generatedImageUrl) return;
+    const w = window.open();
+    if (w) {
+      w.document.write(`<img src="${generatedImageUrl}" style="max-width:100%"/>`);
+      w.document.title = name || 'Avatar';
+    }
+  };
+
+  const downloadImage = () => {
+    if (!generatedImageUrl) return;
+    const a = document.createElement('a');
+    a.href = generatedImageUrl;
+    a.download = (name || 'avatar') + '.webp';
+    a.click();
   };
 
   const generateAvatarImage = async () => {
@@ -114,26 +125,42 @@ const AIGeneratedTab: React.FC = () => {
       console.log('📋 Physical traits:', physicalTraits);
       console.log('🧠 Personality traits:', personalityTraits);
       console.log('📝 Description:', description);
-      
+
       const result = await backend.ai.generateAvatarImage({
         physicalTraits,
         personalityTraits,
         description,
         style: 'disney',
       });
-      
+
       console.log('✅ Avatar image generated successfully');
-      console.log('🖼️ Image URL length:', result.imageUrl.length);
+      console.log('🖼️ Image URL length:', result.imageUrl?.length);
       console.log('🔍 Debug info:', result.debugInfo);
-      
+
       setGeneratedImageUrl(result.imageUrl);
       setDebugInfo(result.debugInfo);
-      
-      // Show success message with debug info
+
+      // Quick validation if the data URL seems plausible
+      if (!result.imageUrl || !result.imageUrl.startsWith('data:image/')) {
+        console.warn('Unexpected image URL format:', result.imageUrl?.substring(0, 50));
+      }
+
       if (result.debugInfo?.success) {
-        alert(`✅ Avatar-Bild erfolgreich generiert!\n\n🔍 Debug Info:\n- Verarbeitungszeit: ${result.debugInfo.processingTime}ms\n- Runware API: ${result.debugInfo.success ? 'Erfolgreich' : 'Fehlgeschlagen'}\n- Bild-URL Länge: ${result.imageUrl.length} Zeichen`);
+        alert(
+          `✅ Avatar-Bild erfolgreich generiert!\n\n` +
+          `🔍 Debug Info:\n` +
+          `- Verarbeitungszeit: ${result.debugInfo.processingTime}ms\n` +
+          `- Content-Type: ${result.debugInfo.contentType || 'unbekannt'}\n` +
+          `- Pfad: ${result.debugInfo.extractedFromPath || 'n/a'}\n` +
+          `- Bild-URL Länge: ${result.imageUrl.length} Zeichen`
+        );
       } else {
-        alert(`⚠️ Avatar-Bild mit Fallback generiert.\n\n🔍 Debug Info:\n- Fehler: ${result.debugInfo?.errorMessage || 'Unbekannt'}\n- Verarbeitungszeit: ${result.debugInfo?.processingTime}ms`);
+        alert(
+          `⚠️ Avatar-Bild mit Fallback generiert.\n\n` +
+          `🔍 Debug Info:\n` +
+          `- Fehler: ${result.debugInfo?.errorMessage || 'Unbekannt'}\n` +
+          `- Verarbeitungszeit: ${result.debugInfo?.processingTime}ms`
+        );
       }
     } catch (error) {
       console.error('❌ Error generating avatar image:', error);
@@ -151,7 +178,7 @@ const AIGeneratedTab: React.FC = () => {
 
     try {
       setLoading(true);
-      
+
       const avatar = await backend.avatar.create({
         userId: 'demo-user-123',
         name: name.trim(),
@@ -262,8 +289,9 @@ const AIGeneratedTab: React.FC = () => {
     fontSize: '12px',
     textAlign: 'left' as const,
     fontFamily: 'monospace',
-    maxHeight: '200px',
+    maxHeight: '240px',
     overflow: 'auto' as const,
+    color: colors.textInverse,
   };
 
   return (
@@ -275,7 +303,7 @@ const AIGeneratedTab: React.FC = () => {
             <Star size={24} style={{ color: colors.primary }} />
             Grundinformationen
           </div>
-          
+
           <div style={{ marginBottom: `${spacing.lg}px` }}>
             <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
               Name deines Avatars ✨
@@ -327,7 +355,7 @@ const AIGeneratedTab: React.FC = () => {
             <Wand2 size={24} style={{ color: colors.primary }} />
             Aussehen bestimmen
           </div>
-          
+
           <div style={{ marginBottom: `${spacing.xl}px` }}>
             <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
               Alter: {physicalTraits.age} Jahre 🎂
@@ -475,7 +503,7 @@ const AIGeneratedTab: React.FC = () => {
           <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.xl}px`, fontSize: '16px' }}>
             Bestimme die Charakterzüge deines Avatars (1-10) ⭐
           </div>
-          
+
           {Object.entries(personalityTraits).map(([key, value], index) => {
             const trait = personalityLabels[key as keyof PersonalityTraits];
             return (
@@ -486,17 +514,19 @@ const AIGeneratedTab: React.FC = () => {
                       <span style={{ fontSize: '24px', marginRight: `${spacing.md}px` }}>{trait.icon}</span>
                       <span style={{ ...typography.textStyles.label, color: colors.textPrimary, fontSize: '16px' }}>{trait.label}</span>
                     </div>
-                    <div style={{
-                      padding: `${spacing.sm}px ${spacing.md}px`,
-                      borderRadius: `${radii.lg}px`,
-                      backgroundColor: trait.color,
-                      color: colors.textInverse,
-                      fontSize: '16px',
-                      fontWeight: typography.textStyles.label.fontWeight,
-                      minWidth: '40px',
-                      textAlign: 'center' as const,
-                      boxShadow: shadows.sm,
-                    }}>
+                    <div
+                      style={{
+                        padding: `${spacing.sm}px ${spacing.md}px`,
+                        borderRadius: `${radii.lg}px`,
+                        backgroundColor: trait.color,
+                        color: colors.textInverse,
+                        fontSize: '16px',
+                        fontWeight: typography.textStyles.label.fontWeight,
+                        minWidth: '40px',
+                        textAlign: 'center' as const,
+                        boxShadow: shadows.sm,
+                      }}
+                    >
                       {value}
                     </div>
                   </div>
@@ -525,13 +555,13 @@ const AIGeneratedTab: React.FC = () => {
           <div style={previewStyle}>
             <div style={avatarPreviewStyle}>
               {generatedImageUrl ? (
-                <img 
-                  src={generatedImageUrl} 
+                <img
+                  src={generatedImageUrl}
                   alt="Generated Avatar"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={(e) => {
                     console.error('❌ Failed to load generated image');
-                    e.currentTarget.style.display = 'none';
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
                   }}
                   onLoad={() => {
                     console.log('✅ Generated image loaded successfully');
@@ -541,34 +571,50 @@ const AIGeneratedTab: React.FC = () => {
                 <span>🤖</span>
               )}
             </div>
-            
-            <Button
-              title={generatingImage ? "Magie wirkt... ✨" : "🎨 Avatar-Bild generieren"}
-              onPress={generateAvatarImage}
-              loading={generatingImage}
-              icon={<Sparkles size={16} />}
-              variant="ghost"
-              style={{ 
-                marginBottom: `${spacing.lg}px`,
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                color: colors.textInverse,
-                border: `2px solid ${colors.textInverse}`,
-              }}
-            />
-            
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: spacing.lg }}>
+              <Button
+                title={generatingImage ? 'Magie wirkt... ✨' : '🎨 Avatar-Bild generieren'}
+                onPress={generateAvatarImage}
+                loading={generatingImage}
+                icon={<Sparkles size={16} />}
+                variant="ghost"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  color: colors.textInverse,
+                  border: `2px solid ${colors.textInverse}`,
+                }}
+              />
+              {generatedImageUrl && (
+                <>
+                  <Button
+                    title="Öffnen"
+                    onPress={openImageInNewTab}
+                    icon={<ExternalLink size={16} />}
+                    variant="ghost"
+                  />
+                  <Button
+                    title="Download"
+                    onPress={downloadImage}
+                    variant="ghost"
+                  />
+                </>
+              )}
+            </div>
+
             <div style={{ ...typography.textStyles.headingMd, color: colors.textInverse, marginBottom: `${spacing.sm}px` }}>
               {name || 'Dein Avatar'} ⭐
             </div>
             <div style={{ ...typography.textStyles.body, color: colors.textInverse, marginBottom: `${spacing.lg}px`, opacity: 0.9 }}>
               {description || 'Keine Beschreibung verfügbar'}
             </div>
-            
+
             <div style={{ textAlign: 'left' as const, backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: `${spacing.lg}px`, borderRadius: `${radii.lg}px` }}>
               <div style={{ ...typography.textStyles.label, color: colors.textInverse, marginBottom: `${spacing.sm}px`, fontSize: '16px' }}>
                 🌟 Stärkste Eigenschaften:
               </div>
               {Object.entries(personalityTraits)
-                .sort(([,a], [,b]) => b - a)
+                .sort(([, a], [, b]) => b - a)
                 .slice(0, 3)
                 .map(([key, value]) => {
                   const trait = personalityLabels[key as keyof PersonalityTraits];
@@ -583,22 +629,28 @@ const AIGeneratedTab: React.FC = () => {
             {/* Debug Info */}
             {debugInfo && (
               <div style={debugStyle}>
-                <div style={{ fontWeight: 'bold', marginBottom: `${spacing.sm}px`, color: colors.textInverse }}>
-                  🔍 Debug Information:
-                </div>
+                <div style={{ fontWeight: 'bold', marginBottom: `${spacing.sm}px` }}>🔍 Debug Information</div>
                 <div>✅ Erfolgreich: {debugInfo.success ? 'Ja' : 'Nein'}</div>
                 <div>⏱️ Verarbeitungszeit: {debugInfo.processingTime}ms</div>
-                {debugInfo.errorMessage && (
-                  <div>❌ Fehler: {debugInfo.errorMessage}</div>
-                )}
-                <div>📏 Bild-URL Länge: {generatedImageUrl?.length || 0} Zeichen</div>
-                <div>🖼️ Bild-Format: {generatedImageUrl?.startsWith('data:image/') ? 'Data URL' : 'URL'}</div>
+                <div>📄 Status: {debugInfo.responseStatus ?? 'n/a'}</div>
+                {debugInfo.contentType && <div>🧾 Content-Type: {debugInfo.contentType}</div>}
+                {debugInfo.extractedFromPath && <div>🗂️ Pfad: {debugInfo.extractedFromPath}</div>}
+                {debugInfo.errorMessage && <div>❌ Fehler: {debugInfo.errorMessage}</div>}
+                <div>📏 Bild-URL Länge: {generatedImageUrl?.length || 0}</div>
+                <div style={{ marginTop: spacing.sm }}>
+                  <details>
+                    <summary style={{ cursor: 'pointer', color: colors.textInverse }}>Roh-Antwort ansehen</summary>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>
+{JSON.stringify(debugInfo.responseReceived ?? {}, null, 2)}
+                    </pre>
+                  </details>
+                </div>
               </div>
             )}
           </div>
         </Card>
       </FadeInView>
-      
+
       <FadeInView delay={500}>
         <Button
           title="🚀 Avatar erstellen"
