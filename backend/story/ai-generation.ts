@@ -137,19 +137,20 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
   }
 );
 
-// -------- OpenAI: Responses API + text.format (Structured Outputs) --------
+// -------- ULTRA-ROBUSTE LÖSUNG mit mehreren Fallback-Stufen --------
 async function generateStoryWithOpenAI(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
 ): Promise<{ title: string; description: string; chapters: Omit<Chapter, "id" | "imageUrl">[]; tokensUsed?: any }> {
+  
   const avatarDescriptions = avatars
     .map((avatar) => `${avatar.name}: ${getAvatarDescription(avatar.physicalTraits, avatar.personalityTraits)}`)
     .join("\n");
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  const systemPrompt =
-    "Du bist ein professioneller Kinderbuchautor. Antworte NUR mit JSON, ohne zusätzliche Texte.";
+  const systemPrompt = "Du bist ein professioneller Kinderbuchautor. Erstelle Geschichten im JSON-Format basierend auf den gegebenen Parametern.";
+  
   const userPrompt = `Erstelle eine ${config.genre} Geschichte in ${config.setting} für die Altersgruppe ${config.ageGroup}.
 
 Parameter:
@@ -158,124 +159,222 @@ Parameter:
 - Charaktere:
 ${avatarDescriptions}
 
-${
-  config?.learningMode?.enabled
-    ? `Lernziele:
+${config?.learningMode?.enabled ? 
+`Lernziele:
 - Fächer: ${config.learningMode.subjects.join(", ")}
 - Schwierigkeit: ${config.learningMode.difficulty}
-- Lernziele: ${config.learningMode.learningObjectives.join(", ")}`
-    : ""
+- Lernziele: ${config.learningMode.learningObjectives.join(", ")}` : ""}
+
+Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
+{
+  "title": "Titel der Geschichte",
+  "description": "Kurze Beschreibung der Geschichte (20-500 Zeichen)",
+  "chapters": [
+    {
+      "title": "Kapitel Titel",
+      "content": "Kapitel Inhalt (150-1200 Zeichen)",
+      "order": 0
+    }
+  ]
+}`;
+
+  // Stufe 1: Chat Completions mit JSON Schema (beste Option)
+  try {
+    console.log("🚀 Versuch 1: Chat Completions mit JSON Schema");
+    return await tryWithJsonSchema(systemPrompt, userPrompt, chapterCount);
+  } catch (error) {
+    console.warn("⚠️ JSON Schema fehlgeschlagen:", error);
+  }
+
+  // Stufe 2: Chat Completions mit json_object
+  try {
+    console.log("🚀 Versuch 2: Chat Completions mit json_object");
+    return await tryWithJsonObject(systemPrompt, userPrompt);
+  } catch (error) {
+    console.warn("⚠️ JSON Object fehlgeschlagen:", error);
+  }
+
+  // Stufe 3: Chat Completions ohne response_format (manuelles Parsing)
+  try {
+    console.log("🚀 Versuch 3: Chat Completions ohne response_format");
+    return await tryWithManualParsing(systemPrompt, userPrompt);
+  } catch (error) {
+    console.warn("⚠️ Manuelles Parsing fehlgeschlagen:", error);
+  }
+
+  // Stufe 4: Fallback auf lokale Story-Generierung
+  console.warn("⚠️ Alle OpenAI-Versuche fehlgeschlagen, verwende Fallback");
+  throw new Error("Alle OpenAI-Methoden fehlgeschlagen - Fallback wird verwendet");
 }
 
-Gib NUR ein JSON-Objekt gemäß Schema zurück (ohne Codefences, Kommentare oder Erklärtexte).`;
-
-  // Strenges JSON-Schema
-  const storySchema = {
-    name: "StoryPayload",
-    strict: true,
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        title: { type: "string", minLength: 3, maxLength: 120 },
-        description: { type: "string", minLength: 20, maxLength: 500 },
-        chapters: {
-          type: "array",
-          minItems: chapterCount,
-          maxItems: chapterCount,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              title: { type: "string", minLength: 3, maxLength: 120 },
-              content: { type: "string", minLength: 150, maxLength: 1200 },
-              order: { type: "integer", minimum: 0 },
-            },
-            required: ["title", "content", "order"],
-          },
+async function tryWithJsonSchema(systemPrompt: string, userPrompt: string, chapterCount: number) {
+  const responseFormat = {
+    type: "json_schema" as const,
+    json_schema: {
+      name: "story_response",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          title: { type: "string", minLength: 3, maxLength: 120 },
+          description: { type: "string", minLength: 20, maxLength: 500 },
+          chapters: {
+            type: "array",
+            minItems: chapterCount,
+            maxItems: chapterCount,
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string", minLength: 3, maxLength: 120 },
+                content: { type: "string", minLength: 150, maxLength: 1200 },
+                order: { type: "integer", minimum: 0 }
+              },
+              required: ["title", "content", "order"],
+              additionalProperties: false
+            }
+          }
         },
-      },
-      required: ["title", "description", "chapters"],
+        required: ["title", "description", "chapters"],
+        additionalProperties: false
+      }
+    }
+  };
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
     },
-  };
-
-  // Hilfsfunktion: eine Anfrage an /v1/responses schicken
-  const callResponses = async (format: "json_schema" | "json_object") => {
-    const body: any = {
+    body: JSON.stringify({
       model: MODEL,
-      input: [
-        { role: "developer", content: systemPrompt },
-        { role: "user", content: userPrompt },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
       ],
-      // Responses API → max_output_tokens
-      max_output_tokens: 2400,
-      // Kein frequency/presence_penalty verwenden (teilweise nicht unterstützt)
-      // Kompaktheit steuern:
-      text: {
-        // "verbosity": "low",   // optional – kann die Ausgabe knapper machen
-        format:
-          format === "json_schema"
-            ? { type: "json_schema", json_schema: storySchema }
-            : { type: "json_object" },
-      },
-      // reasoning: { effort: "minimal" }, // optional; manche Nano-Versionen ignorieren es
-    };
+      max_tokens: 2400,
+      temperature: 0.7,
+      response_format: responseFormat
+    }),
+  });
 
-    const res = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAIKey()}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`OpenAI API error: ${res.status} ${res.statusText} - ${t}`);
-    }
-    return res.json();
-  };
-
-  // Erst mit json_schema versuchen, bei „unsupported“ auf json_object zurückfallen
-  let data: any;
-  try {
-    data = await callResponses("json_schema");
-  } catch (e: any) {
-    const msg = String(e?.message || "");
-    if (msg.includes("json_schema") || msg.includes("unsupported_parameter") || msg.includes("not supported")) {
-      console.warn("⚠️ json_schema nicht unterstützt – Fallback auf json_object");
-      data = await callResponses("json_object");
-    } else {
-      throw e;
-    }
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`JSON Schema API error: ${response.status} - ${errorText}`);
   }
 
-  console.log("✅ OpenAI response received");
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  const parsed = JSON.parse(content);
 
-  // Output-Text extrahieren
-  const outputText: string | undefined =
-    data.output_text ??
-    (Array.isArray(data.output?.[0]?.content)
-      ? data.output[0].content.find((c: any) => typeof c?.text === "string")?.text
-      : undefined) ??
-    (typeof data.output === "string" ? data.output : undefined);
+  return {
+    ...parsed,
+    tokensUsed: {
+      prompt: data.usage?.prompt_tokens ?? 0,
+      completion: data.usage?.completion_tokens ?? 0,
+      total: data.usage?.total_tokens ?? 0,
+    }
+  };
+}
 
-  if (!outputText || typeof outputText !== "string") {
-    throw new Error("OpenAI: Konnte output_text nicht extrahieren.");
+async function tryWithJsonObject(systemPrompt: string, userPrompt: string) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt + "\n\nWichtig: Antworte ausschließlich mit gültigem JSON, keine Erklärungen!" }
+      ],
+      max_tokens: 2400,
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`JSON Object API error: ${response.status} - ${errorText}`);
   }
 
-  const parsed = JSON.parse(outputText);
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
+  const parsed = JSON.parse(cleanContent);
 
-  // Usage normalisieren (Responses API: input_tokens/output_tokens)
-  const usage = data.usage ?? data.response?.usage ?? {};
-  const tokensUsed = {
-    prompt: usage.input_tokens ?? usage.prompt_tokens ?? 0,
-    completion: usage.output_tokens ?? usage.completion_tokens ?? 0,
-    total: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
+  return {
+    ...parsed,
+    tokensUsed: {
+      prompt: data.usage?.prompt_tokens ?? 0,
+      completion: data.usage?.completion_tokens ?? 0,
+      total: data.usage?.total_tokens ?? 0,
+    }
   };
+}
 
-  return { ...parsed, tokensUsed };
+async function tryWithManualParsing(systemPrompt: string, userPrompt: string) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: userPrompt + `
+
+WICHTIG: 
+- Antworte NUR mit gültigem JSON
+- Keine zusätzlichen Texte, Erklärungen oder Markdown
+- Das JSON muss direkt parsbar sein
+- Beginne direkt mit { und ende mit }`
+        }
+      ],
+      max_tokens: 2400,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Manual parsing API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  let content = data.choices[0].message.content;
+
+  // Aggressive Bereinigung
+  content = content
+    .replace(/```json\s*/g, "")
+    .replace(/```\s*/g, "")
+    .replace(/^[^{]*/, "")  // Alles vor der ersten {
+    .replace(/[^}]*$/, "") // Alles nach der letzten }
+    .trim();
+
+  // Versuche JSON zu parsen
+  const parsed = JSON.parse(content);
+
+  // Validierung der Struktur
+  if (!parsed.title || !parsed.description || !parsed.chapters) {
+    throw new Error("Unvollständige Story-Struktur");
+  }
+
+  return {
+    ...parsed,
+    tokensUsed: {
+      prompt: data.usage?.prompt_tokens ?? 0,
+      completion: data.usage?.completion_tokens ?? 0,
+      total: data.usage?.total_tokens ?? 0,
+    }
+  };
 }
 
 // -------- Fallback-Story inkl. Platzhalterbilder --------
