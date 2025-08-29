@@ -54,7 +54,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
     const startTime = Date.now();
     let metadata = {
       tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      model: "gpt-5-nano", // ✅ Günstigstes OpenAI Modell
+      model: "gpt-5-nano", // Will be updated based on which model actually works
       processingTime: 0,
       imagesGenerated: 0,
       totalCost: { text: 0, images: 0, total: 0 }
@@ -68,10 +68,8 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       
       console.log("✅ Generated story content:", storyContent.title);
       
-      // Calculate text generation costs (GPT-5-nano pricing)
-      const inputCostPer1M = 0.05; // $0.05 per 1M input tokens
-      const outputCostPer1M = 0.40; // $0.40 per 1M output tokens
-      
+      // Calculate text generation costs based on gpt-4o-mini
+      metadata.model = model;
       metadata.tokensUsed = storyContent.tokensUsed || { prompt: 0, completion: 0, total: 0 };
       metadata.totalCost.text = (
         (metadata.tokensUsed.prompt / 1000000) * inputCostPer1M +
@@ -195,6 +193,13 @@ Formatiere als JSON:
 
     console.log("🤖 Sending request to OpenAI...");
 
+    // Vereinfacht: Direkt gpt-4o-mini verwenden (wie im funktionierenden Flutter-Code)
+    const model = "gpt-4o-mini";
+    const inputCostPer1M = 0.15;
+    const outputCostPer1M = 0.60;
+
+    console.log(`🧪 Using model: ${model}`);
+    
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -202,21 +207,24 @@ Formatiere als JSON:
         "Authorization": `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-5-nano", // ✅ Günstigstes verfügbares OpenAI Modell
+        model: model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
         temperature: 0.8,
-        max_tokens: 4000,
+        max_tokens: 4000, // Wie im Flutter-Code
+        top_p: 0.9,
+        frequency_penalty: 0.1,
+        presence_penalty: 0.1,
         response_format: { type: "json_object" }
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ OpenAI API error:", response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    if (!response || !response.ok) {
+      const errorText = response ? await response.text() : "Request failed";
+      console.error("❌ OpenAI API error:", response?.status, errorText);
+      throw new Error(`OpenAI API error: ${response?.status || "No response"} ${response?.statusText || errorText}`);
     }
 
     const data = await response.json();
