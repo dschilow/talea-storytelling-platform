@@ -212,7 +212,6 @@ Formatiere als JSON:
 	    ],
 	    temperature: 1,
 	    max_completion_tokens: 4000,
-	    top_p: 0.9,
 	    frequency_penalty: 0.1,
 	    presence_penalty: 0.1,
 	    response_format: { type: "json_object" }
