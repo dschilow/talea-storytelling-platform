@@ -160,10 +160,7 @@ async function generateStoryWithOpenAI(
 }> {
   try {
     const avatarDescriptions = avatars
-      .map(
-        (a) =>
-          `${a.name}: ${getAvatarDescription(a.physicalTraits, a.personalityTraits)}`
-      )
+      .map((a) => `${a.name}: ${getAvatarDescription(a.physicalTraits, a.personalityTraits)}`)
       .join("\n");
 
     const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
@@ -207,6 +204,32 @@ Formatiere als JSON:
     console.log("🤖 Sending request to OpenAI (Responses API)...");
     console.log(`🧪 Using MODEL: ${MODEL} | TIER: ${SERVICE_TIER}`);
 
+    // JSON Schema für Strict-Output
+    const storySchema = {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        chapters: {
+          type: "array",
+          minItems: chapterCount,
+          maxItems: chapterCount,
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              content: { type: "string" },
+              order: { type: "integer" },
+            },
+            required: ["title", "content", "order"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["title", "description", "chapters"],
+      additionalProperties: false,
+    };
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -215,17 +238,26 @@ Formatiere als JSON:
       },
       body: JSON.stringify({
         model: MODEL,
-        // Responses API: System-Kontext in "instructions"
-        instructions: systemPrompt,
-        // User-Eingabe als Input-Item(s) mit "input_text"
+        // System als separate Message (kompatibel & klar)
         input: [
+          {
+            role: "system",
+            content: [{ type: "text", text: systemPrompt }],
+          },
           {
             role: "user",
             content: [{ type: "input_text", text: userPrompt }],
           },
         ],
-        // JSON-Output über text.format
-        text: { format: "json" },
+        // <- WICHTIG: text.format IST EIN OBJEKT (kein String)
+        text: {
+          format: {
+            type: "json_schema",
+            name: "story_content",
+            schema: storySchema,
+            strict: true,
+          },
+        },
         max_output_tokens: 1500,
         temperature: 0.8,
         service_tier: SERVICE_TIER,
@@ -242,15 +274,16 @@ Formatiere als JSON:
     console.log("✅ OpenAI response received");
     console.log("📊 Usage:", data?.usage);
 
-    // Robust extrahieren (output_text bevorzugt)
+    // Robust extrahieren
     const text: string =
-      (typeof data.output_text === "string" && data.output_text.trim()) ? data.output_text :
-      (Array.isArray(data.output)
-        ? data.output
-            .flatMap((o: any) => o?.content ?? [])
-            .map((c: any) => (c?.text ?? "").toString())
-            .join("")
-        : "");
+      (typeof data.output_text === "string" && data.output_text.trim())
+        ? data.output_text
+        : (Array.isArray(data.output)
+            ? data.output
+                .flatMap((o: any) => o?.content ?? [])
+                .map((c: any) => (c?.text ?? "").toString())
+                .join("")
+            : "");
 
     const parsedContent = JSON.parse(text);
 
