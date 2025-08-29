@@ -145,6 +145,9 @@ export const generateImage = api<ImageGenerationRequest, ImageGenerationResponse
 
 // Try to extract image base64 and mime type from many plausible Runware response shapes.
 function extractRunwareImage(data: any): { b64: string; contentType: string; seed?: number; fromPath: string } | null {
+  console.log("🔍 Extracting image from Runware response...");
+  console.log("📊 Response structure:", JSON.stringify(data, null, 2));
+
   // Helper to determine content type
   const pickMime = (ct?: string | null, fmt?: string | null) => {
     if (ct && typeof ct === "string") return normalizeMime(ct);
@@ -166,15 +169,44 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
     return "image/webp";
   };
 
+  // WICHTIGE KORREKTUR: Prüfe zuerst nach data.data Array (Runware Response Format)
+  if (data && typeof data === "object" && Array.isArray(data.data)) {
+    console.log("📦 Found data.data array with", data.data.length, "items");
+    for (const [idx, item] of data.data.entries()) {
+      console.log(`🔎 Checking data.data[${idx}]:`, Object.keys(item));
+      
+      const b64 =
+        item?.imageBase64Data ||
+        item?.imageBase64 ||
+        item?.base64Data ||
+        item?.base64 ||
+        item?.b64 ||
+        item?.b64_json ||
+        item?.data;
+      
+      if (b64 && typeof b64 === "string") {
+        console.log("✅ Found base64 data in data.data[" + idx + "]");
+        const contentType = pickMime(
+          item?.contentType || item?.mimeType || item?.mimetype || null, 
+          item?.format || item?.outputFormat || null
+        );
+        const seed = item?.seed;
+        return { b64, contentType, seed, fromPath: `data.data[${idx}]` };
+      }
+    }
+  }
+
   // 1) If response is an array (as per Runware docs), iterate items
   if (Array.isArray(data)) {
+    console.log("📦 Response is direct array with", data.length, "items");
     for (const [idx, item] of data.entries()) {
       // Common: item.results is an array of outputs
       if (item && Array.isArray(item.results)) {
+        console.log(`🔎 Checking data[${idx}].results array`);
         for (const [rIdx, res] of item.results.entries()) {
-          // Look for common fields carrying base64 image - ERWEITERT!
+          // Look for common fields carrying base64 image
           const b64 =
-            res?.imageBase64Data ||  // <- NEU: Das fehlende Feld!
+            res?.imageBase64Data ||
             res?.imageBase64 ||
             res?.base64Data ||
             res?.base64 ||
@@ -182,6 +214,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
             res?.b64_json ||
             res?.data;
           if (b64 && typeof b64 === "string") {
+            console.log(`✅ Found base64 data in data[${idx}].results[${rIdx}]`);
             const contentType = pickMime(res?.contentType || res?.mimeType || res?.mimetype || null, res?.format || res?.outputFormat || null);
             const seed = res?.seed || item?.seed;
             return { b64, contentType, seed, fromPath: `data[${idx}].results[${rIdx}]` };
@@ -191,6 +224,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
             const img = res.images[0];
             const b64i = img?.imageBase64Data || img?.imageBase64 || img?.base64Data || img?.base64 || img?.b64 || img?.b64_json || img?.data;
             if (b64i && typeof b64i === "string") {
+              console.log(`✅ Found base64 data in data[${idx}].results[${rIdx}].images[0]`);
               const contentType = pickMime(img?.contentType || img?.mimeType || null, img?.format || null);
               const seed = img?.seed || res?.seed || item?.seed;
               return { b64: b64i, contentType, seed, fromPath: `data[${idx}].results[${rIdx}].images[0]` };
@@ -199,9 +233,9 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         }
       }
 
-      // 2) Some variants may place image directly on the item - ERWEITERT!
+      // 2) Some variants may place image directly on the item
       const b64Direct =
-        item?.imageBase64Data ||  // <- NEU: Das fehlende Feld!
+        item?.imageBase64Data ||
         item?.imageBase64 ||
         item?.base64Data ||
         item?.base64 ||
@@ -209,6 +243,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         item?.b64_json ||
         item?.data;
       if (b64Direct && typeof b64Direct === "string") {
+        console.log(`✅ Found base64 data directly in data[${idx}]`);
         const contentType = pickMime(item?.contentType || item?.mimeType || null, item?.format || item?.outputFormat || null);
         const seed = item?.seed;
         return { b64: b64Direct, contentType, seed, fromPath: `data[${idx}]` };
@@ -218,7 +253,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       if (Array.isArray(item?.images) && item.images.length > 0) {
         const img0 = item.images[0];
         const b64im =
-          img0?.imageBase64Data ||  // <- NEU!
+          img0?.imageBase64Data ||
           img0?.imageBase64 ||
           img0?.base64Data ||
           img0?.base64 ||
@@ -226,6 +261,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
           img0?.b64_json ||
           img0?.data;
         if (b64im && typeof b64im === "string") {
+          console.log(`✅ Found base64 data in data[${idx}].images[0]`);
           const contentType = pickMime(img0?.contentType || img0?.mimeType || null, img0?.format || null);
           const seed = img0?.seed || item?.seed;
           return { b64: b64im, contentType, seed, fromPath: `data[${idx}].images[0]` };
@@ -236,7 +272,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       if (Array.isArray(item?.output) && item.output.length > 0) {
         const out0 = item.output[0];
         const b64out =
-          out0?.imageBase64Data ||  // <- NEU!
+          out0?.imageBase64Data ||
           out0?.imageBase64 ||
           out0?.base64Data ||
           out0?.base64 ||
@@ -244,6 +280,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
           out0?.b64_json ||
           out0?.data;
         if (b64out && typeof b64out === "string") {
+          console.log(`✅ Found base64 data in data[${idx}].output[0]`);
           const contentType = pickMime(out0?.contentType || out0?.mimeType || null, out0?.format || null);
           const seed = out0?.seed || item?.seed;
           return { b64: b64out, contentType, seed, fromPath: `data[${idx}].output[0]` };
@@ -254,11 +291,14 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
 
   // 5) If object (not array), try same shapes
   if (data && typeof data === "object") {
+    console.log("📦 Response is object, checking for results/images arrays");
+    
     // results
     if (Array.isArray(data.results)) {
+      console.log("🔎 Checking data.results array");
       for (const [rIdx, res] of data.results.entries()) {
         const b64 =
-          res?.imageBase64Data ||  // <- NEU!
+          res?.imageBase64Data ||
           res?.imageBase64 ||
           res?.base64Data ||
           res?.base64 ||
@@ -266,17 +306,20 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
           res?.b64_json ||
           res?.data;
         if (b64 && typeof b64 === "string") {
+          console.log(`✅ Found base64 data in data.results[${rIdx}]`);
           const contentType = pickMime(res?.contentType || res?.mimeType || null, res?.format || null);
           const seed = res?.seed || data?.seed;
           return { b64, contentType, seed, fromPath: `data.results[${rIdx}]` };
         }
       }
     }
+    
     // images
     if (Array.isArray(data.images) && data.images.length > 0) {
+      console.log("🔎 Checking data.images array");
       const img0 = data.images[0];
       const b64im =
-        img0?.imageBase64Data ||  // <- NEU!
+        img0?.imageBase64Data ||
         img0?.imageBase64 ||
         img0?.base64Data ||
         img0?.base64 ||
@@ -284,14 +327,16 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         img0?.b64_json ||
         img0?.data;
       if (b64im && typeof b64im === "string") {
+        console.log("✅ Found base64 data in data.images[0]");
         const contentType = pickMime(img0?.contentType || img0?.mimeType || null, img0?.format || null);
         const seed = img0?.seed || data?.seed;
         return { b64: b64im, contentType, seed, fromPath: "data.images[0]" };
       }
     }
-    // direct fields - ERWEITERT!
+    
+    // direct fields
     const b64Direct =
-      data?.imageBase64Data ||  // <- NEU: Das fehlende Feld!
+      data?.imageBase64Data ||
       data?.imageBase64 ||
       data?.base64Data ||
       data?.base64 ||
@@ -299,12 +344,14 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       data?.b64_json ||
       data?.data;
     if (b64Direct && typeof b64Direct === "string") {
+      console.log("✅ Found base64 data directly in data object");
       const contentType = pickMime(data?.contentType || data?.mimeType || null, (data as any)?.format || null);
       const seed = (data as any)?.seed;
       return { b64: b64Direct, contentType, seed, fromPath: "data" };
     }
   }
 
+  console.log("❌ No base64 image data found in response");
   return null;
 }
 
