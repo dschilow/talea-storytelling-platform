@@ -137,7 +137,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
   }
 );
 
-// -------- ULTRA-ROBUSTE LÖSUNG mit mehreren Fallback-Stufen --------
+// -------- GPT-5-nano korrigierte LÖSUNG mit allen richtigen Parametern --------
 async function generateStoryWithOpenAI(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
@@ -178,9 +178,9 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
   ]
 }`;
 
-  // Stufe 1: Chat Completions mit JSON Schema (beste Option)
+  // Stufe 1: Chat Completions mit JSON Schema (beste Option für GPT-5)
   try {
-    console.log("🚀 Versuch 1: Chat Completions mit JSON Schema");
+    console.log("🚀 Versuch 1: Chat Completions mit JSON Schema (GPT-5 korrigiert)");
     return await tryWithJsonSchema(systemPrompt, userPrompt, chapterCount);
   } catch (error) {
     console.warn("⚠️ JSON Schema fehlgeschlagen:", error);
@@ -188,7 +188,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
 
   // Stufe 2: Chat Completions mit json_object
   try {
-    console.log("🚀 Versuch 2: Chat Completions mit json_object");
+    console.log("🚀 Versuch 2: Chat Completions mit json_object (GPT-5 korrigiert)");
     return await tryWithJsonObject(systemPrompt, userPrompt);
   } catch (error) {
     console.warn("⚠️ JSON Object fehlgeschlagen:", error);
@@ -196,7 +196,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
 
   // Stufe 3: Chat Completions ohne response_format (manuelles Parsing)
   try {
-    console.log("🚀 Versuch 3: Chat Completions ohne response_format");
+    console.log("🚀 Versuch 3: Chat Completions ohne response_format (GPT-5 korrigiert)");
     return await tryWithManualParsing(systemPrompt, userPrompt);
   } catch (error) {
     console.warn("⚠️ Manuelles Parsing fehlgeschlagen:", error);
@@ -205,6 +205,194 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
   // Stufe 4: Fallback auf lokale Story-Generierung
   console.warn("⚠️ Alle OpenAI-Versuche fehlgeschlagen, verwende Fallback");
   throw new Error("Alle OpenAI-Methoden fehlgeschlagen - Fallback wird verwendet");
+}
+
+async function tryWithJsonSchema(systemPrompt: string, userPrompt: string, chapterCount: number) {
+  const responseFormat = {
+    type: "json_schema" as const,
+    json_schema: {
+      name: "story_response",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          title: { type: "string", minLength: 3, maxLength: 120 },
+          description: { type: "string", minLength: 20, maxLength: 500 },
+          chapters: {
+            type: "array",
+            minItems: chapterCount,
+            maxItems: chapterCount,
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string", minLength: 3, maxLength: 120 },
+                content: { type: "string", minLength: 150, maxLength: 1200 },
+                order: { type: "integer", minimum: 0 }
+              },
+              required: ["title", "content", "order"],
+              additionalProperties: false
+            }
+          }
+        },
+        required: ["title", "description", "chapters"],
+        additionalProperties: false
+      }
+    }
+  };
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      // GEFIXT: max_completion_tokens statt max_tokens für GPT-5
+      max_completion_tokens: 2400,
+      temperature: 0.7,
+      response_format: responseFormat,
+      // GPT-5 spezifische Parameter
+      reasoning_effort: "minimal", // Für Kostenoptimierung bei Story-Generierung
+      verbosity: "medium"
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`JSON Schema API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  const parsed = JSON.parse(content);
+
+  return {
+    ...parsed,
+    tokensUsed: {
+      // GEFIXT: GPT-5 Token-Struktur berücksichtigen
+      prompt: data.usage?.prompt_tokens ?? 0,
+      completion: data.usage?.completion_tokens ?? 0,
+      reasoning: data.usage?.reasoning_tokens ?? 0, // Neue reasoning tokens
+      total: data.usage?.total_tokens ?? 0,
+    }
+  };
+}
+
+async function tryWithJsonObject(systemPrompt: string, userPrompt: string) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt + "\n\nWichtig: Antworte ausschließlich mit gültigem JSON, keine Erklärungen!" }
+      ],
+      // GEFIXT: max_completion_tokens statt max_tokens für GPT-5
+      max_completion_tokens: 2400,
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+      // GPT-5 spezifische Parameter
+      reasoning_effort: "minimal", // Schnelle Antwort für Fallback
+      verbosity: "low" // Kompakte Ausgabe
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`JSON Object API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
+  const parsed = JSON.parse(cleanContent);
+
+  return {
+    ...parsed,
+    tokensUsed: {
+      // GEFIXT: GPT-5 Token-Struktur
+      prompt: data.usage?.prompt_tokens ?? 0,
+      completion: data.usage?.completion_tokens ?? 0,
+      reasoning: data.usage?.reasoning_tokens ?? 0,
+      total: data.usage?.total_tokens ?? 0,
+    }
+  };
+}
+
+async function tryWithManualParsing(systemPrompt: string, userPrompt: string) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: userPrompt + `
+
+WICHTIG: 
+- Antworte NUR mit gültigem JSON
+- Keine zusätzlichen Texte, Erklärungen oder Markdown
+- Das JSON muss direkt parsbar sein
+- Beginne direkt mit { und ende mit }`
+        }
+      ],
+      // GEFIXT: max_completion_tokens statt max_tokens für GPT-5
+      max_completion_tokens: 2400,
+      temperature: 0.7,
+      // GPT-5 spezifische Parameter für letzten Versuch
+      reasoning_effort: "low", // Etwas mehr reasoning für bessere JSON-Struktur
+      verbosity: "low"
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Manual parsing API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  let content = data.choices[0].message.content;
+
+  // Aggressive Bereinigung
+  content = content
+    .replace(/```json\s*/g, "")
+    .replace(/```\s*/g, "")
+    .replace(/^[^{]*/, "")  // Alles vor der ersten {
+    .replace(/[^}]*$/, "") // Alles nach der letzten }
+    .trim();
+
+  // Versuche JSON zu parsen
+  const parsed = JSON.parse(content);
+
+  // Validierung der Struktur
+  if (!parsed.title || !parsed.description || !parsed.chapters) {
+    throw new Error("Unvollständige Story-Struktur");
+  }
+
+  return {
+    ...parsed,
+    tokensUsed: {
+      // GEFIXT: GPT-5 Token-Struktur
+      prompt: data.usage?.prompt_tokens ?? 0,
+      completion: data.usage?.completion_tokens ?? 0,
+      reasoning: data.usage?.reasoning_tokens ?? 0,
+      total: data.usage?.total_tokens ?? 0,
+    }
+  };
 }
 
 async function tryWithJsonSchema(systemPrompt: string, userPrompt: string, chapterCount: number) {
