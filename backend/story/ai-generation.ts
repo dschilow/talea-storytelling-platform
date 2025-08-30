@@ -4,9 +4,9 @@ import type { StoryConfig, Chapter } from "./generate";
 import { ai } from "~encore/clients";
 
 // ---- OpenAI Modell & Pricing (Modul-weit gültig) ----
-const MODEL = "gpt-4o-mini";
-const INPUT_COST_PER_1M = 0.15;   // $/1M Input-Token
-const OUTPUT_COST_PER_1M = 0.60;  // $/1M Output-Token
+const MODEL = "gpt-5-nano";
+const INPUT_COST_PER_1M = 0.05;   // $/1M Input-Token (GPT-5-nano offizieller Preis)
+const OUTPUT_COST_PER_1M = 0.40;  // $/1M Output-Token (GPT-5-nano offizieller Preis)
 
 const openAIKey = secret("OpenAIKey");
 
@@ -81,9 +81,12 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       console.log("✅ Generated story content:", storyContent.title);
 
       metadata.tokensUsed = storyContent.tokensUsed ?? { prompt: 0, completion: 0, total: 0 };
+      
+      // GPT-5-nano Kostenberechnung (berücksichtigt reasoning_tokens)
+      const outputTokens = metadata.tokensUsed.completion + (storyContent.tokensUsed?.reasoning ?? 0);
       metadata.totalCost.text =
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
-        (metadata.tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
+        (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
       // Referenzbilder (Avatare) zusammenstellen
       const referenceImages = req.avatarDetails
@@ -226,9 +229,12 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_tokens: 2400,
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+      // GPT-5-nano Parameter
+      max_completion_tokens: 2400,  // Geändert von max_tokens
+      // temperature: 0.7,          // Entfernt - GPT-5-nano unterstützt nur Default (1)
+      response_format: { type: "json_object" },
+      reasoning_effort: "minimal",   // Für Kostenoptimierung
+      verbosity: "medium"            // Ausgewogene Ausgabelänge
     }),
   });
 
@@ -255,6 +261,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
     tokensUsed: {
       prompt: data.usage?.prompt_tokens ?? 0,
       completion: data.usage?.completion_tokens ?? 0,
+      reasoning: data.usage?.reasoning_tokens ?? 0,  // GPT-5 reasoning tokens
       total: data.usage?.total_tokens ?? 0,
     }
   };
