@@ -5,7 +5,7 @@ import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
-const MODEL = "gpt-4o";
+const MODEL = "gpt-5-nano";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
