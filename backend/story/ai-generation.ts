@@ -493,6 +493,7 @@ async function generateStoryWithOpenAI(
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any; imageUrl?: string | null }>
 ): Promise<{ title: string; description: string; chapters: Omit<Chapter, "id" | "imageUrl">[]; tokensUsed?: any }> {
+  const MAX_RETRIES = 3;
   const avatarDescriptions = avatars
     .map((avatar) => `${avatar.name}: ${getAvatarDescription(avatar.physicalTraits, avatar.personalityTraits)}`)
     .join("\n");
@@ -552,53 +553,74 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
   ]
 }`;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      max_completion_tokens: 4000,  // Erhöht für längere, detailliertere Geschichten
-      response_format: { type: "json_object" },
-      reasoning_effort: "medium",   // Bessere Qualität für Geschichten
-      verbosity: "high"             // Detailliertere Ausgaben für bessere Geschichten
-    }),
-  });
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Attempt ${attempt}/${MAX_RETRIES}: Calling OpenAI API...`);
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          max_completion_tokens: 4000,
+          response_format: { type: "json_object" },
+          reasoning_effort: "medium",
+          verbosity: "high"
+        }),
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI API Fehler:", errorText);
-    throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
-  }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenAI API Fehler (Attempt ${attempt}):`, errorText);
+        throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
+      }
 
-  const data = await response.json();
-  const content = data.choices[0].message.content;
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
 
-  let parsed;
-  try {
-    const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
-    parsed = JSON.parse(cleanContent);
-  } catch (e) {
-    console.error("JSON Parse Fehler:", e);
-    console.error("Raw content:", content);
-    throw new Error(`JSON Parse Fehler: ${e instanceof Error ? e.message : String(e)}`);
-  }
+      if (!content) {
+        throw new Error("Leere Antwort von OpenAI erhalten.");
+      }
 
-  return {
-    ...parsed,
-    tokensUsed: {
-      prompt: data.usage?.prompt_tokens ?? 0,
-      completion: data.usage?.completion_tokens ?? 0,
-      reasoning: data.usage?.reasoning_tokens ?? 0,
-      total: data.usage?.total_tokens ?? 0,
+      let parsed;
+      try {
+        const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
+        parsed = JSON.parse(cleanContent);
+      } catch (e) {
+        console.error(`JSON Parse Fehler (Attempt ${attempt}):`, e);
+        console.error("Raw content:", content);
+        throw new Error(`JSON Parse Fehler: ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      // Success!
+      console.log(`Successfully generated story on attempt ${attempt}.`);
+      return {
+        ...parsed,
+        tokensUsed: {
+          prompt: data.usage?.prompt_tokens ?? 0,
+          completion: data.usage?.completion_tokens ?? 0,
+          reasoning: data.usage?.reasoning_tokens ?? 0,
+          total: data.usage?.total_tokens ?? 0,
+        }
+      };
+    } catch (error) {
+      console.error(`Fehler bei Versuch ${attempt}/${MAX_RETRIES}:`, error);
+      if (attempt === MAX_RETRIES) {
+        throw error;
+      }
+      const delay = 1000 * Math.pow(2, attempt - 1);
+      console.log(`Warte ${delay}ms vor dem nächsten Versuch...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-  };
+  }
+
+  throw new Error("Konnte die Geschichte nach mehreren Versuchen nicht generieren.");
 }
 
 function getAvatarDescription(physical: any, personality: any): string {
