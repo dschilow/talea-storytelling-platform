@@ -72,10 +72,10 @@ function createDetailedCharacterDescription(avatar: any): string {
   const age = physical.age || 8;
   const gender = physical.gender === "male" ? "boy" : physical.gender === "female" ? "girl" : "child";
   
-  // Physische Merkmale
-  const hairColor = physical.hairColor || "brown";
+  // Physische Merkmale - FIX: Korrekte englische Begriffe
+  const hairColor = physical.hairColor === "blond" ? "blonde" : physical.hairColor === "braun" ? "brown" : physical.hairColor || "brown";
   const hairStyle = physical.hairStyle || "short";
-  const eyeColor = physical.eyeColor || "brown";
+  const eyeColor = physical.eyeColor === "blau" ? "blue" : physical.eyeColor === "grün" ? "green" : physical.eyeColor || "brown";
   const height = physical.height || "average height";
   const build = physical.build || "slim";
   
@@ -130,20 +130,28 @@ function createEnvironmentDescription(config: StoryConfig): string {
 
 // Extrahiere Hauptaktion aus Kapitelinhalt
 function extractMainAction(content: string): string {
+  if (!content || content.length < 10) {
+    return "characters having an adventure together";
+  }
+
   // Vereinfachte Extraktion der Haupthandlung
   const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
   const actionWords = ["entdecken", "finden", "helfen", "retten", "lernen", "spielen", "bauen", "erkunden", "begegnen", "lösen"];
   
   for (const sentence of sentences) {
-    for (const action of actionWords) {
-      if (sentence.toLowerCase().includes(action)) {
-        return sentence.trim();
+    const trimmed = sentence.trim();
+    if (trimmed.length > 20) { // Mindestlänge für sinnvolle Sätze
+      for (const action of actionWords) {
+        if (sentence.toLowerCase().includes(action)) {
+          return trimmed;
+        }
       }
     }
   }
   
   // Fallback: ersten bedeutungsvollen Satz verwenden
-  return sentences[0]?.trim() || "having an adventure together";
+  const firstSentence = sentences.find(s => s.trim().length > 20);
+  return firstSentence?.trim() || "characters having an adventure together";
 }
 
 export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
@@ -283,8 +291,8 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       console.error("❌ Error in story generation:", error);
       metadata.processingTime = Date.now() - startTime;
 
-      const fallbackResult = await generateFallbackStoryWithImages(req.config, req.avatarDetails);
-      return { ...fallbackResult, metadata };
+      // ECHTER FEHLER statt Fallback - wie der User es wollte
+      throw new Error(`Story generation failed: ${error instanceof Error ? error.message : String(error)}. Please try again later.`);
     }
   }
 );
