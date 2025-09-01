@@ -196,6 +196,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
 
       // Prompts & Dimensionen vorbereiten (Cover + Kapitel)
       const coverDimensions = normalizeRunwareDimensions(600, 800);
+      const chapterDimensions = normalizeRunwareDimensions(400, 300); // FEHLENDE VARIABLE
       
       // DETAILLIERTER COVER-PROMPT (ohne Referenzbilder)
       const coverPrompt = 
