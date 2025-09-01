@@ -11,8 +11,6 @@ export interface ImageGenerationRequest {
   steps?: number;
   CFGScale?: number;
   seed?: number;
-  // Base64 or data URLs for avatar reference images to keep character identity consistent.
-  referenceImages?: string[];
   outputFormat?: "WEBP" | "PNG" | "JPEG";
   negativePrompt?: string;
 }
@@ -82,19 +80,13 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     contentType: "",
     extractedFromPath: "",
     responseStatus: 0,
-    referencesCount: req.referenceImages?.length ?? 0,
+    referencesCount: 0, // Keine Referenzbilder mehr
   };
 
   try {
-    // Validiere und optimiere Referenzbilder
-    const refImagesBase64 = (req.referenceImages ?? [])
-      .map(stripDataUrl)
-      .filter((s): s is string => !!s && s.length > 0)
-      .slice(0, 3); // Maximal 3 Referenzbilder für bessere Performance
+    console.log(`🎨 Generating image without reference images`);
 
-    console.log(`🎨 Generating image with ${refImagesBase64.length} reference images`);
-
-    // Erweiterte Runware Request mit optimierten Parametern
+    // Vereinfachte Runware Request ohne Referenzbilder
     const requestBody = {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
@@ -118,23 +110,6 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       scheduler: "DDIM", // Deterministischer Scheduler für Konsistenz
       seed: req.seed ?? Math.floor(Math.random() * 2147483647),
       
-      // Referenzbild-Integration für Charakterkonsistenz
-      ...(refImagesBase64.length > 0 && {
-        // IP-Adapter für Charakterkonsistenz
-        ipAdapters: [{
-          model: "runware:105@1", // IP-Adapter FLUX
-          guideImage: refImagesBase64[0], // Hauptreferenz
-          weight: 0.85 // Starke Gewichtung für Konsistenz
-        }],
-        
-        // Zusätzliche Referenzen als ACE++ falls verfügbar
-        referenceImages: refImagesBase64,
-        
-        // Alternative Felder für verschiedene Runware-Versionen
-        conditioning: "reference",
-        conditioningWeight: 0.8
-      }),
-
       // Erweiterte Features für bessere Qualität
       acceleratorOptions: {
         teaCache: true, // Für bessere Performance bei ähnlichen Bildern
@@ -150,8 +125,6 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
 
     debugInfo.requestSent = {
       ...requestBody,
-      ipAdapters: requestBody.ipAdapters ? `[IP-Adapter with ${requestBody.ipAdapters.length} adapters]` : undefined,
-      referenceImages: Array.isArray(requestBody.referenceImages) ? `[${requestBody.referenceImages.length} references]` : undefined,
     };
 
     console.log("📤 Runware request (sanitized):", JSON.stringify(debugInfo.requestSent, null, 2));
