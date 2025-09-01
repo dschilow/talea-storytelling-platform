@@ -249,7 +249,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
 
       return {
         taskType: "imageInference",
-        taskUUID: `batch-${index}-${crypto.randomUUID()}`,
+        taskUUID: crypto.randomUUID(), // Reine UUIDv4 ohne Prefix
         outputType: "base64Data",
         outputFormat: img.outputFormat || "WEBP",
         outputQuality: 90,
