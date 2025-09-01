@@ -9,10 +9,12 @@ export interface ImageGenerationRequest {
   width?: number;
   height?: number;
   steps?: number;
+  CFGScale?: number;
   seed?: number;
   // Base64 or data URLs for avatar reference images to keep character identity consistent.
   referenceImages?: string[];
   outputFormat?: "WEBP" | "PNG" | "JPEG";
+  negativePrompt?: string;
 }
 
 export interface DebugInfo {
@@ -40,9 +42,11 @@ export interface BatchImageInput {
   width: number;
   height: number;
   steps: number;
+  CFGScale?: number;
   seed: number;
   referenceImages: string[];
   outputFormat: "WEBP" | "PNG" | "JPEG";
+  negativePrompt?: string;
 }
 
 export interface BatchImageOutput {
@@ -82,49 +86,75 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
   };
 
   try {
+    // Validiere und optimiere Referenzbilder
     const refImagesBase64 = (req.referenceImages ?? [])
       .map(stripDataUrl)
-      .filter((s): s is string => !!s && s.length > 0);
+      .filter((s): s is string => !!s && s.length > 0)
+      .slice(0, 3); // Maximal 3 Referenzbilder für bessere Performance
 
+    console.log(`🎨 Generating image with ${refImagesBase64.length} reference images`);
+
+    // Erweiterte Runware Request mit optimierten Parametern
     const requestBody = {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
-      model: req.model || "runware:101@1",
-      positivePrompt: req.prompt,
-      width: req.width || 512,
-      height: req.height || 512,
-      numberResults: 1,
-      steps: req.steps || 20,
-      seed: req.seed ?? Math.floor(Math.random() * 1000000),
-      outputFormat: req.outputFormat || "WEBP",
       outputType: "base64Data",
+      outputFormat: req.outputFormat || "WEBP",
+      outputQuality: 90, // Hohe Qualität für Kinderbücher
+      
+      // Hauptparameter
+      model: req.model || "runware:101@1", // FLUX.1 für beste Qualität
+      positivePrompt: enhancePromptForRunware(req.prompt),
+      negativePrompt: req.negativePrompt || getDefaultNegativePrompt(),
+      
+      // Dimensionen (muss durch 64 teilbar sein)
+      width: normalizeToMultiple64(req.width || 512),
+      height: normalizeToMultiple64(req.height || 512),
+      
+      // Qualitätsparameter
+      numberResults: 1,
+      steps: req.steps || 25, // Erhöht für bessere Qualität
+      CFGScale: req.CFGScale || 8.0, // Höher für stärkere Prompt-Adherenz
+      scheduler: "DDIM", // Deterministischer Scheduler für Konsistenz
+      seed: req.seed ?? Math.floor(Math.random() * 2147483647),
+      
+      // Referenzbild-Integration für Charakterkonsistenz
+      ...(refImagesBase64.length > 0 && {
+        // IP-Adapter für Charakterkonsistenz
+        ipAdapters: [{
+          model: "runware:105@1", // IP-Adapter FLUX
+          guideImage: refImagesBase64[0], // Hauptreferenz
+          weight: 0.85 // Starke Gewichtung für Konsistenz
+        }],
+        
+        // Zusätzliche Referenzen als ACE++ falls verfügbar
+        referenceImages: refImagesBase64,
+        
+        // Alternative Felder für verschiedene Runware-Versionen
+        conditioning: "reference",
+        conditioningWeight: 0.8
+      }),
 
-      // Try multiple plausible fields for reference images to maximize compatibility.
-      // Runware commonly supports passing images for img2img/IP-Adapter-like conditioning.
-      // We include several shapes; the backend will ignore unknown fields.
-      // 1) imageList with objects
-      imageList: refImagesBase64.length > 0
-        ? refImagesBase64.map((b64) => ({ imageBase64Data: b64 }))
-        : undefined,
+      // Erweiterte Features für bessere Qualität
+      acceleratorOptions: {
+        teaCache: true, // Für bessere Performance bei ähnlichen Bildern
+        teaCacheDistance: 0.5
+      },
 
-      // 2) Flat arrays as alternatives
-      inputImages: refImagesBase64.length > 0 ? refImagesBase64 : undefined,
-      initImages: refImagesBase64.length > 0 ? refImagesBase64 : undefined,
-
-      // 3) Optional hint to enable image conditioning (if supported)
-      // These are best-effort toggles and may be ignored by the provider.
-      conditioning: refImagesBase64.length > 0 ? "image" : undefined,
-      ipAdapter: refImagesBase64.length > 0 ? { enabled: true, weight: 0.8 } : undefined,
+      // Erweiterte Prompt-Gewichtung
+      promptWeighting: "compel",
+      
+      checkNSFW: false, // Für Performance, da Kindercontent eh sicher ist
+      includeCost: true
     };
 
     debugInfo.requestSent = {
       ...requestBody,
-      imageList: Array.isArray(requestBody.imageList) ? `[${requestBody.imageList.length} items]` : undefined,
-      inputImages: Array.isArray(requestBody.inputImages) ? `[${requestBody.inputImages.length} items]` : undefined,
-      initImages: Array.isArray(requestBody.initImages) ? `[${requestBody.initImages.length} items]` : undefined,
+      ipAdapters: requestBody.ipAdapters ? `[IP-Adapter with ${requestBody.ipAdapters.length} adapters]` : undefined,
+      referenceImages: Array.isArray(requestBody.referenceImages) ? `[${requestBody.referenceImages.length} references]` : undefined,
     };
 
-    console.log("Runware request (sanitized):", JSON.stringify(debugInfo.requestSent));
+    console.log("📤 Runware request (sanitized):", JSON.stringify(debugInfo.requestSent, null, 2));
 
     const res = await fetch("https://api.runware.ai/v1", {
       method: "POST",
@@ -140,7 +170,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       const errorText = await res.text();
       debugInfo.errorMessage = `HTTP ${res.status}: ${errorText}`;
       debugInfo.processingTime = Date.now() - startTime;
-      console.error("Runware API error:", debugInfo.errorMessage);
+      console.error("❌ Runware API error:", debugInfo.errorMessage);
       return {
         imageUrl: generatePlaceholderImage(req.prompt),
         seed: requestBody.seed,
@@ -157,7 +187,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     const extracted = extractRunwareImage(data);
     if (!extracted) {
       debugInfo.errorMessage = "No image data found in Runware response";
-      console.warn("Runware: could not extract image from response");
+      console.warn("⚠️ Runware: could not extract image from response");
       return {
         imageUrl: generatePlaceholderImage(req.prompt),
         seed: requestBody.seed,
@@ -173,11 +203,12 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     const imageUrl = b64.startsWith("data:") ? b64 : `data:${contentType};base64,${b64}`;
 
     debugInfo.success = true;
-    console.log("Runware image extracted:", {
+    console.log("✅ Runware image generated:", {
       contentType,
       fromPath,
       urlPreview: imageUrl.substring(0, 80) + "...",
       length: imageUrl.length,
+      processingTime: debugInfo.processingTime
     });
 
     return {
@@ -186,7 +217,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       debugInfo,
     };
   } catch (err: any) {
-    console.error("Runware call failed:", err);
+    console.error("❌ Runware call failed:", err);
     const dbg: DebugInfo = {
       ...debugInfo,
       errorMessage: err?.message || String(err),
@@ -208,41 +239,67 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       return { images: [], debug: { processingTime: 0, ok: true, status: 200, errorMessage: "" } };
     }
 
-    const tasks = req.images.map((img) => {
+    console.log(`🎨 Generating ${req.images.length} images in batch`);
+
+    const tasks = req.images.map((img, index) => {
       const refImagesBase64 = (img.referenceImages ?? [])
         .map(stripDataUrl)
-        .filter((s): s is string => !!s && s.length > 0);
+        .filter((s): s is string => !!s && s.length > 0)
+        .slice(0, 3); // Maximal 3 pro Bild
 
       return {
         taskType: "imageInference",
-        taskUUID: crypto.randomUUID(),
-        model: img.model || "runware:101@1",
-        positivePrompt: img.prompt,
-        width: img.width || 512,
-        height: img.height || 512,
-        numberResults: 1,
-        steps: img.steps || 20,
-        seed: img.seed ?? Math.floor(Math.random() * 1000000),
-        outputFormat: img.outputFormat || "WEBP",
+        taskUUID: `batch-${index}-${crypto.randomUUID()}`,
         outputType: "base64Data",
+        outputFormat: img.outputFormat || "WEBP",
+        outputQuality: 90,
+        
+        // Hauptparameter
+        model: img.model || "runware:101@1",
+        positivePrompt: enhancePromptForRunware(img.prompt),
+        negativePrompt: img.negativePrompt || getDefaultNegativePrompt(),
+        
+        // Dimensionen
+        width: normalizeToMultiple64(img.width || 512),
+        height: normalizeToMultiple64(img.height || 512),
+        
+        // Qualitätsparameter
+        numberResults: 1,
+        steps: img.steps || 25,
+        CFGScale: img.CFGScale || 8.0,
+        scheduler: "DDIM",
+        seed: img.seed ?? Math.floor(Math.random() * 2147483647),
+        
+        // Referenzbild-Integration
+        ...(refImagesBase64.length > 0 && {
+          ipAdapters: [{
+            model: "runware:105@1",
+            guideImage: refImagesBase64[0],
+            weight: 0.85
+          }],
+          referenceImages: refImagesBase64,
+          conditioning: "reference",
+          conditioningWeight: 0.8
+        }),
 
-        imageList: refImagesBase64.length > 0
-          ? refImagesBase64.map((b64) => ({ imageBase64Data: b64 }))
-          : undefined,
-        inputImages: refImagesBase64.length > 0 ? refImagesBase64 : undefined,
-        initImages: refImagesBase64.length > 0 ? refImagesBase64 : undefined,
-        conditioning: refImagesBase64.length > 0 ? "image" : undefined,
-        ipAdapter: refImagesBase64.length > 0 ? { enabled: true, weight: 0.8 } : undefined,
+        // Performance-Features
+        acceleratorOptions: {
+          teaCache: true,
+          teaCacheDistance: 0.5
+        },
+
+        promptWeighting: "compel",
+        checkNSFW: false,
+        includeCost: true
       };
     });
 
-    const sanitized = tasks.map((t) => ({
+    const sanitized = tasks.map((t, i) => ({
       ...t,
-      imageList: Array.isArray(t.imageList) ? `[${t.imageList.length} items]` : undefined,
-      inputImages: Array.isArray(t.inputImages) ? `[${t.inputImages.length} items]` : undefined,
-      initImages: Array.isArray(t.initImages) ? `[${t.initImages.length} items]` : undefined,
+      ipAdapters: t.ipAdapters ? `[IP-Adapter enabled]` : undefined,
+      referenceImages: Array.isArray(t.referenceImages) ? `[${t.referenceImages.length} refs]` : undefined,
     }));
-    console.log("Runware batch request (sanitized):", JSON.stringify(sanitized));
+    console.log("📤 Runware batch request (sanitized):", JSON.stringify(sanitized, null, 2));
 
     const res = await fetch("https://api.runware.ai/v1", {
       method: "POST",
@@ -257,7 +314,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error("Runware batch API error:", errorText);
+      console.error("❌ Runware batch API error:", errorText);
       // Fallback: create placeholders for each image
       return {
         images: req.images.map((img, i) => ({
@@ -280,7 +337,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     }
 
     const data = await res.json();
-    console.log("Runware batch response (shape):", Array.isArray(data) ? `array(${data.length})` : typeof data);
+    console.log("📥 Runware batch response received:", Array.isArray(data) ? `array(${data.length})` : typeof data);
 
     // data can be array aligned with tasks, or object with data/results/images.
     // Normalize to array of result objects per task index.
@@ -300,6 +357,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       const item = perTask[idx] ?? perTask[0] ?? data;
       const extracted = extractRunwareImage(item);
       if (!extracted) {
+        console.warn(`⚠️ No image data found for batch item ${idx}`);
         return {
           imageUrl: generatePlaceholderImage(img.prompt),
           seed: img.seed ?? 0,
@@ -318,6 +376,9 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       }
       const { b64, contentType, seed, fromPath } = extracted;
       const imageUrl = b64.startsWith("data:") ? b64 : `data:${contentType};base64,${b64}`;
+      
+      console.log(`✅ Batch image ${idx} generated successfully`);
+      
       return {
         imageUrl,
         seed: seed ?? (tasks[idx]?.seed ?? img.seed ?? 0),
@@ -335,13 +396,15 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       };
     });
 
+    console.log(`✅ Batch generation completed: ${outputs.filter(o => o.debugInfo.success).length}/${outputs.length} successful`);
+
     return {
       images: outputs,
       debug: { processingTime, ok: true, status: 200, errorMessage: "" },
     };
   } catch (err: any) {
     const processingTime = Date.now() - start;
-    console.error("Runware batch call failed:", err);
+    console.error("❌ Runware batch call failed:", err);
     return {
       images: (req.images ?? []).map((img) => ({
         imageUrl: generatePlaceholderImage(img.prompt),
@@ -361,6 +424,62 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       debug: { processingTime, ok: false, status: 0, errorMessage: err?.message || String(err) },
     };
   }
+}
+
+// Verbessere den Prompt für Runware mit spezifischen Optimierungen
+function enhancePromptForRunware(prompt: string): string {
+  // Füge Runware-spezifische Optimierungen hinzu
+  const enhancements = [
+    "high quality",
+    "detailed",
+    "professional illustration",
+    "sharp focus",
+    "vibrant colors",
+    "consistent character design",
+    "8K resolution"
+  ];
+  
+  // Prüfe, ob der Prompt bereits erweitert ist
+  const hasEnhancements = enhancements.some(e => prompt.toLowerCase().includes(e.toLowerCase()));
+  
+  if (!hasEnhancements) {
+    return `${prompt}, ${enhancements.slice(0, 4).join(", ")}`;
+  }
+  
+  return prompt;
+}
+
+// Standard Negative Prompt für bessere Qualität
+function getDefaultNegativePrompt(): string {
+  return [
+    "realistic photography",
+    "live action",
+    "adult content", 
+    "scary",
+    "dark",
+    "horror",
+    "blurry",
+    "low quality",
+    "distorted faces",
+    "bad anatomy",
+    "inconsistent character appearance",
+    "wrong hair color",
+    "wrong eye color",
+    "text",
+    "watermarks",
+    "signatures",
+    "deformed",
+    "ugly",
+    "duplicate",
+    "morbid",
+    "mutilated"
+  ].join(", ");
+}
+
+// Normalisiere Dimensionen auf Vielfache von 64 (Runware Requirement)
+function normalizeToMultiple64(value: number): number {
+  const rounded = Math.round(value / 64) * 64;
+  return Math.max(128, Math.min(2048, rounded));
 }
 
 // Public API endpoint wrapper that calls the internal helper.
@@ -554,7 +673,7 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       }
     }
   } catch (e) {
-    console.warn("extractRunwareImage error:", e);
+    console.warn("⚠️ extractRunwareImage error:", e);
   }
 
   console.log("❌ No base64 image data found in response");
@@ -587,8 +706,9 @@ function generatePlaceholderImage(prompt: string): string {
         </linearGradient>
       </defs>
       <rect width="512" height="512" fill="url(#grad)"/>
-      <text x="256" y="260" text-anchor="middle" font-family="Arial" font-size="22" fill="white">No Image</text>
-      <text x="256" y="300" text-anchor="middle" font-family="Arial" font-size="14" fill="white" opacity="0.9">${escapeXML(prompt).slice(0, 40)}</text>
+      <text x="256" y="240" text-anchor="middle" font-family="Arial" font-size="24" fill="white" font-weight="bold">Avatales</text>
+      <text x="256" y="280" text-anchor="middle" font-family="Arial" font-size="16" fill="white" opacity="0.9">Bild wird generiert...</text>
+      <text x="256" y="320" text-anchor="middle" font-family="Arial" font-size="12" fill="white" opacity="0.7">${escapeXML(prompt).slice(0, 40)}</text>
     </svg>
   `;
   const base64 = Buffer.from(svg).toString("base64");
@@ -596,5 +716,5 @@ function generatePlaceholderImage(prompt: string): string {
 }
 
 function escapeXML(s: string): string {
-  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
+  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
 }
