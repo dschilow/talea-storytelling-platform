@@ -88,6 +88,7 @@ export interface ClientOptions {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { analyzeAvatarImage as api_ai_analyze_avatar_analyzeAvatarImage } from "~backend/ai/analyze-avatar";
 import { generateAvatarImage as api_ai_avatar_generation_generateAvatarImage } from "~backend/ai/avatar-generation";
 import {
     generateImage as api_ai_image_generation_generateImage,
@@ -101,9 +102,20 @@ export namespace ai {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.analyzeAvatarImage = this.analyzeAvatarImage.bind(this)
             this.generateAvatarImage = this.generateAvatarImage.bind(this)
             this.generateImage = this.generateImage.bind(this)
             this.generateImagesBatch = this.generateImagesBatch.bind(this)
+        }
+
+        /**
+         * Analyzes an avatar image using OpenAI Vision and returns a canonical visual profile.
+         * This profile is stored with the avatar to ensure image consistency in stories.
+         */
+        public async analyzeAvatarImage(params: RequestType<typeof api_ai_analyze_avatar_analyzeAvatarImage>): Promise<ResponseType<typeof api_ai_analyze_avatar_analyzeAvatarImage>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/analyze-avatar-image`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_analyze_avatar_analyzeAvatarImage>
         }
 
         /**
@@ -203,6 +215,7 @@ export namespace avatar {
                 name:              params.name,
                 personalityTraits: params.personalityTraits,
                 physicalTraits:    params.physicalTraits,
+                visualProfile:     params.visualProfile,
             }
 
             // Now make the actual call to the API
