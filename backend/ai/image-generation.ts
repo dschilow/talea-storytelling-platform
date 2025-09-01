@@ -716,5 +716,5 @@ function generatePlaceholderImage(prompt: string): string {
 }
 
 function escapeXML(s: string): string {
-  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
+  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
 }
