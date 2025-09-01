@@ -172,22 +172,8 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      // Referenzbilder (Avatare) zusammenstellen - nur die ersten 3 um Request-Größe zu begrenzen
-      const referenceImages = req.avatarDetails
-        .slice(0, 3) // Begrenze auf 3 Avatare um Request-Größe zu reduzieren
-        .map(a => a.imageUrl)
-        .filter((u): u is string => !!u && u.length > 0)
-        .map(url => {
-          // Komprimiere Base64-Bilder falls sie zu groß sind
-          if (url.startsWith('data:image/') && url.length > 100000) {
-            console.log("⚠️ Large image detected, skipping to reduce request size");
-            return null;
-          }
-          return url;
-        })
-        .filter((u): u is string => !!u);
-
-      console.log(`🖼️ Using ${referenceImages.length} reference images for batch generation`);
+      // Keine Referenzbilder mehr verwenden - Runware hat Probleme damit
+      console.log("🖼️ Generating images without reference images (relying on detailed prompts)");
 
       // Gemeinsamer Seed für die Geschichte (konsistente Charaktere)
       const seedBase = deterministicSeedFrom(req.avatarDetails.map(a => a.id).join("|"));
@@ -203,7 +189,7 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       // Prompts & Dimensionen vorbereiten (Cover + Kapitel)
       const coverDimensions = normalizeRunwareDimensions(600, 800);
       
-      // DETAILLIERTER COVER-PROMPT
+      // DETAILLIERTER COVER-PROMPT (ohne Referenzbilder)
       const coverPrompt = 
         `Children's book cover illustration: "${storyContent.title}". ` +
         `Main characters: ${characterDescriptions}. ` +
@@ -212,15 +198,13 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
         `Background shows the main story environment with ${req.config.genre} adventure elements. ` +
         `Art style: Disney Pixar 3D animation style, vibrant colors, magical lighting, child-friendly, professional children's book cover quality, ` +
         `expressive character faces, detailed clothing and hair, warm emotional atmosphere, age-appropriate for ${req.config.ageGroup}. ` +
-        `Characters must maintain consistent identity with reference images (same face, hair, eye color, clothing style).`;
+        `High quality, detailed, sharp focus, consistent character design.`;
 
-      const chapterDimensions = normalizeRunwareDimensions(400, 300);
-      
-      // DETAILLIERTE KAPITEL-PROMPTS
-      const chapterInputs = storyContent.chapters.map((chapter, index) => {
+      // DETAILLIERTE KAPITEL-PROMPTS (ohne Referenzbilder)
+      const chapterPrompts = storyContent.chapters.map((chapter, index) => {
         const mainAction = extractMainAction(chapter.content);
         
-        const chapterPrompt = 
+        return 
           `Children's book illustration for chapter "${chapter.title}". ` +
           `Characters: ${characterDescriptions}. ` +
           `Scene action: ${mainAction}. ` +
@@ -229,57 +213,56 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
           `showing appropriate emotions and interactions based on the story content. ` +
           `Environment details match the story's ${req.config.setting} setting with ${req.config.genre} elements. ` +
           `Art style: Disney Pixar 3D animation, warm colorful lighting, child-friendly, detailed character expressions, ` +
-          `consistent character appearance with reference images (same faces, hair, eye colors, clothing), ` +
+          `consistent character appearance (same faces, hair, eye colors, clothing), ` +
           `age-appropriate content for ${req.config.ageGroup}, professional children's book illustration quality. ` +
-          `Focus on storytelling through visual composition and character positioning.`;
+          `Focus on storytelling through visual composition and character positioning. ` +
+          `High quality, detailed, sharp focus, vibrant colors, consistent character design.`;
+      });
 
-        return {
-          prompt: chapterPrompt,
-          model: "runware:101@1",
+      console.log("🎨 Generating cover image...");
+      
+      // Cover-Bild einzeln generieren
+      const coverResponse = await ai.generateImage({
+        prompt: coverPrompt,
+        model: "runware:101@1",
+        width: coverDimensions.width,
+        height: coverDimensions.height,
+        steps: 30,
+        CFGScale: 8.5,
+        seed: seedBase,
+        outputFormat: "WEBP",
+        negativePrompt: "realistic photography, live action, adult content, scary, dark, horror, blurry, low quality, distorted faces, bad anatomy, inconsistent character appearance, text, watermarks, copyright"
+      });
+
+      console.log("📚 Generating chapter images...");
+      
+      // Kapitel-Bilder einzeln generieren
+      const chapterResponses = [];
+      for (let i = 0; i < chapterPrompts.length; i++) {
+        console.log(`🎨 Generating chapter ${i + 1}/${chapterPrompts.length}...`);
+        
+        const chapterResponse = await ai.generateImage({
+          prompt: chapterPrompts[i],
+          model: "runware:101@1", 
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 25, // Erhöht für bessere Qualität
-          CFGScale: 8.0, // Für stärkere Prompt-Adherenz
-          seed: (seedBase + index * 101) >>> 0,
-          referenceImages,
-          outputFormat: "WEBP" as const,
-          // Negative Prompts für Konsistenz
-          negativePrompt: "realistic photography, live action, adult content, scary, dark, horror, blurry, low quality, distorted faces, bad anatomy, inconsistent character appearance, wrong hair color, wrong eye color, text, watermarks"
-        };
-      });
-
-      // Batch Request: Cover + Kapitel gemeinsam in EINEM Call generieren
-      const batchReq = {
-        images: [
-          {
-            prompt: coverPrompt,
-            model: "runware:101@1",
-            width: coverDimensions.width,
-            height: coverDimensions.height,
-            steps: 30, // Erhöht für Cover-Qualität
-            CFGScale: 8.5, // Höher für Cover
-            seed: seedBase,
-            referenceImages,
-            outputFormat: "WEBP" as const,
-            negativePrompt: "realistic photography, live action, adult content, scary, dark, horror, blurry, low quality, distorted faces, bad anatomy, inconsistent character appearance, text, watermarks, copyright"
-          },
-          ...chapterInputs,
-        ],
-      };
-
-      const batchResp = await ai.generateImagesBatch(batchReq);
-      const allImages = batchResp.images;
-      if (!allImages || allImages.length !== batchReq.images.length) {
-        console.warn("⚠️ Batch response size mismatch, falling back to available results");
+          steps: 25,
+          CFGScale: 8.0,
+          seed: (seedBase + i * 101) >>> 0,
+          outputFormat: "WEBP",
+          negativePrompt: "realistic photography, live action, adult content, scary, dark, horror, blurry, low quality, distorted faces, bad anatomy, inconsistent character appearance, text, watermarks"
+        });
+        
+        chapterResponses.push(chapterResponse);
       }
 
-      const coverImageUrl = allImages[0]?.imageUrl ?? "";
-      const chaptersWithImages = storyContent.chapters.map((chapter, index) => {
-        const img = allImages[index + 1];
-        return { ...chapter, imageUrl: img?.imageUrl };
-      });
+      const coverImageUrl = coverResponse.imageUrl;
+      const chaptersWithImages = storyContent.chapters.map((chapter, index) => ({
+        ...chapter,
+        imageUrl: chapterResponses[index]?.imageUrl || ""
+      }));
 
-      metadata.imagesGenerated = allImages.length;
+      metadata.imagesGenerated = 1 + chapterResponses.length;
       const imageCostPer1 = 0.0006; // Placeholder cost
       metadata.totalCost.images = metadata.imagesGenerated * imageCostPer1;
       metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
@@ -410,12 +393,6 @@ async function generateFallbackStoryWithImages(
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
   const fallbackStory = generateFallbackStory(config, avatars, chapterCount);
 
-  // Begrenze Referenzbilder für Fallback
-  const referenceImages = avatars
-    .slice(0, 2) // Nur 2 Avatare für Fallback
-    .map(a => a.imageUrl)
-    .filter((u): u is string => !!u && u.length < 50000); // Kleinere Bilder nur
-
   const seedBase = deterministicSeedFrom(avatars.map(a => (a as any).id ?? a.name).join("|"));
   const characterDescriptions = avatars.map(avatar => createDetailedCharacterDescription(avatar)).join(". ");
   const environmentDescription = createEnvironmentDescription(config);
@@ -423,45 +400,53 @@ async function generateFallbackStoryWithImages(
   const coverDimensions = normalizeRunwareDimensions(600, 800);
   const chapterDimensions = normalizeRunwareDimensions(400, 300);
 
-  const batchReq = {
-    images: [
-      {
-        prompt: `Children's book cover: ${fallbackStory.title}. Characters: ${characterDescriptions}. Setting: ${environmentDescription}. Disney Pixar style, colorful, magical, professional quality.`,
-        model: "runware:101@1",
-        width: coverDimensions.width,
-        height: coverDimensions.height,
-        steps: 25,
-        seed: seedBase,
-        referenceImages,
-        outputFormat: "WEBP" as const,
-        negativePrompt: "realistic photography, live action, dark, scary, blurry, low quality, distorted faces"
-      },
-      ...fallbackStory.chapters.map((chapter, index) => ({
-        prompt: `Children's book illustration: ${chapter.title}. Characters: ${characterDescriptions} in ${environmentDescription}. Scene: ${extractMainAction(chapter.content)}. Disney Pixar style, detailed, colorful.`,
-        model: "runware:101@1",
-        width: chapterDimensions.width,
-        height: chapterDimensions.height,
-        steps: 20,
-        seed: (seedBase + index * 101) >>> 0,
-        referenceImages,
-        outputFormat: "WEBP" as const,
-        negativePrompt: "realistic photography, live action, dark, scary, blurry, low quality, distorted faces"
-      })),
-    ],
-  };
+  // Cover einzeln generieren
+  const coverPrompt = `Children's book cover: ${fallbackStory.title}. Characters: ${characterDescriptions}. Setting: ${environmentDescription}. Disney Pixar style, colorful, magical, professional quality.`;
+  
+  console.log("🎨 Generating fallback cover...");
+  const coverResponse = await ai.generateImage({
+    prompt: coverPrompt,
+    model: "runware:101@1",
+    width: coverDimensions.width,
+    height: coverDimensions.height,
+    steps: 25,
+    seed: seedBase,
+    outputFormat: "WEBP",
+    negativePrompt: "realistic photography, live action, dark, scary, blurry, low quality, distorted faces"
+  });
 
-  const batchResp = await ai.generateImagesBatch(batchReq);
-  const all = batchResp.images;
-  const coverImageUrl = all[0]?.imageUrl ?? "";
+  // Kapitel einzeln generieren  
+  console.log("📚 Generating fallback chapter images...");
+  const chapterImages = [];
+  for (let i = 0; i < fallbackStory.chapters.length; i++) {
+    const chapter = fallbackStory.chapters[i];
+    const chapterPrompt = `Children's book illustration: ${chapter.title}. Characters: ${characterDescriptions} in ${environmentDescription}. Scene: ${extractMainAction(chapter.content)}. Disney Pixar style, detailed, colorful.`;
+    
+    console.log(`🎨 Generating fallback chapter ${i + 1}/${fallbackStory.chapters.length}...`);
+    
+    const chapterResponse = await ai.generateImage({
+      prompt: chapterPrompt,
+      model: "runware:101@1",
+      width: chapterDimensions.width,
+      height: chapterDimensions.height,
+      steps: 20,
+      seed: (seedBase + i * 101) >>> 0,
+      outputFormat: "WEBP",
+      negativePrompt: "realistic photography, live action, dark, scary, blurry, low quality, distorted faces"
+    });
+    
+    chapterImages.push(chapterResponse);
+  }
+
   const chaptersWithImages = fallbackStory.chapters.map((chapter, i) => ({
     ...chapter,
-    imageUrl: all[i + 1]?.imageUrl,
+    imageUrl: chapterImages[i]?.imageUrl || "",
   }));
 
   return {
     title: fallbackStory.title,
     description: fallbackStory.description,
-    coverImageUrl,
+    coverImageUrl: coverResponse.imageUrl,
     chapters: chaptersWithImages,
   };
 }
