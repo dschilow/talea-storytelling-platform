@@ -5,6 +5,7 @@ import { store } from './store/store';
 
 import HomeScreen from './screens/Home/HomeScreen';
 import AvatarCreationScreen from './screens/Avatar/AvatarCreationScreen';
+import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
 import StoryWizardScreen from './screens/Story/StoryWizardScreen';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
 import Navigation from './components/navigation/Navigation';
@@ -18,6 +19,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomeScreen />} />
             <Route path="/avatar" element={<AvatarCreationScreen />} />
+            <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
             <Route path="/story" element={<StoryWizardScreen />} />
             <Route path="/story-reader/:storyId" element={<StoryReaderScreen />} />
             <Route path="/stories" element={<HomeScreen />} />

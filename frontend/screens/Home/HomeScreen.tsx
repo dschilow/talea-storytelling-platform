@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart, Clock, DollarSign, Zap } from 'lucide-react';
+import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart, Clock, DollarSign, Zap, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import Card from '../../components/common/Card';
@@ -76,6 +76,32 @@ const HomeScreen: React.FC = () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const handleDeleteAvatar = async (avatarId: string, avatarName: string) => {
+    if (window.confirm(`Möchtest du "${avatarName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      try {
+        await backend.avatar.deleteAvatar({ id: avatarId });
+        setAvatars(avatars.filter(a => a.id !== avatarId));
+        alert(`Avatar "${avatarName}" wurde erfolgreich gelöscht.`);
+      } catch (error) {
+        console.error('Error deleting avatar:', error);
+        alert('Fehler beim Löschen des Avatars. Bitte versuche es erneut.');
+      }
+    }
+  };
+
+  const handleDeleteStory = async (storyId: string, storyTitle: string) => {
+    if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      try {
+        await backend.story.deleteStory({ id: storyId });
+        setStories(stories.filter(s => s.id !== storyId));
+        alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
+      } catch (error) {
+        console.error('Error deleting story:', error);
+        alert('Fehler beim Löschen der Geschichte. Bitte versuche es erneut.');
+      }
+    }
   };
 
   const formatCurrency = (amount: number): string => {
@@ -190,6 +216,7 @@ const HomeScreen: React.FC = () => {
     minWidth: '140px',
     textAlign: 'center' as const,
     padding: `${spacing.lg}px`,
+    position: 'relative' as const,
   };
 
   const avatarImageStyle: React.CSSProperties = {
@@ -205,6 +232,41 @@ const HomeScreen: React.FC = () => {
     border: `1px solid ${colors.glass.border}`,
     boxShadow: colors.glass.shadow,
     overflow: 'hidden',
+  };
+
+  const avatarActionsStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    display: 'flex',
+    gap: spacing.xs,
+  };
+
+  const actionButtonStyle: React.CSSProperties = {
+    width: '28px',
+    height: '28px',
+    borderRadius: `${radii.pill}px`,
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '12px',
+    transition: 'all 0.2s ease',
+  };
+
+  const editButtonStyle: React.CSSProperties = {
+    ...actionButtonStyle,
+    background: colors.glass.buttonBackground,
+    color: colors.primary,
+    boxShadow: shadows.sm,
+  };
+
+  const deleteButtonStyle: React.CSSProperties = {
+    ...actionButtonStyle,
+    background: 'rgba(245, 101, 101, 0.9)',
+    color: colors.textInverse,
+    boxShadow: shadows.sm,
   };
 
   const storyGridStyle: React.CSSProperties = {
@@ -231,6 +293,12 @@ const HomeScreen: React.FC = () => {
     background: colors.glass.cardBackground,
     boxShadow: colors.glass.shadow,
     overflow: 'hidden',
+  };
+
+  const storyActionsStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
   };
 
   const metadataStyle: React.CSSProperties = {
@@ -403,6 +471,36 @@ const HomeScreen: React.FC = () => {
               {avatars.map((avatar, index) => (
                 <FadeInView key={avatar.id} delay={300 + index * 50}>
                   <Card variant="glass" style={avatarCardStyle}>
+                    <div style={avatarActionsStyle}>
+                      <button
+                        style={editButtonStyle}
+                        onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
+                        title="Avatar bearbeiten"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        style={deleteButtonStyle}
+                        onClick={() => handleDeleteAvatar(avatar.id, avatar.name)}
+                        title="Avatar löschen"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.background = '#F56565';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.background = 'rgba(245, 101, 101, 0.9)';
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                     <div style={avatarImageStyle}>
                       {avatar.imageUrl ? (
                         <img 
@@ -457,6 +555,26 @@ const HomeScreen: React.FC = () => {
               {stories.map((story, index) => (
                 <FadeInView key={story.id} delay={400 + index * 50}>
                   <Card variant="glass" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
+                    <div style={storyActionsStyle}>
+                      <button
+                        style={deleteButtonStyle}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteStory(story.id, story.title);
+                        }}
+                        title="Geschichte löschen"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.background = '#F56565';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.background = 'rgba(245, 101, 101, 0.9)';
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                     <div style={storyCoverStyle}>
                       {story.coverImageUrl ? (
                         <img 
@@ -471,7 +589,7 @@ const HomeScreen: React.FC = () => {
                         <div style={{
                           position: 'absolute',
                           top: `${spacing.sm}px`,
-                          right: `${spacing.sm}px`,
+                          left: `${spacing.sm}px`,
                           background: colors.glass.badgeBackground,
                           color: colors.textPrimary,
                           padding: `${spacing.xs}px ${spacing.sm}px`,
