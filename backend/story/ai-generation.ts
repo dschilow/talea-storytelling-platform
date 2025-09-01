@@ -63,6 +63,89 @@ function deterministicSeedFrom(str: string): number {
   return Math.abs(hash >>> 0);
 }
 
+// Erstelle detaillierte Charakterbeschreibung für Prompts
+function createDetailedCharacterDescription(avatar: any): string {
+  const physical = avatar.physicalTraits || {};
+  const personality = avatar.personalityTraits || {};
+  
+  // Alter und Geschlecht
+  const age = physical.age || 8;
+  const gender = physical.gender === "male" ? "boy" : physical.gender === "female" ? "girl" : "child";
+  
+  // Physische Merkmale
+  const hairColor = physical.hairColor || "brown";
+  const hairStyle = physical.hairStyle || "short";
+  const eyeColor = physical.eyeColor || "brown";
+  const height = physical.height || "average height";
+  const build = physical.build || "slim";
+  
+  // Besondere Merkmale
+  const specialFeatures = [];
+  if (physical.glasses) specialFeatures.push("wearing glasses");
+  if (physical.freckles) specialFeatures.push("with freckles");
+  if (physical.dimples) specialFeatures.push("with dimples");
+  if (physical.gap_teeth) specialFeatures.push("with gap between front teeth");
+  if (physical.scar) specialFeatures.push(`with small scar on ${physical.scar_location || "face"}`);
+  
+  // Kleidungsstil
+  const clothing = physical.clothingStyle || "casual comfortable clothes";
+  
+  // Persönlichkeitsmerkmale für Ausdruck
+  const topPersonality = Object.entries(personality)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
+    .slice(0, 3)
+    .map(([trait]) => trait)
+    .join(", ");
+  
+  const description = `${avatar.name}: ${age}-year-old ${gender} with ${hairStyle} ${hairColor} hair, ${eyeColor} eyes, ${height}, ${build} build${specialFeatures.length > 0 ? ', ' + specialFeatures.join(', ') : ''}, wearing ${clothing}, personality: ${topPersonality}`;
+  
+  return description;
+}
+
+// Erstelle Genre- und Setting-spezifische Umgebungsdetails
+function createEnvironmentDescription(config: StoryConfig): string {
+  const genreElements: Record<string, string> = {
+    adventure: "exciting outdoor adventure elements, hiking gear, maps, compass, backpacks, natural obstacles",
+    fantasy: "magical elements, glowing crystals, mystical creatures, enchanted forests, floating objects, sparkles",
+    mystery: "mysterious atmosphere, magnifying glass, clues, detective equipment, shadowy corners, question marks",
+    friendship: "warm cozy environments, shared activities, group interactions, comfortable settings",
+    learning: "educational elements, books, learning tools, discovery objects, bright cheerful classrooms"
+  };
+  
+  const settingElements: Record<string, string> = {
+    forest: "dense woodland, tall trees, forest floor with leaves, woodland creatures, dappled sunlight",
+    city: "urban environment, buildings, streets, parks, city landmarks, modern architecture",
+    school: "classrooms, desks, blackboards, school supplies, hallways, playground equipment",
+    home: "cozy interior, furniture, family photos, comfortable living spaces, kitchen, garden",
+    fantasy_world: "magical landscape, floating islands, crystal caves, rainbow bridges, talking animals",
+    beach: "sandy shore, ocean waves, seashells, beach umbrellas, sandcastles, seabirds",
+    mountains: "rocky peaks, hiking trails, mountain wildlife, scenic vistas, camping equipment"
+  };
+  
+  const genre = genreElements[config.genre] || "general adventure elements";
+  const setting = settingElements[config.setting] || "outdoor natural environment";
+  
+  return `${setting}, ${genre}`;
+}
+
+// Extrahiere Hauptaktion aus Kapitelinhalt
+function extractMainAction(content: string): string {
+  // Vereinfachte Extraktion der Haupthandlung
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  const actionWords = ["entdecken", "finden", "helfen", "retten", "lernen", "spielen", "bauen", "erkunden", "begegnen", "lösen"];
+  
+  for (const sentence of sentences) {
+    for (const action of actionWords) {
+      if (sentence.toLowerCase().includes(action)) {
+        return sentence.trim();
+      }
+    }
+  }
+  
+  // Fallback: ersten bedeutungsvollen Satz verwenden
+  return sentences[0]?.trim() || "having an adventure together";
+}
+
 export const generateStoryContent = api<GenerateStoryContentRequest, GenerateStoryContentResponse>(
   { expose: true, method: "POST", path: "/ai/generate-story" },
   async (req) => {
@@ -109,29 +192,61 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
       // Gemeinsamer Seed für die Geschichte (konsistente Charaktere)
       const seedBase = deterministicSeedFrom(req.avatarDetails.map(a => a.id).join("|"));
 
+      // Detaillierte Charakterbeschreibungen erstellen
+      const characterDescriptions = req.avatarDetails
+        .map(avatar => createDetailedCharacterDescription(avatar))
+        .join(". ");
+
+      // Umgebungsbeschreibung basierend auf Genre und Setting
+      const environmentDescription = createEnvironmentDescription(req.config);
+
       // Prompts & Dimensionen vorbereiten (Cover + Kapitel)
       const coverDimensions = normalizeRunwareDimensions(600, 800);
-      const coverPrompt =
-        `Children's book cover illustration for "${storyContent.title}". ` +
-        `Keep character identity consistent with the provided reference images (same faces, hair, and outfits). ` +
-        `${req.config.genre} adventure, ${req.config.setting} setting, ` +
-        `Disney Pixar 3D animation style, colorful, magical, child-friendly, high quality, safe for children.`;
+      
+      // DETAILLIERTER COVER-PROMPT
+      const coverPrompt = 
+        `Children's book cover illustration: "${storyContent.title}". ` +
+        `Main characters: ${characterDescriptions}. ` +
+        `Story setting: ${environmentDescription}. ` +
+        `Cover scene: The characters are positioned prominently in the foreground, showing their characteristic expressions and poses that reflect their personalities. ` +
+        `Background shows the main story environment with ${req.config.genre} adventure elements. ` +
+        `Art style: Disney Pixar 3D animation style, vibrant colors, magical lighting, child-friendly, professional children's book cover quality, ` +
+        `expressive character faces, detailed clothing and hair, warm emotional atmosphere, age-appropriate for ${req.config.ageGroup}. ` +
+        `Characters must maintain consistent identity with reference images (same face, hair, eye color, clothing style).`;
 
       const chapterDimensions = normalizeRunwareDimensions(400, 300);
-      const chapterInputs = storyContent.chapters.map((chapter, index) => ({
-        prompt:
-          `Children's book illustration for the scene "${chapter.title}". ` +
-          `The main characters must look identical to the reference images (same child identity, hairstyle, hair color, skin tone, eye color, clothing style). ` +
-          `${req.config.genre} story scene, ${req.config.setting} background, ` +
-          `Disney Pixar 3D animation style, colorful, magical, child-friendly, safe for children, high quality.`,
-        model: "runware:101@1",
-        width: chapterDimensions.width,
-        height: chapterDimensions.height,
-        steps: 20,
-        seed: (seedBase + index * 101) >>> 0,
-        referenceImages,
-        outputFormat: "WEBP" as const,
-      }));
+      
+      // DETAILLIERTE KAPITEL-PROMPTS
+      const chapterInputs = storyContent.chapters.map((chapter, index) => {
+        const mainAction = extractMainAction(chapter.content);
+        
+        const chapterPrompt = 
+          `Children's book illustration for chapter "${chapter.title}". ` +
+          `Characters: ${characterDescriptions}. ` +
+          `Scene action: ${mainAction}. ` +
+          `Setting: ${environmentDescription}. ` +
+          `Specific scene: The characters are actively engaged in the chapter's main activity, ` +
+          `showing appropriate emotions and interactions based on the story content. ` +
+          `Environment details match the story's ${req.config.setting} setting with ${req.config.genre} elements. ` +
+          `Art style: Disney Pixar 3D animation, warm colorful lighting, child-friendly, detailed character expressions, ` +
+          `consistent character appearance with reference images (same faces, hair, eye colors, clothing), ` +
+          `age-appropriate content for ${req.config.ageGroup}, professional children's book illustration quality. ` +
+          `Focus on storytelling through visual composition and character positioning.`;
+
+        return {
+          prompt: chapterPrompt,
+          model: "runware:101@1",
+          width: chapterDimensions.width,
+          height: chapterDimensions.height,
+          steps: 25, // Erhöht für bessere Qualität
+          CFGScale: 8.0, // Für stärkere Prompt-Adherenz
+          seed: (seedBase + index * 101) >>> 0,
+          referenceImages,
+          outputFormat: "WEBP" as const,
+          // Negative Prompts für Konsistenz
+          negativePrompt: "realistic photography, live action, adult content, scary, dark, horror, blurry, low quality, distorted faces, bad anatomy, inconsistent character appearance, wrong hair color, wrong eye color, text, watermarks"
+        };
+      });
 
       // Batch Request: Cover + Kapitel gemeinsam in EINEM Call generieren
       const batchReq = {
@@ -141,10 +256,12 @@ export const generateStoryContent = api<GenerateStoryContentRequest, GenerateSto
             model: "runware:101@1",
             width: coverDimensions.width,
             height: coverDimensions.height,
-            steps: 25,
+            steps: 30, // Erhöht für Cover-Qualität
+            CFGScale: 8.5, // Höher für Cover
             seed: seedBase,
             referenceImages,
             outputFormat: "WEBP" as const,
+            negativePrompt: "realistic photography, live action, adult content, scary, dark, horror, blurry, low quality, distorted faces, bad anatomy, inconsistent character appearance, text, watermarks, copyright"
           },
           ...chapterInputs,
         ],
@@ -199,7 +316,9 @@ async function generateStoryWithOpenAI(
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  const systemPrompt = "Du bist ein professioneller Kinderbuchautor. Erstelle Geschichten im JSON-Format basierend auf den gegebenen Parametern. Halte die Inhalte kindgerecht und sicher.";
+  const systemPrompt = `Du bist ein professioneller Kinderbuchautor. Erstelle detaillierte, bildreiche Geschichten im JSON-Format. 
+Jedes Kapitel soll konkrete, visuelle Szenen enthalten, die sich gut für Illustrationen eignen. 
+Verwende lebendige Beschreibungen von Orten, Handlungen und Charakterinteraktionen.`;
 
   const userPrompt = `Erstelle eine ${config.genre} Geschichte in ${config.setting} für die Altersgruppe ${config.ageGroup}.
 
@@ -215,7 +334,12 @@ ${config?.learningMode?.enabled ?
 - Schwierigkeit: ${config.learningMode.difficulty}
 - Lernziele: ${config.learningMode.learningObjectives.join(", ")}` : ""}
 
-Wichtig: Die Charaktere sollen über die Kapitel hinweg konsistent bleiben (Aussehen, Merkmale, Persönlichkeit).
+WICHTIGE ANFORDERUNGEN:
+1. Jedes Kapitel soll eine konkrete, visuelle Szene beschreiben
+2. Charaktere sollen konsistent bleiben (Aussehen, Merkmale, Persönlichkeit)
+3. Beschreibe spezifische Handlungen, Orte und Gegenstände für bessere Bildgenerierung
+4. Verwende lebendige, kindgerechte Sprache
+5. Jedes Kapitel soll zwischen 200-800 Zeichen haben
 
 Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
 {
@@ -224,7 +348,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
   "chapters": [
     {
       "title": "Kapitel Titel",
-      "content": "Kapitel Inhalt (150-1200 Zeichen)",
+      "content": "Detaillierter Kapitel Inhalt mit konkreten visuellen Szenen und Handlungen (200-800 Zeichen)",
       "order": 0
     }
   ]
@@ -243,11 +367,10 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
         { role: "user", content: userPrompt }
       ],
       // GPT-5-nano spezifische Parameter
-      max_completion_tokens: 2400,  // Geändert von max_tokens für GPT-5
+      max_completion_tokens: 3000,  // Erhöht für detailliertere Inhalte
       response_format: { type: "json_object" },
       reasoning_effort: "minimal",   // Für Kostenoptimierung bei GPT-5-nano
       verbosity: "medium"            // Ausgewogene Ausgabelänge für GPT-5-nano
-      // temperature wird nicht gesetzt - GPT-5-nano verwendet Default (1.0)
     }),
   });
 
@@ -294,6 +417,8 @@ async function generateFallbackStoryWithImages(
     .filter((u): u is string => !!u && u.length < 50000); // Kleinere Bilder nur
 
   const seedBase = deterministicSeedFrom(avatars.map(a => (a as any).id ?? a.name).join("|"));
+  const characterDescriptions = avatars.map(avatar => createDetailedCharacterDescription(avatar)).join(". ");
+  const environmentDescription = createEnvironmentDescription(config);
 
   const coverDimensions = normalizeRunwareDimensions(600, 800);
   const chapterDimensions = normalizeRunwareDimensions(400, 300);
@@ -301,7 +426,7 @@ async function generateFallbackStoryWithImages(
   const batchReq = {
     images: [
       {
-        prompt: `Children's book cover, ${config.genre} story, colorful, magical. Keep characters consistent with reference images.`,
+        prompt: `Children's book cover: ${fallbackStory.title}. Characters: ${characterDescriptions}. Setting: ${environmentDescription}. Disney Pixar style, colorful, magical, professional quality.`,
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
@@ -309,9 +434,10 @@ async function generateFallbackStoryWithImages(
         seed: seedBase,
         referenceImages,
         outputFormat: "WEBP" as const,
+        negativePrompt: "realistic photography, live action, dark, scary, blurry, low quality, distorted faces"
       },
       ...fallbackStory.chapters.map((chapter, index) => ({
-        prompt: `Children's book illustration, chapter ${index + 1}, ${config.genre} story. Match reference characters.`,
+        prompt: `Children's book illustration: ${chapter.title}. Characters: ${characterDescriptions} in ${environmentDescription}. Scene: ${extractMainAction(chapter.content)}. Disney Pixar style, detailed, colorful.`,
         model: "runware:101@1",
         width: chapterDimensions.width,
         height: chapterDimensions.height,
@@ -319,6 +445,7 @@ async function generateFallbackStoryWithImages(
         seed: (seedBase + index * 101) >>> 0,
         referenceImages,
         outputFormat: "WEBP" as const,
+        negativePrompt: "realistic photography, live action, dark, scary, blurry, low quality, distorted faces"
       })),
     ],
   };
@@ -384,7 +511,7 @@ function generateFallbackStory(
 
   const chapters = Array.from({ length: chapterCount }, (_, i) => ({
     title: `Kapitel ${i + 1}: ${getChapterTitle(i)}`,
-    content: generateChapterContent(i, config, avatars),
+    content: generateDetailedChapterContent(i, config, avatars),
     order: i,
   }));
 
@@ -405,26 +532,28 @@ function getChapterTitle(index: number): string {
   return titles[index] || `Kapitel ${index + 1}`;
 }
 
-function generateChapterContent(
+function generateDetailedChapterContent(
   index: number,
   config: StoryConfig,
   avatars: Array<{ name: string; physicalTraits: any; personalityTraits: any }>
 ): string {
-  const names = avatars.map((a) => a.name).join(", ");
+  const names = avatars.map((a) => a.name).join(" und ");
 
-  const baseContent = `In diesem aufregenden Kapitel erleben ${names} spannende Abenteuer in ${config.setting}. 
+  // Kapitel-spezifische Szenen für bessere Bildgenerierung
+  const scenes = [
+    `${names} stehen vor einem großen, alten Baum mit einer geheimnisvollen Tür im Stamm. Sie schauen sich neugierig an und fassen sich an den Händen, bevor sie mutig durch die Tür treten.`,
+    `Die Freunde entdecken eine funkelnde Höhle voller bunter Kristalle. ${names} halten kleine Taschenlampen in den Händen und bestaunen staunend die glitzernden Wände um sie herum.`,
+    `Plötzlich hören sie ein leises Wimmern. ${names} folgen dem Geräusch und finden ein kleines, verletztes Waldtier zwischen den Büschen. Vorsichtig nähern sie sich, um zu helfen.`,
+    `Gemeinsam bauen ${names} eine kleine Brücke aus Ästen und Steinen über einen Bach. Sie arbeiten Hand in Hand und ermutigen sich gegenseitig bei der schwierigen Aufgabe.`,
+    `Die größte Herausforderung wartet auf sie: Ein steiler Berg versperrt den Weg. ${names} schauen hinauf, packen ihre Rucksäcke fester und beginnen gemeinsam den Aufstieg.`,
+    `Oben angekommen, umarmen sich ${names} glücklich und schauen über die wunderschöne Landschaft. Sie haben es geschafft und sind stolz aufeinander.`,
+    `Bei Sonnenuntergang sitzen ${names} um ein kleines Lagerfeuer und erzählen sich von ihrem großen Abenteuer. Die Sterne beginnen zu funkeln und sie lächeln zufrieden.`,
+    `Zurück zu Hause angekommen, zeigen ${names} ihren Eltern stolz die Schätze und Erinnerungen, die sie mitgebracht haben. Ein neues Abenteuer wartet schon auf sie.`
+  ];
 
-Die Freunde müssen zusammenarbeiten und ihre besonderen Fähigkeiten einsetzen, um die Herausforderungen zu meistern. Jeder von ihnen bringt seine eigenen Stärken mit ein, und gemeinsam sind sie unschlagbar.
+  const baseScene = scenes[index] || scenes[index % scenes.length];
 
-Während sie ihr Abenteuer fortsetzen, lernen sie wichtige Lektionen über Freundschaft, Mut und Zusammenhalt. Die Welt um sie herum ist voller Wunder und Überraschungen, die darauf warten, entdeckt zu werden.${
-    config?.learningMode?.enabled
-      ? `
-
-In diesem Kapitel lernen wir auch etwas Wichtiges: ${config.learningMode.learningObjectives.join(", ")}.`
-      : ""
-  }
-
-Mit Mut, Freundschaft und einem Lächeln können unsere Helden jede Herausforderung meistern!`;
-
-  return baseContent;
+  return baseScene + (config?.learningMode?.enabled 
+    ? ` Dabei lernen sie wichtiges über ${config.learningMode.learningObjectives.join(" und ")}.` 
+    : " Mit Mut und Freundschaft können sie jede Herausforderung meistern!");
 }
