@@ -86,41 +86,25 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
   try {
     console.log(`🎨 Generating image without reference images`);
 
-    // Vereinfachte Runware Request ohne Referenzbilder
+    // Einfache, funktionierende Runware Request
     const requestBody = {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
       outputType: "base64Data",
       outputFormat: req.outputFormat || "WEBP",
-      outputQuality: 90, // Hohe Qualität für Kinderbücher
       
-      // Hauptparameter
-      model: req.model || "runware:101@1", // FLUX.1 für beste Qualität
-      positivePrompt: enhancePromptForRunware(req.prompt),
-      negativePrompt: req.negativePrompt || getDefaultNegativePrompt(),
+      // Nur die Basis-Parameter die funktionieren
+      model: req.model || "runware:101@1",
+      positivePrompt: req.prompt, // Direkt ohne Enhancement
+      negativePrompt: req.negativePrompt,
       
-      // Dimensionen (muss durch 64 teilbar sein)
       width: normalizeToMultiple64(req.width || 512),
       height: normalizeToMultiple64(req.height || 512),
       
-      // Qualitätsparameter
       numberResults: 1,
-      steps: req.steps || 25, // Erhöht für bessere Qualität
-      CFGScale: req.CFGScale || 8.0, // Höher für stärkere Prompt-Adherenz
-      scheduler: "DDIM", // Deterministischer Scheduler für Konsistenz
+      steps: req.steps || 20,
+      CFGScale: req.CFGScale || 7.5,
       seed: req.seed ?? Math.floor(Math.random() * 2147483647),
-      
-      // Erweiterte Features für bessere Qualität
-      acceleratorOptions: {
-        teaCache: true, // Für bessere Performance bei ähnlichen Bildern
-        teaCacheDistance: 0.5
-      },
-
-      // Erweiterte Prompt-Gewichtung
-      promptWeighting: "compel",
-      
-      checkNSFW: false, // Für Performance, da Kindercontent eh sicher ist
-      includeCost: true
     };
 
     debugInfo.requestSent = {
