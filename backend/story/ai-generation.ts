@@ -568,7 +568,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          max_completion_tokens: 4000,
+          max_completion_tokens: 8000,  // Increased from 4000
           response_format: { type: "json_object" },
           reasoning_effort: "medium",
           verbosity: "high"
@@ -582,10 +582,15 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
       }
 
       const data = await response.json();
-      const content = data.choices[0]?.message?.content;
+      const choice = data.choices[0];
+      const content = choice?.message?.content;
+      const finishReason = choice?.finish_reason;
 
       if (!content) {
-        throw new Error("Leere Antwort von OpenAI erhalten.");
+        if (finishReason === 'content_filter') {
+          throw new Error("OpenAI-Antwort wurde aufgrund von Inhaltsfiltern blockiert.");
+        }
+        throw new Error(`Leere Antwort von OpenAI erhalten. Finish reason: ${finishReason ?? 'unbekannt'}`);
       }
 
       let parsed;
@@ -595,7 +600,7 @@ Antworte NUR mit einem gültigen JSON-Objekt in folgendem Format:
       } catch (e) {
         console.error(`JSON Parse Fehler (Attempt ${attempt}):`, e);
         console.error("Raw content:", content);
-        throw new Error(`JSON Parse Fehler: ${e instanceof Error ? e.message : String(e)}`);
+        throw new Error(`JSON Parse Fehler: ${e instanceof Error ? e.message : String(e)}. Finish reason: ${finishReason ?? 'unbekannt'}`);
       }
 
       // Success!
