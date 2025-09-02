@@ -11,7 +11,8 @@ export interface LogEvent {
 }
 
 // logBucket is the storage for our structured logs.
-export const logBucket = new Bucket("ai-logs", {
+// Using a more specific name to avoid potential conflicts.
+export const logBucket = new Bucket("avatales-ai-logs", {
   public: false,
 });
 
@@ -24,7 +25,10 @@ export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", 
   handler: async (event, context) => {
     console.log(`📝 Received log event from source: ${event.source}`);
     const id = context.message.id || crypto.randomUUID();
-    const path = `${event.source}/${event.timestamp.toISOString().split('T')[0]}/${event.timestamp.toISOString()}_${id}.json`;
+    
+    // Create a safe filename by replacing colons.
+    const safeTimestamp = event.timestamp.toISOString().replace(/:/g, '-');
+    const path = `${event.source}/${event.timestamp.toISOString().split('T')[0]}/${safeTimestamp}_${id}.json`;
     
     const logContent = {
       id,
@@ -35,7 +39,7 @@ export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", 
       await logBucket.upload(path, Buffer.from(JSON.stringify(logContent, null, 2)), {
         contentType: "application/json",
       });
-      console.log(`✅ Logged event to gs://ai-logs/${path}`);
+      console.log(`✅ Logged event to bucket 'avatales-ai-logs' at path: ${path}`);
     } catch (err) {
       console.error(`❌ Failed to log event to bucket:`, err);
       // Encore will automatically retry the message if the handler throws an error.
