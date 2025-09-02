@@ -102,7 +102,7 @@ ${req.hints.physicalTraits ? `- Physical: ${JSON.stringify(req.hints.physicalTra
 ${req.hints.personalityTraits ? `- Personality: ${JSON.stringify(req.hints.personalityTraits)}` : ""}` : "";
 
     const payload = {
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano",
       messages: [
         { role: "system", content: system },
         {
