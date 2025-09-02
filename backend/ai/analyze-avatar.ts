@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { AvatarVisualProfile, PhysicalTraits, PersonalityTraits } from "../avatar/create";
+import { logTopic } from "../log/logger";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -136,6 +137,13 @@ ${req.hints.personalityTraits ? `- Personality: ${JSON.stringify(req.hints.perso
       console.error("❌ Empty analyze response from OpenAI");
       throw new Error("Empty analyze response");
     }
+
+    await logTopic.publish({
+      source: 'openai-avatar-analysis',
+      timestamp: new Date(),
+      request: payload,
+      response: data,
+    });
 
     let parsed: AvatarVisualProfile;
     try {

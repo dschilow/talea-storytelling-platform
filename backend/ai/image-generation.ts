@@ -1,5 +1,6 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
+import { logTopic } from "../log/logger";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -83,34 +84,28 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     referencesCount: 0, // Keine Referenzbilder mehr
   };
 
+  const requestBody = {
+    taskType: "imageInference",
+    taskUUID: crypto.randomUUID(),
+    outputType: "base64Data",
+    outputFormat: req.outputFormat || "WEBP",
+    
+    model: req.model || "runware:101@1",
+    positivePrompt: req.prompt,
+    negativePrompt: req.negativePrompt,
+    
+    width: normalizeToMultiple64(req.width || 512),
+    height: normalizeToMultiple64(req.height || 512),
+    
+    numberResults: 1,
+    steps: req.steps || 20,
+    CFGScale: req.CFGScale || 7.5,
+    seed: req.seed ?? Math.floor(Math.random() * 2147483647),
+  };
+
   try {
     console.log(`🎨 Generating image without reference images`);
-
-    // Einfache, funktionierende Runware Request
-    const requestBody = {
-      taskType: "imageInference",
-      taskUUID: crypto.randomUUID(),
-      outputType: "base64Data",
-      outputFormat: req.outputFormat || "WEBP",
-      
-      // Nur die Basis-Parameter die funktionieren
-      model: req.model || "runware:101@1",
-      positivePrompt: req.prompt, // Direkt ohne Enhancement
-      negativePrompt: req.negativePrompt,
-      
-      width: normalizeToMultiple64(req.width || 512),
-      height: normalizeToMultiple64(req.height || 512),
-      
-      numberResults: 1,
-      steps: req.steps || 20,
-      CFGScale: req.CFGScale || 7.5,
-      seed: req.seed ?? Math.floor(Math.random() * 2147483647),
-    };
-
-    debugInfo.requestSent = {
-      ...requestBody,
-    };
-
+    debugInfo.requestSent = { ...requestBody };
     console.log("📤 Runware request (sanitized):", JSON.stringify(debugInfo.requestSent, null, 2));
 
     const res = await fetch("https://api.runware.ai/v1", {
@@ -123,9 +118,24 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     });
 
     debugInfo.responseStatus = res.status;
+    const responseText = await res.text();
+
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      data = { error: "Failed to parse JSON response", response: responseText };
+    }
+
+    await logTopic.publish({
+      source: 'runware-single-image',
+      timestamp: new Date(),
+      request: requestBody,
+      response: data,
+    });
+
     if (!res.ok) {
-      const errorText = await res.text();
-      debugInfo.errorMessage = `HTTP ${res.status}: ${errorText}`;
+      debugInfo.errorMessage = `HTTP ${res.status}: ${responseText}`;
       debugInfo.processingTime = Date.now() - startTime;
       console.error("❌ Runware API error:", debugInfo.errorMessage);
       return {
@@ -135,12 +145,9 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       };
     }
 
-    // Parse JSON response
-    const data = await res.json();
     debugInfo.responseReceived = data;
     debugInfo.processingTime = Date.now() - startTime;
 
-    // Extract the base64 image and content type from various possible response shapes.
     const extracted = extractRunwareImage(data);
     if (!extracted) {
       debugInfo.errorMessage = "No image data found in Runware response";
@@ -156,7 +163,6 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     debugInfo.contentType = contentType || "";
     debugInfo.extractedFromPath = fromPath || "";
 
-    // If the b64 already looks like a data URL, use as-is; otherwise wrap.
     const imageUrl = b64.startsWith("data:") ? b64 : `data:${contentType};base64,${b64}`;
 
     debugInfo.success = true;
@@ -191,67 +197,48 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
 // Batch helper to generate multiple images in a single Runware request.
 export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): Promise<BatchGenerationResponse> {
   const start = Date.now();
+  const tasks = (req.images || []).map((img) => {
+    const refImagesBase64 = (img.referenceImages ?? [])
+      .map(stripDataUrl)
+      .filter((s): s is string => !!s && s.length > 0)
+      .slice(0, 3);
+
+    return {
+      taskType: "imageInference",
+      taskUUID: crypto.randomUUID(),
+      outputType: "base64Data",
+      outputFormat: img.outputFormat || "WEBP",
+      outputQuality: 90,
+      model: img.model || "runware:101@1",
+      positivePrompt: enhancePromptForRunware(img.prompt),
+      negativePrompt: img.negativePrompt || getDefaultNegativePrompt(),
+      width: normalizeToMultiple64(img.width || 512),
+      height: normalizeToMultiple64(img.height || 512),
+      numberResults: 1,
+      steps: img.steps || 25,
+      CFGScale: img.CFGScale || 8.0,
+      scheduler: "DDIM",
+      seed: img.seed ?? Math.floor(Math.random() * 2147483647),
+      ...(refImagesBase64.length > 0 && {
+        ipAdapters: [{ model: "runware:105@1", guideImage: refImagesBase64[0], weight: 0.85 }],
+        referenceImages: refImagesBase64,
+        conditioning: "reference",
+        conditioningWeight: 0.8
+      }),
+      acceleratorOptions: { teaCache: true, teaCacheDistance: 0.5 },
+      promptWeighting: "compel",
+      checkNSFW: false,
+      includeCost: true
+    };
+  });
+
   try {
-    if (!req.images || req.images.length === 0) {
+    if (tasks.length === 0) {
       return { images: [], debug: { processingTime: 0, ok: true, status: 200, errorMessage: "" } };
     }
 
-    console.log(`🎨 Generating ${req.images.length} images in batch`);
-
-    const tasks = req.images.map((img, index) => {
-      const refImagesBase64 = (img.referenceImages ?? [])
-        .map(stripDataUrl)
-        .filter((s): s is string => !!s && s.length > 0)
-        .slice(0, 3); // Maximal 3 pro Bild
-
-      return {
-        taskType: "imageInference",
-        taskUUID: crypto.randomUUID(), // Reine UUIDv4 ohne Prefix
-        outputType: "base64Data",
-        outputFormat: img.outputFormat || "WEBP",
-        outputQuality: 90,
-        
-        // Hauptparameter
-        model: img.model || "runware:101@1",
-        positivePrompt: enhancePromptForRunware(img.prompt),
-        negativePrompt: img.negativePrompt || getDefaultNegativePrompt(),
-        
-        // Dimensionen
-        width: normalizeToMultiple64(img.width || 512),
-        height: normalizeToMultiple64(img.height || 512),
-        
-        // Qualitätsparameter
-        numberResults: 1,
-        steps: img.steps || 25,
-        CFGScale: img.CFGScale || 8.0,
-        scheduler: "DDIM",
-        seed: img.seed ?? Math.floor(Math.random() * 2147483647),
-        
-        // Referenzbild-Integration
-        ...(refImagesBase64.length > 0 && {
-          ipAdapters: [{
-            model: "runware:105@1",
-            guideImage: refImagesBase64[0],
-            weight: 0.85
-          }],
-          referenceImages: refImagesBase64,
-          conditioning: "reference",
-          conditioningWeight: 0.8
-        }),
-
-        // Performance-Features
-        acceleratorOptions: {
-          teaCache: true,
-          teaCacheDistance: 0.5
-        },
-
-        promptWeighting: "compel",
-        checkNSFW: false,
-        includeCost: true
-      };
-    });
-
-    const sanitized = tasks.map((t, i) => ({
+    console.log(`🎨 Generating ${tasks.length} images in batch`);
+    const sanitized = tasks.map((t) => ({
       ...t,
       ipAdapters: t.ipAdapters ? `[IP-Adapter enabled]` : undefined,
       referenceImages: Array.isArray(t.referenceImages) ? `[${t.referenceImages.length} refs]` : undefined,
@@ -260,19 +247,28 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
 
     const res = await fetch("https://api.runware.ai/v1", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${runwareApiKey()}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${runwareApiKey()}` },
       body: JSON.stringify(tasks),
     });
 
     const processingTime = Date.now() - start;
+    const responseText = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      data = { error: "Failed to parse JSON response", response: responseText };
+    }
+
+    await logTopic.publish({
+      source: 'runware-batch-image',
+      timestamp: new Date(),
+      request: tasks,
+      response: data,
+    });
 
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error("❌ Runware batch API error:", errorText);
-      // Fallback: create placeholders for each image
+      console.error("❌ Runware batch API error:", responseText);
       return {
         images: req.images.map((img, i) => ({
           imageUrl: generatePlaceholderImage(img.prompt),
@@ -282,33 +278,24 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
             responseReceived: null,
             processingTime,
             success: false,
-            errorMessage: `HTTP ${res.status}: ${errorText}`,
+            errorMessage: `HTTP ${res.status}: ${responseText}`,
             contentType: "",
             extractedFromPath: "",
             responseStatus: res.status,
             referencesCount: img.referenceImages?.length ?? 0,
           },
         })),
-        debug: { processingTime, ok: false, status: res.status, errorMessage: errorText },
+        debug: { processingTime, ok: false, status: res.status, errorMessage: responseText },
       };
     }
 
-    const data = await res.json();
     console.log("📥 Runware batch response received:", Array.isArray(data) ? `array(${data.length})` : typeof data);
 
-    // data can be array aligned with tasks, or object with data/results/images.
-    // Normalize to array of result objects per task index.
     let perTask: any[] = [];
-    if (Array.isArray(data)) {
-      perTask = data;
-    } else if (data && Array.isArray(data.data)) {
-      perTask = data.data;
-    } else if (data && Array.isArray(data.results)) {
-      perTask = data.results;
-    } else {
-      // Unexpected shape: use same object for all to attempt extraction
-      perTask = req.images.map(() => data);
-    }
+    if (Array.isArray(data)) perTask = data;
+    else if (data && Array.isArray(data.data)) perTask = data.data;
+    else if (data && Array.isArray(data.results)) perTask = data.results;
+    else perTask = req.images.map(() => data);
 
     const outputs: BatchImageOutput[] = req.images.map((img, idx) => {
       const item = perTask[idx] ?? perTask[0] ?? data;

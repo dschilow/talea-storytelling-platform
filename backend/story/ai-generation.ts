@@ -3,9 +3,10 @@ import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "./generate";
 import type { AvatarVisualProfile } from "../avatar/create";
 import { ai } from "~encore/clients";
+import { logTopic } from "../log/logger";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4o";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
@@ -418,7 +419,7 @@ ${canon}`;
 Deine Aufgabe ist es, eine fesselnde, altersgerechte Geschichte zu erschaffen, die sich wie ein echtes Buch liest.
 Halte dich strikt an die folgenden Regeln:
 1.  **Spannungsbogen (HOOK):** Jedes Kapitel MUSS mit einem Cliffhanger, einer offenen Frage oder einer überraschenden Wendung enden, die neugierig auf das nächste Kapitel macht. Vermeide abgeschlossene, moralisierende Kapitelenden.
-2.  **Show, Don't Tell:** Beschreibe Gefühle und Entwicklungen durch Handlungen und Dialoge, anstatt sie nur zu benennen. (FALSCH: "Sie lernte, mutig zu sein." RICHTIG: "Obwohl ihr Herz hämmerte, machte sie einen Schritt nach vorn.")
+2.  **Show, Don't Tell:** Zeige Charakterentwicklung und Emotionen durch Handlungen, Dialoge und innere Gedanken, anstatt sie nur zu benennen. (FALSCH: "Sie lernte, mutig zu sein." RICHTIG: "Obwohl ihr Herz hämmerte, machte sie einen Schritt nach vorn.")
 3.  **Avatar-Konsistenz:** Halte dich exakt an die visuellen Beschreibungen der Avatare (Haare, Augen, Haut, Accessoires), die im User-Prompt unter "Kanonische Erscheinung" bereitgestellt werden. Diese Merkmale dürfen sich nicht ändern.
 4.  **Strukturierte Ausgabe:** Antworte ausschließlich mit einem gültigen JSON-Objekt, das dem im User-Prompt gezeigten Schema entspricht. Kein einleitender oder abschließender Text.`;
 
@@ -531,23 +532,25 @@ ERWARTETE JSON-STRUKTUR:
 
 Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
 
+  const payload = {
+    model: MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ],
+    max_completion_tokens: 12000,
+    response_format: { type: "json_object" },
+    reasoning_effort: "medium",
+    verbosity: "high"
+  };
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${openAIKey()}`,
     },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      max_completion_tokens: 12000,
-      response_format: { type: "json_object" },
-      reasoning_effort: "medium",
-      verbosity: "high"
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -561,6 +564,13 @@ Antworte NUR mit gültigem JSON. Keine zusätzlichen Erklärungen.`;
   if (!content) {
     throw new Error("Leere Antwort von OpenAI erhalten");
   }
+
+  await logTopic.publish({
+    source: 'openai-story-generation',
+    timestamp: new Date(),
+    request: payload,
+    response: data,
+  });
 
   let parsed;
   try {
