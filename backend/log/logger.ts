@@ -39,7 +39,7 @@ export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", 
       await logBucket.upload(path, Buffer.from(JSON.stringify(logContent, null, 2)), {
         contentType: "application/json",
       });
-      console.log(`✅ Logged event to bucket 'avatales-ai-logs' at path: ${path}`);
+      console.log(`✅ Logged event to gs://${logBucket.name}/${path}`);
     } catch (err) {
       console.error(`❌ Failed to log event to bucket:`, err);
       // Encore will automatically retry the message if the handler throws an error.

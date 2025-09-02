@@ -6,7 +6,7 @@ import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4o";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
