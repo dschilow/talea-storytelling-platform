@@ -33,6 +33,8 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
     console.log("🔬 Analyzing avatar image...");
     const system = `You are an expert visual character profiler for children's books.
 You receive one portrait-like image of a child character (avatar). 
+Handelt es sich dabei um einen menschen oder tier?
+du muss beschreiben was du siehst.
 Extract a precise, canonical visual profile to keep this character's look consistent across future illustrations.
 
 STRICT OUTPUT: JSON object with the exact schema below. No additional text.
