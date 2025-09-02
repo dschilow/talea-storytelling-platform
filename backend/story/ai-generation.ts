@@ -7,8 +7,8 @@ import { logTopic } from "../log/logger";
 
 // ---- OpenAI Modell & Pricing (GPT-4o) ----
 const MODEL = "gpt-5-nano";
-const INPUT_COST_PER_1M = 5.0;
-const OUTPUT_COST_PER_1M = 15.0;
+const INPUT_COST_PER_1M = 0.05;
+const OUTPUT_COST_PER_1M = 0.40;
 
 const openAIKey = secret("OpenAIKey");
 
