@@ -54,7 +54,7 @@ interface ChapterImageDescription {
     atmosphere: string;
     objects: string[];
   };
-  composition: {
+  composition?: {
     foreground: string;
     background: string;
     focus: string;
@@ -75,7 +75,7 @@ interface CoverImageDescription {
     mood: string;
     colorPalette: string[];
   };
-  composition: {
+  composition?: {
     layout: string;
     titleSpace: string;
     visualFocus: string;

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 
 import Card from '../../../components/common/Card';
-import Button from '../../../components/common/Button';
 import FadeInView from '../../../components/animated/FadeInView';
 
 interface LearningMode {

@@ -77,4 +77,40 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
       <FadeInView delay={200}>
         <Card variant="elevated">
           <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Schauplatz wählen</h2>
-          <p className="text
+          <p className="text-gray-600 text-center mb-6">
+            Wo soll deine Geschichte stattfinden?
+          </p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            {settings.map((settingOption, index) => (
+              <FadeInView key={settingOption.key} delay={250 + index * 50}>
+                <button
+                  onClick={() => onSettingChange(settingOption.key)}
+                  className={`p-4 rounded-lg border-2 transition-colors text-center ${
+                    setting === settingOption.key
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-300 hover:border-purple-300'
+                  }`}
+                >
+                  <span className="text-2xl mb-2 block">{settingOption.icon}</span>
+                  <h3 className={`font-semibold mb-1 ${
+                    setting === settingOption.key ? 'text-purple-700' : 'text-gray-800'
+                  }`}>
+                    {settingOption.label}
+                  </h3>
+                  <p className={`text-xs ${
+                    setting === settingOption.key ? 'text-purple-600' : 'text-gray-600'
+                  }`}>
+                    {settingOption.description}
+                  </p>
+                </button>
+              </FadeInView>
+            ))}
+          </div>
+        </Card>
+      </FadeInView>
+    </div>
+  );
+};
+
+export default GenreSettingStep;
