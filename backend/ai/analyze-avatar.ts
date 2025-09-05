@@ -804,8 +804,8 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
       });
 
       // Generiere zusätzliche Daten - mit Fallback bei unvollständigen Profilen
-      const validation = { isValid: true, missingFields: [], warnings: [] };
-      const consistency = { coreIdentifiers: [], criticalFeatures: [], styleMarkers: [] };
+      let validation = { isValid: true, missingFields: [], warnings: [] };
+      let consistency = { coreIdentifiers: [], criticalFeatures: [], styleMarkers: [] };
       
       let compactPrompt = "";
       let detailedPrompts = { positive: "", negative: "", styleModifiers: [], technicalModifiers: [] };
