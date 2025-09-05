@@ -30,7 +30,7 @@ export interface AnalyzeAvatarImageResponse {
 export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/analyze-avatar-image" },
   async (req) => {
-    console.log("🔬 Analyzing avatar image...");
+    console.log("🔬 Analyzing avatar image....");
     const system = `You are an expert visual character profiler for children's books.
 You receive one portrait-like image of a child character (avatar). 
 Handelt es sich dabei um einen menschen oder tier?
