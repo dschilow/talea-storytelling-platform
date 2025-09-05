@@ -766,12 +766,23 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
       let parsed: EnhancedAvatarVisualProfile;
       try {
         const clean = content.replace(/```json\s*|\s*```/g, "").trim();
+        console.log("🔍 Parsing JSON response...", clean.substring(0, 200) + "...");
         parsed = JSON.parse(clean) as EnhancedAvatarVisualProfile;
         console.log("✅ Successfully parsed enhanced visual profile.");
+        
+        // Basis-Validierung
+        if (!parsed.basicInfo || !parsed.physicalAppearance) {
+          console.warn("⚠️ Enhanced profile incomplete, falling back to basic...");
+          return analyzeWithBasic(req, startTime);
+        }
+        
       } catch (e: any) {
         console.error("❌ Enhanced analysis JSON parse error:", e.message);
-        console.error("Raw content (first 1000 chars):", content.substring(0, 1000));
-        throw new Error(`Enhanced analysis JSON parse error: ${e?.message || String(e)}`);
+        console.error("Raw content (first 500 chars):", content.substring(0, 500));
+        
+        // Fallback zu basic analysis bei JSON Parse Fehlern
+        console.log("🔄 Falling back to basic analysis due to parse error...");
+        return analyzeWithBasic(req, startTime);
       }
 
       // Log für Monitoring
