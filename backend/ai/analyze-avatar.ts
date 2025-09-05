@@ -724,7 +724,7 @@ ${req.hints.physicalTraits ? `- Physische Merkmale: ${JSON.stringify(req.hints.p
 ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.personalityTraits)}` : ""}` : "";
 
       const payload = {
-        model: "gpt-4o",
+        model: "gpt-5-nano",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -736,8 +736,7 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 4000,
-        temperature: 0.3,
+    		max_completion_tokens: 12000,
       };
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
