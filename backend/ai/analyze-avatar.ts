@@ -736,7 +736,7 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 4000,
+        max_completion_tokens: 12000,
         temperature: 0.3,
       };
 
