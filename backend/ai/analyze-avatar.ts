@@ -123,8 +123,7 @@ ${req.hints.stylePreference ? `- Style Preference: ${req.hints.stylePreference}`
         }
       ],
       response_format: { type: "json_object" },
-      max_tokens: 1500,
-      temperature: 0.1,
+    	max_completion_tokens: 12000,
     };
 
     console.log("📤 Sending request to OpenAI with gpt-5-nano...");
