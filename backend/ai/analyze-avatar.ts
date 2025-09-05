@@ -724,7 +724,7 @@ ${req.hints.physicalTraits ? `- Physische Merkmale: ${JSON.stringify(req.hints.p
 ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.personalityTraits)}` : ""}` : "";
 
       const payload = {
-        model: "gpt-5-nano",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -736,7 +736,8 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
           }
         ],
         response_format: { type: "json_object" },
-    		max_completion_tokens: 12000,
+        max_tokens: 4000,
+        temperature: 0.3,
       };
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -778,10 +779,7 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
       } catch (e: any) {
         console.error("❌ Enhanced analysis JSON parse error:", e.message);
         console.error("Raw content (first 500 chars):", content.substring(0, 500));
-        
-        // Fallback zu basic analysis bei JSON Parse Fehlern
-        console.log("🔄 Falling back to basic analysis due to parse error...");
-        return analyzeWithBasic(req, startTime);
+        throw new Error(`Enhanced analysis JSON parse error: ${e?.message || String(e)}`);
       }
 
       // Log für Monitoring
