@@ -724,7 +724,7 @@ ${req.hints.physicalTraits ? `- Physische Merkmale: ${JSON.stringify(req.hints.p
 ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.personalityTraits)}` : ""}` : "";
 
       const payload = {
-        model: "gpt-4o",
+        model: "gpt-5-nano",
         messages: [
           { role: "system", content: systemPrompt },
           {
