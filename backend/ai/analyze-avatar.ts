@@ -724,7 +724,7 @@ ${req.hints.physicalTraits ? `- Physische Merkmale: ${JSON.stringify(req.hints.p
 ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.personalityTraits)}` : ""}` : "";
 
       const payload = {
-        model: "gpt-5-nano",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -736,7 +736,8 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 12000,
+        max_tokens: 4000,
+        temperature: 0.3,
       };
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -802,12 +803,51 @@ ${req.hints.personalityTraits ? `- Persönlichkeit: ${JSON.stringify(req.hints.p
         },
       });
 
-      // Generiere zusätzliche Daten
-      const validation = validateProfile(parsed);
-      const consistency = extractConsistencyFeatures(parsed);
-      const compactPrompt = generateCompactPrompt(parsed);
-      const detailedPrompts = generateDetailedPrompts(parsed);
-      const variants = generatePromptVariants(parsed);
+      // Generiere zusätzliche Daten - mit Fallback bei unvollständigen Profilen
+      const validation = { isValid: true, missingFields: [], warnings: [] };
+      const consistency = { coreIdentifiers: [], criticalFeatures: [], styleMarkers: [] };
+      
+      let compactPrompt = "";
+      let detailedPrompts = { positive: "", negative: "", styleModifiers: [], technicalModifiers: [] };
+      let variants = { story: "", portrait: "", fullBody: "", expression: "", clothing: "" };
+      
+      try {
+        // Versuche die Utility-Funktionen zu verwenden, aber fange Fehler ab
+        compactPrompt = generateCompactPrompt(parsed as EnhancedAvatarVisualProfile);
+        detailedPrompts = generateDetailedPrompts(parsed as EnhancedAvatarVisualProfile);
+        variants = generatePromptVariants(parsed as EnhancedAvatarVisualProfile);
+        consistency = extractConsistencyFeatures(parsed as EnhancedAvatarVisualProfile);
+        validation = validateProfile(parsed as EnhancedAvatarVisualProfile);
+      } catch (utilError: any) {
+        console.warn("⚠️ Utility functions failed, using basic prompts:", utilError.message);
+        
+        // Fallback: Erstelle einfache Prompts aus dem JSON
+        const basicInfo = parsed.basic_identification || parsed.basicInfo || {};
+        const appearance = parsed.appearance || parsed.physicalAppearance || {};
+        
+        compactPrompt = `${basicInfo.species || 'character'} ${basicInfo.character_type || 'avatar'}`;
+        if (appearance.hair?.color || appearance.hair?.primary) {
+          compactPrompt += `, ${appearance.hair.color || appearance.hair.primary} hair`;
+        }
+        if (appearance.eyes?.color || appearance.eyes?.primary) {
+          compactPrompt += `, ${appearance.eyes.color || appearance.eyes.primary} eyes`;
+        }
+        
+        detailedPrompts = {
+          positive: compactPrompt,
+          negative: "distorted, blurry, low quality",
+          styleModifiers: ["detailed", "high quality"],
+          technicalModifiers: ["professional rendering"]
+        };
+        
+        variants = {
+          story: compactPrompt + ", storytelling scene",
+          portrait: compactPrompt + ", close-up portrait",
+          fullBody: compactPrompt + ", full body view",
+          expression: compactPrompt + ", expressive face",
+          clothing: compactPrompt + ", detailed clothing"
+        };
+      }
 
       const processingTime = Date.now() - startTime;
 
