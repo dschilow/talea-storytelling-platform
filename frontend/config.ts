@@ -11,4 +11,4 @@
 // Example:
 // export const clerkPublishableKey = "pk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 // -----------------------------------------------------------------------------
-export const clerkPublishableKey = "pk_test_c2luY2VyZS1qYXktNC5jbGVyay5hY2NvdW50cy5kZXYk";
+export const clerkPublishableKey = "";
