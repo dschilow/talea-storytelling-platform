@@ -4,7 +4,7 @@ import { Upload, Camera, X } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
-import backend from '~backend/client';
+import { useBackend } from '../../hooks/useBackend';
 
 interface PersonalityTraits {
   courage: number;
@@ -25,6 +25,7 @@ const PhotoUploadTab: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [artStyle, setArtStyle] = useState<'disney' | 'anime' | 'realistic'>('disney');
   const [loading, setLoading] = useState(false);
+  const backend = useBackend();
   
   const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
     courage: 7,
@@ -97,18 +98,11 @@ const PhotoUploadTab: React.FC = () => {
       // In a real implementation, you would upload the image first
       // and get back a URL to store with the avatar
       const avatar = await backend.avatar.create({
-        userId: 'demo-user-123', // Mock user ID
         name: name.trim(),
         description: description.trim() || undefined,
         physicalTraits: {
-          age: 8, // These would be extracted from the photo in a real implementation
-          height: 130,
-          gender: 'male',
-          skinTone: '#F4C2A1',
-          hairColor: '#8B4513',
-          hairType: 'curly',
-          eyeColor: '#4A90E2',
-          bodyType: 5,
+          characterType: "Foto-basierter Avatar",
+          appearance: description.trim() || "Von Foto erstellt",
         },
         personalityTraits,
         imageUrl: selectedImage, // In production, this would be the uploaded image URL

@@ -7,7 +7,7 @@ import FadeInView from '../../components/animated/FadeInView';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import backend from '~backend/client';
+import { useBackend } from '../../hooks/useBackend';
 import type { PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from '~backend/avatar/create';
 
 const AIGeneratedTab: React.FC = () => {
@@ -19,6 +19,7 @@ const AIGeneratedTab: React.FC = () => {
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [visualProfile, setVisualProfile] = useState<AvatarVisualProfile | null>(null);
+  const backend = useBackend();
 
   const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
     courage: 7,
@@ -130,7 +131,6 @@ const AIGeneratedTab: React.FC = () => {
       };
 
       const avatar = await backend.avatar.create({
-        userId: 'demo-user-123',
         name: name.trim(),
         description: `${characterType}: ${appearance}`,
         physicalTraits,
