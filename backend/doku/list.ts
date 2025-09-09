@@ -39,6 +39,7 @@ export const listDokus = api<void, ListDokusResponse>(
       cover_image_url: string | null;
       is_public: boolean;
       status: "generating" | "complete" | "error";
+      metadata: string | null;
       created_at: Date;
       updated_at: Date;
     }>`
@@ -48,6 +49,7 @@ export const listDokus = api<void, ListDokusResponse>(
     const dokus = rows.map((r) => {
       const parsed = normalizeContent(r.content);
       const summary = extractSummaryFromContent(parsed);
+      const metadata = r.metadata ? safeParse(r.metadata) : undefined;
       return {
         id: r.id,
         userId: r.user_id,
@@ -57,6 +59,7 @@ export const listDokus = api<void, ListDokusResponse>(
         coverImageUrl: r.cover_image_url || undefined,
         isPublic: r.is_public,
         status: r.status,
+        metadata,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       };
@@ -77,4 +80,12 @@ function extractSummaryFromContent(content: any): string | undefined {
     }
   }
   return undefined;
+}
+
+function safeParse(s: string): any | undefined {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return undefined;
+  }
 }

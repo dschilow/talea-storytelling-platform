@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, GraduationCap } from 'lucide-react';
+import { ArrowLeft, BookOpen, GraduationCap, Clock, DollarSign, Zap, Sparkles } from 'lucide-react';
 import Card from '../../components/common/Card';
 import FadeInView from '../../components/animated/FadeInView';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import { spacing, radii } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
 
 interface DokuInteractive {
@@ -48,6 +48,21 @@ interface Doku {
   coverImageUrl?: string;
   isPublic: boolean;
   status: 'generating' | 'complete' | 'error';
+  metadata?: {
+    tokensUsed?: {
+      prompt: number;
+      completion: number;
+      total: number;
+    };
+    model?: string;
+    processingTime?: number;
+    imagesGenerated?: number;
+    totalCost?: {
+      text: number;
+      images: number;
+      total: number;
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -56,13 +71,18 @@ const DokuReaderScreen: React.FC = () => {
   const { dokuId } = useParams<{ dokuId: string }>();
   const navigate = useNavigate();
   const backend = useBackend();
+  const { isSignedIn } = useUser();
 
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSignedIn) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [dokuId]);
+  }, [dokuId, isSignedIn]);
 
   const load = async () => {
     if (!dokuId) return;
@@ -72,11 +92,26 @@ const DokuReaderScreen: React.FC = () => {
       setDoku(data as any);
     } catch (e) {
       console.error('Failed to load doku', e);
-      alert('Doku konnte nicht geladen werden.');
+      alert('Doku konnte nicht geladen werden. Bitte melde dich an und versuche es erneut.');
       navigate('/doku');
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 4,
+    }).format(amount);
+  };
+
+  const formatDuration = (ms: number): string => {
+    if (!ms && ms !== 0) return '';
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${(ms / 60000).toFixed(1)}min`;
   };
 
   const containerStyle: React.CSSProperties = {
@@ -221,6 +256,84 @@ const DokuReaderScreen: React.FC = () => {
                   </div>
                 </Card>
               </FadeInView>
+
+              {/* Metadata like stories */}
+              {doku.metadata && (
+                <FadeInView delay={90}>
+                  <Card variant="glass" style={{ padding: spacing.lg, marginBottom: spacing.lg }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: spacing.md }}>
+                      {typeof doku.metadata.tokensUsed?.total === 'number' && (
+                        <div style={{
+                          padding: spacing.sm,
+                          border: `1px solid ${colors.glass.border}`,
+                          borderRadius: radii.lg,
+                          background: colors.glass.badgeBackground,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.sm
+                        }}>
+                          <Zap size={16} />
+                          <div>
+                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>Tokens</div>
+                            <div style={{ ...typography.textStyles.label }}>{doku.metadata.tokensUsed.total.toLocaleString()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {typeof doku.metadata.totalCost?.total === 'number' && (
+                        <div style={{
+                          padding: spacing.sm,
+                          border: `1px solid ${colors.glass.border}`,
+                          borderRadius: radii.lg,
+                          background: colors.glass.badgeBackground,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.sm
+                        }}>
+                          <DollarSign size={16} />
+                          <div>
+                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>Kosten gesamt</div>
+                            <div style={{ ...typography.textStyles.label }}>{formatCurrency(doku.metadata.totalCost.total)}</div>
+                          </div>
+                        </div>
+                      )}
+                      {typeof doku.metadata.processingTime === 'number' && (
+                        <div style={{
+                          padding: spacing.sm,
+                          border: `1px solid ${colors.glass.border}`,
+                          borderRadius: radii.lg,
+                          background: colors.glass.badgeBackground,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.sm
+                        }}>
+                          <Clock size={16} />
+                          <div>
+                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>Dauer</div>
+                            <div style={{ ...typography.textStyles.label }}>{formatDuration(doku.metadata.processingTime!)}</div>
+                          </div>
+                        </div>
+                      )}
+                      {typeof doku.metadata.imagesGenerated === 'number' && (
+                        <div style={{
+                          padding: spacing.sm,
+                          border: `1px solid ${colors.glass.border}`,
+                          borderRadius: radii.lg,
+                          background: colors.glass.badgeBackground,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.sm
+                        }}>
+                          <Sparkles size={16} />
+                          <div>
+                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>Bilder</div>
+                            <div style={{ ...typography.textStyles.label }}>{doku.metadata.imagesGenerated}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </FadeInView>
+              )}
 
               {/* Sections */}
               {doku.content.sections.map((sec, i) => (

@@ -39,6 +39,7 @@ export const getDoku = api<GetDokuParams, Doku>(
       cover_image_url: string | null;
       is_public: boolean;
       status: "generating" | "complete" | "error";
+      metadata: string | null;
       created_at: Date;
       updated_at: Date;
     }>`
@@ -53,6 +54,7 @@ export const getDoku = api<GetDokuParams, Doku>(
 
     const parsed = normalizeContent(row.content);
     const summary = typeof parsed.summary === "string" ? parsed.summary : undefined;
+    const metadata = row.metadata ? safeParse(row.metadata) : undefined;
 
     return {
       id: row.id,
@@ -64,8 +66,17 @@ export const getDoku = api<GetDokuParams, Doku>(
       coverImageUrl: row.cover_image_url || undefined,
       isPublic: row.is_public,
       status: row.status,
+      metadata,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
   }
 );
+
+function safeParse(s: string): any | undefined {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return undefined;
+  }
+}

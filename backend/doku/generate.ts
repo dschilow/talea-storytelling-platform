@@ -7,6 +7,12 @@ import { logTopic } from "../log/logger";
 const dokuDB = SQLDatabase.named("doku");
 const openAIKey = secret("OpenAIKey");
 
+// Pricing & model (align with stories)
+const MODEL = "gpt-5-nano";
+const INPUT_COST_PER_1M = 5.0;
+const OUTPUT_COST_PER_1M = 15.0;
+const IMAGE_COST_PER_ITEM = 0.0008;
+
 // Domain types for Doku mode (Galileo/Checker Tobi style)
 export type DokuDepth = "basic" | "standard" | "deep";
 export type DokuAgeGroup = "3-5" | "6-8" | "9-12" | "13+";
@@ -64,6 +70,21 @@ export interface Doku {
   coverImageUrl?: string;
   isPublic: boolean;
   status: "generating" | "complete" | "error";
+  metadata?: {
+    tokensUsed?: {
+      prompt: number;
+      completion: number;
+      total: number;
+    };
+    model?: string;
+    processingTime?: number;
+    imagesGenerated?: number;
+    totalCost?: {
+      text: number;
+      images: number;
+      total: number;
+    };
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,6 +104,9 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       INSERT INTO dokus (id, user_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
       VALUES (${id}, ${req.userId}, 'Wird generiert...', ${req.config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
     `;
+
+    const startTime = Date.now();
+    let imagesGenerated = 0;
 
     try {
       const payload = buildOpenAIPayload(req.config);
@@ -135,16 +159,41 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
           outputFormat: "WEBP",
         });
         coverImageUrl = img.imageUrl;
+        imagesGenerated += 1;
       } catch (imgErr) {
         console.warn("Cover image generation failed:", imgErr);
       }
 
+      const processingTime = Date.now() - startTime;
+      const tokensUsed = {
+        prompt: data.usage?.prompt_tokens ?? 0,
+        completion: data.usage?.completion_tokens ?? 0,
+        total: data.usage?.total_tokens ?? 0,
+      };
+      const textCost =
+        (tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
+        (tokensUsed.completion / 1_000_000) * OUTPUT_COST_PER_1M;
+      const imagesCost = imagesGenerated * IMAGE_COST_PER_ITEM;
+
+      const metadata = {
+        tokensUsed,
+        model: MODEL,
+        processingTime,
+        imagesGenerated,
+        totalCost: {
+          text: textCost,
+          images: imagesCost,
+          total: textCost + imagesCost,
+        },
+      };
+
       await dokuDB.exec`
         UPDATE dokus
         SET title = ${parsed.title},
-            content = ${JSON.stringify({ sections: parsed.sections })},
+            content = ${JSON.stringify({ sections: parsed.sections, summary: parsed.summary, title: parsed.title })},
             cover_image_url = ${coverImageUrl ?? null},
             status = 'complete',
+            metadata = ${JSON.stringify(metadata)},
             updated_at = ${new Date()}
         WHERE id = ${id}
       `;
@@ -159,6 +208,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         coverImageUrl,
         isPublic: false,
         status: "complete",
+        metadata,
         createdAt: now,
         updatedAt: new Date(),
       };
@@ -238,7 +288,7 @@ Regeln:
 }`;
 
   return {
-    model: "gpt-5-nano",
+    model: MODEL,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
