@@ -3,7 +3,7 @@ import { logBucket } from "./logger";
 
 export interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation';
   timestamp: Date;
   request: any;
   response: any;
@@ -27,6 +27,7 @@ const ALL_SOURCES = [
   'runware-batch-image',
   'openai-avatar-analysis',
   'openai-avatar-analysis-stable',
+  'openai-doku-generation',
 ];
 
 // Lists log entries from the bucket.

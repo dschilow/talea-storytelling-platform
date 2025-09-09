@@ -15,6 +15,8 @@ import { colors } from './utils/constants/colors';
 import AuthScreen from './screens/Auth/AuthScreen';
 import AdminDashboard from './screens/Admin/AdminDashboard';
 import { clerkPublishableKey } from './config';
+import DokuWizardScreen from './screens/Doku/DokuWizardScreen';
+import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
 
 const AppContent = () => (
   <Router>
@@ -28,6 +30,10 @@ const AppContent = () => (
         <Route path="/stories" element={<HomeScreen />} />
         <Route path="/community" element={<HomeScreen />} />
         <Route path="/logs" element={<LogViewerScreen />} />
+        {/* Doku / Galileo mode */}
+        <Route path="/doku" element={<DokuWizardScreen />} />
+        <Route path="/doku-reader/:dokuId" element={<DokuReaderScreen />} />
+
         {/* Auth routes */}
         <Route path="/auth" element={<AuthScreen />} />
         {/* Hidden admin route */}

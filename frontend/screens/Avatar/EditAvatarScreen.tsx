@@ -8,12 +8,13 @@ import FadeInView from '../../components/animated/FadeInView';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import backend from '~backend/client';
+import { useBackend } from '../../hooks/useBackend';
 import type { Avatar, PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from '~backend/avatar/create';
 
 const EditAvatarScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
   const navigate = useNavigate();
+  const backend = useBackend();
   
   const [avatar, setAvatar] = useState<Avatar | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,11 +53,11 @@ const EditAvatarScreen: React.FC = () => {
       setLoading(true);
       const avatarData = await backend.avatar.get({ id: avatarId });
       
-      setAvatar(avatarData);
-      setName(avatarData.name);
-      setDescription(avatarData.description || '');
-      setPhysicalTraits(avatarData.physicalTraits);
-      setPersonalityTraits(avatarData.personalityTraits);
+      setAvatar(avatarData as any);
+      setName((avatarData as any).name);
+      setDescription((avatarData as any).description || '');
+      setPhysicalTraits((avatarData as any).physicalTraits);
+      setPersonalityTraits((avatarData as any).personalityTraits);
     } catch (error) {
       console.error('Error loading avatar:', error);
       alert('Avatar konnte nicht geladen werden.');
@@ -123,7 +124,7 @@ const EditAvatarScreen: React.FC = () => {
             personalityTraits,
           }
         });
-        newVisualProfile = analysis.visualProfile;
+        newVisualProfile = analysis.visualProfile as any;
       } catch (err) {
         console.error('Error analyzing new avatar image:', err);
       }
@@ -425,7 +426,7 @@ const EditAvatarScreen: React.FC = () => {
               title="Abbrechen"
               onPress={() => navigate('/')}
               variant="outline"
-              style={{ flex: 1 }}
+              className="flex-1"
             />
             <Button
               title="💾 Änderungen speichern"
@@ -433,7 +434,7 @@ const EditAvatarScreen: React.FC = () => {
               loading={saving}
               icon={<Save size={16} />}
               variant="fun"
-              style={{ flex: 2 }}
+              className="flex-1"
             />
           </div>
         </FadeInView>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Calendar, Code, Clock, Zap, Activity, Filter, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -12,7 +13,7 @@ import backend from '~backend/client';
 
 interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation';
   timestamp: string;
   request: any;
   response: any;
@@ -83,6 +84,8 @@ const LogViewerScreen: React.FC = () => {
       case 'openai-avatar-analysis':
       case 'openai-avatar-analysis-stable':
         return '🔬';
+      case 'openai-doku-generation':
+        return '📘';
       default:
         return '📋';
     }
@@ -99,6 +102,8 @@ const LogViewerScreen: React.FC = () => {
       case 'openai-avatar-analysis':
       case 'openai-avatar-analysis-stable':
         return 'Avatar Analyse';
+      case 'openai-doku-generation':
+        return 'Doku Generierung';
       default:
         return source;
     }
@@ -236,7 +241,6 @@ const LogViewerScreen: React.FC = () => {
 
   return (
     <div style={containerStyle}>
-      {/* Header */}
       <div style={headerStyle}>
         <div style={headerContentStyle}>
           <button
@@ -256,183 +260,196 @@ const LogViewerScreen: React.FC = () => {
       </div>
 
       <div style={contentStyle}>
-        {/* Source Statistics */}
-        <FadeInView delay={100}>
-          <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-              <Activity size={24} style={{ color: colors.primary }} />
-              Log Quellen Übersicht
-            </h2>
-            <div style={sourceStatsStyle}>
-              {sources.map((source, index) => (
-                <FadeInView key={source.name} delay={150 + index * 50}>
-                  <div style={{
-                    padding: `${spacing.lg}px`,
-                    background: colors.glass.cardBackground,
-                    border: `1px solid ${colors.glass.border}`,
-                    borderRadius: `${radii.lg}px`,
-                    textAlign: 'center' as const,
-                  }}>
-                    <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>
-                      {getSourceIcon(source.name)}
-                    </div>
-                    <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
-                      {getSourceLabel(source.name)}
-                    </div>
-                    <div style={{ ...typography.textStyles.headingMd, color: colors.primary, marginBottom: `${spacing.xs}px` }}>
-                      {source.count}
-                    </div>
-                    <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
-                      {source.lastActivity ? `Zuletzt: ${formatTimestamp(source.lastActivity)}` : 'Keine Aktivität'}
-                    </div>
-                  </div>
-                </FadeInView>
-              ))}
+        <SignedOut>
+          <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: spacing.sm }}>
+              Anmeldung erforderlich
+            </div>
+            <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+              Bitte melde dich an, um Logs zu sehen.
             </div>
           </Card>
-        </FadeInView>
+        </SignedOut>
 
-        {/* Filters */}
-        <FadeInView delay={200}>
-          <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-              <Filter size={24} style={{ color: colors.primary }} />
-              Filter
-            </h2>
-            <div style={filtersStyle}>
-              <div>
-                <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-                  Quelle
-                </label>
-                <select
-                  value={selectedSource}
-                  onChange={(e) => setSelectedSource(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: `${spacing.md}px`,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: `${radii.lg}px`,
-                    backgroundColor: colors.surface,
-                    color: colors.textPrimary,
-                    fontSize: typography.textStyles.body.fontSize,
-                  }}
-                >
-                  <option value="">Alle Quellen</option>
-                  {sources.map(source => (
-                    <option key={source.name} value={source.name}>
-                      {getSourceLabel(source.name)} ({source.count})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-                  Datum
-                </label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: `${spacing.md}px`,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: `${radii.lg}px`,
-                    backgroundColor: colors.surface,
-                    color: colors.textPrimary,
-                    fontSize: typography.textStyles.body.fontSize,
-                  }}
-                />
-              </div>
-            </div>
-            
-            <div style={{ textAlign: 'center', marginTop: `${spacing.lg}px` }}>
-              <Button
-                title="Filter zurücksetzen"
-                onPress={() => {
-                  setSelectedSource('');
-                  setSelectedDate('');
-                }}
-                variant="outline"
-              />
-            </div>
-          </Card>
-        </FadeInView>
-
-        {/* Logs */}
-        <FadeInView delay={300}>
-          <Card variant="glass" style={{ padding: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-              <Code size={24} style={{ color: colors.primary }} />
-              Log Einträge ({logs.length})
-            </h2>
-            
-            {logs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
-                <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📋</div>
-                <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
-                  Keine Logs gefunden
-                </div>
-                <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
-                  Keine Log-Einträge für die ausgewählten Filter gefunden.
-                </div>
-              </div>
-            ) : (
-              <div style={logListStyle}>
-                {logs.map((log, index) => (
-                  <FadeInView key={log.id} delay={350 + index * 50}>
-                    <Card 
-                      variant="elevated" 
-                      style={logItemStyle}
-                      onPress={() => {
-                        setSelectedLog(log);
-                        setShowDetails(true);
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: `${spacing.md}px`, marginBottom: `${spacing.sm}px` }}>
-                        <span style={{ fontSize: '24px' }}>{getSourceIcon(log.source)}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ ...typography.textStyles.label, color: colors.textPrimary }}>
-                            {getSourceLabel(log.source)}
-                          </div>
-                          <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
-                            ID: {log.id}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
-                            <Clock size={12} />
-                            {formatTimestamp(log.timestamp)}
-                          </div>
-                        </div>
+        <SignedIn>
+          {/* Source Statistics */}
+          <FadeInView delay={100}>
+            <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+                <Activity size={24} style={{ color: colors.primary }} />
+                Log Quellen Übersicht
+              </h2>
+              <div style={sourceStatsStyle}>
+                {sources.map((source, index) => (
+                  <FadeInView key={source.name} delay={150 + index * 50}>
+                    <div style={{
+                      padding: `${spacing.lg}px`,
+                      background: colors.glass.cardBackground,
+                      border: `1px solid ${colors.glass.border}`,
+                      borderRadius: `${radii.lg}px`,
+                      textAlign: 'center' as const,
+                    }}>
+                      <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>
+                        {getSourceIcon(source.name)}
                       </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: `${spacing.sm}px`, fontSize: '11px' }}>
-                        <div style={{ 
-                          padding: `${spacing.xs}px ${spacing.sm}px`,
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          borderRadius: `${radii.sm}px`,
-                          color: colors.textSecondary,
-                        }}>
-                          📤 Request: {JSON.stringify(log.request).length} chars
-                        </div>
-                        <div style={{ 
-                          padding: `${spacing.xs}px ${spacing.sm}px`,
-                          background: 'rgba(34, 197, 94, 0.1)',
-                          borderRadius: `${radii.sm}px`,
-                          color: colors.textSecondary,
-                        }}>
-                          📥 Response: {JSON.stringify(log.response).length} chars
-                        </div>
+                      <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
+                        {getSourceLabel(source.name)}
                       </div>
-                    </Card>
+                      <div style={{ ...typography.textStyles.headingMd, color: colors.primary, marginBottom: `${spacing.xs}px` }}>
+                        {source.count}
+                      </div>
+                      <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+                        {source.lastActivity ? `Zuletzt: ${formatTimestamp(source.lastActivity)}` : 'Keine Aktivität'}
+                      </div>
+                    </div>
                   </FadeInView>
                 ))}
               </div>
-            )}
-          </Card>
-        </FadeInView>
+            </Card>
+          </FadeInView>
+
+          {/* Filters */}
+          <FadeInView delay={200}>
+            <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+                <Filter size={24} style={{ color: colors.primary }} />
+                Filter
+              </h2>
+              <div style={filtersStyle}>
+                <div>
+                  <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                    Quelle
+                  </label>
+                  <select
+                    value={selectedSource}
+                    onChange={(e) => setSelectedSource(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: `${spacing.md}px`,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: `${radii.lg}px`,
+                      backgroundColor: colors.surface,
+                      color: colors.textPrimary,
+                      fontSize: typography.textStyles.body.fontSize,
+                    }}
+                  >
+                    <option value="">Alle Quellen</option>
+                    {sources.map(source => (
+                      <option key={source.name} value={source.name}>
+                        {getSourceLabel(source.name)} ({source.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                    Datum
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: `${spacing.md}px`,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: `${radii.lg}px`,
+                      backgroundColor: colors.surface,
+                      color: colors.textPrimary,
+                      fontSize: typography.textStyles.body.fontSize,
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div style={{ textAlign: 'center', marginTop: `${spacing.lg}px` }}>
+                <Button
+                  title="Filter zurücksetzen"
+                  onPress={() => {
+                    setSelectedSource('');
+                    setSelectedDate('');
+                  }}
+                  variant="outline"
+                />
+              </div>
+            </Card>
+          </FadeInView>
+
+          {/* Logs */}
+          <FadeInView delay={300}>
+            <Card variant="glass" style={{ padding: `${spacing.xl}px` }}>
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+                <Code size={24} style={{ color: colors.primary }} />
+                Log Einträge ({logs.length})
+              </h2>
+              
+              {logs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
+                  <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📋</div>
+                  <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                    Keine Logs gefunden
+                  </div>
+                  <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+                    Keine Log-Einträge für die ausgewählten Filter gefunden.
+                  </div>
+                </div>
+              ) : (
+                <div style={logListStyle}>
+                  {logs.map((log, index) => (
+                    <FadeInView key={log.id} delay={350 + index * 50}>
+                      <Card 
+                        variant="elevated" 
+                        style={logItemStyle}
+                        onPress={() => {
+                          setSelectedLog(log);
+                          setShowDetails(true);
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: `${spacing.md}px`, marginBottom: `${spacing.sm}px` }}>
+                          <span style={{ fontSize: '24px' }}>{getSourceIcon(log.source)}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ ...typography.textStyles.label, color: colors.textPrimary }}>
+                              {getSourceLabel(log.source)}
+                            </div>
+                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+                              ID: {log.id}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
+                              <Clock size={12} />
+                              {formatTimestamp(log.timestamp)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: `${spacing.sm}px`, fontSize: '11px' }}>
+                          <div style={{ 
+                            padding: `${spacing.xs}px ${spacing.sm}px`,
+                            background: 'rgba(99, 102, 241, 0.1)',
+                            borderRadius: `${radii.sm}px`,
+                            color: colors.textSecondary,
+                          }}>
+                            📤 Request: {JSON.stringify(log.request).length} chars
+                          </div>
+                          <div style={{ 
+                            padding: `${spacing.xs}px ${spacing.sm}px`,
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            borderRadius: `${radii.sm}px`,
+                            color: colors.textSecondary,
+                          }}>
+                            📥 Response: {JSON.stringify(log.response).length} chars
+                          </div>
+                        </div>
+                      </Card>
+                    </FadeInView>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </FadeInView>
+        </SignedIn>
       </div>
 
       {/* Log Details Modal */}

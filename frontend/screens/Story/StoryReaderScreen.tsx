@@ -9,7 +9,7 @@ import PageFlip from '../../components/reader/PageFlip';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import backend from '~backend/client';
+import { useBackend } from '../../hooks/useBackend';
 
 interface Chapter {
   id: string;
@@ -31,6 +31,7 @@ interface Story {
 const StoryReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
+  const backend = useBackend();
   const [story, setStory] = useState<Story | null>(null);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -46,12 +47,11 @@ const StoryReaderScreen: React.FC = () => {
 
   const loadStory = async () => {
     if (!storyId) return;
-    
     try {
       setLoading(true);
       setError(null);
       const storyData = await backend.story.get({ id: storyId });
-      setStory(storyData);
+      setStory(storyData as any);
     } catch (error) {
       console.error('Error loading story:', error);
       setError('Geschichte konnte nicht geladen werden');
@@ -395,7 +395,7 @@ const StoryReaderScreen: React.FC = () => {
                   style={chapterImageStyle}
                   onError={(e) => {
                     // Hide image if it fails to load
-                    e.currentTarget.style.display = 'none';
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
                   }}
                 />
               )}
@@ -423,14 +423,14 @@ const StoryReaderScreen: React.FC = () => {
             />
           </div>
 
-          <div style={progressStyle}>
-            <span style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
-              {currentChapterIndex + 1} / {story.chapters.length}
-            </span>
-            <div style={progressBarStyle}>
-              <div style={progressFillStyle} />
-            </div>
+        <div style={progressStyle}>
+          <span style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+            {currentChapterIndex + 1} / {story.chapters.length}
+          </span>
+          <div style={progressBarStyle}>
+            <div style={progressFillStyle} />
           </div>
+        </div>
 
           <div style={controlsStyle}>
             <Button

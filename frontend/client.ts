@@ -36,6 +36,7 @@ export class Client {
     public readonly admin: admin.ServiceClient
     public readonly ai: ai.ServiceClient
     public readonly avatar: avatar.ServiceClient
+    public readonly doku: doku.ServiceClient
     public readonly log: log.ServiceClient
     public readonly story: story.ServiceClient
     public readonly user: user.ServiceClient
@@ -56,6 +57,7 @@ export class Client {
         this.admin = new admin.ServiceClient(base)
         this.ai = new ai.ServiceClient(base)
         this.avatar = new avatar.ServiceClient(base)
+        this.doku = new doku.ServiceClient(base)
         this.log = new log.ServiceClient(base)
         this.story = new story.ServiceClient(base)
         this.user = new user.ServiceClient(base)
@@ -369,6 +371,71 @@ export namespace avatar {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_update_update>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
+import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
+import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
+import { listDokus as api_doku_list_listDokus } from "~backend/doku/list";
+import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
+
+export namespace doku {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.deleteDoku = this.deleteDoku.bind(this)
+            this.generateDoku = this.generateDoku.bind(this)
+            this.getDoku = this.getDoku.bind(this)
+            this.listDokus = this.listDokus.bind(this)
+            this.updateDoku = this.updateDoku.bind(this)
+        }
+
+        public async deleteDoku(params: { id: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        }
+
+        public async generateDoku(params: RequestType<typeof api_doku_generate_generateDoku>): Promise<ResponseType<typeof api_doku_generate_generateDoku>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/generate`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_generate_generateDoku>
+        }
+
+        /**
+         * Retrieves a specific doku (only owner or admin or if public).
+         */
+        public async getDoku(params: { id: string }): Promise<ResponseType<typeof api_doku_get_getDoku>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_get_getDoku>
+        }
+
+        /**
+         * Lists all dokus for the authenticated user.
+         */
+        public async listDokus(): Promise<ResponseType<typeof api_doku_list_listDokus>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/dokus`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_list_listDokus>
+        }
+
+        public async updateDoku(params: RequestType<typeof api_doku_update_updateDoku>): Promise<ResponseType<typeof api_doku_update_updateDoku>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                isPublic: params.isPublic,
+                title:    params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_update_updateDoku>
         }
     }
 }

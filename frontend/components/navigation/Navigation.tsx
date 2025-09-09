@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Sparkles, BookOpen, Globe, Code } from 'lucide-react';
+import { Home, User, Sparkles, BookOpen, Globe, Code, FlaskConical } from 'lucide-react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
@@ -13,12 +13,13 @@ const Navigation: React.FC = () => {
     { path: '/', label: 'Home', icon: Home },
     { path: '/avatar', label: 'Avatare', icon: User },
     { path: '/story', label: 'Generieren', icon: Sparkles },
+    { path: '/doku', label: 'Doku', icon: FlaskConical },
     { path: '/stories', label: 'Stories', icon: BookOpen },
     { path: '/logs', label: 'Logs', icon: Code },
     { path: '/community', label: 'Community', icon: Globe },
   ];
 
-  const activeIdx = tabs.findIndex(tab => tab.path === location.pathname);
+  const activeIdx = Math.max(0, tabs.findIndex(tab => tab.path === location.pathname));
 
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
@@ -60,7 +61,7 @@ const Navigation: React.FC = () => {
     position: 'relative',
     zIndex: 1,
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     alignItems: 'center',
     width: 62,
     padding: `${spacing.sm}px ${spacing.md}px`,
@@ -84,7 +85,7 @@ const Navigation: React.FC = () => {
       <div style={{ position: 'relative' }}>
         <div style={navStyle}>
           <div style={indicatorStyle} />
-          {tabs.map((tab, idx) => {
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = location.pathname === tab.path;
             return (
