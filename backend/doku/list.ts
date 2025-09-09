@@ -1,12 +1,28 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import type { Doku } from "./generate";
+import type { DokuSection, Doku } from "./generate";
 import { getAuthData } from "~encore/auth";
 
 const dokuDB = SQLDatabase.named("doku");
 
 interface ListDokusResponse {
   dokus: (Omit<Doku, "content" | "summary"> & { summary?: string })[];
+}
+
+// Safely normalize JSONB/text content coming from the DB into an object.
+function normalizeContent(raw: unknown): { sections: DokuSection[]; summary?: string; title?: string } {
+  if (raw == null) return { sections: [] };
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { sections: [] };
+    }
+  }
+  if (typeof raw === "object") {
+    return raw as any;
+  }
+  return { sections: [] };
 }
 
 // Lists all dokus for the authenticated user.
@@ -19,7 +35,7 @@ export const listDokus = api<void, ListDokusResponse>(
       user_id: string;
       title: string;
       topic: string;
-      content: string;
+      content: any;
       cover_image_url: string | null;
       is_public: boolean;
       status: "generating" | "complete" | "error";
@@ -30,12 +46,12 @@ export const listDokus = api<void, ListDokusResponse>(
     `;
 
     const dokus = rows.map((r) => {
-      const parsed = JSON.parse(r.content);
+      const parsed = normalizeContent(r.content);
       const summary = extractSummaryFromContent(parsed);
       return {
         id: r.id,
         userId: r.user_id,
-        title: r.title,
+        title: r.title || parsed.title || r.topic,
         topic: r.topic,
         summary,
         coverImageUrl: r.cover_image_url || undefined,
@@ -51,11 +67,10 @@ export const listDokus = api<void, ListDokusResponse>(
 );
 
 function extractSummaryFromContent(content: any): string | undefined {
-  // We did not store summary explicitly in DB schema, but OpenAI returns it.
-  // Attempt to find it either top-level or from first section.
-  if (typeof content?.summary === "string") return content.summary;
-  if (Array.isArray(content?.sections) && content.sections.length > 0) {
-    const s = content.sections[0];
+  const parsed = normalizeContent(content);
+  if (typeof parsed.summary === "string") return parsed.summary;
+  if (Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+    const s = parsed.sections[0];
     if (typeof s?.content === "string") {
       const firstSent = s.content.split(".")[0];
       return firstSent ? `${firstSent}.` : undefined;
