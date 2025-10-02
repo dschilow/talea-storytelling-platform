@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/clerk-react";
-import Client from "../client";
+import Client from "../client_new";
 
 // Returns a backend client configured with the user's Clerk auth token.
 export function useBackend() {
