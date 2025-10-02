@@ -13,7 +13,7 @@ import backend from '~backend/client';
 
 interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation' | 'openai-tavi-chat';
   timestamp: string;
   request: any;
   response: any;
@@ -43,14 +43,17 @@ const LogViewerScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+
+      // Use the same backend URL as other API calls
+      const baseUrl = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4000';
       
       const [logsResponse, sourcesResponse] = await Promise.all([
-        backend.log.list({ 
-          source: selectedSource || undefined,
-          date: selectedDate || undefined,
-          limit: 50 
-        }),
-        backend.log.getSources()
+        fetch(`${baseUrl}/log/list?${new URLSearchParams({
+          ...(selectedSource && { source: selectedSource }),
+          ...(selectedDate && { date: selectedDate }),
+          limit: '50'
+        }).toString()}`).then(r => r.json()),
+        fetch(`${baseUrl}/log/getSources`).then(r => r.json())
       ]);
 
       setLogs(logsResponse.logs as any);
@@ -86,6 +89,8 @@ const LogViewerScreen: React.FC = () => {
         return '🔬';
       case 'openai-doku-generation':
         return '📘';
+      case 'openai-tavi-chat':
+        return '🧞‍♂️';
       default:
         return '📋';
     }
@@ -104,6 +109,8 @@ const LogViewerScreen: React.FC = () => {
         return 'Avatar Analyse';
       case 'openai-doku-generation':
         return 'Doku Generierung';
+      case 'openai-tavi-chat':
+        return 'Tavi Chat';
       default:
         return source;
     }

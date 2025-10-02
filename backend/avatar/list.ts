@@ -1,6 +1,6 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import type { Avatar, AvatarVisualProfile } from "./create";
+import type { Avatar, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 
 const avatarDB = SQLDatabase.named("avatar");
@@ -44,8 +44,8 @@ export const list = api<void, ListAvatarsResponse>(
       creationType: row.creation_type,
       isPublic: row.is_public,
       originalAvatarId: row.original_avatar_id || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      createdAt: row.created_at.toISOString(),
+      updatedAt: row.updated_at.toISOString(),
     }));
 
     return { avatars };

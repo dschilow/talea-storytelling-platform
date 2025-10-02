@@ -26,7 +26,8 @@ export const deleteAvatar = api<DeleteAvatarParams, void>(
     }
 
     await avatarDB.exec`
-      DELETE FROM avatars WHERE id = ${id}
+            DELETE FROM avatars
+      WHERE id = ${id}
     `;
   }
 );

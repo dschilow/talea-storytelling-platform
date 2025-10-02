@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LocalStorage Debug</title>
+</head>
+<body>
+    <h1>LocalStorage Debug Tool</h1>
+    <button onclick="showAvatarData()">Show Avatar Data</button>
+    <button onclick="clearAvatarData()">Clear Avatar Data</button>
+    <button onclick="createTestUpdate()">Create Test Update</button>
+    <div id="output"></div>
+
+    <script>
+        function showAvatarData() {
+            const output = document.getElementById('output');
+            let html = '<h2>Avatar Data in localStorage:</h2>';
+            
+            // Show all keys
+            html += '<h3>All Keys:</h3><ul>';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                html += `<li><strong>${key}</strong></li>`;
+            }
+            html += '</ul>';
+            
+            // Look for avatar-related data
+            const avatarKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('avatar') || key.includes('Avatar'))) {
+                    avatarKeys.push(key);
+                }
+            }
+            
+            html += '<h3>Avatar-related Data:</h3>';
+            avatarKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                html += `<div style="margin: 10px 0; padding: 10px; border: 1px solid #ccc;">`;
+                html += `<strong>${key}:</strong><br>`;
+                html += `<pre style="background: #f5f5f5; padding: 10px; overflow-x: auto;">${data}</pre>`;
+                html += `</div>`;
+            });
+            
+            output.innerHTML = html;
+        }
+        
+        function clearAvatarData() {
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('avatar') || key.includes('Avatar'))) {
+                    keys.push(key);
+                }
+            }
+            
+            keys.forEach(key => localStorage.removeItem(key));
+            alert(`Removed ${keys.length} avatar-related keys`);
+            showAvatarData();
+        }
+        
+        function createTestUpdate() {
+            const testAvatarId = 'test-avatar-123';
+            const personalityKey = `avatar_personality_${testAvatarId}`;
+            
+            const testData = {
+                traits: [
+                    { trait: 'Mut', value: 75, history: [{ timestamp: new Date().toISOString(), oldValue: 50, newValue: 75, reason: 'Test update' }] },
+                    { trait: 'Kreativität', value: 60, history: [] },
+                    { trait: 'Empathie', value: 80, history: [] },
+                    { trait: 'Intelligenz', value: 85, history: [] },
+                    { trait: 'Sozialität', value: 55, history: [] },
+                    { trait: 'Energie', value: 70, history: [] }
+                ],
+                lastUpdated: new Date().toISOString()
+            };
+            
+            localStorage.setItem(personalityKey, JSON.stringify(testData));
+            alert('Test personality data created for ' + testAvatarId);
+            showAvatarData();
+        }
+    </script>
+</body>
+</html>

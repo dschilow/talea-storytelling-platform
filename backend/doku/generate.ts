@@ -1,10 +1,11 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { secret } from "encore.dev/config";
-import { ai } from "~encore/clients";
+import { ai, avatar } from "~encore/clients";
 import { logTopic } from "../log/logger";
 
 const dokuDB = SQLDatabase.named("doku");
+const avatarDB = SQLDatabase.named("avatar");
 const openAIKey = secret("OpenAIKey");
 
 // Pricing & model (align with stories)
@@ -198,6 +199,68 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         WHERE id = ${id}
       `;
 
+      // Apply personality & memory updates for ALL user avatars based on Doku topic
+      try {
+        const knowledgeTrait = inferKnowledgeSubcategory(req.config.topic, req.config.perspective);
+        const basePoints = 2
+          + (req.config.depth === "standard" ? 1 : 0)
+          + (req.config.depth === "deep" ? 2 : 0)
+          + (req.config.length === "long" ? 1 : 0);
+        const knowledgePoints = Math.max(1, Math.min(10, basePoints));
+
+        // Build changes with detailed descriptions
+        const subjectName = req.config.topic;
+        const changes = [
+          {
+            trait: knowledgeTrait,
+            change: knowledgePoints,
+            description: `+${knowledgePoints} ${knowledgeTrait.split('.')[1]} durch Doku "${parsed.title}" über ${subjectName}`
+          },
+          {
+            trait: "curiosity",
+            change: 1,
+            description: `+1 Neugier durch Doku-Lektüre über ${subjectName}`
+          },
+        ];
+
+        // Load all avatars for this user
+        const userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
+          SELECT id, name FROM avatars WHERE user_id = ${req.userId}
+        `;
+
+        for (const a of userAvatars) {
+          try {
+            await avatar.updatePersonality({
+              id: a.id,
+              changes,
+              storyId: id,
+              contentTitle: parsed.title,
+              contentType: 'doku'
+            });
+
+            // Create detailed development description
+            const developmentSummary = changes
+              .map(c => c.description || `${c.trait}: +${c.change}`)
+              .join(', ');
+
+            await avatar.addMemory({
+              id: a.id,
+              storyId: id,
+              storyTitle: parsed.title,
+              experience: `Ich habe die Doku "${parsed.title}" gelesen. Thema: ${req.config.topic}.`,
+              emotionalImpact: "positive",
+              personalityChanges: changes,
+              developmentDescription: `Wissensentwicklung: ${developmentSummary}`,
+              contentType: 'doku'
+            });
+          } catch (e) {
+            console.warn("Failed to update avatar from doku:", a.id, e);
+          }
+        }
+      } catch (applyErr) {
+        console.warn("Applying doku personality/memory updates failed:", applyErr);
+      }
+
       return {
         id,
         userId: req.userId,
@@ -296,4 +359,24 @@ Regeln:
     response_format: { type: "json_object" },
     max_completion_tokens: 12000,
   };
+}
+
+// Infer a knowledge subcategory ID from topic/perspective
+function inferKnowledgeSubcategory(topic: string, perspective?: string): string {
+  const t = `${topic} ${perspective ?? ""}`.toLowerCase();
+  const map: Array<{ keywords: string[]; id: string }> = [
+    { keywords: ["bio", "tier", "pflanz", "zoo", "mensch", "körper"], id: "knowledge.biology" },
+    { keywords: ["geschichte", "histor", "antike", "mittelalter", "krieg"], id: "knowledge.history" },
+    { keywords: ["physik", "kraft", "energie", "bewegung", "elektr", "licht"], id: "knowledge.physics" },
+    { keywords: ["erde", "karte", "kontinent", "geografie", "ocean", "meer"], id: "knowledge.geography" },
+    { keywords: ["stern", "planet", "weltall", "galax", "kosmos", "astronom"], id: "knowledge.astronomy" },
+    { keywords: ["mathe", "zahl", "rechnen", "geometr", "bruch"], id: "knowledge.mathematics" },
+    { keywords: ["chemie", "stoff", "reaktion", "element", "molekül"], id: "knowledge.chemistry" },
+  ];
+
+  for (const entry of map) {
+    if (entry.keywords.some(k => t.includes(k))) return entry.id;
+  }
+  // Default to general knowledge
+  return "knowledge.history";
 }

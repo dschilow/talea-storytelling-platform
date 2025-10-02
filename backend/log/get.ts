@@ -8,7 +8,7 @@ interface GetLogRequest {
 
 // Retrieves a specific log entry by ID.
 export const get = api<GetLogRequest, LogEntry>(
-  { expose: true, method: "GET", path: "/logs/:id" },
+  { expose: true, method: "GET", path: "/log/get/:id" },
   async ({ id }) => {
     try {
       // Search for the log entry by ID across all paths

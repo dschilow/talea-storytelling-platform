@@ -1,6 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import type { PhysicalTraits, PersonalityTraits, AvatarVisualProfile, Avatar } from "../avatar/create";
+import type { PhysicalTraits, PersonalityTraits, AvatarVisualProfile, Avatar } from "../avatar/avatar";
 import { ensureAdmin } from "./authz";
 
 const avatarDB = SQLDatabase.named("avatar");

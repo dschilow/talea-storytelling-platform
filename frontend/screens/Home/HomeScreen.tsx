@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart, Clock, DollarSign, Zap, Edit, Trash2, LogIn } from 'lucide-react';
+import { RefreshCw, Plus, User, BookOpen, Sparkles, Star, Heart, Clock, DollarSign, Zap, Edit, Trash2, LogIn, FlaskConical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 
@@ -42,6 +42,15 @@ interface Story {
   };
 }
 
+interface Doku {
+  id: string;
+  title: string;
+  topic: string;
+  coverImageUrl?: string;
+  status: 'generating' | 'complete' | 'error';
+  createdAt: string;
+}
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   return (
@@ -76,6 +85,7 @@ const HomeScreen: React.FC = () => {
 
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
+  const [dokus, setDokus] = useState<Doku[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -90,14 +100,16 @@ const HomeScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
-      const [avatarsResponse, storiesResponse] = await Promise.all([
+
+      const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
         backend.avatar.list(),
-        backend.story.list()
+        backend.story.list(),
+        backend.doku.listDokus()
       ]);
 
       setAvatars(avatarsResponse.avatars as any[]);
       setStories(storiesResponse.stories as any[]);
+      setDokus(dokusResponse.dokus as any[]);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -116,7 +128,8 @@ const HomeScreen: React.FC = () => {
   const handleDeleteAvatar = async (avatarId: string, avatarName: string) => {
     if (window.confirm(`Möchtest du "${avatarName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.avatar.deleteAvatar({ id: avatarId });
+        // The Encore client expects the ID directly, not as an object
+        await backend.avatar.deleteAvatar(avatarId);
         setAvatars(avatars.filter(a => a.id !== avatarId));
         alert(`Avatar "${avatarName}" wurde erfolgreich gelöscht.`);
       } catch (error) {
@@ -129,12 +142,25 @@ const HomeScreen: React.FC = () => {
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.story.deleteStory({ id: storyId });
+        await backend.story.deleteStory(storyId);
         setStories(stories.filter(s => s.id !== storyId));
         alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
         console.error('Error deleting story:', error);
         alert('Fehler beim Löschen der Geschichte. Bitte versuche es erneut.');
+      }
+    }
+  };
+
+  const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
+    if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      try {
+        await backend.doku.deleteDoku(dokuId);
+        setDokus(dokus.filter(d => d.id !== dokuId));
+        alert(`Doku "${dokuTitle}" wurde erfolgreich gelöscht.`);
+      } catch (error) {
+        console.error('Error deleting doku:', error);
+        alert('Fehler beim Löschen der Doku. Bitte versuche es erneut.');
       }
     }
   };
@@ -594,8 +620,12 @@ const HomeScreen: React.FC = () => {
               <div style={storyGridStyle}>
                 {stories.map((story, index) => (
                   <FadeInView key={story.id} delay={400 + index * 50}>
-                    <Card variant="glass" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
-                      <div style={storyActionsStyle}>
+                    <div 
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/story-reader/${story.id}`)}
+                    >
+                      <Card variant="glass" style={storyCardStyle}>
+                        <div style={storyActionsStyle}>
                         <button
                           style={deleteButtonStyle}
                           onClick={(e) => {
@@ -685,7 +715,105 @@ const HomeScreen: React.FC = () => {
                           )}
                         </div>
                       )}
-                    </Card>
+                      </Card>
+                    </div>
+                  </FadeInView>
+                ))}
+              </div>
+            )}
+          </div>
+        </FadeInView>
+
+        {/* Dokus Section */}
+        <FadeInView delay={400}>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>
+              <FlaskConical size={28} style={{ color: colors.teal }} />
+              Deine Dokus ({dokus.length})
+            </div>
+
+            {dokus.length === 0 ? (
+              <Card variant="glass" style={emptyStateStyle}>
+                <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📚</div>
+                <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                  Noch keine Dokus
+                </div>
+                <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
+                  Erstelle deine erste lehrreiche Doku!
+                </div>
+                <Button
+                  title="Doku erstellen"
+                  onPress={() => navigate('/doku')}
+                  icon={<FlaskConical size={16} />}
+                  variant="secondary"
+                />
+              </Card>
+            ) : (
+              <div style={storyGridStyle}>
+                {dokus.map((doku, index) => (
+                  <FadeInView key={doku.id} delay={500 + index * 50}>
+                    <div
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/doku-reader/${doku.id}`)}
+                    >
+                      <Card variant="glass" style={storyCardStyle}>
+                        <div style={storyActionsStyle}>
+                          <button
+                            style={deleteButtonStyle}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDoku(doku.id, doku.title);
+                            }}
+                            title="Doku löschen"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div style={storyCoverStyle}>
+                          {doku.coverImageUrl ? (
+                            <img
+                              src={doku.coverImageUrl}
+                              alt={doku.title}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <span>📚</span>
+                          )}
+                          {doku.status === 'generating' && (
+                            <div style={{
+                              position: 'absolute',
+                              top: `${spacing.sm}px`,
+                              left: `${spacing.sm}px`,
+                              background: colors.glass.badgeBackground,
+                              color: colors.textPrimary,
+                              padding: `${spacing.xs}px ${spacing.sm}px`,
+                              borderRadius: `${radii.lg}px`,
+                              fontSize: typography.textStyles.caption.fontSize,
+                              fontWeight: typography.textStyles.label.fontWeight,
+                              boxShadow: shadows.sm,
+                              border: `1px solid ${colors.glass.border}`,
+                            }}>
+                              ✨ Wird erstellt...
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
+                          {doku.title}
+                        </div>
+                        <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.sm}px`, fontSize: '15px' }}>
+                          {doku.topic}
+                        </div>
+                        <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, fontSize: '13px', marginBottom: `${spacing.sm}px` }}>
+                          📅 {new Date(doku.createdAt).toLocaleDateString('de-DE')}
+                        </div>
+                      </Card>
+                    </div>
                   </FadeInView>
                 ))}
               </div>

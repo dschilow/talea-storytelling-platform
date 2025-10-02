@@ -5,13 +5,16 @@
   "packageManager": "bun",
   "dependencies": {
     "@clerk/clerk-react": "^5.49.1",
+    "@react-spring/web": "^10.0.1",
     "@reduxjs/toolkit": "^2.8.2",
     "@tailwindcss/vite": "^4.1.14",
+    "framer-motion": "^12.23.22",
     "lucide-react": "^0.484.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.9.3",
+    "sonner": "^2.0.7",
     "tailwindcss": "^4.1.14"
   },
   "devDependencies": {
