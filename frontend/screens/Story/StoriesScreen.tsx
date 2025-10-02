@@ -46,6 +46,19 @@ const StoriesScreen: React.FC = () => {
     navigate(`/story/${story.id}/edit`);
   };
 
+  const handleDeleteStory = async (storyId: string, storyTitle: string) => {
+    if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      try {
+        await backend.story.deleteStory(storyId);
+        setStories(stories.filter(s => s.id !== storyId));
+        alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
+      } catch (error) {
+        console.error('Error deleting story:', error);
+        alert('Fehler beim Löschen der Geschichte. Bitte versuche es erneut.');
+      }
+    }
+  };
+
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -229,6 +242,7 @@ const StoriesScreen: React.FC = () => {
                     key={story.id}
                     story={story}
                     onRead={handleReadStory}
+                    onDelete={handleDeleteStory}
                   />
                 ))}
               </div>

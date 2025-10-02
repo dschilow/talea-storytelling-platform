@@ -75,10 +75,7 @@ const DokuReaderScreen: React.FC = () => {
       loadDoku();
     }
     
-    // Test toast to verify system works
-    import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-      showSuccessToast('Doku Reader geladen! 📚');
-    });
+    // Removed test toast - was showing duplicate notifications
   }, [dokuId]);
 
   // Keine Avatar-Auswahl mehr erforderlich – Updates erfolgen serverseitig
@@ -181,14 +178,64 @@ const DokuReaderScreen: React.FC = () => {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
 
-        // Show success notification
+        // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-          showSuccessToast(`📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.`);
+          // Build compact message with trait changes
+          let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
+
+          if (result.personalityChanges && result.personalityChanges.length > 0) {
+            result.personalityChanges.forEach((avatarChange: any) => {
+              const changes = avatarChange.changes.map((change: any) => {
+                // Extract trait name and points from description
+                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
+                return `${points} ${getTraitDisplayName(change.trait)}`;
+              }).join(', ');
+              message += `${avatarChange.avatarName}: ${changes}\n`;
+            });
+          }
+
+          showSuccessToast(message.trim());
         });
 
-        // Show personality changes notification - removed confusing summed notifications
-        // Since no avatar is selected in Doku mode, we don't show individual trait notifications
-        // The success toast above already informs about avatar development
+        // Helper function to get German trait names
+        function getTraitDisplayName(trait: string): string {
+          // Handle subcategories like "knowledge.history"
+          const parts = trait.split('.');
+          const subcategory = parts.length > 1 ? parts[1] : null;
+          const mainTrait = parts[0];
+
+          const names: Record<string, string> = {
+            // Main traits
+            'knowledge': 'Wissen',
+            'creativity': 'Kreativität',
+            'vocabulary': 'Wortschatz',
+            'courage': 'Mut',
+            'curiosity': 'Neugier',
+            'teamwork': 'Teamgeist',
+            'empathy': 'Empathie',
+            'persistence': 'Ausdauer',
+            'logic': 'Logik',
+            // Subcategories
+            'history': 'Geschichte',
+            'science': 'Wissenschaft',
+            'geography': 'Geografie',
+            'physics': 'Physik',
+            'biology': 'Biologie',
+            'chemistry': 'Chemie',
+            'mathematics': 'Mathematik',
+            'kindness': 'Freundlichkeit',
+            'humor': 'Humor',
+            'determination': 'Entschlossenheit',
+            'wisdom': 'Weisheit'
+          };
+
+          // If it's a subcategory, return only the subcategory name
+          if (subcategory) {
+            return names[subcategory.toLowerCase()] || subcategory;
+          }
+
+          return names[mainTrait.toLowerCase()] || trait;
+        }
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);

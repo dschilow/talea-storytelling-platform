@@ -2,15 +2,23 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { Heart, Trash2 } from 'lucide-react';
 import type { Story } from '../../types/story';
 
 interface StoryCardProps {
   story: Story;
   onRead: (story: Story) => void;
+  onDelete?: (storyId: string, storyTitle: string) => void;
 }
 
-export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead }) => {
+export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete }) => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(story.id, story.title);
+    }
+  };
+
   return (
     <div
       onClick={() => onRead(story)}
@@ -27,6 +35,15 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead }) => {
         <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-md">
           <Heart className="w-4 h-4 text-red-500" />
         </div>
+        {onDelete && (
+          <button
+            onClick={handleDelete}
+            className="absolute top-3 left-3 bg-red-500/80 backdrop-blur-sm rounded-full p-1.5 shadow-md hover:bg-red-600 transition-colors"
+            title="Geschichte löschen"
+          >
+            <Trash2 className="w-4 h-4 text-white" />
+          </button>
+        )}
       </div>
       <div className="p-4">
         <h3 className="font-bold text-md text-gray-800 dark:text-white truncate group-hover:text-blue-600 transition-colors">

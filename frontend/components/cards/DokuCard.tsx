@@ -2,18 +2,26 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { Heart, Trash2 } from 'lucide-react';
 import type { Doku } from '../../types/doku';
 
 interface DokuCardProps {
   doku: Doku;
   onRead: (doku: Doku) => void;
+  onDelete?: (dokuId: string, dokuTitle: string) => void;
 }
 
-export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead }) => {
+export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) => {
   const handleClick = () => {
     console.log('DokuCard clicked:', doku.title, doku.id);
     onRead(doku);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(doku.id, doku.title);
+    }
   };
 
   return (
@@ -32,6 +40,15 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead }) => {
         <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-md">
           <Heart className="w-4 h-4 text-red-500" />
         </div>
+        {onDelete && (
+          <button
+            onClick={handleDelete}
+            className="absolute top-3 left-3 bg-red-500/80 backdrop-blur-sm rounded-full p-1.5 shadow-md hover:bg-red-600 transition-colors"
+            title="Doku löschen"
+          >
+            <Trash2 className="w-4 h-4 text-white" />
+          </button>
+        )}
       </div>
       <div className="p-4">
         <h3 className="font-bold text-md text-gray-800 dark:text-white truncate group-hover:text-teal-600 transition-colors">

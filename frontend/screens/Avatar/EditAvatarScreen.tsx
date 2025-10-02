@@ -103,9 +103,9 @@ const EditAvatarScreen: React.FC = () => {
 
     try {
       setSaving(true);
-      
-      await backend.avatar.update({
-        id: avatarId,
+
+      // The Encore client expects the ID as first parameter (path param), then the body
+      await backend.avatar.update(avatarId, {
         name: name.trim(),
         description: description.trim() || undefined,
         physicalTraits,
@@ -149,8 +149,8 @@ const EditAvatarScreen: React.FC = () => {
         console.error('Error analyzing new avatar image:', err);
       }
 
-      await backend.avatar.update({
-        id: avatarId!,
+      // The Encore client expects the ID as first parameter (path param), then the body
+      await backend.avatar.update(avatarId!, {
         imageUrl: result.imageUrl,
         visualProfile: newVisualProfile,
       });
@@ -165,17 +165,17 @@ const EditAvatarScreen: React.FC = () => {
     }
   };
 
+  // Match the 9 personality traits from the backend
   const personalityLabels = {
-    courage: { label: 'Mut', icon: '🦁', color: colors.error },
-    intelligence: { label: 'Intelligenz', icon: '🧠', color: colors.primary },
+    knowledge: { label: 'Wissen', icon: '🧠', color: colors.primary },
     creativity: { label: 'Kreativität', icon: '🎨', color: colors.orange },
-    empathy: { label: 'Empathie', icon: '❤️', color: colors.green },
-    strength: { label: 'Stärke', icon: '💪', color: colors.purple },
-    humor: { label: 'Humor', icon: '😄', color: colors.yellow },
-    adventure: { label: 'Abenteuer', icon: '🗺️', color: colors.blue },
-    patience: { label: 'Geduld', icon: '🧘', color: colors.teal },
-    curiosity: { label: 'Neugier', icon: '🔍', color: colors.orange },
-    leadership: { label: 'Führung', icon: '👑', color: colors.yellow },
+    vocabulary: { label: 'Wortschatz', icon: '🔤', color: colors.purple },
+    courage: { label: 'Mut', icon: '🦁', color: colors.error },
+    curiosity: { label: 'Neugier', icon: '🔍', color: colors.yellow },
+    teamwork: { label: 'Teamgeist', icon: '🤝', color: colors.blue },
+    empathy: { label: 'Empathie', icon: '💗', color: colors.green },
+    persistence: { label: 'Ausdauer', icon: '🧗', color: colors.teal },
+    logic: { label: 'Logik', icon: '🔢', color: colors.purple },
   };
 
   const containerStyle: React.CSSProperties = {
@@ -350,12 +350,26 @@ const EditAvatarScreen: React.FC = () => {
 
             <div style={{ marginBottom: `${spacing.lg}px` }}>
               <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                Beschreibung
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Eine kurze Beschreibung deines Avatars..."
+                style={{ ...inputStyle, minHeight: '80px' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: `${spacing.lg}px` }}>
+              <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
                 Charakter-Typ
               </label>
               <input
                 type="text"
                 value={physicalTraits.characterType}
                 onChange={(e) => updatePhysicalTrait('characterType', e.target.value)}
+                placeholder="z.B. Tier (Hund, Katze) oder Mensch"
                 style={inputStyle}
               />
             </div>
@@ -368,51 +382,63 @@ const EditAvatarScreen: React.FC = () => {
                 value={physicalTraits.appearance}
                 onChange={(e) => updatePhysicalTrait('appearance', e.target.value)}
                 rows={4}
+                placeholder="Beschreibe das Aussehen: Farbe, Größe, besondere Merkmale..."
                 style={{ ...inputStyle, minHeight: '120px' }}
               />
             </div>
           </Card>
         </FadeInView>
 
-        {/* Personality Traits */}
+        {/* Personality Traits - Read-Only Display */}
         <FadeInView delay={200}>
           <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px` }}>
-              💫 Persönlichkeit anpassen
+            <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+              💫 Persönlichkeitsentwicklung
             </h2>
-            {Object.entries(personalityTraits).map(([key, value], index) => {
-              const trait = personalityLabels[key as keyof PersonalityTraits];
-              // Skip traits that don't have labels defined
-              if (!trait) return null;
+            <p style={{ fontSize: '14px', color: colors.textSecondary, marginBottom: `${spacing.lg}px`, lineHeight: '1.5' }}>
+              Die Persönlichkeit deines Avatars entwickelt sich automatisch durch Erlebnisse in Geschichten und Dokus. Du kannst diese Werte nicht manuell ändern.
+            </p>
+            <div style={{
+              backgroundColor: '#F3F4F6',
+              borderRadius: `${radii.lg}px`,
+              padding: `${spacing.md}px`,
+              border: '2px dashed #D1D5DB'
+            }}>
+              {Object.entries(personalityTraits).map(([key, value], index) => {
+                const trait = personalityLabels[key as keyof PersonalityTraits];
+                // Skip traits that don't have labels defined
+                if (!trait) return null;
 
-              return (
-                <FadeInView key={key} delay={250 + index * 30}>
-                  <div style={{ marginBottom: `${spacing.lg}px` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: `${spacing.sm}px` }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontSize: '24px', marginRight: `${spacing.md}px` }}>{trait.icon}</span>
-                        <span style={{ ...typography.textStyles.label, color: colors.textPrimary }}>{trait.label}</span>
-                      </div>
-                      <div style={{ padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: `${radii.lg}px`, backgroundColor: trait.color, color: colors.textInverse, fontWeight: 'bold' }}>
-                        {value}
-                      </div>
+                return (
+                  <div key={key} style={{
+                    marginBottom: index < Object.keys(personalityTraits).length - 1 ? `${spacing.md}px` : 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '20px', marginRight: `${spacing.sm}px` }}>{trait.icon}</span>
+                      <span style={{ fontSize: '14px', color: colors.textPrimary, fontWeight: '500' }}>{trait.label}</span>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      step="1"
-                      value={value}
-                      onChange={(e) => updatePersonalityTrait(key as keyof PersonalityTraits, parseInt(e.target.value))}
-                      style={{
-                        ...sliderStyle,
-                        background: `linear-gradient(to right, ${trait.color} 0%, ${trait.color} ${value * 10}%, ${colors.border} ${value * 10}%, ${colors.border} 100%)`,
-                      }}
-                    />
+                    <div style={{
+                      padding: `${spacing.xs}px ${spacing.md}px`,
+                      borderRadius: `${radii.md}px`,
+                      backgroundColor: trait.color,
+                      color: colors.textInverse,
+                      fontWeight: 'bold',
+                      fontSize: '14px',
+                      minWidth: '40px',
+                      textAlign: 'center'
+                    }}>
+                      {value}
+                    </div>
                   </div>
-                </FadeInView>
-              );
-            })}
+                );
+              })}
+            </div>
+            <p style={{ fontSize: '12px', color: colors.textSecondary, marginTop: `${spacing.md}px`, fontStyle: 'italic' }}>
+              💡 Tipp: Lasse deinen Avatar Geschichten lesen, um seine Persönlichkeit weiterzuentwickeln!
+            </p>
           </Card>
         </FadeInView>
 

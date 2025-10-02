@@ -38,13 +38,6 @@ const StoryReaderScreen: React.FC = () => {
     }
     
     // Keine Avatar-Auswahl mehr nötig – Updates erfolgen serverseitig bei Generierung
-    
-    // Test toast to verify system works
-    console.log('About to show test toast for Story Reader');
-    import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-      showSuccessToast('Story Reader geladen! 📖');
-      console.log('Test toast should be shown now');
-    });
   }, [storyId, location.state]);
 
   useEffect(() => {
@@ -129,10 +122,64 @@ const StoryReaderScreen: React.FC = () => {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
 
-        // Show success notification
+        // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-          showSuccessToast(`📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.`);
+          // Build compact message with trait changes
+          let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
+
+          if (result.personalityChanges && result.personalityChanges.length > 0) {
+            result.personalityChanges.forEach((avatarChange: any) => {
+              const changes = avatarChange.changes.map((change: any) => {
+                // Extract trait name and points from description
+                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
+                return `${points} ${getTraitDisplayName(change.trait)}`;
+              }).join(', ');
+              message += `${avatarChange.avatarName}: ${changes}\n`;
+            });
+          }
+
+          showSuccessToast(message.trim());
         });
+
+        // Helper function to get German trait names
+        function getTraitDisplayName(trait: string): string {
+          // Handle subcategories like "knowledge.history"
+          const parts = trait.split('.');
+          const subcategory = parts.length > 1 ? parts[1] : null;
+          const mainTrait = parts[0];
+
+          const names: Record<string, string> = {
+            // Main traits
+            'knowledge': 'Wissen',
+            'creativity': 'Kreativität',
+            'vocabulary': 'Wortschatz',
+            'courage': 'Mut',
+            'curiosity': 'Neugier',
+            'teamwork': 'Teamgeist',
+            'empathy': 'Empathie',
+            'persistence': 'Ausdauer',
+            'logic': 'Logik',
+            // Subcategories
+            'history': 'Geschichte',
+            'science': 'Wissenschaft',
+            'geography': 'Geografie',
+            'physics': 'Physik',
+            'biology': 'Biologie',
+            'chemistry': 'Chemie',
+            'mathematics': 'Mathematik',
+            'kindness': 'Freundlichkeit',
+            'humor': 'Humor',
+            'determination': 'Entschlossenheit',
+            'wisdom': 'Weisheit'
+          };
+
+          // If it's a subcategory, return only the subcategory name
+          if (subcategory) {
+            return names[subcategory.toLowerCase()] || subcategory;
+          }
+
+          return names[mainTrait.toLowerCase()] || trait;
+        }
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);

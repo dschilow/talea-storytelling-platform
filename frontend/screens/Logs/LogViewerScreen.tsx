@@ -43,9 +43,9 @@ const LogViewerScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
-      // Direct HTTP calls to avoid Encore client generation issues
-      const baseUrl = 'http://127.0.0.1:4001';
+
+      // Use the same backend URL as other API calls
+      const baseUrl = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4000';
       
       const [logsResponse, sourcesResponse] = await Promise.all([
         fetch(`${baseUrl}/log/list?${new URLSearchParams({

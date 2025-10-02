@@ -47,6 +47,19 @@ const DokusScreen: React.FC = () => {
     navigate(`/doku/${doku.id}/edit`);
   };
 
+  const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
+    if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      try {
+        await backend.doku.deleteDoku(dokuId);
+        setDokus(dokus.filter(d => d.id !== dokuId));
+        alert(`Doku "${dokuTitle}" wurde erfolgreich gelöscht.`);
+      } catch (error) {
+        console.error('Error deleting doku:', error);
+        alert('Fehler beim Löschen der Doku. Bitte versuche es erneut.');
+      }
+    }
+  };
+
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -248,6 +261,7 @@ const DokusScreen: React.FC = () => {
                     key={doku.id}
                     doku={doku}
                     onRead={handleReadDoku}
+                    onDelete={handleDeleteDoku}
                   />
                 ))}
               </div>
