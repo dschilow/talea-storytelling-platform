@@ -1,7 +1,7 @@
 import { api, Query } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { ensureAdmin } from "./authz";
-import type { Avatar } from "../avatar/create";
+import type { Avatar } from "../avatar/avatar";
 
 const avatarDB = SQLDatabase.named("avatar");
 

@@ -594,8 +594,12 @@ const HomeScreen: React.FC = () => {
               <div style={storyGridStyle}>
                 {stories.map((story, index) => (
                   <FadeInView key={story.id} delay={400 + index * 50}>
-                    <Card variant="glass" style={storyCardStyle} onPress={() => navigate(`/story-reader/${story.id}`)}>
-                      <div style={storyActionsStyle}>
+                    <div 
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/story-reader/${story.id}`)}
+                    >
+                      <Card variant="glass" style={storyCardStyle}>
+                        <div style={storyActionsStyle}>
                         <button
                           style={deleteButtonStyle}
                           onClick={(e) => {
@@ -685,7 +689,8 @@ const HomeScreen: React.FC = () => {
                           )}
                         </div>
                       )}
-                    </Card>
+                      </Card>
+                    </div>
                   </FadeInView>
                 ))}
               </div>

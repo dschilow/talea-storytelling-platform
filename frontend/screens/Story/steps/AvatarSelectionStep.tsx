@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Check } from 'lucide-react';
+import { User, Check, Users, Eye } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
 import { useBackend } from '../../../hooks/useBackend';
+import { getTraitsForStory, getTraitLabel, getTraitIcon } from '../../../constants/traits';
 
 interface Avatar {
   id: string;
@@ -16,11 +17,13 @@ interface Avatar {
 interface AvatarSelectionStepProps {
   selectedAvatarIds: string[];
   onSelectionChange: (avatarIds: string[]) => void;
+  storyType?: string; // For showing relevant traits
 }
 
 const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
   selectedAvatarIds,
   onSelectionChange,
+  storyType,
 }) => {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,75 +84,128 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
     );
   }
 
+  // Get relevant traits for story type
+  const relevantTraits = storyType ? getTraitsForStory(storyType) : [];
+
   return (
     <FadeInView>
-      <Card variant="elevated">
-        <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Wähle deine Helden</h2>
-        <p className="text-gray-600 text-center mb-4">
-          Wähle bis zu 3 Avatare für deine Geschichte aus
-        </p>
-        
-        <div className="text-center mb-6">
-          <span className="text-purple-600 font-semibold">
-            {selectedAvatarIds.length} von 3 ausgewählt
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          {avatars.map((avatar, index) => {
-            const isSelected = selectedAvatarIds.includes(avatar.id);
-            
-            return (
-              <FadeInView key={avatar.id} delay={100 + index * 50}>
-                <button
-                  onClick={() => toggleAvatarSelection(avatar.id)}
-                  className={`w-full p-4 rounded-lg border-2 transition-all ${
-                    isSelected
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-300 hover:border-purple-300'
-                  }`}
+      <div className="space-y-6">
+        {/* Story Info Card */}
+        {relevantTraits.length > 0 && (
+          <Card variant="elevated" className="bg-blue-50 border-blue-200">
+            <h3 className="font-semibold text-lg mb-2 text-blue-800">📖 Story-Modus</h3>
+            <p className="text-sm text-blue-700 mb-3">
+              Story-Typ bestimmt welche Eigenschaften entwickelt werden:
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {relevantTraits.map(traitId => (
+                <span
+                  key={traitId}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
                 >
-                  <div className="relative">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 overflow-hidden ${
-                      isSelected ? 'bg-purple-100' : 'bg-gray-100'
-                    }`}>
-                      {avatar.imageUrl ? (
-                        <img 
-                          src={avatar.imageUrl} 
-                          alt={avatar.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-2xl">
-                          {avatar.creationType === 'ai-generated' ? '🤖' : '📷'}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {isSelected && (
-                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
+                  <span>{getTraitIcon(traitId)}</span>
+                  <span>{getTraitLabel(traitId, 'de')}</span>
+                </span>
+              ))}
+            </div>
+            <div className="text-xs space-y-1 text-blue-600">
+              <p><strong>Mitspieler:</strong> Erhalten volle Punkte (+3)</p>
+              <p><strong>Beobachter:</strong> Erhalten weniger Punkte (+1)</p>
+            </div>
+          </Card>
+        )}
+
+        {/* Avatar Selection Card */}
+        <Card variant="elevated">
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Wähle deine Mitspieler</h2>
+          <p className="text-gray-600 text-center mb-4">
+            Bis zu 3 Avatare können aktiv mitspielen, andere beobachten
+          </p>
+
+          <div className="text-center mb-6">
+            <span className="text-purple-600 font-semibold">
+              {selectedAvatarIds.length} von 3 Mitspieler ausgewählt
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {avatars.map((avatar, index) => {
+              const isParticipant = selectedAvatarIds.includes(avatar.id);
+
+              return (
+                <FadeInView key={avatar.id} delay={100 + index * 50}>
+                  <button
+                    onClick={() => toggleAvatarSelection(avatar.id)}
+                    className={`w-full p-4 rounded-lg border-2 transition-all ${
+                      isParticipant
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-300 bg-gray-50 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Avatar Image */}
+                      <div className="relative">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden ${
+                          isParticipant ? 'bg-green-100' : 'bg-gray-100'
+                        }`}>
+                          {avatar.imageUrl ? (
+                            <img
+                              src={avatar.imageUrl}
+                              alt={avatar.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-2xl">
+                              {avatar.creationType === 'ai-generated' ? '🤖' : '📷'}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                          isParticipant ? 'bg-green-500' : 'bg-gray-400'
+                        }`}>
+                          {isParticipant ? <Users className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  
-                  <h3 className={`font-semibold text-center mb-1 ${
-                    isSelected ? 'text-purple-700' : 'text-gray-800'
-                  }`}>
-                    {avatar.name}
-                  </h3>
-                  
-                  <p className={`text-xs text-center ${
-                    isSelected ? 'text-purple-600' : 'text-gray-500'
-                  }`}>
-                    {avatar.creationType === 'ai-generated' ? 'KI-generiert' : 'Foto-basiert'}
-                  </p>
-                </button>
-              </FadeInView>
-            );
-          })}
-        </div>
-      </Card>
+
+                      {/* Avatar Info */}
+                      <div className="flex-1 text-left">
+                        <h3 className={`font-semibold text-lg ${
+                          isParticipant ? 'text-green-700' : 'text-gray-800'
+                        }`}>
+                          {avatar.name}
+                        </h3>
+
+                        <div className="text-sm space-y-1">
+                          <p className={`font-medium ${
+                            isParticipant ? 'text-green-600' : 'text-gray-500'
+                          }`}>
+                            {isParticipant ? '🎭 Mitspieler' : '👀 Beobachter'}
+                          </p>
+
+                          {relevantTraits.length > 0 && (
+                            <p className={`text-xs ${
+                              isParticipant ? 'text-green-600' : 'text-gray-500'
+                            }`}>
+                              Erhält {isParticipant ? '+3' : '+1'} Punkte in: {relevantTraits.map(t => getTraitIcon(t)).join(' ')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </FadeInView>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 text-center text-sm text-gray-500">
+            {selectedAvatarIds.length === 0 && (
+              <p className="text-amber-600">⚠️ Mindestens einen Mitspieler auswählen</p>
+            )}
+          </div>
+        </Card>
+      </div>
     </FadeInView>
   );
 };

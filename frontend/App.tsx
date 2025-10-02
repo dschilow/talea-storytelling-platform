@@ -2,36 +2,45 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider } from '@clerk/clerk-react';
+import { Toaster } from 'sonner';
 import { store } from './store/store';
 
 import HomeScreen from './screens/Home/HomeScreen';
-import AvatarCreationScreen from './screens/Avatar/AvatarCreationScreen';
+import AvatarWizardScreen from './screens/Avatar/AvatarWizardScreen';
 import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
+import AvatarsScreen from './screens/Avatar/AvatarsScreen';
+import AvatarDetailScreen from './screens/Avatar/AvatarDetailScreen';
 import StoryWizardScreen from './screens/Story/StoryWizardScreen';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
+import StoriesScreen from './screens/Story/StoriesScreen';
 import LogViewerScreen from './screens/Logs/LogViewerScreen';
 import Navigation from './components/navigation/Navigation';
+import TaviButton from './components/common/TaviButton';
 import { colors } from './utils/constants/colors';
 import AuthScreen from './screens/Auth/AuthScreen';
 import AdminDashboard from './screens/Admin/AdminDashboard';
 import { clerkPublishableKey } from './config';
 import DokuWizardScreen from './screens/Doku/DokuWizardScreen';
 import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
+import DokusScreen from './screens/Doku/DokusScreen';
 
 const AppContent = () => (
   <Router>
     <div style={{ minHeight: '100vh', backgroundColor: colors.background }}>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
-        <Route path="/avatar" element={<AvatarCreationScreen />} />
+        <Route path="/avatar" element={<AvatarsScreen />} />
+        <Route path="/avatar/create" element={<AvatarWizardScreen />} />
+        <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
         <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
         <Route path="/story" element={<StoryWizardScreen />} />
         <Route path="/story-reader/:storyId" element={<StoryReaderScreen />} />
-        <Route path="/stories" element={<HomeScreen />} />
+        <Route path="/stories" element={<StoriesScreen />} />
         <Route path="/community" element={<HomeScreen />} />
         <Route path="/logs" element={<LogViewerScreen />} />
         {/* Doku / Galileo mode */}
-        <Route path="/doku" element={<DokuWizardScreen />} />
+        <Route path="/doku" element={<DokusScreen />} />
+        <Route path="/doku/create" element={<DokuWizardScreen />} />
         <Route path="/doku-reader/:dokuId" element={<DokuReaderScreen />} />
 
         {/* Auth routes */}
@@ -40,6 +49,8 @@ const AppContent = () => (
         <Route path="/_admin" element={<AdminDashboard />} />
       </Routes>
       <Navigation />
+      <TaviButton />
+      <Toaster position="top-right" richColors closeButton />
     </div>
   </Router>
 );

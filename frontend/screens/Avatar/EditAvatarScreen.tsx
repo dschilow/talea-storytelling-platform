@@ -47,17 +47,37 @@ const EditAvatarScreen: React.FC = () => {
   }, [avatarId]);
 
   const loadAvatar = async () => {
-    if (!avatarId) return;
-    
+    if (!avatarId) {
+      console.error('No avatarId provided');
+      return;
+    }
+
     try {
       setLoading(true);
-      const avatarData = await backend.avatar.get({ id: avatarId });
-      
+      // The client expects the ID directly, not as an object!
+      const avatarData = await backend.avatar.get(avatarId);
+
       setAvatar(avatarData as any);
       setName((avatarData as any).name);
       setDescription((avatarData as any).description || '');
       setPhysicalTraits((avatarData as any).physicalTraits);
-      setPersonalityTraits((avatarData as any).personalityTraits);
+
+      // Convert new hierarchical format to old flat format
+      const rawTraits = (avatarData as any).personalityTraits;
+      const flatTraits: any = {};
+
+      // Handle both old format (numbers) and new format (objects with value/subcategories)
+      Object.entries(rawTraits).forEach(([key, val]) => {
+        if (typeof val === 'number') {
+          flatTraits[key] = val;
+        } else if (typeof val === 'object' && val !== null && 'value' in val) {
+          flatTraits[key] = (val as any).value;
+        } else {
+          flatTraits[key] = 0;
+        }
+      });
+
+      setPersonalityTraits(flatTraits);
     } catch (error) {
       console.error('Error loading avatar:', error);
       alert('Avatar konnte nicht geladen werden.');
@@ -362,6 +382,9 @@ const EditAvatarScreen: React.FC = () => {
             </h2>
             {Object.entries(personalityTraits).map(([key, value], index) => {
               const trait = personalityLabels[key as keyof PersonalityTraits];
+              // Skip traits that don't have labels defined
+              if (!trait) return null;
+
               return (
                 <FadeInView key={key} delay={250 + index * 30}>
                   <div style={{ marginBottom: `${spacing.lg}px` }}>

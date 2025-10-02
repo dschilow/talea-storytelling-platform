@@ -34,7 +34,7 @@ const StoryWizardScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
   const [generating, setGenerating] = useState(false);
   const [storyConfig, setStoryConfig] = useState<StoryConfig>({
-    avatarIds: [],
+    avatarIds: [], // Wird automatisch mit allen User-Avataren gefüllt
     genre: '',
     setting: '',
     length: 'medium',
@@ -99,36 +99,36 @@ const StoryWizardScreen: React.FC = () => {
       return;
     }
 
+    if (storyConfig.avatarIds.length === 0) {
+      alert("Bitte wähle mindestens einen Avatar für die Geschichte aus.");
+      return;
+    }
+
     try {
       setGenerating(true);
-      console.log('Starting story generation with config:', storyConfig);
-      
-      const limitedConfig = {
-        ...storyConfig,
-        avatarIds: storyConfig.avatarIds.slice(0, 3)
-      };
-      
+      console.log('🚀 Starting story generation with selected avatars...', storyConfig.avatarIds);
+
       const story = await backend.story.generate({
         userId: user.id,
-        config: limitedConfig,
+        config: storyConfig,
       });
 
-      console.log('Story generated successfully:', story.title);
+      console.log('✅ Story generated successfully:', story.title);
       alert(`Geschichte "${story.title}" wurde erfolgreich generiert! 🎉`);
       window.location.href = '/';
     } catch (error) {
-      console.error('Error generating story:', error);
-      
+      console.error('❌ Error generating story:', error);
+
       let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) {
-          errorMessage = 'Die Anfrage ist zu groß. Bitte wähle weniger Avatare oder kleinere Bilder aus.';
+          errorMessage = 'Die Anfrage ist zu groß. Bitte versuche es erneut.';
         } else if (error.message.includes('timeout')) {
           errorMessage = 'Die Generierung dauert zu lange. Bitte versuche es mit einer kürzeren Geschichte.';
         }
       }
-      
+
       alert(errorMessage);
     } finally {
       setGenerating(false);

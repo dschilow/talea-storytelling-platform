@@ -1,132 +1,92 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
+import { Avatar, CreateAvatarRequest } from "./avatar";
+import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 
 const avatarDB = new SQLDatabase("avatar", {
   migrations: "./migrations",
 });
 
-export interface PhysicalTraits {
-  characterType: string;
-  appearance: string;
-}
+export const create = api(
+  {
+    expose: true,
+    auth: true,
+    method: "POST",
+    path: "/avatar",
+  },
+  async (req: CreateAvatarRequest): Promise<Avatar> => {
+    console.log("Received request to create avatar:", req);
 
-export interface PersonalityTraits {
-  courage: number;
-  intelligence: number;
-  creativity: number;
-  empathy: number;
-  strength: number;
-  humor: number;
-  adventure: number;
-  patience: number;
-  curiosity: number;
-  leadership: number;
-}
-
-// Canonical, detailed visual profile extracted from an avatar image.
-// This is used to ensure consistent appearance across all generated images.
-export interface AvatarVisualProfile {
-  ageApprox: string;
-  gender: string;
-  skin: {
-    tone: string;
-    undertone?: string | null;
-    distinctiveFeatures?: string[];
-  };
-  hair: {
-    color: string;
-    type: string;
-    length: string;
-    style: string;
-  };
-  eyes: {
-    color: string;
-    shape?: string | null;
-    size?: string | null;
-  };
-  face: {
-    shape?: string | null;
-    nose?: string | null;
-    mouth?: string | null;
-    eyebrows?: string | null;
-    freckles?: boolean;
-    otherFeatures?: string[];
-  };
-  accessories: string[];
-  clothingCanonical?: {
-    top?: string | null;
-    bottom?: string | null;
-    outfit?: string | null;
-    colors?: string[];
-    patterns?: string[];
-  };
-  palette?: {
-    primary: string[];
-    secondary?: string[];
-  };
-  consistentDescriptors: string[]; // Ready-to-use short tokens for prompts.
-}
-
-export interface Avatar {
-  id: string;
-  userId: string;
-  name: string;
-  description?: string;
-  physicalTraits: PhysicalTraits;
-  personalityTraits: PersonalityTraits;
-  imageUrl?: string;
-  visualProfile?: AvatarVisualProfile;
-  creationType: "ai-generated" | "photo-upload";
-  isPublic: boolean;
-  originalAvatarId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface CreateAvatarRequest {
-  name: string;
-  description?: string;
-  physicalTraits: PhysicalTraits;
-  personalityTraits: PersonalityTraits;
-  imageUrl?: string;
-  visualProfile?: AvatarVisualProfile;
-  creationType: "ai-generated" | "photo-upload";
-}
-
-// Creates a new avatar for the authenticated user.
-export const create = api<CreateAvatarRequest, Avatar>(
-  { expose: true, method: "POST", path: "/avatar", auth: true },
-  async (req) => {
     const auth = getAuthData()!;
-    const id = crypto.randomUUID();
-    const now = new Date();
+    const userId = auth.userID;
+    const avatarId = crypto.randomUUID();
 
-    await avatarDB.exec`
-      INSERT INTO avatars (
-        id, user_id, name, description, physical_traits, personality_traits,
-        image_url, visual_profile, creation_type, is_public, created_at, updated_at
-      ) VALUES (
-        ${id}, ${auth.userID}, ${req.name}, ${req.description},
-        ${JSON.stringify(req.physicalTraits)}, ${JSON.stringify(req.personalityTraits)},
-        ${req.imageUrl}, ${req.visualProfile ? JSON.stringify(req.visualProfile) : null},
-        ${req.creationType}, false, ${now}, ${now}
-      )
-    `;
+    console.log(`Generated avatarId: ${avatarId} for userId: ${userId}`);
 
-    return {
-      id,
-      userId: auth.userID,
+    // Überschreibe personality traits mit Standardwerten (alle beginnen bei 0)
+    const defaultPersonalityTraits = getDefaultPersonalityTraits();
+
+    const avatar: Avatar = {
+      id: avatarId,
+      userId: userId,
       name: req.name,
       description: req.description,
       physicalTraits: req.physicalTraits,
-      personalityTraits: req.personalityTraits,
+      personalityTraits: defaultPersonalityTraits, // Standardwerte mit allen 0
       imageUrl: req.imageUrl,
       visualProfile: req.visualProfile,
       creationType: req.creationType,
       isPublic: false,
-      createdAt: now,
-      updatedAt: now,
+      originalAvatarId: undefined,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
+
+    const physicalTraitsJson = JSON.stringify(req.physicalTraits);
+    const personalityTraitsJson = JSON.stringify(defaultPersonalityTraits);
+    const visualProfileJson = req.visualProfile ? JSON.stringify(req.visualProfile) : null;
+
+    console.log("Data for DB insert:");
+    console.log(`- id: ${avatarId}`);
+    console.log(`- user_id: ${userId}`);
+    console.log(`- name: ${req.name}`);
+    console.log(`- description: ${req.description || null}`);
+    console.log(`- physical_traits: ${physicalTraitsJson}`);
+    console.log(`- personality_traits: ${personalityTraitsJson}`);
+    console.log(`- image_url: ${req.imageUrl || null}`);
+    console.log(`- visual_profile: ${visualProfileJson}`);
+    console.log(`- creation_type: ${req.creationType}`);
+
+    try {
+      // INSERT without visual_profile column (not in migration schema)
+      await avatarDB.exec`
+        INSERT INTO avatars (
+          id, user_id, name, description,
+          physical_traits, personality_traits, image_url,
+          creation_type, is_public, original_avatar_id,
+          created_at, updated_at
+        ) VALUES (
+          ${avatarId},
+          ${userId},
+          ${req.name},
+          ${req.description || null},
+          ${physicalTraitsJson},
+          ${personalityTraitsJson},
+          ${req.imageUrl || null},
+          ${req.creationType},
+          false,
+          null,
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+      `;
+      console.log("Avatar created successfully in DB");
+    } catch (e) {
+      console.error("Error inserting avatar into DB:", e);
+      throw e; // re-throw the error to let encore handle it
+    }
+
+    return avatar;
   }
 );

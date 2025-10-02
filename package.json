@@ -6,5 +6,9 @@
   "workspaces": [
     "backend",
     "frontend"
-  ]
+  ],
+  "dependencies": {
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.544.0"
+  }
 }

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test KI Personality Analysis</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>KI Personality Analysis Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testPersonalityAnalysis() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing KI personality analysis...</p>';
+            
+            try {
+                // Test the story analysis endpoint
+                const response = await fetch('http://localhost:4000/ai/analyze-personality', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        avatarId: 'test-avatar-123',
+                        avatarProfile: {
+                            name: 'Test Avatar',
+                            description: 'Ein Test Avatar für die KI-Analyse',
+                            currentPersonality: {
+                                'Mut': 50,
+                                'Kreativität': 50,
+                                'Empathie': 50,
+                                'Intelligenz': 50,
+                                'Sozialität': 50,
+                                'Energie': 50
+                            }
+                        },
+                        contentType: 'story',
+                        contentData: {
+                            title: 'Test Geschichte',
+                            storyContent: 'Eine aufregende Geschichte über Mut und Abenteuer. Der Protagonist muss schwierige Entscheidungen treffen und zeigt dabei große Tapferkeit.',
+                            learningMode: {
+                                enabled: true,
+                                subjects: ['Deutsch', 'Ethik'],
+                                difficulty: 'medium',
+                                objectives: ['Charakterentwicklung verstehen', 'Moralische Dilemmata erkennen']
+                            }
+                        }
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML = `
+                        <h2>✅ KI Analysis Success!</h2>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    const error = await response.text();
+                    results.innerHTML = `
+                        <h2>❌ KI Analysis Failed</h2>
+                        <p>Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <h2>❌ Network Error</h2>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+        
+        // Test on page load
+        testPersonalityAnalysis();
+    </script>
+</body>
+</html>
