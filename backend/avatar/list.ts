@@ -1,9 +1,7 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { Avatar, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
-
-const avatarDB = SQLDatabase.named("avatar");
+import { avatarDB } from "./db";
 
 interface ListAvatarsResponse {
   avatars: Avatar[];

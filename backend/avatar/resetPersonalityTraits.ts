@@ -1,11 +1,7 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
-
-const avatarDB = new SQLDatabase("avatar", {
-  migrations: "./migrations",
-});
+import { avatarDB } from "./db";
 
 interface ResetPersonalityTraitsResponse {
   success: boolean;

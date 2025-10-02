@@ -1,11 +1,7 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { PersonalityTraits } from "./avatar";
 import { BASE_PERSONALITY_TRAITS, KNOWLEDGE_SUBCATEGORIES } from "../constants/personalityTraits";
-
-const avatarDB = new SQLDatabase("avatar", {
-  migrations: "./migrations",
-});
+import { avatarDB } from "./db";
 
 // Erweitert und normalisiert Persönlichkeits-Traits zu hierarchischem System
 function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {

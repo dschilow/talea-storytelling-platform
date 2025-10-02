@@ -1,8 +1,6 @@
 import { api, APIError } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
-
-const avatarDB = SQLDatabase.named("avatar");
+import { avatarDB } from "./db";
 
 interface DeleteAvatarParams {
   id: string;

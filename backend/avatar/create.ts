@@ -1,12 +1,8 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { Avatar, CreateAvatarRequest } from "./avatar";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
-
-const avatarDB = new SQLDatabase("avatar", {
-  migrations: "./migrations",
-});
+import { avatarDB } from "./db";
 
 export const create = api(
   {

@@ -1,9 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
-const avatarDB = new SQLDatabase("avatar", {
-  migrations: "./migrations",
-});
+import { avatarDB } from "./db";
 
 export interface AvatarMemory {
   id: string;

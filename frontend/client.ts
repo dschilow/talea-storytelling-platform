@@ -39,6 +39,7 @@ export class Client {
     public readonly doku: doku.ServiceClient
     public readonly log: log.ServiceClient
     public readonly story: story.ServiceClient
+    public readonly tavi: tavi.ServiceClient
     public readonly user: user.ServiceClient
     private readonly options: ClientOptions
     private readonly target: string
@@ -60,6 +61,7 @@ export class Client {
         this.doku = new doku.ServiceClient(base)
         this.log = new log.ServiceClient(base)
         this.story = new story.ServiceClient(base)
+        this.tavi = new tavi.ServiceClient(base)
         this.user = new user.ServiceClient(base)
     }
 
@@ -235,11 +237,17 @@ export namespace admin {
  * Import the endpoint handlers to derive the types for the client.
  */
 import { analyzeAvatarImage as api_ai_analyze_avatar_analyzeAvatarImage } from "~backend/ai/analyze-avatar";
+import { analyzePersonalityDevelopment as api_ai_analyze_personality_analyzePersonalityDevelopment } from "~backend/ai/analyze-personality";
 import { generateAvatarImage as api_ai_avatar_generation_generateAvatarImage } from "~backend/ai/avatar-generation";
 import {
     generateImage as api_ai_image_generation_generateImage,
     generateImagesBatch as api_ai_image_generation_generateImagesBatch
 } from "~backend/ai/image-generation";
+import {
+    checkPersonalityUpdate as api_ai_personality_tracker_checkPersonalityUpdate,
+    getPersonalityHistory as api_ai_personality_tracker_getPersonalityHistory,
+    trackPersonalityUpdate as api_ai_personality_tracker_trackPersonalityUpdate
+} from "~backend/ai/personality-tracker";
 
 export namespace ai {
 
@@ -249,9 +257,13 @@ export namespace ai {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.analyzeAvatarImage = this.analyzeAvatarImage.bind(this)
+            this.analyzePersonalityDevelopment = this.analyzePersonalityDevelopment.bind(this)
+            this.checkPersonalityUpdate = this.checkPersonalityUpdate.bind(this)
             this.generateAvatarImage = this.generateAvatarImage.bind(this)
             this.generateImage = this.generateImage.bind(this)
             this.generateImagesBatch = this.generateImagesBatch.bind(this)
+            this.getPersonalityHistory = this.getPersonalityHistory.bind(this)
+            this.trackPersonalityUpdate = this.trackPersonalityUpdate.bind(this)
         }
 
         /**
@@ -261,6 +273,28 @@ export namespace ai {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/ai/analyze-avatar-image`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_analyze_avatar_analyzeAvatarImage>
+        }
+
+        public async analyzePersonalityDevelopment(params: RequestType<typeof api_ai_analyze_personality_analyzePersonalityDevelopment>): Promise<ResponseType<typeof api_ai_analyze_personality_analyzePersonalityDevelopment>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/analyze-personality`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_analyze_personality_analyzePersonalityDevelopment>
+        }
+
+        /**
+         * Check if avatar already received updates from this content
+         */
+        public async checkPersonalityUpdate(params: RequestType<typeof api_ai_personality_tracker_checkPersonalityUpdate>): Promise<ResponseType<typeof api_ai_personality_tracker_checkPersonalityUpdate>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:    params.avatarId,
+                contentId:   params.contentId,
+                contentType: String(params.contentType),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/check-personality-update`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_checkPersonalityUpdate>
         }
 
         /**
@@ -289,6 +323,24 @@ export namespace ai {
             const resp = await this.baseClient.callTypedAPI(`/ai/generate-images-batch`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_image_generation_generateImagesBatch>
         }
+
+        /**
+         * Get all personality updates for an avatar (for history/debugging)
+         */
+        public async getPersonalityHistory(params: { avatarId: string }): Promise<ResponseType<typeof api_ai_personality_tracker_getPersonalityHistory>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/personality-history/${encodeURIComponent(params.avatarId)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_getPersonalityHistory>
+        }
+
+        /**
+         * Track that an avatar received personality updates from content
+         */
+        public async trackPersonalityUpdate(params: RequestType<typeof api_ai_personality_tracker_trackPersonalityUpdate>): Promise<ResponseType<typeof api_ai_personality_tracker_trackPersonalityUpdate>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/track-personality-update`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_trackPersonalityUpdate>
+        }
     }
 }
 
@@ -299,11 +351,20 @@ export namespace auth {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { addMemory as api_avatar_addMemory_addMemory } from "~backend/avatar/addMemory";
 import { create as api_avatar_create_create } from "~backend/avatar/create";
+import { debugPersonality as api_avatar_debugPersonality_debugPersonality } from "~backend/avatar/debugPersonality";
 import { deleteAvatar as api_avatar_delete_deleteAvatar } from "~backend/avatar/delete";
+import { deleteMemory as api_avatar_deleteMemory_deleteMemory } from "~backend/avatar/deleteMemory";
 import { get as api_avatar_get_get } from "~backend/avatar/get";
+import { getMemories as api_avatar_getMemories_getMemories } from "~backend/avatar/getMemories";
 import { list as api_avatar_list_list } from "~backend/avatar/list";
+import { reducePersonalityTrait as api_avatar_reducePersonalityTrait_reducePersonalityTrait } from "~backend/avatar/reducePersonalityTrait";
+import { resetDokuHistory as api_avatar_resetDokuHistory_resetDokuHistory } from "~backend/avatar/resetDokuHistory";
+import { resetPersonalityTraits as api_avatar_resetPersonalityTraits_resetPersonalityTraits } from "~backend/avatar/resetPersonalityTraits";
 import { update as api_avatar_update_update } from "~backend/avatar/update";
+import { updatePersonality as api_avatar_updatePersonality_updatePersonality } from "~backend/avatar/updatePersonality";
+import { upgradeAllPersonalityTraits as api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits } from "~backend/avatar/upgradePersonalityTraits";
 
 export namespace avatar {
 
@@ -312,16 +373,31 @@ export namespace avatar {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.addMemory = this.addMemory.bind(this)
             this.create = this.create.bind(this)
+            this.debugPersonality = this.debugPersonality.bind(this)
             this.deleteAvatar = this.deleteAvatar.bind(this)
+            this.deleteMemory = this.deleteMemory.bind(this)
             this.get = this.get.bind(this)
+            this.getMemories = this.getMemories.bind(this)
             this.list = this.list.bind(this)
+            this.reducePersonalityTrait = this.reducePersonalityTrait.bind(this)
+            this.resetDokuHistory = this.resetDokuHistory.bind(this)
+            this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this)
             this.update = this.update.bind(this)
+            this.updatePersonality = this.updatePersonality.bind(this)
+            this.upgradeAllPersonalityTraits = this.upgradeAllPersonalityTraits.bind(this)
         }
 
         /**
-         * Creates a new avatar for the authenticated user.
+         * Adds a new memory entry for an avatar
          */
+        public async addMemory(params: RequestType<typeof api_avatar_addMemory_addMemory>): Promise<ResponseType<typeof api_avatar_addMemory_addMemory>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/memory`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_addMemory_addMemory>
+        }
+
         public async create(params: RequestType<typeof api_avatar_create_create>): Promise<ResponseType<typeof api_avatar_create_create>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar`, {method: "POST", body: JSON.stringify(params)})
@@ -329,10 +405,28 @@ export namespace avatar {
         }
 
         /**
+         * Debug endpoint to compare stored personality traits vs what they should be based on memories
+         */
+        public async debugPersonality(params: { id: string }): Promise<ResponseType<typeof api_avatar_debugPersonality_debugPersonality>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/debug-personality`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_debugPersonality_debugPersonality>
+        }
+
+        /**
          * Deletes an avatar.
          */
         public async deleteAvatar(params: { id: string }): Promise<void> {
             await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        }
+
+        /**
+         * Deletes a specific memory and recalculates personality traits
+         */
+        public async deleteMemory(params: { avatarId: string, memoryId: string }): Promise<ResponseType<typeof api_avatar_deleteMemory_deleteMemory>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/memory/${encodeURIComponent(params.memoryId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_deleteMemory_deleteMemory>
         }
 
         /**
@@ -345,12 +439,60 @@ export namespace avatar {
         }
 
         /**
+         * Gets all memories for an avatar
+         */
+        public async getMemories(params: { id: string }): Promise<ResponseType<typeof api_avatar_getMemories_getMemories>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/memories`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_getMemories_getMemories>
+        }
+
+        /**
          * Retrieves all avatars for the authenticated user.
          */
         public async list(): Promise<ResponseType<typeof api_avatar_list_list>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatars`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_list_list>
+        }
+
+        /**
+         * Manually reduce personality trait points (for corrections/deletions)
+         */
+        public async reducePersonalityTrait(params: RequestType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>): Promise<ResponseType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                amount: params.amount,
+                reason: params.reason,
+                trait:  params.trait,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reduce-trait`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>
+        }
+
+        /**
+         * Reset doku reading history for an avatar (allows re-reading dokus)
+         */
+        public async resetDokuHistory(params: RequestType<typeof api_avatar_resetDokuHistory_resetDokuHistory>): Promise<ResponseType<typeof api_avatar_resetDokuHistory_resetDokuHistory>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                dokuId: params.dokuId,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reset-doku-history`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_resetDokuHistory_resetDokuHistory>
+        }
+
+        /**
+         * Resets all personality traits of user's avatars to start at 0 (new system)
+         */
+        public async resetPersonalityTraits(): Promise<ResponseType<typeof api_avatar_resetPersonalityTraits_resetPersonalityTraits>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/reset-personality-traits`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_resetPersonalityTraits_resetPersonalityTraits>
         }
 
         /**
@@ -372,6 +514,24 @@ export namespace avatar {
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_update_update>
         }
+
+        /**
+         * Updates an avatar's personality traits with delta changes
+         */
+        public async updatePersonality(params: RequestType<typeof api_avatar_updatePersonality_updatePersonality>): Promise<ResponseType<typeof api_avatar_updatePersonality_updatePersonality>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/personality`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_updatePersonality_updatePersonality>
+        }
+
+        /**
+         * API zum Upgrade aller Avatare (für Migration)
+         */
+        public async upgradeAllPersonalityTraits(): Promise<ResponseType<typeof api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/upgrade-traits`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits>
+        }
     }
 }
 
@@ -382,6 +542,7 @@ import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
 import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
 import { listDokus as api_doku_list_listDokus } from "~backend/doku/list";
+import { markRead as api_doku_markRead_markRead } from "~backend/doku/markRead";
 import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
 
 export namespace doku {
@@ -395,6 +556,7 @@ export namespace doku {
             this.generateDoku = this.generateDoku.bind(this)
             this.getDoku = this.getDoku.bind(this)
             this.listDokus = this.listDokus.bind(this)
+            this.markRead = this.markRead.bind(this)
             this.updateDoku = this.updateDoku.bind(this)
         }
 
@@ -424,6 +586,15 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/dokus`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_list_listDokus>
+        }
+
+        /**
+         * Marks a doku as read and applies personality development to all user avatars
+         */
+        public async markRead(params: RequestType<typeof api_doku_markRead_markRead>): Promise<ResponseType<typeof api_doku_markRead_markRead>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_markRead_markRead>
         }
 
         public async updateDoku(params: RequestType<typeof api_doku_update_updateDoku>): Promise<ResponseType<typeof api_doku_update_updateDoku>> {
@@ -464,7 +635,7 @@ export namespace log {
          */
         public async get(params: { id: string }): Promise<ResponseType<typeof api_log_get_get>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/logs/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/log/get/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_get_get>
         }
 
@@ -473,7 +644,7 @@ export namespace log {
          */
         public async getSources(): Promise<ResponseType<typeof api_log_sources_getSources>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/logs/sources`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/log/getSources`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_sources_getSources>
         }
 
@@ -489,7 +660,7 @@ export namespace log {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/logs`, {query, method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/log/list`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_list_list>
         }
     }
@@ -503,6 +674,7 @@ import { deleteStory as api_story_delete_deleteStory } from "~backend/story/dele
 import { generate as api_story_generate_generate } from "~backend/story/generate";
 import { get as api_story_get_get } from "~backend/story/get";
 import { list as api_story_list_list } from "~backend/story/list";
+import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
 import { update as api_story_update_update } from "~backend/story/update";
 
 export namespace story {
@@ -517,6 +689,7 @@ export namespace story {
             this.generateStoryContent = this.generateStoryContent.bind(this)
             this.get = this.get.bind(this)
             this.list = this.list.bind(this)
+            this.markRead = this.markRead.bind(this)
             this.update = this.update.bind(this)
         }
 
@@ -561,6 +734,15 @@ export namespace story {
         }
 
         /**
+         * Marks a story as read and applies personality development to all user avatars
+         */
+        public async markRead(params: RequestType<typeof api_story_markRead_markRead>): Promise<ResponseType<typeof api_story_markRead_markRead>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/mark-read`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_markRead_markRead>
+        }
+
+        /**
          * Updates an existing story's metadata.
          */
         public async update(params: RequestType<typeof api_story_update_update>): Promise<ResponseType<typeof api_story_update_update>> {
@@ -574,6 +756,29 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_update_update>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { taviChat as api_tavi_chat_taviChat } from "~backend/tavi/chat";
+
+export namespace tavi {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.taviChat = this.taviChat.bind(this)
+        }
+
+        public async taviChat(params: RequestType<typeof api_tavi_chat_taviChat>): Promise<ResponseType<typeof api_tavi_chat_taviChat>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tavi/chat`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tavi_chat_taviChat>
         }
     }
 }

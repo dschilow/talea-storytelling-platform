@@ -1,11 +1,7 @@
 import { api, APIError } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { PersonalityTraits } from "./avatar";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
-
-const avatarDB = new SQLDatabase("avatar", {
-  migrations: "./migrations",
-});
+import { avatarDB } from "./db";
 
 interface TraitChange {
   trait: string;
