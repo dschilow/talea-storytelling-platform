@@ -41,6 +41,12 @@ jobs:
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
 
+      - name: Patch DB host from secret (optional)
+        env:
+          RAILWAY_DB_HOSTPORT: ${{ secrets.RAILWAY_DB_HOSTPORT }}
+        run: |
+          node -e "const fs=require('fs');const p='backend/railway-infra.config.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));if(process.env.RAILWAY_DB_HOSTPORT){j.sql_servers[0].host=process.env.RAILWAY_DB_HOSTPORT;fs.writeFileSync(p, JSON.stringify(j,null,2));console.log('Patched host to', j.sql_servers[0].host);}else{console.log('RAILWAY_DB_HOSTPORT not set; using repo default host');}"
+
       - name: Verify Encore CLI
         run: encore version
 
