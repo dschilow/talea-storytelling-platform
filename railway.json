@@ -12,11 +12,7 @@
         },
         "build": {
           "cmds": [
-            "cd backend",
-            "bun install",
-            "bun run build",
-            "cd ..",
-            "bun install"
+            "cd backend && bun install && bun run build"
           ]
         }
       },
