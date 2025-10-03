@@ -17,7 +17,7 @@
         }
       },
       "start": {
-        "cmd": "cd backend && encore run --port=$PORT"
+        "cmd": "cd backend && npx encore run --port=$PORT"
       }
     }
   },
