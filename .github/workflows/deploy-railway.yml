@@ -41,44 +41,26 @@ jobs:
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
 
-      - name: Patch infra config with Railway values
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
+      - name: Patch infra config - keep runtime env var references
         run: |
           node -e "
           const fs = require('fs');
           const path = 'backend/railway-infra.config.json';
           const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
-          // PostgreSQL values for Railway deployment
+          // Keep variables as \$VARNAME so Encore reads them from container env at runtime
           const host = 'postgres.railway.internal';
-          const user = 'postgres';
-          const password = 'HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr';
-          const database = 'railway';
 
-          // Patch database configuration
+          // Patch database configuration - hardcode host but keep user/password as env vars
           if (config.sql_servers && config.sql_servers[0] && config.sql_servers[0].databases) {
             config.sql_servers[0].host = host;
-            Object.keys(config.sql_servers[0].databases).forEach(dbKey => {
-              config.sql_servers[0].databases[dbKey].username = user;
-              config.sql_servers[0].databases[dbKey].password = password;
-              config.sql_servers[0].databases[dbKey].database_name = database;
-            });
-          }
-
-          // Patch secrets - use env vars from Railway (set at runtime, placeholders for build)
-          if (config.secrets) {
-            config.secrets.ClerkSecretKey = process.env.CLERK_SECRET_KEY || 'placeholder-will-be-set-at-runtime';
-            config.secrets.OpenAIKey = process.env.OPENAI_API_KEY || 'placeholder-will-be-set-at-runtime';
-            config.secrets.RunwareApiKey = process.env.RUNWARE_API_KEY || 'placeholder-will-be-set-at-runtime';
+            // Keep username/password as environment variable references for runtime resolution
           }
 
           fs.writeFileSync(path, JSON.stringify(config, null, 2));
-          console.log('✅ Patched railway-infra.config.json');
+          console.log('✅ railway-infra.config.json ready with runtime env var references');
           console.log('   PostgreSQL Host:', host);
-          console.log('   Secrets configured:', Object.keys(config.secrets || {}).join(', '));
+          console.log('   Config will read PGUSER, PGPASSWORD, etc. from container at runtime');
           "
 
 
