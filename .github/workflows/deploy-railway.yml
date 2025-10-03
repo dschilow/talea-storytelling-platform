@@ -1,0 +1,58 @@
+name: Build and Deploy Encore App to Railway
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Encore CLI
+        run: |
+          curl -L https://encore.dev/install.sh | bash
+          echo "$HOME/.encore/bin" >> $GITHUB_PATH
+
+      - name: Build Encore Docker image
+        run: |
+          cd backend
+          encore build docker myapp
+
+      - name: Tag Docker image for GitHub Container Registry
+        run: |
+          docker tag myapp ghcr.io/${{ github.repository }}:latest
+          docker tag myapp ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      - name: Push Docker images
+        run: |
+          docker push ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Docker image built and pushed successfully!"
+          echo "📦 Image: ghcr.io/${{ github.repository }}:latest"
+          echo "🔖 SHA: ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          echo ""
+          echo "🚀 Next steps:"
+          echo "1. Go to Railway Dashboard"
+          echo "2. Create/Update service with image: ghcr.io/${{ github.repository }}:latest"
+          echo "3. Set PORT environment variable"
+          echo "4. Set DATABASE_URL (from Railway PostgreSQL)"
+          echo "5. Set ClerkSecretKey"
+          echo "6. Set RunwareApiKey"
