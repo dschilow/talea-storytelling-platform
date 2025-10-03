@@ -32,6 +32,16 @@
       }
     }
   ],
+  "object_storage": [
+    {
+      "gcs": {
+        "bucket_name": "avatales-ai-logs-railway"
+      },
+      "buckets": {
+        "avatales-ai-logs": {}
+      }
+    }
+  ],
   "secrets": {
     "ClerkSecretKey": "$CLERK_SECRET_KEY",
     "OpenAIKey": "$OPENAI_API_KEY",
