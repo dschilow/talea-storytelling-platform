@@ -34,10 +34,9 @@
   ],
   "object_storage": [
     {
+      "cloud": "local",
       "buckets": {
-        "avatales-ai-logs": {
-          "cloud": "local"
-        }
+        "avatales-ai-logs": {}
       }
     }
   ],
