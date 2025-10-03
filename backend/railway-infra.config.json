@@ -13,8 +13,35 @@
           "database_name": "railway",
           "username": "$PGUSER",
           "password": "$PGPASSWORD"
+        },
+        "personality_tracking": {
+          "database_name": "railway",
+          "username": "$PGUSER",
+          "password": "$PGPASSWORD"
+        },
+        "story": {
+          "database_name": "railway",
+          "username": "$PGUSER",
+          "password": "$PGPASSWORD"
+        },
+        "user": {
+          "database_name": "railway",
+          "username": "$PGUSER",
+          "password": "$PGPASSWORD"
         }
       }
     }
-  ]
+  ],
+  "object_storage": {
+    "buckets": {
+      "avatales-ai-logs": {
+        "cloud": "local"
+      }
+    }
+  },
+  "secrets": {
+    "ClerkSecretKey": "$CLERK_SECRET_KEY",
+    "OpenAIKey": "$OPENAI_API_KEY",
+    "RunwareApiKey": "$RUNWARE_API_KEY"
+  }
 }

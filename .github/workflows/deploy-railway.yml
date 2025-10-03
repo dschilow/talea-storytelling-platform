@@ -41,22 +41,26 @@ jobs:
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
 
-      - name: Patch database configuration with Railway PostgreSQL values
+      - name: Patch infra config with Railway values
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
         run: |
           node -e "
           const fs = require('fs');
           const path = 'backend/railway-infra.config.json';
           const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
-          // Hardcoded Railway PostgreSQL values for build
+          // PostgreSQL values for Railway deployment
           const host = 'postgres.railway.internal';
           const user = 'postgres';
           const password = 'HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr';
           const database = 'railway';
 
+          // Patch database configuration
           if (config.sql_servers && config.sql_servers[0] && config.sql_servers[0].databases) {
             config.sql_servers[0].host = host;
-            // databases is an object/map, not an array
             Object.keys(config.sql_servers[0].databases).forEach(dbKey => {
               config.sql_servers[0].databases[dbKey].username = user;
               config.sql_servers[0].databases[dbKey].password = password;
@@ -64,11 +68,17 @@ jobs:
             });
           }
 
+          // Patch secrets - use env vars from Railway (set at runtime, placeholders for build)
+          if (config.secrets) {
+            config.secrets.ClerkSecretKey = process.env.CLERK_SECRET_KEY || 'placeholder-will-be-set-at-runtime';
+            config.secrets.OpenAIKey = process.env.OPENAI_API_KEY || 'placeholder-will-be-set-at-runtime';
+            config.secrets.RunwareApiKey = process.env.RUNWARE_API_KEY || 'placeholder-will-be-set-at-runtime';
+          }
+
           fs.writeFileSync(path, JSON.stringify(config, null, 2));
           console.log('✅ Patched railway-infra.config.json');
-          console.log('   Host:', host);
-          console.log('   User:', user);
-          console.log('   Database:', database);
+          console.log('   PostgreSQL Host:', host);
+          console.log('   Secrets configured:', Object.keys(config.secrets || {}).join(', '));
           "
 
 
