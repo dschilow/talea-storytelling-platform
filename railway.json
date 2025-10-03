@@ -17,7 +17,7 @@
         }
       },
       "start": {
-        "cmd": "cd backend && ./node_modules/.bin/encore run --port=$PORT"
+        "cmd": "cd backend && node ../node_modules/encore.dev/dist/cli.js run --port=$PORT"
       }
     }
   },
