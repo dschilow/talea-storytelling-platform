@@ -14,7 +14,7 @@ bun install
 '''
 
 [start]
-cmd = 'cd backend && bun run start -- --port=$PORT'
+cmd = 'cd backend && bun install && bun run start -- --port=$PORT'
 
 [variables]
 BUN_INSTALL_CACHE_DIR = '/root/.bun/install/cache'

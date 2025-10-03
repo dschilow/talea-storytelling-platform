@@ -17,7 +17,7 @@
         }
       },
       "start": {
-        "cmd": "cd backend && bun run start -- --port=$PORT"
+        "cmd": "cd backend && bun install && bun run start -- --port=$PORT"
       }
     }
   },
