@@ -1,9 +1,7 @@
-import { api, Gateway } from "encore.dev/api";
+import { Gateway } from "encore.dev/api";
 
 // Global API Gateway with CORS configuration
-export const gateway = new Gateway({
-  authHandler: undefined, // Auth is handled per-endpoint
-});
+export const gateway = new Gateway();
 
 // CORS middleware for all requests
 gateway.cors({
