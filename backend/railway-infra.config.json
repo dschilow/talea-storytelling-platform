@@ -1,4 +1,71 @@
 {
   "$schema": "https://encore.dev/schemas/infra.schema.json",
-  "sql_servers": []
+  "metadata": {
+    "env_name": "production",
+    "env_type": "production",
+    "cloud": "railway"
+  },
+  "secrets": {
+    "ClerkSecretKey": { "$env": "ClerkSecretKey" },
+    "OpenAIKey": { "$env": "OPENAI_API_KEY" },
+    "RunwareApiKey": { "$env": "RunwareApiKey" }
+  },
+  "sql_servers": [
+    {
+      "host": "db-host.rlwy.net:5432",
+      "tls_config": {
+        "disable_ca_validation": true,
+        "disable_tls_hostname_verification": true
+      },
+      "databases": {
+        "avatar": {
+          "name": "railway",
+          "username": "postgres",
+          "password": { "$env": "DB_PASSWORD" }
+        },
+        "doku": {
+          "name": "railway",
+          "username": "postgres",
+          "password": { "$env": "DB_PASSWORD" }
+        },
+        "personality_tracking": {
+          "name": "railway",
+          "username": "postgres",
+          "password": { "$env": "DB_PASSWORD" }
+        },
+        "story": {
+          "name": "railway",
+          "username": "postgres",
+          "password": { "$env": "DB_PASSWORD" }
+        },
+        "user": {
+          "name": "railway",
+          "username": "postgres",
+          "password": { "$env": "DB_PASSWORD" }
+        }
+      }
+    }
+  ],
+  "object_storage": [
+    {
+      "type": "s3",
+      "region": "us-east-1",
+      "buckets": {
+        "avatales-ai-logs": { "name": "avatales-ai-logs" }
+      }
+    }
+  ],
+  "pubsub": [
+    {
+      "type": "nsq",
+      "topics": {
+        "log-events": {
+          "name": "log-events",
+          "subscriptions": {
+            "save-log-to-bucket": { "name": "save-log-to-bucket" }
+          }
+        }
+      }
+    }
+  ]
 }
