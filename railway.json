@@ -17,7 +17,7 @@
         }
       },
       "start": {
-        "cmd": "curl -L https://encore.dev/install.sh | bash && cd backend && encore run --port=$PORT"
+        "cmd": "curl -L https://encore.dev/install.sh | bash && export PATH=\"/root/.encore/bin:$PATH\" && cd backend && encore run --port=$PORT"
       }
     }
   },
