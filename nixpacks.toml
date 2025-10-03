@@ -6,7 +6,6 @@ cmd = 'bun install'
 
 [phases.build]
 cmd = '''
-npm install -g encore.dev &&
 cd backend &&
 bun install &&
 bun run build &&
@@ -15,7 +14,7 @@ bun install
 '''
 
 [start]
-cmd = 'cd backend && encore run --port=$PORT'
+cmd = 'cd backend && bun install && npm run start -- --port=$PORT'
 
 [variables]
 BUN_INSTALL_CACHE_DIR = '/root/.bun/install/cache'
