@@ -1,6 +1,4 @@
-import { Topic, Subscription } from "encore.dev/pubsub";
 import { Bucket } from "encore.dev/storage/objects";
-const DISABLE_LOG_STORAGE = process.env.DISABLE_LOG_STORAGE === "1";
 
 // LogEvent defines the structure for log messages.
 export interface LogEvent {
@@ -18,52 +16,34 @@ export interface LogEvent {
   metadata?: any;
 }
 
-// logBucket is the storage for our structured logs.
-// Using a more specific name to avoid potential conflicts.
+const DISABLE_LOG_STORAGE = process.env.DISABLE_LOG_STORAGE === "1";
+
+// Object storage bucket for structured logs.
 export const logBucket = new Bucket("avatales-ai-logs", {
   public: false,
 });
 
-// logTopic is the central topic for all AI-related logging events.
-export const logTopic = new Topic<LogEvent>("log-events", {
-  deliveryGuarantee: "at-least-once",
-});
-
-// This subscription listens for log events and saves them to the bucket.
-// This happens asynchronously, so it doesn't slow down the main request flow.
-export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", {
-  handler: async (event: LogEvent) => {
-    console.log(`🚀 LOG SUBSCRIPTION HANDLER CALLED!`);
-    console.log(`📝 Received log event from source: ${event.source}`);
-    // Generate unique ID for the log entry
+// logTopic shim: provides publish(event) to keep callers unchanged without requiring Pub/Sub infra.
+export const logTopic = {
+  publish: async (event: LogEvent) => {
+    // Generate unique ID and path for the log entry
     const id = crypto.randomUUID();
-    
-    // Create a safe filename by replacing colons.
     const safeTimestamp = event.timestamp.toISOString().replace(/:/g, '-');
     const path = `${event.source}/${event.timestamp.toISOString().split('T')[0]}/${safeTimestamp}_${id}.json`;
-    
-    const logContent = {
-      id,
-      ...event,
-    };
+    const logContent = { id, ...event };
 
     try {
       if (DISABLE_LOG_STORAGE) {
-        console.warn("Log storage disabled (DISABLE_LOG_STORAGE=1). Skipping bucket upload.");
+        // No-op if disabled
         return;
       }
       await logBucket.upload(path, Buffer.from(JSON.stringify(logContent, null, 2)), {
         contentType: "application/json",
       });
-      console.log(`✅ Logged event to bucket 'avatales-ai-logs' at path: ${path}`);
     } catch (err) {
-      if (DISABLE_LOG_STORAGE) {
-        console.warn("Log storage disabled and upload failed, ignoring error.");
-        return;
-      }
-      console.error(`❌ Failed to log event to bucket:`, err);
-      // Encore will automatically retry the message if the handler throws an error.
-      throw err;
+      // Swallow errors: logging must not break request flow
+      console.error("logTopic.publish: failed to write log", err);
     }
   },
-});
+};
+

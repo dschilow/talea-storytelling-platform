@@ -54,18 +54,6 @@
         "avatales-ai-logs": { "name": "avatales-ai-logs" }
       }
     }
-  ],
-  "pubsub": [
-    {
-      "type": "nsq",
-      "topics": {
-        "log-events": {
-          "name": "log-events",
-          "subscriptions": {
-            "save-log-to-bucket": { "name": "save-log-to-bucket" }
-          }
-        }
-      }
-    }
+  ]
   ]
 }
