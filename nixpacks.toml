@@ -2,14 +2,19 @@
 nixPkgs = ['nodejs_20', 'bun']
 
 [phases.install]
-cmd = 'rm -f bun.lockb && bun install'
+cmd = 'bun install'
 
 [phases.build]
 cmd = '''
-cd backend && bun install &&
+cd backend &&
+bun install &&
 bun run build &&
-cd .. && bun install
+cd .. &&
+bun install
 '''
 
 [start]
 cmd = 'cd backend && encore run --port=$PORT'
+
+[variables]
+BUN_INSTALL_CACHE_DIR = '/root/.bun/install/cache'
