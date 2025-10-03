@@ -60,13 +60,12 @@ jobs:
           docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
 
       - name: Set up Node for Railway trigger
-        if: ${{ secrets.RAILWAY_API_TOKEN != '' && secrets.RAILWAY_ENVIRONMENT_ID != '' && secrets.RAILWAY_SERVICE_ID != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Trigger Railway deployment
-        if: ${{ secrets.RAILWAY_API_TOKEN != '' && secrets.RAILWAY_ENVIRONMENT_ID != '' && secrets.RAILWAY_SERVICE_ID != '' }}
+      - name: Trigger Railway deployment (skips if secrets missing)
+        continue-on-error: true
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
