@@ -2,7 +2,7 @@
 nixPkgs = ['nodejs_20', 'bun']
 
 [phases.install]
-cmd = 'bun install'
+cmd = 'rm -f bun.lockb && bun install'
 
 [phases.build]
 cmd = '''

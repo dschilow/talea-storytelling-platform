@@ -1,0 +1,10 @@
+# Use nixpacks instead of Dockerfile
+# This file prevents Docker build errors
+# Railway will use nixpacks.toml configuration instead
+
+node_modules
+.git
+.encore
+*.log
+.env*
+!.env.railway

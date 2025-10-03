@@ -9,8 +9,8 @@ COPY package.json bun.lockb* ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
 
-# Install dependencies
-RUN bun install
+# Install dependencies (ignore-scripts to avoid esbuild version check)
+RUN bun install --ignore-scripts
 
 # Copy source code
 COPY . .
