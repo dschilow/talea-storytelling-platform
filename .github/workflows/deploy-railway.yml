@@ -54,12 +54,13 @@ jobs:
           const password = 'HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr';
           const database = 'railway';
 
-          if (config.sql_servers && config.sql_servers[0]) {
+          if (config.sql_servers && config.sql_servers[0] && config.sql_servers[0].databases) {
             config.sql_servers[0].host = host;
-            config.sql_servers[0].databases.forEach(db => {
-              db.username = user;
-              db.password = password;
-              db.name = database;
+            // databases is an object/map, not an array
+            Object.keys(config.sql_servers[0].databases).forEach(dbKey => {
+              config.sql_servers[0].databases[dbKey].username = user;
+              config.sql_servers[0].databases[dbKey].password = password;
+              config.sql_servers[0].databases[dbKey].database_name = database;
             });
           }
 

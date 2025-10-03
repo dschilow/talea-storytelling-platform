@@ -3,20 +3,18 @@
   "sql_servers": [
     {
       "host": "$PGHOST",
-      "databases": [
-        {
-          "name": "avatar",
-          "encore_name": "avatar",
+      "databases": {
+        "avatar": {
+          "database_name": "railway",
           "username": "$PGUSER",
           "password": "$PGPASSWORD"
         },
-        {
-          "name": "doku",
-          "encore_name": "doku",
+        "doku": {
+          "database_name": "railway",
           "username": "$PGUSER",
           "password": "$PGPASSWORD"
         }
-      ]
+      }
     }
   ]
 }
