@@ -5,8 +5,10 @@
     "buildCommand": "cd backend && bun install && bun run build && cd .. && bun install"
   },
   "deploy": {
-    "startCommand": "cd backend && encore run --port=4000",
+    "startCommand": "cd backend && encore run --port=$PORT",
     "healthcheckPath": "/",
-    "healthcheckTimeout": 100
+    "healthcheckTimeout": 300,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
   }
 }

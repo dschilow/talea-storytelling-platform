@@ -756,6 +756,23 @@ export namespace avatar {
         isPublic?: boolean
     }
 
+    export interface AvatarMemory {
+        id: string
+        storyId: string
+        storyTitle: string
+        experience: string
+        emotionalImpact: 'positive' | 'negative' | 'neutral'
+        personalityChanges: Array<{
+            trait: string
+            change: number
+        }>
+        createdAt: string
+    }
+
+    export interface GetMemoriesResponse {
+        memories: AvatarMemory[]
+    }
+
     export class ServiceClient {
         private baseClient: BaseClient
 
@@ -764,6 +781,7 @@ export namespace avatar {
             this.create = this.create.bind(this)
             this.deleteAvatar = this.deleteAvatar.bind(this)
             this.get = this.get.bind(this)
+            this.getMemories = this.getMemories.bind(this)
             this.list = this.list.bind(this)
             this.update = this.update.bind(this)
         }
@@ -791,6 +809,15 @@ export namespace avatar {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}`)
             return await resp.json() as Avatar
+        }
+
+        /**
+         * Gets all memories for an avatar.
+         */
+        public async getMemories(id: string): Promise<GetMemoriesResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}/memories`)
+            return await resp.json() as GetMemoriesResponse
         }
 
         /**

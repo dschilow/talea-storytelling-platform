@@ -28,7 +28,7 @@ export interface AuthData {
   role: "admin" | "user";
 }
 
-// 🔧 FIXED: Erweiterte authorized parties für alle Leap.new Umgebungen
+// 🔧 FIXED: Erweiterte authorized parties für alle Leap.new & Railway Umgebungen
 const AUTHORIZED_PARTIES = [
   // Development
   "http://localhost:3000",
@@ -39,16 +39,24 @@ const AUTHORIZED_PARTIES = [
   "http://localhost:5176", // Vite Dev Server (alternative port)
   "http://localhost:5177", // Vite Dev Server (alternative port)
   "http://localhost:4000", // Encore Dev Server
-  
+
   // Leap.new Patterns - Alle möglichen Varianten
   "https://*.lp.dev",
   "https://talea-storytelling-platform-*.lp.dev",
   "https://talea-storytelling-platform-4ot2.lp.dev", // Aus encore.app
-  
+
   // 🎯 SPECIFIC FIX: Die exakte Domain aus dem Fehler
   "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
-  
-  // Production (wenn du später deployed)
+
+  // Railway Production Patterns
+  "https://*.up.railway.app",
+  "https://talea-storytelling-platform-*.up.railway.app",
+
+  // Railway Custom Domains (wenn du später eine hinzufügst)
+  // "https://talea.deine-domain.de",
+  // "https://api.deine-domain.de",
+
+  // Production (Custom Domain)
   // "https://your-domain.com",
   // "https://api.your-domain.com",
 ];

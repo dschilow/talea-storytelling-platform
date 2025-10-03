@@ -1,60 +1,54 @@
 # Railway Deployment Guide für Talea
 
-## 1. Railway Setup
+> 🚀 **Quick Start?** Siehe [RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md)
+> 📚 **Ausführliche Anleitung?** Siehe [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
 
-1. Gehe zu [Railway.app](https://railway.app) und erstelle einen Account
-2. Installiere Railway CLI: `npm install -g @railway/cli`
-3. Login: `railway login`
+## Übersicht
 
-## 2. Project erstellen
+Diese Datei ist veraltet. Nutze stattdessen:
+
+### 📄 Neue Deployment-Guides:
+
+1. **[RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md)** - 5-Minuten Setup für schnelles Deployment
+2. **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Komplette Schritt-für-Schritt Anleitung mit allen Details
+
+### 🔧 Konfigurationsdateien:
+
+- [railway.json](./railway.json) - Railway Build & Deploy Config
+- [nixpacks.toml](./nixpacks.toml) - Build Commands
+- [.env.railway](./.env.railway) - Environment Variables Template
+- [Dockerfile](./Dockerfile) - Alternative Container Build
+
+---
+
+## Quick Reference
+
+### Benötigte Secrets:
 
 ```bash
-railway new
-# Wähle "Deploy from GitHub repo"
-# Verbinde dein GitHub Repository
+# Im Railway Dashboard setzen:
+ClerkSecretKey=sk_test_DEIN_CLERK_KEY
+RunwareApiKey=sk-DEIN_RUNWARE_KEY
+
+# Optional:
+OPENAI_API_KEY=sk-DEIN_OPENAI_KEY
 ```
 
-## 3. Environment Variables setzen
-
-In Railway Dashboard oder via CLI:
+### Deployment Commands:
 
 ```bash
-# Runware API Key (WICHTIG!)
-railway variables set RunwareApiKey=sk-your-runware-api-key-here
+# Automatisch via Git:
+git push origin main
 
-# Andere Secrets falls nötig
-railway variables set CLERK_PUBLISHABLE_KEY=pk_test_...
-railway variables set CLERK_SECRET_KEY=sk_test_...
-```
-
-## 4. Deployment
-
-Railway deployed automatisch bei Git Push. Manual deployment:
-
-```bash
+# Manuell via CLI:
 railway up
-```
 
-## 5. Domain konfigurieren
-
-1. In Railway Dashboard → Settings → Domains
-2. Custom Domain hinzufügen oder Railway Domain verwenden
-
-## 6. Logs überwachen
-
-```bash
+# Logs anzeigen:
 railway logs
 ```
 
-## Wichtige Dateien für Railway:
+---
 
-- `railway.json` - Railway Konfiguration
-- `nixpacks.toml` - Build Konfiguration
-- `Dockerfile` - Alternative Container Build
-- `.env.example` - Environment Variables Template
-
-## Troubleshooting:
-
-1. **Build Fehler**: Überprüfe `nixpacks.toml` Build Commands
-2. **Start Fehler**: Stelle sicher dass `encore run --port=$PORT` funktioniert
-3. **Environment Variables**: Alle Secrets müssen in Railway gesetzt sein
+**Für alle weiteren Details siehe:**
+- [RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md) - Schnellstart
+- [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) - Vollständige Anleitung

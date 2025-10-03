@@ -128,9 +128,9 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     gap: spacing.xs,
     marginTop: spacing.sm,
     padding: `${spacing.sm}px`,
-    background: colors.rose[50],
+    background: colors.blush[50],
     borderRadius: `${radii.md}px`,
-    border: `1px solid ${colors.rose[200]}`,
+    border: `1px solid ${colors.blush[200]}`,
   };
 
   return (
@@ -143,7 +143,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
         const img = e.currentTarget.querySelector('img') as HTMLElement;
         if (img) img.style.transform = 'scale(1.1)';
         const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
-        if (title) title.style.color = colors.rose[600];
+        if (title) title.style.color = colors.blush[600];
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
@@ -204,8 +204,8 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
 
         {story.avatarParticipants && story.avatarParticipants.length > 0 && (
           <div style={avatarContainerStyle}>
-            <Users size={14} style={{ color: colors.rose[600] }} />
-            <span style={{ ...typography.textStyles.caption, color: colors.rose[700], fontWeight: '600' }}>
+            <Users size={14} style={{ color: colors.blush[600] }} />
+            <span style={{ ...typography.textStyles.caption, color: colors.blush[700], fontWeight: '600' }}>
               {story.avatarParticipants.length} {story.avatarParticipants.length === 1 ? 'Avatar' : 'Avatare'}
             </span>
           </div>

@@ -15,9 +15,9 @@ const TaviButton: React.FC = () => {
     width: '72px',
     height: '72px',
     borderRadius: '50%',
-    background: colors.gradients.lavender,
-    border: `3px solid ${colors.lavender[200]}`,
-    boxShadow: shadows.glow.lavender,
+    background: colors.gradients.bloom,
+    border: `3px solid ${colors.lilac[200]}`,
+    boxShadow: colors.effects.glow.lilac,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -36,7 +36,7 @@ const TaviButton: React.FC = () => {
     right: '-4px',
     bottom: '-4px',
     borderRadius: '50%',
-    border: `3px solid ${colors.lavender[400]}`,
+    border: `3px solid ${colors.lilac[400]}`,
     animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
     opacity: 0.6,
   };
@@ -51,11 +51,11 @@ const TaviButton: React.FC = () => {
             style={buttonStyle}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.boxShadow = '0 0 48px rgba(169, 137, 242, 0.6)';
+              e.currentTarget.style.boxShadow = colors.effects.glow.lilac;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = shadows.glow.lavender;
+              e.currentTarget.style.boxShadow = colors.effects.glow.lilac;
             }}
           />
         </div>

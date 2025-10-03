@@ -178,7 +178,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: colors.lavender[50] + '40',
+    background: colors.lilac[50] + '40',
   };
 
   const titleStyle: React.CSSProperties = {
@@ -196,8 +196,8 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     backgroundImage: 'url(/tavi.png)',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    border: `3px solid ${colors.lavender[400]}`,
-    boxShadow: shadows.glow.lavender,
+    border: `3px solid ${colors.lilac[400]}`,
+    boxShadow: colors.effects.glow.lilac,
   };
 
   const closeButtonStyle: React.CSSProperties = {
@@ -246,13 +246,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     alignSelf: 'flex-end',
     background: colors.gradients.primary,
     color: colors.text.inverse,
-    boxShadow: shadows.colored.lavender,
+    boxShadow: colors.effects.shadow.md,
   };
 
   const inputContainerStyle: React.CSSProperties = {
     padding: `${spacing.xl}px`,
     borderTop: `2px solid ${colors.border.light}`,
-    background: colors.lavender[50] + '40',
+    background: colors.lilac[50] + '40',
   };
 
   const inputWrapperStyle: React.CSSProperties = {
@@ -315,7 +315,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             onClick={onClose}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.borderColor = colors.lavender[400];
+              e.currentTarget.style.borderColor = colors.lilac[400];
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
@@ -338,7 +338,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
           
           {isLoading && (
             <div style={loadingStyle}>
-              <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: colors.lavender[600] }} />
+              <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: colors.lilac[600] }} />
               <span style={{ color: colors.text.secondary, ...typography.textStyles.bodySm }}>
                 Tavi denkt nach... ✨
               </span>
@@ -363,7 +363,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               disabled={isLoading}
               maxLength={300}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = colors.lavender[400];
+                e.currentTarget.style.borderColor = colors.lilac[400];
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = colors.border.light;

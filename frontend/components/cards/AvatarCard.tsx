@@ -155,12 +155,12 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
 
   const traitBadgeStyle: React.CSSProperties = {
     padding: `${spacing.xxs}px ${spacing.sm}px`,
-    background: colors.lavender[50],
-    color: colors.lavender[700],
+    background: colors.lilac[50],
+    color: colors.lilac[700],
     borderRadius: `${radii.pill}px`,
     ...typography.textStyles.caption,
     fontWeight: '600',
-    border: `1px solid ${colors.lavender[200]}`,
+    border: `1px solid ${colors.lilac[200]}`,
   };
 
   const actionsStyle: React.CSSProperties = {
@@ -213,7 +213,7 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
         const overlay = e.currentTarget.querySelector('[data-overlay]') as HTMLElement;
         if (overlay) overlay.style.opacity = '1';
         const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
-        if (title) title.style.color = colors.lavender[600];
+        if (title) title.style.color = colors.sage[600];
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
@@ -306,14 +306,14 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
             style={iconButtonStyle}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.borderColor = colors.lavender[300];
+              e.currentTarget.style.borderColor = colors.sage[300];
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.borderColor = colors.border.light;
             }}
           >
-            <Edit3 size={18} style={{ color: colors.lavender[600] }} />
+            <Edit3 size={18} style={{ color: colors.sage[600] }} />
           </button>
           {onDelete && (
             <button
