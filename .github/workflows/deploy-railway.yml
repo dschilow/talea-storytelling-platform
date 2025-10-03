@@ -41,26 +41,50 @@ jobs:
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
 
-      - name: Patch infra config - keep runtime env var references
+      - name: Patch infra config with Railway credentials from secrets
+        env:
+          RAILWAY_PGPASSWORD: ${{ secrets.RAILWAY_PGPASSWORD }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
         run: |
           node -e "
           const fs = require('fs');
           const path = 'backend/railway-infra.config.json';
           const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
-          // Keep variables as \$VARNAME so Encore reads them from container env at runtime
+          // Railway PostgreSQL values - from secrets or defaults
           const host = 'postgres.railway.internal';
+          const user = 'postgres';
+          const password = process.env.RAILWAY_PGPASSWORD || 'HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr';
+          const database = 'railway';
 
-          // Patch database configuration - hardcode host but keep user/password as env vars
+          // API keys from secrets
+          const clerkKey = process.env.CLERK_SECRET_KEY || 'sk_test_Lxft4y2rEfoYa8Q7X2GMCRakN4tUXAWHb5NvNPeGeM';
+          const openaiKey = process.env.OPENAI_API_KEY || 'placeholder';
+          const runwareKey = process.env.RUNWARE_API_KEY || 'vs5giqHV3aiOPvG6x4MiiZSQ7tswlAXt';
+
+          // Patch database configuration
           if (config.sql_servers && config.sql_servers[0] && config.sql_servers[0].databases) {
             config.sql_servers[0].host = host;
-            // Keep username/password as environment variable references for runtime resolution
+            Object.keys(config.sql_servers[0].databases).forEach(dbKey => {
+              config.sql_servers[0].databases[dbKey].username = user;
+              config.sql_servers[0].databases[dbKey].password = password;
+              config.sql_servers[0].databases[dbKey].database_name = database;
+            });
+          }
+
+          // Patch secrets
+          if (config.secrets) {
+            config.secrets.ClerkSecretKey = clerkKey;
+            config.secrets.OpenAIKey = openaiKey;
+            config.secrets.RunwareApiKey = runwareKey;
           }
 
           fs.writeFileSync(path, JSON.stringify(config, null, 2));
-          console.log('✅ railway-infra.config.json ready with runtime env var references');
+          console.log('✅ Patched railway-infra.config.json with credentials');
           console.log('   PostgreSQL Host:', host);
-          console.log('   Config will read PGUSER, PGPASSWORD, etc. from container at runtime');
+          console.log('   Secrets configured from GitHub Secrets');
           "
 
 
