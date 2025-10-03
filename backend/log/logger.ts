@@ -1,5 +1,6 @@
 import { Topic, Subscription } from "encore.dev/pubsub";
 import { Bucket } from "encore.dev/storage/objects";
+const DISABLE_LOG_STORAGE = process.env.DISABLE_LOG_STORAGE === "1";
 
 // LogEvent defines the structure for log messages.
 export interface LogEvent {
@@ -47,11 +48,19 @@ export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", 
     };
 
     try {
+      if (DISABLE_LOG_STORAGE) {
+        console.warn("Log storage disabled (DISABLE_LOG_STORAGE=1). Skipping bucket upload.");
+        return;
+      }
       await logBucket.upload(path, Buffer.from(JSON.stringify(logContent, null, 2)), {
         contentType: "application/json",
       });
       console.log(`✅ Logged event to bucket 'avatales-ai-logs' at path: ${path}`);
     } catch (err) {
+      if (DISABLE_LOG_STORAGE) {
+        console.warn("Log storage disabled and upload failed, ignoring error.");
+        return;
+      }
       console.error(`❌ Failed to log event to bucket:`, err);
       // Encore will automatically retry the message if the handler throws an error.
       throw err;
