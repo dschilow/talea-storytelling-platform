@@ -32,14 +32,6 @@
       }
     }
   ],
-  "object_storage": [
-    {
-      "cloud": "local",
-      "buckets": {
-        "avatales-ai-logs": {}
-      }
-    }
-  ],
   "secrets": {
     "ClerkSecretKey": "$CLERK_SECRET_KEY",
     "OpenAIKey": "$OPENAI_API_KEY",
