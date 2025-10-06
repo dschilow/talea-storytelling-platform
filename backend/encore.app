@@ -1,7 +1,7 @@
 {
   "id": "talea-storytelling-platform-4ot2",
   "lang": "typescript",
-  "cors": {
+  "global_cors": {
     "debug": true,
     "allow_origins_without_credentials": [
       "http://localhost:5173",
