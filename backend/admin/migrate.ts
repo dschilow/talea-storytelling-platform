@@ -1,14 +1,13 @@
-import { api, APIError } from "encore.dev/api";
-import { authHandler } from "../auth/auth";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { api } from "encore.dev/api";
 import fs from "fs";
 import path from "path";
 
-const avatarDB = SQLDatabase.named("avatar");
-const dokuDB = SQLDatabase.named("doku");
-const storyDB = SQLDatabase.named("story");
-const userDB = SQLDatabase.named("user");
-const personalityDB = SQLDatabase.named("personality_tracking");
+// Import database instances from their respective modules
+import { avatarDB } from "../avatar/db";
+import { dokuDB } from "../doku/db";
+import { userDB } from "../user/profile";
+import { personalityDB } from "../ai/personality-tracker";
+import { storyDB } from "../story/generate";
 
 interface MigrateResponse {
   success: boolean;
