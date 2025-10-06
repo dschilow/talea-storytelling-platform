@@ -1,8 +1,9 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 # Install Encore CLI and runtime dependencies
-RUN apk add --no-cache curl bash git ca-certificates && \
-    curl -L https://encore.dev/install.sh | bash
+RUN apt-get update && apt-get install -y curl bash git ca-certificates && \
+    curl -L https://encore.dev/install.sh | bash && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/root/.encore/bin:$PATH"
 
