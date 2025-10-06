@@ -3,6 +3,12 @@
   "lang": "typescript",
   "cors": {
     "debug": true,
+    "allow_origins_without_credentials": [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://sunny-optimism-production.up.railway.app",
+      "https://talea-storytelling-platform-production.up.railway.app"
+    ],
     "allow_origins_with_credentials": [
       "http://localhost:5173",
       "http://localhost:5174",
@@ -11,10 +17,14 @@
     ],
     "allow_headers": [
       "Content-Type",
-      "Authorization"
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin"
     ],
     "expose_headers": [
-      "Content-Type"
+      "Content-Type",
+      "Authorization"
     ]
   }
 }
