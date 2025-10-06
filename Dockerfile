@@ -9,7 +9,7 @@ ENV PATH="/root/.encore/bin:$PATH"
 
 WORKDIR /app
 
-# Copy backend directory from repository
+# Copy backend directory (includes encore.app with CORS config)
 COPY backend/ .
 
 # Install bun and dependencies
@@ -18,5 +18,5 @@ RUN npm install -g bun && bun install
 # Encore listens on port 8080
 EXPOSE 8080
 
-# Run Encore in production mode with railway config (includes CORS)
-CMD ["encore", "run", "--config", "railway-infra.config.json"]
+# Run Encore - reads CORS config from encore.app
+CMD ["encore", "run", "--listen", "0.0.0.0:8080"]
