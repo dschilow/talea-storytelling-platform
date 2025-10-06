@@ -8,8 +8,8 @@ ENV PATH="/root/.encore/bin:$PATH"
 
 WORKDIR /app
 
-# Copy entire backend
-COPY . .
+# Copy backend directory from repository
+COPY backend/ .
 
 # Install bun and dependencies
 RUN npm install -g bun && bun install
