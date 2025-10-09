@@ -25,13 +25,16 @@ export interface Story {
   userId: string;
   title: string;
   summary: string;
+  description?: string;
   config: StoryConfig;
   chapters?: Chapter[];
+  pages?: Chapter[];
   coverImageUrl?: string;
   estimatedReadingTime?: number;
   status: 'generating' | 'complete' | 'error';
   isPublic: boolean;
   avatarDevelopments?: any[];
+  avatarParticipants?: Avatar[];
   metadata?: {
     tokensUsed?: {
       prompt: number;
