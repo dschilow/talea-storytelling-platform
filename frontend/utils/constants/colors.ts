@@ -77,6 +77,34 @@ export const colors = {
     900: '#7A2D4D',
   },
 
+  lilac: {
+    50: '#FAF8FF',
+    100: '#F3EFFF',
+    200: '#E7DFFF',
+    300: '#D5C7FF',
+    400: '#C3AFFF',
+    500: '#B197FF',
+    600: '#9C7FE8',
+    700: '#8567CC',
+    800: '#6F54A8',
+    900: '#543F7A',
+  },
+
+  sage: {
+    50: '#F7FAF8',
+    100: '#EDF4EF',
+    200: '#D9E8DD',
+    300: '#BFD9C7',
+    400: '#A5CAB1',
+    500: '#8BBB9B',
+    600: '#72A583',
+    700: '#5C8A6B',
+    800: '#4A7056',
+    900: '#385540',
+  },
+
+  bloom: 'linear-gradient(135deg, #FF6B9D 0%, #FFC7D3 50%, #D1BDF8 100%)',
+
   background: {
     primary: '#FEFCFB',
     secondary: '#FFF8F5',
