@@ -1,0 +1,18 @@
+[phases.setup]
+nixPkgs = ["bun", "curl"]
+
+[phases.install]
+cmds = [
+  "curl -L https://encore.dev/install.sh | bash",
+  "bun install --frozen-lockfile",
+  "cd frontend && bun install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = [
+  "cd frontend && bun run build",
+  "cd backend && bun install --frozen-lockfile"
+]
+
+[start]
+cmd = "/root/.encore/bin/encore run --port=$PORT"
