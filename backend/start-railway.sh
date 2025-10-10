@@ -3,12 +3,6 @@ set -e
 
 echo "🚀 Starting Talea on Railway..."
 
-# Disable the infra config file on Railway to use DATABASE_URL instead
-if [ -f "/backend/railway-infra.config.json" ]; then
-    echo "📝 Disabling railway-infra.config.json (using DATABASE_URL instead)"
-    mv /backend/railway-infra.config.json /backend/railway-infra.config.json.disabled || true
-fi
-
 # Construct DATABASE_URL from Railway's individual environment variables
 if [ -n "$PGHOST" ] && [ -n "$PGUSER" ] && [ -n "$PGPASSWORD" ] && [ -n "$PGDATABASE" ]; then
     # Railway's internal PostgreSQL doesn't require SSL
