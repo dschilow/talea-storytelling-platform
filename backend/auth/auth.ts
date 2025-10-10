@@ -76,8 +76,7 @@ const auth = authHandler<AuthParams, AuthData>(
       const verifiedToken = await verifyToken(token, {
         authorizedParties: AUTHORIZED_PARTIES,
         secretKey: clerkSecretKey(),
-        // 🔧 FIXED: Erhöhte Clock Skew Tolerance
-        clockSkewInSeconds: 120, // 2 Minuten statt 60 Sekunden
+        clockSkewInSeconds: 120,
       });
 
       console.log("✅ Token verified successfully!");
@@ -88,35 +87,15 @@ const auth = authHandler<AuthParams, AuthData>(
         exp: new Date(verifiedToken.exp * 1000).toISOString()
       });
 
-      const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
-      const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
-
-      // Check if user exists in our DB, create if not (upsert-like logic).
-      let user = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
-        SELECT id, role FROM users WHERE id = ${clerkUser.id}
-      `;
-
-      if (!user) {
-        console.log("👤 Creating new user in database:", clerkUser.id);
-        const now = new Date();
-        const name = clerkUser.firstName || clerkUser.username || email?.split("@")[0] || "New User";
-        const role: "admin" | "user" = "user"; // New users are always 'user' role.
-        
-        await userDB.exec`
-          INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-          VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
-          ON CONFLICT (id) DO NOTHING
-        `;
-        user = { id: clerkUser.id, role };
-      }
-
-      console.log("🎉 Authentication successful for user:", user.id);
+      // ✅ FIXED: No DB calls in auth handler - only token verification
+      // User data will be fetched/created in the actual endpoints that need it
+      console.log("🎉 Authentication successful for user:", verifiedToken.sub);
 
       return {
-        userID: clerkUser.id,
-        email,
-        imageUrl: clerkUser.imageUrl,
-        role: user.role,
+        userID: verifiedToken.sub,
+        email: null, // Will be populated by endpoints if needed
+        imageUrl: null, // Will be populated by endpoints if needed
+        role: "user" as const, // Default role, will be checked in endpoints if needed
       };
 
     } catch (err: any) {
