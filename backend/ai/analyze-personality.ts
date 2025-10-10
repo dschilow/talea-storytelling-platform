@@ -5,6 +5,21 @@ import { logTopic } from "../log/logger";
 const openAIKey = secret("OpenAIKey");
 const MODEL = "gpt-5-nano";
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
+
 export interface PersonalityAnalysisRequest {
   avatarId: string;
   avatarProfile: {
@@ -119,7 +134,7 @@ PERSÖNLICHKEITSEIGENSCHAFTEN:
         throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as OpenAIResponse;
       
       await logTopic.publish({
         source: 'openai-tavi-chat',

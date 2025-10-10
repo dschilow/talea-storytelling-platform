@@ -22,10 +22,11 @@ function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
     // Normalisiere Werte und bewahre Subcategories
     if (value === null || value === undefined) {
       normalizedValue = 0;
-    } else if (typeof value === 'object' && value.value !== undefined) {
-      normalizedValue = Number(value.value) || 0;
+    } else if (typeof value === 'object' && 'value' in value) {
+      const objValue = value as { value: number; subcategories?: Record<string, number> };
+      normalizedValue = Number(objValue.value) || 0;
       // WICHTIG: Bewahre existierende Subcategories!
-      subcategories = value.subcategories || {};
+      subcategories = objValue.subcategories || {};
     } else {
       normalizedValue = Number(value) || 0;
     }

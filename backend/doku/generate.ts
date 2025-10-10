@@ -14,6 +14,21 @@ const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 const IMAGE_COST_PER_ITEM = 0.0008;
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
+
 // Domain types for Doku mode (Galileo/Checker Tobi style)
 export type DokuDepth = "basic" | "standard" | "deep";
 export type DokuAgeGroup = "3-5" | "6-8" | "9-12" | "13+";
@@ -126,7 +141,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         throw new Error(`OpenAI error ${res.status}: ${errText}`);
       }
 
-      const data = await res.json();
+      const data = await res.json() as OpenAIResponse;
 
       await logTopic.publish({
         source: "openai-doku-generation",

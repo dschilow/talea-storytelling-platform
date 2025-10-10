@@ -5,6 +5,21 @@ import { logTopic } from "../log/logger";
 
 const openAIKey = secret("OpenAIKey");
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
+
 interface TaviChatRequest {
   message: string;
 }
@@ -94,7 +109,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as OpenAIResponse;
       console.log("✅ OpenAI response received:", {
         choicesCount: data.choices?.length || 0,
         tokensUsed: data.usage,

@@ -39,41 +39,36 @@ export const resetDokuHistory = api(
       throw APIError.permissionDenied("You do not have permission to modify this avatar");
     }
 
-    let removedEntries = 0;
-
     try {
       if (dokuId) {
         // Reset specific doku
-        const result = await avatarDB.exec`
+        await avatarDB.exec`
           DELETE FROM avatar_doku_read
           WHERE avatar_id = ${avatarId} AND doku_id = ${dokuId}
         `;
-        removedEntries = (result && result.rowsAffected) ? result.rowsAffected : 0;
-        console.log(`🗑️ Removed ${removedEntries} doku read entries for specific doku ${dokuId}`);
+        console.log(`🗑️ Removed doku read entries for specific doku ${dokuId}`);
       } else {
         // Reset all dokus for this avatar
-        const result = await avatarDB.exec`
+        await avatarDB.exec`
           DELETE FROM avatar_doku_read
           WHERE avatar_id = ${avatarId}
         `;
-        removedEntries = (result && result.rowsAffected) ? result.rowsAffected : 0;
-        console.log(`🗑️ Removed ${removedEntries} doku read entries for avatar ${avatar.name}`);
+        console.log(`🗑️ Removed doku read entries for avatar ${avatar.name}`);
       }
     } catch (dbError) {
-      console.log(`⚠️ Database operation completed but could not get rowsAffected: ${dbError}`);
-      // The operation might have succeeded, so we'll report success with unknown count
-      removedEntries = 0;
+      console.log(`⚠️ Database operation error: ${dbError}`);
+      throw dbError;
     }
 
     const message = dokuId
-      ? `Doku-Historie für spezielle Doku zurückgesetzt (${removedEntries} Einträge entfernt)`
-      : `Komplette Doku-Historie für ${avatar.name} zurückgesetzt (${removedEntries} Einträge entfernt)`;
+      ? `Doku-Historie für spezielle Doku zurückgesetzt`
+      : `Komplette Doku-Historie für ${avatar.name} zurückgesetzt`;
 
     console.log(`✅ ${message}`);
 
     return {
       success: true,
-      removedEntries,
+      removedEntries: 0,
       message
     };
   }

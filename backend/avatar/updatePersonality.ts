@@ -67,24 +67,28 @@ export const updatePersonality = api(
         const [baseKey, subcategory] = traitIdentifier.split('.');
 
         if (baseKey in updatedTraits) {
-          const baseTrait = updatedTraits[baseKey];
+          const key = baseKey as keyof typeof updatedTraits;
+          const baseTrait = updatedTraits[key];
 
           // Ensure we have the hierarchical structure
           if (typeof baseTrait === 'number') {
-            updatedTraits[baseKey] = { value: baseTrait, subcategories: {} };
+            updatedTraits[key] = { value: baseTrait, subcategories: {} };
           }
 
-          const currentSubcategoryValue = updatedTraits[baseKey].subcategories[subcategory] || 0;
+          const traitObj = updatedTraits[key] as { value: number; subcategories: Record<string, number> };
+          const currentSubcategoryValue = traitObj.subcategories?.[subcategory] || 0;
           const maxValue = 1000; // Higher limit for subcategories
           const newSubcategoryValue = Math.max(0, Math.min(maxValue, currentSubcategoryValue + change.change));
 
           // Update subcategory
-          updatedTraits[baseKey].subcategories[subcategory] = newSubcategoryValue;
+          if (!traitObj.subcategories) traitObj.subcategories = {};
+          traitObj.subcategories[subcategory] = newSubcategoryValue;
 
           // Update base value (sum of all subcategories + direct base value)
-          const subcategorySum = Object.values(updatedTraits[baseKey].subcategories).reduce((sum, val) => sum + val, 0);
-          const directValue = typeof currentTraits[baseKey] === 'number' ? currentTraits[baseKey] : currentTraits[baseKey].value;
-          updatedTraits[baseKey].value = subcategorySum;
+          const subcategorySum = Object.values(traitObj.subcategories).reduce((sum: number, val: number) => sum + val, 0);
+          const currentKey = currentTraits[key];
+          const directValue = typeof currentKey === 'number' ? currentKey : currentKey.value;
+          traitObj.value = subcategorySum;
 
           const actualChange = newSubcategoryValue - currentSubcategoryValue;
           appliedChanges.push({
@@ -96,14 +100,15 @@ export const updatePersonality = api(
           const changeIcon = actualChange > 0 ? '📈' : '📉';
           const description = change.description ? ` (${change.description})` : '';
           console.log(`  ${changeIcon} ${baseKey}.${subcategory}: ${currentSubcategoryValue} → ${newSubcategoryValue} (${actualChange > 0 ? '+' : ''}${actualChange})${description}`);
-          console.log(`  📊 ${baseKey} Gesamt: ${updatedTraits[baseKey].value}`);
+          console.log(`  📊 ${baseKey} Gesamt: ${traitObj.value}`);
         } else {
           console.warn(`⚠️ Unknown base trait: ${baseKey}`);
         }
       } else {
         // Handle direct base trait updates
         if (traitIdentifier in updatedTraits) {
-          const currentTrait = updatedTraits[traitIdentifier];
+          const key = traitIdentifier as keyof typeof updatedTraits;
+          const currentTrait = updatedTraits[key];
           const oldValue = typeof currentTrait === 'number' ? currentTrait : currentTrait.value;
 
           const maxValue = 100; // Base traits have lower limit
@@ -111,9 +116,9 @@ export const updatePersonality = api(
 
           // Preserve subcategories if they exist
           if (typeof currentTrait === 'object') {
-            updatedTraits[traitIdentifier].value = newValue;
+            (currentTrait as { value: number; subcategories?: Record<string, number> }).value = newValue;
           } else {
-            updatedTraits[traitIdentifier] = { value: newValue, subcategories: {} };
+            updatedTraits[key] = { value: newValue, subcategories: {} };
           }
 
           appliedChanges.push({

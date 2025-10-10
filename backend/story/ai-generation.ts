@@ -12,6 +12,21 @@ const OUTPUT_COST_PER_1M = 15.00;
 
 const openAIKey = secret("OpenAIKey");
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
+
 type ExtendedAvatarDetails = Omit<Avatar, 'userId' | 'isShared' | 'originalAvatarId' | 'createdAt' | 'updatedAt'> & {
   memory?: {
     experiences: string[];
@@ -725,7 +740,7 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
     throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as OpenAIResponse;
   
   await logTopic.publish({
     source: 'openai-story-generation',

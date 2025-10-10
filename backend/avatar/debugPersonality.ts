@@ -91,33 +91,37 @@ export const debugPersonality = api(
           const [baseKey, subcategory] = traitIdentifier.split('.');
 
           if (baseKey in expectedTraits) {
+            const key = baseKey as keyof typeof expectedTraits;
             // Ensure hierarchical structure exists
-            if (typeof expectedTraits[baseKey] === 'number') {
-              expectedTraits[baseKey] = { value: expectedTraits[baseKey], subcategories: {} };
+            if (typeof expectedTraits[key] === 'number') {
+              expectedTraits[key] = { value: expectedTraits[key] as number, subcategories: {} };
             }
 
-            const currentSubcategoryValue = expectedTraits[baseKey].subcategories[subcategory] || 0;
+            const traitObj = expectedTraits[key] as { value: number; subcategories: Record<string, number> };
+            const currentSubcategoryValue = traitObj.subcategories?.[subcategory] || 0;
             const newSubcategoryValue = Math.max(0, currentSubcategoryValue + change.change);
 
-            expectedTraits[baseKey].subcategories[subcategory] = newSubcategoryValue;
+            if (!traitObj.subcategories) traitObj.subcategories = {};
+            traitObj.subcategories[subcategory] = newSubcategoryValue;
 
             // Update main category value (sum of subcategories)
-            const subcategorySum = Object.values(expectedTraits[baseKey].subcategories).reduce((sum, val) => sum + val, 0);
-            expectedTraits[baseKey].value = subcategorySum;
+            const subcategorySum = Object.values(traitObj.subcategories).reduce((sum: number, val: number) => sum + val, 0);
+            traitObj.value = subcategorySum;
 
             console.log(`  📈 ${baseKey}.${subcategory}: ${currentSubcategoryValue} → ${newSubcategoryValue} (main total: ${subcategorySum})`);
           }
         } else {
           // Handle direct base trait updates
           if (traitIdentifier in expectedTraits) {
-            const currentTrait = expectedTraits[traitIdentifier];
+            const key = traitIdentifier as keyof typeof expectedTraits;
+            const currentTrait = expectedTraits[key];
             const oldValue = typeof currentTrait === 'number' ? currentTrait : currentTrait.value;
             const newValue = Math.max(0, oldValue + change.change);
 
             if (typeof currentTrait === 'object') {
-              expectedTraits[traitIdentifier].value = newValue;
+              (expectedTraits[key] as { value: number; subcategories?: Record<string, number> }).value = newValue;
             } else {
-              expectedTraits[traitIdentifier] = { value: newValue, subcategories: {} };
+              expectedTraits[key] = { value: newValue, subcategories: {} };
             }
 
             console.log(`  📈 ${traitIdentifier}: ${oldValue} → ${newValue}`);
@@ -134,8 +138,11 @@ export const debugPersonality = api(
     const mainCategories = ['knowledge', 'creativity', 'vocabulary', 'courage', 'curiosity', 'teamwork', 'empathy', 'persistence', 'logic'];
 
     for (const category of mainCategories) {
-      const storedValue = typeof storedTraits[category] === 'object' ? storedTraits[category].value : (storedTraits[category] || 0);
-      const expectedValue = typeof expectedTraits[category] === 'object' ? expectedTraits[category].value : (expectedTraits[category] || 0);
+      const key = category as keyof PersonalityTraits;
+      const storedTrait = storedTraits[key];
+      const expectedTrait = expectedTraits[key];
+      const storedValue = typeof storedTrait === 'object' ? storedTrait.value : (storedTrait || 0);
+      const expectedValue = typeof expectedTrait === 'object' ? expectedTrait.value : (expectedTrait || 0);
 
       if (storedValue !== expectedValue) {
         discrepancies.push({

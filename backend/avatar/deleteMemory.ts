@@ -119,14 +119,11 @@ export const deleteMemory = api(
     // so the user can re-read the doku and get the personality changes again
     try {
       if (memoryToDelete.story_title) {
-        const dokuReadResult = await avatarDB.exec`
+        await avatarDB.exec`
           DELETE FROM avatar_doku_read
           WHERE avatar_id = ${avatarId} AND doku_title = ${memoryToDelete.story_title}
         `;
-
-        if (dokuReadResult.rowsAffected && dokuReadResult.rowsAffected > 0) {
-          console.log(`🗑️ Also removed doku read tracking for "${memoryToDelete.story_title}"`);
-        }
+        console.log(`🗑️ Also removed doku read tracking for "${memoryToDelete.story_title}"`);
       }
     } catch (dokuTrackingError) {
       console.log(`⚠️ Could not remove doku read tracking: ${dokuTrackingError}`);
