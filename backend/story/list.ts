@@ -1,9 +1,7 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { StorySummary } from "./generate";
 import { getAuthData } from "~encore/auth";
-
-const storyDB = SQLDatabase.named("story");
+import { storyDB } from "./db";
 
 interface ListStoriesResponse {
   stories: StorySummary[];

@@ -1,14 +1,9 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import { avatar } from "~encore/clients";
 import { logTopic } from "../log/logger";
-
-// Railway uses self-signed certificates, so we disable SSL verification
-const storyDB = new SQLDatabase("story", {
-  migrations: "./migrations",
-});
+import { storyDB } from "./db";
 
 // Avatar DB is already available through the avatar service client
 

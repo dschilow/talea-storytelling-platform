@@ -1,8 +1,6 @@
 import { api, APIError } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
-
-const storyDB = SQLDatabase.named("story");
+import { storyDB } from "./db";
 
 interface DeleteStoryParams {
   id: string;

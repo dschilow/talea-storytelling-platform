@@ -1,9 +1,9 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { storyDB } from "./db";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 
-const storyDB = SQLDatabase.named("story");
+
 const avatarDB = SQLDatabase.named("avatar");
 
 interface MarkStoryReadRequest {
