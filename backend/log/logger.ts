@@ -30,14 +30,15 @@ export const logTopic = new Topic<LogEvent>("log-events", {
 
 // This subscription listens for log events and saves them to the bucket.
 // This happens asynchronously, so it doesn't slow down the main request flow.
-export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", {
+// Only create the subscription if we're in a GCP environment (not Railway)
+const isGCPEnvironment = process.env.GOOGLE_APPLICATION_CREDENTIALS !== undefined;
+
+export const logSubscription = isGCPEnvironment ? new Subscription(logTopic, "save-log-to-bucket", {
   handler: async (event: LogEvent) => {
     console.log(`🚀 LOG SUBSCRIPTION HANDLER CALLED!`);
     console.log(`📝 Received log event from source: ${event.source}`);
-    // Generate unique ID for the log entry
     const id = crypto.randomUUID();
     
-    // Create a safe filename by replacing colons.
     const safeTimestamp = event.timestamp.toISOString().replace(/:/g, '-');
     const path = `${event.source}/${event.timestamp.toISOString().split('T')[0]}/${safeTimestamp}_${id}.json`;
     
@@ -53,8 +54,14 @@ export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", 
       console.log(`✅ Logged event to bucket 'avatales-ai-logs' at path: ${path}`);
     } catch (err) {
       console.error(`❌ Failed to log event to bucket:`, err);
-      // Encore will automatically retry the message if the handler throws an error.
       throw err;
     }
   },
-});
+}) : null;
+
+// Log whether the subscription was created
+if (isGCPEnvironment) {
+  console.log("✅ PubSub subscription created (GCP environment detected)");
+} else {
+  console.log("⚠️  PubSub subscription skipped (no GCP credentials - running on Railway)");
+}
