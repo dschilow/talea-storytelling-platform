@@ -113,12 +113,12 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) =>
     alignItems: 'center',
     gap: spacing.xs,
     padding: `${spacing.xs}px ${spacing.md}px`,
-    background: colors.ocean[50],
-    color: colors.ocean[700],
+    background: colors.mint[50],
+    color: colors.mint[700],
     borderRadius: `${radii.pill}px`,
     ...typography.textStyles.caption,
     fontWeight: '600',
-    border: `1px solid ${colors.ocean[200]}`,
+    border: `1px solid ${colors.mint[200]}`,
     marginTop: spacing.sm,
   };
 
@@ -147,7 +147,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) =>
         const img = e.currentTarget.querySelector('img') as HTMLElement;
         if (img) img.style.transform = 'scale(1.1)';
         const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
-        if (title) title.style.color = colors.ocean[600];
+        if (title) title.style.color = colors.mint[600];
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';

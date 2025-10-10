@@ -207,9 +207,9 @@ const HomeScreen: React.FC = () => {
 
   return (
     <div style={containerStyle}>
-      <div style={{ ...decorativeBlob, width: '400px', height: '400px', top: '10%', left: '5%', background: colors.blush[300] }} />
-      <div style={{ ...decorativeBlob, width: '350px', height: '350px', top: '40%', right: '0%', background: colors.lilac[300] }} />
-      <div style={{ ...decorativeBlob, width: '300px', height: '300px', bottom: '10%', left: '50%', background: colors.ocean[300] }} />
+      <div style={{ ...decorativeBlob, width: '400px', height: '400px', top: '10%', left: '5%', background: colors.primary[300] }} />
+      <div style={{ ...decorativeBlob, width: '350px', height: '350px', top: '40%', right: '0%', background: colors.lavender[300] }} />
+      <div style={{ ...decorativeBlob, width: '300px', height: '300px', bottom: '10%', left: '50%', background: colors.mint[300] }} />
 
       <SignedOut>
         <LandingPage />
@@ -229,13 +229,13 @@ const HomeScreen: React.FC = () => {
               position: 'relative',
             }}>
               <FloatAnimation delay={0.5} duration={3} distance={8}>
-                <Star style={{ position: 'absolute', top: spacing.lg, left: spacing.lg, opacity: 0.2, color: colors.sage[500] }} size={32} />
+                <Star style={{ position: 'absolute', top: spacing.lg, left: spacing.lg, opacity: 0.2, color: colors.primary[500] }} size={32} />
               </FloatAnimation>
               <FloatAnimation delay={0.8} duration={3.5} distance={10}>
-                <Heart style={{ position: 'absolute', top: spacing.xl, right: spacing.xxxl, opacity: 0.2, color: colors.blush[500] }} size={28} />
+                <Heart style={{ position: 'absolute', top: spacing.xl, right: spacing.xxxl, opacity: 0.2, color: colors.rose[500] }} size={28} />
               </FloatAnimation>
               <FloatAnimation delay={1.1} duration={4} distance={12}>
-                <Sparkles style={{ position: 'absolute', bottom: spacing.lg, left: spacing.xxxl, opacity: 0.2, color: colors.lilac[500] }} size={36} />
+                <Sparkles style={{ position: 'absolute', bottom: spacing.lg, left: spacing.xxxl, opacity: 0.2, color: colors.lavender[500] }} size={36} />
               </FloatAnimation>
               
               <div style={{ 
@@ -297,7 +297,7 @@ const HomeScreen: React.FC = () => {
               alignItems: 'center',
               gap: spacing.sm,
             }}>
-              <Sparkles size={32} style={{ color: colors.lavender[500] }} />
+              <Sparkles size={32} style={{ color: colors.primary[500] }} />
               Schnellaktionen
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing.lg }}>
@@ -490,7 +490,7 @@ const HomeScreen: React.FC = () => {
               alignItems: 'center',
               gap: spacing.sm,
             }}>
-              <BookOpen size={32} style={{ color: colors.peach[500] }} />
+              <BookOpen size={32} style={{ color: colors.rose[500] }} />
               Deine Geschichten ({stories.length})
             </div>
             

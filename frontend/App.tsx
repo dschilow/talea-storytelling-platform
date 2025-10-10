@@ -5,7 +5,7 @@ import { ClerkProvider } from '@clerk/clerk-react';
 import { Toaster } from 'sonner';
 import { store } from './store/store';
 
-import HomeScreen from './screens/Home/ModernHomeScreen';
+import HomeScreen from './screens/Home/HomeScreen';
 import AvatarWizardScreen from './screens/Avatar/AvatarWizardScreen';
 import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
 import AvatarsScreen from './screens/Avatar/AvatarsScreen';
@@ -98,16 +98,16 @@ const MissingKeyScreen = () => (
       </p>
       <p style={{ color: colors.text.secondary, fontSize: '15px' }}>
         Bitte öffne die Datei <code style={{ 
-          background: colors.sage[100], 
+          background: colors.lavender[100], 
           padding: '0.3rem 0.6rem', 
           borderRadius: '8px', 
-          color: colors.sage[700],
+          color: colors.lavender[700],
           fontFamily: 'monospace',
         }}>frontend/config.ts</code> und setze den Wert von <code style={{ 
-          background: colors.sage[100], 
+          background: colors.lavender[100], 
           padding: '0.3rem 0.6rem', 
           borderRadius: '8px', 
-          color: colors.sage[700],
+          color: colors.lavender[700],
           fontFamily: 'monospace',
         }}>clerkPublishableKey</code>.
       </p>
@@ -117,7 +117,7 @@ const MissingKeyScreen = () => (
           target="_blank" 
           rel="noopener noreferrer" 
           style={{ 
-            color: colors.sage[600], 
+            color: colors.lavender[600], 
             textDecoration: 'none',
             fontWeight: '600',
           }}
