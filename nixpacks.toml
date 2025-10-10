@@ -11,8 +11,9 @@ cmds = [
 [phases.build]
 cmds = [
   "cd frontend && bun run build",
-  "cd backend && bun install --frozen-lockfile"
+  "cd backend && bun install --frozen-lockfile",
+  "/root/.encore/bin/encore build --output=/app/encore-runtime"
 ]
 
 [start]
-cmd = "/root/.encore/bin/encore run --port=$PORT"
+cmd = "/app/encore-runtime --port=$PORT"
