@@ -51,6 +51,7 @@ const AUTHORIZED_PARTIES = [
   // Railway Production Patterns
   "https://*.up.railway.app",
   "https://talea-storytelling-platform-*.up.railway.app",
+  "https://sunny-optimism-production.up.railway.app", // Frontend Production Domain
 
   // Railway Custom Domains (wenn du später eine hinzufügst)
   // "https://talea.deine-domain.de",
