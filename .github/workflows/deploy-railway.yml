@@ -41,9 +41,8 @@ jobs:
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
 
-      - name: Patch infra config with Railway credentials from secrets
+      - name: Create runtime infra config for Encore (secrets only, DB from env)
         env:
-          RAILWAY_PGPASSWORD: ${{ secrets.RAILWAY_PGPASSWORD }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
@@ -51,40 +50,50 @@ jobs:
           node -e "
           const fs = require('fs');
           const path = 'backend/railway-infra.config.json';
-          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
-
-          // Railway PostgreSQL values - from secrets or defaults
-          const host = 'postgres.railway.internal';
-          const user = 'postgres';
-          const password = process.env.RAILWAY_PGPASSWORD || 'HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr';
-          const database = 'railway';
 
           // API keys from secrets
           const clerkKey = process.env.CLERK_SECRET_KEY || 'sk_test_Lxft4y2rEfoYa8Q7X2GMCRakN4tUXAWHb5NvNPeGeM';
           const openaiKey = process.env.OPENAI_API_KEY || 'placeholder';
           const runwareKey = process.env.RUNWARE_API_KEY || 'vs5giqHV3aiOPvG6x4MiiZSQ7tswlAXt';
 
-          // Patch database configuration
-          if (config.sql_servers && config.sql_servers[0] && config.sql_servers[0].databases) {
-            config.sql_servers[0].host = host;
-            Object.keys(config.sql_servers[0].databases).forEach(dbKey => {
-              config.sql_servers[0].databases[dbKey].username = user;
-              config.sql_servers[0].databases[dbKey].password = password;
-              config.sql_servers[0].databases[dbKey].database_name = database;
-            });
+          // Read existing config for CORS settings
+          let config = {};
+          if (fs.existsSync(path + '.backup')) {
+            config = JSON.parse(fs.readFileSync(path + '.backup', 'utf8'));
           }
 
-          // Patch secrets
-          if (config.secrets) {
-            config.secrets.ClerkSecretKey = clerkKey;
-            config.secrets.OpenAIKey = openaiKey;
-            config.secrets.RunwareApiKey = runwareKey;
-          }
+          // Create minimal config with only secrets and CORS
+          // Database will be auto-configured from DATABASE_URL env variable
+          const minimalConfig = {
+            '\$schema': 'https://encore.dev/schemas/infra.schema.json',
+            secrets: {
+              ClerkSecretKey: clerkKey,
+              OpenAIKey: openaiKey,
+              RunwareApiKey: runwareKey
+            },
+            global_cors: config.global_cors || {
+              debug: true,
+              allow_origins_without_credentials: [
+                'http://localhost:5173',
+                'http://localhost:5174',
+                'https://sunny-optimism-production.up.railway.app',
+                'https://talea-storytelling-platform-production.up.railway.app'
+              ],
+              allow_origins_with_credentials: [
+                'http://localhost:5173',
+                'http://localhost:5174',
+                'https://sunny-optimism-production.up.railway.app',
+                'https://talea-storytelling-platform-production.up.railway.app'
+              ],
+              allow_headers: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+              expose_headers: ['Content-Type', 'Authorization']
+            }
+          };
 
-          fs.writeFileSync(path, JSON.stringify(config, null, 2));
-          console.log('✅ Patched railway-infra.config.json with credentials');
-          console.log('   PostgreSQL Host:', host);
+          fs.writeFileSync(path, JSON.stringify(minimalConfig, null, 2));
+          console.log('✅ Created minimal railway-infra.config.json');
           console.log('   Secrets configured from GitHub Secrets');
+          console.log('   Database will use DATABASE_URL environment variable');
           "
 
 
