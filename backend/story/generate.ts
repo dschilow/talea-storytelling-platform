@@ -5,6 +5,7 @@ import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import { avatar } from "~encore/clients";
 import { logTopic } from "../log/logger";
 
+// Railway uses self-signed certificates, so we disable SSL verification
 const storyDB = new SQLDatabase("story", {
   migrations: "./migrations",
 });

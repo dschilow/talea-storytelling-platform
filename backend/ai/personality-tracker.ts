@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 
+// Railway uses self-signed certificates, so we disable SSL verification
 const personalityDB = new SQLDatabase("personality_tracking", {
   migrations: "./migrations",
 });
