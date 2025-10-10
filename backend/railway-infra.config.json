@@ -3,6 +3,9 @@
   "sql_servers": [
     {
       "host": "postgres.railway.internal",
+      "server_ca_cert": "",
+      "client_cert": "",
+      "client_key": "",
       "databases": {
         "avatar": {
           "database_name": "railway",
