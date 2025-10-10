@@ -65,7 +65,7 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
   const defaultImageStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
-    background: colors.gradients.bloom,
+    background: colors.gradients.primary, // fallback to a valid gradient property
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
