@@ -28,11 +28,21 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Build frontend assets
         run: |
           cd frontend
           npm install
           npm run build -- --outDir=../backend/frontend/dist
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          bun install
 
       - name: Install Encore CLI
         run: |
