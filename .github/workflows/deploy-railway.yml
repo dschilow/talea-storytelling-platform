@@ -41,8 +41,9 @@ jobs:
 
       - name: Install backend dependencies
         run: |
+          rm -rf node_modules
           cd backend
-          bun install
+          bun install --no-cache
 
       - name: Install Encore CLI
         run: |
