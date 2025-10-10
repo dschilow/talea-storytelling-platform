@@ -1,4 +1,5 @@
 import { api } from "encore.dev/api";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { storyDB } from "./db";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";

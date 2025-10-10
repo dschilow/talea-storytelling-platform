@@ -62,7 +62,7 @@ const AUTHORIZED_PARTIES = [
   // "https://api.your-domain.com",
 ];
 
-const auth = authHandler<AuthParams, AuthData>(
+export const auth = authHandler<AuthParams, AuthData>(
   async (data) => {
     const token = data.authorization?.replace("Bearer ", "") ?? data.session?.value;
     if (!token) {
