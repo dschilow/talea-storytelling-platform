@@ -65,5 +65,33 @@
       "Content-Type",
       "Authorization"
     ]
+  },
+  "pubsub_topics": {
+    "log-events": {
+      "provider_name": "gcp",
+      "project_id": "encore-pubsub",
+      "gcp": {
+        "project_id": "encore-pubsub",
+        "topic_name": "log-events"
+      }
+    }
+  },
+  "pubsub_subscriptions": {
+    "log-events/save-log-to-bucket": {
+      "provider_name": "gcp",
+      "project_id": "encore-pubsub",
+      "gcp": {
+        "project_id": "encore-pubsub",
+        "subscription_name": "save-log-to-bucket"
+      }
+    }
+  },
+  "object_storage_buckets": {
+    "avatales-ai-logs": {
+      "provider_name": "gcp",
+      "gcp": {
+        "bucket_name": "avatales-ai-logs"
+      }
+    }
   }
 }
