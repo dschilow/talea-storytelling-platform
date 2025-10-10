@@ -2,7 +2,7 @@
   "$schema": "https://encore.dev/schemas/infra.schema.json",
   "sql_servers": [
     {
-      "host": "postgres.railway.internal",
+      "host": "switchback.proxy.rlwy.net:38603",
       "server_ca_cert": "",
       "client_cert": "",
       "client_key": "",
