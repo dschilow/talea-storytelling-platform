@@ -66,32 +66,30 @@
       "Authorization"
     ]
   },
-  "pubsub_topics": {
-    "log-events": {
-      "provider_name": "gcp",
-      "project_id": "encore-pubsub",
-      "gcp": {
-        "project_id": "encore-pubsub",
-        "topic_name": "log-events"
+  "pubsub": [
+    {
+      "type": "gcp_pubsub",
+      "project_id": "encore-railway-pubsub",
+      "topics": {
+        "log-events": {
+          "name": "log-events",
+          "subscriptions": {
+            "save-log-to-bucket": {
+              "name": "save-log-to-bucket"
+            }
+          }
+        }
       }
     }
-  },
-  "pubsub_subscriptions": {
-    "log-events/save-log-to-bucket": {
-      "provider_name": "gcp",
-      "project_id": "encore-pubsub",
-      "gcp": {
-        "project_id": "encore-pubsub",
-        "subscription_name": "save-log-to-bucket"
+  ],
+  "object_storage": [
+    {
+      "type": "gcs",
+      "buckets": {
+        "avatales-ai-logs": {
+          "name": "avatales-ai-logs"
+        }
       }
     }
-  },
-  "object_storage_buckets": {
-    "avatales-ai-logs": {
-      "provider_name": "gcp",
-      "gcp": {
-        "bucket_name": "avatales-ai-logs"
-      }
-    }
-  }
+  ]
 }
