@@ -76,7 +76,7 @@ const auth = authHandler<AuthParams, AuthData>(
       const verifiedToken = await verifyToken(token, {
         authorizedParties: AUTHORIZED_PARTIES,
         secretKey: clerkSecretKey(),
-        clockSkewInSeconds: 120,
+        clockSkewInMs: 120000, // 2 minutes in milliseconds
       });
 
       console.log("✅ Token verified successfully!");
