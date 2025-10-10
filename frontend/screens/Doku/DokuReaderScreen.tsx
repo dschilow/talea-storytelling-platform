@@ -158,7 +158,8 @@ const DokuReaderScreen: React.FC = () => {
       // Get auth token and make direct API call
       const token = await getToken();
 
-      const target = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4000';
+      const { getBackendUrl } = await import('../../config');
+      const target = getBackendUrl();
       const response = await fetch(`${target}/doku/mark-read`, {
         method: 'POST',
         headers: {

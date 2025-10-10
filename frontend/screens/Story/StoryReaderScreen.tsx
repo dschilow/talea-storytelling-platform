@@ -102,7 +102,8 @@ const StoryReaderScreen: React.FC = () => {
 
       // Get auth token and call story markRead endpoint to apply personality updates
       const token = await getToken();
-      const target = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4000';
+      const { getBackendUrl } = await import('../../config');
+      const target = getBackendUrl();
       const response = await fetch(`${target}/story/mark-read`, {
         method: 'POST',
         headers: {

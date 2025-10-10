@@ -678,7 +678,8 @@ const AvatarDetailScreen: React.FC = () => {
                       <button
                         onClick={async () => {
                           try {
-                            const target = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4001';
+                            const { getBackendUrl } = await import('../../config');
+                            const target = getBackendUrl();
                             // Use the backend hook properly (getToken is already available from component level)
                             const token = await getToken();
 

@@ -45,7 +45,8 @@ const LogViewerScreen: React.FC = () => {
       setLoading(true);
 
       // Use the same backend URL as other API calls
-      const baseUrl = import.meta.env.VITE_CLIENT_TARGET || 'http://localhost:4000';
+      const { getBackendUrl } = await import('../../config');
+      const baseUrl = getBackendUrl();
       
       const [logsResponse, sourcesResponse] = await Promise.all([
         fetch(`${baseUrl}/log/list?${new URLSearchParams({
