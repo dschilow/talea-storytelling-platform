@@ -199,14 +199,14 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
           {story.title}
         </h3>
         <p style={descriptionStyle}>
-          {story.description || 'Eine magische Geschichte voller Abenteuer'}
+          {story.summary || 'Eine magische Geschichte voller Abenteuer'}
         </p>
 
-        {story.avatarParticipants && story.avatarParticipants.length > 0 && (
+        {story.config.avatars && story.config.avatars.length > 0 && (
           <div style={avatarContainerStyle}>
             <Users size={14} style={{ color: colors.rose[600] }} />
             <span style={{ ...typography.textStyles.caption, color: colors.rose[700], fontWeight: '600' }}>
-              {story.avatarParticipants.length} {story.avatarParticipants.length === 1 ? 'Avatar' : 'Avatare'}
+              {story.config.avatars.length} {story.config.avatars.length === 1 ? 'Avatar' : 'Avatare'}
             </span>
           </div>
         )}
@@ -216,10 +216,10 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
             <Clock size={14} />
             <span>{new Date(story.createdAt).toLocaleDateString('de-DE')}</span>
           </div>
-          {story.pages && (
+          {story.chapters && (
             <div style={metaItemStyle}>
               <BookOpen size={14} />
-              <span>{story.pages.length} Seiten</span>
+              <span>{story.chapters.length} Seiten</span>
             </div>
           )}
         </div>

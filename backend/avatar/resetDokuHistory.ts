@@ -44,20 +44,18 @@ export const resetDokuHistory = api(
     try {
       if (dokuId) {
         // Reset specific doku
-        const result = await avatarDB.exec`
+        await avatarDB.exec`
           DELETE FROM avatar_doku_read
           WHERE avatar_id = ${avatarId} AND doku_id = ${dokuId}
         `;
-        removedEntries = (result && result.rowsAffected) ? result.rowsAffected : 0;
-        console.log(`🗑️ Removed ${removedEntries} doku read entries for specific doku ${dokuId}`);
+        console.log(`🗑️ Removed doku read entries for specific doku ${dokuId}`);
       } else {
         // Reset all dokus for this avatar
-        const result = await avatarDB.exec`
+        await avatarDB.exec`
           DELETE FROM avatar_doku_read
           WHERE avatar_id = ${avatarId}
         `;
-        removedEntries = (result && result.rowsAffected) ? result.rowsAffected : 0;
-        console.log(`🗑️ Removed ${removedEntries} doku read entries for avatar ${avatar.name}`);
+        console.log(`🗑️ Removed doku read entries for avatar ${avatar.name}`);
       }
     } catch (dbError) {
       console.log(`⚠️ Database operation completed but could not get rowsAffected: ${dbError}`);

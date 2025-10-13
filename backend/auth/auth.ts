@@ -68,7 +68,7 @@ const auth = authHandler<AuthParams, AuthData>(
         authorizedParties: AUTHORIZED_PARTIES,
         secretKey: clerkSecretKey(),
         // 🔧 FIXED: Erhöhte Clock Skew Tolerance
-        clockSkewInSeconds: 120, // 2 Minuten statt 60 Sekunden
+        clockSkewInMs: 120000, // 2 Minuten (in Millisekunden)
       });
 
       console.log("✅ Token verified successfully!");

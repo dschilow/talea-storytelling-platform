@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
+import type { PersonalityTraits } from "./avatar";
 
 export interface DebugPersonalityRequest {
   id: string; // avatar ID
@@ -91,33 +92,39 @@ export const debugPersonality = api(
           const [baseKey, subcategory] = traitIdentifier.split('.');
 
           if (baseKey in expectedTraits) {
+            const traitKey = baseKey as keyof PersonalityTraits;
             // Ensure hierarchical structure exists
-            if (typeof expectedTraits[baseKey] === 'number') {
-              expectedTraits[baseKey] = { value: expectedTraits[baseKey], subcategories: {} };
+            if (typeof expectedTraits[traitKey] === 'number') {
+              expectedTraits[traitKey] = { value: expectedTraits[traitKey] as number, subcategories: {} };
             }
 
-            const currentSubcategoryValue = expectedTraits[baseKey].subcategories[subcategory] || 0;
+            const traitValue = expectedTraits[traitKey] as { value: number; subcategories?: Record<string, number> };
+            const currentSubcategoryValue = traitValue.subcategories?.[subcategory] || 0;
             const newSubcategoryValue = Math.max(0, currentSubcategoryValue + change.change);
 
-            expectedTraits[baseKey].subcategories[subcategory] = newSubcategoryValue;
+            if (!traitValue.subcategories) {
+              traitValue.subcategories = {};
+            }
+            traitValue.subcategories[subcategory] = newSubcategoryValue;
 
             // Update main category value (sum of subcategories)
-            const subcategorySum = Object.values(expectedTraits[baseKey].subcategories).reduce((sum, val) => sum + val, 0);
-            expectedTraits[baseKey].value = subcategorySum;
+            const subcategorySum = Object.values(traitValue.subcategories).reduce((sum: number, val: number) => sum + val, 0);
+            traitValue.value = subcategorySum;
 
             console.log(`  📈 ${baseKey}.${subcategory}: ${currentSubcategoryValue} → ${newSubcategoryValue} (main total: ${subcategorySum})`);
           }
         } else {
           // Handle direct base trait updates
-          if (traitIdentifier in expectedTraits) {
-            const currentTrait = expectedTraits[traitIdentifier];
+          const traitKey = traitIdentifier as keyof PersonalityTraits;
+          if (traitKey in expectedTraits) {
+            const currentTrait = expectedTraits[traitKey];
             const oldValue = typeof currentTrait === 'number' ? currentTrait : currentTrait.value;
             const newValue = Math.max(0, oldValue + change.change);
 
             if (typeof currentTrait === 'object') {
-              expectedTraits[traitIdentifier].value = newValue;
+              currentTrait.value = newValue;
             } else {
-              expectedTraits[traitIdentifier] = { value: newValue, subcategories: {} };
+              expectedTraits[traitKey] = { value: newValue, subcategories: {} };
             }
 
             console.log(`  📈 ${traitIdentifier}: ${oldValue} → ${newValue}`);
