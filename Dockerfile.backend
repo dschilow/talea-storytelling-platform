@@ -1,0 +1,57 @@
+# Stage 1: Build Encore backend
+FROM golang:1.22-bookworm AS encore-builder
+
+# Install Node.js and bun for backend dependencies
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g bun
+
+# Install Encore CLI
+RUN curl -L https://encore.dev/install.sh | bash
+
+WORKDIR /app
+
+# Copy backend code
+COPY backend/ ./backend/
+
+# Install backend dependencies
+WORKDIR /app/backend
+RUN bun install
+
+# For Encore TS apps, we just need the source code
+# We'll use Encore daemon in production
+RUN mkdir -p ./output
+
+# Stage 2: Production image with Encore daemon only
+FROM node:20-bookworm-slim
+
+# Cache buster - change this to force rebuild
+ENV CACHE_BUST=2025-10-13-v1-initial
+
+WORKDIR /app
+
+# Install runtime dependencies plus Encore CLI and PostgreSQL client
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates postgresql-client && \
+    # Install bun
+    npm install -g bun && \
+    # Install Encore
+    curl -L https://encore.dev/install.sh | bash && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy backend source code
+COPY --from=encore-builder /app/backend ./
+
+# Copy runtime start scripts
+COPY backend/start.sh ./start.sh
+RUN chmod +x ./start.sh
+
+# Install production dependencies
+RUN bun install --production
+
+# Expose HTTP port
+EXPOSE 8080
+
+# Start Encore backend
+CMD ["/app/start.sh"]

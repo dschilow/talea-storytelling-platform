@@ -1,0 +1,53 @@
+{
+  "$schema": "https://encore.dev/schemas/infra.schema.json",
+  "sql_servers": [
+    {
+      "host": "postgres.railway.internal:5432",
+      "tls_config": {
+        "disable_ca_validation": true
+      },
+      "databases": {
+        "user": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
+        },
+        "avatar": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
+        },
+        "story": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
+        },
+        "doku": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
+        },
+        "ai": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
+        }
+      }
+    }
+  ],
+  "secrets": {
+    "ClerkSecretKey": {
+      "$env": "ClerkSecretKey"
+    }
+  }
+}
