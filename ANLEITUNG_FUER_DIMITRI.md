@@ -1,12 +1,14 @@
 # 🎯 Anleitung für Dimitri - Talea Railway Deployment
 
-## 🚨 WICHTIGER HINWEIS: Frontend Dockerfile Problem
+## 🎯 **NEUE STRATEGIE: GitHub Actions + GHCR (wie NotePad)**
 
-⚠️ **Wenn du dieses Dokument öffnest, weil der Frontend Service das falsche Dockerfile verwendet:**
+✅ **Problem gelöst!** Ich habe das Projekt auf die gleiche Strategie wie NotePad umgestellt:
 
-→ **Siehe:** [FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md) für sofortige Hilfe!
+- **Backend:** GitHub Actions baut Docker Image → GHCR → Railway deployed fertiges Image
+- **Frontend:** Railway baut direkt aus GitHub Repo mit `railway.frontend.toml`
+- **Vorteil:** Keine Dockerfile Path Konflikte mehr!
 
-Das Problem tritt auf, weil Railway's `railway.toml` auf ALLE Services angewendet wird.
+→ **Vollständige Setup-Anleitung:** [GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)
 
 ---
 
@@ -63,57 +65,59 @@ git push
 → Frontend Dockerfile Path musst du **manuell** in Railway konfigurieren!  
 → Siehe [RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)
 
-### Schritt 2: Railway Setup
+### Schritt 2: GitHub Setup (GitHub Actions + GHCR)
+
+**📚 Vollständige Anleitung:** [GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)
+
+#### **2.1 GitHub Repository Secrets**
+
+1. **Gehe zu deinem GitHub Repo → Settings → Secrets and variables → Actions**
+2. **Füge hinzu:**
+
+   **RAILWAY_TOKEN:**
+   - Railway Dashboard → Profil → Account Settings → Tokens → Create Token
+   - Kopiere Token und füge als Secret hinzu
+
+   **RAILWAY_SERVICE_ID:**
+   - Railway → Backend Service → URL: `railway.app/project/XXX/service/YYY`
+   - Kopiere `YYY` und füge als Secret hinzu
+
+#### **2.2 GitHub Actions aktivieren**
+
+1. **Workflow ist bereits erstellt:** `.github/workflows/deploy-backend.yml`
+2. **Teste Workflow:**
+   ```powershell
+   git add .
+   git commit -m "Setup GitHub Actions backend deployment"
+   git push
+   ```
+3. **Prüfe Logs:** GitHub Repo → Actions → Neuester Run
+
+### Schritt 3: Railway Setup
 
 1. **Railway Dashboard öffnen:**
    - Gehe zu [railway.app](https://railway.app)
    - Erstelle neues Projekt
 
 2. **Services deployen:**
-   - **Backend:** "+ New" → "GitHub Repo" → talea-storytelling-platform
-     - Name: `backend`
-   
-   - **Frontend:** "+ New" → "GitHub Repo" → talea-storytelling-platform (nochmal!)
-     - Name: `frontend`
-   
-   - **PostgreSQL:** "+ New" → "Database" → "PostgreSQL"
 
-3. **⚠️ WICHTIG: Dockerfile Paths manuell konfigurieren!**
+   **PostgreSQL:**
+   - "+ New" → "Database" → "PostgreSQL"
+   
+   **Backend Service (Docker Image von GHCR):**
+   - "+ New" → "Docker Image"
+   - Image URL: `ghcr.io/DEIN_GITHUB_USERNAME/talea-backend:latest`
+   - Name: `backend`
+   - **Authentifizierung:**
+     - Username: Dein GitHub Username
+     - Token: GitHub Personal Access Token mit `read:packages` scope
+   
+   **Frontend Service (GitHub Repo):**
+   - "+ New" → "GitHub Repo" → talea-storytelling-platform
+   - Name: `frontend`
+   - **Wichtig:** Railway erkennt automatisch `railway.frontend.toml`!
 
-   **Backend Service:**
-   - Klick auf Backend Service
-   - Settings → Build
-   - Setze: `Dockerfile Path: Dockerfile.backend`
-   
-   **Frontend Service:**
-   - Klick auf Frontend Service
-   - Settings → Build
-   - Setze: `Dockerfile Path: Dockerfile.frontend` ← **KRITISCH!**
-   
-   **⚠️ PROBLEM: Feld ist schreibgeschützt?**
-   
-   Das passiert, weil `railway.toml` auf ALLE Services angewendet wird!
-   
-   **LÖSUNG (wähle eine):**
-   
-   **A) Raw Config Editor (schnellste Lösung):**
-   - In Frontend Service Settings
-   - Suche Button "Edit Raw Configuration" oder ⚙️
-   - Ändere manuell: `dockerfilePath = "Dockerfile.frontend"`
-   
-   **B) railway.toml umbenennen (empfohlen, wenn A nicht funktioniert):**
-   ```powershell
-   cd talea-storytelling-platform
-   git mv railway.toml railway.backend.reference.toml
-   git commit -m "Allow per-service Dockerfile configuration"
-   git push
-   ```
-   Dann in Railway Dashboard beide Services manuell konfigurieren.
-   
-   **📚 Detaillierte Anleitung:** [FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md)  
-   **Vollständige Referenz:** [RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)
-
-4. **Environment Variables setzen:**
+3. **Environment Variables setzen:**
 
    **Backend Service → Variables:**
    ```
@@ -132,7 +136,7 @@ git push
    - **Clerk:** [dashboard.clerk.com](https://dashboard.clerk.com) → API Keys
    - **OpenAI:** [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 
-### Schritt 3: CORS URL updaten
+### Schritt 4: CORS URL updaten
 
 1. **Warte bis Frontend deployed ist**
 2. **Kopiere die Frontend URL** (z.B. `https://frontend-production-YYYY.up.railway.app`)
@@ -152,8 +156,10 @@ git push
    git commit -m "Update CORS with Railway frontend URL"
    git push
    ```
+   → GitHub Actions baut automatisch neues Backend Image
+   → Railway deployed es automatisch
 
-### Schritt 4: Database Migrations triggern
+### Schritt 5: Database Migrations triggern
 
 1. **Öffne im Browser:**
    ```
@@ -171,7 +177,7 @@ git push
    }
    ```
 
-### Schritt 5: Testen!
+### Schritt 6: Testen!
 
 1. **Öffne Frontend URL** in Browser
 2. **Sign in** mit Clerk

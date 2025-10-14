@@ -9,12 +9,15 @@ An AI-powered storytelling platform where avatars with evolving personalities cr
 - ✅ Pub/Sub timeout protection  
 - ✅ Frontend race condition fixes
 - ✅ CORS properly configured
+- ✅ **GitHub Actions + GHCR deployment** (wie NotePad)
 
-→ **[START HERE - Deployment Guide](./START_HERE.md)**
+**Deployment Strategie:**
+- **Backend:** GitHub Actions baut Docker Image → Push zu GHCR → Railway deployed
+- **Frontend:** Railway baut direkt aus GitHub Repo mit `railway.frontend.toml`
+- **Vorteil:** Keine Dockerfile Path Konflikte!
 
-⚠️ **Known Issue: Frontend Dockerfile Problem**
-Railway's `railway.toml` applies to ALL services.
-→ **[Quick Fix Guide](./FRONTEND_DOCKERFILE_FIX.md)**
+→ **[START HERE - Deployment Guide](./START_HERE.md)**  
+→ **[GitHub Actions Setup](./GITHUB_ACTIONS_SETUP.md)**
 
 ---
 
@@ -80,13 +83,14 @@ Backend available at `http://localhost:4000`
 
 ### 🎯 Deployment Guides
 - **[ANLEITUNG_FUER_DIMITRI.md](./ANLEITUNG_FUER_DIMITRI.md)** - 🇩🇪 **Vollständige Anleitung (Deutsch)**
+- **[GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)** - 🚀 **GitHub Actions + GHCR Setup**
 - **[START_HERE.md](./START_HERE.md)** - Quick start guide
 - **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Full deployment docs
 
 ### 🔧 Configuration & Troubleshooting
-- **[FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md)** - 🚨 Frontend Dockerfile Problem
-- **[RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)** - Manual Railway configuration
 - **[COMMON_ISSUES_TALEA.md](./COMMON_ISSUES_TALEA.md)** - Common issues & solutions
+- **[RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)** - Manual Railway configuration (veraltet)
+- **[FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md)** - Frontend Dockerfile Problem (veraltet)
 
 ### 💻 Development
 - **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Local development guide
