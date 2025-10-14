@@ -7,7 +7,7 @@
       "http://localhost:5174",
       "http://localhost:5175",
       "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
-      "https://YOUR_FRONTEND_URL.up.railway.app"
+      "https://frontend-production-0b44.up.railway.app"
     ],
     "debug": true
   }
