@@ -45,9 +45,13 @@
 cd C:\MyProjects\Talea\talea-storytelling-platform
 
 git add .
-git commit -m "Apply all Railway deployment fixes from NotePad project"
+git commit -m "Apply all Railway deployment fixes + manual config guide"
 git push
 ```
+
+**⚠️ WICHTIG:** Railway nutzt nur EINE `railway.toml` für alle Services!  
+→ Frontend Dockerfile Path musst du **manuell** in Railway konfigurieren!  
+→ Siehe [RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)
 
 ### Schritt 2: Railway Setup
 
@@ -57,16 +61,28 @@ git push
 
 2. **Services deployen:**
    - **Backend:** "+ New" → "GitHub Repo" → talea-storytelling-platform
-     - Railway erkennt automatisch `Dockerfile.backend`
      - Name: `backend`
    
    - **Frontend:** "+ New" → "GitHub Repo" → talea-storytelling-platform (nochmal!)
-     - Railway erkennt automatisch `Dockerfile.frontend`
      - Name: `frontend`
    
    - **PostgreSQL:** "+ New" → "Database" → "PostgreSQL"
 
-3. **Environment Variables setzen:**
+3. **⚠️ WICHTIG: Dockerfile Paths manuell konfigurieren!**
+
+   **Backend Service:**
+   - Klick auf Backend Service
+   - Settings → Build
+   - Setze: `Dockerfile Path: Dockerfile.backend`
+   
+   **Frontend Service:**
+   - Klick auf Frontend Service
+   - Settings → Build
+   - Setze: `Dockerfile Path: Dockerfile.frontend` ← **WICHTIG!**
+   
+   **Siehe auch:** [RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)
+
+4. **Environment Variables setzen:**
 
    **Backend Service → Variables:**
    ```

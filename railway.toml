@@ -1,3 +1,10 @@
+# ⚠️ IMPORTANT: This file is for BACKEND service only!
+# For Frontend service configuration, see railway.frontend.toml
+# 
+# In Railway Dashboard, you need to manually configure each service:
+# Backend Service → Settings → Build → Dockerfile Path: Dockerfile.backend
+# Frontend Service → Settings → Build → Dockerfile Path: Dockerfile.frontend
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.backend"
