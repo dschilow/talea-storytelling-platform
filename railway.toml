@@ -5,6 +5,14 @@
 # Backend Service → Settings → Build → Dockerfile Path: Dockerfile.backend
 # Frontend Service → Settings → Build → Dockerfile Path: Dockerfile.frontend
 
+# ⚠️ WARNUNG: Diese railway.toml wird auf ALLE Services angewendet!
+# Das bedeutet: Frontend Service versucht auch Dockerfile.backend zu nutzen.
+# 
+# LÖSUNG: Siehe FRONTEND_DOCKERFILE_FIX.md oder RAILWAY_MANUAL_CONFIG.md
+# 
+# Diese Datei ist NUR für den Backend Service gedacht!
+# Frontend muss manuell im Railway Dashboard konfiguriert werden.
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.backend"

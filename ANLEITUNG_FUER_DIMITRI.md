@@ -1,5 +1,15 @@
 # 🎯 Anleitung für Dimitri - Talea Railway Deployment
 
+## 🚨 WICHTIGER HINWEIS: Frontend Dockerfile Problem
+
+⚠️ **Wenn du dieses Dokument öffnest, weil der Frontend Service das falsche Dockerfile verwendet:**
+
+→ **Siehe:** [FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md) für sofortige Hilfe!
+
+Das Problem tritt auf, weil Railway's `railway.toml` auf ALLE Services angewendet wird.
+
+---
+
 ## ✅ Was ich automatisch gefixed habe
 
 ### 1. **Database Migrations** ✅
@@ -78,9 +88,30 @@ git push
    **Frontend Service:**
    - Klick auf Frontend Service
    - Settings → Build
-   - Setze: `Dockerfile Path: Dockerfile.frontend` ← **WICHTIG!**
+   - Setze: `Dockerfile Path: Dockerfile.frontend` ← **KRITISCH!**
    
-   **Siehe auch:** [RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)
+   **⚠️ PROBLEM: Feld ist schreibgeschützt?**
+   
+   Das passiert, weil `railway.toml` auf ALLE Services angewendet wird!
+   
+   **LÖSUNG (wähle eine):**
+   
+   **A) Raw Config Editor (schnellste Lösung):**
+   - In Frontend Service Settings
+   - Suche Button "Edit Raw Configuration" oder ⚙️
+   - Ändere manuell: `dockerfilePath = "Dockerfile.frontend"`
+   
+   **B) railway.toml umbenennen (empfohlen, wenn A nicht funktioniert):**
+   ```powershell
+   cd talea-storytelling-platform
+   git mv railway.toml railway.backend.reference.toml
+   git commit -m "Allow per-service Dockerfile configuration"
+   git push
+   ```
+   Dann in Railway Dashboard beide Services manuell konfigurieren.
+   
+   **📚 Detaillierte Anleitung:** [FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md)  
+   **Vollständige Referenz:** [RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)
 
 4. **Environment Variables setzen:**
 

@@ -12,6 +12,10 @@ An AI-powered storytelling platform where avatars with evolving personalities cr
 
 → **[START HERE - Deployment Guide](./START_HERE.md)**
 
+⚠️ **Known Issue: Frontend Dockerfile Problem**
+Railway's `railway.toml` applies to ALL services.
+→ **[Quick Fix Guide](./FRONTEND_DOCKERFILE_FIX.md)**
+
 ---
 
 ## Features
@@ -74,10 +78,18 @@ Backend available at `http://localhost:4000`
 
 ## Documentation
 
-- **[START_HERE.md](./START_HERE.md)** - 🎯 **Start here for deployment**
-- **[COMMON_ISSUES_TALEA.md](./COMMON_ISSUES_TALEA.md)** - Troubleshooting guide
+### 🎯 Deployment Guides
+- **[ANLEITUNG_FUER_DIMITRI.md](./ANLEITUNG_FUER_DIMITRI.md)** - 🇩🇪 **Vollständige Anleitung (Deutsch)**
+- **[START_HERE.md](./START_HERE.md)** - Quick start guide
+- **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Full deployment docs
+
+### 🔧 Configuration & Troubleshooting
+- **[FRONTEND_DOCKERFILE_FIX.md](./FRONTEND_DOCKERFILE_FIX.md)** - 🚨 Frontend Dockerfile Problem
+- **[RAILWAY_MANUAL_CONFIG.md](./RAILWAY_MANUAL_CONFIG.md)** - Manual Railway configuration
+- **[COMMON_ISSUES_TALEA.md](./COMMON_ISSUES_TALEA.md)** - Common issues & solutions
+
+### 💻 Development
 - **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Local development guide
-- **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Existing deployment docs
 
 ---
 
