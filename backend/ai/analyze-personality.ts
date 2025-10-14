@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
 const MODEL = "gpt-5-nano";
@@ -121,7 +122,7 @@ PERSÖNLICHKEITSEIGENSCHAFTEN:
 
       const data = await response.json();
       
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: 'openai-tavi-chat',
         timestamp: new Date(),
         request: payload,

@@ -13,7 +13,9 @@ Complete step-by-step guide for deploying Talea Encore.ts application to Railway
 
 ---
 
-## 🚢 Deployment Steps
+
+
+## 🚢 Deployment Stepss
 
 ### 1. Deploy PostgreSQL
 

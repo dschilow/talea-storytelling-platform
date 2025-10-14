@@ -4,6 +4,7 @@ import type { StoryConfig, Chapter } from "./generate";
 import type { Avatar, AvatarVisualProfile } from "../avatar/avatar";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 // ---- OpenAI Modell & Pricing ----
 const MODEL = "gpt-5-nano";
@@ -727,7 +728,7 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
 
   const data = await response.json();
   
-  await logTopic.publish({
+  await publishWithTimeout(logTopic, {
     source: 'openai-story-generation',
     timestamp: new Date(),
     request: payload,

@@ -4,6 +4,7 @@ import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import { avatar } from "~encore/clients";
 import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const storyDB = new SQLDatabase("story", {
   migrations: "./migrations",
@@ -332,7 +333,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         WHERE id = ${id}
       `;
       try {
-        await logTopic.publish({
+        await publishWithTimeout(logTopic, {
           source: 'openai-story-generation',
           timestamp: new Date(),
           request: { storyId: id, userId: req.userId, config: req.config },

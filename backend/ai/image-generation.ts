@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -137,7 +138,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       data = { error: "Failed to parse JSON response", response: responseText };
     }
 
-    await logTopic.publish({
+    await publishWithTimeout(logTopic, {
       source: 'runware-single-image',
       timestamp: new Date(),
       request: requestBody,
@@ -269,7 +270,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       data = { error: "Failed to parse JSON response", response: responseText };
     }
 
-    await logTopic.publish({
+    await publishWithTimeout(logTopic, {
       source: 'runware-batch-image',
       timestamp: new Date(),
       request: tasks,

@@ -2,6 +2,7 @@ import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
 import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -103,7 +104,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
 
       // Log the Tavi chat interaction
       console.log(`🔥 TAVI: About to publish log to logTopic...`);
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: "openai-tavi-chat",
         timestamp: new Date(),
         request: payload,
