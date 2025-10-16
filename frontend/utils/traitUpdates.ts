@@ -1,5 +1,4 @@
 import {
-  translateEnglishTraitToId,
   getTraitLabel,
   getTraitIcon,
   getTraitsForStory,
@@ -21,7 +20,8 @@ export interface ProcessedTraitChange {
 // Convert English trait changes to new ID-based system
 export const processTraitChanges = (changes: TraitChange[]): ProcessedTraitChange[] => {
   return changes.map(change => {
-    const traitId = translateEnglishTraitToId(change.trait);
+    // Assume trait is already in correct ID format
+    const traitId = change.trait;
     return {
       traitId,
       traitLabel: getTraitLabel(traitId, 'de'),

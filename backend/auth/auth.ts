@@ -28,7 +28,7 @@ export interface AuthData {
   role: "admin" | "user";
 }
 
-// 🔧 FIXED: Erweiterte authorized parties für alle Leap.new & Railway Umgebungen
+// 🔧 FIXED: Erweiterte authorized parties für alle Leap.new Umgebungen
 const AUTHORIZED_PARTIES = [
   // Development
   "http://localhost:3000",
@@ -39,30 +39,21 @@ const AUTHORIZED_PARTIES = [
   "http://localhost:5176", // Vite Dev Server (alternative port)
   "http://localhost:5177", // Vite Dev Server (alternative port)
   "http://localhost:4000", // Encore Dev Server
-
+  
   // Leap.new Patterns - Alle möglichen Varianten
   "https://*.lp.dev",
   "https://talea-storytelling-platform-*.lp.dev",
   "https://talea-storytelling-platform-4ot2.lp.dev", // Aus encore.app
-
+  
   // 🎯 SPECIFIC FIX: Die exakte Domain aus dem Fehler
   "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
-
-  // Railway Production Patterns
-  "https://*.up.railway.app",
-  "https://talea-storytelling-platform-*.up.railway.app",
-  "https://sunny-optimism-production.up.railway.app", // Frontend Production Domain
-
-  // Railway Custom Domains (wenn du später eine hinzufügst)
-  // "https://talea.deine-domain.de",
-  // "https://api.deine-domain.de",
-
-  // Production (Custom Domain)
+  
+  // Production (wenn du später deployed)
   // "https://your-domain.com",
   // "https://api.your-domain.com",
 ];
 
-export const auth = authHandler<AuthParams, AuthData>(
+const auth = authHandler<AuthParams, AuthData>(
   async (data) => {
     const token = data.authorization?.replace("Bearer ", "") ?? data.session?.value;
     if (!token) {
@@ -76,7 +67,8 @@ export const auth = authHandler<AuthParams, AuthData>(
       const verifiedToken = await verifyToken(token, {
         authorizedParties: AUTHORIZED_PARTIES,
         secretKey: clerkSecretKey(),
-        clockSkewInMs: 120000, // 2 minutes in milliseconds
+        // 🔧 FIXED: Erhöhte Clock Skew Tolerance
+        clockSkewInMs: 120000, // 2 Minuten (in Millisekunden)
       });
 
       console.log("✅ Token verified successfully!");
@@ -87,15 +79,35 @@ export const auth = authHandler<AuthParams, AuthData>(
         exp: new Date(verifiedToken.exp * 1000).toISOString()
       });
 
-      // ✅ FIXED: No DB calls in auth handler - only token verification
-      // User data will be fetched/created in the actual endpoints that need it
-      console.log("🎉 Authentication successful for user:", verifiedToken.sub);
+      const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
+      const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+
+      // Check if user exists in our DB, create if not (upsert-like logic).
+      let user = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
+        SELECT id, role FROM users WHERE id = ${clerkUser.id}
+      `;
+
+      if (!user) {
+        console.log("👤 Creating new user in database:", clerkUser.id);
+        const now = new Date();
+        const name = clerkUser.firstName || clerkUser.username || email?.split("@")[0] || "New User";
+        const role: "admin" | "user" = "user"; // New users are always 'user' role.
+        
+        await userDB.exec`
+          INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
+          VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
+          ON CONFLICT (id) DO NOTHING
+        `;
+        user = { id: clerkUser.id, role };
+      }
+
+      console.log("🎉 Authentication successful for user:", user.id);
 
       return {
-        userID: verifiedToken.sub,
-        email: null, // Will be populated by endpoints if needed
-        imageUrl: null, // Will be populated by endpoints if needed
-        role: "user" as const, // Default role, will be checked in endpoints if needed
+        userID: clerkUser.id,
+        email,
+        imageUrl: clerkUser.imageUrl,
+        role: user.role,
       };
 
     } catch (err: any) {

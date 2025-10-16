@@ -114,7 +114,7 @@ const StoryReaderScreen: React.FC = () => {
         body: JSON.stringify({
           storyId: storyId,
           storyTitle: story.title,
-          genre: story.genre,
+          genre: story.config.genre,
           // No avatarId = update all eligible avatars
         })
       });

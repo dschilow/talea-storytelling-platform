@@ -2,6 +2,7 @@ import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -151,7 +152,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("❌ Network error calling OpenAI:", fetchError.message);
       
       // Log network errors
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
         request: {
@@ -181,7 +182,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("❌ OpenAI API error:", res.status, errorText);
       
       // Log API errors
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
         request: {
@@ -214,7 +215,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("❌ Failed to parse OpenAI response as JSON:", jsonError.message);
       
       // Log JSON parsing errors
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
         request: {
@@ -252,7 +253,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("Full response:", JSON.stringify(data, null, 2));
       
       // Log empty content errors
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
         request: {
@@ -295,7 +296,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("Raw content from OpenAI:", content.substring(0, 500));
       
       // Log analysis parsing errors
-      await logTopic.publish({
+      await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
         request: {
@@ -325,7 +326,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     console.log(`✅ Analysis completed successfully in ${processingTime}ms`);
 
     // Erweiterte Logs für bessere Analyse
-    await logTopic.publish({
+    await publishWithTimeout(logTopic, {
       source: 'openai-avatar-analysis-stable',
       timestamp: new Date(),
       request: {

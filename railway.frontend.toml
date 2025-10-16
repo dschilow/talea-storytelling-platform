@@ -1,0 +1,19 @@
+# Railway Frontend Service Configuration
+# Diese Datei wird vom Frontend Service automatisch verwendet
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.frontend"
+
+[build.buildArgs]
+VITE_BACKEND_URL = "${{VITE_BACKEND_URL}}"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[environmentVariables]]
+name = "PORT"
+value = "80"

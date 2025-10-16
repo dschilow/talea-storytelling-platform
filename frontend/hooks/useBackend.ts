@@ -4,19 +4,23 @@ import { getBackendUrl } from "../config";
 
 // Returns a backend client configured with the user's Clerk auth token.
 export function useBackend() {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
 
   // Get the target URL from environment or auto-detect
   const target = getBackendUrl();
 
   return new Client(target, {
     auth: async () => {
-      // getToken() will return null if the user is not signed in.
+      // If user is not signed in, no auth header needed
+      if (!isSignedIn) {
+        return undefined;
+      }
+
+      // Get token for signed-in user
       const token = await getToken();
       if (!token) {
-        // No token, so no auth header.
-        // The backend will reject if the endpoint requires auth.
-        return undefined;
+        // User is signed in but no token available - throw error to prevent hanging
+        throw new Error("No authentication token available");
       }
       return { authorization: `Bearer ${token}` };
     },

@@ -67,24 +67,28 @@ export const updatePersonality = api(
         const [baseKey, subcategory] = traitIdentifier.split('.');
 
         if (baseKey in updatedTraits) {
-          const baseTrait = updatedTraits[baseKey];
+          const traitKey = baseKey as keyof PersonalityTraits;
+          const baseTrait = updatedTraits[traitKey];
 
           // Ensure we have the hierarchical structure
           if (typeof baseTrait === 'number') {
-            updatedTraits[baseKey] = { value: baseTrait, subcategories: {} };
+            updatedTraits[traitKey] = { value: baseTrait, subcategories: {} };
           }
 
-          const currentSubcategoryValue = updatedTraits[baseKey].subcategories[subcategory] || 0;
+          const traitValue = updatedTraits[traitKey] as { value: number; subcategories?: Record<string, number> };
+          const currentSubcategoryValue = traitValue.subcategories?.[subcategory] || 0;
           const maxValue = 1000; // Higher limit for subcategories
           const newSubcategoryValue = Math.max(0, Math.min(maxValue, currentSubcategoryValue + change.change));
 
           // Update subcategory
-          updatedTraits[baseKey].subcategories[subcategory] = newSubcategoryValue;
+          if (!traitValue.subcategories) {
+            traitValue.subcategories = {};
+          }
+          traitValue.subcategories[subcategory] = newSubcategoryValue;
 
           // Update base value (sum of all subcategories + direct base value)
-          const subcategorySum = Object.values(updatedTraits[baseKey].subcategories).reduce((sum, val) => sum + val, 0);
-          const directValue = typeof currentTraits[baseKey] === 'number' ? currentTraits[baseKey] : currentTraits[baseKey].value;
-          updatedTraits[baseKey].value = subcategorySum;
+          const subcategorySum = Object.values(traitValue.subcategories).reduce((sum: number, val: number) => sum + val, 0);
+          traitValue.value = subcategorySum;
 
           const actualChange = newSubcategoryValue - currentSubcategoryValue;
           appliedChanges.push({
