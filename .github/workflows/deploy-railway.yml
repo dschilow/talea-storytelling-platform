@@ -50,44 +50,9 @@ jobs:
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
 
-      - name: Restore railway-infra.config.json for build
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
-          RAILWAY_PGPASSWORD: ${{ secrets.RAILWAY_PGPASSWORD }}
+      - name: Use infra.config.railway.json for build
         run: |
-          node -e "
-          const fs = require('fs');
-          const backupPath = 'backend/railway-infra.config.json.backup';
-          const outputPath = 'backend/railway-infra.config.json';
-
-          // Read backup config
-          const config = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
-
-          // Update secrets from GitHub Secrets
-          const clerkKey = process.env.CLERK_SECRET_KEY || config.secrets.ClerkSecretKey;
-          const openaiKey = process.env.OPENAI_API_KEY || config.secrets.OpenAIKey;
-          const runwareKey = process.env.RUNWARE_API_KEY || config.secrets.RunwareApiKey;
-          const pgPassword = process.env.RAILWAY_PGPASSWORD || 'HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr';
-
-          // Update password in all databases
-          if (config.sql_servers && config.sql_servers[0]) {
-            Object.keys(config.sql_servers[0].databases || {}).forEach(dbKey => {
-              config.sql_servers[0].databases[dbKey].password = pgPassword;
-            });
-          }
-
-          config.secrets = {
-            ClerkSecretKey: clerkKey,
-            OpenAIKey: openaiKey,
-            RunwareApiKey: runwareKey
-          };
-
-          fs.writeFileSync(outputPath, JSON.stringify(config, null, 2));
-          console.log('✅ Restored railway-infra.config.json with updated secrets');
-          "
-
+          echo "✅ Using backend/infra.config.railway.json (has buckets field and NSQ config)"
 
       - name: Verify Encore CLI
         run: encore version
@@ -95,7 +60,7 @@ jobs:
       - name: Build Encore Docker image
         run: |
           cd backend
-          encore build --config railway-infra.config.json docker myapp --verbose
+          encore build --config infra.config.railway.json docker myapp --verbose
 
       - name: Tag Docker image for GitHub Container Registry
         run: |
