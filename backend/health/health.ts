@@ -11,6 +11,9 @@ export interface HealthResponse {
   };
 }
 
+// GitHub Actions trigger: force rebuild
+
+
 // Health check endpoint for Railway
 // Automatically triggers database migrations on first call
 export const health = api(
