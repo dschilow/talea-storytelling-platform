@@ -45,22 +45,6 @@
       }
     }
   ],
-  "pubsub": [
-    {
-      "type": "nsq",
-      "hosts": "nsq.railway.internal:4150",
-      "topics": {
-        "log-events": {
-          "name": "log-events",
-          "subscriptions": {
-            "log-to-console": {
-              "name": "log-to-console"
-            }
-          }
-        }
-      }
-    }
-  ],
   "secrets": {
     "ClerkSecretKey": {
       "$env": "CLERK_SECRET_KEY"
