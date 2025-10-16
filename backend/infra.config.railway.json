@@ -45,6 +45,7 @@
       }
     }
   ],
+  "buckets": [],
   "secrets": {
     "ClerkSecretKey": {
       "$env": "CLERK_SECRET_KEY"
