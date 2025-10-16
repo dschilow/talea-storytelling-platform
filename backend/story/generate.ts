@@ -1,14 +1,10 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import { avatar } from "~encore/clients";
-import { logTopic } from "../log/logger";
-import { publishWithTimeout } from "../helpers/pubsubTimeout";
-
-const storyDB = new SQLDatabase("story", {
-  migrations: "./migrations",
-});
+import { storyDB } from "./db";
+// import { logTopic } from "../log/logger";
+// import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 // Avatar DB is already available through the avatar service client
 
@@ -332,16 +328,17 @@ export const generate = api<GenerateStoryRequest, Story>(
             updated_at = ${new Date()}
         WHERE id = ${id}
       `;
-      try {
-        await publishWithTimeout(logTopic, {
-          source: 'openai-story-generation',
-          timestamp: new Date(),
-          request: { storyId: id, userId: req.userId, config: req.config },
-          response: { error: String((error as any)?.message || error), stack: (error as any)?.stack?.slice(0, 2000) }
-        });
-      } catch (e) {
-        console.warn("⚠️ [story.generate] Failed to publish error log:", e);
-      }
+      // Pub/Sub logging disabled (no NSQ on Railway)
+      // try {
+      //   await publishWithTimeout(logTopic, {
+      //     source: 'openai-story-generation',
+      //     timestamp: new Date(),
+      //     request: { storyId: id, userId: req.userId, config: req.config },
+      //     response: { error: String((error as any)?.message || error), stack: (error as any)?.stack?.slice(0, 2000) }
+      //   });
+      // } catch (e) {
+      //   console.warn("⚠️ [story.generate] Failed to publish error log:", e);
+      // }
 
       throw error;
     }

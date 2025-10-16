@@ -2,8 +2,9 @@ import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { secret } from "encore.dev/config";
 import { ai, avatar } from "~encore/clients";
-import { logTopic } from "../log/logger";
-import { publishWithTimeout } from "../helpers/pubsubTimeout";
+// Pub/Sub logging disabled (no NSQ on Railway)
+// import { logTopic } from "../log/logger";
+// import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -129,12 +130,13 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
       const data = await res.json();
 
-      await publishWithTimeout(logTopic, {
-        source: "openai-doku-generation",
-        timestamp: new Date(),
-        request: payload,
-        response: data,
-      });
+      // Pub/Sub logging disabled (no NSQ on Railway)
+      // await publishWithTimeout(logTopic, {
+      //   source: "openai-doku-generation",
+      //   timestamp: new Date(),
+      //   request: payload,
+      //   response: data,
+      // });
 
       const choice = data.choices?.[0];
       if (!choice?.message?.content) {
