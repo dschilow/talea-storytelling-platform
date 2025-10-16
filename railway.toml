@@ -1,0 +1,20 @@
+# Railway Backend Service Configuration
+# WICHTIG: Dieses Service sollte auf "Image Registry" Source konfiguriert sein
+# Image: ghcr.io/dschilow/talea-storytelling-platform:latest
+# Diese Datei wird NICHT verwendet wenn Image Registry konfiguriert ist
+
+# Falls doch Dockerfile Build:
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.backend"
+
+[deploy]
+startCommand = "/app/start.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[environmentVariables]]
+name = "PORT"
+value = "8080"
