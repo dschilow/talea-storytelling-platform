@@ -1,0 +1,17 @@
+:{$PORT:8080} {
+    reverse_proxy localhost:4001
+
+    header {
+        Access-Control-Allow-Origin "https://frontend-production-0b44.up.railway.app"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "*"
+        Access-Control-Expose-Headers "*"
+        Access-Control-Allow-Credentials "true"
+        Access-Control-Max-Age "3600"
+    }
+
+    @options {
+        method OPTIONS
+    }
+    respond @options 204
+}

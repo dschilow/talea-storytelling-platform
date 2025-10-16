@@ -35,7 +35,7 @@
             "$env": "PGPASSWORD"
           }
         },
-        "ai": {
+        "personality_tracking": {
           "name": "railway",
           "username": "postgres",
           "password": {
@@ -47,7 +47,13 @@
   ],
   "secrets": {
     "ClerkSecretKey": {
-      "$env": "ClerkSecretKey"
+      "$env": "CLERK_SECRET_KEY"
+    },
+    "OpenAIAPIKey": {
+      "$env": "OPENAI_API_KEY"
+    },
+    "RunwareAPIKey": {
+      "$env": "RUNWARE_API_KEY"
     }
   }
 }

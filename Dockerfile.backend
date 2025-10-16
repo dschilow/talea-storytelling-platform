@@ -1,4 +1,18 @@
-# Stage 1: Build Encore backend
+# Stage 1: Build the frontend
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+
+# Copy frontend files
+COPY frontend/package*.json ./frontend/
+COPY frontend/ ./frontend/
+
+# Install frontend dependencies and build
+WORKDIR /app/frontend
+RUN npm install
+RUN npm run build
+
+# Stage 2: Build Encore backend
 FROM golang:1.22-bookworm AS encore-builder
 
 # Install Node.js and bun for backend dependencies
@@ -18,21 +32,29 @@ COPY backend/ ./backend/
 WORKDIR /app/backend
 RUN bun install
 
+# Copy built frontend into backend
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
 # For Encore TS apps, we just need the source code
 # We'll use Encore daemon in production
 RUN mkdir -p ./output
 
-# Stage 2: Production image with Encore daemon only
+# Stage 3: Production image with Encore daemon only
 FROM node:20-bookworm-slim
 
 # Cache buster - change this to force rebuild
-ENV CACHE_BUST=2025-10-13-v1-initial
+ENV CACHE_BUST=2025-10-16-v1-with-caddy-and-frontend
 
 WORKDIR /app
 
-# Install runtime dependencies plus Encore CLI and PostgreSQL client
+# Install runtime dependencies plus Encore CLI, Caddy, and PostgreSQL client
 RUN apt-get update && \
-    apt-get install -y curl ca-certificates postgresql-client && \
+    apt-get install -y curl ca-certificates debian-keyring debian-archive-keyring apt-transport-https postgresql-client && \
+    # Install Caddy
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && \
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list && \
+    apt-get update && \
+    apt-get install -y caddy && \
     # Install bun
     npm install -g bun && \
     # Install Encore
@@ -43,15 +65,22 @@ RUN apt-get update && \
 # Copy backend source code
 COPY --from=encore-builder /app/backend ./
 
-# Copy runtime start scripts
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+# Copy Caddyfile for CORS handling
+COPY backend/Caddyfile /app/Caddyfile
+
+# Copy runtime start scripts and migrations runner
 COPY backend/start.sh ./start.sh
+COPY backend/run-migrations.js ./run-migrations.js
 RUN chmod +x ./start.sh
 
-# Install production dependencies
-RUN bun install --production
+# Install production dependencies (including pg for migrations)
+RUN bun install --production && npm install pg
 
 # Expose HTTP port
 EXPOSE 8080
 
-# Start Encore backend
+# Start with Caddy for CORS handling
 CMD ["/app/start.sh"]
