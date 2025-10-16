@@ -1,0 +1,14 @@
+FROM nsqio/nsq:latest
+
+# Expose NSQ ports
+# 4150 - nsqd TCP port
+# 4151 - nsqd HTTP port
+# 4160 - nsqlookupd TCP port
+# 4161 - nsqlookupd HTTP port
+EXPOSE 4150 4151 4160 4161
+
+# Start script
+COPY start-nsq.sh /start-nsq.sh
+RUN chmod +x /start-nsq.sh
+
+CMD ["/start-nsq.sh"]

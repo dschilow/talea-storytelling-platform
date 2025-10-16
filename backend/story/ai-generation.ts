@@ -3,9 +3,8 @@ import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "./generate";
 import type { Avatar, AvatarVisualProfile } from "../avatar/avatar";
 import { ai } from "~encore/clients";
-// Pub/Sub logging disabled (no NSQ on Railway)
-// import { logTopic } from "../log/logger";
-// import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 // ---- OpenAI Modell & Pricing ----
 const MODEL = "gpt-5-nano";
@@ -729,13 +728,12 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
 
   const data = await response.json();
 
-  // Pub/Sub logging disabled (no NSQ on Railway)
-  // await publishWithTimeout(logTopic, {
-  //   source: 'openai-story-generation',
-  //   timestamp: new Date(),
-  //   request: payload,
-  //   response: data,
-  // });
+  await publishWithTimeout(logTopic, {
+    source: 'openai-story-generation',
+    timestamp: new Date(),
+    request: payload,
+    response: data,
+  });
 
   const choice = data.choices?.[0];
 

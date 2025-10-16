@@ -1,9 +1,8 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
-// Pub/Sub logging disabled (no NSQ on Railway)
-// import { logTopic } from "../log/logger";
-// import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -105,18 +104,17 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
 
       // Log the Tavi chat interaction
       console.log(`🔥 TAVI: About to publish log to logTopic...`);
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: "openai-tavi-chat",
-      //   timestamp: new Date(),
-      //   request: payload,
-      //   response: data,
-      //   metadata: {
-      //     userId: auth.userID,
-      //     messageLength: message.length,
-      //     wordCount: message.trim().split(/\s+/).length
-      //   }
-      // });
+      await publishWithTimeout(logTopic, {
+        source: "openai-tavi-chat",
+        timestamp: new Date(),
+        request: payload,
+        response: data,
+        metadata: {
+          userId: auth.userID,
+          messageLength: message.length,
+          wordCount: message.trim().split(/\s+/).length
+        }
+      });
       console.log(`✅ TAVI: Log published successfully to logTopic!`);
 
       // Check for incomplete responses

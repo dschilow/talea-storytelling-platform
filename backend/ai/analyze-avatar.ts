@@ -1,9 +1,8 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
-// Pub/Sub logging disabled (no NSQ on Railway)
-// import { logTopic } from "../log/logger";
-// import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -153,28 +152,27 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("❌ Network error calling OpenAI:", fetchError.message);
 
       // Log network errors
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: 'openai-avatar-analysis-stable',
-      //   timestamp: new Date(),
-      //   request: {
-      //     model: (payload as any).model,
-      //     imageUrl: req.imageUrl,
-      //     hints: req.hints,
-      //     systemPrompt: system,
-      //     userPrompt: userText,
-      //     hintsText: hintsText,
-      //     hasImage: true,
-      //     hintsProvided: !!req.hints,
-      //     maxTokens: (payload as any).max_completion_tokens
-      //   },
-      //   response: {
-      //     success: false,
-      //     errorType: 'network_error',
-      //     errorMessage: fetchError.message,
-      //     processingTimeMs: Date.now() - startTime
-      //   },
-      // });
+      await publishWithTimeout(logTopic, {
+        source: 'openai-avatar-analysis-stable',
+        timestamp: new Date(),
+        request: {
+          model: (payload as any).model,
+          imageUrl: req.imageUrl,
+          hints: req.hints,
+          systemPrompt: system,
+          userPrompt: userText,
+          hintsText: hintsText,
+          hasImage: true,
+          hintsProvided: !!req.hints,
+          maxTokens: (payload as any).max_completion_tokens
+        },
+        response: {
+          success: false,
+          errorType: 'network_error',
+          errorMessage: fetchError.message,
+          processingTimeMs: Date.now() - startTime
+        },
+      });
 
       throw new Error(`Network error: ${fetchError.message}`);
     }
@@ -184,29 +182,28 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("❌ OpenAI API error:", res.status, errorText);
 
       // Log API errors
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: 'openai-avatar-analysis-stable',
-      //   timestamp: new Date(),
-      //   request: {
-      //     model: (payload as any).model,
-      //     imageUrl: req.imageUrl,
-      //     hints: req.hints,
-      //     systemPrompt: system,
-      //     userPrompt: userText,
-      //     hintsText: hintsText,
-      //     hasImage: true,
-      //     hintsProvided: !!req.hints,
-      //     maxTokens: (payload as any).max_completion_tokens
-      //   },
-      //   response: {
-      //     success: false,
-      //     errorType: 'openai_api_error',
-      //     errorMessage: errorText,
-      //     httpStatus: res.status,
-      //     processingTimeMs: Date.now() - startTime
-      //   },
-      // });
+      await publishWithTimeout(logTopic, {
+        source: 'openai-avatar-analysis-stable',
+        timestamp: new Date(),
+        request: {
+          model: (payload as any).model,
+          imageUrl: req.imageUrl,
+          hints: req.hints,
+          systemPrompt: system,
+          userPrompt: userText,
+          hintsText: hintsText,
+          hasImage: true,
+          hintsProvided: !!req.hints,
+          maxTokens: (payload as any).max_completion_tokens
+        },
+        response: {
+          success: false,
+          errorType: 'openai_api_error',
+          errorMessage: errorText,
+          httpStatus: res.status,
+          processingTimeMs: Date.now() - startTime
+        },
+      });
 
       throw new Error(`OpenAI API error: ${res.status} - ${errorText}`);
     }
@@ -218,28 +215,27 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("❌ Failed to parse OpenAI response as JSON:", jsonError.message);
 
       // Log JSON parsing errors
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: 'openai-avatar-analysis-stable',
-      //   timestamp: new Date(),
-      //   request: {
-      //     model: (payload as any).model,
-      //     imageUrl: req.imageUrl,
-      //     hints: req.hints,
-      //     systemPrompt: system,
-      //     userPrompt: userText,
-      //     hintsText: hintsText,
-      //     hasImage: true,
-      //     hintsProvided: !!req.hints,
-      //     maxTokens: (payload as any).max_completion_tokens
-      //   },
-      //   response: {
-      //     success: false,
-      //     errorType: 'json_parse_error',
-      //     errorMessage: jsonError.message,
-      //     processingTimeMs: Date.now() - startTime
-      //   },
-      // });
+      await publishWithTimeout(logTopic, {
+        source: 'openai-avatar-analysis-stable',
+        timestamp: new Date(),
+        request: {
+          model: (payload as any).model,
+          imageUrl: req.imageUrl,
+          hints: req.hints,
+          systemPrompt: system,
+          userPrompt: userText,
+          hintsText: hintsText,
+          hasImage: true,
+          hintsProvided: !!req.hints,
+          maxTokens: (payload as any).max_completion_tokens
+        },
+        response: {
+          success: false,
+          errorType: 'json_parse_error',
+          errorMessage: jsonError.message,
+          processingTimeMs: Date.now() - startTime
+        },
+      });
 
       throw new Error(`JSON parse error: ${jsonError.message}`);
     }
@@ -257,29 +253,28 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("Full response:", JSON.stringify(data, null, 2));
 
       // Log empty content errors
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: 'openai-avatar-analysis-stable',
-      //   timestamp: new Date(),
-      //   request: {
-      //     model: (payload as any).model,
-      //     imageUrl: req.imageUrl,
-      //     hints: req.hints,
-      //     systemPrompt: system,
-      //     userPrompt: userText,
-      //     hintsText: hintsText,
-      //     hasImage: true,
-      //     hintsProvided: !!req.hints,
-      //     maxTokens: (payload as any).max_completion_tokens
-      //   },
-      //   response: {
-      //     success: false,
-      //     errorType: 'empty_content',
-      //     errorMessage: "OpenAI returned empty content",
-      //     fullOpenAIResponse: data,
-      //     processingTimeMs: Date.now() - startTime
-      //   },
-      // });
+      await publishWithTimeout(logTopic, {
+        source: 'openai-avatar-analysis-stable',
+        timestamp: new Date(),
+        request: {
+          model: (payload as any).model,
+          imageUrl: req.imageUrl,
+          hints: req.hints,
+          systemPrompt: system,
+          userPrompt: userText,
+          hintsText: hintsText,
+          hasImage: true,
+          hintsProvided: !!req.hints,
+          maxTokens: (payload as any).max_completion_tokens
+        },
+        response: {
+          success: false,
+          errorType: 'empty_content',
+          errorMessage: "OpenAI returned empty content",
+          fullOpenAIResponse: data,
+          processingTimeMs: Date.now() - startTime
+        },
+      });
 
       throw new Error("OpenAI returned empty content");
     }
@@ -301,29 +296,28 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       console.error("Raw content from OpenAI:", content.substring(0, 500));
 
       // Log analysis parsing errors
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: 'openai-avatar-analysis-stable',
-      //   timestamp: new Date(),
-      //   request: {
-      //     model: (payload as any).model,
-      //     imageUrl: req.imageUrl,
-      //     hints: req.hints,
-      //     systemPrompt: system,
-      //     userPrompt: userText,
-      //     hintsText: hintsText,
-      //     hasImage: true,
-      //     hintsProvided: !!req.hints,
-      //     maxTokens: (payload as any).max_completion_tokens
-      //   },
-      //   response: {
-      //     success: false,
-      //     errorType: 'analysis_parse_error',
-      //     errorMessage: parseError.message,
-      //     rawContent: content,
-      //     processingTimeMs: Date.now() - startTime
-      //   },
-      // });
+      await publishWithTimeout(logTopic, {
+        source: 'openai-avatar-analysis-stable',
+        timestamp: new Date(),
+        request: {
+          model: (payload as any).model,
+          imageUrl: req.imageUrl,
+          hints: req.hints,
+          systemPrompt: system,
+          userPrompt: userText,
+          hintsText: hintsText,
+          hasImage: true,
+          hintsProvided: !!req.hints,
+          maxTokens: (payload as any).max_completion_tokens
+        },
+        response: {
+          success: false,
+          errorType: 'analysis_parse_error',
+          errorMessage: parseError.message,
+          rawContent: content,
+          processingTimeMs: Date.now() - startTime
+        },
+      });
 
       throw new Error(`Failed to parse analysis result: ${parseError.message}`);
     }
@@ -332,37 +326,36 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     console.log(`✅ Analysis completed successfully in ${processingTime}ms`);
 
     // Erweiterte Logs für bessere Analyse
-    // Pub/Sub logging disabled (no NSQ on Railway)
-    // await publishWithTimeout(logTopic, {
-    //   source: 'openai-avatar-analysis-stable',
-    //   timestamp: new Date(),
-    //   request: {
-    //     model: (payload as any).model,
-    //     imageUrl: req.imageUrl,
-    //     hints: req.hints,
-    //     systemPrompt: system,
-    //     userPrompt: userText,
-    //     hintsText: hintsText,
-    //     hasImage: true,
-    //     hintsProvided: !!req.hints,
-    //     maxTokens: (payload as any).max_completion_tokens
-    //   },
-    //   response: {
-    //     tokensUsed: data.usage,
-    //     success: true,
-    //     visualProfile: parsed,
-    //     rawContent: content,
-    //     processingTimeMs: processingTime,
-    //     fullOpenAIResponse: {
-    //       choices: data.choices,
-    //       usage: data.usage,
-    //       model: data.model,
-    //       id: data.id,
-    //       created: data.created,
-    //       object: data.object
-    //     }
-    //   },
-    // });
+    await publishWithTimeout(logTopic, {
+      source: 'openai-avatar-analysis-stable',
+      timestamp: new Date(),
+      request: {
+        model: (payload as any).model,
+        imageUrl: req.imageUrl,
+        hints: req.hints,
+        systemPrompt: system,
+        userPrompt: userText,
+        hintsText: hintsText,
+        hasImage: true,
+        hintsProvided: !!req.hints,
+        maxTokens: (payload as any).max_completion_tokens
+      },
+      response: {
+        tokensUsed: data.usage,
+        success: true,
+        visualProfile: parsed,
+        rawContent: content,
+        processingTimeMs: processingTime,
+        fullOpenAIResponse: {
+          choices: data.choices,
+          usage: data.usage,
+          model: data.model,
+          id: data.id,
+          created: data.created,
+          object: data.object
+        }
+      },
+    });
 
     return {
       success: true,

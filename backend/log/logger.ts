@@ -17,50 +17,23 @@ export interface LogEvent {
   metadata?: any;
 }
 
-// Object Storage DISABLED for Railway (no GCP Cloud Storage available)
-// logBucket is the storage for our structured logs.
-// Using a more specific name to avoid potential conflicts.
-// export const logBucket = new Bucket("avatales-ai-logs", {
-//   public: false,
-// });
+// Object Storage dummy export (not used on Railway, but needed for imports in log/get.ts etc.)
+export const logBucket = null as any;
 
-// Pub/Sub DISABLED for Railway (no GCP Pub/Sub available)
-// logTopic is the central topic for all AI-related logging events.
-// export const logTopic = new Topic<LogEvent>("log-events", {
-//   deliveryGuarantee: "at-least-once",
-// });
+// logTopic is the central topic for all AI-related logging events (NSQ on Railway).
+export const logTopic = new Topic<LogEvent>("log-events", {
+  deliveryGuarantee: "at-least-once",
+});
 
-// Dummy export to avoid breaking imports (Topic is disabled)
-export const logTopic = null as any;
+// This subscription listens for log events and logs them to console.
+// On Railway we use NSQ for Pub/Sub (no GCP dependencies).
+export const logSubscription = new Subscription(logTopic, "log-to-console", {
+  handler: async (event: LogEvent) => {
+    console.log(`📝 [${event.source}] Log event received at ${event.timestamp.toISOString()}`);
+    console.log(`   Request:`, JSON.stringify(event.request).slice(0, 200));
+    console.log(`   Response:`, JSON.stringify(event.response).slice(0, 200));
 
-// Pub/Sub subscription DISABLED for Railway (no GCP Pub/Sub available)
-// This subscription listens for log events and saves them to the bucket.
-// This happens asynchronously, so it doesn't slow down the main request flow.
-// export const logSubscription = new Subscription(logTopic, "save-log-to-bucket", {
-//   handler: async (event: LogEvent) => {
-//     console.log(`🚀 LOG SUBSCRIPTION HANDLER CALLED!`);
-//     console.log(`📝 Received log event from source: ${event.source}`);
-//     // Generate unique ID for the log entry
-//     const id = crypto.randomUUID();
-//
-//     // Create a safe filename by replacing colons.
-//     const safeTimestamp = event.timestamp.toISOString().replace(/:/g, '-');
-//     const path = `${event.source}/${event.timestamp.toISOString().split('T')[0]}/${safeTimestamp}_${id}.json`;
-//
-//     const logContent = {
-//       id,
-//       ...event,
-//     };
-
-//     try {
-//       await logBucket.upload(path, Buffer.from(JSON.stringify(logContent, null, 2)), {
-//         contentType: "application/json",
-//       });
-//       console.log(`✅ Logged event to bucket 'avatales-ai-logs' at path: ${path}`);
-//     } catch (err) {
-//       console.error(`❌ Failed to log event to bucket:`, err);
-//       // Encore will automatically retry the message if the handler throws an error.
-//       throw err;
-//     }
-//   },
-// });
+    // In production you could send to external logging service here
+    // For now, just console logging is enough
+  },
+});

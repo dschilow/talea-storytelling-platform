@@ -1,8 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-// Pub/Sub logging disabled (no NSQ on Railway)
-// import { logTopic } from "../log/logger";
-// import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
 const MODEL = "gpt-5-nano";
@@ -123,13 +122,12 @@ PERSÖNLICHKEITSEIGENSCHAFTEN:
 
       const data = await response.json();
 
-      // Pub/Sub logging disabled (no NSQ on Railway)
-      // await publishWithTimeout(logTopic, {
-      //   source: 'openai-tavi-chat',
-      //   timestamp: new Date(),
-      //   request: payload,
-      //   response: data,
-      // });
+      await publishWithTimeout(logTopic, {
+        source: 'openai-tavi-chat',
+        timestamp: new Date(),
+        request: payload,
+        response: data,
+      });
 
       console.log("🔍 OpenAI response data:", JSON.stringify({
         choices: data.choices?.length || 0,

@@ -1,8 +1,7 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-// Pub/Sub logging disabled (no NSQ on Railway)
-// import { logTopic } from "../log/logger";
-// import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -139,13 +138,12 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       data = { error: "Failed to parse JSON response", response: responseText };
     }
 
-    // Pub/Sub logging disabled (no NSQ on Railway)
-    // await publishWithTimeout(logTopic, {
-    //   source: 'runware-single-image',
-    //   timestamp: new Date(),
-    //   request: requestBody,
-    //   response: data,
-    // });
+    await publishWithTimeout(logTopic, {
+      source: 'runware-single-image',
+      timestamp: new Date(),
+      request: requestBody,
+      response: data,
+    });
 
     if (!res.ok) {
       debugInfo.errorMessage = `HTTP ${res.status}: ${responseText}`;
@@ -272,13 +270,12 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       data = { error: "Failed to parse JSON response", response: responseText };
     }
 
-    // Pub/Sub logging disabled (no NSQ on Railway)
-    // await publishWithTimeout(logTopic, {
-    //   source: 'runware-batch-image',
-    //   timestamp: new Date(),
-    //   request: tasks,
-    //   response: data,
-    // });
+    await publishWithTimeout(logTopic, {
+      source: 'runware-batch-image',
+      timestamp: new Date(),
+      request: tasks,
+      response: data,
+    });
 
     if (!res.ok) {
       console.error("❌ Runware batch API error:", responseText);
