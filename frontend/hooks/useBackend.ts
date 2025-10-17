@@ -4,13 +4,18 @@ import { getBackendUrl } from "../config";
 
 // Returns a backend client configured with the user's Clerk auth token.
 export function useBackend() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
 
   // Get the target URL from environment or auto-detect
   const target = getBackendUrl();
 
   return new Client(target, {
     auth: async () => {
+      // Wait for Clerk to load before checking authentication
+      if (!isLoaded) {
+        throw new Error("Authentication not loaded yet");
+      }
+
       // If user is not signed in, no auth header needed
       if (!isSignedIn) {
         return undefined;
