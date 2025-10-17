@@ -47,7 +47,10 @@ const AUTHORIZED_PARTIES = [
   
   // 🎯 SPECIFIC FIX: Die exakte Domain aus dem Fehler
   "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
-  
+
+  // Railway Production
+  "https://frontend-production-0b44.up.railway.app",
+
   // Production (wenn du später deployed)
   // "https://your-domain.com",
   // "https://api.your-domain.com",
