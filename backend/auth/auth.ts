@@ -44,12 +44,16 @@ const AUTHORIZED_PARTIES = [
   "https://*.lp.dev",
   "https://talea-storytelling-platform-*.lp.dev",
   "https://talea-storytelling-platform-4ot2.lp.dev", // Aus encore.app
-  
+
   // 🎯 SPECIFIC FIX: Die exakte Domain aus dem Fehler
   "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
 
   // Railway Production
   "https://frontend-production-0b44.up.railway.app",
+
+  // Clerk hosted pages
+  "https://sincere-jay-4.clerk.accounts.dev",
+  "https://amused-aardvark-78.clerk.accounts.dev",
 
   // Production (wenn du später deployed)
   // "https://your-domain.com",
