@@ -4,9 +4,9 @@ set -euo pipefail
 echo "=== Starting Talea Encore Backend with Caddy ==="
 
 # Run database migrations first (using Node.js script)
-if [ -f "/app/run-migrations.js" ]; then
+if [ -f "/app/run-migrations.cjs" ]; then
   echo "Running database migrations..."
-  node /app/run-migrations.js
+  node /app/run-migrations.cjs
 else
   echo "⚠️  No migrations script found, skipping..."
 fi

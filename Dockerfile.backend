@@ -73,7 +73,7 @@ COPY backend/Caddyfile /app/Caddyfile
 
 # Copy runtime start scripts and migrations runner
 COPY backend/start.sh ./start.sh
-COPY backend/run-migrations.js ./run-migrations.js
+COPY backend/run-migrations.cjs ./run-migrations.cjs
 RUN chmod +x ./start.sh
 
 # Install production dependencies (including pg for migrations)
