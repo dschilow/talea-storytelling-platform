@@ -50,10 +50,10 @@
     "ClerkSecretKey": {
       "$env": "CLERK_SECRET_KEY"
     },
-    "OpenAIAPIKey": {
+    "OpenAIKey": {
       "$env": "OPENAI_API_KEY"
     },
-    "RunwareAPIKey": {
+    "RunwareApiKey": {
       "$env": "RUNWARE_API_KEY"
     }
   }
