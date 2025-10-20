@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, implement-mcp-servers ]
 
 permissions:
   contents: read
@@ -64,13 +64,24 @@ jobs:
 
       - name: Tag Docker image for GitHub Container Registry
         run: |
-          docker tag myapp ghcr.io/${{ github.repository }}:latest
+          # Tag with branch name for feature branches
+          BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          docker tag myapp ghcr.io/${{ github.repository }}:${BRANCH_NAME}
           docker tag myapp ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # Only tag as 'latest' if on main branch
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            docker tag myapp ghcr.io/${{ github.repository }}:latest
+          fi
 
       - name: Push Docker images
         run: |
-          docker push ghcr.io/${{ github.repository }}:latest
+          BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          docker push ghcr.io/${{ github.repository }}:${BRANCH_NAME}
           docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # Only push 'latest' if on main branch
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            docker push ghcr.io/${{ github.repository }}:latest
+          fi
 
       - name: Set up Node for Railway trigger
         uses: actions/setup-node@v4
