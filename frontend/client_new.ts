@@ -756,6 +756,40 @@ export namespace avatar {
         isPublic?: boolean
     }
 
+    export interface AvatarMemory {
+        id: string
+        storyId: string
+        storyTitle: string
+        experience: string
+        emotionalImpact: 'positive' | 'negative' | 'neutral'
+        personalityChanges: Array<{
+            trait: string
+            change: number
+        }>
+        createdAt: string
+    }
+
+    export interface AddMemoryRequest {
+        id: string
+        storyId: string
+        storyTitle: string
+        experience: string
+        emotionalImpact: 'positive' | 'negative' | 'neutral'
+        personalityChanges: Array<{
+            trait: string
+            change: number
+        }>
+    }
+
+    export interface UpdatePersonalityRequest {
+        id: string
+        changes: Array<{
+            trait: string
+            change: number
+        }>
+        storyId?: string
+    }
+
     export class ServiceClient {
         private baseClient: BaseClient
 
@@ -766,6 +800,15 @@ export namespace avatar {
             this.get = this.get.bind(this)
             this.list = this.list.bind(this)
             this.update = this.update.bind(this)
+            this.updatePersonality = this.updatePersonality.bind(this)
+            this.addMemory = this.addMemory.bind(this)
+            this.getMemories = this.getMemories.bind(this)
+            this.deleteMemory = this.deleteMemory.bind(this)
+            this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this)
+            this.upgradePersonalityTraits = this.upgradePersonalityTraits.bind(this)
+            this.debugPersonality = this.debugPersonality.bind(this)
+            this.reducePersonalityTrait = this.reducePersonalityTrait.bind(this)
+            this.resetDokuHistory = this.resetDokuHistory.bind(this)
         }
 
         /**
@@ -809,6 +852,110 @@ export namespace avatar {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("PUT", `/avatar/${encodeURIComponent(id)}`, JSON.stringify(params))
             return await resp.json() as Avatar
+        }
+
+        /**
+         * Updates personality traits for an avatar.
+         */
+        public async updatePersonality(params: UpdatePersonalityRequest): Promise<{
+            success: boolean
+            updatedTraits: any
+            appliedChanges: any
+        }> {
+            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(params.id)}/personality`, JSON.stringify(params))
+            return await resp.json() as { success: boolean; updatedTraits: any; appliedChanges: any }
+        }
+
+        /**
+         * Adds a memory to an avatar.
+         */
+        public async addMemory(params: AddMemoryRequest): Promise<{
+            success: boolean
+            memoryId: string
+        }> {
+            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(params.id)}/memory`, JSON.stringify(params))
+            return await resp.json() as { success: boolean; memoryId: string }
+        }
+
+        /**
+         * Gets all memories for an avatar.
+         */
+        public async getMemories(id: string): Promise<{
+            memories: AvatarMemory[]
+        }> {
+            const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}/memories`)
+            return await resp.json() as { memories: AvatarMemory[] }
+        }
+
+        /**
+         * Deletes a memory from an avatar.
+         */
+        public async deleteMemory(avatarId: string, memoryId: string): Promise<{
+            success: boolean
+        }> {
+            const resp = await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(avatarId)}/memory/${encodeURIComponent(memoryId)}`)
+            return await resp.json() as { success: boolean }
+        }
+
+        /**
+         * Resets all personality traits to 0.
+         */
+        public async resetPersonalityTraits(id: string): Promise<{
+            success: boolean
+            message: string
+        }> {
+            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id)}/reset-personality`)
+            return await resp.json() as { success: boolean; message: string }
+        }
+
+        /**
+         * Upgrades personality traits by converting from old to new format.
+         */
+        public async upgradePersonalityTraits(id: string): Promise<{
+            success: boolean
+            message: string
+            upgradedTraits: any
+        }> {
+            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id)}/upgrade-personality`)
+            return await resp.json() as { success: boolean; message: string; upgradedTraits: any }
+        }
+
+        /**
+         * Gets debug information about personality traits.
+         */
+        public async debugPersonality(id: string): Promise<{
+            rawPersonalityTraits: any
+            parsedTraits: any
+            processedForFrontend: any
+        }> {
+            const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}/debug-personality`)
+            return await resp.json() as { rawPersonalityTraits: any; parsedTraits: any; processedForFrontend: any }
+        }
+
+        /**
+         * Reduces a personality trait by a specified amount.
+         */
+        public async reducePersonalityTrait(id: string, params: {
+            trait: string
+            amount: number
+        }): Promise<{
+            success: boolean
+            message: string
+            updatedValue: number
+        }> {
+            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id)}/reduce-personality-trait`, JSON.stringify(params))
+            return await resp.json() as { success: boolean; message: string; updatedValue: number }
+        }
+
+        /**
+         * Resets the doku history for an avatar.
+         */
+        public async resetDokuHistory(id: string): Promise<{
+            success: boolean
+            message: string
+        }> {
+            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id)}/reset-doku-history`)
+            return await resp.json() as { success: boolean; message: string }
         }
     }
 }
