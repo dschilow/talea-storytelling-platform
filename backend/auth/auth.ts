@@ -4,8 +4,11 @@ import { authHandler } from "encore.dev/auth";
 import { secret } from "encore.dev/config";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 
-// Reuse the existing "user" database to resolve roles.
+// Reuse the existing databases to resolve roles and migrate data if needed.
 const userDB = SQLDatabase.named("user");
+const avatarDB = SQLDatabase.named("avatar");
+const storyDB = SQLDatabase.named("story");
+const dokuDB = SQLDatabase.named("doku");
 
 // Secret configured in the Encore infrastructure settings.
 const clerkSecretKey = secret("ClerkSecretKey");
@@ -186,7 +189,6 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
     `;
 
     if (!user) {
-      console.log("Creating new user in database:", clerkUser.id);
       const now = new Date();
       const name =
         clerkUser.firstName ||
@@ -195,12 +197,65 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
         "New User";
       const role: "admin" | "user" = "user";
 
-      await userDB.exec`
-        INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-        VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
-        ON CONFLICT (id) DO NOTHING
-      `;
-      user = { id: clerkUser.id, role };
+      let existingByEmail: { id: string; role: "admin" | "user" } | null = null;
+      if (email) {
+        existingByEmail = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
+          SELECT id, role FROM users WHERE email = ${email}
+        `;
+      }
+
+      if (existingByEmail && existingByEmail.id !== clerkUser.id) {
+        console.log("Merging Clerk identities by email", {
+          from: existingByEmail.id,
+          to: clerkUser.id,
+          email,
+        });
+
+        const oldId = existingByEmail.id;
+
+        await userDB.exec`
+          UPDATE users
+          SET id = ${clerkUser.id},
+              email = ${email},
+              name = ${name},
+              updated_at = ${now}
+          WHERE id = ${oldId}
+        `;
+
+        await Promise.all([
+          avatarDB.exec`
+            UPDATE avatars
+            SET user_id = ${clerkUser.id}
+            WHERE user_id = ${oldId}
+          `,
+          storyDB.exec`
+            UPDATE stories
+            SET user_id = ${clerkUser.id}
+            WHERE user_id = ${oldId}
+          `,
+          dokuDB.exec`
+            UPDATE dokus
+            SET user_id = ${clerkUser.id}
+            WHERE user_id = ${oldId}
+          `,
+        ]);
+
+        user = { id: clerkUser.id, role: existingByEmail.role };
+      }
+
+      if (!user) {
+        console.log("Creating new user in database:", clerkUser.id);
+
+        await userDB.exec`
+          INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
+          VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
+          ON CONFLICT (id) DO UPDATE
+            SET email = EXCLUDED.email,
+                name = EXCLUDED.name,
+                updated_at = EXCLUDED.updated_at
+        `;
+        user = { id: clerkUser.id, role };
+      }
     }
 
     console.log("Authentication successful for user:", user.id);
