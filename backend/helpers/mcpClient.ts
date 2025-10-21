@@ -10,33 +10,43 @@ async function callMcpEndpoint<T>(
   apiKey: string,
   extraHeaders: Record<string, string> = {}
 ): Promise<T> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-MCP-API-Key": apiKey,
-      ...extraHeaders,
-    },
-    body: JSON.stringify(body),
-  });
+  console.log(`[MCP] Calling ${url} with body:`, JSON.stringify(body).substring(0, 200));
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`MCP request failed (${response.status}): ${text}`);
-  }
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MCP-API-Key": apiKey,
+        ...extraHeaders,
+      },
+      body: JSON.stringify(body),
+    });
 
-  const result = await response.json();
-  const content = Array.isArray(result.content) ? result.content[0] : undefined;
-
-  if (content && typeof content === "object" && "text" in content) {
-    try {
-      return JSON.parse(content.text as string) as T;
-    } catch {
-      return content.text as T;
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[MCP] Request failed (${response.status}):`, text);
+      throw new Error(`MCP request failed (${response.status}): ${text}`);
     }
-  }
 
-  return result as T;
+    const result = await response.json();
+    console.log(`[MCP] Response received:`, JSON.stringify(result).substring(0, 200));
+
+    const content = Array.isArray(result.content) ? result.content[0] : undefined;
+
+    if (content && typeof content === "object" && "text" in content) {
+      try {
+        return JSON.parse(content.text as string) as T;
+      } catch {
+        return content.text as T;
+      }
+    }
+
+    return result as T;
+  } catch (error) {
+    console.error(`[MCP] Error calling ${url}:`, error);
+    throw error;
+  }
 }
 
 export async function callMcpMainTool<T>(
