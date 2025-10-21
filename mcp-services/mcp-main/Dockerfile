@@ -3,15 +3,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files from mcp-services/mcp-main
-COPY mcp-services/mcp-main/package.json ./
-COPY mcp-services/mcp-main/tsconfig.json ./
+# Copy package files
+COPY package.json ./
+COPY tsconfig.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY mcp-services/mcp-main/src ./src
+COPY src ./src
 
 # Build TypeScript
 RUN npm run build
@@ -21,8 +21,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files from mcp-services/mcp-main
-COPY mcp-services/mcp-main/package.json ./
+# Copy package files
+COPY package.json ./
 
 # Install production dependencies only
 RUN npm install --production
