@@ -1,6 +1,6 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "backend/mcp-main/Dockerfile"
+dockerfilePath = "mcp-services/mcp-main/Dockerfile"
 
 [deploy]
 startCommand = "node dist/index.js"
