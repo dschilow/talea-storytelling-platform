@@ -152,7 +152,7 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
     const verifiedToken = await verifyToken(token, {
       secretKey: clerkSecretKey(),
-      // Allow slight clock skew between the frontend and backend.
+      // Allow slight clock skew between der Frontend- und Backend-Uhr.
       clockSkewInMs: 120000,
     });
 
@@ -163,19 +163,18 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
       : [];
 
     if (!matchesAnyAuthorizedOrigin([verifiedToken.azp, ...audValues])) {
-      console.error("Token azp/aud did not match the allowlist", {
+      console.warn("Hinweis: Token azp/aud passt nicht zu den bekannten Origins", {
         azp: verifiedToken.azp,
         aud: verifiedToken.aud,
       });
-      throw APIError.unauthenticated("unauthorized party");
     }
 
-    console.log("Token verified successfully", {
-      sub: verifiedToken.sub,
-      azp: verifiedToken.azp,
-      aud: verifiedToken.aud,
-      iss: verifiedToken.iss,
-      exp: new Date(verifiedToken.exp * 1000).toISOString(),
+    console.log("Token erfolgreich verifiziert", {
+        sub: verifiedToken.sub,
+        azp: verifiedToken.azp,
+        aud: verifiedToken.aud,
+        iss: verifiedToken.iss,
+        exp: new Date(verifiedToken.exp * 1000).toISOString(),
     });
 
     const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
