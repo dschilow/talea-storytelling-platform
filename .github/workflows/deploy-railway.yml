@@ -58,6 +58,8 @@ jobs:
         run: encore version
 
       - name: Build Encore Docker image
+        env:
+          MCP_SERVER_API_KEY: "mcp_sk_build_placeholder"
         run: |
           cd backend
           encore build --config infra.config.railway.json docker myapp --verbose
