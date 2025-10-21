@@ -16,6 +16,7 @@ const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
 const openAIKey = secret("OpenAIKey");
+const mcpServerApiKey = secret("MCPServerAPIKey");
 
 interface McpAvatarProfile {
   id: string;
@@ -381,6 +382,7 @@ export const generateStoryContent = api<
     if (!req.clerkToken) {
       throw new Error("Missing Clerk token for MCP integration");
     }
+    const mcpApiKey = mcpServerApiKey();
 
     const startTime = Date.now();
     const metadata: GenerateStoryContentResponse["metadata"] = {
@@ -396,9 +398,9 @@ export const generateStoryContent = api<
 
       const avatarIds = req.avatarDetails.map((avatar) => avatar.id);
 
-      const profilePromise = getMultipleAvatarProfiles(avatarIds, req.clerkToken);
+      const profilePromise = getMultipleAvatarProfiles(avatarIds, req.clerkToken, mcpApiKey);
       const memoryPromises = avatarIds.map((avatarId) =>
-        getAvatarMemories(avatarId, req.clerkToken, 20).catch(() => [])
+        getAvatarMemories(avatarId, req.clerkToken, mcpApiKey, 20).catch(() => [])
       );
 
       const [profileResults, memoryResults] = await Promise.all([
@@ -443,7 +445,7 @@ export const generateStoryContent = api<
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      const validationResult = await validateStoryResponse(storyResult);
+      const validationResult = await validateStoryResponse(storyResult, mcpApiKey);
       if (!validationResult?.isValid) {
         throw new Error(
           `Story validation failed: ${JSON.stringify(validationResult?.errors ?? {})}`

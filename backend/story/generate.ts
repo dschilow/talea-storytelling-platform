@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import { avatar } from "~encore/clients";
@@ -9,6 +10,8 @@ import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
+
+const mcpServerApiKey = secret("MCPServerAPIKey");
 
 type AvatarDevelopmentValidationResult = {
   isValid?: boolean;
@@ -105,6 +108,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     if (!clerkToken) {
       throw APIError.unauthenticated("Missing Clerk token for MCP operations");
     }
+    const mcpApiKey = mcpServerApiKey();
 
     const safe = (obj: any) => {
       try {
@@ -240,7 +244,8 @@ export const generate = api<GenerateStoryRequest, Story>(
       let validatedDevelopments = generatedStory.avatarDevelopments ?? [];
       try {
         const validation = await validateAvatarDevelopments(
-          validatedDevelopments
+          validatedDevelopments,
+          mcpApiKey
         ) as AvatarDevelopmentValidationResult;
         if (validation?.isValid === false) {
           throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
@@ -390,7 +395,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               });
 
               try {
-                await addAvatarMemoryViaMcp(userAvatar.id, clerkToken, {
+                await addAvatarMemoryViaMcp(userAvatar.id, clerkToken, mcpApiKey, {
                   storyId: id,
                   storyTitle: generatedStory.title,
                   experience: experienceDescription,
