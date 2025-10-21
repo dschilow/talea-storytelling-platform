@@ -55,6 +55,9 @@
     },
     "RunwareApiKey": {
       "$env": "RUNWARE_API_KEY"
+    },
+    "MCPServerAPIKey": {
+      "$env": "MCP_SERVER_API_KEY"
     }
   }
 }
