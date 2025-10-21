@@ -1,6 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "mcp-services/mcp-validator/Dockerfile"
+watchPatterns = ["mcp-services/mcp-validator/**"]
 
 [deploy]
 startCommand = "node dist/index.js"

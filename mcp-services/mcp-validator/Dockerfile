@@ -3,15 +3,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json ./
-COPY tsconfig.json ./
+# Copy package files from mcp-services/mcp-validator
+COPY mcp-services/mcp-validator/package.json ./
+COPY mcp-services/mcp-validator/tsconfig.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY src ./src
+COPY mcp-services/mcp-validator/src ./src
 
 # Build TypeScript
 RUN npm run build
@@ -21,8 +21,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json ./
+# Copy package files from mcp-services/mcp-validator
+COPY mcp-services/mcp-validator/package.json ./
 
 # Install production dependencies only
 RUN npm install --production
