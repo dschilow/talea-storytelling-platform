@@ -50,6 +50,8 @@ const AUTHORIZED_PARTIES = [
 
   // Railway Production
   "https://frontend-production-0b44.up.railway.app",
+  "https://www.talea.website",
+  "https://talea.website",
 
   // Clerk hosted pages
   "https://sincere-jay-4.clerk.accounts.dev",
