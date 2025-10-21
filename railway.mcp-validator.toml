@@ -1,6 +1,6 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "mcp-services/mcp-validator/Dockerfile"
+dockerfilePath = "Dockerfile.mcp-validator"
 watchPatterns = ["mcp-services/mcp-validator/**"]
 
 [deploy]
