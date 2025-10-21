@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import { CONFIG } from './config.js';
 import { authenticate } from './auth.js';
-import { createMcpServer } from './tools.js';
 import type { Request, Response } from 'express';
 
 const app = express();
@@ -20,9 +19,6 @@ app.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
-
-// MCP Server instance
-const mcpServer = createMcpServer();
 
 // MCP endpoint for tool calls
 app.post('/mcp', authenticate, async (req: Request, res: Response) => {

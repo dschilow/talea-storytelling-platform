@@ -1,11 +1,5 @@
-import { createClerkClient } from '@clerk/backend';
 import { CONFIG } from './config.js';
 import type { Request, Response, NextFunction } from 'express';
-
-// Initialize Clerk client
-const clerkClient = createClerkClient({
-  secretKey: CONFIG.clerk.secretKey,
-});
 
 /**
  * Extract user ID from Clerk token

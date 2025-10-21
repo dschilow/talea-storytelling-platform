@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import { CONFIG } from './config.js';
-import { createMcpServer } from './tools.js';
 import type { Request, Response } from 'express';
 
 const app = express();
@@ -19,9 +18,6 @@ app.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
-
-// MCP Server instance
-const mcpServer = createMcpServer();
 
 // Validate MCP API Key middleware
 function validateApiKey(req: Request, res: Response, next: () => void): void {
