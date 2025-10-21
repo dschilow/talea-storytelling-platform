@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     service: 'talea-mcp-main',
@@ -24,7 +24,7 @@ app.get('/health', (req: Request, res: Response) => {
 // MCP Server instance
 const mcpServer = createMcpServer();
 
-// SSE endpoint for MCP communication
+// MCP endpoint for tool calls
 app.post('/mcp', authenticate, async (req: Request, res: Response) => {
   try {
     const { method, params } = req.body;
@@ -32,32 +32,16 @@ app.post('/mcp', authenticate, async (req: Request, res: Response) => {
 
     console.log(`📥 MCP Request: ${method}`, { userId, params });
 
-    // Create MCP request with userId context
-    const mcpRequest = {
-      method,
-      params,
-      userId, // Attach userId to request context
-    };
+    // Import tools directly to avoid MCP Server complexity
+    const { handleToolCall, listTools } = await import('./tools.js');
 
-    // Handle MCP request
     let result;
 
     if (method === 'tools/list') {
-      const handler = mcpServer.getRequestHandler({
-        method: 'tools/list',
-        jsonrpc: '2.0',
-      } as any);
-      result = await handler(mcpRequest as any);
+      result = listTools();
     } else if (method === 'tools/call') {
-      const handler = mcpServer.getRequestHandler({
-        method: 'tools/call',
-        jsonrpc: '2.0',
-      } as any);
-
-      // Inject userId into request context
-      (mcpRequest as any).userId = userId;
-
-      result = await handler(mcpRequest as any);
+      const { name, arguments: args } = params;
+      result = await handleToolCall(name, args, userId);
     } else {
       res.status(400).json({
         error: 'Invalid MCP method',

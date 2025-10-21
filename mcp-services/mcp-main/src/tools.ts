@@ -541,3 +541,126 @@ export async function startStdioServer(): Promise<void> {
   await server.connect(transport);
   console.log('✅ MCP Server running on stdio');
 }
+
+/**
+ * List all available tools (for HTTP endpoint)
+ */
+export function listTools() {
+  return {
+    tools: [
+      {
+        name: 'get_avatar_visual_profile',
+        description: 'Get the complete visual profile for a single avatar',
+      },
+      {
+        name: 'get_multiple_avatar_profiles',
+        description: 'Get visual profiles for multiple avatars at once',
+      },
+      {
+        name: 'build_consistent_image_prompt',
+        description: 'Generate a detailed, consistent image prompt from an avatar visual profile',
+      },
+      {
+        name: 'get_avatar_memories',
+        description: 'Get all memories for an avatar',
+      },
+      {
+        name: 'search_memories_by_context',
+        description: 'Search avatar memories by context',
+      },
+      {
+        name: 'add_avatar_memory',
+        description: 'Add a new memory for an avatar',
+      },
+      {
+        name: 'get_avatar_personality',
+        description: 'Get avatar personality traits',
+      },
+    ],
+  };
+}
+
+/**
+ * Handle tool call (for HTTP endpoint)
+ */
+export async function handleToolCall(
+  name: string,
+  args: any,
+  userId: string
+): Promise<any> {
+  if (!userId) {
+    throw new Error('User authentication required');
+  }
+
+  switch (name) {
+    case 'get_avatar_visual_profile': {
+      const { avatarId } = args;
+      const profile = await db.getAvatarVisualProfile(avatarId, userId);
+      if (!profile) {
+        throw new Error('Avatar not found or access denied');
+      }
+      return { content: [{ type: 'text', text: JSON.stringify(profile, null, 2) }] };
+    }
+
+    case 'get_multiple_avatar_profiles': {
+      const { avatarIds } = args;
+      const avatars = await db.getAvatarsByIds(avatarIds, userId);
+      const profiles = avatars.map((avatar) => ({
+        id: avatar.id,
+        name: avatar.name,
+        visualProfile: avatar.visualProfile,
+      }));
+      return { content: [{ type: 'text', text: JSON.stringify(profiles, null, 2) }] };
+    }
+
+    case 'build_consistent_image_prompt': {
+      const { avatarId, sceneDescription, action, expression, clothing } = args;
+      const profile = await db.getAvatarVisualProfile(avatarId, userId);
+      if (!profile || !profile.visualProfile) {
+        throw new Error('Avatar or visual profile not found');
+      }
+      const prompt = buildImagePromptFromProfile(
+        profile.visualProfile,
+        profile.name,
+        { sceneDescription, action, expression, clothing }
+      );
+      return { content: [{ type: 'text', text: prompt }] };
+    }
+
+    case 'get_avatar_memories': {
+      const { avatarId, limit = 50 } = args;
+      const memories = await db.getAvatarMemories(avatarId, userId, limit);
+      return { content: [{ type: 'text', text: JSON.stringify(memories, null, 2) }] };
+    }
+
+    case 'search_memories_by_context': {
+      const { avatarId, searchTerm, limit = 20 } = args;
+      const memories = await db.searchMemories(avatarId, userId, searchTerm, limit);
+      return { content: [{ type: 'text', text: JSON.stringify(memories, null, 2) }] };
+    }
+
+    case 'add_avatar_memory': {
+      const memory = args;
+      const newMemory = await db.addAvatarMemory(memory.avatarId, userId, {
+        storyId: memory.storyId,
+        storyTitle: memory.storyTitle,
+        experience: memory.experience,
+        emotionalImpact: memory.emotionalImpact,
+        personalityChanges: memory.personalityChanges,
+      });
+      return { content: [{ type: 'text', text: JSON.stringify(newMemory, null, 2) }] };
+    }
+
+    case 'get_avatar_personality': {
+      const { avatarId } = args;
+      const personality = await db.getAvatarPersonality(avatarId, userId);
+      if (!personality) {
+        throw new Error('Avatar not found or access denied');
+      }
+      return { content: [{ type: 'text', text: JSON.stringify(personality, null, 2) }] };
+    }
+
+    default:
+      throw new Error(`Unknown tool: ${name}`);
+  }
+}
