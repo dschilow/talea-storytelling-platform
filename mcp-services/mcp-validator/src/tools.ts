@@ -228,3 +228,80 @@ export async function startStdioServer(): Promise<void> {
   await server.connect(transport);
   console.log('✅ MCP Validator Server running on stdio');
 }
+
+/**
+ * List all available tools (for HTTP endpoint)
+ */
+export function listTools() {
+  return {
+    tools: [
+      {
+        name: 'validate_story_response',
+        description: 'Validate a complete story response from OpenAI',
+      },
+      {
+        name: 'validate_avatar_developments',
+        description: 'Validate avatar development data',
+      },
+      {
+        name: 'normalize_trait_updates',
+        description: 'Normalize trait IDs from German/English to canonical form',
+      },
+      {
+        name: 'get_validation_report',
+        description: 'Get detailed validation report for story data',
+      },
+    ],
+  };
+}
+
+/**
+ * Handle tool call (for HTTP endpoint)
+ */
+export async function handleToolCall(name: string, args: any): Promise<any> {
+  try {
+    switch (name) {
+      case 'validate_story_response': {
+        const { storyData } = args;
+        if (!storyData) {
+          throw new Error('storyData is required');
+        }
+        const result = validateStoryResponse(storyData);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'validate_avatar_developments': {
+        const { developments } = args;
+        if (!Array.isArray(developments)) {
+          throw new Error('developments must be an array');
+        }
+        const result = validateAvatarDevelopments(developments);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'normalize_trait_updates': {
+        const { updates } = args;
+        if (!Array.isArray(updates)) {
+          throw new Error('updates must be an array');
+        }
+        const result = normalizeTraitUpdates(updates);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'get_validation_report': {
+        const { storyData } = args;
+        if (!storyData) {
+          throw new Error('storyData is required');
+        }
+        const report = getValidationReport(storyData);
+        return { content: [{ type: 'text', text: JSON.stringify(report, null, 2) }] };
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error executing tool ${name}:`, error);
+    throw error;
+  }
+}

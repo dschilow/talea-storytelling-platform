@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Larger limit for story data
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     service: 'talea-mcp-validator',
@@ -45,20 +45,16 @@ app.post('/mcp', validateApiKey, async (req: Request, res: Response) => {
 
     console.log(`📥 MCP Validator Request: ${method}`);
 
+    // Import tools directly
+    const { handleToolCall, listTools } = await import('./tools.js');
+
     let result;
 
     if (method === 'tools/list') {
-      const handler = mcpServer.getRequestHandler({
-        method: 'tools/list',
-        jsonrpc: '2.0',
-      } as any);
-      result = await handler({ method, params } as any);
+      result = listTools();
     } else if (method === 'tools/call') {
-      const handler = mcpServer.getRequestHandler({
-        method: 'tools/call',
-        jsonrpc: '2.0',
-      } as any);
-      result = await handler({ method, params } as any);
+      const { name, arguments: args } = params;
+      result = await handleToolCall(name, args);
     } else {
       res.status(400).json({
         error: 'Invalid MCP method',
