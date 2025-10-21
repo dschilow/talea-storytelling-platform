@@ -1,16 +1,16 @@
 import { createClerkClient, verifyToken } from "@clerk/backend";
-import { Header, Cookie, APIError, Gateway } from "encore.dev/api";
+import { APIError, Cookie, Gateway, Header } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";
 import { secret } from "encore.dev/config";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 
-// Reuse existing "user" database to resolve roles.
+// Reuse the existing "user" database to resolve roles.
 const userDB = SQLDatabase.named("user");
 
-// Secrets configured in Infrastructure tab.
+// Secret configured in the Encore infrastructure settings.
 const clerkSecretKey = secret("ClerkSecretKey");
 
-// Clerk client to fetch user data if needed.
+// Clerk client to fetch user data when needed.
 const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
 
 interface AuthParams {
@@ -28,43 +28,37 @@ export interface AuthData {
   role: "admin" | "user";
 }
 
-// 🔧 FIXED: Erweiterte authorized parties für alle Leap.new Umgebungen
+// Allowlist of frontends that may mint Clerk tokens for this backend.
 const RAW_AUTHORIZED_PARTIES = [
   // Development
   "http://localhost:3000",
-  "http://localhost:5171", // Vite Dev Server (custom port)
-  "http://localhost:5173", // Vite Dev Server
-  "http://localhost:5174", // Vite Dev Server (alternative port)
-  "http://localhost:5175", // Vite Dev Server (alternative port)
-  "http://localhost:5176", // Vite Dev Server (alternative port)
-  "http://localhost:5177", // Vite Dev Server (alternative port)
-  "http://localhost:4000", // Encore Dev Server
-  
-  // Leap.new Patterns - Alle möglichen Varianten
+  "http://localhost:5171",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://localhost:5177",
+  "http://localhost:4000",
+
+  // Leap.dev patterns
   "https://*.lp.dev",
   "https://talea-storytelling-platform-*.lp.dev",
-  "https://talea-storytelling-platform-4ot2.lp.dev", // Aus encore.app
-
-  // 🎯 SPECIFIC FIX: Die exakte Domain aus dem Fehler
+  "https://talea-storytelling-platform-4ot2.lp.dev",
   "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
 
-  // Railway Production
+  // Railway production frontend + custom domains
   "https://frontend-production-0b44.up.railway.app",
   "https://www.talea.website",
   "https://talea.website",
 
-  // Clerk hosted pages
+  // Clerk hosted pages (for sign-in flows)
   "https://sincere-jay-4.clerk.accounts.dev",
   "https://amused-aardvark-78.clerk.accounts.dev",
-
-  // Production (wenn du später deployed)
-  // "https://your-domain.com",
-  // "https://api.your-domain.com",
 ];
 
 function expandOrigin(origin: string): string[] {
   const variants = new Set<string>();
-  const trimmed = origin.replace(/\/$/, "");
+  const trimmed = origin.replace(/\/+$/, "");
   variants.add(trimmed);
   variants.add(`${trimmed}/`);
 
@@ -82,115 +76,172 @@ function expandOrigin(origin: string): string[] {
       }
     }
   } catch {
-    // If origin is not a valid URL we fall back to the original value.
+    // Ignore invalid URLs (e.g. wildcard patterns) and keep the original value.
     variants.add(origin);
   }
 
   return Array.from(variants);
 }
 
-const AUTHORIZED_PARTIES = Array.from(
-  new Set(RAW_AUTHORIZED_PARTIES.flatMap(expandOrigin)),
-);
+function normalizeOrigin(origin: string): string {
+  return origin.replace(/\/+$/, "");
+}
 
-const auth = authHandler<AuthParams, AuthData>(
-  async (data) => {
-    const token = data.authorization?.replace("Bearer ", "") ?? data.session?.value;
-    if (!token) {
-      throw APIError.unauthenticated("missing token");
-    }
-
-    try {
-      console.log("🔐 Starting token verification...");
-      console.log("🎯 Authorized parties:", AUTHORIZED_PARTIES);
-
-      const verifiedToken = await verifyToken(token, {
-        authorizedParties: AUTHORIZED_PARTIES,
-        secretKey: clerkSecretKey(),
-        // 🔧 FIXED: Erhöhte Clock Skew Tolerance
-        clockSkewInMs: 120000, // 2 Minuten (in Millisekunden)
-      });
-
-      console.log("✅ Token verified successfully!");
-      console.log("📋 Token info:", {
-        sub: verifiedToken.sub,
-        azp: verifiedToken.azp,
-        iss: verifiedToken.iss,
-        exp: new Date(verifiedToken.exp * 1000).toISOString()
-      });
-
-      const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
-      const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
-
-      // Check if user exists in our DB, create if not (upsert-like logic).
-      let user = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
-        SELECT id, role FROM users WHERE id = ${clerkUser.id}
-      `;
-
-      if (!user) {
-        console.log("👤 Creating new user in database:", clerkUser.id);
-        const now = new Date();
-        const name = clerkUser.firstName || clerkUser.username || email?.split("@")[0] || "New User";
-        const role: "admin" | "user" = "user"; // New users are always 'user' role.
-        
-        await userDB.exec`
-          INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-          VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
-          ON CONFLICT (id) DO NOTHING
-        `;
-        user = { id: clerkUser.id, role };
-      }
-
-      console.log("🎉 Authentication successful for user:", user.id);
-
-      return {
-        userID: clerkUser.id,
-        email,
-        imageUrl: clerkUser.imageUrl,
-        role: user.role,
-      };
-
-    } catch (err: any) {
-      // Enhanced error logging for debugging
-      console.error("❌ Authentication failed:", err.message);
-      console.error("🔍 Error reason:", err.reason || "unknown");
-      
-      if (err.longMessage) {
-        console.error("📝 Details:", err.longMessage);
-      }
-      if (err.code) {
-        console.error("🏷️ Error Code:", err.code);
-      }
-      
-      // Log the token info for debugging (but not the full token for security)
-      if (token) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.error("🎫 Token azp claim:", payload.azp);
-            console.error("🎫 Token iss claim:", payload.iss);
-            console.error("🎫 Token aud claim:", payload.aud);
-          }
-        } catch {
-          console.error("🎫 Could not decode token for debugging");
-        }
-      }
-      
-      // Full error object for maximum debuggability
-      console.error("📊 Full auth error object:", {
-        reason: err.reason,
-        message: err.message,
-        code: err.code,
-        longMessage: err.longMessage
-      });
-      
-      // The error thrown to the client should remain generic for security.
-      throw APIError.unauthenticated("invalid token");
-    }
+function patternToRegex(pattern: string): RegExp | undefined {
+  if (!pattern.includes("*")) {
+    return undefined;
   }
-);
+
+  const escaped = normalizeOrigin(pattern)
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\\\*/g, ".*");
+
+  return new RegExp(`^${escaped}$`, "i");
+}
+
+interface AuthorizedOriginEntry {
+  raw: string;
+  normalized: string;
+  regex?: RegExp;
+}
+
+const AUTHORIZED_ORIGINS: AuthorizedOriginEntry[] = Array.from(
+  new Set(RAW_AUTHORIZED_PARTIES.flatMap(expandOrigin)),
+).map((origin) => ({
+  raw: origin,
+  normalized: normalizeOrigin(origin),
+  regex: patternToRegex(origin),
+}));
+
+function matchesAuthorizedOrigin(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = normalizeOrigin(value);
+  return AUTHORIZED_ORIGINS.some((entry) =>
+    entry.regex ? entry.regex.test(normalized) : entry.normalized === normalized,
+  );
+}
+
+function matchesAnyAuthorizedOrigin(values: Array<string | undefined>): boolean {
+  return values.some((value) => matchesAuthorizedOrigin(value));
+}
+
+function decodeTokenPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return null;
+    }
+    const payload = Buffer.from(parts[1], "base64url").toString("utf-8");
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+const auth = authHandler<AuthParams, AuthData>(async (data) => {
+  const token = data.authorization?.replace("Bearer ", "") ?? data.session?.value;
+  if (!token) {
+    throw APIError.unauthenticated("missing token");
+  }
+
+  try {
+    console.log("Starting Clerk token verification...");
+
+    const verifiedToken = await verifyToken(token, {
+      secretKey: clerkSecretKey(),
+      // Allow slight clock skew between the frontend and backend.
+      clockSkewInMs: 120000,
+    });
+
+    const audValues = Array.isArray(verifiedToken.aud)
+      ? verifiedToken.aud
+      : verifiedToken.aud
+      ? [verifiedToken.aud]
+      : [];
+
+    if (!matchesAnyAuthorizedOrigin([verifiedToken.azp, ...audValues])) {
+      console.error("Token azp/aud did not match the allowlist", {
+        azp: verifiedToken.azp,
+        aud: verifiedToken.aud,
+      });
+      throw APIError.unauthenticated("unauthorized party");
+    }
+
+    console.log("Token verified successfully", {
+      sub: verifiedToken.sub,
+      azp: verifiedToken.azp,
+      aud: verifiedToken.aud,
+      iss: verifiedToken.iss,
+      exp: new Date(verifiedToken.exp * 1000).toISOString(),
+    });
+
+    const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+
+    // Check if user exists in our DB, create if not (upsert-like logic).
+    let user = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
+      SELECT id, role FROM users WHERE id = ${clerkUser.id}
+    `;
+
+    if (!user) {
+      console.log("Creating new user in database:", clerkUser.id);
+      const now = new Date();
+      const name =
+        clerkUser.firstName ||
+        clerkUser.username ||
+        (email ? email.split("@")[0] : null) ||
+        "New User";
+      const role: "admin" | "user" = "user";
+
+      await userDB.exec`
+        INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
+        VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
+        ON CONFLICT (id) DO NOTHING
+      `;
+      user = { id: clerkUser.id, role };
+    }
+
+    console.log("Authentication successful for user:", user.id);
+
+    return {
+      userID: clerkUser.id,
+      email,
+      imageUrl: clerkUser.imageUrl,
+      role: user.role,
+    };
+  } catch (err: any) {
+    console.error("Authentication failed:", err.message);
+    console.error("Error reason:", err.reason || "unknown");
+
+    if (err.longMessage) {
+      console.error("Details:", err.longMessage);
+    }
+    if (err.code) {
+      console.error("Error code:", err.code);
+    }
+
+    const payload = decodeTokenPayload(token);
+    if (payload) {
+      console.error("Token azp claim:", payload["azp"]);
+      console.error("Token iss claim:", payload["iss"]);
+      console.error("Token aud claim:", payload["aud"]);
+    } else {
+      console.error("Could not decode token for debugging");
+    }
+
+    console.error("Full auth error object:", {
+      reason: err.reason,
+      message: err.message,
+      code: err.code,
+      longMessage: err.longMessage,
+    });
+
+    throw APIError.unauthenticated("invalid token");
+  }
+});
 
 // Configure the API gateway to use the auth handler globally.
-// Endpoints can opt-in with { auth: true } to require authentication.
 export const gw = new Gateway({ authHandler: auth });
