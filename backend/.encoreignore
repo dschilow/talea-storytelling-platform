@@ -1,0 +1,12 @@
+# Ignore MCP server directories - these are separate services deployed to Railway
+mcp-main/
+mcp-validator/
+
+# Ignore helper files that are only used in MCP servers
+helpers/mcpClient.ts
+
+# Ignore MCP documentation
+MCP_*.md
+
+# Ignore story AI generation MCP variant (not used yet)
+story/ai-generation-with-mcp.ts
