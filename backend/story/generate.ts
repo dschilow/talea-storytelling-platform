@@ -8,6 +8,13 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
+import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
+
+type AvatarDevelopmentValidationResult = {
+  isValid?: boolean;
+  errors?: unknown;
+  normalized?: any[];
+};
 
 // Avatar DB is already available through the avatar service client
 
@@ -87,11 +94,16 @@ export const generate = api<GenerateStoryRequest, Story>(
     }
 
     if (auth?.userID && req.userId && auth.userID !== req.userId) {
-      console.warn("⚠️ [story.generate] Auth user mismatch detected", {
+      console.warn("[story.generate] Auth user mismatch detected", {
         authUserId: auth.userID,
         requestUserId: req.userId,
         storyId: id,
       });
+    }
+
+    const clerkToken = auth?.clerkToken;
+    if (!clerkToken) {
+      throw APIError.unauthenticated("Missing Clerk token for MCP operations");
     }
 
     const safe = (obj: any) => {
@@ -102,7 +114,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       }
     };
 
-    console.log("📥 [story.generate] Incoming request:", {
+    console.log("[story.generate] Incoming request:", {
       storyId: id,
       userId: currentUserId,
       config: req?.config ? {
@@ -133,7 +145,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     `;
 
     try {
-      console.log("🔎 [story.generate] Loading avatar details...", { count: req.config.avatarIds.length });
+      console.log("[story.generate] Loading avatar details...", { count: req.config.avatarIds.length });
       // Fetch avatar details directly from the avatar database to avoid cross-service auth issues
       const avatarDetails: Array<{
         id: string;
@@ -186,7 +198,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               WHERE id = ${avatarId}
             `;
           } catch (upgradeError) {
-            console.warn("⚠️ [story.generate] Failed to persist upgraded traits", { avatarId, upgradeError });
+            console.warn("[story.generate] Failed to persist upgraded traits", { avatarId, upgradeError });
           }
         }
 
@@ -203,19 +215,20 @@ export const generate = api<GenerateStoryRequest, Story>(
         });
       }
 
-      console.log("🎭 Avatar details for story generation:", avatarDetails.map(a => ({ 
+      console.log("[story.generate] Avatar details for story generation:", avatarDetails.map(a => ({ 
         name: a.name, 
         hasImage: !!a.imageUrl,
         hasVisualProfile: !!a.visualProfile
       })));
 
       // Generate story content using AI with avatar canonical appearance
-      console.log("🧠 [story.generate] Calling generateStoryContent with config+avatars...");
+      console.log("[story.generate] Calling generateStoryContent with MCP context...");
       const generatedStory = await generateStoryContent({
         config: req.config,
         avatarDetails,
+        clerkToken,
       });
-      console.log("✅ [story.generate] Story content generated:", {
+      console.log("[story.generate] Story content generated:", {
         title: generatedStory?.title,
         descLen: generatedStory?.description?.length,
         chapters: generatedStory?.chapters?.length,
@@ -224,14 +237,29 @@ export const generate = api<GenerateStoryRequest, Story>(
         tokens: generatedStory?.metadata?.tokensUsed,
       });
 
+      let validatedDevelopments = generatedStory.avatarDevelopments ?? [];
+      try {
+        const validation = await validateAvatarDevelopments(
+          validatedDevelopments
+        ) as AvatarDevelopmentValidationResult;
+        if (validation?.isValid === false) {
+          throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
+        }
+        if (Array.isArray(validation?.normalized)) {
+          validatedDevelopments = validation.normalized as typeof validatedDevelopments;
+        }
+      } catch (validationError) {
+        console.warn("[story.generate] Avatar development validation warning:", validationError);
+      }
+
       // Update story with generated content
-      console.log("🗄️ [story.generate] Persisting story header into DB...");
+      console.log("[story.generate] Persisting story header into DB...");
       await storyDB.exec`
         UPDATE stories
         SET title = ${generatedStory.title},
             description = ${generatedStory.description},
             cover_image_url = ${generatedStory.coverImageUrl},
-            avatar_developments = ${JSON.stringify(generatedStory.avatarDevelopments || [])},
+            avatar_developments = ${JSON.stringify(validatedDevelopments || [])},
             metadata = ${JSON.stringify(generatedStory.metadata)},
             status = 'complete',
             updated_at = ${new Date()}
@@ -239,10 +267,10 @@ export const generate = api<GenerateStoryRequest, Story>(
       `;
 
       // Insert chapters
-      console.log("🗄️ [story.generate] Inserting chapters...", { count: generatedStory.chapters.length });
+      console.log("[story.generate] Inserting chapters...", { count: generatedStory.chapters.length });
       for (const chapter of generatedStory.chapters) {
         const chapterId = crypto.randomUUID();
-        console.log("➡️ [story.generate] Insert chapter:", {
+        console.log("[story.generate] Insert chapter:", {
           id: chapterId,
           title: chapter?.title,
           titleLen: chapter?.title?.length,
@@ -261,7 +289,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       }
 
       // NEW AI-DRIVEN SYSTEM: Apply personality updates based on story analysis
-      console.log("🧠 [AI-DRIVEN SYSTEM] Applying trait updates to ALL user avatars...");
+      console.log("[AI-DRIVEN SYSTEM] Applying trait updates to ALL user avatars...");
 
       // Load ALL avatars for this user directly from the database
       const allUserAvatarRows = await avatarDB.queryAll<{ id: string; name: string }>`
@@ -269,11 +297,11 @@ export const generate = api<GenerateStoryRequest, Story>(
       `;
       const allUserAvatars = allUserAvatarRows.map(row => ({ id: row.id, name: row.name }));
 
-      console.log(`📊 Found ${allUserAvatars.length} total avatars for user ${currentUserId}`);
+      console.log(`[story.generate] Found ${allUserAvatars.length} total avatars for user ${currentUserId}`);
 
-      if (generatedStory.avatarDevelopments && generatedStory.avatarDevelopments.length > 0 && allUserAvatars.length > 0) {
+      if (validatedDevelopments.length > 0 && allUserAvatars.length > 0) {
         // Convert AI-generated avatar developments to personality changes
-        const convertedDevelopments = convertAvatarDevelopmentsToPersonalityChanges(generatedStory.avatarDevelopments);
+        const convertedDevelopments = convertAvatarDevelopmentsToPersonalityChanges(validatedDevelopments);
 
         // Determine which avatars actively participated
         const participatingAvatarIds = new Set(req.config.avatarIds);
@@ -332,7 +360,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           }
 
           if (changes.length > 0) {
-            console.log(`${isParticipating ? '🎭' : '📖'} Updating ${userAvatar.name} (${isParticipating ? 'participant' : 'reader'}):`, changes);
+            console.log(`[story.generate] Updating ${userAvatar.name} (${isParticipating ? 'participant' : 'reader'}):`, changes);
 
             try {
               // Apply personality updates with content context
@@ -357,26 +385,44 @@ export const generate = api<GenerateStoryRequest, Story>(
                 experience: experienceDescription,
                 emotionalImpact: 'positive',
                 personalityChanges: changes,
-                developmentDescription: `Persönliche Entwicklung: ${developmentSummary}`,
+                developmentDescription: `Persoenliche Entwicklung: ${developmentSummary}`,
                 contentType: 'story'
               });
 
-              console.log(`✅ Updated personality and memory for ${userAvatar.name}`);
+              try {
+                await addAvatarMemoryViaMcp(userAvatar.id, clerkToken, {
+                  storyId: id,
+                  storyTitle: generatedStory.title,
+                  experience: experienceDescription,
+                  emotionalImpact: "positive",
+                  personalityChanges: changes.map((change: any) => ({
+                    trait: change.trait,
+                    change: change.change,
+                  })),
+                });
+              } catch (mcpMemoryError) {
+                console.warn("[story.generate] Failed to sync memory to MCP", {
+                  avatarId: userAvatar.id,
+                  error: mcpMemoryError,
+                });
+              }
+
+              console.log(`[story.generate] Updated personality and memory for ${userAvatar.name}`);
             } catch (updateError) {
-              console.error(`❌ Failed to update ${userAvatar.name}:`, updateError);
+              console.error(`[story.generate] Failed to update ${userAvatar.name}:`, updateError);
             }
           }
         }
 
-        console.log(`✅ Applied AI-driven trait updates to all ${allUserAvatars.length} user avatars`);
+        console.log(`[story.generate] Applied AI-driven trait updates to all ${allUserAvatars.length} user avatars`);
       } else {
-        console.log("ℹ️ No AI-generated avatar developments to apply or no avatars found");
+        console.log("[story.generate] No AI-generated avatar developments to apply or no avatars found");
       }
 
       // Return the complete story
-      console.log("📤 [story.generate] Loading full story payload to return...");
+      console.log("[story.generate] Loading full story payload to return...");
       const story = await getCompleteStory(id);
-      console.log("✅ [story.generate] Done. Returning story:", {
+      console.log("[story.generate] Done. Returning story:", {
         id: story.id,
         title: story.title,
         chapters: story.chapters?.length,
@@ -386,7 +432,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
     } catch (error) {
       // Update story status to error
-      console.error("💥 [story.generate] ERROR:", error);
+      console.error("[story.generate] ERROR:", error);
       await storyDB.exec`
         UPDATE stories
         SET status = 'error',
@@ -401,7 +447,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           response: { error: String((error as any)?.message || error), stack: (error as any)?.stack?.slice(0, 2000) }
         });
       } catch (e) {
-        console.warn("⚠️ [story.generate] Failed to publish error log:", e);
+        console.warn("[story.generate] Failed to publish error log:", e);
       }
 
       throw error;
@@ -464,3 +510,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     updatedAt: storyRow.updated_at,
   };
 }
+
+
+
+

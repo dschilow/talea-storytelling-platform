@@ -29,6 +29,7 @@ export interface AuthData {
   email: string | null;
   imageUrl: string | null;
   role: "admin" | "user";
+  clerkToken: string;
 }
 
 // Allowlist of frontends that may mint Clerk tokens for this backend.
@@ -155,7 +156,7 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
     const verifiedToken = await verifyToken(token, {
       secretKey: clerkSecretKey(),
-      // Clock-Skew-Toleranz für Edge-Deployments.
+      // Clock-Skew-Toleranz fuer Edge-Deployments.
       clockSkewInMs: 120000,
     });
 
@@ -260,12 +261,13 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
     console.log("Authentication successful for user:", user.id);
 
-    return {
-      userID: clerkUser.id,
-      email,
-      imageUrl: clerkUser.imageUrl,
-      role: user.role,
-    };
+      return {
+        userID: clerkUser.id,
+        email,
+        imageUrl: clerkUser.imageUrl,
+        role: user.role,
+        clerkToken: token,
+      };
   } catch (err: any) {
     console.error("Authentication failed:", err.message);
     console.error("Error reason:", err.reason || "unknown");
