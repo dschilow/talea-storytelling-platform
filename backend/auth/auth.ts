@@ -152,7 +152,7 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
     const verifiedToken = await verifyToken(token, {
       secretKey: clerkSecretKey(),
-      // Allow slight clock skew between der Frontend- und Backend-Uhr.
+      // Clock-Skew-Toleranz für Edge-Deployments.
       clockSkewInMs: 120000,
     });
 
@@ -237,8 +237,17 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
       code: err.code,
       longMessage: err.longMessage,
     });
+    const sanitizedReason =
+      typeof err.reason === "string"
+        ? err.reason
+        : typeof err.message === "string"
+        ? err.message
+        : "unknown";
+    const detail = payload
+      ? `azp=${payload["azp"] ?? "n/a"}, aud=${payload["aud"] ?? "n/a"}`
+      : "payload=unavailable";
 
-    throw APIError.unauthenticated("invalid token");
+    throw APIError.unauthenticated(`invalid token (${sanitizedReason}; ${detail})`);
   }
 });
 
