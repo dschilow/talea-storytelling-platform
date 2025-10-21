@@ -8,3 +8,8 @@ node_modules
 *.log
 .env*
 !.env.railway
+
+# Don't ignore MCP services directories
+!mcp-services/
+!mcp-services/mcp-main/
+!mcp-services/mcp-validator/
