@@ -138,9 +138,12 @@ export const StoryResponseSchema = z.object({
   title: z.string().min(3).max(100),
   description: z.string().min(10).max(500),
   chapters: z.array(ChapterSchema).min(1).max(20),
-  coverImageDescription: CoverImageDescriptionSchema,
+  coverImageDescription: CoverImageDescriptionSchema.nullable().optional(),
   avatarDevelopments: z.array(AvatarDevelopmentSchema).min(0),
-  learningOutcomes: z.array(LearningOutcomeSchema).optional(),
+  learningOutcomes: z.union([
+    z.array(LearningOutcomeSchema),
+    z.record(z.any()), // Accept object (will convert to array)
+  ]).optional(),
 });
 
 // Validation Error Response
