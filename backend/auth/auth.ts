@@ -29,7 +29,7 @@ export interface AuthData {
 }
 
 // 🔧 FIXED: Erweiterte authorized parties für alle Leap.new Umgebungen
-const AUTHORIZED_PARTIES = [
+const RAW_AUTHORIZED_PARTIES = [
   // Development
   "http://localhost:3000",
   "http://localhost:5171", // Vite Dev Server (custom port)
@@ -61,6 +61,37 @@ const AUTHORIZED_PARTIES = [
   // "https://your-domain.com",
   // "https://api.your-domain.com",
 ];
+
+function expandOrigin(origin: string): string[] {
+  const variants = new Set<string>();
+  const trimmed = origin.replace(/\/$/, "");
+  variants.add(trimmed);
+  variants.add(`${trimmed}/`);
+
+  try {
+    const url = new URL(trimmed);
+    if (!url.port) {
+      const defaultPort =
+        url.protocol === "https:" ? "443" :
+        url.protocol === "http:" ? "80" :
+        "";
+      if (defaultPort) {
+        const withPort = `${url.protocol}//${url.hostname}:${defaultPort}`;
+        variants.add(withPort);
+        variants.add(`${withPort}/`);
+      }
+    }
+  } catch {
+    // If origin is not a valid URL we fall back to the original value.
+    variants.add(origin);
+  }
+
+  return Array.from(variants);
+}
+
+const AUTHORIZED_PARTIES = Array.from(
+  new Set(RAW_AUTHORIZED_PARTIES.flatMap(expandOrigin)),
+);
 
 const auth = authHandler<AuthParams, AuthData>(
   async (data) => {
