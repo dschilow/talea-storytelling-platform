@@ -6,7 +6,9 @@ const DEFAULT_MCP_VALIDATOR_URL = "https://talea-mcp-validator-production.up.rai
 const mcpMainUrl = process.env.MCP_MAIN_URL ?? DEFAULT_MCP_MAIN_URL;
 const mcpValidatorUrl = process.env.MCP_VALIDATOR_URL ?? DEFAULT_MCP_VALIDATOR_URL;
 
-const mcpApiKey = secret("MCPServerAPIKey");
+function getMcpApiKey(): string {
+  return secret("MCPServerAPIKey")();
+}
 
 async function callMcpEndpoint<T>(
   url: string,
@@ -17,7 +19,7 @@ async function callMcpEndpoint<T>(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-MCP-API-Key": mcpApiKey(),
+      "X-MCP-API-Key": getMcpApiKey(),
       ...extraHeaders,
     },
     body: JSON.stringify(body),
