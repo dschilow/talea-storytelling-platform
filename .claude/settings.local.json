@@ -42,7 +42,11 @@
       "Bash(find:*)",
       "Bash(dir \"C:\\MyProjects\\Talea\\talea-storytelling-platform\\backend\\avatar\")",
       "Bash(dir \"C:\\MyProjects\\Talea\\talea-storytelling-platform\\backend\\avatar\\migrations\")",
-      "Bash(ren:*)"
+      "Bash(ren:*)",
+      "Bash(mkdir:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
