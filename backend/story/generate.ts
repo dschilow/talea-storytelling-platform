@@ -1,10 +1,13 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { avatarDB } from "../avatar/db";
+import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
+import { getAuthData } from "~encore/auth";
 
 // Avatar DB is already available through the avatar service client
 
@@ -72,10 +75,24 @@ interface GenerateStoryRequest {
 
 // Generates a new story based on the provided configuration.
 export const generate = api<GenerateStoryRequest, Story>(
-  { expose: true, method: "POST", path: "/story/generate" },
+  { expose: true, method: "POST", path: "/story/generate", auth: true },
   async (req) => {
     const id = crypto.randomUUID();
     const now = new Date();
+    const auth = getAuthData();
+    const currentUserId = auth?.userID ?? req.userId;
+
+    if (!currentUserId) {
+      throw APIError.unauthenticated("Missing authenticated user for story generation");
+    }
+
+    if (auth?.userID && req.userId && auth.userID !== req.userId) {
+      console.warn("⚠️ [story.generate] Auth user mismatch detected", {
+        authUserId: auth.userID,
+        requestUserId: req.userId,
+        storyId: id,
+      });
+    }
 
     const safe = (obj: any) => {
       try {
@@ -87,7 +104,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
     console.log("📥 [story.generate] Incoming request:", {
       storyId: id,
-      userId: req.userId,
+      userId: currentUserId,
       config: req?.config ? {
         avatarIdsCount: req.config.avatarIds?.length ?? 0,
         genre: req.config.genre,
@@ -110,30 +127,81 @@ export const generate = api<GenerateStoryRequest, Story>(
       INSERT INTO stories (
         id, user_id, title, description, config, status, created_at, updated_at
       ) VALUES (
-        ${id}, ${req.userId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
+        ${id}, ${currentUserId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
         ${JSON.stringify(req.config)}, 'generating', ${now}, ${now}
       )
     `;
 
     try {
       console.log("🔎 [story.generate] Loading avatar details...", { count: req.config.avatarIds.length });
-      // Fetch avatar details including image URLs and visual profiles
-      const avatarDetails = await Promise.all(
-        req.config.avatarIds.map(async (avatarId) => {
-          const avatarData = await avatar.get({ id: avatarId });
-          return {
-            id: avatarData.id,
-            name: avatarData.name,
-            description: avatarData.description,
-            physicalTraits: avatarData.physicalTraits,
-            personalityTraits: avatarData.personalityTraits,
-            imageUrl: avatarData.imageUrl,
-            visualProfile: avatarData.visualProfile,
-            creationType: avatarData.creationType,
-            isPublic: avatarData.isPublic
-          };
-        })
-      );
+      // Fetch avatar details directly from the avatar database to avoid cross-service auth issues
+      const avatarDetails: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        physicalTraits: any;
+        personalityTraits: any;
+        imageUrl?: string;
+        visualProfile?: any;
+        creationType: "ai-generated" | "photo-upload";
+        isPublic: boolean;
+      }> = [];
+
+      for (const avatarId of req.config.avatarIds) {
+        const row = await avatarDB.queryRow<{
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          physical_traits: string;
+          personality_traits: string;
+          image_url: string | null;
+          visual_profile: string | null;
+          creation_type: "ai-generated" | "photo-upload";
+          is_public: boolean;
+        }>`
+          SELECT id, user_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public
+          FROM avatars
+          WHERE id = ${avatarId}
+        `;
+
+        if (!row) {
+          throw APIError.notFound(`Avatar ${avatarId} not found`);
+        }
+
+        if (row.user_id !== currentUserId) {
+          throw APIError.permissionDenied("Avatar does not belong to current user");
+        }
+
+        const physicalTraits = row.physical_traits ? JSON.parse(row.physical_traits) : {};
+        const rawPersonalityTraits = row.personality_traits ? JSON.parse(row.personality_traits) : {};
+        const upgradedPersonalityTraits = upgradePersonalityTraits(rawPersonalityTraits);
+
+        if (Object.keys(upgradedPersonalityTraits).length > Object.keys(rawPersonalityTraits).length) {
+          try {
+            await avatarDB.exec`
+              UPDATE avatars
+              SET personality_traits = ${JSON.stringify(upgradedPersonalityTraits)},
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${avatarId}
+            `;
+          } catch (upgradeError) {
+            console.warn("⚠️ [story.generate] Failed to persist upgraded traits", { avatarId, upgradeError });
+          }
+        }
+
+        avatarDetails.push({
+          id: row.id,
+          name: row.name,
+          description: row.description || undefined,
+          physicalTraits,
+          personalityTraits: upgradedPersonalityTraits,
+          imageUrl: row.image_url || undefined,
+          visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
+          creationType: row.creation_type,
+          isPublic: row.is_public,
+        });
+      }
 
       console.log("🎭 Avatar details for story generation:", avatarDetails.map(a => ({ 
         name: a.name, 
@@ -195,14 +263,11 @@ export const generate = api<GenerateStoryRequest, Story>(
       // NEW AI-DRIVEN SYSTEM: Apply personality updates based on story analysis
       console.log("🧠 [AI-DRIVEN SYSTEM] Applying trait updates to ALL user avatars...");
 
-      // Get current user ID from request
-      const currentUserId = req.userId;
-
-      // Load ALL avatars for this user using the avatar service
-      const allUserAvatarsResponse = await avatar.list();
-      const allUserAvatars = allUserAvatarsResponse.avatars
-        .filter(a => a.userId === currentUserId)
-        .map(a => ({ id: a.id, name: a.name }));
+      // Load ALL avatars for this user directly from the database
+      const allUserAvatarRows = await avatarDB.queryAll<{ id: string; name: string }>`
+        SELECT id, name FROM avatars WHERE user_id = ${currentUserId}
+      `;
+      const allUserAvatars = allUserAvatarRows.map(row => ({ id: row.id, name: row.name }));
 
       console.log(`📊 Found ${allUserAvatars.length} total avatars for user ${currentUserId}`);
 
@@ -332,7 +397,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         await publishWithTimeout(logTopic, {
           source: 'openai-story-generation',
           timestamp: new Date(),
-          request: { storyId: id, userId: req.userId, config: req.config },
+          request: { storyId: id, userId: currentUserId, config: req.config },
           response: { error: String((error as any)?.message || error), stack: (error as any)?.stack?.slice(0, 2000) }
         });
       } catch (e) {
