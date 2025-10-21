@@ -37,55 +37,75 @@ export const PersonalityChangeSchema = z.object({
   change: z.number().int().min(-10).max(10),
 });
 
-// Chapter Image Description Schema
-export const ChapterImageDescriptionSchema = z.object({
-  scene: z.string().min(10),
-  characters: z.record(
-    z.object({
-      position: z.string(),
-      expression: z.string(),
-      action: z.string(),
-      clothing: z.string(),
-    })
-  ),
-  environment: z.object({
-    setting: z.string(),
-    lighting: z.string(),
-    atmosphere: z.string(),
-    objects: z.array(z.string()).optional(),
+// Chapter Image Description Schema - flexible to accept strings or objects
+export const ChapterImageDescriptionSchema = z.union([
+  z.string().min(10), // Accept simple string descriptions
+  z.object({
+    scene: z.string().min(10),
+    characters: z.union([
+      z.array(z.string()), // Accept array of character names
+      z.record(
+        z.object({
+          position: z.string().optional(),
+          expression: z.string().optional(),
+          action: z.string().optional(),
+          clothing: z.string().optional(),
+        })
+      ),
+    ]),
+    environment: z.union([
+      z.string(), // Accept simple string
+      z.object({
+        setting: z.string().optional(),
+        lighting: z.string().optional(),
+        atmosphere: z.string().optional(),
+        objects: z.array(z.string()).optional(),
+      }),
+    ]),
+    composition: z.union([
+      z.string(), // Accept simple string
+      z.object({
+        foreground: z.string().optional(),
+        background: z.string().optional(),
+        focus: z.string().optional(),
+      }).optional(),
+    ]).optional(),
   }),
-  composition: z
-    .object({
-      foreground: z.string(),
-      background: z.string(),
-      focus: z.string(),
-    })
-    .optional(),
-});
+]);
 
-// Cover Image Description Schema
-export const CoverImageDescriptionSchema = z.object({
-  mainScene: z.string().min(10),
-  characters: z.record(
-    z.object({
-      position: z.string(),
-      expression: z.string(),
-      pose: z.string(),
-    })
-  ),
-  environment: z.object({
-    setting: z.string(),
-    mood: z.string(),
-    colorPalette: z.array(z.string()).optional(),
+// Cover Image Description Schema - flexible to accept strings or objects
+export const CoverImageDescriptionSchema = z.union([
+  z.string().min(10), // Accept simple string descriptions
+  z.object({
+    mainScene: z.string().min(10),
+    characters: z.union([
+      z.array(z.string()), // Accept array of character names
+      z.record(
+        z.object({
+          position: z.string().optional(),
+          expression: z.string().optional(),
+          pose: z.string().optional(),
+        })
+      ),
+    ]),
+    environment: z.union([
+      z.string(), // Accept simple string
+      z.object({
+        setting: z.string().optional(),
+        mood: z.string().optional(),
+        colorPalette: z.array(z.string()).optional(),
+      }),
+    ]),
+    composition: z.union([
+      z.string(), // Accept simple string
+      z.object({
+        layout: z.string().optional(),
+        titleSpace: z.string().optional(),
+        visualFocus: z.string().optional(),
+      }).optional(),
+    ]).optional(),
   }),
-  composition: z
-    .object({
-      layout: z.string(),
-      titleSpace: z.string(),
-      visualFocus: z.string(),
-    })
-    .optional(),
-});
+]);
 
 // Chapter Schema
 export const ChapterSchema = z.object({
@@ -101,14 +121,17 @@ export const AvatarDevelopmentSchema = z.object({
   changedTraits: z.array(PersonalityChangeSchema).min(0),
 });
 
-// Learning Outcome Schema (optional)
-export const LearningOutcomeSchema = z.object({
-  subject: z.string(),
-  newConcepts: z.array(z.string()),
-  reinforcedSkills: z.array(z.string()),
-  difficulty_mastered: z.string(),
-  practical_applications: z.array(z.string()),
-});
+// Learning Outcome Schema (optional) - flexible to accept strings or objects
+export const LearningOutcomeSchema = z.union([
+  z.string(), // Accept simple string descriptions
+  z.object({
+    subject: z.string(),
+    newConcepts: z.array(z.string()),
+    reinforcedSkills: z.array(z.string()),
+    difficulty_mastered: z.string(),
+    practical_applications: z.array(z.string()),
+  }),
+]);
 
 // Complete Story Response Schema
 export const StoryResponseSchema = z.object({
