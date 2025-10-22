@@ -295,6 +295,7 @@ function buildChapterImagePrompt(
   sections.push(`scene: ${chapterDesc.scene}`);
 
   const characterPrompts: string[] = [];
+  const addedCharacterNames = new Set<string>();
 
   // Handle both array and object formats for characters
   if (Array.isArray(chapterDesc.characters)) {
@@ -303,6 +304,7 @@ function buildChapterImagePrompt(
       const profile = avatarProfilesByName[name];
       if (profile) {
         characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
+        addedCharacterNames.add(name.toLowerCase());
       }
     });
   } else if (chapterDesc.characters && typeof chapterDesc.characters === 'object') {
@@ -311,23 +313,25 @@ function buildChapterImagePrompt(
       const profile = avatarProfilesByName[name];
       if (profile) {
         characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, details as any));
+        addedCharacterNames.add(name.toLowerCase());
       }
     });
   }
 
-  // CRITICAL FIX: If no characters were added from imageDescription, add ALL available avatar profiles
-  // This ensures avatar appearance is ALWAYS included even if OpenAI doesn't return character info
-  if (characterPrompts.length === 0) {
-    console.log(`[buildChapterImagePrompt] Fallback: Adding all ${Object.keys(avatarProfilesByName).length} avatar profiles`);
-    console.log(`[buildChapterImagePrompt] Available avatar names:`, Object.keys(avatarProfilesByName));
-    Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+  console.log(`[buildChapterImagePrompt] Characters from OpenAI: ${addedCharacterNames.size} (${Array.from(addedCharacterNames).join(', ')})`);
+  console.log(`[buildChapterImagePrompt] Available avatars: ${Object.keys(avatarProfilesByName).length} (${Object.keys(avatarProfilesByName).join(', ')})`);
+
+  // CRITICAL FIX: Add any missing avatars that weren't included by OpenAI
+  // This ensures ALL selected avatars appear in the image, not just what OpenAI returns
+  Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+    if (!addedCharacterNames.has(name.toLowerCase())) {
+      console.log(`[buildChapterImagePrompt] Missing avatar detected: "${name}" - adding to prompts`);
       const prompt = buildImagePromptFromVisualProfile(profile, name, {});
-      console.log(`[buildChapterImagePrompt] Adding avatar "${name}" - prompt length: ${prompt.length}`);
+      console.log(`[buildChapterImagePrompt] Added missing avatar "${name}" - prompt length: ${prompt.length}`);
       characterPrompts.push(prompt);
-    });
-  } else {
-    console.log(`[buildChapterImagePrompt] Added ${characterPrompts.length} character prompts from imageDescription`);
-  }
+      addedCharacterNames.add(name.toLowerCase());
+    }
+  });
 
   console.log(`[buildChapterImagePrompt] Total character prompts: ${characterPrompts.length}`);
 
@@ -404,6 +408,7 @@ function buildCoverImagePrompt(
   sections.push(`main scene: ${coverDesc.mainScene}`);
 
   const characterPrompts: string[] = [];
+  const addedCharacterNames = new Set<string>();
 
   // Handle both array and object formats for characters
   if (Array.isArray(coverDesc.characters)) {
@@ -412,6 +417,7 @@ function buildCoverImagePrompt(
       const profile = avatarProfilesByName[name];
       if (profile) {
         characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
+        addedCharacterNames.add(name.toLowerCase());
       }
     });
   } else if (coverDesc.characters && typeof coverDesc.characters === 'object') {
@@ -426,17 +432,23 @@ function buildCoverImagePrompt(
             action: details.pose,
           })
         );
+        addedCharacterNames.add(name.toLowerCase());
       }
     });
   }
 
-  // CRITICAL FIX: If no characters were added from coverDesc, add ALL available avatar profiles
-  // This ensures avatar appearance is ALWAYS included even if OpenAI doesn't return character info
-  if (characterPrompts.length === 0) {
-    Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+  console.log(`[buildCoverImagePrompt] Characters from OpenAI: ${addedCharacterNames.size} (${Array.from(addedCharacterNames).join(', ')})`);
+  console.log(`[buildCoverImagePrompt] Available avatars: ${Object.keys(avatarProfilesByName).length} (${Object.keys(avatarProfilesByName).join(', ')})`);
+
+  // CRITICAL FIX: Add any missing avatars that weren't included by OpenAI
+  // This ensures ALL selected avatars appear in the cover image
+  Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+    if (!addedCharacterNames.has(name.toLowerCase())) {
+      console.log(`[buildCoverImagePrompt] Missing avatar detected: "${name}" - adding to prompts`);
       characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
-    });
-  }
+      addedCharacterNames.add(name.toLowerCase());
+    }
+  });
 
   if (characterPrompts.length) {
     sections.push(characterPrompts.join(" || "));
