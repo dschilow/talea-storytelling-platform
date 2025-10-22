@@ -1,5 +1,5 @@
 import { api } from "encore.dev/api";
-import { logBucket } from "./logger";
+import { logDB } from "./db";
 
 interface LogSource {
   name: string;
@@ -11,45 +11,31 @@ interface GetLogSourcesResponse {
   sources: LogSource[];
 }
 
-// Gets available log sources with statistics.
+// Gets available log sources with statistics from PostgreSQL.
 export const getSources = api<void, GetLogSourcesResponse>(
   { expose: true, method: "GET", path: "/log/getSources" },
   async () => {
-    const sourceCounts = new Map<string, { count: number; lastActivity: Date | null }>();
-
     try {
-      for await (const entry of logBucket.list({})) {
-        const pathParts = entry.name.split(/[/\\]/);
-        if (pathParts.length >= 2) {
-          const source = pathParts[0];
-          const current = sourceCounts.get(source) || { count: 0, lastActivity: null };
-          
-          // Extract timestamp from filename for last activity
-          const filename = pathParts[pathParts.length - 1];
-          const timestampMatch = filename.match(/^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z)/);
-          if (timestampMatch) {
-            const timestampStr = timestampMatch[1];
-            // Replace only the time portion hyphens with colons: YYYY-MM-DDTHH-MM-SS.sssZ -> YYYY-MM-DDTHH:MM:SS.sssZ
-            const correctedTimestamp = timestampStr.replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3');
-            const timestamp = new Date(correctedTimestamp);
-            if (!current.lastActivity || timestamp > current.lastActivity) {
-              current.lastActivity = timestamp;
-            }
-          }
-          
-          current.count++;
-          sourceCounts.set(source, current);
-        }
-      }
+      // Query database for source statistics
+      const rows = await logDB.query<{
+        source: string;
+        count: number;
+        last_activity: Date | null;
+      }>`
+        SELECT
+          source,
+          COUNT(*)::int as count,
+          MAX(timestamp) as last_activity
+        FROM logs
+        GROUP BY source
+        ORDER BY last_activity DESC NULLS LAST
+      `;
 
-      const sources: LogSource[] = Array.from(sourceCounts.entries()).map(([name, data]) => ({
-        name,
-        count: data.count,
-        lastActivity: data.lastActivity,
+      const sources: LogSource[] = rows.map(row => ({
+        name: row.source,
+        count: row.count,
+        lastActivity: row.last_activity
       }));
-
-      // Sort by count (descending)
-      sources.sort((a, b) => b.count - a.count);
 
       return { sources };
     } catch (error) {
