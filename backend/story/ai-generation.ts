@@ -319,15 +319,23 @@ function buildChapterImagePrompt(
   // This ensures avatar appearance is ALWAYS included even if OpenAI doesn't return character info
   if (characterPrompts.length === 0) {
     console.log(`[buildChapterImagePrompt] Fallback: Adding all ${Object.keys(avatarProfilesByName).length} avatar profiles`);
+    console.log(`[buildChapterImagePrompt] Available avatar names:`, Object.keys(avatarProfilesByName));
     Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
-      characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
+      const prompt = buildImagePromptFromVisualProfile(profile, name, {});
+      console.log(`[buildChapterImagePrompt] Adding avatar "${name}" - prompt length: ${prompt.length}`);
+      characterPrompts.push(prompt);
     });
   } else {
     console.log(`[buildChapterImagePrompt] Added ${characterPrompts.length} character prompts from imageDescription`);
   }
 
+  console.log(`[buildChapterImagePrompt] Total character prompts: ${characterPrompts.length}`);
+
   if (characterPrompts.length) {
-    sections.push(characterPrompts.join(" || "));
+    const joinedPrompts = characterPrompts.join(" || ");
+    console.log(`[buildChapterImagePrompt] Joined character prompts length: ${joinedPrompts.length}`);
+    console.log(`[buildChapterImagePrompt] First 200 chars of joined prompts:`, joinedPrompts.substring(0, 200));
+    sections.push(joinedPrompts);
   }
 
   // Handle environment (string or object)
@@ -363,7 +371,12 @@ function buildChapterImagePrompt(
     "ensure each character remains visually identical across all images, matching hair color, eye color, face shape, skin tone, and distinctive features"
   );
 
-  return sections.join(". ");
+  const finalPrompt = sections.join(". ");
+  console.log(`[buildChapterImagePrompt] Final prompt length: ${finalPrompt.length}`);
+  console.log(`[buildChapterImagePrompt] Final prompt (first 500 chars):`, finalPrompt.substring(0, 500));
+  console.log(`[buildChapterImagePrompt] Final prompt (last 500 chars):`, finalPrompt.substring(Math.max(0, finalPrompt.length - 500)));
+
+  return finalPrompt;
 }
 
 function buildCoverImagePrompt(
