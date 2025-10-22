@@ -31,7 +31,10 @@ export const getSources = api<void, GetLogSourcesResponse>(
         ORDER BY last_activity DESC NULLS LAST
       `;
 
-      const sources: LogSource[] = rows.map(row => ({
+      // Convert query result to array (Encore returns iterator)
+      const rowsArray = Array.isArray(rows) ? rows : Array.from(rows);
+
+      const sources: LogSource[] = rowsArray.map(row => ({
         name: row.source,
         count: row.count,
         lastActivity: row.last_activity

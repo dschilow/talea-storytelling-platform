@@ -58,7 +58,10 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
 
       const rows = await logDB.query<LogRow>(query, ...params);
 
-      const logs: LogEntry[] = rows.map(row => ({
+      // Convert query result to array (Encore returns iterator)
+      const rowsArray = Array.isArray(rows) ? rows : Array.from(rows);
+
+      const logs: LogEntry[] = rowsArray.map(row => ({
         id: row.id,
         source: row.source as any,
         timestamp: row.timestamp,
@@ -86,7 +89,8 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
       }
 
       const countResult = await logDB.query<{ count: number }>(countQuery, ...countParams);
-      const totalCount = countResult[0]?.count || 0;
+      const countArray = Array.isArray(countResult) ? countResult : Array.from(countResult);
+      const totalCount = countArray[0]?.count || 0;
 
       return {
         logs,
