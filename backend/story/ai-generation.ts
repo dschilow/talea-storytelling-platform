@@ -315,6 +315,14 @@ function buildChapterImagePrompt(
     });
   }
 
+  // CRITICAL FIX: If no characters were added from imageDescription, add ALL available avatar profiles
+  // This ensures avatar appearance is ALWAYS included even if OpenAI doesn't return character info
+  if (characterPrompts.length === 0) {
+    Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+      characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
+    });
+  }
+
   if (characterPrompts.length) {
     sections.push(characterPrompts.join(" || "));
   }
@@ -403,6 +411,14 @@ function buildCoverImagePrompt(
           })
         );
       }
+    });
+  }
+
+  // CRITICAL FIX: If no characters were added from coverDesc, add ALL available avatar profiles
+  // This ensures avatar appearance is ALWAYS included even if OpenAI doesn't return character info
+  if (characterPrompts.length === 0) {
+    Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+      characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
     });
   }
 
