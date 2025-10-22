@@ -41,6 +41,13 @@
           "password": {
             "$env": "PGPASSWORD"
           }
+        },
+        "log": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
         }
       }
     }
