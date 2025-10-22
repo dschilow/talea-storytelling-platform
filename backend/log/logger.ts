@@ -1,5 +1,4 @@
-import { Topic, Subscription } from "encore.dev/pubsub";
-import { Bucket } from "encore.dev/storage/objects";
+import { logDB } from "./db";
 
 // LogEvent defines the structure for log messages.
 export interface LogEvent {
@@ -10,35 +9,31 @@ export interface LogEvent {
     | 'openai-avatar-analysis'
     | 'openai-avatar-analysis-stable'
     | 'openai-doku-generation'
-    | 'openai-tavi-chat';
+    | 'openai-tavi-chat'
+    | 'openai-story-generation-mcp'; // Add MCP source
   timestamp: Date;
   request: any;
   response: any;
   metadata?: any;
 }
 
-// Object Storage dummy export (not used on Railway, but needed for imports in log/get.ts etc.)
+// Object Storage dummy export (kept for backwards compatibility)
 export const logBucket = null as any;
 
-// Pub/Sub disabled for Railway build (cross-service topic access not allowed by Encore)
-// TODO: Re-enable when NSQ service is deployed on Railway
-// logTopic is the central topic for all AI-related logging events (NSQ on Railway).
-// export const logTopic = new Topic<LogEvent>("log-events", {
-//   deliveryGuarantee: "at-least-once",
-// });
-
-// Dummy export - publishWithTimeout will handle gracefully
-export const logTopic = null as any;
-
-// This subscription listens for log events and logs them to console.
-// On Railway we use NSQ for Pub/Sub (no GCP dependencies).
-// export const logSubscription = new Subscription(logTopic, "log-to-console", {
-//   handler: async (event: LogEvent) => {
-//     console.log(`📝 [${event.source}] Log event received at ${event.timestamp.toISOString()}`);
-//     console.log(`   Request:`, JSON.stringify(event.request).slice(0, 200));
-//     console.log(`   Response:`, JSON.stringify(event.response).slice(0, 200));
-
-//     // In production you could send to external logging service here
-//     // For now, just console logging is enough
-//   },
-// });
+// Legacy topic export (kept for backwards compatibility with publishWithTimeout)
+// Now writes directly to database instead of using Pub/Sub
+export const logTopic = {
+  publish: async (event: LogEvent) => {
+    try {
+      // Write log directly to database
+      await logDB.exec`
+        INSERT INTO logs (source, timestamp, request, response, metadata)
+        VALUES (${event.source}, ${event.timestamp}, ${event.request}, ${event.response}, ${event.metadata || null})
+      `;
+      console.log(`📝 [${event.source}] Log saved to database`);
+    } catch (err: any) {
+      console.error(`Failed to save log to database:`, err.message);
+      // Don't throw - logging should never break the main flow
+    }
+  }
+};

@@ -1,32 +1,36 @@
 import { api, APIError } from "encore.dev/api";
-import { logBucket } from "./logger";
+import { logDB, type LogRow } from "./db";
 import type { LogEntry } from "./list";
 
 interface GetLogRequest {
   id: string;
 }
 
-// Retrieves a specific log entry by ID.
+// Retrieves a specific log entry by ID from the database.
 export const get = api<GetLogRequest, LogEntry>(
   { expose: true, method: "GET", path: "/log/get/:id" },
   async ({ id }) => {
     try {
-      // Search for the log entry by ID across all paths
-      for await (const entry of logBucket.list({})) {
-        if (entry.name.includes(id)) {
-          try {
-            const logData = await logBucket.download(entry.name);
-            const logEntry = JSON.parse(logData.toString('utf-8')) as LogEntry;
-            if (logEntry.id === id) {
-              return logEntry;
-            }
-          } catch (err) {
-            console.warn(`Failed to parse log entry ${entry.name}:`, err);
-          }
-        }
+      const rows = await logDB.query<LogRow>`
+        SELECT id, source, timestamp, request, response, metadata
+        FROM logs
+        WHERE id = ${id}
+        LIMIT 1
+      `;
+
+      if (rows.length === 0) {
+        throw APIError.notFound(`Log entry with ID ${id} not found`);
       }
 
-      throw APIError.notFound(`Log entry with ID ${id} not found`);
+      const row = rows[0];
+      return {
+        id: row.id,
+        source: row.source as any,
+        timestamp: row.timestamp,
+        request: row.request,
+        response: row.response,
+        metadata: row.metadata,
+      };
     } catch (error) {
       if (error instanceof APIError) {
         throw error;

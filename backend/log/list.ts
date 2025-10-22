@@ -1,9 +1,9 @@
 import { api } from "encore.dev/api";
-import { logBucket } from "./logger";
+import { logDB, type LogRow } from "./db";
 
 export interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation' | 'openai-tavi-chat';
+  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation' | 'openai-tavi-chat' | 'openai-story-generation-mcp';
   timestamp: Date;
   request: any;
   response: any;
@@ -21,17 +21,7 @@ interface ListLogsResponse {
   totalCount: number;
 }
 
-const ALL_SOURCES = [
-  'openai-story-generation',
-  'runware-single-image',
-  'runware-batch-image',
-  'openai-avatar-analysis',
-  'openai-avatar-analysis-stable',
-  'openai-doku-generation',
-  'openai-tavi-chat',
-];
-
-// Lists log entries from the bucket.
+// Lists log entries from the database.
 export const list = api<ListLogsRequest, ListLogsResponse>(
   { expose: true, method: "GET", path: "/log/list" },
   async (req) => {
@@ -40,61 +30,67 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
     const dateFilter = req.date;
 
     try {
-      const logNames: string[] = [];
+      let query = `
+        SELECT id, source, timestamp, request, response, metadata
+        FROM logs
+        WHERE 1=1
+      `;
+      const params: any[] = [];
 
-      if (dateFilter) {
-        // Efficiently list for a specific date
-        const sources = sourceFilter ? [sourceFilter] : ALL_SOURCES;
-        for (const source of sources) {
-          const prefix = `${source}/${dateFilter}/`.replace(/\//g, '\\');
-          for await (const entry of logBucket.list({ prefix })) {
-            logNames.push(entry.name);
-          }
-        }
-      } else {
-        // No date filter, scan recent days to find latest logs.
-        const sources = sourceFilter ? [sourceFilter] : ALL_SOURCES;
-        const datesToScan: string[] = [];
-        for (let i = 0; i < 7; i++) { // Scan last 7 days
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            datesToScan.push(d.toISOString().split('T')[0]);
-        }
-
-        for (const date of datesToScan) {
-            for (const source of sources) {
-                const prefix = `${source}/${date}/`.replace(/\//g, '\\');
-                for await (const entry of logBucket.list({ prefix })) {
-                    logNames.push(entry.name);
-                }
-            }
-            // Optimization: if we have enough logs after scanning a day, we can stop.
-            if (logNames.length >= limit) break;
-        }
+      // Add source filter if provided
+      if (sourceFilter) {
+        params.push(sourceFilter);
+        query += ` AND source = $${params.length}`;
       }
 
-      // Sort by name descending to get newest first, as name contains sortable timestamp.
-      logNames.sort((a, b) => b.localeCompare(a));
+      // Add date filter if provided
+      if (dateFilter) {
+        params.push(dateFilter);
+        query += ` AND DATE(timestamp) = $${params.length}`;
+      }
 
-      const logsToDownload = logNames.slice(0, limit);
-      const logs: LogEntry[] = [];
+      // Order by timestamp descending (newest first)
+      query += ` ORDER BY timestamp DESC`;
 
-      // Use Promise.all for concurrent downloads
-      await Promise.all(logsToDownload.map(async (name) => {
-        try {
-          const logData = await logBucket.download(name);
-          logs.push(JSON.parse(logData.toString('utf-8')) as LogEntry);
-        } catch (err) {
-          console.warn(`Failed to parse log entry ${name}:`, err);
-        }
+      // Limit results
+      params.push(limit);
+      query += ` LIMIT $${params.length}`;
+
+      const rows = await logDB.query<LogRow>(query, ...params);
+
+      const logs: LogEntry[] = rows.map(row => ({
+        id: row.id,
+        source: row.source as any,
+        timestamp: row.timestamp,
+        request: row.request,
+        response: row.response,
+        metadata: row.metadata,
       }));
 
-      // Final sort by actual timestamp, as filename sort is an approximation
-      logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      // Get total count for the same filters (without limit)
+      let countQuery = `
+        SELECT COUNT(*) as count
+        FROM logs
+        WHERE 1=1
+      `;
+      const countParams: any[] = [];
+
+      if (sourceFilter) {
+        countParams.push(sourceFilter);
+        countQuery += ` AND source = $${countParams.length}`;
+      }
+
+      if (dateFilter) {
+        countParams.push(dateFilter);
+        countQuery += ` AND DATE(timestamp) = $${countParams.length}`;
+      }
+
+      const countResult = await logDB.query<{ count: number }>(countQuery, ...countParams);
+      const totalCount = countResult[0]?.count || 0;
 
       return {
         logs,
-        totalCount: logNames.length,
+        totalCount: Number(totalCount),
       };
     } catch (error) {
       console.error("Error listing logs:", error);
