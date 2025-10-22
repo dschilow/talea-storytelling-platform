@@ -48,6 +48,20 @@ interface GenerateStoryContentRequest {
   clerkToken: string;
 }
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
 interface ChapterImageDescription {
   scene: string;
   characters: {
@@ -753,7 +767,7 @@ avatarDevelopments muss folgendes Format haben:
     throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as OpenAIResponse;
 
   await publishWithTimeout(logTopic, {
     source: "openai-story-generation-mcp",

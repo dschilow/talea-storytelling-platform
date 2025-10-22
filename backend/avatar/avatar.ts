@@ -49,6 +49,7 @@ export interface AvatarVisualProfile {
     top?: string | null;
     bottom?: string | null;
     outfit?: string | null;
+    footwear?: string | null;
     colors?: string[];
     patterns?: string[];
   };

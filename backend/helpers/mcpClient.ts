@@ -4,6 +4,30 @@ const DEFAULT_MCP_VALIDATOR_URL = "https://talea-mcp-validator-production.up.rai
 const mcpMainUrl = process.env.MCP_MAIN_URL ?? DEFAULT_MCP_MAIN_URL;
 const mcpValidatorUrl = process.env.MCP_VALIDATOR_URL ?? DEFAULT_MCP_VALIDATOR_URL;
 
+// Type definitions for MCP validator responses
+export interface ValidationResult {
+  isValid: boolean;
+  errors?: any[];
+  normalized?: any;
+}
+
+export interface AvatarDevelopmentValidationResult {
+  isValid: boolean;
+  errors?: any[];
+  validDevelopments?: any[];
+}
+
+export interface TraitUpdateNormalizationResult {
+  normalizedUpdates: Array<{ trait: string; change: number }>;
+}
+
+export interface ValidationReport {
+  isValid: boolean;
+  errors: any[];
+  warnings: any[];
+  suggestions: any[];
+}
+
 async function callMcpEndpoint<T>(
   url: string,
   body: Record<string, unknown>,
@@ -171,21 +195,21 @@ export async function getAvatarPersonality(
   return callMcpMainTool("get_avatar_personality", { avatarId }, clerkToken, apiKey);
 }
 
-export async function validateStoryResponse(storyData: unknown, apiKey: string) {
-  return callMcpValidatorTool("validate_story_response", { storyData }, apiKey);
+export async function validateStoryResponse(storyData: unknown, apiKey: string): Promise<ValidationResult> {
+  return callMcpValidatorTool<ValidationResult>("validate_story_response", { storyData }, apiKey);
 }
 
-export async function validateAvatarDevelopments(developments: unknown[], apiKey: string) {
-  return callMcpValidatorTool("validate_avatar_developments", { developments }, apiKey);
+export async function validateAvatarDevelopments(developments: unknown[], apiKey: string): Promise<AvatarDevelopmentValidationResult> {
+  return callMcpValidatorTool<AvatarDevelopmentValidationResult>("validate_avatar_developments", { developments }, apiKey);
 }
 
 export async function normalizeTraitUpdates(
   updates: Array<{ trait: string; change: number }>,
   apiKey: string
-) {
-  return callMcpValidatorTool("normalize_trait_updates", { updates }, apiKey);
+): Promise<TraitUpdateNormalizationResult> {
+  return callMcpValidatorTool<TraitUpdateNormalizationResult>("normalize_trait_updates", { updates }, apiKey);
 }
 
-export async function getValidationReport(storyData: unknown, apiKey: string) {
-  return callMcpValidatorTool("get_validation_report", { storyData }, apiKey);
+export async function getValidationReport(storyData: unknown, apiKey: string): Promise<ValidationReport> {
+  return callMcpValidatorTool<ValidationReport>("get_validation_report", { storyData }, apiKey);
 }
