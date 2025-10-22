@@ -37,74 +37,18 @@ export const PersonalityChangeSchema = z.object({
   change: z.number().int().min(-10).max(10),
 });
 
-// Chapter Image Description Schema - flexible to accept strings or objects
+// Chapter Image Description Schema - extremely flexible to accept any format from OpenAI
 export const ChapterImageDescriptionSchema = z.union([
-  z.string().min(10), // Accept simple string descriptions
-  z.object({
-    scene: z.string().min(10),
-    characters: z.union([
-      z.array(z.string()), // Accept array of character names
-      z.record(
-        z.object({
-          position: z.string().optional(),
-          expression: z.string().optional(),
-          action: z.string().optional(),
-          clothing: z.string().optional(),
-        })
-      ),
-    ]),
-    environment: z.union([
-      z.string(), // Accept simple string
-      z.object({
-        setting: z.string().optional(),
-        lighting: z.string().optional(),
-        atmosphere: z.string().optional(),
-        objects: z.array(z.string()).optional(),
-      }),
-    ]),
-    composition: z.union([
-      z.string(), // Accept simple string
-      z.object({
-        foreground: z.string().optional(),
-        background: z.string().optional(),
-        focus: z.string().optional(),
-      }).optional(),
-    ]).optional(),
-  }),
+  z.string().min(1), // Accept any string
+  z.record(z.any()), // Accept any object structure
+  z.any(), // Accept anything else as fallback
 ]);
 
-// Cover Image Description Schema - flexible to accept strings or objects
+// Cover Image Description Schema - extremely flexible to accept any format from OpenAI
 export const CoverImageDescriptionSchema = z.union([
-  z.string().min(10), // Accept simple string descriptions
-  z.object({
-    mainScene: z.string().min(10),
-    characters: z.union([
-      z.array(z.string()), // Accept array of character names
-      z.record(
-        z.object({
-          position: z.string().optional(),
-          expression: z.string().optional(),
-          pose: z.string().optional(),
-        })
-      ),
-    ]),
-    environment: z.union([
-      z.string(), // Accept simple string
-      z.object({
-        setting: z.string().optional(),
-        mood: z.string().optional(),
-        colorPalette: z.array(z.string()).optional(),
-      }),
-    ]),
-    composition: z.union([
-      z.string(), // Accept simple string
-      z.object({
-        layout: z.string().optional(),
-        titleSpace: z.string().optional(),
-        visualFocus: z.string().optional(),
-      }).optional(),
-    ]).optional(),
-  }),
+  z.string().min(1), // Accept any string
+  z.record(z.any()), // Accept any object structure
+  z.any(), // Accept anything else as fallback
 ]);
 
 // Chapter Schema
@@ -121,16 +65,11 @@ export const AvatarDevelopmentSchema = z.object({
   changedTraits: z.array(PersonalityChangeSchema).min(0),
 });
 
-// Learning Outcome Schema (optional) - flexible to accept strings or objects
+// Learning Outcome Schema (optional) - extremely flexible to accept any format from OpenAI
 export const LearningOutcomeSchema = z.union([
-  z.string(), // Accept simple string descriptions
-  z.object({
-    subject: z.string(),
-    newConcepts: z.array(z.string()),
-    reinforcedSkills: z.array(z.string()),
-    difficulty_mastered: z.string(),
-    practical_applications: z.array(z.string()),
-  }),
+  z.string(), // Accept any string
+  z.record(z.any()), // Accept any object structure
+  z.any(), // Accept anything else as fallback
 ]);
 
 // Complete Story Response Schema
