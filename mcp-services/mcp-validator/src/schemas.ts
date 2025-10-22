@@ -143,7 +143,8 @@ export const StoryResponseSchema = z.object({
   learningOutcomes: z.union([
     z.array(LearningOutcomeSchema),
     z.record(z.any()), // Accept object (will convert to array)
-  ]).optional(),
+    z.null(), // Accept null explicitly
+  ]).optional().nullable(),
 });
 
 // Validation Error Response
