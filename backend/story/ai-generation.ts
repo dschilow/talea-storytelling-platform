@@ -271,7 +271,7 @@ function buildImagePromptFromVisualProfile(
 }
 
 function buildChapterImagePrompt(
-  chapterDesc: ChapterImageDescription,
+  chapterDesc: ChapterImageDescription | string,
   avatarProfilesByName: Record<string, AvatarVisualProfile>
 ): string {
   const sections: string[] = [];
@@ -280,29 +280,65 @@ function buildChapterImagePrompt(
     "masterpiece, best quality, ultra detailed, professional children's book illustration, vibrant colors, perfect lighting"
   );
 
+  // Handle simple string descriptions
+  if (typeof chapterDesc === 'string') {
+    sections.push(`scene: ${chapterDesc}`);
+
+    // Add all available avatar profiles
+    Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+      sections.push(buildImagePromptFromVisualProfile(profile, name, {}));
+    });
+
+    return sections.join(". ");
+  }
+
   sections.push(`scene: ${chapterDesc.scene}`);
 
   const characterPrompts: string[] = [];
-  Object.entries(chapterDesc.characters ?? {}).forEach(([name, details]) => {
-    const profile = avatarProfilesByName[name];
-    if (profile) {
-      characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, details));
-    }
-  });
+
+  // Handle both array and object formats for characters
+  if (Array.isArray(chapterDesc.characters)) {
+    // Characters is an array of names
+    chapterDesc.characters.forEach((name: string) => {
+      const profile = avatarProfilesByName[name];
+      if (profile) {
+        characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
+      }
+    });
+  } else if (chapterDesc.characters && typeof chapterDesc.characters === 'object') {
+    // Characters is an object with details
+    Object.entries(chapterDesc.characters).forEach(([name, details]) => {
+      const profile = avatarProfilesByName[name];
+      if (profile) {
+        characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, details as any));
+      }
+    });
+  }
+
   if (characterPrompts.length) {
     sections.push(characterPrompts.join(" || "));
   }
 
-  const environmentParts: string[] = [];
-  if (chapterDesc.environment?.setting) environmentParts.push(`setting: ${chapterDesc.environment.setting}`);
-  if (chapterDesc.environment?.lighting) environmentParts.push(`lighting: ${chapterDesc.environment.lighting}`);
-  if (chapterDesc.environment?.atmosphere) environmentParts.push(`atmosphere: ${chapterDesc.environment.atmosphere}`);
-  if (chapterDesc.environment?.objects?.length) {
-    environmentParts.push(`objects: ${chapterDesc.environment.objects.join(", ")}`);
+  // Handle environment (string or object)
+  if (typeof chapterDesc.environment === 'string') {
+    sections.push(`environment: ${chapterDesc.environment}`);
+  } else if (chapterDesc.environment) {
+    const environmentParts: string[] = [];
+    if (chapterDesc.environment.setting) environmentParts.push(`setting: ${chapterDesc.environment.setting}`);
+    if (chapterDesc.environment.lighting) environmentParts.push(`lighting: ${chapterDesc.environment.lighting}`);
+    if (chapterDesc.environment.atmosphere) environmentParts.push(`atmosphere: ${chapterDesc.environment.atmosphere}`);
+    if (chapterDesc.environment.objects?.length) {
+      environmentParts.push(`objects: ${chapterDesc.environment.objects.join(", ")}`);
+    }
+    if (environmentParts.length) {
+      sections.push(environmentParts.join(", "));
+    }
   }
-  sections.push(environmentParts.join(", "));
 
-  if (chapterDesc.composition) {
+  // Handle composition (string or object)
+  if (typeof chapterDesc.composition === 'string') {
+    sections.push(`composition: ${chapterDesc.composition}`);
+  } else if (chapterDesc.composition) {
     const compositionParts: string[] = [];
     if (chapterDesc.composition.foreground) compositionParts.push(`foreground: ${chapterDesc.composition.foreground}`);
     if (chapterDesc.composition.background) compositionParts.push(`background: ${chapterDesc.composition.background}`);
@@ -320,7 +356,7 @@ function buildChapterImagePrompt(
 }
 
 function buildCoverImagePrompt(
-  coverDesc: CoverImageDescription,
+  coverDesc: CoverImageDescription | string,
   avatarProfilesByName: Record<string, AvatarVisualProfile>
 ): string {
   const sections: string[] = [];
@@ -329,34 +365,68 @@ function buildCoverImagePrompt(
     "masterpiece, best quality, ultra detailed, professional children's book cover illustration, vibrant colors, perfect lighting"
   );
 
+  // Handle simple string descriptions
+  if (typeof coverDesc === 'string') {
+    sections.push(`main scene: ${coverDesc}`);
+
+    // Add all available avatar profiles
+    Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+      sections.push(buildImagePromptFromVisualProfile(profile, name, {}));
+    });
+
+    return sections.join(". ");
+  }
+
   sections.push(`main scene: ${coverDesc.mainScene}`);
 
   const characterPrompts: string[] = [];
-  Object.entries(coverDesc.characters ?? {}).forEach(([name, details]) => {
-    const profile = avatarProfilesByName[name];
-    if (profile) {
-      characterPrompts.push(
-        buildImagePromptFromVisualProfile(profile, name, {
-          position: details.position,
-          expression: details.expression,
-          action: details.pose,
-        })
-      );
-    }
-  });
+
+  // Handle both array and object formats for characters
+  if (Array.isArray(coverDesc.characters)) {
+    // Characters is an array of names
+    coverDesc.characters.forEach((name: string) => {
+      const profile = avatarProfilesByName[name];
+      if (profile) {
+        characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
+      }
+    });
+  } else if (coverDesc.characters && typeof coverDesc.characters === 'object') {
+    // Characters is an object with details
+    Object.entries(coverDesc.characters).forEach(([name, details]) => {
+      const profile = avatarProfilesByName[name];
+      if (profile) {
+        characterPrompts.push(
+          buildImagePromptFromVisualProfile(profile, name, {
+            position: details.position,
+            expression: details.expression,
+            action: details.pose,
+          })
+        );
+      }
+    });
+  }
+
   if (characterPrompts.length) {
     sections.push(characterPrompts.join(" || "));
   }
 
-  const environmentParts: string[] = [];
-  if (coverDesc.environment?.setting) environmentParts.push(`setting: ${coverDesc.environment.setting}`);
-  if (coverDesc.environment?.mood) environmentParts.push(`mood: ${coverDesc.environment.mood}`);
-  if (coverDesc.environment?.colorPalette?.length) {
-    environmentParts.push(`color palette: ${coverDesc.environment.colorPalette.join(", ")}`);
+  // Handle environment (string or object)
+  if (typeof coverDesc.environment === 'string') {
+    sections.push(`environment: ${coverDesc.environment}`);
+  } else if (coverDesc.environment) {
+    const environmentParts: string[] = [];
+    if (coverDesc.environment.setting) environmentParts.push(`setting: ${coverDesc.environment.setting}`);
+    if (coverDesc.environment.mood) environmentParts.push(`mood: ${coverDesc.environment.mood}`);
+    if (coverDesc.environment.colorPalette?.length) {
+      environmentParts.push(`color palette: ${coverDesc.environment.colorPalette.join(", ")}`);
+    }
+    if (environmentParts.length) sections.push(environmentParts.join(", "));
   }
-  if (environmentParts.length) sections.push(environmentParts.join(", "));
 
-  if (coverDesc.composition) {
+  // Handle composition (string or object)
+  if (typeof coverDesc.composition === 'string') {
+    sections.push(`composition: ${coverDesc.composition}`);
+  } else if (coverDesc.composition) {
     const compositionParts: string[] = [];
     if (coverDesc.composition.layout) compositionParts.push(`layout: ${coverDesc.composition.layout}`);
     if (coverDesc.composition.titleSpace) compositionParts.push(`title space: ${coverDesc.composition.titleSpace}`);
