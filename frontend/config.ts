@@ -45,6 +45,11 @@ export function getBackendUrl(): string {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
 
+    // Check for talea.website domain (production on Railway)
+    if (hostname === 'talea.website' || hostname === 'www.talea.website') {
+      return 'https://talea-backend-production.up.railway.app';
+    }
+
     if (hostname.includes('.lp.dev')) {
       const projectId = hostname.split('.lp.dev')[0];
       return `https://${projectId}.api.lp.dev`;
