@@ -336,10 +336,19 @@ function buildChapterImagePrompt(
   console.log(`[buildChapterImagePrompt] Total character prompts: ${characterPrompts.length}`);
 
   if (characterPrompts.length) {
-    const joinedPrompts = characterPrompts.join(" || ");
+    // Join with "AND" for multiple characters to ensure Runware understands both characters should be in the image
+    const separator = characterPrompts.length > 1 ? " AND " : "";
+    const joinedPrompts = characterPrompts.join(separator);
     console.log(`[buildChapterImagePrompt] Joined character prompts length: ${joinedPrompts.length}`);
     console.log(`[buildChapterImagePrompt] First 200 chars of joined prompts:`, joinedPrompts.substring(0, 200));
-    sections.push(joinedPrompts);
+
+    // For multiple characters, add emphasis that BOTH should be visible
+    if (characterPrompts.length > 1) {
+      const characterNames = Array.from(addedCharacterNames).join(" and ");
+      sections.push(`TWO DISTINCT CHARACTERS (${characterNames}) in the same scene: ${joinedPrompts}`);
+    } else {
+      sections.push(joinedPrompts);
+    }
   }
 
   // Handle environment (string or object)
@@ -450,8 +459,20 @@ function buildCoverImagePrompt(
     }
   });
 
+  console.log(`[buildCoverImagePrompt] Total character prompts: ${characterPrompts.length}`);
+
   if (characterPrompts.length) {
-    sections.push(characterPrompts.join(" || "));
+    // Join with "AND" for multiple characters to ensure Runware understands both characters should be in the image
+    const separator = characterPrompts.length > 1 ? " AND " : "";
+    const joinedPrompts = characterPrompts.join(separator);
+
+    // For multiple characters, add emphasis that ALL should be visible
+    if (characterPrompts.length > 1) {
+      const characterNames = Array.from(addedCharacterNames).join(" and ");
+      sections.push(`${characterPrompts.length} DISTINCT CHARACTERS (${characterNames}) in the same scene: ${joinedPrompts}`);
+    } else {
+      sections.push(joinedPrompts);
+    }
   }
 
   // Handle environment (string or object)

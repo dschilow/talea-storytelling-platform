@@ -1,4 +1,5 @@
 import { logDB } from "./db";
+import "./setup-migration"; // Run migration on service startup
 
 // LogEvent defines the structure for log messages.
 export interface LogEvent {
