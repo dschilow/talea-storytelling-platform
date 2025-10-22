@@ -318,9 +318,12 @@ function buildChapterImagePrompt(
   // CRITICAL FIX: If no characters were added from imageDescription, add ALL available avatar profiles
   // This ensures avatar appearance is ALWAYS included even if OpenAI doesn't return character info
   if (characterPrompts.length === 0) {
+    console.log(`[buildChapterImagePrompt] Fallback: Adding all ${Object.keys(avatarProfilesByName).length} avatar profiles`);
     Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
       characterPrompts.push(buildImagePromptFromVisualProfile(profile, name, {}));
     });
+  } else {
+    console.log(`[buildChapterImagePrompt] Added ${characterPrompts.length} character prompts from imageDescription`);
   }
 
   if (characterPrompts.length) {
@@ -499,6 +502,12 @@ export const generateStoryContent = api<
         if (profile?.name && profile.visualProfile) {
           avatarProfilesByName[profile.name] = profile.visualProfile;
         }
+      });
+
+      console.log(`[ai-generation] Avatar profiles loaded:`, {
+        count: Object.keys(avatarProfilesByName).length,
+        names: Object.keys(avatarProfilesByName),
+        requestedAvatarIds: avatarIds,
       });
 
       const avatarMemoriesById = new Map<string, McpAvatarMemory[]>();
