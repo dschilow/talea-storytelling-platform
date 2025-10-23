@@ -55,11 +55,12 @@ export const create = api(
     console.log(`- creation_type: ${req.creationType}`);
 
     try {
-      // INSERT without visual_profile column (not in migration schema)
+      // INSERT including visual_profile column
       await avatarDB.exec`
         INSERT INTO avatars (
           id, user_id, name, description,
           physical_traits, personality_traits, image_url,
+          visual_profile,
           creation_type, is_public, original_avatar_id,
           created_at, updated_at
         ) VALUES (
@@ -70,6 +71,7 @@ export const create = api(
           ${physicalTraitsJson},
           ${personalityTraitsJson},
           ${req.imageUrl || null},
+          ${visualProfileJson},
           ${req.creationType},
           false,
           null,
@@ -78,6 +80,7 @@ export const create = api(
         )
       `;
       console.log("Avatar created successfully in DB");
+      console.log(`- visual_profile saved: ${visualProfileJson ? 'YES' : 'NO'}`);
     } catch (e) {
       console.error("Error inserting avatar into DB:", e);
       throw e; // re-throw the error to let encore handle it
