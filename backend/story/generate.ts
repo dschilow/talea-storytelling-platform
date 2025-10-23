@@ -10,6 +10,12 @@ import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
+import {
+  createStructuredMemory,
+  filterPersonalityChangesWithCooldown,
+  summarizeMemoryCategory,
+  type PersonalityShiftCooldown,
+} from "./memory-categorization";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 
@@ -368,29 +374,56 @@ export const generate = api<GenerateStoryRequest, Story>(
             console.log(`[story.generate] Updating ${userAvatar.name} (${isParticipating ? 'participant' : 'reader'}):`, changes);
 
             try {
-              // Apply personality updates with content context
-              await avatar.updatePersonality({
-                id: userAvatar.id,
-                changes: changes,
-                storyId: id,
-                contentTitle: generatedStory.title,
-                contentType: 'story'
-              });
+              // OPTIMIZATION v1.0: Create structured memory with categorization
+              const structuredMemory = createStructuredMemory(
+                experienceDescription,
+                changes,
+                id,
+                generatedStory.title,
+                'story',
+                'positive'
+              );
 
-              // Create detailed development description
-              const developmentSummary = changes
-                .map(c => c.description || `${c.trait}: +${c.change}`)
-                .join(', ');
+              console.log(`[story.generate] 📝 Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
 
-              // Add memory with detailed personality changes
+              // TODO: Fetch last personality shifts from database for cooldown check
+              // For now, we skip cooldown (all changes allowed) - implement in future iteration
+              const lastShifts: PersonalityShiftCooldown[] = [];
+              
+              const { allowedChanges, blockedChanges } = filterPersonalityChangesWithCooldown(
+                structuredMemory.category,
+                changes,
+                lastShifts
+              );
+
+              if (blockedChanges.length > 0) {
+                console.warn(`[story.generate] ⏳ ${blockedChanges.length} personality shifts blocked by cooldown:`, 
+                  blockedChanges.map(b => `${b.trait} (${b.remainingHours}h remaining)`)
+                );
+              }
+
+              // Apply only allowed personality updates
+              if (allowedChanges.length > 0) {
+                await avatar.updatePersonality({
+                  id: userAvatar.id,
+                  changes: allowedChanges,
+                  storyId: id,
+                  contentTitle: generatedStory.title,
+                  contentType: 'story'
+                });
+
+                console.log(`[story.generate] ✅ Applied ${allowedChanges.length} personality changes (${blockedChanges.length} blocked)`);
+              }
+
+              // Add memory with categorization info
               await avatar.addMemory({
                 id: userAvatar.id,
                 storyId: id,
                 storyTitle: generatedStory.title,
                 experience: experienceDescription,
-                emotionalImpact: 'positive',
-                personalityChanges: changes,
-                developmentDescription: `Persoenliche Entwicklung: ${developmentSummary}`,
+                emotionalImpact: structuredMemory.emotionalImpact as "positive" | "negative" | "neutral",
+                personalityChanges: allowedChanges, // Only allowed changes
+                developmentDescription: structuredMemory.developmentDescription,
                 contentType: 'story'
               });
 
@@ -399,8 +432,8 @@ export const generate = api<GenerateStoryRequest, Story>(
                   storyId: id,
                   storyTitle: generatedStory.title,
                   experience: experienceDescription,
-                  emotionalImpact: "positive",
-                  personalityChanges: changes.map((change: any) => ({
+                  emotionalImpact: structuredMemory.emotionalImpact as "positive" | "negative" | "neutral",
+                  personalityChanges: allowedChanges.map((change: any) => ({
                     trait: change.trait,
                     change: change.change,
                   })),
