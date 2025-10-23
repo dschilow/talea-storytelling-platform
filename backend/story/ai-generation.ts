@@ -790,8 +790,8 @@ WORKFLOW:
 6. Gib die finale JSON-Antwort zurück
 
 WICHTIGE REGELN:
-- Jedes Kapitel muss mindestens 400-600 Wörter haben (ausführliche, lebendige Beschreibungen!)
-- Nutze detailreiche Dialoge und Emotionen
+- Jedes Kapitel muss 300-400 Wörter haben (lebendige, detaillierte Beschreibungen!)
+- Nutze Dialoge und Emotionen, aber bleibe fokussiert
 - Jedes Kapitel endet mit einem spannenden Cliffhanger
 - Beschreibe Szenen visuell und atmosphärisch
 - Antworte NUR mit gültigem JSON, NIEMALS mit freiem Text
@@ -815,10 +815,11 @@ PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
   const userPrompt = `Erstelle eine ${config.genre}-Geschichte im Setting ${config.setting} für die Altersgruppe ${config.ageGroup}. Die Geschichte soll ${chapterCount} Kapitel haben.
 
 WICHTIG - KAPITELLÄNGE:
-- Jedes Kapitel muss mindestens 400-600 Wörter haben
-- Schreibe ausführlich mit lebendigen Beschreibungen, Dialogen und Emotionen
+- Jedes Kapitel muss 300-400 Wörter haben
+- Schreibe lebendige Beschreibungen, Dialoge und Emotionen
 - Nutze atmosphärische Details und Charakterentwicklung
 - Jedes Kapitel endet mit einem spannenden Cliffhanger
+- Bleibe fokussiert und präzise
 
 Konfigurationsdetails:
 - Komplexität: ${config.complexity}
@@ -1063,8 +1064,9 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
       messages,
       tools,
       tool_choice: "auto" as const,
-      // OPTIMIERT: 20k für ausführlichere Kapitel (400-600 Wörter pro Kapitel)
-      max_completion_tokens: 20_000,
+      // OPTIMIERT: 24k für 5 Kapitel à 300-400 Wörter + Validierung + Korrekturen
+      // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 5k für Struktur + 5k Buffer + 4k für Tools
+      max_completion_tokens: 24_000,
       response_format: { type: "json_object" },
       // WICHTIG: Reasoning-Effort auf "low" setzen, um Reasoning-Tokens zu minimieren
       reasoning_effort: "low" as const,
