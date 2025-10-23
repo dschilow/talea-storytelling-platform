@@ -1,7 +1,9 @@
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 
 // Database for storing logs
-export const logDB = new SQLDatabase("log", {
+// Note: Using "avatar" database name to share the same PostgreSQL instance in Railway
+// All Encore databases map to the same Railway PostgreSQL service
+export const logDB = new SQLDatabase("avatar", {
   migrations: "./migrations",
 });
 
