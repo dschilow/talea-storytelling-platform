@@ -802,7 +802,7 @@ PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
 - description (string)
 - chapters (array mit title, content, order, imageDescription)
 - coverImageDescription (object)
-- avatarDevelopments (array mit avatarId, traits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
+- avatarDevelopments (array mit name, changedTraits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
 - learningOutcomes (array mit category, description)`;
 
   const avatarSummary = avatars
@@ -838,21 +838,28 @@ WORKFLOW:
 
 KRITISCH - avatarDevelopments:
 Für JEDEN Avatar in der Liste oben MUSS ein avatarDevelopments-Eintrag existieren mit:
-- avatarId (die ID aus der Avatar-Liste oben)
-- traits (array mit trait, change, reason für jede Persönlichkeitsveränderung)
+- name (der NAME des Avatars aus der Liste oben, z.B. "Alexander", "adrian")
+- changedTraits (array mit trait, change für jede Persönlichkeitsveränderung)
 
-BEISPIEL avatarDevelopments:
+BEISPIEL avatarDevelopments (verwende die NAMEN der Avatare):
 [
   {
-    "avatarId": "4826ab1e-f4da-4f6c-b559-4445c2a00e99",
-    "traits": [
-      {"trait": "courage", "change": 5, "reason": "Hat sich einer großen Herausforderung gestellt"},
-      {"trait": "teamwork", "change": 3, "reason": "Hat gelernt mit anderen zusammenzuarbeiten"}
+    "name": "Alexander",
+    "changedTraits": [
+      {"trait": "courage", "change": 5},
+      {"trait": "teamwork", "change": 3}
+    ]
+  },
+  {
+    "name": "adrian",
+    "changedTraits": [
+      {"trait": "creativity", "change": 4},
+      {"trait": "empathy", "change": 2}
     ]
   }
 ]
 
-FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{avatarId, traits[{trait, change, reason}]}], learningOutcomes[{category, description}]}`;
+FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
 
   const tools = [
     {
@@ -1038,10 +1045,10 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
         );
         
         if (missingAvatarDevs) {
-          const avatarIds = avatars.map(a => a.id);
+          const avatarNames = avatars.map(a => a.name);
           return {
             ...validation,
-            hint: `KRITISCH: avatarDevelopments fehlt! Du MUSST für JEDEN Avatar einen Eintrag erstellen. Avatar-IDs: ${avatarIds.join(", ")}. Beispiel: [{"avatarId": "${avatarIds[0]}", "traits": [{"trait": "courage", "change": 5, "reason": "..."}]}]`,
+            hint: `KRITISCH: avatarDevelopments ist fehlerhaft! Du MUSST für JEDEN Avatar einen Eintrag mit dem NAMEN (nicht ID) erstellen. Avatar-Namen: ${avatarNames.join(", ")}. Beispiel: [{"name": "${avatarNames[0]}", "changedTraits": [{"trait": "courage", "change": 5}]}]`,
           };
         }
       }
