@@ -576,6 +576,9 @@ export const generateStoryContent = api<
         avatarProfilesByName[name] = profile;
       });
 
+      // KRITISCH: Prüfe ob ALLE Avatare ein visualProfile haben
+      const missingProfiles = req.avatarDetails.filter((av: any) => !avatarProfilesByName[av.name]);
+      
       if (Object.keys(avatarProfilesByName).length === 0) {
         console.warn("[ai-generation] Keine Avatarprofile über Tool-Aufrufe erhalten – Fallback auf direkten MCP-Aufruf.");
         const fallbackProfiles = await getMultipleAvatarProfiles(avatarIds, req.clerkToken, mcpApiKey);
@@ -583,6 +586,81 @@ export const generateStoryContent = api<
           if (profile?.name && profile.visualProfile) {
             avatarProfilesByName[profile.name] = profile.visualProfile;
           }
+        });
+      } else if (missingProfiles.length > 0) {
+        console.warn(`[ai-generation] ${missingProfiles.length} Avatare ohne visualProfile erkannt:`, missingProfiles.map((a: any) => a.name));
+        
+        // Fallback: Erstelle Basisprofil aus Avatar-Beschreibung für fehlende Avatare
+        missingProfiles.forEach((avatar: any) => {
+          console.log(`[ai-generation] Erstelle Fallback-Profil für Avatar "${avatar.name}"`, {
+            characterType: avatar.physicalTraits.characterType,
+            appearance: avatar.physicalTraits.appearance?.substring(0, 50)
+          });
+          
+          // Parse characterType und appearance für Basis-Informationen
+          const isAnimal = avatar.physicalTraits.characterType.toLowerCase().includes("tier") || 
+                          avatar.physicalTraits.characterType.toLowerCase().includes("animal");
+          const characterType = avatar.physicalTraits.characterType;
+          const appearance = avatar.physicalTraits.appearance || avatar.description || "";
+          
+          // Versuche Haar- und Augenfarbe aus der Beschreibung zu extrahieren
+          const hairColorMatch = appearance.match(/(braun|schwarz|blond|rot|weiß|grau)\s*(haare|haar)/i);
+          const eyeColorMatch = appearance.match(/(braun|blau|grün|grau|schwarz)\s*(augen|auge)/i);
+          
+          const hairColor = hairColorMatch ? hairColorMatch[1] : "brown";
+          const eyeColor = eyeColorMatch ? eyeColorMatch[1] : "brown";
+          
+          // Verwende Basis-Informationen aus dem Avatar
+          const fallbackProfile: AvatarVisualProfile = {
+            ageApprox: "child 6-8 years",
+            gender: "neutral",
+            hair: {
+              color: hairColor,
+              type: isAnimal ? "fur" : "normal",
+              style: isAnimal ? "natural animal fur" : "short, natural",
+              length: "medium"
+            },
+            eyes: {
+              color: eyeColor,
+              shape: isAnimal ? "round, expressive animal eyes" : "round",
+              size: "medium"
+            },
+            skin: {
+              tone: isAnimal ? "fur texture, animal skin" : "medium",
+              distinctiveFeatures: [
+                isAnimal ? `${characterType} animal characteristics` : "",
+                appearance || ""
+              ].filter(Boolean).map(s => s.substring(0, 100))
+            },
+            face: {
+              shape: isAnimal ? `${characterType} animal head shape` : "round",
+              nose: isAnimal ? `${characterType} animal nose/snout` : "small",
+              otherFeatures: isAnimal ? [`${characterType} animal features`, "expressive animal face"] : []
+            },
+            accessories: [],
+            clothingCanonical: {
+              outfit: isAnimal ? `natural ${characterType} animal appearance, no clothing (animal character)` : "casual children's clothes",
+              colors: isAnimal ? ["natural", hairColor] : ["neutral"],
+              top: isAnimal ? `natural ${characterType} fur` : "casual top",
+              bottom: isAnimal ? `natural ${characterType} animal body` : "casual bottom",
+              patterns: []
+            },
+            consistentDescriptors: [
+              isAnimal ? `${characterType} animal character` : "human child",
+              avatar.name,
+              `${hairColor} colored ${isAnimal ? 'fur' : 'hair'}`,
+              `${eyeColor} expressive eyes`,
+              isAnimal ? "cute animal companion" : "child character"
+            ].filter(Boolean)
+          };
+          
+          avatarProfilesByName[avatar.name] = fallbackProfile;
+          console.log(`[ai-generation] ✅ Fallback-Profil für "${avatar.name}" erstellt:`, {
+            characterType: characterType,
+            hairColor: fallbackProfile.hair.color,
+            eyeColor: fallbackProfile.eyes.color,
+            isAnimal
+          });
         });
       }
 
