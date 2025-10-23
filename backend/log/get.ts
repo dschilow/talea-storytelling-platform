@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { logDB, type LogRow } from "./db";
 import type { LogEntry } from "./list";
+import { getLogTableInfo } from "./table-resolver";
 
 interface GetLogRequest {
   id: string;
@@ -11,18 +12,21 @@ export const get = api<GetLogRequest, LogEntry>(
   { expose: true, method: "GET", path: "/log/get/:id" },
   async ({ id }) => {
     try {
-      const rows = await logDB.query<LogRow>`
-        SELECT id, source, timestamp, request, response, metadata
-        FROM logs
-        WHERE id = ${id}
-        LIMIT 1
-      `;
+      const { qualifiedName: logTable } = await getLogTableInfo();
+      const row = await logDB.rawQueryRow<LogRow>(
+        `
+          SELECT id, source, timestamp, request, response, metadata
+          FROM ${logTable}
+          WHERE id = $1
+          LIMIT 1
+        `,
+        id
+      );
 
-      if (rows.length === 0) {
+      if (!row) {
         throw APIError.notFound(`Log entry with ID ${id} not found`);
       }
 
-      const row = rows[0];
       return {
         id: row.id,
         source: row.source as any,

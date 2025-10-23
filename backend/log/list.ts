@@ -1,9 +1,18 @@
 import { api } from "encore.dev/api";
 import { logDB, type LogRow } from "./db";
+import { getLogTableInfo } from "./table-resolver";
 
 export interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation' | 'openai-tavi-chat' | 'openai-story-generation-mcp';
+  source:
+    | "openai-story-generation"
+    | "runware-single-image"
+    | "runware-batch-image"
+    | "openai-avatar-analysis"
+    | "openai-avatar-analysis-stable"
+    | "openai-doku-generation"
+    | "openai-tavi-chat"
+    | "openai-story-generation-mcp";
   timestamp: Date;
   request: any;
   response: any;
@@ -30,11 +39,16 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
     const dateFilter = req.date;
 
     try {
-      console.log(`📊 [log/list] Fetching logs with limit=${limit}, source=${sourceFilter}, date=${dateFilter}`);
+      console.log(
+        `[log/list] Fetching logs with limit=${limit}, source=${sourceFilter}, date=${dateFilter}`
+      );
+
+      const { qualifiedName: logTable, schema } = await getLogTableInfo();
+      console.log(`[log/list] Using table ${logTable} (schema: ${schema ?? "search_path"})`);
 
       let query = `
         SELECT id, source, timestamp, request, response, metadata
-        FROM logs
+        FROM ${logTable}
         WHERE 1=1
       `;
       const params: any[] = [];
@@ -58,20 +72,20 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
       params.push(limit);
       query += ` LIMIT $${params.length}`;
 
-      console.log(`📊 [log/list] Query: ${query.replace(/\s+/g, ' ').trim()}`);
-      console.log(`📊 [log/list] Params:`, params);
+      console.log(`[log/list] Query: ${query.replace(/\s+/g, " ").trim()}`);
+      console.log(`[log/list] Params:`, params);
 
-      const rows = await logDB.query<LogRow>(query, ...params);
+      const rowsArray = await logDB.rawQueryAll<LogRow>(query, ...params);
 
-      // Convert query result to array (Encore returns iterator)
-      const rowsArray = Array.isArray(rows) ? rows : Array.from(rows);
-
-      console.log(`📊 [log/list] Query returned ${rowsArray.length} rows`);
+      console.log(`[log/list] Query returned ${rowsArray.length} rows`);
       if (rowsArray.length > 0) {
-        console.log(`📊 [log/list] First row:`, { id: rowsArray[0].id, source: rowsArray[0].source });
+        console.log(`[log/list] First row:`, {
+          id: rowsArray[0].id,
+          source: rowsArray[0].source,
+        });
       }
 
-      const logs: LogEntry[] = rowsArray.map(row => ({
+      const logs: LogEntry[] = rowsArray.map((row) => ({
         id: row.id,
         source: row.source as any,
         timestamp: row.timestamp,
@@ -83,7 +97,7 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
       // Get total count for the same filters (without limit)
       let countQuery = `
         SELECT COUNT(*) as count
-        FROM logs
+        FROM ${logTable}
         WHERE 1=1
       `;
       const countParams: any[] = [];
@@ -98,18 +112,17 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
         countQuery += ` AND DATE(timestamp) = $${countParams.length}`;
       }
 
-      const countResult = await logDB.query<{ count: number }>(countQuery, ...countParams);
-      const countArray = Array.isArray(countResult) ? countResult : Array.from(countResult);
-      const totalCount = countArray[0]?.count || 0;
+      const countResult = await logDB.rawQueryRow<{ count: number }>(countQuery, ...countParams);
+      const totalCount = Number(countResult?.count ?? 0);
 
-      console.log(`📊 [log/list] Total count: ${totalCount}`);
+      console.log(`[log/list] Total count: ${totalCount}`);
 
       return {
         logs,
-        totalCount: Number(totalCount),
+        totalCount,
       };
     } catch (error) {
-      console.error("❌ [log/list] Error listing logs:", error);
+      console.error("[log/list] Error listing logs:", error);
       return {
         logs: [],
         totalCount: 0,
