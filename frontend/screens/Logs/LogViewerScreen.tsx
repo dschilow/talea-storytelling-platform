@@ -217,7 +217,7 @@ const LogViewerScreen: React.FC = () => {
   };
 
   const modalContentStyle: React.CSSProperties = {
-    background: colors.surface,
+    background: '#ffffff',
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
     maxWidth: '90vw',
