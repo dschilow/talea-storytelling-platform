@@ -12,9 +12,10 @@ import {
   type ValidationResult,
 } from "../helpers/mcpClient";
 
-const MODEL = "gpt-5-nano";
-const INPUT_COST_PER_1M = 5.0;
-const OUTPUT_COST_PER_1M = 15.0;
+// Optimiert: gpt-4o-mini ist schneller, günstiger und hat kein Reasoning-Overhead
+const MODEL = "gpt-4o-mini";
+const INPUT_COST_PER_1M = 0.15;
+const OUTPUT_COST_PER_1M = 0.6;
 
 const openAIKey = secret("OpenAIKey");
 const mcpServerApiKey = secret("MCPServerAPIKey");
@@ -700,8 +701,9 @@ interface StoryToolOutcome {
   finalResponse: any;
 }
 
-const MAX_TOOL_MEMORIES = 3;
-const MAX_DESCRIPTOR_COUNT = 6;
+// OPTIMIERT: Reduziert Memories von 3 auf 2 und Descriptors von 6 auf 4 für Token-Einsparung
+const MAX_TOOL_MEMORIES = 2;
+const MAX_DESCRIPTOR_COUNT = 4;
 
 function compressVisualProfile(profile: AvatarVisualProfile) {
   return {
@@ -755,9 +757,11 @@ function compressMemories(memories: McpAvatarMemory[]) {
     return bDate - aDate;
   });
 
+  // OPTIMIERT: Kürzere Memory-Beschreibungen für Token-Einsparung
   return sorted.slice(0, MAX_TOOL_MEMORIES).map((memory) => ({
     storyTitle: memory.storyTitle,
-    experience: memory.experience,
+    // Kürze experience auf max 100 Zeichen
+    experience: memory.experience?.substring(0, 100) || "",
     emotionalImpact: memory.emotionalImpact,
     personalityChanges: summarizeTraitChanges(memory.personalityChanges || []),
   }));
@@ -773,17 +777,8 @@ async function generateStoryWithOpenAITools(args: {
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  const systemPrompt = [
-    "Du bist eine Autorin für die Talea-Geschichtenplattform.",
-    "Nutze konsequent die verfügbaren Tools, um Avatar-Informationen, Erinnerungen und Validierungen aus den MCP-Servern abzurufen.",
-    "Workflow:",
-    "1. Rufe `get_avatar_profiles` auf, bevor du Beschreibungen oder Bildprompts formulierst, um visuelle Konsistenz sicherzustellen.",
-    "2. Hole mit `get_avatar_memories` relevante Erinnerungen jedes Avatars, bevor du die Geschichte schreibst.",
-    "3. Erstelle eine spannende Geschichte mit Cliffhanger am Ende jedes Kapitels im JSON-Format.",
-    "4. Prüfe deine fertige JSON-Antwort mit `validate_story_response`. Korrigiere bei Bedarf und prüfe erneut.",
-    "5. Gib erst nach erfolgreicher Validierung die finale JSON-Antwort zurück.",
-    "Wichtig: Antworte niemals mit freiem Text, sondern ausschließlich mit gültigem JSON.",
-  ].join(" ");
+  // OPTIMIERT: Kürzerer, klarerer System-Prompt ohne redundante Anweisungen
+  const systemPrompt = `Du bist eine Autorin für die Talea-Geschichtenplattform. Nutze konsequent die verfügbaren Tools, um Avatar-Informationen, Erinnerungen und Validierungen aus den MCP-Servern abzurufen. Workflow: 1. Rufe \`get_avatar_profiles\` auf, bevor du Beschreibungen oder Bildprompts formulierst, um visuelle Konsistenz sicherzustellen. 2. Hole mit \`get_avatar_memories\` relevante Erinnerungen jedes Avatars, bevor du die Geschichte schreibst. 3. Erstelle eine spannende Geschichte mit Cliffhanger am Ende jedes Kapitels im JSON-Format. 4. Prüfe deine fertige JSON-Antwort mit \`validate_story_response\`. Korrigiere bei Bedarf und prüfe erneut. 5. Gib erst nach erfolgreicher Validierung die finale JSON-Antwort zurück. Wichtig: Antworte niemals mit freiem Text, sondern ausschließlich mit gültigem JSON.`;
 
   const avatarSummary = avatars
     .map((avatar) => {
@@ -882,6 +877,10 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
 
   let finalRequest: any = null;
   let finalResponse: any = null;
+  
+  // OPTIMIERT: Verhindert endlose Tool-Loops (max 15 Iterationen)
+  let loopIterations = 0;
+  const MAX_LOOP_ITERATIONS = 15;
 
   const toolHandlers: Record<
     string,
@@ -938,14 +937,25 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
       return state.compressedMemoriesById.get(avatar_id) ?? [];
     },
     validate_story_response: async ({ storyData }) => {
+      state.validatorFailures += 1;
+      
+      // OPTIMIERT: Nach 3 Fehlversuchen ohne Daten, brechen wir ab und fordern explizit die Story an
       if (!storyData) {
-        state.validatorFailures += 1;
+        if (state.validatorFailures >= 3) {
+          return {
+            error: "KRITISCH: validate_story_response wurde 3x ohne storyData aufgerufen. STOPPE Validierungsversuche.",
+            hint: "Erstelle ZUERST die vollständige Geschichte, DANN validiere sie. Sende die Geschichte JETZT als JSON-Antwort ohne weitere Tool-Aufrufe.",
+            attempts: state.validatorFailures,
+            skipValidation: true,
+          };
+        }
         return {
           error: "storyData ist erforderlich. Beispiel: {\"storyData\": {\"title\": \"...\", \"description\": \"...\", \"chapters\": [...]}}",
           hint: "Sende die vollständige Story im Feld storyData, damit die Validierung funktioniert.",
           attempts: state.validatorFailures,
         };
       }
+      
       const validation = await validateStoryResponse(storyData, mcpApiKey);
       state.validationResult = validation;
       return validation;
@@ -953,12 +963,21 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
   };
 
   while (true) {
+    loopIterations++;
+    
+    // OPTIMIERT: Verhindert endlose Schleifen
+    if (loopIterations > MAX_LOOP_ITERATIONS) {
+      console.error(`[ai-generation] ABBRUCH: Maximale Loop-Iterationen (${MAX_LOOP_ITERATIONS}) erreicht`);
+      throw new Error(`Story-Generierung abgebrochen nach ${MAX_LOOP_ITERATIONS} Iterationen. Möglicherweise Tool-Loop-Problem.`);
+    }
+    
     const payload = {
       model: MODEL,
       messages,
       tools,
       tool_choice: "auto" as const,
-      max_completion_tokens: 24_000,
+      // OPTIMIERT: Reduziert von 24k auf 16k - ausreichend für 5-8 Kapitel, spart Reasoning-Overhead
+      max_completion_tokens: 16_000,
       response_format: { type: "json_object" },
     };
 
