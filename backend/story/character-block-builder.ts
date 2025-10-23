@@ -7,6 +7,78 @@ import type { AvatarVisualProfile } from "../avatar/avatar";
 import type { MinimalAvatarProfile, SpeciesType } from "./avatar-image-optimization";
 import { normalizeLanguage } from "./avatar-image-optimization";
 
+/**
+ * Normalizes all text fields in a visual profile from German to English
+ * This ensures consistent English prompts even if DB contains German text
+ */
+function normalizeVisualProfile(profile: AvatarVisualProfile | MinimalAvatarProfile): AvatarVisualProfile | MinimalAvatarProfile {
+  const normalized = { ...profile };
+  
+  // Normalize hair
+  if (normalized.hair) {
+    normalized.hair = {
+      ...normalized.hair,
+      color: normalizeLanguage(normalized.hair.color || ""),
+      style: normalizeLanguage(normalized.hair.style || ""),
+      type: normalizeLanguage(normalized.hair.type || ""),
+      length: normalizeLanguage(normalized.hair.length || ""),
+    };
+  }
+  
+  // Normalize eyes
+  if (normalized.eyes) {
+    normalized.eyes = {
+      ...normalized.eyes,
+      color: normalizeLanguage(normalized.eyes.color || ""),
+      shape: normalizeLanguage(normalized.eyes.shape || ""),
+      size: normalizeLanguage(normalized.eyes.size || ""),
+    };
+  }
+  
+  // Normalize skin
+  if (normalized.skin) {
+    normalized.skin = {
+      ...normalized.skin,
+      tone: normalizeLanguage(normalized.skin.tone || ""),
+      distinctiveFeatures: normalized.skin.distinctiveFeatures?.map(f => normalizeLanguage(f)) || [],
+    };
+  }
+  
+  // Normalize face
+  if (normalized.face) {
+    normalized.face = {
+      ...normalized.face,
+      shape: normalizeLanguage(normalized.face.shape || ""),
+      nose: normalizeLanguage(normalized.face.nose || ""),
+      otherFeatures: normalized.face.otherFeatures?.map(f => normalizeLanguage(f)) || [],
+    };
+  }
+  
+  // Normalize clothing
+  if (normalized.clothingCanonical) {
+    normalized.clothingCanonical = {
+      ...normalized.clothingCanonical,
+      outfit: normalizeLanguage(normalized.clothingCanonical.outfit || ""),
+      top: normalizeLanguage(normalized.clothingCanonical.top || ""),
+      bottom: normalizeLanguage(normalized.clothingCanonical.bottom || ""),
+      colors: normalized.clothingCanonical.colors?.map(c => normalizeLanguage(c)) || [],
+      patterns: normalized.clothingCanonical.patterns?.map(p => normalizeLanguage(p)) || [],
+    };
+  }
+  
+  // Normalize consistent descriptors
+  if (normalized.consistentDescriptors) {
+    normalized.consistentDescriptors = normalized.consistentDescriptors.map(d => normalizeLanguage(d));
+  }
+  
+  // Normalize age approx
+  if (normalized.ageApprox) {
+    normalized.ageApprox = normalizeLanguage(normalized.ageApprox);
+  }
+  
+  return normalized;
+}
+
 export interface CharacterBlock {
   name: string;
   species: SpeciesType;
@@ -210,18 +282,21 @@ export function buildCharacterBlock(
     pose?: string;
   }
 ): CharacterBlock {
-  const species = getSpeciesFromProfile(profile);
-  const ageHint = profile.ageApprox || (species === "human" ? "child 6-8 years" : `young ${species}`);
+  // CRITICAL: Normalize profile to English BEFORE building character block
+  const normalizedProfile = normalizeVisualProfile(profile);
+  
+  const species = getSpeciesFromProfile(normalizedProfile);
+  const ageHint = normalizedProfile.ageApprox || (species === "human" ? "child 6-8 years" : `young ${species}`);
   
   const block: CharacterBlock = {
     name,
     species,
     ageHint,
-    mustInclude: extractMustInclude(profile, species),
+    mustInclude: extractMustInclude(normalizedProfile, species),
     forbid: buildForbidList(species, name),
     pose: sceneDetails?.pose || sceneDetails?.action || (species === "human" ? "playful, natural pose" : "curious, alert"),
     position: sceneDetails?.position || "foreground",
-    detailedDescription: buildDetailedDescription(profile, species),
+    detailedDescription: buildDetailedDescription(normalizedProfile, species),
   };
 
   return block;
