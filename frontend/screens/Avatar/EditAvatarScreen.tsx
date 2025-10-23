@@ -122,6 +122,42 @@ const EditAvatarScreen: React.FC = () => {
     }
   };
 
+  const handleAnalyzeExistingImage = async () => {
+    if (!avatar || !avatarId || !avatar.imageUrl) {
+      alert('Kein Bild vorhanden zum Analysieren.');
+      return;
+    }
+
+    try {
+      setRegeneratingImage(true);
+      
+      console.log('🔬 Analyzing existing avatar image...');
+      const analysis = await backend.ai.analyzeAvatarImage({
+        imageUrl: avatar.imageUrl,
+        hints: {
+          name,
+          personalityTraits,
+        }
+      });
+
+      const newVisualProfile = analysis.visualProfile as any;
+
+      // Update avatar with the new visual profile
+      await backend.avatar.update(avatarId!, {
+        visualProfile: newVisualProfile,
+      });
+
+      setAvatar(prev => prev ? { ...prev, visualProfile: newVisualProfile } : null);
+      alert('Bild erfolgreich analysiert und visuelles Profil gespeichert! 🎨');
+      console.log('✅ Visual profile updated:', newVisualProfile);
+    } catch (error) {
+      console.error('Error analyzing avatar image:', error);
+      alert('Fehler beim Analysieren des Bildes. Bitte versuche es erneut.');
+    } finally {
+      setRegeneratingImage(false);
+    }
+  };
+
   const handleRegenerateImage = async () => {
     if (!avatar || !avatarId) return;
 
@@ -469,6 +505,22 @@ const EditAvatarScreen: React.FC = () => {
         </FadeInView>
 
         {/* Action Buttons */}
+        <FadeInView delay={350}>
+          {avatar.imageUrl && !avatar.visualProfile && (
+            <div style={{ marginBottom: `${spacing.lg}px`, padding: `${spacing.md}px`, background: colors.warning + '20', borderRadius: `${radii.md}px`, border: `1px solid ${colors.warning}` }}>
+              <p style={{ ...typography.textStyles.body, color: colors.warning, marginBottom: `${spacing.sm}px` }}>
+                ⚠️ Kein visuelles Profil vorhanden! Bild analysieren, um konsistente Darstellung in Geschichten zu gewährleisten.
+              </p>
+              <Button
+                title="🔬 Bild analysieren"
+                onPress={handleAnalyzeExistingImage}
+                loading={regeneratingImage}
+                variant="warning"
+              />
+            </div>
+          )}
+        </FadeInView>
+
         <FadeInView delay={400}>
           <div style={{ display: 'flex', gap: spacing.lg }}>
             <Button
