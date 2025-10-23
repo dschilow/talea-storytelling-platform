@@ -12,6 +12,7 @@ import AvatarsScreen from './screens/Avatar/AvatarsScreen';
 import AvatarDetailScreen from './screens/Avatar/AvatarDetailScreen';
 import StoryWizardScreen from './screens/Story/StoryWizardScreen';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
+import StoryScrollReaderScreen from './screens/Story/StoryScrollReaderScreen';
 import StoriesScreen from './screens/Story/StoriesScreen';
 import LogViewerScreen from './screens/Logs/LogViewerScreen';
 import Navigation from './components/navigation/Navigation';
@@ -34,7 +35,8 @@ const AppContent = () => (
         <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
         <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
         <Route path="/story" element={<StoryWizardScreen />} />
-        <Route path="/story-reader/:storyId" element={<StoryReaderScreen />} />
+        <Route path="/story-reader/:storyId" element={<StoryScrollReaderScreen />} />
+        <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
         <Route path="/stories" element={<StoriesScreen />} />
         <Route path="/community" element={<HomeScreen />} />
         <Route path="/logs" element={<LogViewerScreen />} />
