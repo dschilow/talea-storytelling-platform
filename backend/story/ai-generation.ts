@@ -12,10 +12,10 @@ import {
   type ValidationResult,
 } from "../helpers/mcpClient";
 
-// Optimiert: gpt-4o-mini ist schneller, günstiger und hat kein Reasoning-Overhead
-const MODEL = "gpt-4o-mini";
-const INPUT_COST_PER_1M = 0.15;
-const OUTPUT_COST_PER_1M = 0.6;
+// WICHTIG: gpt-5-nano für beste Qualität und Tool-Nutzung
+const MODEL = "gpt-5-nano";
+const INPUT_COST_PER_1M = 5.0;
+const OUTPUT_COST_PER_1M = 15.0;
 
 const openAIKey = secret("OpenAIKey");
 const mcpServerApiKey = secret("MCPServerAPIKey");
@@ -892,22 +892,33 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
       }
 
       const missingIds = avatar_ids.filter((id) => !state.avatarProfilesById.has(id));
-      if (missingIds.length > 0) {
-        const results = await getMultipleAvatarProfiles(missingIds, clerkToken, mcpApiKey);
-        if (Array.isArray(results)) {
-          results.forEach((profile: any) => {
-            if (profile?.id && profile?.visualProfile) {
-              state.avatarProfilesById.set(profile.id, profile.visualProfile);
-              state.compressedProfilesById.set(profile.id, {
-                name: profile.name,
-                ...compressVisualProfile(profile.visualProfile),
-              });
-            }
-            if (profile?.name && profile?.visualProfile) {
-              state.avatarProfilesByName.set(profile.name, profile.visualProfile);
-            }
-          });
-        }
+      
+      // OPTIMIERT: Wenn bereits gecacht, gib sofort zurück ohne MCP-Aufruf
+      if (missingIds.length === 0) {
+        console.log(`[get_avatar_profiles] ✅ All ${avatar_ids.length} profiles already cached`);
+        return avatar_ids
+          .filter((id) => state.compressedProfilesById.has(id))
+          .map((id) => ({
+            avatarId: id,
+            ...(state.compressedProfilesById.get(id) as Record<string, unknown>),
+          }));
+      }
+
+      console.log(`[get_avatar_profiles] 🔄 Fetching ${missingIds.length} missing profiles from MCP`);
+      const results = await getMultipleAvatarProfiles(missingIds, clerkToken, mcpApiKey);
+      if (Array.isArray(results)) {
+        results.forEach((profile: any) => {
+          if (profile?.id && profile?.visualProfile) {
+            state.avatarProfilesById.set(profile.id, profile.visualProfile);
+            state.compressedProfilesById.set(profile.id, {
+              name: profile.name,
+              ...compressVisualProfile(profile.visualProfile),
+            });
+          }
+          if (profile?.name && profile?.visualProfile) {
+            state.avatarProfilesByName.set(profile.name, profile.visualProfile);
+          }
+        });
       }
 
       return avatar_ids
@@ -922,16 +933,22 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
         throw new Error("avatar_id must be provided as string");
       }
 
-      if (!state.avatarMemoriesById.has(avatar_id)) {
-        const max = typeof limit === "number" ? Math.min(limit, MAX_TOOL_MEMORIES) : MAX_TOOL_MEMORIES;
-        const memories = await getAvatarMemories(avatar_id, clerkToken, mcpApiKey, max);
-        if (Array.isArray(memories)) {
-          state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
-          state.compressedMemoriesById.set(avatar_id, compressMemories(memories as McpAvatarMemory[]));
-        } else {
-          state.avatarMemoriesById.set(avatar_id, []);
-          state.compressedMemoriesById.set(avatar_id, []);
-        }
+      // OPTIMIERT: Wenn bereits gecacht, gib sofort zurück ohne MCP-Aufruf
+      if (state.avatarMemoriesById.has(avatar_id)) {
+        const cached = state.compressedMemoriesById.get(avatar_id) ?? [];
+        console.log(`[get_avatar_memories] ✅ Memories for ${avatar_id} already cached (${cached.length} memories)`);
+        return cached;
+      }
+
+      console.log(`[get_avatar_memories] 🔄 Fetching memories for ${avatar_id} from MCP`);
+      const max = typeof limit === "number" ? Math.min(limit, MAX_TOOL_MEMORIES) : MAX_TOOL_MEMORIES;
+      const memories = await getAvatarMemories(avatar_id, clerkToken, mcpApiKey, max);
+      if (Array.isArray(memories)) {
+        state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
+        state.compressedMemoriesById.set(avatar_id, compressMemories(memories as McpAvatarMemory[]));
+      } else {
+        state.avatarMemoriesById.set(avatar_id, []);
+        state.compressedMemoriesById.set(avatar_id, []);
       }
 
       return state.compressedMemoriesById.get(avatar_id) ?? [];
