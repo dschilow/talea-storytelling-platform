@@ -65,14 +65,14 @@ export const TracingBeam = ({
   }, [children]);
 
   const y1 = useSpring(
-    useTransform(scrollYProgress, [0, 1], [50, svgHeight - 50]),
+    useTransform(scrollYProgress, [0, 1], [0, svgHeight]),
     {
       stiffness: 500,
       damping: 90,
     }
   );
   const y2 = useSpring(
-    useTransform(scrollYProgress, [0, 1], [50, svgHeight - 100]),
+    useTransform(scrollYProgress, [0, 1], [0, svgHeight]),
     {
       stiffness: 500,
       damping: 90,
@@ -111,26 +111,27 @@ export const TracingBeam = ({
           />
         </motion.div>
         <svg
-          viewBox={`0 0 20 ${svgHeight}`}
-          width="20"
+          viewBox={`0 0 40 ${svgHeight}`}
+          width="40"
           height={svgHeight}
           className="ml-4 block"
           aria-hidden="true"
         >
           <motion.path
-            d={`M 1 0V -36 l 18 24 V ${svgHeight * 0.8} l -18 24V ${svgHeight}`}
+            d={`M 20 0 L 20 ${svgHeight}`}
             fill="none"
             stroke="#9091A0"
             strokeOpacity="0.16"
+            strokeWidth="3"
             transition={{
               duration: 10,
             }}
           ></motion.path>
           <motion.path
-            d={`M 1 0V -36 l 18 24 V ${svgHeight * 0.8} l -18 24V ${svgHeight}`}
+            d={`M 20 0 L 20 ${svgHeight}`}
             fill="none"
             stroke="url(#gradient)"
-            strokeWidth="1.25"
+            strokeWidth="3"
             className="motion-reduce:hidden"
             transition={{
               duration: 10,
@@ -142,13 +143,12 @@ export const TracingBeam = ({
               gradientUnits="userSpaceOnUse"
               x1="0"
               x2="0"
-              y1={y1}
-              y2={y2}
+              y1={0}
+              y2={y1}
             >
-              <stop stopColor="#18CCFC" stopOpacity="0"></stop>
               <stop stopColor="#18CCFC"></stop>
-              <stop offset="0.325" stopColor="#6344F5"></stop>
-              <stop offset="1" stopColor="#AE48FF" stopOpacity="0"></stop>
+              <stop offset="0.5" stopColor="#6344F5"></stop>
+              <stop offset="1" stopColor="#AE48FF"></stop>
             </motion.linearGradient>
           </defs>
         </svg>
