@@ -777,7 +777,7 @@ async function generateStoryWithOpenAITools(args: {
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  // OPTIMIERT: Präziser System-Prompt mit klaren Längenanweisungen
+  // OPTIMIERT: Präziser System-Prompt mit klaren Längenanweisungen und PFLICHTFELDERN
   const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
 
 WORKFLOW:
@@ -794,7 +794,15 @@ WICHTIGE REGELN:
 - Jedes Kapitel endet mit einem spannenden Cliffhanger
 - Beschreibe Szenen visuell und atmosphärisch
 - Antworte NUR mit gültigem JSON, NIEMALS mit freiem Text
-- Rufe Tools nicht mehrfach mit denselben Parametern auf`;
+- Rufe Tools nicht mehrfach mit denselben Parametern auf
+
+PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
+- title (string)
+- description (string)
+- chapters (array mit title, content, order, imageDescription)
+- coverImageDescription (object)
+- avatarDevelopments (array mit avatarId, traits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
+- learningOutcomes (array mit category, description)`;
 
   const avatarSummary = avatars
     .map((avatar) => {
@@ -826,7 +834,23 @@ WORKFLOW:
 4. Validiere mit validate_story_response (sende die komplette Story!)
 5. Gib die finale JSON-Antwort zurück
 
-FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes}`;
+KRITISCH - avatarDevelopments:
+Für JEDEN Avatar in der Liste oben MUSS ein avatarDevelopments-Eintrag existieren mit:
+- avatarId (die ID aus der Avatar-Liste oben)
+- traits (array mit trait, change, reason für jede Persönlichkeitsveränderung)
+
+BEISPIEL avatarDevelopments:
+[
+  {
+    "avatarId": "4826ab1e-f4da-4f6c-b559-4445c2a00e99",
+    "traits": [
+      {"trait": "courage", "change": 5, "reason": "Hat sich einer großen Herausforderung gestellt"},
+      {"trait": "teamwork", "change": 3, "reason": "Hat gelernt mit anderen zusammenzuarbeiten"}
+    ]
+  }
+]
+
+FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{avatarId, traits[{trait, change, reason}]}], learningOutcomes[{category, description}]}`;
 
   const tools = [
     {
@@ -1004,6 +1028,22 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
       
       const validation = await validateStoryResponse(storyData, mcpApiKey);
       state.validationResult = validation;
+      
+      // KRITISCH: Wenn avatarDevelopments fehlt, gib explizite Anweisungen
+      if (!validation.isValid && validation.errors) {
+        const missingAvatarDevs = validation.errors.some(
+          (err: any) => err.path?.includes("avatarDevelopments")
+        );
+        
+        if (missingAvatarDevs) {
+          const avatarIds = avatars.map(a => a.id);
+          return {
+            ...validation,
+            hint: `KRITISCH: avatarDevelopments fehlt! Du MUSST für JEDEN Avatar einen Eintrag erstellen. Avatar-IDs: ${avatarIds.join(", ")}. Beispiel: [{"avatarId": "${avatarIds[0]}", "traits": [{"trait": "courage", "change": 5, "reason": "..."}]}]`,
+          };
+        }
+      }
+      
       return validation;
     },
   };
