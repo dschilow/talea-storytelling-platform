@@ -18,7 +18,7 @@ export const TracingBeam = ({
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
-    offset: ["start start", "end end"],
+    offset: ["start start", "end start"],
   });
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -29,7 +29,6 @@ export const TracingBeam = ({
       if (contentRef.current) {
         const height = contentRef.current.offsetHeight;
         setSvgHeight(height);
-        console.log('TracingBeam: Content height updated to', height);
       }
     };
 
@@ -38,7 +37,6 @@ export const TracingBeam = ({
 
     // Update height when window resizes or content changes
     const resizeObserver = new ResizeObserver(() => {
-      // Debounce the update slightly
       setTimeout(updateHeight, 100);
     });
     
@@ -46,7 +44,6 @@ export const TracingBeam = ({
       resizeObserver.observe(contentRef.current);
     }
 
-    // Also update on window resize for safety
     window.addEventListener('resize', updateHeight);
 
     // Multiple delays to ensure images are loaded
@@ -65,14 +62,14 @@ export const TracingBeam = ({
   }, [children]);
 
   const y1 = useSpring(
-    useTransform(scrollYProgress, [0, 1], [50, svgHeight - 50]),
+    useTransform(scrollYProgress, [0, 0.8], [50, svgHeight]),
     {
       stiffness: 500,
       damping: 90,
     }
   );
   const y2 = useSpring(
-    useTransform(scrollYProgress, [0, 1], [50, svgHeight - 100]),
+    useTransform(scrollYProgress, [0, 1], [50, svgHeight - 200]),
     {
       stiffness: 500,
       damping: 90,
@@ -82,9 +79,9 @@ export const TracingBeam = ({
   return (
     <motion.div
       ref={ref}
-      className={cn("relative w-full max-w-4xl mx-auto", className)}
+      className={cn("relative w-full max-w-4xl mx-auto h-full", className)}
     >
-      <div className="absolute -left-4 md:-left-20 top-0">
+      <div className="absolute -left-4 md:-left-20 top-3">
         <motion.div
           transition={{
             duration: 0.2,
@@ -104,8 +101,8 @@ export const TracingBeam = ({
               delay: 0.5,
             }}
             animate={{
-              backgroundColor: scrollYProgress.get() > 0 ? "white" : "rgb(34 197 94)", // emerald-500
-              borderColor: scrollYProgress.get() > 0 ? "white" : "rgb(22 163 74)", // emerald-600
+              backgroundColor: scrollYProgress.get() > 0 ? "white" : "rgb(34 197 94)",
+              borderColor: scrollYProgress.get() > 0 ? "white" : "rgb(22 163 74)",
             }}
             className="h-2 w-2 rounded-full border border-neutral-300 bg-white"
           />
@@ -117,6 +114,7 @@ export const TracingBeam = ({
           className="ml-4 block"
           aria-hidden="true"
         >
+          {/* Background line - straight, full height */}
           <motion.path
             d={`M 20 0 L 20 ${svgHeight}`}
             fill="none"
@@ -127,6 +125,7 @@ export const TracingBeam = ({
               duration: 10,
             }}
           ></motion.path>
+          {/* Gradient line - animated with scroll */}
           <motion.path
             d={`M 20 0 L 20 ${svgHeight}`}
             fill="none"
@@ -143,12 +142,13 @@ export const TracingBeam = ({
               gradientUnits="userSpaceOnUse"
               x1="0"
               x2="0"
-              y1={0}
-              y2={y1}
+              y1={y1}
+              y2={y2}
             >
+              <stop stopColor="#18CCFC" stopOpacity="0"></stop>
               <stop stopColor="#18CCFC"></stop>
-              <stop offset="0.5" stopColor="#6344F5"></stop>
-              <stop offset="1" stopColor="#AE48FF"></stop>
+              <stop offset="0.325" stopColor="#6344F5"></stop>
+              <stop offset="1" stopColor="#AE48FF" stopOpacity="0"></stop>
             </motion.linearGradient>
           </defs>
         </svg>
