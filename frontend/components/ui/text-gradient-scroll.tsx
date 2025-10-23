@@ -84,12 +84,17 @@ function TextGradientScroll({
 export { TextGradientScroll };
 
 const Word = ({ children, progress, range }: WordType) => {
-  const opacity = useTransform(progress, range, [0, 1]);
+  const opacity = useTransform(progress, range, [0.3, 1]);
 
   return (
     <span className="relative me-2 mt-2">
-      <span style={{ position: "absolute", opacity: 0.1 }}>{children}</span>
-      <motion.span style={{ transition: "all .5s", opacity: opacity }}>
+      <motion.span 
+        className="text-gray-400 dark:text-gray-500"
+        style={{ 
+          transition: "all .5s", 
+          opacity: opacity,
+        }}
+      >
         {children}
       </motion.span>
     </span>
@@ -118,21 +123,12 @@ const Letter = ({ children, progress, range }: LetterType) => {
 };
 
 const Char = ({ children, progress, range }: CharType) => {
-  const opacity = useTransform(progress, range, [0, 1]);
-  const { textOpacity } = useGradientScroll();
+  const opacity = useTransform(progress, range, [0.3, 1]);
 
   return (
     <span>
-      <span
-        className={cn("absolute", {
-          "opacity-0": textOpacity == "none",
-          "opacity-10": textOpacity == "soft",
-          "opacity-30": textOpacity == "medium",
-        })}
-      >
-        {children}
-      </span>
       <motion.span
+        className="text-gray-400 dark:text-gray-500"
         style={{
           transition: "all .5s",
           opacity: opacity,
