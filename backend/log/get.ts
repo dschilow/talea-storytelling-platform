@@ -1,5 +1,6 @@
 import { api, APIError } from "encore.dev/api";
-import { logDB, type LogRow } from "./db";
+import { avatarDB } from "../avatar/db";
+import type { LogRow } from "./db";
 import type { LogEntry } from "./list";
 
 interface GetLogRequest {
@@ -11,7 +12,7 @@ export const get = api<GetLogRequest, LogEntry>(
   { expose: true, method: "GET", path: "/log/get/:id" },
   async ({ id }) => {
     try {
-      const rows = await logDB.query<LogRow>`
+      const rows = await avatarDB.query<LogRow>`
         SELECT id, source, timestamp, request, response, metadata
         FROM logs
         WHERE id = ${id}

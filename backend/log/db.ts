@@ -1,8 +1,8 @@
-// Re-export avatarDB as logDB to use the same database instance
-// This fixes the issue where logDB was pointing to a separate database
-// that doesn't exist in Railway (only one PostgreSQL instance)
+// Use avatarDB for logs to share the same PostgreSQL instance in Railway
+// The logs table is created via avatar/migrations/7_create_logs.up.sql
 import { avatarDB } from "../avatar/db";
 
+// Export avatarDB as logDB for backward compatibility
 export const logDB = avatarDB;
 
 export interface LogRow {

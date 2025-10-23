@@ -1,5 +1,5 @@
 import { api } from "encore.dev/api";
-import { logDB } from "./db";
+import { avatarDB } from "../avatar/db";
 
 interface DebugResponse {
   tableExists: boolean;
@@ -16,19 +16,19 @@ export const debug = api<void, DebugResponse>(
   async () => {
     try {
       // Get current database name
-      const dbNameResult = await logDB.query<{ current_database: string }>`
+      const dbNameResult = await avatarDB.query<{ current_database: string }>`
         SELECT current_database()
       `;
       const databaseName = dbNameResult[0]?.current_database || "unknown";
 
       // Get all tables in the database
-      const allTablesResult = await logDB.query<{ tablename: string }>`
+      const allTablesResult = await avatarDB.query<{ tablename: string }>`
         SELECT tablename FROM pg_tables WHERE schemaname = 'public'
       `;
       const allTables = allTablesResult.map(row => row.tablename);
 
       // Check if table exists
-      const tableCheck = await logDB.query<{ exists: boolean }>`
+      const tableCheck = await avatarDB.query<{ exists: boolean }>`
         SELECT EXISTS (
           SELECT FROM information_schema.tables
           WHERE table_name = 'logs' AND table_schema = 'public'
@@ -49,13 +49,13 @@ export const debug = api<void, DebugResponse>(
       }
 
       // Get row count
-      const countResult = await logDB.query<{ count: string }>`
+      const countResult = await avatarDB.query<{ count: string }>`
         SELECT COUNT(*)::text as count FROM logs
       `;
       const rowCount = parseInt(countResult[0]?.count || "0", 10);
 
       // Get sample rows
-      const sampleRows = await logDB.query`
+      const sampleRows = await avatarDB.query`
         SELECT id, source, timestamp,
                LEFT(request::text, 100) as request_preview,
                LEFT(response::text, 100) as response_preview
