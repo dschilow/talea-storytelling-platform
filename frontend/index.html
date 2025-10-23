@@ -11,29 +11,26 @@
     <!-- Load runtime config before the app starts -->
     <script src="/config.js"></script>
     <style>
-      /* Prevent mobile browser UI from showing */
+      /* Mobile optimizations while keeping scroll tracking */
       html, body {
         margin: 0;
         padding: 0;
         width: 100%;
-        height: 100%;
-        overflow: hidden;
-        position: fixed;
+        min-height: 100vh;
         overscroll-behavior: none;
         -webkit-overflow-scrolling: touch;
       }
       
       #root {
         width: 100%;
-        height: 100%;
-        overflow: auto;
+        min-height: 100vh;
         position: relative;
       }
       
-      /* Hide mobile browser address bar */
+      /* Hide mobile browser address bar on iOS */
       @supports (-webkit-touch-callout: none) {
-        body {
-          height: -webkit-fill-available;
+        html, body {
+          min-height: -webkit-fill-available;
         }
       }
     </style>
