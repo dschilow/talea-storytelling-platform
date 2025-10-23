@@ -65,14 +65,14 @@ export const TracingBeam = ({
   }, [children]);
 
   const y1 = useSpring(
-    useTransform(scrollYProgress, [0, 1], [0, svgHeight]),
+    useTransform(scrollYProgress, [0, 1], [50, svgHeight]),
     {
       stiffness: 500,
       damping: 90,
     }
   );
   const y2 = useSpring(
-    useTransform(scrollYProgress, [0, 1], [0, svgHeight]),
+    useTransform(scrollYProgress, [0, 1], [50, svgHeight]),
     {
       stiffness: 500,
       damping: 90,
@@ -143,7 +143,7 @@ export const TracingBeam = ({
               gradientUnits="userSpaceOnUse"
               x1="0"
               x2="0"
-              y1={0}
+              y1={50}
               y2={y1}
             >
               <stop stopColor="#18CCFC"></stop>

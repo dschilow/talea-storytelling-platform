@@ -6,6 +6,7 @@ import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
 import { TracingBeam } from '../../components/ui/tracing-beam';
+import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Doku, DokuSection } from '../../types/doku';
 import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
@@ -265,13 +266,18 @@ const DokuScrollReaderScreen: React.FC = () => {
                             />
                           )}
 
-                          {/* Section Content */}
-                          <div className="text-lg md:text-xl prose prose-lg dark:prose-invert max-w-none leading-relaxed text-gray-700 dark:text-gray-300">
+                          {/* Section Content with Gradient Scroll Effect */}
+                          <div className="text-lg md:text-xl prose prose-lg dark:prose-invert max-w-none leading-relaxed">
                             {section.content.split('\n').map((paragraph, pIndex) => (
                               paragraph.trim() && (
-                                <p key={`p-${index}-${pIndex}`} className="mb-6">
-                                  {paragraph}
-                                </p>
+                                <div key={`p-${index}-${pIndex}`} className="mb-6">
+                                  <TextGradientScroll 
+                                    text={paragraph}
+                                    type="word"
+                                    textOpacity="soft"
+                                    className="text-gray-700 dark:text-gray-300"
+                                  />
+                                </div>
                               )
                             ))}
                           </div>
