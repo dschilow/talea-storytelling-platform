@@ -4,6 +4,7 @@ import { Sparkles } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import FadeInView from '../../../components/animated/FadeInView';
+import { StoryGenerationProgress, StoryGenerationStep } from '../../../components/story/StoryGenerationProgress';
 
 interface StoryConfig {
   avatarIds: string[];
@@ -25,12 +26,14 @@ interface GenerationStepProps {
   storyConfig: StoryConfig;
   onGenerate: () => void;
   generating?: boolean;
+  generationStep?: StoryGenerationStep;
 }
 
 const GenerationStep: React.FC<GenerationStepProps> = ({
   storyConfig,
   onGenerate,
   generating = false,
+  generationStep = 'profiles',
 }) => {
   const getGenreLabel = (genre: string) => {
     const genres: { [key: string]: string } = {
@@ -187,8 +190,8 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
             )}
 
             {generating && (
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="mt-6">
+                <StoryGenerationProgress currentStep={generationStep} />
               </div>
             )}
           </div>

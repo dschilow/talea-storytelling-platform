@@ -11,6 +11,7 @@ import StoryParametersStep from './steps/StoryParametersStep';
 import LearningModeStep from './steps/LearningModeStep';
 import GenerationStep from './steps/GenerationStep';
 import { useBackend } from '../../hooks/useBackend';
+import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 
 type StepType = 'avatar' | 'genre' | 'parameters' | 'learning' | 'generation';
 
@@ -33,6 +34,7 @@ interface StoryConfig {
 const StoryWizardScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
   const [generating, setGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
   const [storyConfig, setStoryConfig] = useState<StoryConfig>({
     avatarIds: [], // Wird automatisch mit allen User-Avataren gefüllt
     genre: '',
@@ -108,10 +110,34 @@ const StoryWizardScreen: React.FC = () => {
       setGenerating(true);
       console.log('🚀 Starting story generation with selected avatars...', storyConfig.avatarIds);
 
+      // Simulate generation steps with realistic timings
+      // Step 1: Avatar profiles (~2-3 sec)
+      setGenerationStep('profiles');
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      // Step 2: Memories (~2-3 sec)
+      setGenerationStep('memories');
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      // Step 3: Text generation (~25-30 sec) - this is where the actual backend call happens
+      setGenerationStep('text');
+      
       const story = await backend.story.generate({
         userId: user.id,
         config: storyConfig,
       });
+
+      // Step 4: Validation (~2-3 sec) - happens automatically in backend
+      setGenerationStep('validation');
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      // Step 5: Images (~40-50 sec) - also happens in backend, but we show it separately
+      setGenerationStep('images');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Step 6: Complete (~2-3 sec)
+      setGenerationStep('complete');
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       console.log('✅ Story generated successfully:', story.title);
       alert(`Geschichte "${story.title}" wurde erfolgreich generiert! 🎉`);
@@ -132,6 +158,7 @@ const StoryWizardScreen: React.FC = () => {
       alert(errorMessage);
     } finally {
       setGenerating(false);
+      setGenerationStep('profiles'); // Reset for next generation
     }
   };
 
@@ -177,6 +204,7 @@ const StoryWizardScreen: React.FC = () => {
             storyConfig={storyConfig}
             onGenerate={handleGenerateStory}
             generating={generating}
+            generationStep={generationStep}
           />
         );
       default:
