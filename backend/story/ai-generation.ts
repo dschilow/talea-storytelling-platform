@@ -781,13 +781,18 @@ async function generateStoryWithOpenAITools(args: {
   // OPTIMIERT: Präziser System-Prompt mit klaren Längenanweisungen und PFLICHTFELDERN
   const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
 
-WORKFLOW:
+WORKFLOW (Schritt für Schritt):
 1. Rufe get_avatar_profiles auf (nur einmal!)
 2. Rufe get_avatar_memories für jeden Avatar auf (nur einmal pro Avatar!)
-3. Schreibe die vollständige Geschichte im JSON-Format
+3. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (300-400 Wörter pro Kapitel!)
 4. Validiere mit validate_story_response (sende die KOMPLETTE Story im storyData-Feld!)
 5. Bei Fehlern: korrigiere und validiere erneut
 6. Gib die finale JSON-Antwort zurück
+
+KRITISCH - Chapter Content:
+- Jedes Kapitel muss einen vollständigen content-Text mit 300-400 Wörtern haben!
+- NIEMALS leere oder kurze Platzhalter verwenden!
+- Schreibe den KOMPLETTEN Text BEVOR du validierst!
 
 WICHTIGE REGELN:
 - Jedes Kapitel muss 300-400 Wörter haben (lebendige, detaillierte Beschreibungen!)
@@ -800,7 +805,7 @@ WICHTIGE REGELN:
 PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
 - title (string)
 - description (string)
-- chapters (array mit title, content, order, imageDescription)
+- chapters (array mit title, content (MIN 300 Wörter!), order, imageDescription)
 - coverImageDescription (object)
 - avatarDevelopments (array mit name, changedTraits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
 - learningOutcomes (array mit category, description)`;
