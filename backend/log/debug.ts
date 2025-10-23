@@ -25,7 +25,8 @@ export const debug = api<void, DebugResponse>(
       const allTablesResult = await logDB.query<{ tablename: string }>`
         SELECT tablename FROM pg_tables WHERE schemaname = 'public'
       `;
-      const allTables = allTablesResult.map(row => row.tablename);
+      const allTablesArray = Array.isArray(allTablesResult) ? allTablesResult : Array.from(allTablesResult);
+      const allTables = allTablesArray.map(row => row.tablename);
 
       // Check if table exists
       const tableCheck = await logDB.query<{ exists: boolean }>`
