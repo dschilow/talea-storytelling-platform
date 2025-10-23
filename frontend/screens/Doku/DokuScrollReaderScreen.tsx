@@ -238,7 +238,7 @@ const DokuScrollReaderScreen: React.FC = () => {
             exit={{ opacity: 0 }}
             className="w-full"
           >
-            <div className="pt-24 pb-20">
+            <div className="pt-24 pb-32">
               <TracingBeam className="px-6">
                 <div className="max-w-3xl mx-auto antialiased">
                   {doku.content?.sections?.map((section: DokuSection, index: number) => (

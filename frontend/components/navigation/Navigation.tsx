@@ -21,9 +21,14 @@ const Navigation: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
-    bottom: spacing.xl,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    padding: `${spacing.sm}px`,
+    paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
     zIndex: 1000,
     pointerEvents: 'none',
   };
