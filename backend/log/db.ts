@@ -1,9 +1,6 @@
-// Use avatarDB for logs to share the same PostgreSQL instance in Railway
+// This file only exports types now.
+// All log operations use avatarDB directly from ../avatar/db
 // The logs table is created via avatar/migrations/7_create_logs.up.sql
-import { avatarDB } from "../avatar/db";
-
-// Export avatarDB as logDB for backward compatibility
-export const logDB = avatarDB;
 
 export interface LogRow {
   id: string;
