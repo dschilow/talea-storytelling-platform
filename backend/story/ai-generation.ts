@@ -793,6 +793,54 @@ export const generateStoryContent = api<
       metadata.totalCost.total = metadata.totalCost.text + metadata.totalCost.images;
       metadata.processingTime = Date.now() - startTime;
 
+      // OPTIMIZATION v1.0: Enhanced telemetry logging
+      const telemetry = createTelemetry({
+        correlationId: crypto.randomUUID(),
+        storyId: normalizedStory.title,
+        avatarIds,
+        profileHashes: Object.fromEntries(
+          Object.entries(versionedProfiles).map(([name, profile]) => [name, profile.hash])
+        ),
+        profileVersions: Object.fromEntries(
+          Object.entries(versionedProfiles).map(([name, profile]) => [name, profile.version])
+        ),
+        positivePrompt: coverPromptNormalized.substring(0, 500), // First 500 chars
+        negativePrompt: negativePrompt.substring(0, 300),
+        seed: seedBase,
+        cfg: 10.5,
+        steps: 34,
+        generationMs: metadata.processingTime,
+      });
+
+      console.log("[ai-generation] 📊 Telemetry:", {
+        correlationId: telemetry.correlationId,
+        avatarCount: avatarIds.length,
+        profileHashes: Object.keys(telemetry.profileHashes).length,
+        imagesGenerated: metadata.imagesGenerated,
+        totalCost: metadata.totalCost.total.toFixed(4),
+        processingTimeSeconds: (metadata.processingTime / 1000).toFixed(1),
+      });
+
+      // Log to database for analytics (telemetry embedded in request/response)
+      await publishWithTimeout(logTopic, {
+        source: 'openai-story-generation',
+        timestamp: new Date(),
+        request: {
+          avatarIds,
+          profileHashes: telemetry.profileHashes,
+          profileVersions: telemetry.profileVersions,
+          seed: telemetry.seed,
+          cfg: telemetry.cfg,
+          steps: telemetry.steps,
+        },
+        response: {
+          imagesGenerated: metadata.imagesGenerated,
+          processingTime: metadata.processingTime,
+          totalCost: metadata.totalCost,
+          correlationId: telemetry.correlationId,
+        },
+      });
+
       return {
         title: normalizedStory.title,
         description: normalizedStory.description,
@@ -960,7 +1008,16 @@ STILRICHTLINIEN (v1.0 - SEHR WICHTIG!):
 💡 LERNMODUS (falls aktiv):
 - Lernziele NATÜRLICH einbauen (keine Lehrbuch-Tiraden!)
 - Neues Wissen durch Dialoge und Entdeckungen vermitteln
+- Sachwissen in Handlung integrieren (z.B. "Diego entdeckt, dass Katzen im Dunkeln sehen können")
 - Konsistentes Inventar (z.B. "roter Rucksack" taucht wieder auf)
+- Optional: 2 einfache Verständnisfragen am Ende (nur bei learningMode.enabled = true)
+
+✅ KONSISTENZ-CHECKLISTE (SEHR WICHTIG!):
+- Namen & Pronomen: Nutze EXAKT die Avatar-Namen (${avatars.map(a => a.name).join(", ")}) - keine Variationen!
+- Inventar-Tracking: Eingeführte Gegenstände müssen konsistent bleiben (Farbe, Eigenschaften)
+- Orte & Settings: Einmal etablierte Orte müssen wiederkehrend beschrieben werden
+- Cliffhanger: JEDES Kapitel (außer letztes) endet mit spannendem Cliffhanger
+- Charaktereigenschaften: Avatare bleiben ihrer Persönlichkeit treu (siehe Personality Traits)
 
 KRITISCH - Chapter Content:
 - Jedes Kapitel muss einen vollständigen content-Text mit ${targetWordsPerChapter} Wörtern haben!
@@ -1000,6 +1057,15 @@ Konfigurationsdetails:
 - Komplexität: ${config.complexity}
 - Lernmodus: ${config.learningMode?.enabled ?? false}
 - Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine"}
+
+${config.learningMode?.enabled ? `
+🎓 LERNMODUS AKTIV - Spezielle Anforderungen:
+- Integriere die Lernziele (${(config.learningMode?.learningObjectives ?? []).join(", ")}) NATÜRLICH in die Handlung
+- Nutze Dialoge zwischen Avataren, um Wissen zu vermitteln (z.B. "Weißt du, Diego, dass...")
+- Zeige Lernen durch Entdeckung und Erfahrung, nicht durch Belehrung
+- Füge am Ende 2 einfache Verständnisfragen hinzu (im learningOutcomes-Feld)
+- Beispiel: {"category": "Sachwissen", "description": "Warum können Katzen im Dunkeln sehen?"}
+` : ""}
 
 Verfügbare Avatare:
 ${avatarSummary}
