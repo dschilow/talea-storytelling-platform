@@ -777,8 +777,24 @@ async function generateStoryWithOpenAITools(args: {
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  // OPTIMIERT: Kürzerer, klarerer System-Prompt ohne redundante Anweisungen
-  const systemPrompt = `Du bist eine Autorin für die Talea-Geschichtenplattform. Nutze konsequent die verfügbaren Tools, um Avatar-Informationen, Erinnerungen und Validierungen aus den MCP-Servern abzurufen. Workflow: 1. Rufe \`get_avatar_profiles\` auf, bevor du Beschreibungen oder Bildprompts formulierst, um visuelle Konsistenz sicherzustellen. 2. Hole mit \`get_avatar_memories\` relevante Erinnerungen jedes Avatars, bevor du die Geschichte schreibst. 3. Erstelle eine spannende Geschichte mit Cliffhanger am Ende jedes Kapitels im JSON-Format. 4. Prüfe deine fertige JSON-Antwort mit \`validate_story_response\`. Korrigiere bei Bedarf und prüfe erneut. 5. Gib erst nach erfolgreicher Validierung die finale JSON-Antwort zurück. Wichtig: Antworte niemals mit freiem Text, sondern ausschließlich mit gültigem JSON.`;
+  // OPTIMIERT: Präziser System-Prompt mit klaren Längenanweisungen
+  const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
+
+WORKFLOW:
+1. Rufe get_avatar_profiles auf (nur einmal!)
+2. Rufe get_avatar_memories für jeden Avatar auf (nur einmal pro Avatar!)
+3. Schreibe die vollständige Geschichte im JSON-Format
+4. Validiere mit validate_story_response (sende die KOMPLETTE Story im storyData-Feld!)
+5. Bei Fehlern: korrigiere und validiere erneut
+6. Gib die finale JSON-Antwort zurück
+
+WICHTIGE REGELN:
+- Jedes Kapitel muss mindestens 400-600 Wörter haben (ausführliche, lebendige Beschreibungen!)
+- Nutze detailreiche Dialoge und Emotionen
+- Jedes Kapitel endet mit einem spannenden Cliffhanger
+- Beschreibe Szenen visuell und atmosphärisch
+- Antworte NUR mit gültigem JSON, NIEMALS mit freiem Text
+- Rufe Tools nicht mehrfach mit denselben Parametern auf`;
 
   const avatarSummary = avatars
     .map((avatar) => {
@@ -787,17 +803,30 @@ async function generateStoryWithOpenAITools(args: {
     })
     .join("\n");
 
-  const userPrompt = `Erstelle eine ${config.genre}-Geschichte im Setting ${config.setting} für die Altersgruppe ${config.ageGroup}. Die Geschichte soll ${chapterCount} Kapitel haben und die Hauptcharaktere konsequent nutzen.
+  const userPrompt = `Erstelle eine ${config.genre}-Geschichte im Setting ${config.setting} für die Altersgruppe ${config.ageGroup}. Die Geschichte soll ${chapterCount} Kapitel haben.
+
+WICHTIG - KAPITELLÄNGE:
+- Jedes Kapitel muss mindestens 400-600 Wörter haben
+- Schreibe ausführlich mit lebendigen Beschreibungen, Dialogen und Emotionen
+- Nutze atmosphärische Details und Charakterentwicklung
+- Jedes Kapitel endet mit einem spannenden Cliffhanger
 
 Konfigurationsdetails:
 - Komplexität: ${config.complexity}
-- Lernmodus aktiviert: ${config.learningMode?.enabled ?? false}
-- Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine spezifischen Lernziele angegeben"}
+- Lernmodus: ${config.learningMode?.enabled ?? false}
+- Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine"}
 
 Verfügbare Avatare:
 ${avatarSummary}
 
-Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale Antwort muss folgende Felder enthalten: title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes.`;
+WORKFLOW:
+1. Rufe get_avatar_profiles EINMAL auf
+2. Rufe get_avatar_memories für JEDEN Avatar EINMAL auf
+3. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!)
+4. Validiere mit validate_story_response (sende die komplette Story!)
+5. Gib die finale JSON-Antwort zurück
+
+FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes}`;
 
   const tools = [
     {
@@ -993,9 +1022,11 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
       messages,
       tools,
       tool_choice: "auto" as const,
-      // OPTIMIERT: Reduziert von 24k auf 16k - ausreichend für 5-8 Kapitel, spart Reasoning-Overhead
-      max_completion_tokens: 16_000,
+      // OPTIMIERT: 20k für ausführlichere Kapitel (400-600 Wörter pro Kapitel)
+      max_completion_tokens: 20_000,
       response_format: { type: "json_object" },
+      // WICHTIG: Reasoning-Effort auf "low" setzen, um Reasoning-Tokens zu minimieren
+      reasoning_effort: "low" as const,
     };
 
     finalRequest = payload;
