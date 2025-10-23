@@ -837,26 +837,32 @@ WORKFLOW:
 5. Gib die finale JSON-Antwort zurück
 
 KRITISCH - avatarDevelopments:
-Für JEDEN Avatar in der Liste oben MUSS ein avatarDevelopments-Eintrag existieren mit:
-- name (der NAME des Avatars aus der Liste oben, z.B. "Alexander", "adrian")
+Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben (einen für jeden Avatar).
+Für JEDEN Avatar in der Liste oben MUSS ein Eintrag existieren mit:
+- name (der EXAKTE NAME des Avatars aus der Liste: ${avatars.map(a => `"${a.name}"`).join(", ")})
 - changedTraits (array mit trait, change für jede Persönlichkeitsveränderung)
 
-BEISPIEL avatarDevelopments (verwende die NAMEN der Avatare):
+WICHTIG:
+- Das Array muss GENAU ${avatars.length} Einträge haben - nicht mehr, nicht weniger!
+- Verwende EXAKT diese Namen: ${avatars.map(a => a.name).join(", ")}
+- Jeder Eintrag muss "name" und "changedTraits" haben
+
+BEISPIEL avatarDevelopments für diese Geschichte:
 [
   {
-    "name": "Alexander",
+    "name": "${avatars[0].name}",
     "changedTraits": [
       {"trait": "courage", "change": 5},
       {"trait": "teamwork", "change": 3}
     ]
-  },
+  }${avatars.length > 1 ? `,
   {
-    "name": "adrian",
+    "name": "${avatars[1].name}",
     "changedTraits": [
       {"trait": "creativity", "change": 4},
       {"trait": "empathy", "change": 2}
     ]
-  }
+  }` : ''}
 ]
 
 FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
