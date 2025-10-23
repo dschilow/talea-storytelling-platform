@@ -563,7 +563,7 @@ export const generateStoryContent = api<
     };
 
     try {
-      console.log("[ai-generation] Generating story with MCP integration");
+      console.log("[ai-generation] 🚀 OPTIMIZATION v1.0 ACTIVE - Generating story with MCP integration");
 
       // OPTIMIZATION v1.0: Hard-fail ID mapping before MCP calls
       const avatarIdMappings: Array<{id: string; name: string}> = req.avatarDetails.map(a => ({
