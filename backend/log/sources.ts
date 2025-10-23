@@ -16,6 +16,8 @@ export const getSources = api<void, GetLogSourcesResponse>(
   { expose: true, method: "GET", path: "/log/getSources" },
   async () => {
     try {
+      console.log(`📊 [log/getSources] Fetching sources...`);
+
       // Query database for source statistics
       const rows = await logDB.query<{
         source: string;
@@ -34,6 +36,8 @@ export const getSources = api<void, GetLogSourcesResponse>(
       // Convert query result to array (Encore returns iterator)
       const rowsArray = Array.isArray(rows) ? rows : Array.from(rows);
 
+      console.log(`📊 [log/getSources] Query returned ${rowsArray.length} sources`);
+
       const sources: LogSource[] = rowsArray.map(row => ({
         name: row.source,
         count: row.count,
@@ -42,7 +46,7 @@ export const getSources = api<void, GetLogSourcesResponse>(
 
       return { sources };
     } catch (error) {
-      console.error("Error getting log sources:", error);
+      console.error("❌ [log/getSources] Error getting log sources:", error);
       return { sources: [] };
     }
   }
