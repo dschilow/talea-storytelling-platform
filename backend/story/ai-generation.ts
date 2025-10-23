@@ -600,12 +600,28 @@ export const generateStoryContent = api<
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      // CLEANUP: Remove empty chapters before validation
+      // DEBUG: Log chapter structure before cleanup
+      console.log(`[ai-generation] 🔍 Story chapters before cleanup:`, {
+        chapterCount: storyOutcome.story.chapters?.length ?? 0,
+        chapters: storyOutcome.story.chapters?.map((ch: any, idx: number) => ({
+          index: idx,
+          hasTitle: !!ch?.title,
+          titleLength: ch?.title?.length ?? 0,
+          hasContent: !!ch?.content,
+          contentLength: ch?.content?.length ?? 0,
+          contentPreview: ch?.content?.substring(0, 100) ?? "EMPTY"
+        }))
+      });
+
+      // CLEANUP: Remove only truly empty chapters (no title AND no content)
+      // Keep chapters with at least a title, even if content is short
       if (storyOutcome.story.chapters) {
+        const originalCount = storyOutcome.story.chapters.length;
         storyOutcome.story.chapters = storyOutcome.story.chapters.filter((ch: any) => 
-          ch && ch.title && ch.content && ch.title.trim() && ch.content.trim()
+          ch && (ch.title?.trim() || ch.content?.trim())
         );
-        console.log(`[ai-generation] ✂️ Cleaned chapters: ${storyOutcome.story.chapters.length} valid chapters remaining`);
+        const removedCount = originalCount - storyOutcome.story.chapters.length;
+        console.log(`[ai-generation] ✂️ Cleaned chapters: ${storyOutcome.story.chapters.length} valid, ${removedCount} removed`);
       }
 
       let validationResult = storyOutcome.state.validationResult;
