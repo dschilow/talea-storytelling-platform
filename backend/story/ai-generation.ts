@@ -565,7 +565,23 @@ export const generateStoryContent = api<
     try {
       console.log("[ai-generation] Generating story with MCP integration");
 
-      const avatarIds = req.avatarDetails.map((avatar) => avatar.id);
+      // OPTIMIZATION v1.0: Hard-fail ID mapping before MCP calls
+      const avatarIdMappings: Array<{id: string; name: string}> = req.avatarDetails.map(a => ({
+        id: a.id,
+        name: a.name,
+      }));
+      
+      const avatarIdsOrNames = req.avatarDetails.map((avatar) => avatar.id);
+      let avatarIds: string[];
+      
+      try {
+        avatarIds = normalizeAvatarIds(avatarIdsOrNames, avatarIdMappings);
+        console.log("[ai-generation] ✅ Avatar IDs normalized:", avatarIds.length, "IDs");
+      } catch (error) {
+        console.error("[ai-generation] ❌ Avatar ID mapping failed:", error);
+        throw error; // Hard-fail as per spec
+      }
+
       const storyOutcome = await generateStoryWithOpenAITools({
         config: req.config,
         avatars: req.avatarDetails,
@@ -624,109 +640,14 @@ export const generateStoryContent = api<
       } else if (missingProfiles.length > 0) {
         console.warn(`[ai-generation] ${missingProfiles.length} Avatare ohne visualProfile erkannt:`, missingProfiles.map((a: any) => a.name));
         
-        // Fallback: Erstelle Basisprofil aus Avatar-Beschreibung für fehlende Avatare
+        // OPTIMIZATION v1.0: Use createFallbackProfile function
         missingProfiles.forEach((avatar: any) => {
-          console.log(`[ai-generation] Erstelle Fallback-Profil für Avatar "${avatar.name}"`, {
-            characterType: avatar.physicalTraits.characterType,
-            appearance: avatar.physicalTraits.appearance?.substring(0, 50)
-          });
+          console.log(`[ai-generation] Erstelle Fallback-Profil für Avatar "${avatar.name}"`);
           
-          // Parse characterType und appearance für Basis-Informationen
-          const characterType = avatar.physicalTraits.characterType || "";
-          const appearance = avatar.physicalTraits.appearance || avatar.description || "";
-          const fullText = `${characterType} ${appearance}`.toLowerCase();
-          
-          // KRITISCH: Erweiterte Tier-Erkennung
-          const animalKeywords = [
-            "tier", "animal", "katze", "cat", "hund", "dog", "vogel", "bird", "fuchs", "fox",
-            "bär", "bear", "hase", "rabbit", "maus", "mouse", "pferd", "horse", "löwe", "lion",
-            "drache", "dragon", "einhorn", "unicorn", "wolf", "eule", "owl", "fisch", "fish",
-            "delfin", "dolphin", "elefant", "elephant", "giraffe", "tiger", "panda", "koala",
-            "pinguin", "penguin", "schlange", "snake", "schildkröte", "turtle", "otter", "seehund", "seal"
-          ];
-          
-          const isAnimal = animalKeywords.some(keyword => fullText.includes(keyword));
-          
-          // Extrahiere Spezies für Tiere
-          let species = "animal";
-          if (isAnimal) {
-            if (fullText.includes("katze") || fullText.includes("cat")) species = "cat";
-            else if (fullText.includes("hund") || fullText.includes("dog")) species = "dog";
-            else if (fullText.includes("fuchs") || fullText.includes("fox")) species = "fox";
-            else if (fullText.includes("bär") || fullText.includes("bear")) species = "bear";
-            else if (fullText.includes("vogel") || fullText.includes("bird")) species = "bird";
-            else if (fullText.includes("drache") || fullText.includes("dragon")) species = "dragon";
-            else species = characterType.toLowerCase().replace(/[^a-z]/g, '') || "animal";
-          }
-          
-          // Versuche Farbe aus der Beschreibung zu extrahieren
-          const colorMatch = appearance.match(/(braun|schwarz|blond|rot|weiß|grau|gelb|orange|grün|blau|brown|black|blonde|red|white|gray|grey|yellow|orange|green|blue|golden)\s*(fell|fur|haare|haar|federn|feather)/i);
-          const eyeColorMatch = appearance.match(/(braun|schwarz|blau|grün|grau|gelb|amber|brown|black|blue|green|gray|grey|yellow)\s*(augen|auge|eyes|eye)/i);
-          
-          const furColor = colorMatch ? colorMatch[1] : (isAnimal ? "brown" : "brown");
-          const eyeColor = eyeColorMatch ? eyeColorMatch[1] : (isAnimal ? "amber" : "brown");
-          
-          // Verwende Basis-Informationen aus dem Avatar
-          const fallbackProfile: AvatarVisualProfile = {
-            ageApprox: isAnimal ? `young ${species}` : "child 6-8 years",
-            gender: "neutral",
-            hair: {
-              color: furColor,
-              type: isAnimal ? "fur" : "normal",
-              style: isAnimal ? `soft ${species} fur texture` : "short, natural",
-              length: "medium"
-            },
-            eyes: {
-              color: eyeColor,
-              shape: isAnimal ? `round ${species} eyes` : "round",
-              size: "medium"
-            },
-            skin: {
-              tone: isAnimal ? `${furColor} fur covering entire body` : "medium",
-              distinctiveFeatures: [
-                isAnimal ? `full-body ${furColor} ${species} fur, NOT HUMAN` : "",
-                isAnimal ? `${species} animal anatomy and proportions` : "",
-                appearance || ""
-              ].filter(Boolean).map(s => s.substring(0, 150))
-            },
-            face: {
-              shape: isAnimal ? `${species} animal head, NOT human face` : "round",
-              nose: isAnimal ? `${species} animal snout and nose, NOT human nose` : "small",
-              otherFeatures: isAnimal ? [
-                `${species} animal ears`,
-                `${species} whiskers and animal facial features`,
-                "expressive animal face",
-                "four-legged animal posture"
-              ] : []
-            },
-            accessories: [],
-            clothingCanonical: {
-              outfit: isAnimal ? `NO CLOTHING - natural ${species} animal, completely naked animal body` : "casual children's clothes",
-              colors: isAnimal ? ["natural", furColor] : ["neutral"],
-              top: isAnimal ? `natural ${furColor} ${species} fur - NO CLOTHES` : "casual top",
-              bottom: isAnimal ? `natural ${species} animal body with four legs - NO CLOTHES` : "casual bottom",
-              patterns: []
-            },
-            consistentDescriptors: [
-              isAnimal ? `IMPORTANT: ${species} ANIMAL, NOT HUMAN` : "human child",
-              isAnimal ? `${furColor} ${species} with animal features` : avatar.name,
-              isAnimal ? `four-legged ${species} animal` : avatar.name,
-              isAnimal ? `${species} with ${furColor} fur all over body` : `${furColor} hair`,
-              isAnimal ? `${eyeColor} ${species} animal eyes` : `${eyeColor} eyes`,
-              isAnimal ? `cute ${species} companion character` : "child character",
-              isAnimal ? `anatomically correct ${species} body` : ""
-            ].filter(Boolean)
-          };
-          
+          const fallbackProfile = createFallbackProfile(avatar);
           avatarProfilesByName[avatar.name] = fallbackProfile;
-          console.log(`[ai-generation] ✅ Fallback-Profil für "${avatar.name}" erstellt:`, {
-            characterType: characterType,
-            species: species,
-            isAnimal: isAnimal,
-            furColor: fallbackProfile.hair.color,
-            eyeColor: fallbackProfile.eyes.color,
-            consistentDescriptors: fallbackProfile.consistentDescriptors
-          });
+          
+          console.log(`[ai-generation] ✅ Fallback-Profil für "${avatar.name}" erstellt (v${fallbackProfile.version}, hash: ${fallbackProfile.hash.substring(0, 8)})`);
         });
       }
 
@@ -736,47 +657,126 @@ export const generateStoryContent = api<
         requestedAvatarIds: avatarIds,
       });
 
+      // OPTIMIZATION v1.0: Upgrade profiles with versioning and prepare for CHARACTER-BLOCKS
+      const versionedProfiles: Record<string, MinimalAvatarProfile> = {};
+      const avatarSpecies: SpeciesType[] = [];
+      
+      Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
+        const versioned = upgradeProfileWithVersion(profile);
+        versionedProfiles[name] = versioned;
+        
+        // Detect species for negative prompt library
+        const descriptors = profile.consistentDescriptors?.join(" ").toLowerCase() || "";
+        if (descriptors.includes("cat") || descriptors.includes("katze")) {
+          avatarSpecies.push("cat");
+        } else if (descriptors.includes("dog") || descriptors.includes("hund")) {
+          avatarSpecies.push("dog");
+        } else if (descriptors.includes("animal") || descriptors.includes("tier")) {
+          avatarSpecies.push("animal");
+        } else {
+          avatarSpecies.push("human");
+        }
+      });
+
+      // Build comprehensive negative prompt from library
+      const negativePrompt = buildNegativePrompt(avatarSpecies);
+      console.log("[ai-generation] Built negative prompt with", avatarSpecies.length, "species:", avatarSpecies);
+
       const seedBase = deterministicSeedFrom(avatarIds.join("|"));
       const coverDimensions = normalizeRunwareDimensions(600, 800);
       const chapterDimensions = normalizeRunwareDimensions(512, 512);
 
-      const coverPrompt = buildCoverImagePrompt(
-        normalizedStory.coverImageDescription,
-        avatarProfilesByName
+      // COVER IMAGE GENERATION with CHARACTER-BLOCKS
+      const coverSceneText = typeof normalizedStory.coverImageDescription === 'string'
+        ? normalizedStory.coverImageDescription
+        : normalizedStory.coverImageDescription.mainScene || "";
+      
+      const safeCoverSceneText = safeCoverScene(
+        coverSceneText,
+        normalizedStory.chapters[0]?.imageDescription?.scene
       );
 
+      const coverCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => ({
+        name,
+        profile,
+        sceneDetails: {
+          position: "foreground",
+          pose: "friendly, welcoming",
+        },
+      }));
+
+      const coverPromptOptimized = buildCompleteImagePrompt({
+        characters: coverCharactersData,
+        scene: safeCoverSceneText,
+        customStyle: {
+          masterStyle: "professional children's book cover, vibrant colors, warm inviting atmosphere, cinematic composition",
+          composition: "clear space for title at top, all characters prominently visible, dynamic layout",
+        },
+      });
+
+      // Normalize language (DE->EN)
+      const coverPromptNormalized = normalizeLanguage(coverPromptOptimized);
+
+      console.log("[ai-generation] 📸 Generating COVER image with optimized prompt");
+      console.log("[ai-generation] Cover prompt length:", coverPromptNormalized.length);
+      console.log("[ai-generation] Negative prompt length:", negativePrompt.length);
+
       const coverResponse = await ai.generateImage({
-        prompt: coverPrompt,
+        prompt: coverPromptNormalized,
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 35,
-        CFGScale: 9,
+        steps: 34, // OPTIMIZED: 30-36 for quality
+        CFGScale: 10.5, // OPTIMIZED: 10-11 for identity stability
         seed: seedBase,
         outputFormat: "WEBP",
-        negativePrompt:
-          "blurry, low quality, bad anatomy, distorted faces, extra limbs, missing limbs, adult content, horror, violence, text, watermark, inconsistent character, wrong colors",
+        negativePrompt,
       });
 
+      // CHAPTER IMAGES GENERATION with CHARACTER-BLOCKS
       const chapterResponses: Array<{ imageUrl?: string }> = [];
       for (let i = 0; i < normalizedStory.chapters.length; i++) {
         const chapter = normalizedStory.chapters[i];
-        const chapterPrompt = buildChapterImagePrompt(
-          chapter.imageDescription,
-          avatarProfilesByName
-        );
+        
+        const chapterSceneText = typeof chapter.imageDescription === 'string'
+          ? chapter.imageDescription
+          : chapter.imageDescription.scene || "";
+
+        // Build character blocks for this chapter
+        const chapterCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => {
+          const charDetails = typeof chapter.imageDescription !== 'string' 
+            && chapter.imageDescription.characters?.[name];
+          
+          return {
+            name,
+            profile,
+            sceneDetails: charDetails ? {
+              position: charDetails.position,
+              action: charDetails.action,
+              expression: charDetails.expression,
+            } : {},
+          };
+        });
+
+        const chapterPromptOptimized = buildCompleteImagePrompt({
+          characters: chapterCharactersData,
+          scene: chapterSceneText,
+        });
+
+        const chapterPromptNormalized = normalizeLanguage(chapterPromptOptimized);
+
+        console.log(`[ai-generation] 📸 Generating Chapter ${i + 1} image`);
 
         const chapterResponse = await ai.generateImage({
-          prompt: chapterPrompt,
+          prompt: chapterPromptNormalized,
           model: "runware:101@1",
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 32,
-          CFGScale: 8.5,
+          steps: 34, // OPTIMIZED
+          CFGScale: 10.5, // OPTIMIZED
           seed: (seedBase + i * 101) >>> 0,
           outputFormat: "WEBP",
-          negativePrompt:
-            "blurry, low quality, bad anatomy, distorted faces, extra limbs, missing limbs, adult content, horror, violence, text, watermark, inconsistent character, wrong colors",
+          negativePrompt,
         });
 
         chapterResponses.push(chapterResponse);
