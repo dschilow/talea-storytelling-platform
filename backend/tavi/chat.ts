@@ -68,7 +68,8 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
           { role: "system", content: TAVI_SYSTEM_PROMPT },
           { role: "user", content: message },
         ],
-        max_completion_tokens: 2000, // Increased to handle longer responses
+        max_completion_tokens: 4000, // Increased for longer responses (riddles, stories, etc.)
+        reasoning_effort: "low" as const, // Minimize reasoning tokens
       };
 
       console.log("📤 Sending request to OpenAI with payload:", {

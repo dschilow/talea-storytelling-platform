@@ -558,6 +558,14 @@ export const generateStoryContent = api<
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
+      // CLEANUP: Remove empty chapters before validation
+      if (storyOutcome.story.chapters) {
+        storyOutcome.story.chapters = storyOutcome.story.chapters.filter((ch: any) => 
+          ch && ch.title && ch.content && ch.title.trim() && ch.content.trim()
+        );
+        console.log(`[ai-generation] ✂️ Cleaned chapters: ${storyOutcome.story.chapters.length} valid chapters remaining`);
+      }
+
       let validationResult = storyOutcome.state.validationResult;
       if (!validationResult) {
         validationResult = await validateStoryResponse(storyOutcome.story, mcpApiKey);
