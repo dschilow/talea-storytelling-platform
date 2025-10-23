@@ -1,5 +1,5 @@
 import { api } from "encore.dev/api";
-import { avatarDB } from "../avatar/db";
+import { logDB } from "./db";
 
 interface LogSource {
   name: string;
@@ -19,7 +19,7 @@ export const getSources = api<void, GetLogSourcesResponse>(
       console.log(`📊 [log/getSources] Fetching sources...`);
 
       // Query database for source statistics
-      const rows = await avatarDB.query<{
+      const rows = await logDB.query<{
         source: string;
         count: number;
         last_activity: Date | null;

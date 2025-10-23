@@ -1,6 +1,6 @@
 // Manual migration endpoint for creating logs table on Railway
 import { api } from "encore.dev/api";
-import { avatarDB } from "../avatar/db";
+import { logDB } from "./db";
 
 interface MigrationResponse {
   success: boolean;
@@ -17,7 +17,7 @@ export const runMigration = api<void, MigrationResponse>(
 
     try {
       // Create logs table
-      await avatarDB.exec`
+      await logDB.exec`
         CREATE TABLE IF NOT EXISTS logs (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           source TEXT NOT NULL,
@@ -32,13 +32,13 @@ export const runMigration = api<void, MigrationResponse>(
       steps.push("logs table created");
 
       // Create indices
-      await avatarDB.exec`
+      await logDB.exec`
         CREATE INDEX IF NOT EXISTS idx_logs_source_timestamp ON logs(source, timestamp DESC);
       `;
       console.log("✅ idx_logs_source_timestamp created");
       steps.push("idx_logs_source_timestamp created");
 
-      await avatarDB.exec`
+      await logDB.exec`
         CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC);
       `;
       console.log("✅ idx_logs_timestamp created");

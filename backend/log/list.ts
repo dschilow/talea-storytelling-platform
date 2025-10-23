@@ -1,6 +1,5 @@
 import { api } from "encore.dev/api";
-import { avatarDB } from "../avatar/db";
-import type { LogRow } from "./db";
+import { logDB, type LogRow } from "./db";
 
 export interface LogEntry {
   id: string;
@@ -62,7 +61,7 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
       console.log(`📊 [log/list] Query: ${query.replace(/\s+/g, ' ').trim()}`);
       console.log(`📊 [log/list] Params:`, params);
 
-      const rows = await avatarDB.query<LogRow>(query, ...params);
+      const rows = await logDB.query<LogRow>(query, ...params);
 
       // Convert query result to array (Encore returns iterator)
       const rowsArray = Array.isArray(rows) ? rows : Array.from(rows);
@@ -99,7 +98,7 @@ export const list = api<ListLogsRequest, ListLogsResponse>(
         countQuery += ` AND DATE(timestamp) = $${countParams.length}`;
       }
 
-      const countResult = await avatarDB.query<{ count: number }>(countQuery, ...countParams);
+      const countResult = await logDB.query<{ count: number }>(countQuery, ...countParams);
       const countArray = Array.isArray(countResult) ? countResult : Array.from(countResult);
       const totalCount = countArray[0]?.count || 0;
 

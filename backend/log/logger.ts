@@ -1,4 +1,4 @@
-import { avatarDB } from "../avatar/db";
+import { logDB } from "./db";
 
 // LogEvent defines the structure for log messages.
 export interface LogEvent {
@@ -26,7 +26,7 @@ export const logTopic = {
   publish: async (event: LogEvent) => {
     try {
       // Write log directly to database
-      await avatarDB.exec`
+      await logDB.exec`
         INSERT INTO logs (source, timestamp, request, response, metadata)
         VALUES (${event.source}, ${event.timestamp}, ${event.request}, ${event.response}, ${event.metadata || null})
       `;

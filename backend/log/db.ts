@@ -1,6 +1,10 @@
-// This file only exports types now.
-// All log operations use avatarDB directly from ../avatar/db
-// The logs table is created via avatar/migrations/7_create_logs.up.sql
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+
+// Use the main "railway" database where all tables exist
+// This matches the single PostgreSQL instance in Railway
+export const logDB = new SQLDatabase("railway", {
+  migrations: "./migrations",
+});
 
 export interface LogRow {
   id: string;
