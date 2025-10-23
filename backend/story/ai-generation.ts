@@ -9,6 +9,7 @@ import {
   getMultipleAvatarProfiles,
   getAvatarMemories,
   validateStoryResponse,
+  type ValidationResult,
 } from "../helpers/mcpClient";
 
 const MODEL = "gpt-5-nano";
@@ -52,6 +53,14 @@ interface OpenAIResponse {
   choices?: Array<{
     message?: {
       content?: string;
+      tool_calls?: Array<{
+        id: string;
+        type: string;
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }>;
     };
     finish_reason?: string;
   }>;
@@ -167,23 +176,6 @@ function deterministicSeedFrom(source: string): number {
     hash = (hash >>> 0) * 0x01000193;
   }
   return Math.abs(hash >>> 0);
-}
-
-function summarizeMemoriesForPrompt(memories?: McpAvatarMemory[]): string {
-  if (!memories || memories.length === 0) {
-    return "";
-  }
-
-  const topMemories = memories.slice(0, 3);
-  const summaries = topMemories.map((memory) => {
-    const changes = (memory.personalityChanges || [])
-      .map((change) => `${change.trait} ${change.change > 0 ? "+" : ""}${change.change}`)
-      .join(", ");
-    const changeSummary = changes ? ` (traits: ${changes})` : "";
-    return `${memory.experience}${changeSummary}`;
-  });
-
-  return summaries.join("; ");
 }
 
 function buildImagePromptFromVisualProfile(
@@ -546,50 +538,14 @@ export const generateStoryContent = api<
       console.log("[ai-generation] Generating story with MCP integration");
 
       const avatarIds = req.avatarDetails.map((avatar) => avatar.id);
-
-      const profilePromise = getMultipleAvatarProfiles(avatarIds, req.clerkToken, mcpApiKey);
-      const memoryPromises = avatarIds.map((avatarId) =>
-        getAvatarMemories(avatarId, req.clerkToken, mcpApiKey, 20).catch(() => [])
-      );
-
-      const [profileResults, memoryResults] = await Promise.all([
-        profilePromise,
-        Promise.all(memoryPromises),
-      ]);
-
-      const avatarProfilesByName: Record<string, AvatarVisualProfile> = {};
-      (profileResults as McpAvatarProfile[] | undefined)?.forEach((profile) => {
-        if (profile?.name && profile.visualProfile) {
-          avatarProfilesByName[profile.name] = profile.visualProfile;
-        }
+      const storyOutcome = await generateStoryWithOpenAITools({
+        config: req.config,
+        avatars: req.avatarDetails,
+        clerkToken: req.clerkToken,
+        mcpApiKey,
       });
 
-      console.log(`[ai-generation] Avatar profiles loaded:`, {
-        count: Object.keys(avatarProfilesByName).length,
-        names: Object.keys(avatarProfilesByName),
-        requestedAvatarIds: avatarIds,
-      });
-
-      const avatarMemoriesById = new Map<string, McpAvatarMemory[]>();
-      memoryResults.forEach((memories, index) => {
-        const avatarId = avatarIds[index];
-        avatarMemoriesById.set(
-          avatarId,
-          (Array.isArray(memories) ? memories : []) as McpAvatarMemory[]
-        );
-      });
-
-      const avatarDetailsWithContext = req.avatarDetails.map((avatar) => ({
-        ...avatar,
-        memories: avatarMemoriesById.get(avatar.id) ?? [],
-      }));
-
-      const storyResult = await generateEnhancedStoryWithOpenAI(
-        req.config,
-        avatarDetailsWithContext
-      );
-
-      metadata.tokensUsed = storyResult.tokensUsed ?? {
+      metadata.tokensUsed = storyOutcome.usage ?? {
         prompt: 0,
         completion: 0,
         total: 0,
@@ -600,14 +556,39 @@ export const generateStoryContent = api<
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
-      const validationResult = await validateStoryResponse(storyResult, mcpApiKey);
+      let validationResult = storyOutcome.state.validationResult;
+      if (!validationResult) {
+        validationResult = await validateStoryResponse(storyOutcome.story, mcpApiKey);
+      }
+
       if (!validationResult?.isValid) {
         throw new Error(
           `Story validation failed: ${JSON.stringify(validationResult?.errors ?? {})}`
         );
       }
 
-      const normalizedStory = validationResult.normalized ?? storyResult;
+      const normalizedStory = validationResult.normalized ?? storyOutcome.story;
+
+      const avatarProfilesByName: Record<string, AvatarVisualProfile> = {};
+      storyOutcome.state.avatarProfilesByName.forEach((profile, name) => {
+        avatarProfilesByName[name] = profile;
+      });
+
+      if (Object.keys(avatarProfilesByName).length === 0) {
+        console.warn("[ai-generation] Keine Avatarprofile über Tool-Aufrufe erhalten – Fallback auf direkten MCP-Aufruf.");
+        const fallbackProfiles = await getMultipleAvatarProfiles(avatarIds, req.clerkToken, mcpApiKey);
+        (fallbackProfiles as McpAvatarProfile[] | undefined)?.forEach((profile) => {
+          if (profile?.name && profile.visualProfile) {
+            avatarProfilesByName[profile.name] = profile.visualProfile;
+          }
+        });
+      }
+
+      console.log(`[ai-generation] Avatar profiles verfügbar:`, {
+        count: Object.keys(avatarProfilesByName).length,
+        names: Object.keys(avatarProfilesByName),
+        requestedAvatarIds: avatarIds,
+      });
 
       const seedBase = deterministicSeedFrom(avatarIds.join("|"));
       const coverDimensions = normalizeRunwareDimensions(600, 800);
@@ -686,132 +667,318 @@ export const generateStoryContent = api<
   }
 );
 
-async function generateEnhancedStoryWithOpenAI(
-  config: StoryConfig,
-  avatars: ExtendedAvatarDetails[]
-): Promise<{
-  title: string;
-  description: string;
-  chapters: (Omit<Chapter, "id" | "imageUrl"> & {
-    imageDescription: ChapterImageDescription;
-  })[];
-  coverImageDescription: CoverImageDescription;
-  avatarDevelopments: AvatarDevelopment[];
-  learningOutcomes: LearningOutcome[];
-  tokensUsed?: {
-    prompt: number;
-    completion: number;
-    total: number;
-  };
-}> {
-  const chapterCount =
-    config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
+interface UsageTotals {
+  prompt: number;
+  completion: number;
+  total: number;
+}
 
-  const characterContext = avatars
+interface StoryToolState {
+  avatarProfilesById: Map<string, AvatarVisualProfile>;
+  avatarProfilesByName: Map<string, AvatarVisualProfile>;
+  avatarMemoriesById: Map<string, McpAvatarMemory[]>;
+  validationResult?: ValidationResult;
+}
+
+interface StoryToolOutcome {
+  story: {
+    title: string;
+    description: string;
+    chapters: (Omit<Chapter, "id" | "imageUrl"> & {
+      imageDescription: ChapterImageDescription;
+    })[];
+    coverImageDescription: CoverImageDescription;
+    avatarDevelopments: AvatarDevelopment[];
+    learningOutcomes: LearningOutcome[];
+  };
+  usage: UsageTotals;
+  state: StoryToolState;
+  finalRequest: any;
+  finalResponse: any;
+}
+
+async function generateStoryWithOpenAITools(args: {
+  config: StoryConfig;
+  avatars: ExtendedAvatarDetails[];
+  clerkToken: string;
+  mcpApiKey: string;
+}): Promise<StoryToolOutcome> {
+  const { config, avatars, clerkToken, mcpApiKey } = args;
+
+  const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
+
+  const systemPrompt = [
+    "Du bist eine Autorin für die Talea-Geschichtenplattform.",
+    "Nutze konsequent die verfügbaren Tools, um Avatar-Informationen, Erinnerungen und Validierungen aus den MCP-Servern abzurufen.",
+    "Workflow:",
+    "1. Rufe `get_avatar_profiles` auf, bevor du Beschreibungen oder Bildprompts formulierst, um visuelle Konsistenz sicherzustellen.",
+    "2. Hole mit `get_avatar_memories` relevante Erinnerungen jedes Avatars, bevor du die Geschichte schreibst.",
+    "3. Erstelle eine spannende Geschichte mit Cliffhanger am Ende jedes Kapitels im JSON-Format.",
+    "4. Prüfe deine fertige JSON-Antwort mit `validate_story_response`. Korrigiere bei Bedarf und prüfe erneut.",
+    "5. Gib erst nach erfolgreicher Validierung die finale JSON-Antwort zurück.",
+    "Wichtig: Antworte niemals mit freiem Text, sondern ausschließlich mit gültigem JSON.",
+  ].join(" ");
+
+  const avatarSummary = avatars
     .map((avatar) => {
-      const memories = summarizeMemoriesForPrompt(avatar.memories);
-      const memoryText = memories ? `\nErinnerungen: ${memories}` : "";
-      return `${avatar.name}: ${avatar.description}${memoryText}`;
+      const description = avatar.description ? avatar.description.trim() : "Keine Beschreibung vorhanden.";
+      return `- ${avatar.name} (id: ${avatar.id}): ${description}`;
     })
-    .join("\n\n");
+    .join("\n");
 
-  const systemPrompt =
-    "Erstelle eine fesselnde Kindergeschichte. Kapitel enden mit Cliffhanger. Show don't tell. Halte dich an Avatar-Beschreibungen. Antworte nur mit JSON.";
+  const userPrompt = `Erstelle eine ${config.genre}-Geschichte im Setting ${config.setting} für die Altersgruppe ${config.ageGroup}. Die Geschichte soll ${chapterCount} Kapitel haben und die Hauptcharaktere konsequent nutzen.
 
-  const userPrompt = `${config.genre}-Geschichte im ${config.setting} fuer ${config.ageGroup}. ${chapterCount} Kapitel.
+Konfigurationsdetails:
+- Komplexität: ${config.complexity}
+- Lernmodus aktiviert: ${config.learningMode?.enabled ?? false}
+- Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine spezifischen Lernziele angegeben"}
 
-CHARAKTERE:
-${characterContext}
+Verfügbare Avatare:
+${avatarSummary}
 
-PERSONLICHKEITS-UPDATE-SYSTEM:
-Analysiere die generierte Geschichte und bestimme welche Merkmale sich bei jedem Charakter entwickeln sollen.
+Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale Antwort muss folgende Felder enthalten: title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes.`;
 
-BASIS-MERKMALE (verwende diese exakten IDs):
-courage, intelligence, creativity, empathy, strength, humor, adventure, patience, curiosity, leadership, teamwork
+  const tools = [
+    {
+      type: "function",
+      function: {
+        name: "get_avatar_profiles",
+        description:
+          "Liefert kanonische visuelle Profile (Aussehen) mehrerer Avatare für konsistente Bildbeschreibungen.",
+        parameters: {
+          type: "object",
+          properties: {
+            avatar_ids: {
+              type: "array",
+              items: { type: "string" },
+              description: "Liste der Avatar-IDs, die geladen werden sollen.",
+            },
+          },
+          required: ["avatar_ids"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_avatar_memories",
+        description:
+          "Liefert relevante Erinnerungen eines Avatars, um sie in der Geschichte zu berücksichtigen.",
+        parameters: {
+          type: "object",
+          properties: {
+            avatar_id: { type: "string", description: "ID des Avatars." },
+            limit: {
+              type: "integer",
+              minimum: 1,
+              maximum: 50,
+              description: "Maximale Anzahl an Erinnerungen (Standard 10).",
+            },
+          },
+          required: ["avatar_id"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "validate_story_response",
+        description:
+          "Validiert die fertige Story und liefert normalisierte Daten sowie Fehlermeldungen, falls das Format nicht passt.",
+        parameters: {
+          type: "object",
+          properties: {
+            storyData: {
+              type: "object",
+              description: "Die vollständige Story als JSON, die validiert werden soll.",
+            },
+          },
+          required: ["storyData"],
+        },
+      },
+    },
+  ];
 
-WISSENS-MERKMALE (verwende knowledge.BEREICH):
-knowledge.biology, knowledge.history, knowledge.physics, knowledge.geography, knowledge.astronomy, knowledge.mathematics, knowledge.chemistry
+  const messages: Array<any> = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
 
-PUNKTE-VERGABE:
-- Basis-Merkmale: 1-5 Punkte (je nach Relevanz zur Geschichte)
-- Wissens-Merkmale: 1-10 Punkte (je nach Lerninhalt)
-- Hauptcharaktere: Mehr Punkte als Nebencharaktere
-
-ANTWORT-FORMAT:
-Gib nur JSON zurueck mit: title, description, chapters[{title,content,order,imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes.
-
-avatarDevelopments muss folgendes Format haben:
-[{ "name": "Avatar-Name", "changedTraits": [{ "trait": "MERKMAL_ID", "change": PUNKTE }] }]`;
-
-  const payload = {
-    model: MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    max_completion_tokens: 24_000,
-    response_format: { type: "json_object" },
+  const usageTotals: UsageTotals = { prompt: 0, completion: 0, total: 0 };
+  const state: StoryToolState = {
+    avatarProfilesById: new Map(),
+    avatarProfilesByName: new Map(),
+    avatarMemoriesById: new Map(),
   };
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
+  let finalRequest: any = null;
+  let finalResponse: any = null;
+
+  const toolHandlers: Record<
+    string,
+    (args: Record<string, any>) => Promise<unknown>
+  > = {
+    get_avatar_profiles: async ({ avatar_ids }) => {
+      if (!Array.isArray(avatar_ids) || avatar_ids.length === 0) {
+        throw new Error("avatar_ids must be a non-empty array");
+      }
+      const results = await getMultipleAvatarProfiles(avatar_ids, clerkToken, mcpApiKey);
+      if (Array.isArray(results)) {
+        results.forEach((profile: any) => {
+          if (profile?.id && profile?.visualProfile) {
+            state.avatarProfilesById.set(profile.id, profile.visualProfile);
+          }
+          if (profile?.name && profile?.visualProfile) {
+            state.avatarProfilesByName.set(profile.name, profile.visualProfile);
+          }
+        });
+      }
+      return results ?? [];
     },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json() as OpenAIResponse;
-
-  await publishWithTimeout(logTopic, {
-    source: "openai-story-generation-mcp",
-    timestamp: new Date(),
-    request: payload,
-    response: data,
-  });
-
-  const choice = data.choices?.[0];
-  if (!choice) {
-    throw new Error("Ungueltige Antwort von OpenAI (keine choices)");
-  }
-
-  if (choice.finish_reason === "content_filter") {
-    throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
-  }
-
-  if (choice.finish_reason === "length") {
-    throw new Error(
-      "Die Story-Generierung wurde wegen Token-Limit abgeschnitten. Bitte versuche es mit kuerzeren Einstellungen."
-    );
-  }
-
-  const content = choice.message?.content;
-  if (!content) {
-    throw new Error(`Leere Antwort von OpenAI (Finish Reason: ${choice.finish_reason})`);
-  }
-
-  let parsed;
-  try {
-    const cleanContent = content.replace(/```json\s*/g, "").replace(/```$/g, "").trim();
-    parsed = JSON.parse(cleanContent);
-  } catch (error) {
-    throw new Error(
-      `JSON Parse Fehler: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-
-  return {
-    ...parsed,
-    tokensUsed: {
-      prompt: data.usage?.prompt_tokens ?? 0,
-      completion: data.usage?.completion_tokens ?? 0,
-      total: data.usage?.total_tokens ?? 0,
+    get_avatar_memories: async ({ avatar_id, limit }) => {
+      if (!avatar_id || typeof avatar_id !== "string") {
+        throw new Error("avatar_id must be provided as string");
+      }
+      const max = typeof limit === "number" ? limit : 10;
+      const memories = await getAvatarMemories(avatar_id, clerkToken, mcpApiKey, max);
+      if (Array.isArray(memories)) {
+        state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
+      }
+      return memories ?? [];
+    },
+    validate_story_response: async ({ storyData }) => {
+      const validation = await validateStoryResponse(storyData, mcpApiKey);
+      state.validationResult = validation;
+      return validation;
     },
   };
+
+  while (true) {
+    const payload = {
+      model: MODEL,
+      messages,
+      tools,
+      tool_choice: "auto" as const,
+      max_completion_tokens: 24_000,
+      response_format: { type: "json_object" },
+    };
+
+    finalRequest = payload;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAIKey()}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = (await response.json()) as OpenAIResponse;
+    finalResponse = data;
+
+    if (data.usage) {
+      usageTotals.prompt += data.usage.prompt_tokens ?? 0;
+      usageTotals.completion += data.usage.completion_tokens ?? 0;
+      usageTotals.total += data.usage.total_tokens ?? 0;
+    }
+
+    const choice = data.choices?.[0];
+    if (!choice?.message) {
+      throw new Error("Ungültige Antwort von OpenAI (keine Nachricht im vollständigen Ergebnis).");
+    }
+
+    const toolCalls = (choice.message as any).tool_calls;
+    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+      messages.push(choice.message);
+
+      for (const toolCall of toolCalls) {
+        const functionName = toolCall?.function?.name;
+        const functionArgs = toolCall?.function?.arguments ?? "{}";
+
+        const handler = toolHandlers[functionName];
+        if (!handler) {
+          console.warn(`[ai-generation] Unbekanntes Tool angefordert: ${functionName}`);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ error: `Tool ${functionName} ist nicht verfügbar.` }),
+          });
+          continue;
+        }
+
+        let parsedArgs: Record<string, any> = {};
+        try {
+          parsedArgs = JSON.parse(functionArgs || "{}");
+        } catch (error) {
+          console.error("[ai-generation] Konnte Tool-Argumente nicht parsen:", error);
+        }
+
+        try {
+          const result = await handler(parsedArgs);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(result ?? {}),
+          });
+        } catch (error) {
+          console.error(`[ai-generation] Toolausführung fehlgeschlagen (${functionName}):`, error);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({
+              error: (error as Error)?.message ?? "Unbekannter Fehler bei Toolausführung",
+            }),
+          });
+        }
+      }
+
+      continue;
+    }
+
+    if (choice.finish_reason === "content_filter") {
+      throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
+    }
+
+    if (choice.finish_reason === "length") {
+      throw new Error(
+        "Die Story-Generierung wurde wegen Token-Limit abgeschnitten. Bitte versuche es mit kürzeren Einstellungen."
+      );
+    }
+
+    const content = choice.message.content;
+    if (!content) {
+      throw new Error("Leere Antwort von OpenAI erhalten.");
+    }
+
+    let parsedStory: StoryToolOutcome["story"];
+    try {
+      const cleanContent = content.replace(/```json\s*/g, "").replace(/```$/g, "").trim();
+      parsedStory = JSON.parse(cleanContent);
+    } catch (error) {
+      throw new Error(
+        `JSON Parse Fehler: ${(error as Error)?.message ?? String(error)}`
+      );
+    }
+
+    await publishWithTimeout(logTopic, {
+      source: "openai-story-generation-mcp",
+      timestamp: new Date(),
+      request: finalRequest,
+      response: finalResponse,
+    });
+
+    return {
+      story: parsedStory,
+      usage: usageTotals,
+      state,
+      finalRequest,
+      finalResponse,
+    };
+  }
 }
