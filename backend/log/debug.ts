@@ -6,6 +6,8 @@ interface DebugResponse {
   rowCount: number;
   sampleRows: any[];
   error?: string;
+  allTables?: string[];
+  databaseName?: string;
 }
 
 // Debug endpoint to check database state
@@ -13,11 +15,23 @@ export const debug = api<void, DebugResponse>(
   { expose: true, method: "GET", path: "/log/debug", auth: false },
   async () => {
     try {
+      // Get current database name
+      const dbNameResult = await logDB.query<{ current_database: string }>`
+        SELECT current_database()
+      `;
+      const databaseName = dbNameResult[0]?.current_database || "unknown";
+
+      // Get all tables in the database
+      const allTablesResult = await logDB.query<{ tablename: string }>`
+        SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      `;
+      const allTables = allTablesResult.map(row => row.tablename);
+
       // Check if table exists
       const tableCheck = await logDB.query<{ exists: boolean }>`
         SELECT EXISTS (
           SELECT FROM information_schema.tables
-          WHERE table_name = 'logs'
+          WHERE table_name = 'logs' AND table_schema = 'public'
         ) as exists
       `;
 
@@ -28,7 +42,9 @@ export const debug = api<void, DebugResponse>(
           tableExists: false,
           rowCount: 0,
           sampleRows: [],
-          error: "Table 'logs' does not exist"
+          allTables,
+          databaseName,
+          error: "Table 'logs' does not exist in public schema"
         };
       }
 
@@ -52,6 +68,8 @@ export const debug = api<void, DebugResponse>(
         tableExists: true,
         rowCount,
         sampleRows,
+        allTables,
+        databaseName,
       };
     } catch (error: any) {
       return {
