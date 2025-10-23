@@ -23,6 +23,7 @@ import AdminDashboard from './screens/Admin/AdminDashboard';
 import { clerkPublishableKey } from './config';
 import DokuWizardScreen from './screens/Doku/DokuWizardScreen';
 import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
+import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
 import DokusScreen from './screens/Doku/DokusScreen';
 
 const AppContent = () => (
@@ -42,7 +43,8 @@ const AppContent = () => (
         <Route path="/logs" element={<LogViewerScreen />} />
         <Route path="/doku" element={<DokusScreen />} />
         <Route path="/doku/create" element={<DokuWizardScreen />} />
-        <Route path="/doku-reader/:dokuId" element={<DokuReaderScreen />} />
+        <Route path="/doku-reader/:dokuId" element={<DokuScrollReaderScreen />} />
+        <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
         <Route path="/auth" element={<AuthScreen />} />
         <Route path="/_admin" element={<AdminDashboard />} />
       </Routes>
