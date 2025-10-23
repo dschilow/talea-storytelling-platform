@@ -563,7 +563,7 @@ export const generateStoryContent = api<
     };
 
     try {
-      console.log("[ai-generation] 🚀🚀🚀 OPTIMIZATION v1.0 ACTIVE - BUILD 2025-10-23-v2 🚀🚀🚀");
+      console.log("[ai-generation] 🚀🚀🚀 OPTIMIZATION v1.0 ACTIVE - BUILD 2025-10-23-v3-NORMALIZED 🚀🚀🚀");
 
       // OPTIMIZATION v1.0: Hard-fail ID mapping before MCP calls
       const avatarIdMappings: Array<{id: string; name: string}> = req.avatarDetails.map(a => ({
