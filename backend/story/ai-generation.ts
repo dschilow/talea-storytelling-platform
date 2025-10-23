@@ -676,7 +676,10 @@ interface UsageTotals {
 interface StoryToolState {
   avatarProfilesById: Map<string, AvatarVisualProfile>;
   avatarProfilesByName: Map<string, AvatarVisualProfile>;
+  compressedProfilesById: Map<string, Record<string, unknown>>;
   avatarMemoriesById: Map<string, McpAvatarMemory[]>;
+  compressedMemoriesById: Map<string, unknown[]>;
+  validatorFailures: number;
   validationResult?: ValidationResult;
 }
 
@@ -695,6 +698,69 @@ interface StoryToolOutcome {
   state: StoryToolState;
   finalRequest: any;
   finalResponse: any;
+}
+
+const MAX_TOOL_MEMORIES = 3;
+const MAX_DESCRIPTOR_COUNT = 6;
+
+function compressVisualProfile(profile: AvatarVisualProfile) {
+  return {
+    ageApprox: profile.ageApprox,
+    gender: profile.gender,
+    hair: profile.hair
+      ? {
+          color: profile.hair.color,
+          style: profile.hair.style,
+          length: profile.hair.length,
+        }
+      : undefined,
+    eyes: profile.eyes
+      ? {
+          color: profile.eyes.color,
+          shape: profile.eyes.shape,
+        }
+      : undefined,
+    skin: profile.skin
+      ? {
+          tone: profile.skin.tone,
+          distinctiveFeatures: profile.skin.distinctiveFeatures?.slice(0, 2),
+        }
+      : undefined,
+    clothing: profile.clothingCanonical,
+    keyDescriptors: profile.consistentDescriptors?.slice(0, MAX_DESCRIPTOR_COUNT),
+  };
+}
+
+function summarizeTraitChanges(changes: Array<{ trait: string; change: number }>) {
+  if (!Array.isArray(changes) || changes.length === 0) {
+    return undefined;
+  }
+  return changes.slice(0, 4).map((change) => ({
+    trait: change.trait,
+    change: change.change,
+  }));
+}
+
+function compressMemories(memories: McpAvatarMemory[]) {
+  if (!Array.isArray(memories) || memories.length === 0) {
+    return [];
+  }
+
+  const sorted = [...memories].sort((a, b) => {
+    const aDate = Date.parse(a.createdAt ?? "");
+    const bDate = Date.parse(b.createdAt ?? "");
+    if (Number.isNaN(aDate) || Number.isNaN(bDate)) {
+      return 0;
+    }
+    return bDate - aDate;
+  });
+
+  return sorted.slice(0, MAX_TOOL_MEMORIES).map((memory) => ({
+    storyTitle: memory.storyTitle,
+    experience: memory.experience,
+    emotionalImpact: memory.emotionalImpact,
+    personalityChanges: summarizeTraitChanges(memory.personalityChanges || []),
+  }));
 }
 
 async function generateStoryWithOpenAITools(args: {
@@ -808,7 +874,10 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
   const state: StoryToolState = {
     avatarProfilesById: new Map(),
     avatarProfilesByName: new Map(),
+    compressedProfilesById: new Map(),
     avatarMemoriesById: new Map(),
+    compressedMemoriesById: new Map(),
+    validatorFailures: 0,
   };
 
   let finalRequest: any = null;
@@ -822,31 +891,61 @@ Nutze die Tools, um alle notwendigen Detailinformationen abzurufen. Die finale A
       if (!Array.isArray(avatar_ids) || avatar_ids.length === 0) {
         throw new Error("avatar_ids must be a non-empty array");
       }
-      const results = await getMultipleAvatarProfiles(avatar_ids, clerkToken, mcpApiKey);
-      if (Array.isArray(results)) {
-        results.forEach((profile: any) => {
-          if (profile?.id && profile?.visualProfile) {
-            state.avatarProfilesById.set(profile.id, profile.visualProfile);
-          }
-          if (profile?.name && profile?.visualProfile) {
-            state.avatarProfilesByName.set(profile.name, profile.visualProfile);
-          }
-        });
+
+      const missingIds = avatar_ids.filter((id) => !state.avatarProfilesById.has(id));
+      if (missingIds.length > 0) {
+        const results = await getMultipleAvatarProfiles(missingIds, clerkToken, mcpApiKey);
+        if (Array.isArray(results)) {
+          results.forEach((profile: any) => {
+            if (profile?.id && profile?.visualProfile) {
+              state.avatarProfilesById.set(profile.id, profile.visualProfile);
+              state.compressedProfilesById.set(profile.id, {
+                name: profile.name,
+                ...compressVisualProfile(profile.visualProfile),
+              });
+            }
+            if (profile?.name && profile?.visualProfile) {
+              state.avatarProfilesByName.set(profile.name, profile.visualProfile);
+            }
+          });
+        }
       }
-      return results ?? [];
+
+      return avatar_ids
+        .filter((id) => state.compressedProfilesById.has(id))
+        .map((id) => ({
+          avatarId: id,
+          ...(state.compressedProfilesById.get(id) as Record<string, unknown>),
+        }));
     },
     get_avatar_memories: async ({ avatar_id, limit }) => {
       if (!avatar_id || typeof avatar_id !== "string") {
         throw new Error("avatar_id must be provided as string");
       }
-      const max = typeof limit === "number" ? limit : 10;
-      const memories = await getAvatarMemories(avatar_id, clerkToken, mcpApiKey, max);
-      if (Array.isArray(memories)) {
-        state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
+
+      if (!state.avatarMemoriesById.has(avatar_id)) {
+        const max = typeof limit === "number" ? Math.min(limit, MAX_TOOL_MEMORIES) : MAX_TOOL_MEMORIES;
+        const memories = await getAvatarMemories(avatar_id, clerkToken, mcpApiKey, max);
+        if (Array.isArray(memories)) {
+          state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
+          state.compressedMemoriesById.set(avatar_id, compressMemories(memories as McpAvatarMemory[]));
+        } else {
+          state.avatarMemoriesById.set(avatar_id, []);
+          state.compressedMemoriesById.set(avatar_id, []);
+        }
       }
-      return memories ?? [];
+
+      return state.compressedMemoriesById.get(avatar_id) ?? [];
     },
     validate_story_response: async ({ storyData }) => {
+      if (!storyData) {
+        state.validatorFailures += 1;
+        return {
+          error: "storyData ist erforderlich. Beispiel: {\"storyData\": {\"title\": \"...\", \"description\": \"...\", \"chapters\": [...]}}",
+          hint: "Sende die vollständige Story im Feld storyData, damit die Validierung funktioniert.",
+          attempts: state.validatorFailures,
+        };
+      }
       const validation = await validateStoryResponse(storyData, mcpApiKey);
       state.validationResult = validation;
       return validation;
