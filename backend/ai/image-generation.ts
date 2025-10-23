@@ -100,8 +100,10 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     height: normalizeToMultiple64(req.height || 512),
     
     numberResults: 1,
-    steps: req.steps || 30,
-    CFGScale: req.CFGScale || 8.5,
+    // OPTIMIZED (v1.0): Conservative defaults for identity stability
+    // CFG 10-11 for strong prompt adherence, Steps 30-36 for quality
+    steps: req.steps || 34,
+    CFGScale: req.CFGScale || 10.5,
     scheduler: "DDIM",
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
     
@@ -226,8 +228,9 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       width: normalizeToMultiple64(img.width || 512),
       height: normalizeToMultiple64(img.height || 512),
       numberResults: 1,
-      steps: img.steps || 25,
-      CFGScale: img.CFGScale || 8.0,
+      // OPTIMIZED (v1.0): Conservative defaults for batch generation
+      steps: img.steps || 34,
+      CFGScale: img.CFGScale || 10.5,
       scheduler: "DDIM",
       seed: img.seed ?? Math.floor(Math.random() * 2147483647),
       ...(refImagesBase64.length > 0 && {

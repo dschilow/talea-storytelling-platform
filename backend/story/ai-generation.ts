@@ -11,6 +11,32 @@ import {
   validateStoryResponse,
   type ValidationResult,
 } from "../helpers/mcpClient";
+import {
+  normalizeAvatarIds,
+  createFallbackProfile,
+  upgradeProfileWithVersion,
+  generateProfileHash,
+  buildNegativePrompt,
+  normalizeLanguage,
+  safeCoverScene,
+  createTelemetry,
+  OptimizationErrorCode,
+  type MinimalAvatarProfile,
+  type SpeciesType,
+  type OptimizationTelemetry,
+} from "./avatar-image-optimization";
+import {
+  buildCharacterBlock,
+  buildCompleteImagePrompt,
+  type CharacterBlock,
+} from "./character-block-builder";
+import {
+  performVisionQA,
+  strengthenConstraintsForRetry,
+  extractKeyFeaturesFromMustInclude,
+  type VisionQAExpectation,
+  type VisionQAResult,
+} from "./vision-qa";
 
 // WICHTIG: gpt-5-nano für beste Qualität und Tool-Nutzung
 // Update: avatarDevelopments-Validierung verbessert (23.10.2025)
@@ -896,34 +922,60 @@ async function generateStoryWithOpenAITools(args: {
 
   const chapterCount = config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  // OPTIMIERT: Präziser System-Prompt mit klaren Längenanweisungen und PFLICHTFELDERN
+  // OPTIMIZED v1.0: Professional children's book style with quality guidelines
+  const targetWordsPerChapter = config.ageGroup === "3-5" ? 200 : config.ageGroup === "6-8" ? 300 : 400;
   const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
 
 WORKFLOW (Schritt für Schritt):
 1. Rufe get_avatar_profiles auf (nur einmal!)
 2. Rufe get_avatar_memories für jeden Avatar auf (nur einmal pro Avatar!)
-3. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (300-400 Wörter pro Kapitel!)
+3. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${targetWordsPerChapter} Wörter pro Kapitel!)
 4. Validiere mit validate_story_response (sende die KOMPLETTE Story im storyData-Feld!)
 5. Bei Fehlern: korrigiere und validiere erneut
 6. Gib die finale JSON-Antwort zurück
 
+STILRICHTLINIEN (v1.0 - SEHR WICHTIG!):
+📖 ERZÄHLSTIL:
+- "Show, don't tell": Zeige Emotionen durch Handlungen, nicht durch Erklärungen
+- Lebendige Bilder im Text: nutze sensorische Details (Sehen, Hören, Fühlen, Riechen, Schmecken)
+- Abwechslungsreiches Tempo: Action, ruhige Momente, Humor, Spannung
+- Direkte Figurenrede für Authentizität
+
+👥 CHARAKTERE:
+- Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
+- Zeige Charakterentwicklung durch Entscheidungen und Reaktionen
+- Konsistente Namen und Pronomen (${avatars.map(a => `${a.name} = ${a.physicalTraits?.characterType || "Figur"}`).join(", ")})
+
+📏 KAPITELLÄNGE & STRUKTUR:
+- EXAKT ${targetWordsPerChapter} Wörter pro Kapitel (nicht weniger!)
+- Jedes Kapitel: Einstieg → Entwicklung → Cliffhanger
+- Klare Szenenübergänge
+- Visuell beschreibbare Momente für Illustrationen
+
+🎯 WERTE & SICHERHEIT:
+- Positive Werte: Mut, Teamwork, Hilfsbereitschaft, Kreativität, Empathie
+- Kindgerecht: Keine Gewalt, keine Ängste verstärkend
+- Lösungsorientiert: Probleme werden gemeinsam bewältigt
+
+💡 LERNMODUS (falls aktiv):
+- Lernziele NATÜRLICH einbauen (keine Lehrbuch-Tiraden!)
+- Neues Wissen durch Dialoge und Entdeckungen vermitteln
+- Konsistentes Inventar (z.B. "roter Rucksack" taucht wieder auf)
+
 KRITISCH - Chapter Content:
-- Jedes Kapitel muss einen vollständigen content-Text mit 300-400 Wörtern haben!
+- Jedes Kapitel muss einen vollständigen content-Text mit ${targetWordsPerChapter} Wörtern haben!
 - NIEMALS leere oder kurze Platzhalter verwenden!
 - Schreibe den KOMPLETTEN Text BEVOR du validierst!
 
-WICHTIGE REGELN:
-- Jedes Kapitel muss 300-400 Wörter haben (lebendige, detaillierte Beschreibungen!)
-- Nutze Dialoge und Emotionen, aber bleibe fokussiert
-- Jedes Kapitel endet mit einem spannenden Cliffhanger
-- Beschreibe Szenen visuell und atmosphärisch
+TECHNISCHE REGELN:
 - Antworte NUR mit gültigem JSON, NIEMALS mit freiem Text
 - Rufe Tools nicht mehrfach mit denselben Parametern auf
+- Jedes Kapitel endet mit spannendem Cliffhanger
 
 PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
 - title (string)
 - description (string)
-- chapters (array mit title, content (MIN 300 Wörter!), order, imageDescription)
+- chapters (array mit title, content (MIN ${targetWordsPerChapter} Wörter!), order, imageDescription)
 - coverImageDescription (object)
 - avatarDevelopments (array mit name, changedTraits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
 - learningOutcomes (array mit category, description)`;
