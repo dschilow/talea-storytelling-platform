@@ -951,18 +951,16 @@ WORKFLOW:
 4. Validiere mit validate_story_response (sende die komplette Story!)
 5. Gib die finale JSON-Antwort zurück
 
-KRITISCH - avatarDevelopments:
-Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben (einen für jeden Avatar).
-Für JEDEN Avatar in der Liste oben MUSS ein Eintrag existieren mit:
-- name (der EXAKTE NAME des Avatars aus der Liste: ${avatars.map(a => `"${a.name}"`).join(", ")})
-- changedTraits (array mit trait, change für jede Persönlichkeitsveränderung)
+❗ KRITISCH - avatarDevelopments (SEHR WICHTIG!):
+Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben - NICHT MEHR, NICHT WENIGER!
 
-WICHTIG:
-- Das Array muss GENAU ${avatars.length} Einträge haben - nicht mehr, nicht weniger!
-- Verwende EXAKT diese Namen: ${avatars.map(a => a.name).join(", ")}
-- Jeder Eintrag muss "name" und "changedTraits" haben
+📋 DIE VOLLSTÄNDIGE LISTE DER AVATARE IN DIESER GESCHICHTE:
+${avatars.map((a, idx) => `${idx + 1}. "${a.name}"`).join('\n')}
 
-BEISPIEL avatarDevelopments für diese Geschichte:
+✅ RICHTIG: Erstelle genau ${avatars.length} Einträge für: ${avatars.map(a => a.name).join(" UND ")}
+❌ FALSCH: Andere Namen verwenden oder mehr/weniger als ${avatars.length} Einträge
+
+PFLICHT-BEISPIEL für diese Geschichte (GENAU SO FORMAT):
 [
   {
     "name": "${avatars[0].name}",
@@ -979,6 +977,11 @@ BEISPIEL avatarDevelopments für diese Geschichte:
     ]
   }` : ''}
 ]
+
+⚠️ PRÜFE VOR DEM VALIDIEREN:
+- Hast du genau ${avatars.length} Einträge? (zähle nach!)
+- Hast du die richtigen Namen verwendet? (${avatars.map(a => a.name).join(", ")})
+- Hat jeder Eintrag "name" UND "changedTraits"?
 
 FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
 
@@ -1167,9 +1170,30 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
         
         if (missingAvatarDevs) {
           const avatarNames = avatars.map(a => a.name);
+          const errorDetails = validation.errors
+            .filter((err: any) => err.path?.includes("avatarDevelopments"))
+            .map((err: any) => `Pfad: ${err.path?.join(".")} - ${err.message}`)
+            .join("; ");
+          
           return {
             ...validation,
-            hint: `KRITISCH: avatarDevelopments ist fehlerhaft! Du MUSST für JEDEN Avatar einen Eintrag mit dem NAMEN (nicht ID) erstellen. Avatar-Namen: ${avatarNames.join(", ")}. Beispiel: [{"name": "${avatarNames[0]}", "changedTraits": [{"trait": "courage", "change": 5}]}]`,
+            hint: `❌ KRITISCH: avatarDevelopments ist fehlerhaft!
+            
+Fehler: ${errorDetails}
+
+Du MUSST für JEDEN der ${avatars.length} Avatare GENAU EINEN Eintrag erstellen:
+${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
+
+❌ HÄUFIGE FEHLER:
+- Zu viele Einträge (${avatars.length} ist Maximum!)
+- Zu wenige Einträge (${avatars.length} ist Minimum!)
+- Falscher Name verwendet (nutze: ${avatarNames.join(", ")})
+- Fehlendes "name" oder "changedTraits" Feld
+
+✅ KORREKTES BEISPIEL für genau ${avatars.length} ${avatars.length === 1 ? 'Avatar' : 'Avatare'}:
+[${avatars.map(a => `
+  {"name": "${a.name}", "changedTraits": [{"trait": "courage", "change": 5}, {"trait": "empathy", "change": 3}]}`).join(',')}
+]`,
           };
         }
       }
