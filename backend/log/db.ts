@@ -1,11 +1,9 @@
-import { SQLDatabase } from "encore.dev/storage/sqldb";
+// Re-export avatarDB as logDB to use the same database instance
+// This fixes the issue where logDB was pointing to a separate database
+// that doesn't exist in Railway (only one PostgreSQL instance)
+import { avatarDB } from "../avatar/db";
 
-// Database for storing logs
-// Note: Using "avatar" database name to share the same PostgreSQL instance in Railway
-// All Encore databases map to the same Railway PostgreSQL service
-export const logDB = new SQLDatabase("avatar", {
-  migrations: "./migrations",
-});
+export const logDB = avatarDB;
 
 export interface LogRow {
   id: string;
