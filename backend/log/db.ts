@@ -1,10 +1,5 @@
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
-// Use the main "railway" database where all tables exist
-// This matches the single PostgreSQL instance in Railway
-export const logDB = new SQLDatabase("railway", {
-  migrations: "./migrations",
-});
+// Type definitions for log database operations
+// All log operations use avatarDB directly since there's only one PostgreSQL instance in Railway
 
 export interface LogRow {
   id: string;
@@ -15,3 +10,6 @@ export interface LogRow {
   metadata?: any;
   created_at: Date;
 }
+
+// Re-export avatarDB for log operations
+export { avatarDB as logDB } from "../avatar/db";
