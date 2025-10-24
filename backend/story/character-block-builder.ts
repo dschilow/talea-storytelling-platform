@@ -302,45 +302,59 @@ export function buildCharacterBlock(
   return block;
 }
 
+function limitSentences(text: string | undefined, maxCount: number): string {
+  if (!text) {
+    return "";
+  }
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized === "") {
+    return "";
+  }
+  const sentences = normalized.match(/[^.!?]+[.!?]?/g);
+  if (!sentences) {
+    return normalized;
+  }
+  return sentences.slice(0, maxCount).join(" ").trim();
+}
+
 /**
  * Formats a CHARACTER BLOCK as a text prompt section
  */
 export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
-  const lines: string[] = [];
+  const segments: string[] = [];
 
-  lines.push(`CHARACTER: ${block.name}`);
-  
-  // Species line with modifiers
-  if (block.species === "cat") {
-    lines.push(`species: cat (${block.ageHint}), non-anthropomorphic, quadruped`);
-  } else if (block.species === "dog") {
-    lines.push(`species: dog (${block.ageHint}), non-anthropomorphic, quadruped`);
-  } else if (block.species === "animal") {
-    lines.push(`species: animal (${block.ageHint}), non-anthropomorphic, quadruped`);
-  } else {
-    lines.push(`species: human (${block.ageHint})`);
-  }
+  const speciesDescriptor =
+    block.species === "cat"
+      ? `cat (${block.ageHint}), non-anthropomorphic, four-legged`
+      : block.species === "dog"
+      ? `dog (${block.ageHint}), non-anthropomorphic, four-legged`
+      : block.species === "animal"
+      ? `animal (${block.ageHint}), non-anthropomorphic, four-legged`
+      : `human (${block.ageHint})`;
 
-  // Detailed description
+  segments.push(`${block.name}: ${speciesDescriptor}`);
+
   if (block.detailedDescription) {
-    lines.push(block.detailedDescription);
+    segments.push(block.detailedDescription);
   }
 
-  // Pose and position
-  if (block.pose) lines.push(`pose: ${block.pose}`);
-  if (block.position) lines.push(`position: ${block.position}`);
+  if (block.pose) {
+    segments.push(`pose ${block.pose}`);
+  }
 
-  // MUST INCLUDE tokens
+  if (block.position) {
+    segments.push(`position ${block.position}`);
+  }
+
   if (block.mustInclude.length > 0) {
-    lines.push(`MUST INCLUDE: ${block.mustInclude.join(", ")}`);
+    segments.push(`must include ${block.mustInclude.join(", ")}`);
   }
 
-  // FORBID constraints
   if (block.forbid.length > 0) {
-    lines.push(`FORBID: ${block.forbid.join(", ")}`);
+    segments.push(`forbid ${block.forbid.join(", ")}`);
   }
 
-  return lines.join(". ");
+  return segments.join("; ");
 }
 
 /**
@@ -357,46 +371,75 @@ export function buildMultiCharacterPrompt(
       pose?: string;
     };
   }>
-): string {
+): { prompt: string; blocks: CharacterBlock[] } {
   const blocks = charactersData.map((data) =>
     buildCharacterBlock(data.name, data.profile, data.sceneDetails)
   );
 
-  const formattedBlocks = blocks.map((block) => formatCharacterBlockAsPrompt(block));
+  const formattedBlocks = blocks
+    .map((block) => formatCharacterBlockAsPrompt(block))
+    .join(" | ");
 
-  // Add separator between characters for clarity
-  const separator = charactersData.length > 1 ? " AND " : "";
-  const combined = formattedBlocks.join(separator);
-
-  // Normalize language (DE -> EN)
-  return normalizeLanguage(combined);
+  return {
+    blocks,
+    prompt: normalizeLanguage(formattedBlocks),
+  };
 }
 
 /**
  * Builds scene/style block (Abschnitt 4.4)
  */
 export interface SceneStyleBlock {
-  scene?: string;
-  masterStyle: string;
+  scene: string;
   composition: string;
-  lighting?: string;
-  global: string;
+  lighting: string;
+  style: string;
+  quality: string;
 }
 
 export function buildSceneStyleBlock(
   scene?: string,
-  characterCount = 1
+  characterCount = 1,
+  includesAnimal = false,
+  includesCat = false
 ): SceneStyleBlock {
+  const baseScene =
+    scene && scene.trim() !== ""
+      ? limitSentences(scene, 2)
+      : "storybook setting with gentle movement and clear foreground focus";
+
+  const composition =
+    characterCount > 1
+      ? "balanced two-subject layout, left/right separation, knee-up framing, gentle depth-of-field"
+      : "single-subject focus, slightly low camera, inviting depth";
+
+  const lighting =
+    "warm rim light, soft fill from environment, subtle volumetric glow, no harsh shadows";
+
+  const style =
+    "friendly children's book illustration, soft 3D forms with painterly shading, watercolor texture, analog paper grain";
+
+  const qualityParts = [
+    `exactly ${characterCount} subject${characterCount === 1 ? "" : "s"}`,
+    "child-safe, print-ready clarity",
+    "clean hands and faces",
+    "consistent characters across images",
+  ];
+
+  if (includesAnimal) {
+    qualityParts.push("animal stays natural, no clothing or human traits");
+  }
+
+  if (includesCat) {
+    qualityParts.push("cat on four paws, expressive tail visible");
+  }
+
   return {
-    scene: scene || "dynamic scene with clear focus on characters",
-    masterStyle:
-      "professional children's book illustration, vibrant colors, soft lighting, expressive characters",
-    composition:
-      characterCount > 1
-        ? "two-subject focus; clear separation; shallow depth-of-field; both characters clearly visible"
-        : "single-subject focus; clear composition; engaging perspective",
-    lighting: "warm rim light; gentle bounce from environment; natural illumination",
-    global: "keep each character visually identical across all images; anatomically correct proportions",
+    scene: baseScene,
+    composition,
+    lighting,
+    style,
+    quality: qualityParts.join(", "),
   };
 }
 
@@ -406,18 +449,10 @@ export function buildSceneStyleBlock(
 export function formatSceneStyleBlockAsPrompt(block: SceneStyleBlock): string {
   const lines: string[] = [];
 
-  lines.push(`MASTERSTYLE: ${block.masterStyle}`);
   lines.push(`COMPOSITION: ${block.composition}`);
-  
-  if (block.scene) {
-    lines.push(`SCENE: ${block.scene}`);
-  }
-  
-  if (block.lighting) {
-    lines.push(`LIGHTING: ${block.lighting}`);
-  }
-  
-  lines.push(`GLOBAL: ${block.global}`);
+  lines.push(`SCENE & LIGHT: ${block.scene}. Lighting ${block.lighting}`);
+  lines.push(`STYLE: ${block.style}`);
+  lines.push(`QUALITY GUARDS: ${block.quality}`);
 
   return normalizeLanguage(lines.join(". "));
 }
@@ -446,17 +481,42 @@ export function buildCompleteImagePrompt(
   const sections: string[] = [];
 
   // 1. Character blocks (always first)
-  const characterPrompt = buildMultiCharacterPrompt(options.characters);
-  sections.push(characterPrompt);
+  const { prompt: identityPrompt, blocks } = buildMultiCharacterPrompt(
+    options.characters
+  );
+  const subjectCount = blocks.length || options.characters.length;
+  const speciesSet = new Set(blocks.map((b) => b.species));
+  const includesAnimal = Array.from(speciesSet).some((s) => s !== "human");
+  const includesCat = speciesSet.has("cat");
+
+  const goalParts = [
+    "GOAL: friendly children's book illustration for the chapter scene",
+    subjectCount === 1 ? "exactly one subject" : "exactly two subjects",
+    "knee-up framing",
+    "warm fairy-tale mood",
+  ];
+
+  if (includesCat) {
+    goalParts.push("cat remains non-anthropomorphic and on four paws");
+  } else if (includesAnimal) {
+    goalParts.push("animal remains natural and quadruped");
+  }
+
+  sections.push(normalizeLanguage(goalParts.join(", ") + "."));
+  sections.push(`IDENTITY - DO NOT ALTER: ${identityPrompt}`);
 
   // 2. Scene/Style block
   const sceneStyle = {
-    ...buildSceneStyleBlock(options.scene, options.characters.length),
+    ...buildSceneStyleBlock(
+      options.scene,
+      subjectCount,
+      includesAnimal,
+      includesCat
+    ),
     ...options.customStyle,
   };
   const sceneStylePrompt = formatSceneStyleBlockAsPrompt(sceneStyle);
   sections.push(sceneStylePrompt);
 
-  return sections.join(". ");
+  return normalizeLanguage(sections.join(" "));
 }
-

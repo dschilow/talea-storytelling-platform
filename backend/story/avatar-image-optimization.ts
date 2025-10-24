@@ -243,7 +243,7 @@ export function upgradeProfileWithVersion(
 // ========================================================================
 
 export const BASE_NEGATIVE_PROMPT =
-  "blurry, low quality, bad anatomy, distorted faces, extra limbs, watermark, text, jpeg artifacts, malformed, ugly, disfigured, gross proportions";
+  "blurry, low quality, bad anatomy, distorted faces, extra limbs, watermark, text";
 
 export const IDENTITY_NEGATIVE_PROMPTS = {
   human: [
@@ -312,6 +312,8 @@ const GERMAN_TO_ENGLISH_TOKENS: Record<string, string> = {
   "jahr": "year",
   "wochen": "weeks",
   "woche": "week",
+  "abend": "evening",
+  "nacht": "night",
 
   // Colors
   "braun": "brown",
@@ -329,6 +331,7 @@ const GERMAN_TO_ENGLISH_TOKENS: Record<string, string> = {
   "kätzchen": "kitten",
   "hund": "dog",
   "welpe": "puppy",
+  "vogel": "bird",
 
   // Features
   "fell": "fur",
@@ -349,6 +352,23 @@ const GERMAN_TO_ENGLISH_TOKENS: Record<string, string> = {
   "und": "and",
   "mit": "with",
   "ohne": "without",
+  "ein": "a",
+  "eine": "a",
+  "wald": "forest",
+  "mond": "moon",
+  "stern": "star",
+  "pfad": "path",
+  "weg": "way",
+  "tuer": "door",
+  "bruecke": "bridge",
+  "licht": "light",
+  "wasser": "water",
+  "meer": "sea",
+  "insel": "island",
+  "glitzernd": "sparkling",
+  "leuchtend": "glowing",
+  "freund": "friend",
+  "freunde": "friends",
 };
 
 /**
@@ -357,6 +377,12 @@ const GERMAN_TO_ENGLISH_TOKENS: Record<string, string> = {
  */
 export function normalizeLanguage(prompt: string): string {
   let normalized = prompt;
+
+  try {
+    normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  } catch {
+    // Some runtimes may not support Unicode normalization; ignore errors.
+  }
 
   // Replace tokens (case-insensitive, but preserve proper names)
   Object.entries(GERMAN_TO_ENGLISH_TOKENS).forEach(([de, en]) => {
