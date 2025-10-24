@@ -430,11 +430,13 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
   );
 
   let speciesSummary = "";
+  let depictLine = "";
   let defaultMust: string[] = [];
   let defaultForbid: string[] = [];
 
   if (block.species === "cat") {
-    speciesSummary = `cat kitten quadruped with tail visible`;
+    speciesSummary = `real orange tabby kitten, quadruped animal`;
+    depictLine = `${safeName} must appear as a real small cat on four paws with natural feline anatomy and tail visible.`;
     defaultMust = [
       "four paws grounded",
       "tail visible",
@@ -446,17 +448,22 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "wearing clothes",
       `duplicate ${safeName}`,
       "extra human child",
+      "mascot costume",
+      "humanoid cat",
     ];
   } else if (block.species === "dog") {
     speciesSummary = `dog companion on four paws`;
+    depictLine = `${safeName} must appear as a natural quadruped dog companion.`;
     defaultMust = ["four paws grounded", "expressive muzzle"];
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else if (block.species === "animal") {
     speciesSummary = `storybook animal with natural proportions`;
+    depictLine = `${safeName} should stay a natural animal, not humanoid.`;
     defaultMust = ["natural body silhouette"];
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else {
     speciesSummary = `human child (${safeAge || "6-8 years"})`;
+    depictLine = `${safeName} must remain a human child with natural skin, hair, and facial structure.`;
     defaultMust = [
       "human skin (no fur)",
       "friendly child expression",
@@ -467,6 +474,7 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       `animal traits`,
       "tail or whiskers",
       "cat nose",
+      "fur texture on skin",
     ];
   }
 
@@ -497,9 +505,10 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
 
   const parts = [
     `CHARACTER ${safeName}: ${speciesSummary}`,
-    traits.length > 0 ? `traits ${traits.join(", ")}` : "",
-    detailParts.length > 0 ? detailParts.join(", ") : "",
-    forbids.length > 0 ? `avoid ${forbids.join(", ")}` : "",
+    depictLine,
+    traits.length > 0 ? `TRAITS ${traits.join(", ")}` : "",
+    detailParts.length > 0 ? `DETAILS ${detailParts.join(", ")}` : "",
+    forbids.length > 0 ? `NEVER ${forbids.join(", ")}` : "",
     "camera eye-level medium full shot",
   ].filter(Boolean);
 
@@ -780,7 +789,25 @@ export function buildCompleteImagePrompt(
   const toneLine =
     "TONE warm storytelling picture-book illustration, child-safe";
 
+  const overviewLine = normalizeLanguage(
+    `OVERVIEW picture-book illustration featuring exactly ${blocks.length} characters: ${blocks
+      .map((block) =>
+        block.species === "cat"
+          ? `${block.name} the real feline quadruped`
+          : block.species === "human"
+            ? `${block.name} the human child`
+            : `${block.name}`
+      )
+      .join(" and ")}`
+  );
+
+  const speciesRuleLine = normalizeLanguage(
+    `SPECIES RULE Diego must remain a real quadruped cat with animal anatomy; every human character must remain a human child with no animal traits; never swap species or merge features`
+  );
+
   const sections = [
+    overviewLine,
+    speciesRuleLine,
     normalizeLanguage(styleSection),
     normalizeLanguage(characterPrompt.trim()),
     compositionSection,
