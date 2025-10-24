@@ -251,6 +251,19 @@ export const IDENTITY_NEGATIVE_PROMPTS = {
     "extra person",
     "clone",
     "multiple identical characters",
+    "identical twins",
+    "matching appearances",
+    "same hair color on both characters",
+    "same clothing on both characters",
+    "twins",
+    "copy of character",
+    "repeated character",
+    "second identical boy",
+    "second identical girl",
+    "both characters looking the same",
+    "same face twice",
+    "mirror image character",
+    "photocopied character",
   ],
   animal: [
     "anthropomorphic animal",
@@ -269,6 +282,7 @@ export const IDENTITY_NEGATIVE_PROMPTS = {
     "extra cat",
     "second human child",
     "two boys",
+    "duplicate cat",
   ],
   dog: [
     "anthropomorphic dog",
@@ -277,6 +291,7 @@ export const IDENTITY_NEGATIVE_PROMPTS = {
     "mascot dog",
     "human face on dog",
     "extra dog",
+    "duplicate dog",
   ],
 };
 
