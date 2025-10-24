@@ -725,8 +725,9 @@ export const generateStoryContent = api<
         characters: coverCharactersData,
         scene: safeCoverSceneText,
         customStyle: {
-          masterStyle: "professional children's book cover, vibrant colors, warm inviting atmosphere, cinematic composition",
-          composition: "clear space for title at top, all characters prominently visible, dynamic layout",
+          composition: "story cover layout with title space at top, all characters clearly visible, gentle depth",
+          style: "hand-painted watercolor cover illustration, luminous colors, soft texture, warm atmosphere",
+          quality: "exactly two subjects, child-safe print quality, clean hands and faces, welcoming focal lighting",
         },
       });
 
@@ -742,8 +743,8 @@ export const generateStoryContent = api<
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 34, // OPTIMIZED: 30-36 for quality
-        CFGScale: 10.5, // OPTIMIZED: 10-11 for identity stability
+        steps: 36,
+        CFGScale: 8.5,
         seed: seedBase,
         outputFormat: "WEBP",
         negativePrompt,
