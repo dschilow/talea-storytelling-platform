@@ -1153,8 +1153,11 @@ ${systemStyleAddendum}
 - Lösungsorientiert: Probleme werden gemeinsam bewältigt
 
 🎨 BILDNOTIZEN:
-- Beschreibe im imageDescription-Feld pro Kapitel eine kompakte Szene (max. 3 Sätze) mit Ort, Licht, Stimmung und klarer Unterscheidung der Avatare
-- Halte die Bildsprache märchenhaft (analoge Medien, sanftes Licht, natürliche Körperhaltungen)
+- WICHTIG: Beschreibe im imageDescription-Feld was die Charaktere TUN (Action/Bewegung), nicht nur wie sie aussehen
+- Beispiel GUT: "Diego klettert auf einen Baum während Alexander unten zuschaut"
+- Beispiel SCHLECHT: "Diego und Alexander stehen im Park"
+- Die Szene soll zeigen was im Kapitel passiert, mit dynamischem Winkel (nicht frontal)
+- Charaktere sollen unterschiedlich positioniert sein (links/rechts, vorne/hinten, verschiedene Höhen)
 
 💡 LERNMODUS (falls aktiv):
 - Lernziele NATÜRLICH einbauen (keine Lehrbuch-Tiraden!)

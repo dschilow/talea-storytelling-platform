@@ -153,42 +153,20 @@ function buildDetailedDescription(
       parts.push(`eyes: ${profile.eyes.color || "brown"} ${profile.eyes.shape || "round"}`);
     }
   } else {
-    // HUMAN-SPECIFIC DESCRIPTION - PRIMARY DISTINGUISHING FEATURES FIRST
-    // 1. HAIR (most visible distinguishing feature)
-    if (profile.hair?.color && profile.hair?.style) {
-      parts.push(`hair: DISTINCT ${profile.hair.color} ${profile.hair.style}, ${profile.hair.length || "medium"} length, ${profile.hair.color} hair visible`);
-    } else if (profile.hair?.color) {
-      parts.push(`hair: DISTINCT ${profile.hair.color} hair, ${profile.hair.color} hair color must be visible`);
+    // HUMAN - COMPACT DESCRIPTION
+    if (profile.hair?.color) {
+      parts.push(`${profile.hair.color} hair`);
     }
-    
-    // 2. EYES (second most visible)
     if (profile.eyes?.color) {
-      parts.push(`eyes: DISTINCT ${profile.eyes.color} colored eyes, ${profile.eyes.color} eyes clearly visible`);
+      parts.push(`${profile.eyes.color} eyes`);
     }
-    
-    // 3. CLOTHING (creates strong visual difference)
     if (profile.clothingCanonical?.outfit) {
-      parts.push(`outfit: UNIQUE ${profile.clothingCanonical.outfit}`);
-      if (profile.clothingCanonical.colors?.length) {
-        parts.push(`clothing colors: ${profile.clothingCanonical.colors.join(" and ")}`);
-      }
-    } else if (profile.clothingCanonical) {
-      const clothing: string[] = [];
-      if (profile.clothingCanonical.top) {
-        clothing.push(`UNIQUE top: ${profile.clothingCanonical.top}`);
-        if (profile.clothingCanonical.colors?.length) {
-          clothing.push(`in ${profile.clothingCanonical.colors.join(" and ")} colors`);
-        }
-      }
-      if (profile.clothingCanonical.bottom) {
-        clothing.push(`UNIQUE bottom: ${profile.clothingCanonical.bottom}`);
-      }
-      if (clothing.length) parts.push(clothing.join("; "));
+      parts.push(`${profile.clothingCanonical.outfit}`);
+    } else if (profile.clothingCanonical?.top && profile.clothingCanonical?.bottom) {
+      parts.push(`${profile.clothingCanonical.top}, ${profile.clothingCanonical.bottom}`);
     }
-    
-    // 4. SKIN
     if (profile.skin?.tone) {
-      parts.push(`skin: ${profile.skin.tone} with ${profile.skin.distinctiveFeatures?.join(", ") || "rosy cheeks"}`);
+      parts.push(`${profile.skin.tone} skin`);
     }
   }
 
@@ -215,63 +193,25 @@ function extractMustInclude(
       mustInclude.push(profile.skin.distinctiveFeatures[0].substring(0, 50));
     }
   } else {
-    // HUMANS - PRIORITIZE DISTINGUISHING FEATURES
-    
-    // 1. HAIR COLOR (most important for distinguishing characters)
+    // HUMANS - COMPACT, ONLY ESSENTIALS
     if (profile.hair?.color) {
-      mustInclude.push(`${profile.hair.color} hair color`);
-      mustInclude.push(`${profile.hair.color} hair visible`);
-      mustInclude.push(`${profile.hair.color} ${profile.hair.style || "hair"}`);
+      mustInclude.push(`${profile.hair.color} hair`);
     }
-    
-    // 2. EYE COLOR (second most important)
     if (profile.eyes?.color) {
       mustInclude.push(`${profile.eyes.color} eyes`);
-      mustInclude.push(`${profile.eyes.color} colored eyes`);
     }
-    
-    // 3. CLOTHING (creates strong visual distinction)
     if (profile.clothingCanonical?.outfit) {
       mustInclude.push(profile.clothingCanonical.outfit);
-      if (profile.clothingCanonical.colors?.length) {
-        mustInclude.push(...profile.clothingCanonical.colors.map(c => `${c} clothing`));
-      }
-    } else if (profile.clothingCanonical) {
-      if (profile.clothingCanonical.top) {
-        mustInclude.push(profile.clothingCanonical.top);
-      }
-      if (profile.clothingCanonical.bottom) {
-        mustInclude.push(profile.clothingCanonical.bottom);
-      }
-      if (profile.clothingCanonical.colors?.length) {
-        mustInclude.push(...profile.clothingCanonical.colors.slice(0, 2));
-      }
+    } else if (profile.clothingCanonical?.top) {
+      mustInclude.push(profile.clothingCanonical.top);
     }
-    
-    // 4. DISTINCTIVE FEATURES
     if (profile.skin?.tone) {
-      mustInclude.push(`${profile.skin.tone} skin tone`);
-    }
-    
-    if (profile.skin?.distinctiveFeatures?.length) {
-      mustInclude.push(...profile.skin.distinctiveFeatures.slice(0, 2));
-    }
-    
-    if (profile.face?.shape) {
-      mustInclude.push(`${profile.face.shape} face shape`);
-    }
-    
-    // 5. Use consistent descriptors as ADDITIONAL (not primary)
-    if (profile.consistentDescriptors?.length) {
-      const filtered = profile.consistentDescriptors
-        .filter(d => d.trim().length > 3 && !d.toLowerCase().includes("character"))
-        .slice(0, 5); // Limit to 5 additional descriptors
-      mustInclude.push(...filtered);
+      mustInclude.push(`${profile.skin.tone} skin`);
     }
   }
 
-  // Remove duplicates and limit total
-  return Array.from(new Set(mustInclude)).slice(0, 15);
+  // Remove duplicates and limit to 6
+  return Array.from(new Set(mustInclude)).slice(0, 6);
 }
 
 /**
@@ -317,40 +257,31 @@ function buildForbidList(
       `duplicate ${characterName}`
     );
   } else {
-    // HUMAN - STRENGTHEN FORBID CONSTRAINTS
+    // HUMAN - COMPACT FORBID LIST
     forbid.push(
       "duplicate character",
-      `duplicate ${characterName}`,
-      "second boy same age",
-      "second girl same age",
-      "clone",
-      "identical twin",
-      "twins",
-      "matching outfits",
-      "same clothing",
-      "identical appearance"
+      "identical twins",
+      "same appearance",
+      "matching clothing"
     );
     
-    // Forbid OTHER hair colors (to ensure this character's hair color is correct)
+    // Forbid ONLY the most common conflicting hair/eye colors
     if (profile?.hair?.color) {
-      const otherHairColors = ["blond", "brown", "black", "red", "ginger", "dark", "light"];
       const thisColor = profile.hair.color.toLowerCase();
-      otherHairColors
-        .filter(c => !thisColor.includes(c) && !c.includes(thisColor.split(" ")[0]))
-        .forEach(c => {
-          forbid.push(`${c} hair on ${characterName}`);
-        });
+      if (thisColor.includes("blond")) {
+        forbid.push("brown hair", "black hair");
+      } else if (thisColor.includes("brown")) {
+        forbid.push("blond hair", "red hair");
+      }
     }
     
-    // Forbid OTHER eye colors
     if (profile?.eyes?.color) {
-      const otherEyeColors = ["blue", "green", "brown", "hazel", "gray"];
       const thisColor = profile.eyes.color.toLowerCase();
-      otherEyeColors
-        .filter(c => c !== thisColor)
-        .forEach(c => {
-          forbid.push(`${c} eyes on ${characterName}`);
-        });
+      if (thisColor.includes("blue")) {
+        forbid.push("brown eyes", "green eyes");
+      } else if (thisColor.includes("green") || thisColor.includes("grun")) {
+        forbid.push("blue eyes", "brown eyes");
+      }
     }
   }
 
@@ -406,43 +337,34 @@ function limitSentences(text: string | undefined, maxCount: number): string {
 }
 
 /**
- * Formats a CHARACTER BLOCK as a text prompt section
+ * Formats a CHARACTER BLOCK as a text prompt section - COMPACT
  */
 export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
-  const segments: string[] = [];
+  const parts: string[] = [];
 
-  const speciesDescriptor =
-    block.species === "cat"
-      ? `cat (${block.ageHint}), non-anthropomorphic, four-legged`
-      : block.species === "dog"
-      ? `dog (${block.ageHint}), non-anthropomorphic, four-legged`
-      : block.species === "animal"
-      ? `animal (${block.ageHint}), non-anthropomorphic, four-legged`
-      : `human (${block.ageHint})`;
+  // Name and species
+  if (block.species === "cat") {
+    parts.push(`${block.name} (cat, 4 legs)`);
+  } else {
+    parts.push(`${block.name} (${block.ageHint})`);
+  }
 
-  segments.push(`${block.name}: ${speciesDescriptor}`);
-
+  // Description
   if (block.detailedDescription) {
-    segments.push(block.detailedDescription);
+    parts.push(block.detailedDescription);
   }
 
-  if (block.pose) {
-    segments.push(`pose ${block.pose}`);
-  }
-
-  if (block.position) {
-    segments.push(`position ${block.position}`);
-  }
-
+  // Must include (top 3 only)
   if (block.mustInclude.length > 0) {
-    segments.push(`must include ${block.mustInclude.join(", ")}`);
+    parts.push(block.mustInclude.slice(0, 3).join(", "));
   }
 
+  // Forbid (top 2 only)
   if (block.forbid.length > 0) {
-    segments.push(`forbid ${block.forbid.join(", ")}`);
+    parts.push(`NOT: ${block.forbid.slice(0, 2).join(", ")}`);
   }
 
-  return segments.join("; ");
+  return parts.join("; ");
 }
 
 /**
@@ -482,17 +404,7 @@ export function buildMultiCharacterPrompt(
   );
 
   const formattedBlocks = blocks
-    .map((block, index) => {
-      let formatted = formatCharacterBlockAsPrompt(block);
-      
-      // For 2-character scenes, add explicit left/right indicators
-      if (blocks.length === 2) {
-        const side = index === 0 ? "LEFT" : "RIGHT";
-        formatted = `[${side}] ${formatted}`;
-      }
-      
-      return formatted;
-    })
+    .map((block) => formatCharacterBlockAsPrompt(block))
     .join(" | ");
 
   return {
@@ -520,37 +432,30 @@ export function buildSceneStyleBlock(
 ): SceneStyleBlock {
   const baseScene =
     scene && scene.trim() !== ""
-      ? limitSentences(scene, 2)
-      : "storybook setting with gentle movement and clear foreground focus";
+      ? limitSentences(scene, 1)
+      : "storybook scene";
 
   const composition =
     characterCount > 1
-      ? "CRITICAL: exactly two distinct subjects with clear visual separation, first subject positioned left side, second subject positioned right side, NO overlapping characters, knee-up framing shows both subjects clearly, gentle depth-of-field, characters must look different from each other"
-      : "single-subject focus, slightly low camera, inviting depth";
+      ? "two subjects in scene, dynamic angle, action-focused"
+      : "single subject, dynamic composition";
 
-  const lighting =
-    "warm rim light, soft fill from environment, subtle volumetric glow, no harsh shadows";
+  const lighting = "warm natural lighting";
 
-  const style =
-    "friendly children's book illustration, soft 3D forms with painterly shading, watercolor texture, analog paper grain";
+  const style = "children's book illustration, watercolor style";
 
   const qualityParts = [
-    `EXACTLY ${characterCount} subject${characterCount === 1 ? "" : "s"} ONLY`,
-    "child-safe, print-ready clarity",
-    "clean hands and faces",
-    "each character visually distinct with different appearance",
+    `${characterCount} subject${characterCount === 1 ? "" : "s"}`,
+    "child-safe",
+    "distinct characters"
   ];
   
   if (characterCount > 1) {
-    qualityParts.push("NO identical characters", "NO matching appearances", "NO twins", "different hair colors clearly visible", "different clothing clearly visible");
-  }
-
-  if (includesAnimal) {
-    qualityParts.push("animal stays natural, no clothing or human traits");
+    qualityParts.push("different hair visible");
   }
 
   if (includesCat) {
-    qualityParts.push("cat on four paws, expressive tail visible");
+    qualityParts.push("cat on four paws");
   }
 
   return {
@@ -566,14 +471,9 @@ export function buildSceneStyleBlock(
  * Formats scene/style block as prompt text
  */
 export function formatSceneStyleBlockAsPrompt(block: SceneStyleBlock): string {
-  const lines: string[] = [];
-
-  lines.push(`COMPOSITION: ${block.composition}`);
-  lines.push(`SCENE & LIGHT: ${block.scene}. Lighting ${block.lighting}`);
-  lines.push(`STYLE: ${block.style}`);
-  lines.push(`QUALITY GUARDS: ${block.quality}`);
-
-  return normalizeLanguage(lines.join(". "));
+  return normalizeLanguage(
+    `${block.scene}, ${block.composition}, ${block.lighting}, ${block.style}, ${block.quality}`
+  );
 }
 
 /**
@@ -599,7 +499,7 @@ export function buildCompleteImagePrompt(
 ): string {
   const sections: string[] = [];
 
-  // 1. Character blocks (always first)
+  // 1. Character blocks (compact)
   const { prompt: identityPrompt, blocks } = buildMultiCharacterPrompt(
     options.characters
   );
@@ -608,21 +508,14 @@ export function buildCompleteImagePrompt(
   const includesAnimal = Array.from(speciesSet).some((s) => s !== "human");
   const includesCat = speciesSet.has("cat");
 
-  const goalParts = [
-    "GOAL: friendly children's book illustration for the chapter scene",
-    subjectCount === 1 ? "exactly one subject" : "exactly two subjects",
-    "knee-up framing",
-    "warm fairy-tale mood",
-  ];
-
+  // Goal: ultra compact
+  let goal = "children's book scene";
   if (includesCat) {
-    goalParts.push("cat remains non-anthropomorphic and on four paws");
-  } else if (includesAnimal) {
-    goalParts.push("animal remains natural and quadruped");
+    goal += ", cat on four paws";
   }
-
-  sections.push(normalizeLanguage(goalParts.join(", ") + "."));
-  sections.push(`IDENTITY - DO NOT ALTER: ${identityPrompt}`);
+  
+  sections.push(normalizeLanguage(goal));
+  sections.push(identityPrompt); // No "IDENTITY - DO NOT ALTER:" prefix
 
   // 2. Scene/Style block
   const sceneStyle = {
@@ -637,5 +530,5 @@ export function buildCompleteImagePrompt(
   const sceneStylePrompt = formatSceneStyleBlockAsPrompt(sceneStyle);
   sections.push(sceneStylePrompt);
 
-  return normalizeLanguage(sections.join(" "));
+  return normalizeLanguage(sections.join(". "));
 }
