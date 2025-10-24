@@ -13,23 +13,24 @@
 
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import type { StoryConfig, Chapter } from "./generate";
-import type { Avatar, AvatarVisualProfile } from "../avatar/avatar";
-import { ai } from "~encore/clients";
-import { logTopic } from "../log/logger";
-import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import type { StoryConfig, Chapter } from "../backend/story/generate";
+import type { Avatar, AvatarVisualProfile } from "../backend/avatar/avatar";
+import { ai } from "../backend/encore.gen/clients";
+import { logTopic } from "../backend/log/logger";
+import { publishWithTimeout } from "../backend/helpers/pubsubTimeout";
 import {
   getMultipleAvatarProfiles,
   validateStoryResponse,
   addAvatarMemoryViaMcp,
-} from "../helpers/mcpClient";
+} from "../backend/helpers/mcpClient";
 
 // ---- OpenAI Modell & Pricing ----
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4o-mini";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
 const openAIKey = secret("OpenAIKey");
+const mcpServerApiKey = secret("MCPServerAPIKey");
 
 type ExtendedAvatarDetails = Omit<
   Avatar,
@@ -266,7 +267,7 @@ function buildImagePromptFromVisualProfile(
     visualProfile.clothingCanonical?.top ||
     visualProfile.clothingCanonical?.bottom
   ) {
-    const clothingParts = [];
+    const clothingParts: string[] = [];
     if (visualProfile.clothingCanonical.top)
       clothingParts.push(`top: ${visualProfile.clothingCanonical.top}`);
     if (visualProfile.clothingCanonical.bottom)
@@ -455,8 +456,9 @@ export const generateStoryContentWithMcp = api<
       const avatarIds = req.avatarDetails.map((a) => a.id);
       const mcpProfiles = await getMultipleAvatarProfiles(
         avatarIds,
-        req.clerkToken
-      );
+        req.clerkToken,
+        mcpServerApiKey()
+      ) as any[];
 
       // Build name -> visualProfile map
       const avatarProfilesByName: Record<string, AvatarVisualProfile> = {};
@@ -492,7 +494,7 @@ export const generateStoryContentWithMcp = api<
 
       // STEP 3: Validate story response with MCP Validator
       console.log("🔍 [MCP Validator] Validating story response...");
-      const validationResult = await validateStoryResponse(storyResult);
+      const validationResult = await validateStoryResponse(storyResult, mcpServerApiKey());
 
       if (!validationResult.isValid) {
         console.error("❌ [MCP Validator] Story validation failed:", validationResult.errors);

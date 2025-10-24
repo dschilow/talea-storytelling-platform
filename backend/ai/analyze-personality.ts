@@ -4,7 +4,22 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4o-mini";
+
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
 
 export interface PersonalityAnalysisRequest {
   avatarId: string;
@@ -120,7 +135,7 @@ PERSÖNLICHKEITSEIGENSCHAFTEN:
         throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as OpenAIResponse;
 
       await publishWithTimeout(logTopic, {
         source: 'openai-tavi-chat',

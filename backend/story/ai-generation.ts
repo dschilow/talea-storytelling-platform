@@ -125,9 +125,9 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   },
 };
 
-// WICHTIG: gpt-5-nano für beste Qualität und Tool-Nutzung
-// Update: avatarDevelopments-Validierung verbessert (23.10.2025)
-const MODEL = "gpt-5-nano";
+// WICHTIG: gpt-4o-mini für Qualitätstests
+// Update: Modell gewechselt zu gpt-4o-mini (24.10.2025)
+const MODEL = "gpt-4o-mini";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
