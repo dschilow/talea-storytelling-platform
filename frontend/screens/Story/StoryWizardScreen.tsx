@@ -10,18 +10,38 @@ import GenreSettingStep from './steps/GenreSettingStep';
 import StoryParametersStep from './steps/StoryParametersStep';
 import LearningModeStep from './steps/LearningModeStep';
 import GenerationStep from './steps/GenerationStep';
+import StoryStyleStep, { StylePresetKey } from './steps/StoryStyleStep';
+import StoryFlavorStep, { PlotHookKey, Pacing } from './steps/StoryFlavorStep';
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 
-type StepType = 'avatar' | 'genre' | 'parameters' | 'learning' | 'generation';
+type StepType = 'avatar' | 'genre' | 'style' | 'flavor' | 'parameters' | 'learning' | 'generation';
 
 interface StoryConfig {
   avatarIds: string[];
   genre: string;
   setting: string;
+
+  // NEW: Stil & Ton
+  stylePreset?: StylePresetKey;
+  allowRhymes?: boolean;           // z.B. bei „Grüffelo“-Anmutung
+  tone?: 'warm' | 'witty' | 'epic' | 'soothing' | 'mischievous' | 'wonder';
+  language?: 'de' | 'en';
+
+  // NEW: Würze & Hooks
+  suspenseLevel?: 0 | 1 | 2 | 3;   // 0=sehr ruhig … 3=spannend aber kindgerecht
+  humorLevel?: 0 | 1 | 2 | 3;
+  pacing?: Pacing;                  // 'slow' | 'balanced' | 'fast'
+  pov?: 'ich' | 'personale';
+  hooks?: PlotHookKey[];
+  hasTwist?: boolean;
+  customPrompt?: string;            // optionaler Freitext
+
+  // Bestehende Parameter
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
+
   learningMode?: {
     enabled: boolean;
     subjects: string[];
@@ -36,23 +56,40 @@ const StoryWizardScreen: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
   const [storyConfig, setStoryConfig] = useState<StoryConfig>({
-    avatarIds: [], // Wird automatisch mit allen User-Avataren gefüllt
+    avatarIds: [],
     genre: '',
     setting: '',
+    // Defaults für neue Felder
+    stylePreset: undefined,
+    allowRhymes: false,
+    tone: 'warm',
+    language: 'de',
+    suspenseLevel: 1,
+    humorLevel: 2,
+    pacing: 'balanced',
+    pov: 'personale',
+    hooks: [],
+    hasTwist: false,
+    customPrompt: '',
+
     length: 'medium',
     complexity: 'medium',
     ageGroup: '6-8',
   });
+
   const backend = useBackend();
   const { user } = useUser();
 
+  // UPDATED: Neue Steps eingefügt
   const steps = [
-    { key: 'avatar', title: 'Avatare', icon: '👤' },
-    { key: 'genre', title: 'Genre', icon: '🎭' },
-    { key: 'parameters', title: 'Parameter', icon: '⚙️' },
-    { key: 'learning', title: 'Lernen', icon: '🎓' },
-    { key: 'generation', title: 'Erstellen', icon: '✨' },
-  ];
+    { key: 'avatar',      title: 'Avatare',        icon: '👤' },
+    { key: 'genre',       title: 'Genre & Welt',   icon: '🌍' },
+    { key: 'style',       title: 'Stil & Ton',     icon: '🎨' },
+    { key: 'flavor',      title: 'Würze & Hooks',  icon: '🧪' },
+    { key: 'parameters',  title: 'Parameter',      icon: '⚙️' },
+    { key: 'learning',    title: 'Lernmodus',      icon: '🎓' },
+    { key: 'generation',  title: 'Erstellen',      icon: '✨' },
+  ] as const;
 
   const currentStepIndex = steps.findIndex(step => step.key === currentStep);
 
@@ -83,13 +120,17 @@ const StoryWizardScreen: React.FC = () => {
       case 'avatar':
         return storyConfig.avatarIds.length > 0;
       case 'genre':
-        return storyConfig.genre && storyConfig.setting;
+        return Boolean(storyConfig.genre && storyConfig.setting);
+      case 'style':
+        return true; // optional
+      case 'flavor':
+        return true; // alles optional und kindgerecht begrenzt
       case 'parameters':
-        return true; // All parameters have defaults
+        return true;
       case 'learning':
-        return true; // Learning mode is optional
+        return true;
       case 'generation':
-        return false; // No next step
+        return false;
       default:
         return false;
     }
@@ -100,7 +141,6 @@ const StoryWizardScreen: React.FC = () => {
       alert("Bitte melde dich an, um eine Geschichte zu erstellen.");
       return;
     }
-
     if (storyConfig.avatarIds.length === 0) {
       alert("Bitte wähle mindestens einen Avatar für die Geschichte aus.");
       return;
@@ -108,57 +148,42 @@ const StoryWizardScreen: React.FC = () => {
 
     try {
       setGenerating(true);
-      console.log('🚀 Starting story generation with selected avatars...', storyConfig.avatarIds);
 
-      // Simulate generation steps with realistic timings
-      // Step 1: Avatar profiles (~2-3 sec)
       setGenerationStep('profiles');
-      await new Promise(resolve => setTimeout(resolve, 2500));
-
-      // Step 2: Memories (~2-3 sec)
+      await new Promise(r => setTimeout(r, 1200));
       setGenerationStep('memories');
-      await new Promise(resolve => setTimeout(resolve, 2500));
-
-      // Step 3: Text generation (~25-30 sec) - this is where the actual backend call happens
+      await new Promise(r => setTimeout(r, 1200));
       setGenerationStep('text');
-      
+
+      // Wichtig: stylePreset/hook-Infos werden an Backend gegeben.
       const story = await backend.story.generate({
         userId: user.id,
         config: storyConfig,
       });
 
-      // Step 4: Validation (~2-3 sec) - happens automatically in backend
       setGenerationStep('validation');
-      await new Promise(resolve => setTimeout(resolve, 2500));
-
-      // Step 5: Images (~40-50 sec) - also happens in backend, but we show it separately
+      await new Promise(r => setTimeout(r, 900));
       setGenerationStep('images');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Step 6: Complete (~2-3 sec)
+      await new Promise(r => setTimeout(r, 1200));
       setGenerationStep('complete');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(r => setTimeout(r, 800));
 
-      console.log('✅ Story generated successfully:', story.title);
       alert(`Geschichte "${story.title}" wurde erfolgreich generiert! 🎉`);
       window.location.href = '/';
     } catch (error) {
       console.error('❌ Error generating story:', error);
-
       let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
-
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) {
           errorMessage = 'Die Anfrage ist zu groß. Bitte versuche es erneut.';
         } else if (error.message.includes('timeout')) {
-          errorMessage = 'Die Generierung dauert zu lange. Bitte versuche es mit einer kürzeren Geschichte.';
+          errorMessage = 'Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.';
         }
       }
-
       alert(errorMessage);
     } finally {
       setGenerating(false);
-      setGenerationStep('profiles'); // Reset for next generation
+      setGenerationStep('profiles');
     }
   };
 
@@ -169,6 +194,8 @@ const StoryWizardScreen: React.FC = () => {
           <AvatarSelectionStep
             selectedAvatarIds={storyConfig.avatarIds}
             onSelectionChange={(avatarIds) => updateStoryConfig({ avatarIds })}
+            // Optionales Mini-Facelift (falls Step es unterstützt)
+            // variant="grid-badges"
           />
         );
       case 'genre':
@@ -178,6 +205,29 @@ const StoryWizardScreen: React.FC = () => {
             setting={storyConfig.setting}
             onGenreChange={(genre) => updateStoryConfig({ genre })}
             onSettingChange={(setting) => updateStoryConfig({ setting })}
+          />
+        );
+      case 'style':
+        return (
+          <StoryStyleStep
+            stylePreset={storyConfig.stylePreset}
+            allowRhymes={Boolean(storyConfig.allowRhymes)}
+            tone={storyConfig.tone ?? 'warm'}
+            language={storyConfig.language ?? 'de'}
+            onChange={(u) => updateStoryConfig(u)}
+          />
+        );
+      case 'flavor':
+        return (
+          <StoryFlavorStep
+            suspenseLevel={storyConfig.suspenseLevel ?? 1}
+            humorLevel={storyConfig.humorLevel ?? 2}
+            pacing={storyConfig.pacing ?? 'balanced'}
+            pov={storyConfig.pov ?? 'personale'}
+            hooks={storyConfig.hooks ?? []}
+            hasTwist={Boolean(storyConfig.hasTwist)}
+            customPrompt={storyConfig.customPrompt ?? ''}
+            onChange={(u) => updateStoryConfig(u)}
           />
         );
       case 'parameters':
@@ -214,7 +264,6 @@ const StoryWizardScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
       <FadeInView delay={0}>
         <div className="bg-white border-b border-gray-200 p-4">
           <div className="flex items-center mb-4">
@@ -227,16 +276,13 @@ const StoryWizardScreen: React.FC = () => {
             </button>
             <div className="text-center flex-1">
               <h1 className="text-2xl font-bold text-gray-800">Geschichte erstellen</h1>
-              <p className="text-gray-600">
-                Erschaffe eine magische Geschichte mit deinen Avataren
-              </p>
+              <p className="text-gray-600">Erschaffe eine magische Geschichte mit deinen Avataren</p>
             </div>
           </div>
         </div>
       </FadeInView>
 
       <div className="px-6 py-6">
-        {/* Progress Bar */}
         <FadeInView delay={100}>
           <Card variant="elevated" className="mb-6">
             <div className="text-center mb-4">
@@ -245,20 +291,18 @@ const StoryWizardScreen: React.FC = () => {
               </h2>
               <p className="text-gray-600">{steps[currentStepIndex].title}</p>
             </div>
-            
             <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-              <div 
+              <div
                 className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
               />
             </div>
-            
             <div className="flex justify-between">
               {steps.map((step, index) => (
                 <div
                   key={step.key}
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    index <= currentStepIndex 
+                    index <= currentStepIndex
                       ? index === currentStepIndex
                         ? 'bg-purple-600 text-white'
                         : 'bg-purple-100 text-purple-600'
@@ -272,12 +316,8 @@ const StoryWizardScreen: React.FC = () => {
           </Card>
         </FadeInView>
 
-        {/* Step Content */}
-        <div className="mb-6">
-          {renderStepContent()}
-        </div>
+        <div className="mb-6">{renderStepContent()}</div>
 
-        {/* Navigation Buttons */}
         <FadeInView delay={300}>
           <div className="flex gap-4">
             {currentStepIndex > 0 && (
@@ -290,7 +330,6 @@ const StoryWizardScreen: React.FC = () => {
                 disabled={generating}
               />
             )}
-            
             {currentStep !== 'generation' && (
               <Button
                 title="Weiter"

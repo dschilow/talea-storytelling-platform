@@ -11,6 +11,7 @@ interface ButtonProps {
   icon?: React.ReactNode;
   disabled?: boolean;
   fullWidth?: boolean;
+  className?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -21,6 +22,7 @@ const Button: React.FC<ButtonProps> = ({
   icon,
   disabled = false,
   fullWidth = false,
+  className,
 }) => {
   const getVariantStyles = (): CSSProperties => {
     const baseStyles: CSSProperties = {
@@ -111,6 +113,7 @@ const Button: React.FC<ButtonProps> = ({
       onClick={onPress}
       disabled={disabled}
       style={buttonStyle}
+      className={className}
       onMouseEnter={(e) => {
         if (!disabled) {
           e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
