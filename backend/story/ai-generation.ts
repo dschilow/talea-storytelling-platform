@@ -450,14 +450,17 @@ export const generateStoryContent = api<
       const chapterDimensions = normalizeRunwareDimensions(1024, 1024);
 
       // COVER IMAGE GENERATION with CHARACTER-BLOCKS
-      const coverSceneText = typeof normalizedStory.coverImageDescription === 'string'
-        ? normalizedStory.coverImageDescription
-        : normalizedStory.coverImageDescription.mainScene || "";
-      
-      const safeCoverSceneText = safeCoverScene(
-        coverSceneText,
-        normalizedStory.chapters[0]?.imageDescription?.scene
-      );
+      const coverSceneRaw =
+        typeof normalizedStory.coverImageDescription === "string"
+          ? normalizedStory.coverImageDescription
+          : normalizedStory.coverImageDescription?.mainScene || "";
+
+      const firstChapterScene =
+        typeof normalizedStory.chapters?.[0]?.imageDescription === "string"
+          ? normalizedStory.chapters?.[0]?.imageDescription
+          : normalizedStory.chapters?.[0]?.imageDescription?.scene;
+
+      const safeCoverSceneText = safeCoverScene(coverSceneRaw, firstChapterScene);
 
       const coverCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => ({
         name,
@@ -500,14 +503,19 @@ export const generateStoryContent = api<
       for (let i = 0; i < normalizedStory.chapters.length; i++) {
         const chapter = normalizedStory.chapters[i];
         
-        const chapterSceneText = typeof chapter.imageDescription === 'string'
-          ? chapter.imageDescription
-          : chapter.imageDescription.scene || "";
+        const chapterImageDescription =
+          typeof chapter.imageDescription === "object" && chapter.imageDescription
+            ? chapter.imageDescription
+            : null;
+
+        const chapterSceneText =
+          typeof chapter.imageDescription === "string"
+            ? chapter.imageDescription
+            : chapterImageDescription?.scene || "";
 
         // Build character blocks for this chapter
         const chapterCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => {
-          const charDetails = typeof chapter.imageDescription !== 'string' 
-            && chapter.imageDescription.characters?.[name];
+          const charDetails = chapterImageDescription?.characters?.[name];
           
           return {
             name,

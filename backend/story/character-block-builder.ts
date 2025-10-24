@@ -442,6 +442,8 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "tail visible",
       "long whiskers",
       "feline face shape",
+      "real cat anatomy",
+      "orange fur coat",
     ];
     defaultForbid = [
       "standing upright",
@@ -450,6 +452,7 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "extra human child",
       "mascot costume",
       "humanoid cat",
+      "cat with human body",
     ];
   } else if (block.species === "dog") {
     speciesSummary = `dog companion on four paws`;
@@ -468,6 +471,8 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "human skin (no fur)",
       "friendly child expression",
       "distinct facial features",
+      "natural child anatomy",
+      "everyday clothing",
     ];
     defaultForbid = [
       `duplicate ${safeName}`,
@@ -475,6 +480,7 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "tail or whiskers",
       "cat nose",
       "fur texture on skin",
+      "painted whiskers",
     ];
   }
 
@@ -805,9 +811,14 @@ export function buildCompleteImagePrompt(
     `SPECIES RULE Diego must remain a real quadruped cat with animal anatomy; every human character must remain a human child with no animal traits; never swap species or merge features`
   );
 
+  const criticalLine = normalizeLanguage(
+    "CRITICAL Diego is never a human or humanoid; Alexander is never an animal. Replace any mistaken species with the correct form before rendering."
+  );
+
   const sections = [
     overviewLine,
     speciesRuleLine,
+    criticalLine,
     normalizeLanguage(styleSection),
     normalizeLanguage(characterPrompt.trim()),
     compositionSection,
