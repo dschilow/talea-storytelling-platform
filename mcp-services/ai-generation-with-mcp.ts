@@ -500,6 +500,12 @@ export const generateStoryContentWithMcp = api<
         }));
       }
 
+      // Ensure description is max 500 characters (validator requirement)
+      if (storyResult.description && storyResult.description.length > 500) {
+        storyResult.description = storyResult.description.substring(0, 497) + '...';
+        console.log('[ai-generation-mcp] ✂️ Description truncated to 500 characters');
+      }
+
       // STEP 3: Validate story response with MCP Validator
       console.log("🔍 [MCP Validator] Validating story response...");
       const validationResult = await validateStoryResponse(storyResult, mcpServerApiKey());

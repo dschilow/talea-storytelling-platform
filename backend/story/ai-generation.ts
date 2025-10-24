@@ -717,6 +717,12 @@ export const generateStoryContent = api<
         }));
       }
 
+      // Ensure description is max 500 characters (validator requirement)
+      if (storyOutcome.story.description && storyOutcome.story.description.length > 500) {
+        storyOutcome.story.description = storyOutcome.story.description.substring(0, 497) + '...';
+        console.log('[ai-generation] ✂️ Description truncated to 500 characters');
+      }
+
       let validationResult = storyOutcome.state.validationResult;
       if (!validationResult) {
         validationResult = await validateStoryResponse(storyOutcome.story, mcpApiKey);
@@ -1178,7 +1184,7 @@ TECHNISCHE REGELN:
 
 PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
 - title (string)
-- description (string)
+- description (string, max 500 Zeichen)
 - chapters (array mit title, content (${minWordsPerChapter}-${maxWordsPerChapter} Wörter), order, imageDescription)
 - coverImageDescription (object)
 - avatarDevelopments (array mit name, changedTraits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
