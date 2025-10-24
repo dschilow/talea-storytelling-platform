@@ -1087,11 +1087,11 @@ async function generateStoryWithOpenAITools(args: {
   const chapterCount =
     config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  // OPTIMIZED v2.0: Classic fairy-tale voice with picture-book clarity
+  // OPTIMIZED v2.1: 3x längere Kapitel für mehr Tiefe
   const targetWordsPerChapter =
-    config.ageGroup === "3-5" ? 90 : config.ageGroup === "6-8" ? 110 : 150;
-  const minWordsPerChapter = Math.max(70, targetWordsPerChapter - 30);
-  const maxWordsPerChapter = targetWordsPerChapter + 20;
+    config.ageGroup === "3-5" ? 270 : config.ageGroup === "6-8" ? 330 : 450;
+  const minWordsPerChapter = Math.max(210, targetWordsPerChapter - 60);
+  const maxWordsPerChapter = targetWordsPerChapter + 60;
   const stylePresetMeta =
     config.stylePreset && STYLE_PRESET_META[config.stylePreset]
       ? STYLE_PRESET_META[config.stylePreset]
@@ -1604,7 +1604,15 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
     let parsedStory: StoryToolOutcome["story"];
     try {
       const cleanContent = content.replace(/```json\s*/g, "").replace(/```$/g, "").trim();
-      parsedStory = JSON.parse(cleanContent);
+      let tempParsed: any = JSON.parse(cleanContent);
+      
+      // Unwrap if nested in storyData
+      if (tempParsed.storyData && !tempParsed.title) {
+        console.log('[ai-generation] Unwrapping nested storyData structure');
+        tempParsed = tempParsed.storyData;
+      }
+      
+      parsedStory = tempParsed;
     } catch (error) {
       throw new Error(
         `JSON Parse Fehler: ${(error as Error)?.message ?? String(error)}`

@@ -728,6 +728,12 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
     );
   }
 
+  // Unwrap if nested in storyData
+  if (parsed.storyData && !parsed.title) {
+    console.log('[ai-generation-mcp] Unwrapping nested storyData structure');
+    parsed = parsed.storyData;
+  }
+
   return {
     ...parsed,
     tokensUsed: {
