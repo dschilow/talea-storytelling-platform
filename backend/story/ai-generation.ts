@@ -387,10 +387,10 @@ export const generateStoryContent = api<
         console.log('[ai-generation] ✂️ Description truncated to 500 characters');
       }
 
-      let validationResult = storyOutcome.state.validationResult;
-      if (!validationResult) {
-        validationResult = await validateStoryResponse(storyOutcome.story, mcpApiKey);
-      }
+      enforceAvatarDevelopments(storyOutcome.story, req.avatarDetails);
+
+      const validationResult = await validateStoryResponse(storyOutcome.story, mcpApiKey);
+      storyOutcome.state.validationResult = validationResult;
 
       if (!validationResult?.isValid) {
         throw new Error(
@@ -399,6 +399,7 @@ export const generateStoryContent = api<
       }
 
       const normalizedStory = validationResult.normalized ?? storyOutcome.story;
+      enforceAvatarDevelopments(normalizedStory, req.avatarDetails);
 
       const avatarProfilesByName: Record<string, AvatarVisualProfile> = {};
       storyOutcome.state.avatarProfilesByName.forEach((profile, name) => {
@@ -718,6 +719,91 @@ function compressMemories(memories: McpAvatarMemory[]) {
     emotionalImpact: memory.emotionalImpact,
     personalityChanges: summarizeTraitChanges(memory.personalityChanges || []),
   }));
+}
+
+function normalizeTraitChanges(changes: any): Array<{ trait: string; change: number }> {
+  if (!Array.isArray(changes)) {
+    return [];
+  }
+
+  return changes
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const trait =
+        typeof entry.trait === "string" && entry.trait.trim().length > 0
+          ? entry.trait.trim()
+          : "";
+      const rawChange =
+        typeof entry.change === "number"
+          ? entry.change
+          : typeof entry.change === "string"
+            ? Number(entry.change)
+            : NaN;
+
+      if (!trait || !Number.isFinite(rawChange)) {
+        return null;
+      }
+
+      return { trait, change: rawChange };
+    })
+    .filter((entry): entry is { trait: string; change: number } => entry !== null);
+}
+
+function enforceAvatarDevelopments(
+  story: any,
+  avatars: Array<{ name: string }>
+): void {
+  if (!story || typeof story !== "object" || !Array.isArray(avatars)) {
+    return;
+  }
+
+  const requiredNames = avatars
+    .map((avatar) => (typeof avatar.name === "string" ? avatar.name.trim() : ""))
+    .filter((name): name is string => Boolean(name));
+
+  const provided = Array.isArray(story.avatarDevelopments)
+    ? story.avatarDevelopments
+    : [];
+
+  const byName = new Map<string, { name: string; changedTraits: Array<{ trait: string; change: number }> }>();
+
+  for (const entry of provided) {
+    if (!entry || typeof entry !== "object") continue;
+    const providedName =
+      typeof entry.name === "string" && entry.name.trim().length > 0
+        ? entry.name.trim()
+        : undefined;
+    if (!providedName) continue;
+
+    const key = providedName.toLowerCase();
+    if (byName.has(key)) {
+      continue;
+    }
+    byName.set(key, {
+      name: providedName,
+      changedTraits: normalizeTraitChanges(entry.changedTraits),
+    });
+  }
+
+  const enforced = requiredNames.map((name) => {
+    const key = name.toLowerCase();
+    const existing = byName.get(key);
+    if (existing) {
+      return {
+        name,
+        changedTraits: existing.changedTraits,
+      };
+    }
+    return {
+      name,
+      changedTraits: [],
+    };
+  });
+
+  story.avatarDevelopments = enforced;
 }
 
 async function generateStoryWithOpenAITools(args: {
