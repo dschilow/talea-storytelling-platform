@@ -760,9 +760,23 @@ function enforceAvatarDevelopments(
     return;
   }
 
-  const requiredNames = avatars
-    .map((avatar) => (typeof avatar.name === "string" ? avatar.name.trim() : ""))
-    .filter((name): name is string => Boolean(name));
+  const requiredNames: string[] = [];
+  const seenNames = new Set<string>();
+  avatars.forEach((avatar) => {
+    if (typeof avatar?.name !== "string") {
+      return;
+    }
+    const trimmed = avatar.name.trim();
+    if (!trimmed) {
+      return;
+    }
+    const key = trimmed.toLowerCase();
+    if (seenNames.has(key)) {
+      return;
+    }
+    seenNames.add(key);
+    requiredNames.push(trimmed);
+  });
 
   const provided = Array.isArray(story.avatarDevelopments)
     ? story.avatarDevelopments
@@ -804,6 +818,7 @@ function enforceAvatarDevelopments(
   });
 
   story.avatarDevelopments = enforced;
+  console.log("[ai-generation] Enforced avatar developments:", enforced);
 }
 
 async function generateStoryWithOpenAITools(args: {
