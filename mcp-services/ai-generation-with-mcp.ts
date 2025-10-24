@@ -15,7 +15,7 @@ import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "../backend/story/generate";
 import type { Avatar, AvatarVisualProfile } from "../backend/avatar/avatar";
-import { ai } from "../backend/encore.gen/clients";
+import { runwareGenerateImage } from "../backend/ai/image-generation";
 import { logTopic } from "../backend/log/logger";
 import { publishWithTimeout } from "../backend/helpers/pubsubTimeout";
 import {
@@ -205,6 +205,37 @@ function buildImagePromptFromVisualProfile(
     sections.push(`${visualProfile.gender} character`);
   }
 
+  const descriptorText =
+    (visualProfile.consistentDescriptors || []).join(" ").toLowerCase();
+  let species: "cat" | "dog" | "human" | "animal" | "unknown" = "unknown";
+  if (descriptorText.includes("cat") || descriptorText.includes("kitten")) {
+    species = "cat";
+  } else if (descriptorText.includes("dog") || descriptorText.includes("puppy")) {
+    species = "dog";
+  } else if (
+    descriptorText.includes("human") ||
+    descriptorText.includes("boy") ||
+    descriptorText.includes("girl")
+  ) {
+    species = "human";
+  } else if (descriptorText.includes("animal")) {
+    species = "animal";
+  }
+
+  if (species === "cat") {
+    sections.push(
+      "SPECIES: non-anthropomorphic cat on four paws, tail visible, natural fur patterns, no clothing, whiskers present, no human traits"
+    );
+  } else if (species === "dog") {
+    sections.push(
+      "SPECIES: non-anthropomorphic dog on four paws, tail visible, natural fur, no clothing"
+    );
+  } else if (species === "human") {
+    sections.push(
+      "SPECIES: human child, skin visible, no fur, no whiskers, no animal ears or tail"
+    );
+  }
+
   // 4. Skin details
   const skinDesc: string[] = [];
   if (visualProfile.skin?.tone)
@@ -319,19 +350,52 @@ function buildChapterImagePrompt(
 
   // 3. Characters with FULL visual profiles
   const characterSections: string[] = [];
-  Object.entries(chapterDesc.characters ?? {}).forEach(([name, details]) => {
-    const visualProfile = avatarProfilesByName[name];
+  const rawCharacters = chapterDesc.characters as any;
+  let namedCharacterEntries: Array<[string, any]> = [];
 
-    if (visualProfile) {
-      const charPrompt = buildImagePromptFromVisualProfile(
-        visualProfile,
-        name,
-        details
-      );
-      characterSections.push(charPrompt);
-    } else {
-      console.warn(`⚠️ No visual profile for ${name} - skipping detailed prompt`);
+  if (
+    rawCharacters &&
+    typeof rawCharacters === "object" &&
+    !Array.isArray(rawCharacters)
+  ) {
+    namedCharacterEntries = Object.entries(rawCharacters);
+  }
+
+  if (namedCharacterEntries.length === 0) {
+    if (typeof rawCharacters === "string" && rawCharacters.trim().length > 0) {
+      sections.push(`CHARACTER ACTION NOTE: ${rawCharacters}`);
     }
+    namedCharacterEntries = Object.keys(avatarProfilesByName).map((name) => [
+      name,
+      {},
+    ]);
+  }
+
+  namedCharacterEntries.forEach(([name, rawDetails], index) => {
+    const visualProfile = avatarProfilesByName[name];
+    if (!visualProfile) {
+      console.warn(`⚠️ No visual profile for ${name} - skipping detailed prompt`);
+      return;
+    }
+
+    const sceneDetails =
+      rawDetails && typeof rawDetails === "object" ? { ...rawDetails } : {};
+
+    if (!sceneDetails.position) {
+      sceneDetails.position =
+        index === 0
+          ? "left side of frame"
+          : index === 1
+          ? "right side of frame"
+          : "midground";
+    }
+
+    const charPrompt = buildImagePromptFromVisualProfile(
+      visualProfile,
+      name,
+      sceneDetails
+    );
+    characterSections.push(charPrompt);
   });
 
   if (characterSections.length > 0) {
@@ -384,21 +448,52 @@ function buildCoverImagePrompt(
 
   // 3. Characters with FULL visual profiles
   const characterSections: string[] = [];
-  Object.entries(coverDesc.characters ?? {}).forEach(([name, details]) => {
-    const visualProfile = avatarProfilesByName[name];
+  const rawCharacters = coverDesc.characters as any;
+  let namedEntries: Array<[string, any]> = [];
 
-    if (visualProfile) {
-      const charPrompt = buildImagePromptFromVisualProfile(visualProfile, name, {
-        position: details.position,
-        expression: details.expression,
-        action: details.pose,
-      });
-      characterSections.push(charPrompt);
-    } else {
+  if (
+    rawCharacters &&
+    typeof rawCharacters === "object" &&
+    !Array.isArray(rawCharacters)
+  ) {
+    namedEntries = Object.entries(rawCharacters);
+  }
+
+  if (namedEntries.length === 0) {
+    if (typeof rawCharacters === "string" && rawCharacters.trim().length > 0) {
+      sections.push(`CHARACTER ACTION NOTE: ${rawCharacters}`);
+    }
+    namedEntries = Object.keys(avatarProfilesByName).map((name) => [name, {}]);
+  }
+
+  namedEntries.forEach(([name, rawDetails], index) => {
+    const visualProfile = avatarProfilesByName[name];
+    if (!visualProfile) {
       console.warn(
         `⚠️ No visual profile for cover character ${name} - skipping detailed prompt`
       );
+      return;
     }
+
+    const sceneDetails =
+      rawDetails && typeof rawDetails === "object" ? { ...rawDetails } : {};
+
+    if (!sceneDetails.position) {
+      sceneDetails.position =
+        index === 0
+          ? "foreground left"
+          : index === 1
+          ? "foreground right"
+          : "midground";
+    }
+
+    const charPrompt = buildImagePromptFromVisualProfile(visualProfile, name, {
+      position: sceneDetails.position,
+      expression: sceneDetails.expression,
+      action: sceneDetails.pose ?? sceneDetails.action,
+      clothing: sceneDetails.clothing,
+    });
+    characterSections.push(charPrompt);
   });
 
   if (characterSections.length > 0) {
@@ -536,7 +631,7 @@ export const generateStoryContentWithMcp = api<
       );
       console.log(`🎨 [MCP] Cover prompt length: ${coverPrompt.length}`);
 
-      const coverResponse = await ai.generateImage({
+      const coverResponse = await runwareGenerateImage({
         prompt: coverPrompt,
         model: "runware:101@1",
         width: coverDimensions.width,
@@ -546,7 +641,7 @@ export const generateStoryContentWithMcp = api<
         seed: seedBase,
         outputFormat: "WEBP",
         negativePrompt:
-          "blurry, low quality, poor quality, bad quality, pixelated, amateur art, bad anatomy, wrong anatomy, distorted faces, deformed faces, extra limbs, missing limbs, malformed hands, extra fingers, bad proportions, asymmetric features, realistic photography, photorealistic, live action, real person, adult content, mature content, scary, horror, dark themes, violence, weapons, text, words, letters, watermark, signature, logo, cropped, cut off, out of frame, duplicate, multiple heads, inconsistent character, wrong hair color, wrong eye color, different appearance, style inconsistency",
+          "blurry, low quality, poor quality, bad quality, pixelated, amateur art, bad anatomy, wrong anatomy, distorted faces, deformed faces, extra limbs, missing limbs, malformed hands, extra fingers, bad proportions, asymmetric features, realistic photography, photorealistic, live action, real person, adult content, mature content, scary, horror, dark themes, violence, weapons, text, words, letters, watermark, signature, logo, cropped, cut off, out of frame, duplicate, multiple heads, inconsistent character, wrong hair color, wrong eye color, different appearance, style inconsistency, extra human child, duplicate boys, duplicate Diego, duplicate Alexander",
       });
 
       // Chapter images with MCP profiles
@@ -562,7 +657,7 @@ export const generateStoryContentWithMcp = api<
           `🎨 [MCP] Chapter ${i + 1} prompt length: ${chapterPrompt.length}`
         );
 
-        const chapterResponse = await ai.generateImage({
+        const chapterResponse = await runwareGenerateImage({
           prompt: chapterPrompt,
           model: "runware:101@1",
           width: chapterDimensions.width,
@@ -572,7 +667,7 @@ export const generateStoryContentWithMcp = api<
           seed: (seedBase + i * 101) >>> 0,
           outputFormat: "WEBP",
           negativePrompt:
-            "blurry, low quality, poor quality, bad quality, pixelated, amateur art, bad anatomy, wrong anatomy, distorted faces, deformed faces, extra limbs, missing limbs, malformed hands, extra fingers, bad proportions, asymmetric features, realistic photography, photorealistic, live action, real person, adult content, mature content, scary, horror, dark themes, violence, weapons, text, words, letters, watermark, signature, logo, cropped, cut off, out of frame, duplicate, multiple heads, inconsistent character, wrong hair color, wrong eye color, different appearance, style inconsistency, cluttered background, distracting background, busy composition",
+            "blurry, low quality, poor quality, bad quality, pixelated, amateur art, bad anatomy, wrong anatomy, distorted faces, deformed faces, extra limbs, missing limbs, malformed hands, extra fingers, bad proportions, asymmetric features, realistic photography, photorealistic, live action, real person, adult content, mature content, scary, horror, dark themes, violence, weapons, text, words, letters, watermark, signature, logo, cropped, cut off, out of frame, duplicate, multiple heads, inconsistent character, wrong hair color, wrong eye color, different appearance, style inconsistency, cluttered background, distracting background, busy composition, extra human child, duplicate boys, duplicate Diego, duplicate Alexander",
         });
 
         chapterResponses.push(chapterResponse);

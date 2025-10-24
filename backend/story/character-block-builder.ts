@@ -428,7 +428,8 @@ export function buildSceneStyleBlock(
   scene?: string,
   characterCount = 1,
   includesAnimal = false,
-  includesCat = false
+  includesCat = false,
+  includesHuman = true
 ): SceneStyleBlock {
   const baseScene =
     scene && scene.trim() !== ""
@@ -456,6 +457,12 @@ export function buildSceneStyleBlock(
 
   if (includesCat) {
     qualityParts.push("cat on four paws");
+  }
+  if (includesCat && includesHuman) {
+    qualityParts.push("exactly one cat and one human child, clearly distinct species");
+  }
+  if (characterCount > 1) {
+    qualityParts.push("no duplicate humans, no extra children");
   }
 
   return {
@@ -507,6 +514,7 @@ export function buildCompleteImagePrompt(
   const speciesSet = new Set(blocks.map((b) => b.species));
   const includesAnimal = Array.from(speciesSet).some((s) => s !== "human");
   const includesCat = speciesSet.has("cat");
+  const includesHuman = speciesSet.has("human");
 
   // Goal: ultra compact
   let goal = "children's book scene";
@@ -523,7 +531,8 @@ export function buildCompleteImagePrompt(
       options.scene,
       subjectCount,
       includesAnimal,
-      includesCat
+      includesCat,
+      includesHuman
     ),
     ...options.customStyle,
   };
