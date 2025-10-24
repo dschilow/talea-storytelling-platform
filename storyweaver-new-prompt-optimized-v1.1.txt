@@ -1,0 +1,144 @@
+StoryWeaver - Maerchenstil Prompt (Cat + Human) v1.2
+====================================================
+
+Ziel
+----
+Dieser Leitfaden liefert einen sofort einsetzbaren Prompt (positiv + negativ) sowie empfohlene Runware-Parameter. Er erzwingt genau 1 Katze (Diego) und genau 1 menschlichen Jungen (<HUMAN_NAME>) ohne Vermenschlichung der Katze und ohne tierische Merkmale beim Menschen. Der Stil orientiert sich an klassischen Bilderbuechern mit warmem Maerchen-Charme.
+
+Erfolgsreferenzen
+-----------------
+Rotkaeppchen, Haensel und Gretel, Schneewittchen, Die kleine Meerjungfrau, Das haessliche Entlein, Pippi Langstrumpf, Die kleine Raupe Nimmersatt, Der Grueffelo, Wo die wilden Kerle wohnen, Oh, wie schoen ist Panama
+
+Wichtige Regeln (vorweg)
+------------------------
+1) Prompt-Sprache strikt Englisch (Eigennamen ausgenommen).
+2) Species hart festlegen: Diego = "cat (kitten, 2-4 months), non-anthropomorphic, quadruped". <HUMAN_NAME> = "human boy" + FORBID animal traits.
+3) Maerchenstil sichern: analoge Illustration (watercolor/gouache), leichte Korntexturen, warme Lichtsaeume.
+4) Portrait-Format (z. B. 768x1152 oder 1024x1536), kein 1:1.
+5) Keine Disney/Pixar-3D-Optik, keine Comic-Maskottchen.
+6) Nach jedem Render Species-Check erzwingen (genau 1 Katze + genau 1 Mensch).
+
+POSITIVE_PROMPT_TEMPLATE
+------------------------
+> Ersetze Platzhalter in <WINKELKLAMMERN> (z. B. <HUMAN_NAME>, <SCENE>).
+
+MASTERSTYLE: hand-painted watercolor and gouache illustration, analog texture, luminous yet gentle colors inspired by classic European picture books ("Rotkaeppchen", "Haensel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das haessliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grueffelo", "Wo die wilden Kerle wohnen", "Oh, wie schoen ist Panama")
+COLOR AND LIGHT: warm golden rim light, soft pastel washes, subtle ink outlines, storybook vignette
+ATMOSPHERE: whimsical, hopeful, serene depth, gentle focus falloff
+MEDIUM DETAILS: visible paper grain, delicate brush strokes, traditional pigments
+
+CHARACTER: Diego
+species: cat (kitten, 2-4 months), non-anthropomorphic, quadruped
+coat: orange tabby with stripes; white chin and chest
+eyes: large green; round
+face: small pink nose; long white whiskers; big ears (pink inner)
+pose: poised on four paws; tail curled naturally; alert and curious
+position: foreground left
+camera: eye-level medium full shot
+MUST INCLUDE: orange tabby stripes, white chin & chest, long white whiskers, pink inner ears, large green eyes, tail visible, four paws on ground
+FORBID: anthropomorphic cat, cat standing upright, cat wearing clothes, mascot suit, second cat, duplicate Diego, missing tail
+
+CHARACTER: <HUMAN_NAME>
+species: human boy (5-7), <HAIR_COLOR> hair, <EYE_COLOR> eyes
+outfit: two-tone hoodie (olive body, orange sleeves) <OR_CUSTOM_OUTFIT>
+pose: lively half-profile; natural child posture
+position: foreground right
+camera: eye-level medium full shot
+MUST INCLUDE: human skin (no fur), <HAIR_COLOR> hair, <EYE_COLOR> eyes, two-tone hoodie (olive + orange), distinct human facial features (brows, nose bridge, lips), friendly expression
+FORBID: any animal traits, fur, whiskers, animal ears, tail, feline face shape, second boy same age, duplicate <HUMAN_NAME>, painted whisker markings
+
+COMPOSITION: balanced two-subject portrait; Diego left / <HUMAN_NAME> right; soft leading lines; storybook depth
+SCENE: <SCENE>
+BACKGROUND STYLE: detailed picture-book environment with handcrafted props, layered foliage, painterly sky
+LIGHTING: warm key light with gentle bounce, candle-glow highlights, subtle volumetric rays
+QUALITY_GUARDS: anatomically correct proportions, natural limb joints, print-ready clarity, no duplicated limbs, no blurred faces
+STORYBOOK_FINISH: shimmering dust motes, soft vignette, inviting fairy-tale glow
+
+NEGATIVE_PROMPT_TEMPLATE
+------------------------
+blurry, low quality, low resolution, bad anatomy, distorted faces, extra limbs, duplicate subject, watermark, text, jpeg artifacts, malformed, ugly, disfigured, gross proportions,
+duplicate character, extra person, clone, multiple identical characters,
+anthropomorphic cat, cat standing upright, cat wearing clothes, mascot suit, second cat, missing tail,
+animal traits on <HUMAN_NAME>, fur on <HUMAN_NAME>, whiskers on <HUMAN_NAME>, animal ears on <HUMAN_NAME>, tail on <HUMAN_NAME>, feline face on <HUMAN_NAME>, painted whisker markings on <HUMAN_NAME>, cat nose on <HUMAN_NAME>, duplicate <HUMAN_NAME>
+
+RUNWARE_REQUEST_TEMPLATE (example)
+----------------------------------
+{
+  "taskType": "imageInference",
+  "model": "runware:101@1",
+  "scheduler": "DDIM",
+  "CFGScale": 10.5,
+  "steps": 34,
+  "seed": <SEED_PER_CHAPTER>,
+  "width": 768,
+  "height": 1152,
+  "numberResults": 1,
+  "checkNSFW": false,
+  "includeCost": true,
+  "outputType": "base64Data",
+  "outputFormat": "WEBP",
+  "outputQuality": 95,
+  "acceleratorOptions": { "teaCache": true, "teaCacheDistance": 0.3 },
+  "positivePrompt": "<PASTE POSITIVE_PROMPT_TEMPLATE FILLED>",
+  "negativePrompt": "<PASTE NEGATIVE_PROMPT_TEMPLATE FILLED>"
+}
+
+Builder-Regeln (fuer eine KI/Agent)
+-----------------------------------
+1) Genau ein CHARACTER-Block pro Avatar. Reihenfolge fix: Katze links, Mensch rechts.
+2) Ersetze alle deutschen Tokens (Fell, Augen, Monate) durch englische Varianten (fur, eyes, months).
+3) Fuege <SCENE> mit maximal 2 Saetzen hinzu; nutze poetische Bildsprache.
+4) Pruefe den Human-Block auf Tierbegriffe (fur, whiskers, ears, tail). Falls vorhanden -> entfernen und FORBID erneut injizieren.
+5) Seed pro Kapitel variieren, CHARACTER-Bloecke unveraendert lassen.
+6) Nach dem Rendern Telemetrie sichern (positive/negative Prompt, seed, cfg, steps).
+
+Self-Check & Repair (Auto-Nachbesserung)
+---------------------------------------
+Nach jedem Render:
+- Vision-Check (LLM): "exactly one cat + exactly one human boy?" und "are cat descriptors present?" und "are animal traits absent on <HUMAN_NAME>?"
+- Falls FAIL:
+  • CFG += 0.5 (max 12)
+  • Wiederhole MUST INCLUDE im betroffenen Block (z. B. "human facial features" oder "four paws on ground")
+  • Ergaenze negative Keywords gegen aufgetretene Fehler (z. B. "cat nose on <HUMAN_NAME>")
+  • Render erneut (max 3 Versuche)
+
+Beispiel (gefuellt)
+-------------------
+POSITIVE:
+MASTERSTYLE: hand-painted watercolor and gouache illustration, analog texture, luminous yet gentle colors inspired by classic European picture books ("Rotkaeppchen", "Haensel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das haessliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grueffelo", "Wo die wilden Kerle wohnen", "Oh, wie schoen ist Panama")
+COLOR AND LIGHT: warm golden rim light, soft pastel washes, subtle ink outlines, storybook vignette
+ATMOSPHERE: whimsical, hopeful, serene depth, gentle focus falloff
+MEDIUM DETAILS: visible paper grain, delicate brush strokes, traditional pigments
+
+CHARACTER: Diego
+species: cat (kitten, 2-4 months), non-anthropomorphic, quadruped
+coat: orange tabby with stripes; white chin and chest
+eyes: large green; round
+face: small pink nose; long white whiskers; big ears (pink inner)
+pose: poised on four paws; tail curled naturally; alert and curious
+position: foreground left
+camera: eye-level medium full shot
+MUST INCLUDE: orange tabby stripes, white chin & chest, long white whiskers, pink inner ears, large green eyes, tail visible, four paws on ground
+FORBID: anthropomorphic cat, cat standing upright, cat wearing clothes, mascot suit, second cat, duplicate Diego, missing tail
+
+CHARACTER: Alexander
+species: human boy (6), blond hair, blue eyes
+outfit: two-tone hoodie (olive body, orange sleeves)
+pose: lively half-profile; natural child posture
+position: foreground right
+camera: eye-level medium full shot
+MUST INCLUDE: human skin (no fur), blond hair, blue eyes, two-tone hoodie (olive + orange), distinct human facial features (brows, nose bridge, lips), friendly expression
+FORBID: any animal traits, fur, whiskers, animal ears, tail, feline face shape, second boy same age, duplicate Alexander, painted whisker markings
+
+COMPOSITION: balanced two-subject portrait; Diego left / Alexander right; soft leading lines; storybook depth
+SCENE: a sparkling tidal pool reflects lantern light as the friends plan their voyage
+BACKGROUND STYLE: detailed picture-book environment with handcrafted props, layered foliage, painterly sky
+LIGHTING: warm key light with gentle bounce, candle-glow highlights, subtle volumetric rays
+QUALITY_GUARDS: anatomically correct proportions, natural limb joints, print-ready clarity, no duplicated limbs, no blurred faces
+STORYBOOK_FINISH: shimmering dust motes, soft vignette, inviting fairy-tale glow
+
+NEGATIVE:
+blurry, low quality, low resolution, bad anatomy, distorted faces, extra limbs, duplicate subject, watermark, text, jpeg artifacts, malformed, ugly, disfigured, gross proportions,
+duplicate character, extra person, clone, multiple identical characters,
+anthropomorphic cat, cat standing upright, cat wearing clothes, mascot suit, second cat, missing tail,
+animal traits on Alexander, fur on Alexander, whiskers on Alexander, animal ears on Alexander, tail on Alexander, feline face on Alexander, painted whisker markings on Alexander, cat nose on Alexander, duplicate Alexander
