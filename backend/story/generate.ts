@@ -27,6 +27,44 @@ type AvatarDevelopmentValidationResult = {
 
 // Avatar DB is already available through the avatar service client
 
+export type StylePresetKey =
+  | "rhymed_playful"
+  | "gentle_minimal"
+  | "wild_imaginative"
+  | "philosophical_warm"
+  | "mischief_empowering"
+  | "adventure_epic"
+  | "quirky_dark_sweet"
+  | "cozy_friendly"
+  | "classic_fantasy"
+  | "whimsical_logic"
+  | "mythic_allegory"
+  | "road_fantasy"
+  | "imaginative_meta"
+  | "pastoral_heart"
+  | "bedtime_soothing";
+
+export type StoryTone =
+  | "warm"
+  | "witty"
+  | "epic"
+  | "soothing"
+  | "mischievous"
+  | "wonder";
+
+export type StoryLanguage = "de" | "en";
+export type StoryPacing = "slow" | "balanced" | "fast";
+export type StoryPOV = "ich" | "personale";
+export type PlotHookKey =
+  | "secret_door"
+  | "riddle_puzzle"
+  | "lost_map"
+  | "mysterious_guide"
+  | "time_glitch"
+  | "friend_turns_foe"
+  | "foe_turns_friend"
+  | "moral_choice";
+
 export interface StoryConfig {
   avatarIds: string[];
   genre: string;
@@ -35,6 +73,19 @@ export interface StoryConfig {
   complexity: "simple" | "medium" | "complex";
   learningMode?: LearningMode;
   ageGroup: "3-5" | "6-8" | "9-12" | "13+";
+
+  // Optional advanced styling parameters from StoryWizard
+  stylePreset?: StylePresetKey;
+  allowRhymes?: boolean;
+  tone?: StoryTone;
+  language?: StoryLanguage;
+  suspenseLevel?: 0 | 1 | 2 | 3;
+  humorLevel?: 0 | 1 | 2 | 3;
+  pacing?: StoryPacing;
+  pov?: StoryPOV;
+  hooks?: PlotHookKey[];
+  hasTwist?: boolean;
+  customPrompt?: string;
 }
 
 export interface LearningMode {
@@ -134,6 +185,16 @@ export const generate = api<GenerateStoryRequest, Story>(
         length: req.config.length,
         complexity: req.config.complexity,
         ageGroup: req.config.ageGroup,
+        stylePreset: req.config.stylePreset,
+        tone: req.config.tone,
+        language: req.config.language,
+        allowRhymes: req.config.allowRhymes ?? false,
+        suspenseLevel: req.config.suspenseLevel ?? 1,
+        humorLevel: req.config.humorLevel ?? 2,
+        pacing: req.config.pacing ?? "balanced",
+        pov: req.config.pov ?? "personale",
+        hooksCount: req.config.hooks?.length ?? 0,
+        hasTwist: req.config.hasTwist ?? false,
         learningMode: req.config.learningMode ? {
           enabled: req.config.learningMode.enabled,
           subjectsCount: req.config.learningMode.subjects?.length ?? 0,

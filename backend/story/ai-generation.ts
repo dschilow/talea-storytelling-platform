@@ -1,6 +1,10 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import type { StoryConfig, Chapter } from "./generate";
+import type {
+  StoryConfig,
+  Chapter,
+  StylePresetKey,
+} from "./generate";
 import type { Avatar, AvatarVisualProfile } from "../avatar/avatar";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
@@ -37,6 +41,89 @@ import {
   type VisionQAExpectation,
   type VisionQAResult,
 } from "./vision-qa";
+
+interface StylePresetMeta {
+  inspiration: string;
+  description: string;
+}
+
+const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
+  rhymed_playful: {
+    inspiration:
+      "Inspired by 'Der Grüffelo': rhythmic, playful cadence with gentle call-and-response energy; keep lines musical yet clearly understandable.",
+    description: "Gereimte Wendungen, Call-and-Response, humorvoll.",
+  },
+  gentle_minimal: {
+    inspiration:
+      "Inspired by 'Die kleine Raupe Nimmersatt': minimal, soothing structure with repeating phrases and calm sensory cues; ideal for bedtime.",
+    description: "Wiederholung, klare Struktur, ruhig.",
+  },
+  wild_imaginative: {
+    inspiration:
+      "Inspired by 'Wo die wilden Kerle wohnen': bold imaginative energy with safe boundaries that celebrate curiosity and courage.",
+    description: "Rebellische Imagination, sichere Grenzen.",
+  },
+  philosophical_warm: {
+    inspiration:
+      "Inspired by 'Der kleine Prinz': warm, reflective narration with small pearls of wisdom and poetic comparisons.",
+    description: "Kleine Weisheiten, poetische Bilder.",
+  },
+  mischief_empowering: {
+    inspiration:
+      "Inspired by 'Pippi Langstrumpf': mischievous, empowering tone where kids act confidently and humor drives the plot.",
+    description: "Selbstwirksamkeit, Humor.",
+  },
+  adventure_epic: {
+    inspiration:
+      "Inspired by 'Harry Potter': episodic adventure feeling with clear quests and team spirit, always age-appropriate.",
+    description: "Quest-Gefühl, kindgerecht dosiert.",
+  },
+  quirky_dark_sweet: {
+    inspiration:
+      "Inspired by 'Charlie und die Schokoladenfabrik': quirky, gently dark sweetness with surprising yet friendly twists.",
+    description: "Leicht schräg, immer freundlich.",
+  },
+  cozy_friendly: {
+    inspiration:
+      "Inspired by 'Winnie Puuh': cozy, dialogue-rich scenes full of friendship, snacks, and gentle warmth.",
+    description: "Gemütliche Dialoge, Freundschaft.",
+  },
+  classic_fantasy: {
+    inspiration:
+      "Inspired by 'Peter Pan': timeless, fairy-tale fantasy with wide-eyed heroes and classic motifs.",
+    description: "Zeitlose Fantasie.",
+  },
+  whimsical_logic: {
+    inspiration:
+      "Inspired by 'Alice im Wunderland': playful logic puzzles and wordplay that remain easy to follow for kids.",
+    description: "Logikspiele, verspielt (altersgerecht).",
+  },
+  mythic_allegory: {
+    inspiration:
+      "Inspired by 'Die Chroniken von Narnia': mythic, softly allegorical storytelling with symbolic moments and calm heroism.",
+    description: "Symbolik, Teamgeist.",
+  },
+  road_fantasy: {
+    inspiration:
+      "Inspired by 'Der Zauberer von Oz': journey-style fantasy with clear stages, memorable companions, and scenic landscapes.",
+    description: "Weg, Etappen, Gefährten.",
+  },
+  imaginative_meta: {
+    inspiration:
+      "Inspired by 'Die unendliche Geschichte': meta-fantasy celebrating imagination itself with stories inside stories.",
+    description: "Geschichte in Geschichte (einfach).",
+  },
+  pastoral_heart: {
+    inspiration:
+      "Inspired by 'Heidi': pastoral warmth with nature imagery, heartfelt community, and gentle resilience.",
+    description: "Alpen-Gefühl, Geborgenheit.",
+  },
+  bedtime_soothing: {
+    inspiration:
+      "Inspired by 'Gute Nacht, Mond': extremely soothing, near-whisper bedtime tone with long, dreamy sentences.",
+    description: "Sehr sanft, flüsterndes Tempo.",
+  },
+};
 
 // WICHTIG: gpt-5-nano für beste Qualität und Tool-Nutzung
 // Update: avatarDevelopments-Validierung verbessert (23.10.2025)
@@ -988,11 +1075,27 @@ async function generateStoryWithOpenAITools(args: {
   const chapterCount =
     config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  // OPTIMIZED v1.2: Classic fairy-tale voice with professional picture-book quality
+  // OPTIMIZED v2.0: Classic fairy-tale voice with picture-book clarity
   const targetWordsPerChapter =
-    config.ageGroup === "3-5" ? 220 : config.ageGroup === "6-8" ? 320 : 380;
-  const minWordsPerChapter = Math.max(200, targetWordsPerChapter - 40);
-  const maxWordsPerChapter = targetWordsPerChapter + 40;
+    config.ageGroup === "3-5" ? 90 : config.ageGroup === "6-8" ? 110 : 150;
+  const minWordsPerChapter = Math.max(70, targetWordsPerChapter - 30);
+  const maxWordsPerChapter = targetWordsPerChapter + 20;
+  const stylePresetMeta =
+    config.stylePreset && STYLE_PRESET_META[config.stylePreset]
+      ? STYLE_PRESET_META[config.stylePreset]
+      : undefined;
+  const systemStyleAddendum = stylePresetMeta
+    ? `
+STIL-PRESET-SPEZIAL:
+- ${stylePresetMeta.inspiration}
+- Beschreibung: ${stylePresetMeta.description}`
+    : "";
+  const userStyleAddendum = stylePresetMeta
+    ? `
+STIL-PRESET:
+- ${stylePresetMeta.inspiration}
+- ${stylePresetMeta.description}`
+    : "";
 
   const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
 
@@ -1015,6 +1118,7 @@ STILRICHTLINIEN (v1.2 - SEHR WICHTIG!):
 - Orientiere dich am Ton geliebter Bilderbuch-Klassiker ("Rotkäppchen", "Hänsel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das hässliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grüffelo", "Wo die wilden Kerle wohnen", "Oh, wie schön ist Panama")
 - Nutze wiederkehrende Symbole, märchenhafte Vergleiche und einen warmen Erzählsog, der Staunen und Geborgenheit vermittelt
 - Jede Szene liefert mindestens zwei bildstarke Momente, die als Illustrationsanweisungen funktionieren
+${systemStyleAddendum}
 
 👥 CHARAKTERE:
 - Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
@@ -1094,6 +1198,7 @@ STILREFERENZEN:
 - Orientiere dich am Ton von "Rotkäppchen", "Hänsel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das hässliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grüffelo", "Wo die wilden Kerle wohnen" und "Oh, wie schön ist Panama"
 - Verwende märchenhafte Vergleiche, wiederkehrende Symbole und eine warme Erzählerstimme
 - Beschreibe Szenen so, dass sie als ausdrucksstarke Illustrationen funktionieren
+${userStyleAddendum}
 
 Konfigurationsdetails:
 - Komplexität: ${config.complexity}
@@ -1511,3 +1616,4 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
     };
   }
 }
+
