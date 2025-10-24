@@ -157,8 +157,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
           width: 640,
           height: 400,
           steps: 28,
-          CFGScale: 8.0,
-          outputFormat: "WEBP",
+          CFGScale: 3.5,
+          outputFormat: "JPEG",
         });
         coverImageUrl = img.imageUrl;
         imagesGenerated += 1;

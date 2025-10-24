@@ -1,0 +1,149 @@
+2025-10-24T15:55:11.013882312Z [err]  [nsqlookupd] 2025/10/24 15:55:11.013035 INFO: CLIENT([::1]:39050): pinged (last ping 14.99989259s)
+2025-10-24T15:55:31.016146363Z [err]  [nsqlookupd] 2025/10/24 15:55:26.013101 INFO: CLIENT([::1]:39050): pinged (last ping 15.000070104s)
+2025-10-24T15:55:51.105286123Z [err]  [nsqlookupd] 2025/10/24 15:55:41.013480 INFO: CLIENT([::1]:39050): pinged (last ping 15.000375394s)
+2025-10-24T15:55:56.019295359Z [err]  [nsqlookupd] 2025/10/24 15:55:56.013034 INFO: CLIENT([::1]:39050): pinged (last ping 14.999532872s)
+2025-10-24T15:56:15.778190494Z [err]  [nsqlookupd] 2025/10/24 15:56:11.014237 INFO: CLIENT([::1]:39050): pinged (last ping 15.001223478s)
+2025-10-24T15:56:35.770836227Z [err]  [nsqlookupd] 2025/10/24 15:56:26.013114 INFO: CLIENT([::1]:39050): pinged (last ping 14.998879676s)
+2025-10-24T15:56:41.268738209Z [err]  [nsqlookupd] 2025/10/24 15:56:41.013107 INFO: CLIENT([::1]:39050): pinged (last ping 14.999990032s)
+2025-10-24T15:57:00.991656040Z [err]  [nsqlookupd] 2025/10/24 15:56:56.013838 INFO: CLIENT([::1]:39050): pinged (last ping 15.000733246s)
+2025-10-24T15:57:21.294001841Z [err]  [nsqlookupd] 2025/10/24 15:57:11.013755 INFO: CLIENT([::1]:39050): pinged (last ping 14.999913468s)
+2025-10-24T15:57:26.014867928Z [err]  [nsqlookupd] 2025/10/24 15:57:26.013351 INFO: CLIENT([::1]:39050): pinged (last ping 14.99959913s)
+2025-10-24T15:57:46.019723950Z [err]  [nsqlookupd] 2025/10/24 15:57:41.013364 INFO: CLIENT([::1]:39050): pinged (last ping 15.000010165s)
+2025-10-24T15:57:56.018848183Z [err]  [nsqlookupd] 2025/10/24 15:57:56.013328 INFO: CLIENT([::1]:39050): pinged (last ping 14.999968377s)
+2025-10-24T15:58:16.023854682Z [err]  [nsqlookupd] 2025/10/24 15:58:11.013724 INFO: CLIENT([::1]:39050): pinged (last ping 15.000395233s)
+2025-10-24T15:58:26.014916928Z [err]  [nsqlookupd] 2025/10/24 15:58:26.013042 INFO: CLIENT([::1]:39050): pinged (last ping 14.999312775s)
+2025-10-24T15:58:44.454136065Z [inf]  100.64.0.7 - - [24/Oct/2025:15:58:43 +0000] "GET /wordpress/wp-admin/setup-config.php HTTP/1.1" 200 710 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" "2a06:98c0:3600::103, 172.69.151.219"
+2025-10-24T15:58:45.737909141Z [err]  [nsqlookupd] 2025/10/24 15:58:41.013105 INFO: CLIENT([::1]:39050): pinged (last ping 15.000067231s)
+2025-10-24T15:59:05.736815751Z [err]  [nsqlookupd] 2025/10/24 15:58:56.013500 INFO: CLIENT([::1]:39050): pinged (last ping 15.000391302s)
+2025-10-24T15:59:11.156285569Z [err]  [nsqlookupd] 2025/10/24 15:59:11.013624 INFO: CLIENT([::1]:39050): pinged (last ping 15.000126609s)
+2025-10-24T15:59:30.853642840Z [err]  [nsqlookupd] 2025/10/24 15:59:26.013228 INFO: CLIENT([::1]:39050): pinged (last ping 14.999605028s)
+2025-10-24T15:59:50.853348159Z [err]  [nsqlookupd] 2025/10/24 15:59:41.013547 INFO: CLIENT([::1]:39050): pinged (last ping 15.000301493s)
+2025-10-24T15:59:56.385373064Z [err]  [nsqlookupd] 2025/10/24 15:59:56.013318 INFO: CLIENT([::1]:39050): pinged (last ping 14.999789588s)
+2025-10-24T16:00:15.991219254Z [err]  [nsqlookupd] 2025/10/24 16:00:11.013391 INFO: CLIENT([::1]:39050): pinged (last ping 15.000070361s)
+2025-10-24T16:00:35.994020666Z [err]  [nsqlookupd] 2025/10/24 16:00:26.012836 INFO: CLIENT([::1]:39050): pinged (last ping 14.999449528s)
+2025-10-24T16:00:41.017354168Z [err]  [nsqlookupd] 2025/10/24 16:00:41.013089 INFO: CLIENT([::1]:39050): pinged (last ping 15.000251037s)
+2025-10-24T16:01:01.023312598Z [err]  [nsqlookupd] 2025/10/24 16:00:56.013120 INFO: CLIENT([::1]:39050): pinged (last ping 15.000027434s)
+2025-10-24T16:01:11.019674017Z [err]  [nsqlookupd] 2025/10/24 16:01:11.012769 INFO: CLIENT([::1]:39050): pinged (last ping 14.999651101s)
+2025-10-24T16:01:31.029266307Z [err]  [nsqlookupd] 2025/10/24 16:01:26.013170 INFO: CLIENT([::1]:39050): pinged (last ping 15.000392817s)
+2025-10-24T16:01:50.433488670Z [err]  [nsqlookupd] 2025/10/24 16:01:41.013577 INFO: CLIENT([::1]:39050): pinged (last ping 15.000374927s)
+2025-10-24T16:01:55.865986578Z [inf]  100.64.0.8 - - [24/Oct/2025:16:01:46 +0000] "GET /wordpress/wp-admin/setup-config.php HTTP/1.1" 200 710 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" "2a06:98c0:3600::103, 104.23.221.56"
+2025-10-24T16:01:56.311121335Z [err]  [nsqlookupd] 2025/10/24 16:01:56.013377 INFO: CLIENT([::1]:39050): pinged (last ping 14.999839058s)
+2025-10-24T16:02:15.246298554Z [inf]  100.64.0.9 - - [24/Oct/2025:16:02:11 +0000] "GET /wp-admin/setup-config.php HTTP/1.1" 200 710 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" "2a06:98c0:3600::103, 104.23.221.56"
+2025-10-24T16:02:15.724449846Z [err]  [nsqlookupd] 2025/10/24 16:02:11.013258 INFO: CLIENT([::1]:39050): pinged (last ping 14.99988241s)
+2025-10-24T16:02:35.716952189Z [err]  [nsqlookupd] 2025/10/24 16:02:26.013459 INFO: CLIENT([::1]:39050): pinged (last ping 15.00019892s)
+2025-10-24T16:02:41.344954738Z [err]  [nsqlookupd] 2025/10/24 16:02:41.013518 INFO: CLIENT([::1]:39050): pinged (last ping 15.000060022s)
+2025-10-24T16:02:45.249194333Z [inf]  100.64.0.10 - - [24/Oct/2025:16:02:42 +0000] "GET /wp-admin/setup-config.php HTTP/1.1" 200 710 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" "2a06:98c0:3600::103, 172.71.172.57"
+2025-10-24T16:03:00.948036114Z [err]  [nsqlookupd] 2025/10/24 16:02:56.013761 INFO: CLIENT([::1]:39050): pinged (last ping 15.000238923s)
+2025-10-24T16:03:20.946775162Z [err]  [nsqlookupd] 2025/10/24 16:03:11.012814 INFO: CLIENT([::1]:39050): pinged (last ping 14.999054959s)
+2025-10-24T16:03:26.016472945Z [err]  [nsqlookupd] 2025/10/24 16:03:26.013011 INFO: CLIENT([::1]:39050): pinged (last ping 15.000200061s)
+2025-10-24T16:03:46.016961525Z [err]  [nsqlookupd] 2025/10/24 16:03:41.013037 INFO: CLIENT([::1]:39050): pinged (last ping 15.000021645s)
+2025-10-24T16:04:06.048087160Z [err]  [nsqlookupd] 2025/10/24 16:03:56.013810 INFO: CLIENT([::1]:39050): pinged (last ping 15.000773121s)
+2025-10-24T16:04:11.016933393Z [err]  [nsqlookupd] 2025/10/24 16:04:11.013143 INFO: CLIENT([::1]:39050): pinged (last ping 14.999335519s)
+2025-10-24T16:04:31.018488416Z [err]  [nsqlookupd] 2025/10/24 16:04:26.013883 INFO: CLIENT([::1]:39050): pinged (last ping 15.000742542s)
+2025-10-24T16:04:41.015485962Z [err]  [nsqlookupd] 2025/10/24 16:04:41.013308 INFO: CLIENT([::1]:39050): pinged (last ping 14.999424056s)
+2025-10-24T16:04:56.137836633Z [inf]  100.64.0.9 - - [24/Oct/2025:16:04:51 +0000] "GET / HTTP/1.1" 304 0 "https://www.talea.website/logs" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" "46.114.198.202"
+2025-10-24T16:04:59.225386387Z [inf]  running auth handler
+2025-10-24T16:04:59.225394550Z [inf]  running auth handler
+2025-10-24T16:04:59.225401967Z [inf]  running auth handler
+2025-10-24T16:04:59.225409618Z [inf]  Starting Clerk token verification...
+2025-10-24T16:04:59.225416935Z [inf]  Starting Clerk token verification...
+2025-10-24T16:04:59.225425599Z [inf]  Starting Clerk token verification...
+2025-10-24T16:04:59.225434063Z [inf]  Token erfolgreich verifiziert {
+2025-10-24T16:04:59.225441611Z [inf]    sub: 'user_34Ms6m8ekcQkC0m0AO5A9lTOsar',
+2025-10-24T16:04:59.225449030Z [inf]    azp: 'https://www.talea.website',
+2025-10-24T16:04:59.225460036Z [inf]    aud: undefined,
+2025-10-24T16:04:59.225467837Z [inf]    iss: 'https://clerk.talea.website',
+2025-10-24T16:04:59.225475330Z [inf]    exp: '2025-10-24T16:05:52.000Z'
+2025-10-24T16:04:59.225482984Z [inf]  }
+2025-10-24T16:04:59.225491747Z [inf]  Token erfolgreich verifiziert {
+2025-10-24T16:04:59.225500357Z [inf]    sub: 'user_34Ms6m8ekcQkC0m0AO5A9lTOsar',
+2025-10-24T16:04:59.225508760Z [inf]    azp: 'https://www.talea.website',
+2025-10-24T16:04:59.225516317Z [inf]    aud: undefined,
+2025-10-24T16:04:59.225528019Z [inf]    iss: 'https://clerk.talea.website',
+2025-10-24T16:04:59.225536130Z [inf]    exp: '2025-10-24T16:05:52.000Z'
+2025-10-24T16:04:59.225546234Z [inf]  }
+2025-10-24T16:04:59.225559508Z [inf]  Token erfolgreich verifiziert {
+2025-10-24T16:04:59.225569540Z [inf]    sub: 'user_34Ms6m8ekcQkC0m0AO5A9lTOsar',
+2025-10-24T16:04:59.237129151Z [inf]  Authentication successful for user: user_34Ms6m8ekcQkC0m0AO5A9lTOsar
+2025-10-24T16:04:59.237137663Z [inf]  Authentication successful for user: user_34Ms6m8ekcQkC0m0AO5A9lTOsar
+2025-10-24T16:04:59.237147609Z [inf]    iss: 'https://clerk.talea.website',
+2025-10-24T16:04:59.237151361Z [inf]    azp: 'https://www.talea.website',
+2025-10-24T16:04:59.237154462Z [inf]  auth handler completed
+2025-10-24T16:04:59.237163109Z [inf]    exp: '2025-10-24T16:05:52.000Z'
+2025-10-24T16:04:59.237167332Z [inf]  starting request
+2025-10-24T16:04:59.237169229Z [inf]    aud: undefined,
+2025-10-24T16:04:59.237176367Z [inf]  }
+2025-10-24T16:04:59.237181124Z [inf]  Authentication successful for user: user_34Ms6m8ekcQkC0m0AO5A9lTOsar
+2025-10-24T16:04:59.238031337Z [inf]  auth handler completed
+2025-10-24T16:04:59.238049209Z [inf]  auth handler completed
+2025-10-24T16:04:59.238060014Z [inf]  starting request
+2025-10-24T16:04:59.238072050Z [inf]  starting request
+2025-10-24T16:04:59.245862852Z [inf]  request completed
+2025-10-24T16:04:59.247936212Z [inf]  request completed
+2025-10-24T16:04:59.247947942Z [inf]  request completed
+2025-10-24T16:04:59.247956160Z [inf]  running auth handler
+2025-10-24T16:04:59.247964330Z [inf]  Starting Clerk token verification...
+2025-10-24T16:04:59.247971055Z [inf]  Token erfolgreich verifiziert {
+2025-10-24T16:04:59.247978558Z [inf]    sub: 'user_34Ms6m8ekcQkC0m0AO5A9lTOsar',
+2025-10-24T16:04:59.248005182Z [inf]    azp: 'https://www.talea.website',
+2025-10-24T16:04:59.248012598Z [inf]    aud: undefined,
+2025-10-24T16:04:59.248021146Z [inf]    iss: 'https://clerk.talea.website',
+2025-10-24T16:04:59.248029483Z [inf]    exp: '2025-10-24T16:05:52.000Z'
+2025-10-24T16:04:59.248036181Z [inf]  }
+2025-10-24T16:04:59.248042765Z [inf]  Authentication successful for user: user_34Ms6m8ekcQkC0m0AO5A9lTOsar
+2025-10-24T16:04:59.248049404Z [inf]  auth handler completed
+2025-10-24T16:04:59.268330394Z [inf]  starting request
+2025-10-24T16:04:59.268337269Z [inf]  request completed
+2025-10-24T16:05:01.270151295Z [err]  [nsqlookupd] 2025/10/24 16:04:56.013029 INFO: CLIENT([::1]:39050): pinged (last ping 14.999720206s)
+2025-10-24T16:05:02.394278395Z [inf]  running auth handler
+2025-10-24T16:05:02.394285262Z [inf]  Starting Clerk token verification...
+2025-10-24T16:05:02.394291816Z [inf]  Token erfolgreich verifiziert {
+2025-10-24T16:05:02.394298173Z [inf]    sub: 'user_34Ms6m8ekcQkC0m0AO5A9lTOsar',
+2025-10-24T16:05:02.394305454Z [inf]    azp: 'https://www.talea.website',
+2025-10-24T16:05:02.394313173Z [inf]    aud: undefined,
+2025-10-24T16:05:02.394320538Z [inf]    iss: 'https://clerk.talea.website',
+2025-10-24T16:05:02.394328201Z [inf]    exp: '2025-10-24T16:05:52.000Z'
+2025-10-24T16:05:02.394336073Z [inf]  }
+2025-10-24T16:05:02.394342883Z [inf]  Authentication successful for user: user_34Ms6m8ekcQkC0m0AO5A9lTOsar
+2025-10-24T16:05:02.394349759Z [inf]  auth handler completed
+2025-10-24T16:05:02.394356976Z [inf]  starting request
+2025-10-24T16:05:02.394363785Z [inf]  request completed
+2025-10-24T16:05:20.448452542Z [err]  [nsqlookupd] 2025/10/24 16:05:11.013560 INFO: CLIENT([::1]:39050): pinged (last ping 15.000512282s)
+2025-10-24T16:05:26.144598358Z [err]  [nsqlookupd] 2025/10/24 16:05:26.013453 INFO: CLIENT([::1]:39050): pinged (last ping 14.999909228s)
+2025-10-24T16:05:46.022737401Z [err]  [nsqlookupd] 2025/10/24 16:05:41.013677 INFO: CLIENT([::1]:39050): pinged (last ping 15.000227553s)
+2025-10-24T16:06:05.638560118Z [err]  [nsqlookupd] 2025/10/24 16:05:56.013516 INFO: CLIENT([::1]:39050): pinged (last ping 14.999838727s)
+2025-10-24T16:06:11.072096848Z [err]  [nsqlookupd] 2025/10/24 16:06:11.013510 INFO: CLIENT([::1]:39050): pinged (last ping 14.999992192s)
+2025-10-24T16:06:30.692441602Z [err]  [nsqlookupd] 2025/10/24 16:06:26.014004 INFO: CLIENT([::1]:39050): pinged (last ping 15.000487342s)
+2025-10-24T16:06:50.704397213Z [err]  [nsqlookupd] 2025/10/24 16:06:41.012918 INFO: CLIENT([::1]:39050): pinged (last ping 14.998921836s)
+2025-10-24T16:06:56.170354529Z [err]  [nsqlookupd] 2025/10/24 16:06:56.012882 INFO: CLIENT([::1]:39050): pinged (last ping 14.999963597s)
+2025-10-24T16:07:15.844704122Z [err]  [nsqlookupd] 2025/10/24 16:07:11.013676 INFO: CLIENT([::1]:39050): pinged (last ping 15.000780061s)
+2025-10-24T16:07:35.844696100Z [err]  [nsqlookupd] 2025/10/24 16:07:26.013329 INFO: CLIENT([::1]:39050): pinged (last ping 14.999667761s)
+2025-10-24T16:07:41.377740004Z [err]  [nsqlookupd] 2025/10/24 16:07:41.013356 INFO: CLIENT([::1]:39050): pinged (last ping 15.000024149s)
+2025-10-24T16:07:56.420943532Z [inf]  [log/list] Query: SELECT id, source, timestamp, request, response, metadata FROM "public"."logs" WHERE 1=1 ORDER BY timestamp DESC LIMIT $1
+2025-10-24T16:07:56.420953080Z [inf]  [log/list] Params: [ 50 ]
+2025-10-24T16:07:56.420965339Z [inf]  [log/getSources] Fetching sources...
+2025-10-24T16:07:56.420974366Z [inf]  [log/list] Query returned 50 rows
+2025-10-24T16:07:56.420984162Z [inf]  [log/list] First row: {
+2025-10-24T16:07:56.420993152Z [inf]    id: '0e495cdc-631e-4b12-8c32-9c513ee1802a',
+2025-10-24T16:07:56.421000041Z [inf]    source: 'openai-story-generation'
+2025-10-24T16:07:56.421006591Z [inf]  }
+2025-10-24T16:07:56.421013966Z [inf]  [log/getSources] Query returned 5 sources
+2025-10-24T16:07:56.421021438Z [inf]  request completed
+2025-10-24T16:07:56.421028409Z [inf]  [log/list] Total count: 357
+2025-10-24T16:07:56.421035314Z [inf]  request completed
+2025-10-24T16:07:56.421095722Z [inf]  starting request
+2025-10-24T16:07:56.421101896Z [inf]  starting request
+2025-10-24T16:07:56.421107590Z [inf]  [log/list] Fetching logs with limit=50, source=undefined, date=undefined
+2025-10-24T16:07:56.421113612Z [inf]  [log/list] Using table "public"."logs" (schema: public)
+2025-10-24T16:08:00.974802781Z [err]  [nsqlookupd] 2025/10/24 16:07:56.013702 INFO: CLIENT([::1]:39050): pinged (last ping 15.000346612s)
+2025-10-24T16:08:20.963923193Z [err]  [nsqlookupd] 2025/10/24 16:08:11.013554 INFO: CLIENT([::1]:39050): pinged (last ping 14.99982733s)
+2025-10-24T16:08:26.020080702Z [err]  [nsqlookupd] 2025/10/24 16:08:26.012837 INFO: CLIENT([::1]:39050): pinged (last ping 14.999306824s)
+2025-10-24T16:08:46.028118964Z [err]  [nsqlookupd] 2025/10/24 16:08:41.013589 INFO: CLIENT([::1]:39050): pinged (last ping 15.00075414s)
+2025-10-24T16:08:56.019311436Z [err]  [nsqlookupd] 2025/10/24 16:08:56.013453 INFO: CLIENT([::1]:39050): pinged (last ping 14.999854408s)
+2025-10-24T16:09:16.021941714Z [err]  [nsqlookupd] 2025/10/24 16:09:11.013234 INFO: CLIENT([::1]:39050): pinged (last ping 14.999789047s)
+2025-10-24T16:09:23.569917072Z [err]  2025-10-24 16:09:20.446 UTC [27] LOG:  checkpoint starting: time
+2025-10-24T16:09:23.569924524Z [err]  2025-10-24 16:09:21.569 UTC [27] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.108 s, sync=0.004 s, total=1.124 s; sync files=3, longest=0.004 s, average=0.002 s; distance=3 kB, estimate=2253 kB; lsn=0/5C43CC8, redo lsn=0/5C43C70
+2025-10-24T16:09:26.015587771Z [err]  [nsqlookupd] 2025/10/24 16:09:26.012996 INFO: CLIENT([::1]:39050): pinged (last ping 14.999765481s)
+2025-10-24T16:09:46.014402300Z [err]  [nsqlookupd] 2025/10/24 16:09:41.013373 INFO: CLIENT([::1]:39050): pinged (last ping 15.000372989s)
+2025-10-24T16:10:06.212403790Z [err]  [nsqlookupd] 2025/10/24 16:09:56.013106 INFO: CLIENT([::1]:39050): pinged (last ping 14.999735768s)
+2025-10-24T16:10:11.197993445Z [err]  [nsqlookupd] 2025/10/24 16:10:11.013188 INFO: CLIENT([::1]:39050): pinged (last ping 15.000079298s)

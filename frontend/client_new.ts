@@ -353,7 +353,6 @@ export namespace ai {
         seed: number
         referenceImages: string[]
         outputFormat: "WEBP" | "PNG" | "JPEG"
-        negativePrompt?: string
     }
 
     export interface BatchImageOutput {
@@ -402,7 +401,6 @@ export namespace ai {
         CFGScale?: number
         seed?: number
         outputFormat?: "WEBP" | "PNG" | "JPEG"
-        negativePrompt?: string
     }
 
     export interface ImageGenerationResponse {

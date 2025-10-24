@@ -14,7 +14,6 @@ export interface ImageGenerationRequest {
   CFGScale?: number;
   seed?: number;
   outputFormat?: "WEBP" | "PNG" | "JPEG";
-  negativePrompt?: string;
 }
 
 export interface DebugInfo {
@@ -46,7 +45,6 @@ export interface BatchImageInput {
   seed: number;
   referenceImages: string[];
   outputFormat: "WEBP" | "PNG" | "JPEG";
-  negativePrompt?: string;
 }
 
 export interface BatchImageOutput {
@@ -88,32 +86,20 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
   const requestBody = {
     taskType: "imageInference",
     taskUUID: crypto.randomUUID(),
-    outputType: "base64Data",
-    outputFormat: req.outputFormat || "WEBP",
-    outputQuality: 95,
-    
     model: req.model || "runware:101@1",
-    positivePrompt: enhancePromptForRunware(req.prompt),
-    negativePrompt: req.negativePrompt || getDefaultNegativePrompt(),
-    
-    width: normalizeToMultiple64(req.width || 832),
-    height: normalizeToMultiple64(req.height || 1216),
-    
     numberResults: 1,
-    // OPTIMIZED (v2.0): Painterly picture-book defaults for consistent identities
-    // CFG 8-9 fuer natuerliche Texturen, Steps 34-38 fuer saubere Haende
-    steps: req.steps || 36,
-    CFGScale: req.CFGScale || 8.5,
-    scheduler: "DDIM",
-    seed: req.seed ?? Math.floor(Math.random() * 2147483647),
-    
-    // Erweiterte Qualitaetsparameter
-    checkNSFW: true,
+    outputType: ["URL"],
+    outputFormat: req.outputFormat || "JPEG",
+    outputQuality: 85,
+    width: normalizeToMultiple64(req.width ?? 1024),
+    height: normalizeToMultiple64(req.height ?? 1024),
+    steps: req.steps ?? 28,
+    CFGScale: req.CFGScale ?? 3.5,
+    scheduler: "FlowMatchEulerDiscreteScheduler",
     includeCost: true,
-    acceleratorOptions: {
-      teaCache: true,
-      teaCacheDistance: 0.3
-    }
+    checkNSFW: true,
+    seed: req.seed ?? Math.floor(Math.random() * 2147483647),
+    positivePrompt: enhancePromptForRunware(req.prompt),
   };
 
   try {
@@ -172,18 +158,35 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       };
     }
 
-    const { b64, contentType, seed, fromPath } = extracted;
+    const { b64, url, contentType, seed, fromPath } = extracted;
     debugInfo.contentType = contentType || "";
     debugInfo.extractedFromPath = fromPath || "";
 
-    const imageUrl = b64.startsWith("data:") ? b64 : `data:${contentType};base64,${b64}`;
+    let imageUrl: string | undefined;
+    if (url) {
+      imageUrl = url;
+    } else if (b64) {
+      imageUrl = b64.startsWith("data:")
+        ? b64
+        : `data:${contentType};base64,${b64}`;
+    }
+
+    if (!imageUrl) {
+      debugInfo.errorMessage = "Runware response did not include image payload";
+      debugInfo.processingTime = Date.now() - startTime;
+      console.warn("[Runware] Missing image payload");
+      return {
+        imageUrl: generatePlaceholderImage(req.prompt),
+        seed: requestBody.seed,
+        debugInfo,
+      };
+    }
 
     debugInfo.success = true;
     console.log("[Runware] Image generated:", {
       contentType,
       fromPath,
-      urlPreview: imageUrl.substring(0, 80) + "...",
-      length: imageUrl.length,
+      urlPreview: imageUrl.substring(0, 120),
       processingTime: debugInfo.processingTime
     });
 
@@ -219,29 +222,26 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     return {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
-      outputType: "base64Data",
-      outputFormat: img.outputFormat || "WEBP",
-      outputQuality: 95,
       model: img.model || "runware:101@1",
-      positivePrompt: enhancePromptForRunware(img.prompt),
-      negativePrompt: img.negativePrompt || getDefaultNegativePrompt(),
-      width: normalizeToMultiple64(img.width || 832),
-      height: normalizeToMultiple64(img.height || 1216),
       numberResults: 1,
-      // OPTIMIZED (v2.0): Painterly picture-book defaults fuer konsistente Serien
-      steps: img.steps || 36,
-      CFGScale: img.CFGScale || 8.5,
-      scheduler: "DDIM",
+      outputType: ["URL"],
+      outputFormat: img.outputFormat || "JPEG",
+      outputQuality: 85,
+      positivePrompt: enhancePromptForRunware(img.prompt),
+      width: normalizeToMultiple64(img.width || 1024),
+      height: normalizeToMultiple64(img.height || 1024),
+      steps: img.steps ?? 28,
+      CFGScale: img.CFGScale ?? 3.5,
+      scheduler: "FlowMatchEulerDiscreteScheduler",
       seed: img.seed ?? Math.floor(Math.random() * 2147483647),
+      includeCost: true,
+      checkNSFW: true,
       ...(refImagesBase64.length > 0 && {
         ipAdapters: [{ model: "runware:105@1", guideImage: refImagesBase64[0], weight: 0.85 }],
         referenceImages: refImagesBase64,
         conditioning: "reference",
         conditioningWeight: 0.8
       }),
-      acceleratorOptions: { teaCache: true, teaCacheDistance: 0.5 },
-      checkNSFW: true,
-      includeCost: true
     };
   });
 
@@ -331,8 +331,33 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
           },
         };
       }
-      const { b64, contentType, seed, fromPath } = extracted;
-      const imageUrl = b64.startsWith("data:") ? b64 : `data:${contentType};base64,${b64}`;
+      const { b64, url, contentType, seed, fromPath } = extracted;
+      let imageUrl: string | undefined;
+      if (url) {
+        imageUrl = url;
+      } else if (b64) {
+        imageUrl = b64.startsWith("data:")
+          ? b64
+          : `data:${contentType};base64,${b64}`;
+      }
+      if (!imageUrl) {
+        console.warn(`[Runware] Missing image payload for batch item ${idx}`);
+        return {
+          imageUrl: generatePlaceholderImage(img.prompt),
+          seed: img.seed ?? 0,
+          debugInfo: {
+            requestSent: sanitized[idx],
+            responseReceived: item,
+            processingTime,
+            success: false,
+            errorMessage: "No image payload in Runware batch response item",
+            contentType: "",
+            extractedFromPath: "",
+            responseStatus: 200,
+            referencesCount: img.referenceImages?.length ?? 0,
+          },
+        };
+      }
       
       console.log(`[Runware] Batch image ${idx} generated successfully`);
       
@@ -390,22 +415,6 @@ function enhancePromptForRunware(prompt: string): string {
   }
   return prompt.replace(/\s+/g, " ").trim();
 }
-// Standard Negative Prompt fuer bessere Qualitaet
-function getDefaultNegativePrompt(): string {
-  return [
-    "blurry",
-    "low quality",
-    "bad anatomy",
-    "distorted faces",
-    "extra limbs",
-    "duplicate character",
-    "extra person",
-    "watermark",
-    "text",
-    "logo"
-  ].join(", ");
-}
-
 // Normalisiere Dimensionen auf Vielfache von 64 (Runware Requirement)
 function normalizeToMultiple64(value: number): number {
   const rounded = Math.round(value / 64) * 64;
@@ -429,7 +438,7 @@ export const generateImagesBatch = api<BatchGenerationRequest, BatchGenerationRe
 );
 
 // Try to extract image base64 and mime type from many plausible Runware response shapes.
-function extractRunwareImage(data: any): { b64: string; contentType: string; seed?: number; fromPath: string } | null {
+function extractRunwareImage(data: any): { b64?: string; url?: string; contentType: string; seed?: number; fromPath: string } | null {
   console.log("[Runware] Extracting image from response...");
   try {
     // Helper to determine content type
@@ -450,6 +459,69 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
       if (low.includes("jpeg") || low.includes("jpg")) return "image/jpeg";
       if (low.includes("webp")) return "image/webp";
       return "image/webp";
+    };
+
+    const extractUrlFromStructure = (root: any): { url: string; contentType: string; seed?: number; fromPath: string } | null => {
+      const stack: Array<{ value: any; path: string }> = [{ value: root, path: "data" }];
+      const seen = new Set<any>();
+
+      const pickUrl = (candidate?: any): string | undefined => {
+        if (typeof candidate !== "string") {
+          return undefined;
+        }
+        if (candidate.startsWith("http")) {
+          return candidate;
+        }
+        if (candidate.startsWith("https")) {
+          return candidate;
+        }
+        if (candidate.startsWith("data:")) {
+          return candidate;
+        }
+        return undefined;
+      };
+
+      while (stack.length > 0) {
+        const { value, path } = stack.pop()!;
+        if (!value || typeof value !== "object") {
+          continue;
+        }
+        if (seen.has(value)) {
+          continue;
+        }
+        seen.add(value);
+
+        const url =
+          pickUrl((value as any).imageUrl) ||
+          pickUrl((value as any).url) ||
+          (Array.isArray((value as any).urls) ? pickUrl((value as any).urls[0]) : undefined) ||
+          pickUrl((value as any).outputUrl);
+
+        if (url) {
+          const contentType = pickMime(
+            (value as any).contentType || (value as any).mimeType || null,
+            (value as any).format || (value as any).outputFormat || null
+          );
+          const seed = typeof (value as any).seed === "number" ? (value as any).seed : undefined;
+          return { url, contentType, seed, fromPath: path };
+        }
+
+        if (Array.isArray(value)) {
+          value.forEach((child, index) => {
+            if (child && typeof child === "object") {
+              stack.push({ value: child, path: `${path}[${index}]` });
+            }
+          });
+        } else {
+          Object.entries(value).forEach(([key, child]) => {
+            if (child && typeof child === "object") {
+              stack.push({ value: child, path: `${path}.${key}` });
+            }
+          });
+        }
+      }
+
+      return null;
     };
 
     // If the object has a direct data array like { data: [...] }
@@ -601,6 +673,11 @@ function extractRunwareImage(data: any): { b64: string; contentType: string; see
         const seed = (data as any)?.seed;
         return { b64: b64Direct, contentType, seed, fromPath: "data" };
       }
+    }
+
+    const urlFallback = extractUrlFromStructure(data);
+    if (urlFallback) {
+      return urlFallback;
     }
   } catch (e) {
     console.warn("[Runware] extractRunwareImage error:", e);

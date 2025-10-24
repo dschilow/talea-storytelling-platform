@@ -25,9 +25,9 @@ import {
 } from "../backend/helpers/mcpClient";
 
 // ---- OpenAI Modell & Pricing ----
-const MODEL = "gpt-4.1-nano";
-const INPUT_COST_PER_1M = 5.0;
-const OUTPUT_COST_PER_1M = 15.0;
+const MODEL = "gpt-5-mini";
+const INPUT_COST_PER_1M = 5.0; // TODO: adjust when gpt-5-mini pricing is confirmed
+const OUTPUT_COST_PER_1M = 15.0; // TODO: adjust when gpt-5-mini pricing is confirmed
 
 const openAIKey = secret("OpenAIKey");
 const mcpServerApiKey = secret("MCPServerAPIKey");
@@ -621,8 +621,8 @@ export const generateStoryContentWithMcp = api<
       console.log("🖼️ [ai-generation-mcp] Generating images with MCP profiles...");
 
       const seedBase = deterministicSeedFrom(avatarIds.join("|"));
-      const coverDimensions = normalizeRunwareDimensions(600, 800);
-      const chapterDimensions = normalizeRunwareDimensions(512, 512);
+      const coverDimensions = normalizeRunwareDimensions(1024, 1024);
+      const chapterDimensions = normalizeRunwareDimensions(1024, 1024);
 
       // Cover image with MCP profiles
       const coverPrompt = buildCoverImagePrompt(
@@ -636,12 +636,10 @@ export const generateStoryContentWithMcp = api<
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 35,
-        CFGScale: 9.0,
+        steps: 28,
+        CFGScale: 3.5,
         seed: seedBase,
-        outputFormat: "WEBP",
-        negativePrompt:
-          "blurry, low quality, poor quality, bad quality, pixelated, amateur art, bad anatomy, wrong anatomy, distorted faces, deformed faces, extra limbs, missing limbs, malformed hands, extra fingers, bad proportions, asymmetric features, realistic photography, photorealistic, live action, real person, adult content, mature content, scary, horror, dark themes, violence, weapons, text, words, letters, watermark, signature, logo, cropped, cut off, out of frame, duplicate, multiple heads, inconsistent character, wrong hair color, wrong eye color, different appearance, style inconsistency, extra human child, duplicate boys, duplicate Diego, duplicate Alexander",
+        outputFormat: "JPEG",
       });
 
       // Chapter images with MCP profiles
@@ -662,12 +660,10 @@ export const generateStoryContentWithMcp = api<
           model: "runware:101@1",
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 32,
-          CFGScale: 8.5,
+          steps: 28,
+          CFGScale: 3.5,
           seed: (seedBase + i * 101) >>> 0,
-          outputFormat: "WEBP",
-          negativePrompt:
-            "blurry, low quality, poor quality, bad quality, pixelated, amateur art, bad anatomy, wrong anatomy, distorted faces, deformed faces, extra limbs, missing limbs, malformed hands, extra fingers, bad proportions, asymmetric features, realistic photography, photorealistic, live action, real person, adult content, mature content, scary, horror, dark themes, violence, weapons, text, words, letters, watermark, signature, logo, cropped, cut off, out of frame, duplicate, multiple heads, inconsistent character, wrong hair color, wrong eye color, different appearance, style inconsistency, cluttered background, distracting background, busy composition, extra human child, duplicate boys, duplicate Diego, duplicate Alexander",
+          outputFormat: "JPEG",
         });
 
         chapterResponses.push(chapterResponse);
@@ -761,7 +757,7 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    max_completion_tokens: 16_000,  // Max für gpt-4.1-nano
+    max_completion_tokens: 16_000,  // Max fuer gpt-5-mini
     response_format: { type: "json_object" },
   };
 

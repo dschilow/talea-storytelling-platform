@@ -20,13 +20,11 @@ import {
   createFallbackProfile,
   upgradeProfileWithVersion,
   generateProfileHash,
-  buildNegativePrompt,
   normalizeLanguage,
   safeCoverScene,
   createTelemetry,
   OptimizationErrorCode,
   type MinimalAvatarProfile,
-  type SpeciesType,
   type OptimizationTelemetry,
 } from "./avatar-image-optimization";
 import {
@@ -125,9 +123,9 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   },
 };
 
-// WICHTIG: gpt-4.1-nano für optimale Qualität
-// Update: Modell gewechselt zu gpt-4.1-nano (24.10.2025)
-const MODEL = "gpt-4.1-nano";
+// WICHTIG: gpt-5-mini fuer optimale Qualitaet
+// Update: Modell gewechselt zu gpt-5-mini (24.10.2025)
+const MODEL = "gpt-5-mini";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
@@ -440,32 +438,15 @@ export const generateStoryContent = api<
 
       // OPTIMIZATION v1.0: Upgrade profiles with versioning and prepare for CHARACTER-BLOCKS
       const versionedProfiles: Record<string, MinimalAvatarProfile> = {};
-      const avatarSpecies: SpeciesType[] = [];
       
       Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
         const versioned = upgradeProfileWithVersion(profile);
         versionedProfiles[name] = versioned;
-        
-        // Detect species for negative prompt library
-        const descriptors = profile.consistentDescriptors?.join(" ").toLowerCase() || "";
-        if (descriptors.includes("cat") || descriptors.includes("katze")) {
-          avatarSpecies.push("cat");
-        } else if (descriptors.includes("dog") || descriptors.includes("hund")) {
-          avatarSpecies.push("dog");
-        } else if (descriptors.includes("animal") || descriptors.includes("tier")) {
-          avatarSpecies.push("animal");
-        } else {
-          avatarSpecies.push("human");
-        }
       });
 
-      // Build comprehensive negative prompt from library
-      const negativePrompt = buildNegativePrompt(avatarSpecies);
-      console.log("[ai-generation] Built negative prompt with", avatarSpecies.length, "species:", avatarSpecies);
-
       const seedBase = deterministicSeedFrom(avatarIds.join("|"));
-      const coverDimensions = normalizeRunwareDimensions(600, 800);
-      const chapterDimensions = normalizeRunwareDimensions(512, 512);
+      const coverDimensions = normalizeRunwareDimensions(1024, 1024);
+      const chapterDimensions = normalizeRunwareDimensions(1024, 1024);
 
       // COVER IMAGE GENERATION with CHARACTER-BLOCKS
       const coverSceneText = typeof normalizedStory.coverImageDescription === 'string'
@@ -501,18 +482,16 @@ export const generateStoryContent = api<
 
       console.log("[ai-generation] 📸 Generating COVER image with optimized prompt");
       console.log("[ai-generation] Cover prompt length:", coverPromptNormalized.length);
-      console.log("[ai-generation] Negative prompt length:", negativePrompt.length);
 
       const coverResponse = await ai.generateImage({
         prompt: coverPromptNormalized,
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 36,
-        CFGScale: 8.5,
+        steps: 28,
+        CFGScale: 3.5,
         seed: seedBase,
-        outputFormat: "WEBP",
-        negativePrompt,
+        outputFormat: "JPEG",
       });
 
       // CHAPTER IMAGES GENERATION with CHARACTER-BLOCKS
@@ -554,11 +533,10 @@ export const generateStoryContent = api<
           model: "runware:101@1",
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 34, // OPTIMIZED
-          CFGScale: 10.5, // OPTIMIZED
+          steps: 28,
+          CFGScale: 3.5,
           seed: (seedBase + i * 101) >>> 0,
-          outputFormat: "WEBP",
-          negativePrompt,
+          outputFormat: "JPEG",
         });
 
         chapterResponses.push(chapterResponse);
@@ -587,10 +565,10 @@ export const generateStoryContent = api<
           Object.entries(versionedProfiles).map(([name, profile]) => [name, profile.version])
         ),
         positivePrompt: coverPromptNormalized.substring(0, 500), // First 500 chars
-        negativePrompt: negativePrompt.substring(0, 300),
+        negativePrompt: "",
         seed: seedBase,
-        cfg: 10.5,
-        steps: 34,
+        cfg: 3.5,
+        steps: 28,
         generationMs: metadata.processingTime,
       });
 
@@ -1170,11 +1148,11 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
       messages,
       tools,
       tool_choice: "auto" as const,
-      // gpt-4.1-nano: Max 16384 completion tokens (Modell-Limit)
+      // gpt-5-mini: Max 16384 completion tokens (Modell-Limit)
       // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 4k für Struktur + 2k Buffer
       max_completion_tokens: 16_000,
       response_format: { type: "json_object" },
-      // Standard-Parameter für gpt-4.1-nano (kein reasoning_effort)
+      // Standard-Parameter fuer gpt-5-mini (kein reasoning_effort)
     };
 
     finalRequest = payload;
