@@ -491,19 +491,62 @@ function extractRunwareImage(data: any): { b64?: string; url?: string; contentTy
         }
         seen.add(value);
 
+        const cast: any = value;
         const url =
-          pickUrl((value as any).imageUrl) ||
-          pickUrl((value as any).url) ||
-          (Array.isArray((value as any).urls) ? pickUrl((value as any).urls[0]) : undefined) ||
-          pickUrl((value as any).outputUrl);
+          pickUrl(cast.imageUrl) ||
+          pickUrl(cast.imageURL) ||
+          pickUrl(cast.image_url) ||
+          pickUrl(cast.url) ||
+          pickUrl(cast.URL) ||
+          (Array.isArray(cast.urls) ? cast.urls.map((entry: any) => pickUrl(entry)).find(Boolean) : undefined) ||
+          pickUrl(cast.outputUrl) ||
+          pickUrl(cast.outputURL) ||
+          pickUrl(cast.signedUrl) ||
+          pickUrl(cast.signedURL) ||
+          pickUrl(cast.downloadUrl);
 
         if (url) {
           const contentType = pickMime(
-            (value as any).contentType || (value as any).mimeType || null,
-            (value as any).format || (value as any).outputFormat || null
+            cast.contentType || cast.mimeType || cast.mimetype || null,
+            cast.format || cast.outputFormat || null
           );
-          const seed = typeof (value as any).seed === "number" ? (value as any).seed : undefined;
+          const seed = typeof cast.seed === "number" ? cast.seed : undefined;
           return { url, contentType, seed, fromPath: path };
+        }
+
+        if (Array.isArray(cast.output)) {
+          for (const [idx, item] of cast.output.entries()) {
+            const nestedUrl = pickUrl(item?.imageUrl ?? item?.url ?? item?.signedUrl);
+            if (nestedUrl) {
+              const contentType = pickMime(
+                item?.contentType || item?.mimeType || item?.mimetype || cast.contentType || null,
+                item?.format || item?.outputFormat || cast.outputFormat || null
+              );
+              const seed =
+                typeof item?.seed === "number"
+                  ? item.seed
+                  : typeof cast.seed === "number"
+                    ? cast.seed
+                    : undefined;
+              return { url: nestedUrl, contentType, seed, fromPath: `${path}.output[${idx}]` };
+            }
+          }
+        }
+
+        if (typeof cast === "object") {
+          for (const [key, val] of Object.entries(cast)) {
+            if (typeof val === "string" && key.toLowerCase().includes("url")) {
+              const nested = pickUrl(val);
+              if (nested) {
+                const contentType = pickMime(
+                  cast.contentType || cast.mimeType || cast.mimetype || null,
+                  cast.format || cast.outputFormat || null
+                );
+                const seed = typeof cast.seed === "number" ? cast.seed : undefined;
+                return { url: nested, contentType, seed, fromPath: `${path}.${key}` };
+              }
+            }
+          }
         }
 
         if (Array.isArray(value)) {
