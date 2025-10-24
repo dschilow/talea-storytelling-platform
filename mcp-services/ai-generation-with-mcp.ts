@@ -492,6 +492,14 @@ export const generateStoryContentWithMcp = api<
         (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
         (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
 
+      // Ensure all chapters have an 'order' field before validation
+      if (storyResult.chapters && Array.isArray(storyResult.chapters)) {
+        storyResult.chapters = storyResult.chapters.map((ch: any, idx: number) => ({
+          ...ch,
+          order: ch.order ?? idx
+        }));
+      }
+
       // STEP 3: Validate story response with MCP Validator
       console.log("🔍 [MCP Validator] Validating story response...");
       const validationResult = await validateStoryResponse(storyResult, mcpServerApiKey());

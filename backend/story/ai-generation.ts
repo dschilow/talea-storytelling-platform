@@ -709,6 +709,12 @@ export const generateStoryContent = api<
         );
         const removedCount = originalCount - storyOutcome.story.chapters.length;
         console.log(`[ai-generation] ✂️ Cleaned chapters: ${storyOutcome.story.chapters.length} valid, ${removedCount} removed`);
+        
+        // Ensure all chapters have an 'order' field (validator requires it)
+        storyOutcome.story.chapters = storyOutcome.story.chapters.map((ch: any, idx: number) => ({
+          ...ch,
+          order: ch.order ?? idx
+        }));
       }
 
       let validationResult = storyOutcome.state.validationResult;
