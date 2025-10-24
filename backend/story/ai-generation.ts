@@ -1493,8 +1493,7 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
       // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 5k für Struktur + 5k Buffer + 4k für Tools
       max_completion_tokens: 24_000,
       response_format: { type: "json_object" },
-      // WICHTIG: Reasoning-Effort auf "low" setzen, um Reasoning-Tokens zu minimieren
-      reasoning_effort: "low" as const,
+      // Hinweis: reasoning_effort entfernt - gilt nur für o1-Modelle, nicht für gpt-4o-mini
     };
 
     finalRequest = payload;
