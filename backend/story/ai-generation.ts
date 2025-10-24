@@ -125,9 +125,9 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   },
 };
 
-// WICHTIG: gpt-4o-mini für Qualitätstests
-// Update: Modell gewechselt zu gpt-4o-mini (24.10.2025)
-const MODEL = "gpt-4o-mini";
+// WICHTIG: gpt-4.1-nano für optimale Qualität
+// Update: Modell gewechselt zu gpt-4.1-nano (24.10.2025)
+const MODEL = "gpt-4.1-nano";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
@@ -1489,11 +1489,11 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
       messages,
       tools,
       tool_choice: "auto" as const,
-      // OPTIMIERT: 24k für 5 Kapitel à 300-400 Wörter + Validierung + Korrekturen
-      // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 5k für Struktur + 5k Buffer + 4k für Tools
-      max_completion_tokens: 24_000,
+      // gpt-4.1-nano: Max 16384 completion tokens (Modell-Limit)
+      // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 4k für Struktur + 2k Buffer
+      max_completion_tokens: 16_000,
       response_format: { type: "json_object" },
-      // Hinweis: reasoning_effort entfernt - gilt nur für o1-Modelle, nicht für gpt-4o-mini
+      // Standard-Parameter für gpt-4.1-nano (kein reasoning_effort)
     };
 
     finalRequest = payload;

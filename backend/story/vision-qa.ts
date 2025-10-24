@@ -108,7 +108,7 @@ async function callVisionAPI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         {
           role: "user",

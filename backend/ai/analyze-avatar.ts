@@ -121,7 +121,7 @@ ${req.hints.stylePreference ? `- Stil-Präferenz: ${req.hints.stylePreference}` 
 Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild übereinstimmen oder es sinnvoll ergänzen.` : "";
 
     const payload = {
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         { role: "system", content: system },
         {
