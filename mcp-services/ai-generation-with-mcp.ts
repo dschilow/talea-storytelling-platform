@@ -16,6 +16,7 @@ import { secret } from "encore.dev/config";
 import type { StoryConfig, Chapter } from "../backend/story/generate";
 import type { Avatar, AvatarVisualProfile } from "../backend/avatar/avatar";
 import { runwareGenerateImage } from "../backend/ai/image-generation";
+import { buildCompleteImagePrompt } from "../backend/story/character-block-builder";
 import { logTopic } from "../backend/log/logger";
 import { publishWithTimeout } from "../backend/helpers/pubsubTimeout";
 import {
@@ -338,95 +339,95 @@ function buildChapterImagePrompt(
   chapterDesc: ChapterImageDescription,
   avatarProfilesByName: Record<string, AvatarVisualProfile>
 ): string {
-  const sections: string[] = [];
+  const rawCharacters = chapterDesc?.characters as any;
+  const baseEntries =
+    rawCharacters && typeof rawCharacters === "object" && !Array.isArray(rawCharacters)
+      ? Object.entries(rawCharacters)
+      : Object.entries(avatarProfilesByName).map(([name]) => [name, {} as any]);
 
-  // 1. Quality header
-  sections.push(
-    "masterpiece, best quality, ultra detailed, professional children's book illustration, Disney Pixar 3D style, vibrant colors, perfect lighting"
-  );
+  const characters = baseEntries
+    .map(([name, rawDetails], index) => {
+      const profile = avatarProfilesByName[name];
+      if (!profile) {
+        console.warn(`[MCP] Missing visual profile for ${name} - skipping character prompt entry`);
+        return null;
+      }
 
-  // 2. Scene description
-  sections.push(`SCENE: ${chapterDesc.scene}`);
+      const details =
+        rawDetails && typeof rawDetails === "object" ? { ...rawDetails } : {};
 
-  // 3. Characters with FULL visual profiles
-  const characterSections: string[] = [];
-  const rawCharacters = chapterDesc.characters as any;
-  let namedCharacterEntries: Array<[string, any]> = [];
+      if (!details.position) {
+        details.position =
+          index === 0
+            ? "left third of frame"
+            : index === 1
+            ? "right third of frame"
+            : "midground";
+      }
 
-  if (
-    rawCharacters &&
-    typeof rawCharacters === "object" &&
-    !Array.isArray(rawCharacters)
-  ) {
-    namedCharacterEntries = Object.entries(rawCharacters);
-  }
-
-  if (namedCharacterEntries.length === 0) {
-    if (typeof rawCharacters === "string" && rawCharacters.trim().length > 0) {
-      sections.push(`CHARACTER ACTION NOTE: ${rawCharacters}`);
-    }
-    namedCharacterEntries = Object.keys(avatarProfilesByName).map((name) => [
-      name,
-      {},
-    ]);
-  }
-
-  namedCharacterEntries.forEach(([name, rawDetails], index) => {
-    const visualProfile = avatarProfilesByName[name];
-    if (!visualProfile) {
-      console.warn(`⚠️ No visual profile for ${name} - skipping detailed prompt`);
-      return;
-    }
-
-    const sceneDetails =
-      rawDetails && typeof rawDetails === "object" ? { ...rawDetails } : {};
-
-    if (!sceneDetails.position) {
-      sceneDetails.position =
-        index === 0
-          ? "left side of frame"
-          : index === 1
-          ? "right side of frame"
-          : "midground";
-    }
-
-    const charPrompt = buildImagePromptFromVisualProfile(
-      visualProfile,
-      name,
-      sceneDetails
+      return {
+        name,
+        profile,
+        sceneDetails: {
+          position: details.position,
+          action: details.action,
+          expression: details.expression,
+        },
+      };
+    })
+    .filter(
+      (entry): entry is {
+        name: string;
+        profile: AvatarVisualProfile;
+        sceneDetails: { position?: string; action?: string; expression?: string };
+      } => Boolean(entry)
     );
-    characterSections.push(charPrompt);
+
+  if (characters.length === 0) {
+    characters.push(
+      ...Object.entries(avatarProfilesByName).map(([name, profile], index) => ({
+        name,
+        profile,
+        sceneDetails: {
+          position:
+            index === 0
+              ? "left third of frame"
+              : index === 1
+              ? "right third of frame"
+              : "midground",
+        },
+      }))
+    );
+  }
+
+  const sceneParts: string[] = [];
+  if (chapterDesc?.scene) {
+    sceneParts.push(chapterDesc.scene);
+  }
+  if (chapterDesc?.environment?.setting) {
+    sceneParts.push(`Setting: ${chapterDesc.environment.setting}`);
+  }
+  if (chapterDesc?.environment?.lighting) {
+    sceneParts.push(`Lighting: ${chapterDesc.environment.lighting}`);
+  }
+  if (chapterDesc?.environment?.atmosphere) {
+    sceneParts.push(`Atmosphere: ${chapterDesc.environment.atmosphere}`);
+  }
+  if (chapterDesc?.environment?.objects?.length) {
+    sceneParts.push(
+      `Key objects: ${chapterDesc.environment.objects.join(", ")}`
+    );
+  }
+  if (chapterDesc?.composition) {
+    sceneParts.push(
+      `Composition: foreground ${chapterDesc.composition.foreground || "main characters"}, background ${chapterDesc.composition.background || "storybook setting"}, focus ${chapterDesc.composition.focus || "character interaction"}`
+    );
+  }
+
+  return buildCompleteImagePrompt({
+    characters,
+    scene: sceneParts.join(". "),
   });
-
-  if (characterSections.length > 0) {
-    sections.push(characterSections.join(" || "));
-  }
-
-  // 4. Environment
-  const environmentDesc = [
-    `setting: ${chapterDesc.environment?.setting || "beautiful scene"}`,
-    `lighting: ${chapterDesc.environment?.lighting || "warm natural lighting"}`,
-    `atmosphere: ${chapterDesc.environment?.atmosphere || "cheerful mood"}`,
-  ];
-  if (chapterDesc.environment?.objects?.length) {
-    environmentDesc.push(`objects: ${chapterDesc.environment.objects.join(", ")}`);
-  }
-  sections.push(`ENVIRONMENT: ${environmentDesc.join(", ")}`);
-
-  // 5. Composition
-  const compositionDesc = [
-    `foreground: ${chapterDesc.composition?.foreground || "main characters"}`,
-    `background: ${chapterDesc.composition?.background || "scene setting"}`,
-    `focus: ${chapterDesc.composition?.focus || "character interaction"}`,
-  ];
-  sections.push(`COMPOSITION: ${compositionDesc.join(", ")}`);
-
-  // 6. Negative prompt reinforcement
-  sections.push(
-    "IMPORTANT: Each character must maintain exact visual consistency across all images - same hair color, eye color, face shape, skin tone, distinctive features"
-  );
-
-  return sections.join(". ");
 }
 
 /**
@@ -436,96 +437,97 @@ function buildCoverImagePrompt(
   coverDesc: CoverImageDescription,
   avatarProfilesByName: Record<string, AvatarVisualProfile>
 ): string {
-  const sections: string[] = [];
+  const rawCharacters = coverDesc?.characters as any;
+  const baseEntries =
+    rawCharacters && typeof rawCharacters === "object" && !Array.isArray(rawCharacters)
+      ? Object.entries(rawCharacters)
+      : Object.entries(avatarProfilesByName).map(([name]) => [name, {} as any]);
 
-  // 1. Quality header for cover
-  sections.push(
-    "masterpiece, best quality, ultra detailed, professional book cover illustration, Disney Pixar style, 3D rendered cover art, children's book cover, vibrant colors, perfect lighting"
-  );
+  const characters = baseEntries
+    .map(([name, rawDetails], index) => {
+      const profile = avatarProfilesByName[name];
+      if (!profile) {
+        console.warn(`[MCP] Missing visual profile for ${name} - skipping character prompt entry`);
+        return null;
+      }
 
-  // 2. Main scene
-  sections.push(`MAIN SCENE: ${coverDesc.mainScene}`);
+      const details =
+        rawDetails && typeof rawDetails === "object" ? { ...rawDetails } : {};
 
-  // 3. Characters with FULL visual profiles
-  const characterSections: string[] = [];
-  const rawCharacters = coverDesc.characters as any;
-  let namedEntries: Array<[string, any]> = [];
+      if (!details.position) {
+        details.position =
+          index === 0
+            ? "foreground left"
+            : index === 1
+            ? "foreground right"
+            : "midground";
+      }
 
-  if (
-    rawCharacters &&
-    typeof rawCharacters === "object" &&
-    !Array.isArray(rawCharacters)
-  ) {
-    namedEntries = Object.entries(rawCharacters);
-  }
+      return {
+        name,
+        profile,
+        sceneDetails: {
+          position: details.position,
+          action: details.pose ?? details.action,
+          expression: details.expression,
+        },
+      };
+    })
+    .filter(
+      (entry): entry is {
+        name: string;
+        profile: AvatarVisualProfile;
+        sceneDetails: { position?: string; action?: string; expression?: string };
+      } => Boolean(entry)
+    );
 
-  if (namedEntries.length === 0) {
-    if (typeof rawCharacters === "string" && rawCharacters.trim().length > 0) {
-      sections.push(`CHARACTER ACTION NOTE: ${rawCharacters}`);
-    }
-    namedEntries = Object.keys(avatarProfilesByName).map((name) => [name, {}]);
-  }
-
-  namedEntries.forEach(([name, rawDetails], index) => {
-    const visualProfile = avatarProfilesByName[name];
-    if (!visualProfile) {
-      console.warn(
-        `⚠️ No visual profile for cover character ${name} - skipping detailed prompt`
-      );
-      return;
-    }
-
-    const sceneDetails =
-      rawDetails && typeof rawDetails === "object" ? { ...rawDetails } : {};
-
-    if (!sceneDetails.position) {
-      sceneDetails.position =
-        index === 0
-          ? "foreground left"
-          : index === 1
-          ? "foreground right"
-          : "midground";
-    }
-
-    const charPrompt = buildImagePromptFromVisualProfile(visualProfile, name, {
-      position: sceneDetails.position,
-      expression: sceneDetails.expression,
-      action: sceneDetails.pose ?? sceneDetails.action,
-      clothing: sceneDetails.clothing,
-    });
-    characterSections.push(charPrompt);
-  });
-
-  if (characterSections.length > 0) {
-    sections.push(characterSections.join(" || "));
-  }
-
-  // 4. Environment & mood
-  const environmentDesc = [
-    `setting: ${coverDesc.environment?.setting || "magical environment"}`,
-    `mood: ${coverDesc.environment?.mood || "joyful and inviting"}`,
-  ];
-  if (coverDesc.environment?.colorPalette?.length) {
-    environmentDesc.push(
-      `color palette: ${coverDesc.environment.colorPalette.join(", ")}`
+  if (characters.length === 0) {
+    characters.push(
+      ...Object.entries(avatarProfilesByName).map(([name, profile], index) => ({
+        name,
+        profile,
+        sceneDetails: {
+          position:
+            index === 0
+              ? "foreground left"
+              : index === 1
+              ? "foreground right"
+              : "midground",
+        },
+      }))
     );
   }
-  sections.push(`ENVIRONMENT: ${environmentDesc.join(", ")}`);
 
-  // 5. Cover composition
-  const compositionDesc = [
-    `layout: ${coverDesc.composition?.layout || "balanced layout"}`,
-    `title space: ${coverDesc.composition?.titleSpace || "at top"}`,
-    `visual focus: ${coverDesc.composition?.visualFocus || "main character"}`,
-  ];
-  sections.push(`COMPOSITION: ${compositionDesc.join(", ")}`);
+  const sceneParts: string[] = [];
+  if (coverDesc?.mainScene) {
+    sceneParts.push(coverDesc.mainScene);
+  }
+  if (coverDesc?.environment?.setting) {
+    sceneParts.push(`Setting: ${coverDesc.environment.setting}`);
+  }
+  if (coverDesc?.environment?.mood) {
+    sceneParts.push(`Mood: ${coverDesc.environment.mood}`);
+  }
+  if (coverDesc?.environment?.colorPalette?.length) {
+    sceneParts.push(
+      `Color palette: ${coverDesc.environment.colorPalette.join(", ")}`
+    );
+  }
 
-  // 6. Cover-specific style
-  sections.push(
-    "eye-catching cover design, appealing to children and parents, professional typography space, perfect facial features, expressive characters, high-quality finish, marketable children's book cover"
-  );
+  const customStyle = {
+    composition:
+      coverDesc?.composition
+        ? `cover layout ${coverDesc.composition.layout || "balanced"}, title space ${coverDesc.composition.titleSpace || "top"}, focus ${coverDesc.composition.visualFocus || "main characters"}`
+        : "story cover, title space top, all characters visible",
+    style: "storybook cover, warm inviting colors",
+    quality: `${characters.length} subjects, child-safe illustration`,
+  };
 
-  return sections.join(". ");
+  return buildCompleteImagePrompt({
+    characters,
+    scene: sceneParts.join(". "),
+    customStyle,
+  });
 }
 
 export const generateStoryContentWithMcp = api<
@@ -662,7 +664,7 @@ export const generateStoryContentWithMcp = api<
           height: chapterDimensions.height,
           steps: 28,
           CFGScale: 3.5,
-          seed: (seedBase + i * 101) >>> 0,
+          seed: (seedBase + (i + 1) * 7) >>> 0,
           outputFormat: "JPEG",
         });
 

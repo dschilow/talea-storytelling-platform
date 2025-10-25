@@ -544,7 +544,7 @@ export const generateStoryContent = api<
           height: chapterDimensions.height,
           steps: 28,
           CFGScale: 3.5,
-          seed: (seedBase + i * 101) >>> 0,
+          seed: (seedBase + (i + 1) * 7) >>> 0,
           outputFormat: "JPEG",
         });
 

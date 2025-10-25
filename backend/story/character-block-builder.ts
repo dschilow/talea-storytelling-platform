@@ -621,16 +621,17 @@ export function buildSceneStyleBlock(
 
   return {
     masterStyle:
-      "warm watercolor picture-book style with gentle gouache textures",
+      "Axel Scheffler watercolor storybook illustration with gentle gouache textures",
     colorAndLight:
-      "warm rim light, soft pastels, clean outlines, subtle vignette",
-    atmosphere: "whimsical hopeful mood with calm depth",
-    mediumDetails: "paper grain, delicate brush strokes, traditional pigments",
+      "warm rim light, soft pastels, hand-inked outlines, subtle vignette",
+    atmosphere: "whimsical hopeful mood with gentle story tension",
+    mediumDetails:
+      "traditional pigments on textured paper, delicate brush strokes",
     scene: baseScene,
     composition,
     background:
       "storybook environment with handcrafted props and painterly scenery",
-    lighting: "warm key light, gentle bounce, candle-glow highlights",
+    lighting: "golden key light, gentle bounce, candle-glow highlights",
     qualityGuards: qualityParts.join(", "),
     storybookFinish: "soft vignette, sparkling dust motes, inviting glow",
   };
@@ -710,12 +711,17 @@ function normalizeSceneStyleOverrides(
   return normalized;
 }
 
+const defaultActionBySpecies: Record<SpeciesType, string> = {
+  human: "leans into the moment with lively curiosity",
+  cat: "pads softly forward on four paws",
+  dog: "trots gently on four paws with tail relaxed",
+  animal: "moves naturally through the scene",
+};
+
 export function buildCompleteImagePrompt(
   options: CompleteImagePromptOptions
 ): string {
-  const { prompt: characterPrompt, blocks } = buildMultiCharacterPrompt(
-    options.characters
-  );
+  const { blocks } = buildMultiCharacterPrompt(options.characters);
   const subjectCount = blocks.length || options.characters.length;
   const speciesSet = new Set(blocks.map((b) => b.species));
   const includesAnimal = Array.from(speciesSet).some((s) => s !== "human");
@@ -741,96 +747,224 @@ export function buildCompleteImagePrompt(
   }
   const positionSummary = blocks
     .map((block) =>
-      block.position ? `${block.name} ${block.position}` : `${block.name} in scene`
+      block.position
+        ? `${block.name} ${block.position}`
+        : `${block.name} within scene`
     )
     .join(", ");
   if (positionSummary) {
     compositionParts.push(normalizeLanguage(positionSummary));
   }
 
-  const compositionSummary = [
-    sceneStyle.composition,
-    ...compositionParts,
-  ]
+  const compositionSummary = [sceneStyle.composition, ...compositionParts]
     .filter(Boolean)
     .map((line) => normalizeLanguage(line))
     .join(". ");
 
-  const styleSection = formatSceneStyleBlockAsPrompt(sceneStyle);
-  const compositionSection = normalizeLanguage(
-    [
-      `COMPOSITION ${compositionSummary}`,
-      `SCENE ${sceneStyle.scene}`,
-      `BACKGROUND ${sceneStyle.background}`,
-      `LIGHTING ${sceneStyle.lighting}`,
-      `QUALITY ${sceneStyle.qualityGuards}`,
-      `FINISH ${sceneStyle.storybookFinish}`,
-    ].join(". ")
-  );
+  const characterLines = blocks
+    .map((block) => formatCharacterNarrativeLine(block))
+    .filter((line) => line.length > 0);
 
-  let speciesCompliance = "";
+  const sections = [
+    normalizeLanguage(
+      `${sceneStyle.masterStyle}. ${sceneStyle.mediumDetails}`
+    ),
+    normalizeLanguage(`PALETTE ${sceneStyle.colorAndLight}`),
+    normalizeLanguage(`MOOD ${sceneStyle.atmosphere}`),
+    normalizeLanguage(`SCENE ${sceneText || sceneStyle.scene}`),
+    normalizeLanguage(`BACKGROUND ${sceneStyle.background}`),
+    normalizeLanguage(`COMPOSITION ${compositionSummary}`),
+    normalizeLanguage(`LIGHTING ${sceneStyle.lighting}`),
+    characterLines.length
+      ? normalizeLanguage(`CHARACTERS ${characterLines.join(" | ")}`)
+      : "",
+    buildSpeciesGuardLine(blocks),
+    normalizeLanguage(
+      `QUALITY ${sceneStyle.qualityGuards}. FINISH ${sceneStyle.storybookFinish}. No text or typography.`
+    ),
+    "CAMERA child-height eye-level perspective, gentle depth of field.",
+    "TONE warm storytelling picture-book illustration, child-safe.",
+  ].filter((section) => section && section.trim().length > 0);
+
+  const rawPrompt = sections.join(" ").replace(/\s+/g, " ").trim();
+  const asciiPrompt = ensureAscii(rawPrompt);
+  return clampPromptLength(asciiPrompt, 1200);
+}
+
+function formatCharacterNarrativeLine(block: CharacterBlock): string {
+  const safeName = normalizeLanguage(block.name);
+  const speciesTag = determineSpeciesTag(block);
+  const actionPhrase = buildActionPhrase(block);
+  const expressionPhrase = block.expression
+    ? `with ${normalizeLanguage(block.expression)}`
+    : "";
+  const positionPhrase = block.position
+    ? `positioned ${normalizeLanguage(block.position)}`
+    : "";
+
+  const descriptors = [actionPhrase, expressionPhrase, positionPhrase]
+    .filter(Boolean)
+    .join(", ");
+
+  const traitSummary = summarizeCharacterTraits(block);
+  const baseLine = descriptors.length
+    ? `${safeName} (${speciesTag}) ${descriptors}`
+    : `${safeName} (${speciesTag}) engages with the scene`;
+
+  return normalizeLanguage(
+    traitSummary ? `${baseLine}. Key traits: ${traitSummary}` : baseLine
+  );
+}
+
+function determineSpeciesTag(block: CharacterBlock): string {
+  const ageHint = block.ageHint ? normalizeLanguage(block.ageHint) : "";
+  switch (block.species) {
+    case "cat":
+      return "KITTEN - feline quadruped";
+    case "dog":
+      return "DOG - canine quadruped";
+    case "animal":
+      return "ANIMAL - natural quadruped";
+    default:
+      return ageHint ? `HUMAN child (${ageHint})` : "HUMAN child";
+  }
+}
+
+function buildActionPhrase(block: CharacterBlock): string {
+  if (block.action) {
+    return ensureActionVerb(normalizeLanguage(block.action));
+  }
+  if (block.pose) {
+    return convertPoseToAction(block.pose, block.species);
+  }
+  return defaultActionBySpecies[block.species] || "engages with playful energy";
+}
+
+function ensureActionVerb(phrase: string): string {
+  let trimmed = phrase.trim().replace(/[.?!]+$/, "");
+  if (!trimmed) {
+    return "";
+  }
+  const replacements: Array<[RegExp, string]> = [
+    [/^is\s+/i, ""],
+    [/^are\s+/i, ""],
+    [/^standing\b/i, "stands"],
+    [/^sitting\b/i, "sits"],
+    [/^looking\b/i, "looks"],
+    [/^holding\b/i, "holds"],
+    [/^smiling\b/i, "smiles"],
+    [/^walking\b/i, "walks"],
+    [/^running\b/i, "runs"],
+    [/^jumping\b/i, "jumps"],
+    [/^floating\b/i, "floats"],
+    [/^flying\b/i, "flies"],
+    [/^reaching\b/i, "reaches"],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    if (pattern.test(trimmed)) {
+      trimmed = trimmed.replace(pattern, replacement).trim();
+      break;
+    }
+  }
+
+  return trimmed;
+}
+
+function convertPoseToAction(pose: string, species: SpeciesType): string {
+  const normalized = normalizeLanguage(pose).trim();
+  if (!normalized) {
+    return defaultActionBySpecies[species] || "moves with gentle energy";
+  }
+  const replacements: Array<[RegExp, string]> = [
+    [/^standing\b/i, "stands"],
+    [/^sitting\b/i, "sits"],
+    [/^kneeling\b/i, "kneels"],
+    [/^crouching\b/i, "crouches"],
+  ];
+  for (const [pattern, replacement] of replacements) {
+    if (pattern.test(normalized)) {
+      return normalized.replace(pattern, replacement);
+    }
+  }
+  return `holds ${normalized}`;
+}
+
+function summarizeCharacterTraits(block: CharacterBlock): string {
+  const candidates: string[] = [];
+  if (block.detailedDescription) {
+    block.detailedDescription
+      .split(/[.;]/)
+      .map((part) => normalizeLanguage(part).trim())
+      .filter(Boolean)
+      .forEach((part) => candidates.push(part));
+  }
+  (block.mustInclude || [])
+    .map((item) => normalizeLanguage(item).trim())
+    .filter(Boolean)
+    .forEach((item) => candidates.push(item));
+
+  const unique = Array.from(new Set(candidates))
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return unique.join(", ");
+}
+
+function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
   const catNames = blocks
     .filter((b) => b.species === "cat")
     .map((b) => normalizeLanguage(b.name));
   const humanNames = blocks
     .filter((b) => b.species === "human")
     .map((b) => normalizeLanguage(b.name));
+  const dogNames = blocks
+    .filter((b) => b.species === "dog")
+    .map((b) => normalizeLanguage(b.name));
+  const otherAnimals = blocks
+    .filter((b) => b.species === "animal")
+    .map((b) => normalizeLanguage(b.name));
 
   if (catNames.length && humanNames.length) {
-    speciesCompliance = `SPECIES Ensure ${catNames.join(
-      " and "
-    )} stay feline quadrupeds while ${humanNames.join(
-      " and "
-    )} stay human children without animal traits`;
-  } else if (catNames.length) {
-    speciesCompliance = `SPECIES Ensure ${catNames.join(
-      " and "
-    )} remain non-anthropomorphic cats on four paws`;
-  } else if (humanNames.length) {
-    speciesCompliance = `SPECIES Ensure ${humanNames.join(
-      " and "
-    )} remain purely human children with no animal traits`;
+    return normalizeLanguage(
+      `SPECIES GUARD Keep ${catNames.join(
+        " and "
+      )} as real quadruped cats with tails visible while ${humanNames.join(
+        " and "
+      )} remain human children with no animal traits.`
+    );
   }
-
-  const toneLine =
-    "TONE warm storytelling picture-book illustration, child-safe";
-
-  const overviewLine = normalizeLanguage(
-    `OVERVIEW picture-book illustration featuring exactly ${blocks.length} characters: ${blocks
-      .map((block) =>
-        block.species === "cat"
-          ? `${block.name} the real feline quadruped`
-          : block.species === "human"
-            ? `${block.name} the human child`
-            : `${block.name}`
-      )
-      .join(" and ")}`
+  if (catNames.length) {
+    return normalizeLanguage(
+      `SPECIES GUARD Keep ${catNames.join(
+        " and "
+      )} as non-anthropomorphic cats on four paws with whiskers and tails visible.`
+    );
+  }
+  if (humanNames.length) {
+    return normalizeLanguage(
+      `SPECIES GUARD Keep ${humanNames.join(
+        " and "
+      )} purely human with natural skin, hair, and no animal features.`
+    );
+  }
+  if (dogNames.length) {
+    return normalizeLanguage(
+      `SPECIES GUARD Keep ${dogNames.join(
+        " and "
+      )} as natural canine quadrupeds with tails visible.`
+    );
+  }
+  if (otherAnimals.length) {
+    return normalizeLanguage(
+      `SPECIES GUARD Keep ${otherAnimals.join(
+        " and "
+      )} as natural animals without human traits.`
+    );
+  }
+  return normalizeLanguage(
+    "SPECIES GUARD Keep every character true to their species with no hybrids, no duplicates, no swapped features."
   );
-
-  const speciesRuleLine = normalizeLanguage(
-    `SPECIES RULE Diego must remain a real quadruped cat with animal anatomy; every human character must remain a human child with no animal traits; never swap species or merge features`
-  );
-
-  const criticalLine = normalizeLanguage(
-    "CRITICAL Diego is never a human or humanoid; Alexander is never an animal. Replace any mistaken species with the correct form before rendering."
-  );
-
-  const sections = [
-    overviewLine,
-    speciesRuleLine,
-    criticalLine,
-    normalizeLanguage(styleSection),
-    normalizeLanguage(characterPrompt.trim()),
-    compositionSection,
-    [speciesCompliance, toneLine]
-      .filter((line) => line && line.trim().length > 0)
-      .map((line) => normalizeLanguage(line))
-      .join(". "),
-  ].filter((section) => section && section.trim().length > 0);
-
-  const rawPrompt = sections.join(". ").replace(/\s+/g, " ").trim();
-  const asciiPrompt = ensureAscii(rawPrompt);
-  return clampPromptLength(asciiPrompt);
 }
 
 function ensureAscii(text: string): string {
@@ -850,7 +984,7 @@ function ensureAscii(text: string): string {
     .trim();
 }
 
-function clampPromptLength(prompt: string, maxLength = 2800): string {
+function clampPromptLength(prompt: string, maxLength = 1200): string {
   if (prompt.length <= maxLength) {
     return prompt;
   }

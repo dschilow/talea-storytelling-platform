@@ -4,6 +4,7 @@ import { secret } from "encore.dev/config";
 import { ai, avatar } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { normalizeLanguage } from "../story/avatar-image-optimization";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -151,7 +152,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       // Optional: generate a cover image
       let coverImageUrl: string | undefined = undefined;
       try {
-        const coverPrompt = `Kinderfreundliches Wissens-Cover: ${parsed.coverImagePrompt}. Stil: fröhlich, lehrreich, klare Komposition, helle Farben, kindgerechte Illustration, sichere Inhalte, kein Text im Bild.`;
+        const coverPromptDescription = normalizeLanguage(parsed.coverImagePrompt);
+        const coverPrompt = `Kid-friendly educational cover illustration: ${coverPromptDescription}. Axel Scheffler watercolor storybook style, joyful educational tone, clear composition, bright colors, child-friendly illustration, safe content, no text in the image.`;
         const img = await ai.generateImage({
           prompt: coverPrompt,
           width: 640,
