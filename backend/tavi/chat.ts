@@ -63,7 +63,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       console.log(`🧞‍♂️ Tavi processing message from user ${auth.userID}:`, message);
       
       const payload = {
-        model: "gpt-5-nano",
+        model: "gpt-5-mini",
         messages: [
           { role: "system", content: TAVI_SYSTEM_PROMPT },
           { role: "user", content: message },

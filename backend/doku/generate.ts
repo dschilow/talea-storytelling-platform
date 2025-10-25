@@ -10,7 +10,7 @@ const avatarDB = SQLDatabase.named("avatar");
 const openAIKey = secret("OpenAIKey");
 
 // Pricing & model (align with stories)
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-5-mini";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 const IMAGE_COST_PER_ITEM = 0.0008;

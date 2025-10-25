@@ -123,9 +123,9 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   },
 };
 
-// WICHTIG: gpt-4.1-nano fuer optimale Qualitaet
-// Update: Modell gewechselt zu gpt-4.1-nano (24.10.2025)
-const MODEL = "gpt-4.1-nano";
+// WICHTIG: gpt-5-mini fuer optimale Qualitaet
+// Update: Modell gewechselt zu gpt-5-mini (25.10.2025)
+const MODEL = "gpt-5-mini";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 
@@ -1257,11 +1257,11 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
       messages,
       tools,
       tool_choice: "auto" as const,
-      // gpt-4.1-nano: Max 16384 completion tokens (Modell-Limit)
+      // gpt-5-mini: Max 16384 completion tokens (Modell-Limit)
       // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 4k für Struktur + 2k Buffer
       max_completion_tokens: 16_000,
       response_format: { type: "json_object" },
-      // Standard-Parameter fuer gpt-4.1-nano (kein reasoning_effort)
+      // Standard-Parameter fuer gpt-5-mini (kein reasoning_effort)
     };
 
     finalRequest = payload;

@@ -4,7 +4,7 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 const openAIKey = secret("OpenAIKey");
-const MODEL = "gpt-4.1-nano";
+const MODEL = "gpt-5-mini";
 
 interface OpenAIResponse {
   choices?: Array<{
