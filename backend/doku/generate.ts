@@ -128,7 +128,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         throw new Error(`OpenAI error ${res.status}: ${errText}`);
       }
 
-      const data = await res.json();
+      const data = await res.json() as any;
 
       await publishWithTimeout(logTopic, {
         source: "openai-doku-generation",

@@ -379,8 +379,8 @@ function buildChapterImagePrompt(
       (entry): entry is {
         name: string;
         profile: AvatarVisualProfile;
-        sceneDetails: { position?: string; action?: string; expression?: string };
-      } => Boolean(entry)
+        sceneDetails: { position: any; action: any; expression: any };
+      } => entry !== null
     );
 
   if (characters.length === 0) {
@@ -395,6 +395,8 @@ function buildChapterImagePrompt(
               : index === 1
               ? "right third of frame"
               : "midground",
+          action: undefined,
+          expression: undefined,
         },
       }))
     );
@@ -477,8 +479,8 @@ function buildCoverImagePrompt(
       (entry): entry is {
         name: string;
         profile: AvatarVisualProfile;
-        sceneDetails: { position?: string; action?: string; expression?: string };
-      } => Boolean(entry)
+        sceneDetails: { position: any; action: any; expression: any };
+      } => entry !== null
     );
 
   if (characters.length === 0) {
@@ -493,6 +495,8 @@ function buildCoverImagePrompt(
               : index === 1
               ? "foreground right"
               : "midground",
+          action: undefined,
+          expression: undefined,
         },
       }))
     );

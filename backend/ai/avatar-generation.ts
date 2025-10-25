@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { runwareGenerateImage } from "./image-generation";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
+import { normalizeLanguage } from "../story/avatar-image-optimization";
 
 interface GenerateAvatarImageRequest {
   characterType: string;
@@ -19,7 +20,12 @@ interface GenerateAvatarImageResponse {
 export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/generate-avatar" },
   async (req) => {
-    const prompt = buildAvatarPrompt(req.characterType, req.appearance, req.personalityTraits, req.style);
+    const prompt = buildAvatarPrompt(
+      req.characterType,
+      req.appearance,
+      req.personalityTraits,
+      req.style
+    );
 
     console.log("🎨 Generating avatar with prompt:", prompt);
     console.log("👤 Character Type:", req.characterType);
@@ -55,46 +61,122 @@ function buildAvatarPrompt(
   personality: PersonalityTraits,
   style: string = "disney"
 ): string {
+  const subject = sanitizeSegment(characterType || "storybook character");
+  const appearanceDetails = sanitizeSegment(appearance || "");
+  const speciesTag = inferSpeciesTag(characterType, appearance);
   const personalityDescriptor = getPersonalityDescriptor(personality);
+  const styleDescriptor = getStyleDescriptor(style);
 
-  const styleDescriptor =
-    style === "disney" ? "charming Disney Pixar 3D animation style, cute and friendly" :
-    style === "anime" ? "vibrant anime manga style, colorful and expressive" :
-    "beautiful realistic children's book illustration style, warm and inviting";
+  const sections = [
+    "Axel Scheffler watercolor storybook portrait illustration",
+    `SUBJECT ${subject} (${speciesTag})`,
+    personalityDescriptor ? `PERSONALITY cues ${personalityDescriptor}` : "",
+    appearanceDetails ? `APPEARANCE ${appearanceDetails}` : "",
+    `STYLE ${styleDescriptor}`,
+    "COMPOSITION centered waist-up portrait, gentle three-quarter angle, direct eye contact",
+    "LIGHTING warm morning rim light, soft bounced fill",
+    "BACKGROUND soft storybook wash, subtle gouache texture, no text",
+    "QUALITY child-safe, clean ink outlines, traditional watercolor pigments, no photographic artifacts"
+  ];
 
-  return `Portrait of a ${characterType}, ${personalityDescriptor}, with the following appearance: ${appearance}. Style: ${styleDescriptor}. high quality, detailed, colorful, friendly expression, safe for children, clean background.`;
+  const prompt = sections
+    .map((section) => sanitizeSegment(section))
+    .filter(Boolean)
+    .map((section) => (section.endsWith(".") ? section.slice(0, -1) : section))
+    .join(". ");
+
+  return clampPromptLength(prompt);
+}
+
+function inferSpeciesTag(characterType?: string, appearance?: string): string {
+  const text = `${characterType || ""} ${appearance || ""}`.toLowerCase();
+
+  const isCat =
+    /\b(cat|kitten|feline|katze|kätzchen)\b/.test(text);
+  const isDog =
+    /\b(dog|puppy|canine|hund|welpe)\b/.test(text);
+  const isHuman =
+    /\b(human|boy|girl|child|kid|mensch|mädchen|junge)\b/.test(text);
+
+  if (isCat) return "KITTEN - feline quadruped, natural anatomy";
+  if (isDog) return "DOG - canine quadruped companion";
+  if (isHuman) return "HUMAN child - no animal traits";
+  return "FANTASY character - keep anatomy consistent";
+}
+
+function getStyleDescriptor(style: string | undefined): string {
+  switch (style) {
+    case "anime":
+      return "Axel Scheffler inspired watercolor with playful anime energy, crisp ink contours, vibrant palettes";
+    case "realistic":
+      return "Axel Scheffler inspired watercolor realism, gentle shading, authentic proportions, handcrafted texture";
+    case "disney":
+    default:
+      return "Axel Scheffler inspired watercolor charm, expressive storybook features, cozy color harmony";
+  }
 }
 
 function getPersonalityDescriptor(personality: PersonalityTraits): string {
-  const traits = Object.entries(personality)
-    .sort(([, a], [, b]) => b - a)
+  const traitScores = Object.entries(personality || {}).map(([trait, value]) => {
+    const numeric =
+      typeof value === "number"
+        ? value
+        : typeof value === "object" && value !== null
+        ? Number((value as any).value ?? 0)
+        : 0;
+    return { trait, score: numeric };
+  });
+
+  const topTraits = traitScores
+    .sort((a, b) => b.score - a.score)
     .slice(0, 3)
-    .map(([trait]) => {
+    .map(({ trait }) => {
       switch (trait) {
         case "courage":
-          return "brave and confident expression";
+          return "brave, confident energy";
         case "intelligence":
-          return "smart and thoughtful look";
+          return "thoughtful, clever mindset";
         case "creativity":
-          return "creative and artistic appearance";
+          return "imaginative, artistic spirit";
         case "empathy":
-          return "kind and caring expression";
+          return "gentle, compassionate warmth";
         case "strength":
-          return "strong and determined posture";
+          return "strong, steady posture";
         case "humor":
-          return "cheerful and funny smile";
+          return "playful, joyful sparkle";
         case "adventure":
-          return "adventurous and curious eyes";
+          return "curious, explorer vibe";
         case "patience":
-          return "calm and patient demeanor";
+          return "calm, patient demeanor";
         case "curiosity":
-          return "inquisitive and wondering expression";
+          return "wide-eyed wonder";
         case "leadership":
-          return "confident and leading stance";
+          return "confident, guiding presence";
         default:
-          return trait;
+          return sanitizeSegment(trait);
       }
-    });
+    })
+    .filter(Boolean);
 
-  return traits.join(", ");
+  return topTraits.length > 0 ? topTraits.join(", ") : "friendly, kind-hearted aura";
+}
+
+function sanitizeSegment(input: string): string {
+  const normalized = normalizeLanguage(input || "");
+  return normalized
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function clampPromptLength(prompt: string, maxLength = 900): string {
+  if (prompt.length <= maxLength) {
+    return prompt;
+  }
+  const truncated = prompt.slice(0, maxLength - 1);
+  const lastPeriod = truncated.lastIndexOf(".");
+  if (lastPeriod > maxLength * 0.6) {
+    return truncated.slice(0, lastPeriod + 1).trim();
+  }
+  return truncated.trim();
 }
