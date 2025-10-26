@@ -62,7 +62,7 @@ const StoriesScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    background: colors.appBackground,
+    background: colors.background.primary,
     paddingBottom: '120px',
     position: 'relative',
   };
@@ -83,7 +83,7 @@ const StoriesScreen: React.FC = () => {
   const headerCardStyle: React.CSSProperties = {
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
-    background: colors.glass.heroBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     boxShadow: colors.glass.shadowStrong,
     backdropFilter: 'blur(18px) saturate(160%)',
@@ -93,7 +93,7 @@ const StoriesScreen: React.FC = () => {
 
   const titleStyle: React.CSSProperties = {
     ...typography.textStyles.displayLg,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     marginBottom: spacing.sm,
     textShadow: '0 1px 1px rgba(255,255,255,0.35)',
     display: 'flex',
@@ -103,7 +103,7 @@ const StoriesScreen: React.FC = () => {
 
   const subtitleStyle: React.CSSProperties = {
     ...typography.textStyles.body,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: '18px',
   };
 
@@ -151,7 +151,7 @@ const StoriesScreen: React.FC = () => {
               animation: 'spin 1s linear infinite',
               margin: `0 auto ${spacing.lg}px auto`
             }} />
-            <p style={{ ...typography.textStyles.body, color: colors.textSecondary, fontSize: '18px' }}>
+            <p style={{ ...typography.textStyles.body, color: colors.text.secondary, fontSize: '18px' }}>
               Lade deine Geschichten... ✨
             </p>
           </div>
@@ -176,7 +176,7 @@ const StoriesScreen: React.FC = () => {
       <SignedOut>
         <div style={{ textAlign: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px` }}>
           <FadeInView delay={100}>
-            <h1 style={{ ...typography.textStyles.displayLg, color: colors.textPrimary, marginBottom: spacing.md }}>
+            <h1 style={{ ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }}>
               Melde dich an, um deine Geschichten zu sehen
             </h1>
           </FadeInView>
@@ -197,7 +197,7 @@ const StoriesScreen: React.FC = () => {
           <div style={headerStyle}>
             <div style={headerCardStyle}>
               <div style={titleStyle}>
-                <BookOpen size={36} style={{ color: colors.primary }} />
+                <BookOpen size={36} style={{ color: colors.primary[500] }} />
                 Deine Geschichten
               </div>
               <div style={subtitleStyle}>
@@ -222,10 +222,10 @@ const StoriesScreen: React.FC = () => {
             {stories.length === 0 ? (
               <Card variant="glass" style={emptyStateStyle}>
                 <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📚</div>
-                <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                   Noch keine Geschichten
                 </div>
-                <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
+                <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                   Erschaffe deine erste magische Geschichte!
                 </div>
                 <Button

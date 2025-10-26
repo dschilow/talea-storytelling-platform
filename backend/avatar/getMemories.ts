@@ -69,7 +69,8 @@ export const getMemories = api(
         return { memories: [] };
       }
 
-      // Get all memories for the avatar, ordered by creation date (newest first)
+      // Get memories: last 5 stories + last 5 dokus (max 10 total), ordered by creation date (newest first)
+      // Stories contain "aktiver Teilnehmer" or "Geschichte", Dokus contain "Doku"
       const memoryRowsGenerator = await avatarDB.query<{
         id: string;
         story_id: string;
@@ -79,9 +80,26 @@ export const getMemories = api(
         personality_changes: string;
         created_at: string;
       }>`
-        SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
-        FROM avatar_memories
-        WHERE avatar_id = ${id}
+        WITH stories AS (
+          SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
+          FROM avatar_memories
+          WHERE avatar_id = ${id}
+            AND (experience LIKE '%aktiver Teilnehmer%' OR experience LIKE '%Geschichte%')
+            AND experience NOT LIKE '%Doku%'
+          ORDER BY created_at DESC
+          LIMIT 5
+        ),
+        dokus AS (
+          SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
+          FROM avatar_memories
+          WHERE avatar_id = ${id}
+            AND experience LIKE '%Doku%'
+          ORDER BY created_at DESC
+          LIMIT 5
+        )
+        SELECT * FROM stories
+        UNION ALL
+        SELECT * FROM dokus
         ORDER BY created_at DESC
       `;
 

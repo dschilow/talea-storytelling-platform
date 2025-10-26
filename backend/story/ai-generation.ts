@@ -851,15 +851,18 @@ async function generateStoryWithOpenAITools(args: {
       : undefined;
   const systemStyleAddendum = stylePresetMeta
     ? `
-STIL-PRESET-SPEZIAL:
-- ${stylePresetMeta.inspiration}
-- Beschreibung: ${stylePresetMeta.description}`
+⭐ STIL-PRESET (ABSOLUT PRIORITÄR):
+- INSPIRATION: ${stylePresetMeta.inspiration}
+- BESCHREIBUNG: ${stylePresetMeta.description}
+- WICHTIG: Dieser Stil MUSS in JEDEM Kapitel spürbar sein!`
     : "";
   const userStyleAddendum = stylePresetMeta
     ? `
-STIL-PRESET:
-- ${stylePresetMeta.inspiration}
-- ${stylePresetMeta.description}`
+⭐ STIL-PRESET (KRITISCH WICHTIG):
+INSPIRATION: ${stylePresetMeta.inspiration}
+BESCHREIBUNG: ${stylePresetMeta.description}
+
+DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
     : "";
 
   const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
@@ -885,6 +888,11 @@ STILRICHTLINIEN (v1.2 - SEHR WICHTIG!):
 - Jede Szene liefert mindestens zwei bildstarke Momente, die als Illustrationsanweisungen funktionieren
 - 🎨 BILDSTIL-REFERENZ: Axel Scheffler watercolor - warme Aquarelle, sanfte Gouache-Texturen, handgezeichnete Outlines, kindgerechte Proportionen, einladende Farbpalette
 ${systemStyleAddendum}
+
+🎨 STIL-KONFIGURATION (WICHTIG):
+${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhythmische Strukturen! Der Text sollte sich wie der Grüffelo lesen - mit Reimen, die natürlich fließen und Spaß machen.` : `- KEINE REIME: Schreibe in Prosa, ohne gereimte Strukturen.`}
+${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 - ${config.suspenseLevel === 1 ? "Sehr sanft, beruhigend, ohne Konflikte" : config.suspenseLevel === 2 ? "Leichte Spannung mit schneller Auflösung" : config.suspenseLevel === 3 ? "Mittlere Spannung mit klaren Lösungen" : config.suspenseLevel === 4 ? "Spannend mit dramatischen Momenten" : "Sehr spannend mit großen Herausforderungen"}` : ""}
+${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 - ${config.humorLevel === 1 ? "Subtiler Humor, warmherzig" : config.humorLevel === 2 ? "Leicht humorvoll mit sanften Scherzen" : config.humorLevel === 3 ? "Humorvoll mit lustigen Situationen" : config.humorLevel === 4 ? "Sehr humorvoll mit viel Slapstick" : "Ultra witzig, voller Überraschungen und Wortspielen"}` : ""}
 
 👥 CHARAKTERE:
 - Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
@@ -977,6 +985,9 @@ Konfigurationsdetails:
 - Komplexität: ${config.complexity}
 - Lernmodus: ${config.learningMode?.enabled ?? false}
 - Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine"}
+${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhythmische Strukturen (wie im Grüffelo)` : ""}
+${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 (${config.suspenseLevel === 1 ? "sanft" : config.suspenseLevel === 2 ? "leicht spannend" : config.suspenseLevel === 3 ? "mittel spannend" : config.suspenseLevel === 4 ? "spannend" : "sehr spannend"})` : ""}
+${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 (${config.humorLevel === 1 ? "subtil" : config.humorLevel === 2 ? "leicht humorvoll" : config.humorLevel === 3 ? "humorvoll" : config.humorLevel === 4 ? "sehr humorvoll" : "ultra witzig"})` : ""}
 
 ${config.learningMode?.enabled ? `
 🎓 LERNMODUS AKTIV - Spezielle Anforderungen:
