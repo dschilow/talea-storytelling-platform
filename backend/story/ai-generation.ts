@@ -418,8 +418,8 @@ export const generateStoryContent = api<
 
       const outputTokens = metadata.tokensUsed.completion;
       metadata.totalCost.text =
-        (metadata.tokensUsed.prompt / 1_000_000) * INPUT_COST_PER_1M +
-        (outputTokens / 1_000_000) * OUTPUT_COST_PER_1M;
+        (metadata.tokensUsed.prompt / 1_000_000) * selectedModel.inputCostPer1M +
+        (outputTokens / 1_000_000) * selectedModel.outputCostPer1M;
 
       // DEBUG: Log chapter structure before cleanup
       console.log(`[ai-generation] 🔍 Story chapters before cleanup:`, {
