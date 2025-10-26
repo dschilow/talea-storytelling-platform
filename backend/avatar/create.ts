@@ -3,6 +3,7 @@ import { getAuthData } from "~encore/auth";
 import { Avatar, CreateAvatarRequest } from "./avatar";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 import { avatarDB } from "./db";
+import { validateAndNormalizeVisualProfile, detectNonEnglishFields } from "./validateAndNormalize";
 
 export const create = api(
   {
@@ -23,6 +24,22 @@ export const create = api(
     // Überschreibe personality traits mit Standardwerten (alle beginnen bei 0)
     const defaultPersonalityTraits = getDefaultPersonalityTraits();
 
+    // VALIDATION & TRANSLATION: Normalize visual profile to English
+    let normalizedVisualProfile = req.visualProfile;
+
+    if (req.visualProfile) {
+      const nonEnglishFields = detectNonEnglishFields(req.visualProfile);
+
+      if (nonEnglishFields.length > 0) {
+        console.log(`[create] Detected non-English fields: ${nonEnglishFields.join(', ')}`);
+        console.log('[create] 🌍 Translating visual profile to English...');
+        normalizedVisualProfile = await validateAndNormalizeVisualProfile(req.visualProfile);
+        console.log('[create] ✅ Visual profile normalized to English');
+      } else {
+        console.log('[create] ✅ Visual profile already in English');
+      }
+    }
+
     const avatar: Avatar = {
       id: avatarId,
       userId: userId,
@@ -31,7 +48,7 @@ export const create = api(
       physicalTraits: req.physicalTraits,
       personalityTraits: defaultPersonalityTraits, // Standardwerte mit allen 0
       imageUrl: req.imageUrl,
-      visualProfile: req.visualProfile,
+      visualProfile: normalizedVisualProfile, // Use normalized (English) profile
       creationType: req.creationType,
       isPublic: false,
       originalAvatarId: undefined,
@@ -41,7 +58,7 @@ export const create = api(
 
     const physicalTraitsJson = JSON.stringify(req.physicalTraits);
     const personalityTraitsJson = JSON.stringify(defaultPersonalityTraits);
-    const visualProfileJson = req.visualProfile ? JSON.stringify(req.visualProfile) : null;
+    const visualProfileJson = normalizedVisualProfile ? JSON.stringify(normalizedVisualProfile) : null;
 
     console.log("Data for DB insert:");
     console.log(`- id: ${avatarId}`);

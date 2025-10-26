@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import type { Avatar, PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { validateAndNormalizeVisualProfile, detectNonEnglishFields } from "./validateAndNormalize";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -59,7 +60,21 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       ? { ...currentPersonalityTraits, ...updates.personalityTraits }
       : currentPersonalityTraits;
 
-    const updatedVisualProfile = updates.visualProfile ?? currentVisualProfile;
+    let updatedVisualProfile = updates.visualProfile ?? currentVisualProfile;
+
+    // VALIDATION & TRANSLATION: Normalize visual profile to English
+    if (updates.visualProfile) {
+      const nonEnglishFields = detectNonEnglishFields(updates.visualProfile);
+
+      if (nonEnglishFields.length > 0) {
+        console.log(`[update] Detected non-English fields in update: ${nonEnglishFields.join(', ')}`);
+        console.log('[update] 🌍 Translating visual profile to English...');
+        updatedVisualProfile = await validateAndNormalizeVisualProfile(updates.visualProfile);
+        console.log('[update] ✅ Visual profile normalized to English');
+      } else {
+        console.log('[update] ✅ Visual profile already in English');
+      }
+    }
 
     const now = new Date();
 
