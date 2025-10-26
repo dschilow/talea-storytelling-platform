@@ -544,7 +544,7 @@ export const generateStoryContent = api<
           height: chapterDimensions.height,
           steps: 28,
           CFGScale: 3.5,
-          seed: (seedBase + (i + 1) * 7) >>> 0,
+          seed: (seedBase + i * 7) >>> 0, // FIXED: Chapter index (not +1) for correct seed strategy
           outputFormat: "JPEG",
         });
 
@@ -879,10 +879,11 @@ STILRICHTLINIEN (v1.2 - SEHR WICHTIG!):
 - Melodischer Satzrhythmus, sanfte Alliterationen, wiederkehrende sprachliche Motive
 - Abwechslungsreiches Tempo: Action, ruhige Momente, Humor, Spannung
 
-📚 MÄRCHENSTIMME:
+📚 MÄRCHENSTIMME & ILLUSTRATIONSSTIL:
 - Orientiere dich am Ton geliebter Bilderbuch-Klassiker ("Rotkäppchen", "Hänsel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das hässliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grüffelo", "Wo die wilden Kerle wohnen", "Oh, wie schön ist Panama")
 - Nutze wiederkehrende Symbole, märchenhafte Vergleiche und einen warmen Erzählsog, der Staunen und Geborgenheit vermittelt
 - Jede Szene liefert mindestens zwei bildstarke Momente, die als Illustrationsanweisungen funktionieren
+- 🎨 BILDSTIL-REFERENZ: Axel Scheffler watercolor - warme Aquarelle, sanfte Gouache-Texturen, handgezeichnete Outlines, kindgerechte Proportionen, einladende Farbpalette
 ${systemStyleAddendum}
 
 👥 CHARAKTERE:
@@ -905,12 +906,15 @@ ${systemStyleAddendum}
 - Kindgerecht: Keine Gewalt, keine Ängste verstärkend
 - Lösungsorientiert: Probleme werden gemeinsam bewältigt
 
-🎨 BILDNOTIZEN:
-- WICHTIG: Beschreibe im imageDescription-Feld was die Charaktere TUN (Action/Bewegung), nicht nur wie sie aussehen
-- Beispiel GUT: "Diego klettert auf einen Baum während Alexander unten zuschaut"
-- Beispiel SCHLECHT: "Diego und Alexander stehen im Park"
+🎨 BILDNOTIZEN (CRITICAL - 100% ENGLISH!):
+- ❗ WICHTIG: Beschreibe im imageDescription-Feld was die Charaktere TUN (Action/Bewegung), nicht nur wie sie aussehen
+- ❗ ALLE imageDescription-Felder MÜSSEN 100% ENGLISCH sein (NIEMALS Deutsch!)
+- Beispiel GUT: "Alexander crouches low, examining a glowing map while adrian points excitedly at a distant clocktower"
+- Beispiel SCHLECHT: "Alexander und adrian stehen vor dem Uhrturm"
+- ❗ VERBOTEN: "stehen", "standen", "sitzen", "saßen" → Nutze stattdessen: "crouches", "leans forward", "reaches up", "kneels beside", "points at"
 - Die Szene soll zeigen was im Kapitel passiert, mit dynamischem Winkel (nicht frontal)
-- Charaktere sollen unterschiedlich positioniert sein (links/rechts, vorne/hinten, verschiedene Höhen)
+- Charaktere sollen unterschiedlich positioniert sein (left/right, foreground/background, different heights)
+- ❗ Axel Scheffler Stil: Warme Aquarelle, sanfte Gouache-Texturen, kindgerechte Proportionen
 
 💡 LERNMODUS (falls aktiv):
 - Lernziele NATÜRLICH einbauen (keine Lehrbuch-Tiraden!)
@@ -966,6 +970,7 @@ STILREFERENZEN:
 - Orientiere dich am Ton von "Rotkäppchen", "Hänsel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das hässliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grüffelo", "Wo die wilden Kerle wohnen" und "Oh, wie schön ist Panama"
 - Verwende märchenhafte Vergleiche, wiederkehrende Symbole und eine warme Erzählerstimme
 - Beschreibe Szenen so, dass sie als ausdrucksstarke Illustrationen funktionieren
+- 🎨 BILDSTIL-REFERENZ: Axel Scheffler watercolor style - warme Aquarelle, sanfte Gouache-Texturen, kindgerechte Proportionen
 ${userStyleAddendum}
 
 Konfigurationsdetails:
