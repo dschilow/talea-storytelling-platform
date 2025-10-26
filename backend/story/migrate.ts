@@ -1,9 +1,5 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
-const storyDB = new SQLDatabase("story", {
-  migrations: "./migrations",
-});
+import { storyDB } from "./db";
 
 interface RunMigrationResponse {
   success: boolean;
