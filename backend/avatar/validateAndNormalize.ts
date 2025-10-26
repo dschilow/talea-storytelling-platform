@@ -12,6 +12,9 @@ import type { AvatarVisualProfile } from "./avatar";
 
 const openAIKey = secret("OpenAIKey");
 
+// WICHTIG: gpt-5-mini für optimale Qualität und Konsistenz (wie bei anderen Services)
+const MODEL = "gpt-5-mini";
+
 /**
  * Detects if text contains non-English characters (German, Italian, Russian, etc.)
  */
@@ -48,7 +51,7 @@ async function translateToEnglish(text: string): Promise<string> {
         Authorization: `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini", // Fast and cheap for translation
+        model: MODEL, // gpt-5-mini for optimal quality and consistency
         messages: [
           {
             role: "system",
@@ -72,7 +75,7 @@ Return ONLY the translated text, no explanations.`
       return text; // Fallback to original text
     }
 
-    const data = await response.json();
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const translated = data.choices?.[0]?.message?.content?.trim() || text;
 
     console.log(`[validateAndNormalize] Translated: "${text}" → "${translated}"`);
@@ -95,6 +98,27 @@ async function translateArray(items: string[] | undefined): Promise<string[]> {
   );
 
   return translations.filter(Boolean);
+}
+
+/**
+ * Translates PhysicalTraits fields to English
+ */
+export async function validateAndNormalizePhysicalTraits(
+  traits: { characterType: string; appearance: string } | undefined
+): Promise<{ characterType: string; appearance: string } | undefined> {
+  if (!traits) return undefined;
+
+  console.log('[validateAndNormalize] Translating PhysicalTraits to English...');
+
+  const normalizedCharacterType = await translateToEnglish(traits.characterType || '');
+  const normalizedAppearance = await translateToEnglish(traits.appearance || '');
+
+  console.log('[validateAndNormalize] ✅ PhysicalTraits normalized to English');
+
+  return {
+    characterType: normalizedCharacterType,
+    appearance: normalizedAppearance,
+  };
 }
 
 /**

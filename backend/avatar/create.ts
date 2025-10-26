@@ -3,7 +3,11 @@ import { getAuthData } from "~encore/auth";
 import { Avatar, CreateAvatarRequest } from "./avatar";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 import { avatarDB } from "./db";
-import { validateAndNormalizeVisualProfile, detectNonEnglishFields } from "./validateAndNormalize";
+import {
+  validateAndNormalizeVisualProfile,
+  validateAndNormalizePhysicalTraits,
+  detectNonEnglishFields
+} from "./validateAndNormalize";
 
 export const create = api(
   {
@@ -23,6 +27,11 @@ export const create = api(
 
     // Überschreibe personality traits mit Standardwerten (alle beginnen bei 0)
     const defaultPersonalityTraits = getDefaultPersonalityTraits();
+
+    // VALIDATION & TRANSLATION: Normalize PhysicalTraits to English
+    console.log('[create] 🌍 Translating PhysicalTraits to English...');
+    const normalizedPhysicalTraits = await validateAndNormalizePhysicalTraits(req.physicalTraits);
+    console.log('[create] ✅ PhysicalTraits normalized to English');
 
     // VALIDATION & TRANSLATION: Normalize visual profile to English
     let normalizedVisualProfile = req.visualProfile;
@@ -45,7 +54,7 @@ export const create = api(
       userId: userId,
       name: req.name,
       description: req.description,
-      physicalTraits: req.physicalTraits,
+      physicalTraits: normalizedPhysicalTraits || req.physicalTraits, // Use normalized (English) traits
       personalityTraits: defaultPersonalityTraits, // Standardwerte mit allen 0
       imageUrl: req.imageUrl,
       visualProfile: normalizedVisualProfile, // Use normalized (English) profile
@@ -56,7 +65,7 @@ export const create = api(
       updatedAt: new Date().toISOString(),
     };
 
-    const physicalTraitsJson = JSON.stringify(req.physicalTraits);
+    const physicalTraitsJson = JSON.stringify(normalizedPhysicalTraits || req.physicalTraits);
     const personalityTraitsJson = JSON.stringify(defaultPersonalityTraits);
     const visualProfileJson = normalizedVisualProfile ? JSON.stringify(normalizedVisualProfile) : null;
 

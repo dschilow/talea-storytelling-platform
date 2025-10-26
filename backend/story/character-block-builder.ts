@@ -806,14 +806,45 @@ function formatCharacterNarrativeLine(block: CharacterBlock): string {
     .filter(Boolean)
     .join(", ");
 
+  // CRITICAL: Include ALL visual traits, not just a summary!
   const traitSummary = summarizeCharacterTraits(block);
+  const visualDetails = buildFullVisualDescription(block);
+
   const baseLine = descriptors.length
     ? `${safeName} (${speciesTag}) ${descriptors}`
     : `${safeName} (${speciesTag}) engages with the scene`;
 
-  return normalizeLanguage(
-    traitSummary ? `${baseLine}. Key traits: ${traitSummary}` : baseLine
-  );
+  // Include BOTH traits AND full visual description
+  const fullLine = [
+    baseLine,
+    visualDetails ? `Visual: ${visualDetails}` : "",
+    traitSummary ? `Key traits: ${traitSummary}` : ""
+  ].filter(Boolean).join(". ");
+
+  return normalizeLanguage(fullLine);
+}
+
+/**
+ * Builds complete visual description from detailedDescription and mustInclude
+ */
+function buildFullVisualDescription(block: CharacterBlock): string {
+  const parts: string[] = [];
+
+  // Add detailedDescription (contains hair, eyes, skin, etc.)
+  if (block.detailedDescription) {
+    parts.push(block.detailedDescription);
+  }
+
+  // Add top 3 most important mustInclude items that aren't already in description
+  const additionalTraits = (block.mustInclude || [])
+    .filter(item => !block.detailedDescription?.includes(item))
+    .slice(0, 3);
+
+  if (additionalTraits.length > 0) {
+    parts.push(additionalTraits.join(", "));
+  }
+
+  return parts.join("; ");
 }
 
 function determineSpeciesTag(block: CharacterBlock): string {

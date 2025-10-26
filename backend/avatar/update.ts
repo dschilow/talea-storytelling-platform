@@ -2,7 +2,11 @@ import { api, APIError } from "encore.dev/api";
 import type { Avatar, PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
-import { validateAndNormalizeVisualProfile, detectNonEnglishFields } from "./validateAndNormalize";
+import {
+  validateAndNormalizeVisualProfile,
+  validateAndNormalizePhysicalTraits,
+  detectNonEnglishFields
+} from "./validateAndNormalize";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -51,11 +55,21 @@ export const update = api<UpdateAvatarRequest, Avatar>(
     const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);
     const currentPersonalityTraits = JSON.parse(existingAvatar.personality_traits);
     const currentVisualProfile: AvatarVisualProfile | undefined = existingAvatar.visual_profile ? JSON.parse(existingAvatar.visual_profile) : undefined;
-    
-    const updatedPhysicalTraits = updates.physicalTraits 
+
+    let updatedPhysicalTraits = updates.physicalTraits
       ? { ...currentPhysicalTraits, ...updates.physicalTraits }
       : currentPhysicalTraits;
-    
+
+    // VALIDATION & TRANSLATION: Normalize PhysicalTraits to English
+    if (updates.physicalTraits) {
+      console.log('[update] 🌍 Translating PhysicalTraits to English...');
+      const normalizedTraits = await validateAndNormalizePhysicalTraits(updatedPhysicalTraits);
+      if (normalizedTraits) {
+        updatedPhysicalTraits = normalizedTraits;
+      }
+      console.log('[update] ✅ PhysicalTraits normalized to English');
+    }
+
     const updatedPersonalityTraits = updates.personalityTraits
       ? { ...currentPersonalityTraits, ...updates.personalityTraits }
       : currentPersonalityTraits;
