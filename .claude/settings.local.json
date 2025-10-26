@@ -54,7 +54,8 @@
       "Bash(encore test:*)",
       "Bash(curl -s https://www.talea.website/log/list?limit=10)",
       "Bash(bun install:*)",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

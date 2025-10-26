@@ -65,6 +65,13 @@ export type PlotHookKey =
   | "foe_turns_friend"
   | "moral_choice";
 
+export type AIModel =
+  | "gpt-5-nano"
+  | "gpt-5-mini"
+  | "gpt-4.1-mini"
+  | "gpt-4o-mini"
+  | "gpt-4o";
+
 export interface StoryConfig {
   avatarIds: string[];
   genre: string;
@@ -86,6 +93,9 @@ export interface StoryConfig {
   hooks?: PlotHookKey[];
   hasTwist?: boolean;
   customPrompt?: string;
+
+  // AI Model selection for story generation
+  aiModel?: AIModel;
 }
 
 export interface LearningMode {
@@ -129,6 +139,15 @@ export interface Story {
       total: number;
     };
   };
+  // Cost tracking (stored directly in DB columns)
+  tokensInput?: number;
+  tokensOutput?: number;
+  tokensTotal?: number;
+  costInputUSD?: number;
+  costOutputUSD?: number;
+  costTotalUSD?: number;
+  costMcpUSD?: number;
+  modelUsed?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -324,6 +343,23 @@ export const generate = api<GenerateStoryRequest, Story>(
         console.warn("[story.generate] Avatar development validation warning:", validationError);
       }
 
+      // Extract cost data from metadata
+      const tokensUsed = generatedStory.metadata?.tokensUsed || { prompt: 0, completion: 0, total: 0 };
+      const costData = (generatedStory.metadata?.tokensUsed as any) || {};
+      const inputCost = costData.inputCostUSD || 0;
+      const outputCost = costData.outputCostUSD || 0;
+      const totalCost = costData.totalCostUSD || 0;
+      const modelUsed = costData.modelUsed || req.config.aiModel || 'gpt-5-mini';
+      const mcpCost = 0; // TODO: Track MCP costs separately
+
+      console.log("[story.generate] Cost tracking:", {
+        model: modelUsed,
+        tokens: tokensUsed,
+        inputCost: `$${inputCost.toFixed(4)}`,
+        outputCost: `$${outputCost.toFixed(4)}`,
+        totalCost: `$${totalCost.toFixed(4)}`,
+      });
+
       // Update story with generated content
       console.log("[story.generate] Persisting story header into DB...");
       await storyDB.exec`
@@ -333,6 +369,14 @@ export const generate = api<GenerateStoryRequest, Story>(
             cover_image_url = ${generatedStory.coverImageUrl},
             avatar_developments = ${JSON.stringify(validatedDevelopments || [])},
             metadata = ${JSON.stringify(generatedStory.metadata)},
+            tokens_input = ${tokensUsed.prompt || 0},
+            tokens_output = ${tokensUsed.completion || 0},
+            tokens_total = ${tokensUsed.total || 0},
+            cost_input_usd = ${inputCost},
+            cost_output_usd = ${outputCost},
+            cost_total_usd = ${totalCost},
+            cost_mcp_usd = ${mcpCost},
+            model_used = ${modelUsed},
             status = 'complete',
             updated_at = ${new Date()}
         WHERE id = ${id}
@@ -565,6 +609,14 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     avatar_developments: string | null;
     metadata: string | null;
     status: "generating" | "complete" | "error";
+    tokens_input: number | null;
+    tokens_output: number | null;
+    tokens_total: number | null;
+    cost_input_usd: number | null;
+    cost_output_usd: number | null;
+    cost_total_usd: number | null;
+    cost_mcp_usd: number | null;
+    model_used: string | null;
     created_at: Date;
     updated_at: Date;
   }>`
@@ -605,6 +657,14 @@ async function getCompleteStory(storyId: string): Promise<Story> {
       order: ch.chapter_order,
     })),
     status: storyRow.status,
+    tokensInput: storyRow.tokens_input || undefined,
+    tokensOutput: storyRow.tokens_output || undefined,
+    tokensTotal: storyRow.tokens_total || undefined,
+    costInputUSD: storyRow.cost_input_usd || undefined,
+    costOutputUSD: storyRow.cost_output_usd || undefined,
+    costTotalUSD: storyRow.cost_total_usd || undefined,
+    costMcpUSD: storyRow.cost_mcp_usd || undefined,
+    modelUsed: storyRow.model_used || undefined,
     createdAt: storyRow.created_at,
     updatedAt: storyRow.updated_at,
   };

@@ -123,11 +123,55 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   },
 };
 
-// WICHTIG: gpt-5-mini fuer optimale Qualitaet
-// Update: Modell gewechselt zu gpt-5-mini (25.10.2025)
-const MODEL = "gpt-5-mini";
-const INPUT_COST_PER_1M = 5.0;
-const OUTPUT_COST_PER_1M = 15.0;
+// Model configurations with costs per 1M tokens
+interface ModelConfig {
+  name: string;
+  inputCostPer1M: number;
+  outputCostPer1M: number;
+  maxCompletionTokens: number;
+  supportsReasoningEffort?: boolean;
+}
+
+const MODEL_CONFIGS: Record<string, ModelConfig> = {
+  "gpt-5-nano": {
+    name: "gpt-5-nano",
+    inputCostPer1M: 0.5,
+    outputCostPer1M: 1.5,
+    maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
+  "gpt-5-mini": {
+    name: "gpt-5-mini",
+    inputCostPer1M: 5.0,
+    outputCostPer1M: 15.0,
+    maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
+  "gpt-4.1-mini": {
+    name: "gpt-4.1-mini",
+    inputCostPer1M: 1.0,
+    outputCostPer1M: 4.0,
+    maxCompletionTokens: 16384,
+    supportsReasoningEffort: false,
+  },
+  "gpt-4o-mini": {
+    name: "gpt-4o-mini",
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.60,
+    maxCompletionTokens: 16384,
+    supportsReasoningEffort: false,
+  },
+  "gpt-4o": {
+    name: "gpt-4o",
+    inputCostPer1M: 2.50,
+    outputCostPer1M: 10.0,
+    maxCompletionTokens: 16384,
+    supportsReasoningEffort: false,
+  },
+};
+
+// Default model
+const DEFAULT_MODEL = "gpt-5-mini";
 
 const openAIKey = secret("OpenAIKey");
 const mcpServerApiKey = secret("MCPServerAPIKey");
@@ -837,6 +881,11 @@ async function generateStoryWithOpenAITools(args: {
 }): Promise<StoryToolOutcome> {
   const { config, avatars, clerkToken, mcpApiKey } = args;
 
+  // Select model configuration
+  const modelKey = config.aiModel || DEFAULT_MODEL;
+  const modelConfig = MODEL_CONFIGS[modelKey] || MODEL_CONFIGS[DEFAULT_MODEL];
+  console.log(`[ai-generation] 🤖 Using model: ${modelConfig.name} (Input: $${modelConfig.inputCostPer1M}/1M, Output: $${modelConfig.outputCostPer1M}/1M)`);
+
   const chapterCount =
     config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
@@ -1269,15 +1318,14 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
     }
     
     const payload = {
-      model: MODEL,
+      model: modelConfig.name,
       messages,
       tools,
       tool_choice: "auto" as const,
-      // gpt-5-mini: Max 16384 completion tokens (Modell-Limit)
-      // Berechnung: ~2000 Tokens pro Kapitel * 5 = 10k + 4k für Struktur + 2k Buffer
-      max_completion_tokens: 16_000,
+      max_completion_tokens: modelConfig.maxCompletionTokens,
       response_format: { type: "json_object" },
-      // Standard-Parameter fuer gpt-5-mini (kein reasoning_effort)
+      // Add reasoning_effort if supported by model
+      ...(modelConfig.supportsReasoningEffort ? { reasoning_effort: "medium" } : {}),
     };
 
     finalRequest = payload;
@@ -1398,9 +1446,25 @@ ${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
       response: finalResponse,
     });
 
+    // Calculate costs in USD
+    const inputCostUSD = (usageTotals.prompt / 1_000_000) * modelConfig.inputCostPer1M;
+    const outputCostUSD = (usageTotals.completion / 1_000_000) * modelConfig.outputCostPer1M;
+    const totalCostUSD = inputCostUSD + outputCostUSD;
+
+    console.log(`[ai-generation] 💰 Cost breakdown:`);
+    console.log(`  Input: ${usageTotals.prompt} tokens × $${modelConfig.inputCostPer1M}/1M = $${inputCostUSD.toFixed(4)}`);
+    console.log(`  Output: ${usageTotals.completion} tokens × $${modelConfig.outputCostPer1M}/1M = $${outputCostUSD.toFixed(4)}`);
+    console.log(`  Total: $${totalCostUSD.toFixed(4)}`);
+
     return {
       story: parsedStory,
-      usage: usageTotals,
+      usage: {
+        ...usageTotals,
+        inputCostUSD,
+        outputCostUSD,
+        totalCostUSD,
+        modelUsed: modelConfig.name,
+      },
       state,
       finalRequest,
       finalResponse,
