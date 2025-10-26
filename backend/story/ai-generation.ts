@@ -135,38 +135,59 @@ interface ModelConfig {
 const MODEL_CONFIGS: Record<string, ModelConfig> = {
   "gpt-5-nano": {
     name: "gpt-5-nano",
-    inputCostPer1M: 0.5,
-    outputCostPer1M: 1.5,
+    inputCostPer1M: 0.050,      // $0.050/1M tokens
+    outputCostPer1M: 0.400,     // $0.400/1M tokens
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },
   "gpt-5-mini": {
     name: "gpt-5-mini",
-    inputCostPer1M: 5.0,
-    outputCostPer1M: 15.0,
+    inputCostPer1M: 0.250,      // $0.250/1M tokens
+    outputCostPer1M: 2.000,     // $2.000/1M tokens
     maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
+  "gpt-5": {
+    name: "gpt-5",
+    inputCostPer1M: 1.250,      // $1.250/1M tokens
+    outputCostPer1M: 10.000,    // $10.000/1M tokens
+    maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
+  "gpt-5-pro": {
+    name: "gpt-5-pro",
+    inputCostPer1M: 15.00,      // $15.00/1M tokens
+    outputCostPer1M: 120.00,    // $120.00/1M tokens
+    maxCompletionTokens: 32000,
+    supportsReasoningEffort: true,
+  },
+  "gpt-4.1-nano": {
+    name: "gpt-4.1-nano",
+    inputCostPer1M: 0.20,       // $0.20/1M tokens
+    outputCostPer1M: 0.80,      // $0.80/1M tokens
+    maxCompletionTokens: 16384,
     supportsReasoningEffort: false,
   },
   "gpt-4.1-mini": {
     name: "gpt-4.1-mini",
-    inputCostPer1M: 1.0,
-    outputCostPer1M: 4.0,
+    inputCostPer1M: 0.80,       // $0.80/1M tokens
+    outputCostPer1M: 3.20,      // $3.20/1M tokens
     maxCompletionTokens: 16384,
     supportsReasoningEffort: false,
   },
-  "gpt-4o-mini": {
-    name: "gpt-4o-mini",
-    inputCostPer1M: 0.15,
-    outputCostPer1M: 0.60,
+  "gpt-4.1": {
+    name: "gpt-4.1",
+    inputCostPer1M: 3.00,       // $3.00/1M tokens
+    outputCostPer1M: 12.00,     // $12.00/1M tokens
     maxCompletionTokens: 16384,
     supportsReasoningEffort: false,
   },
-  "gpt-4o": {
-    name: "gpt-4o",
-    inputCostPer1M: 2.50,
-    outputCostPer1M: 10.0,
+  "o4-mini": {
+    name: "o4-mini",
+    inputCostPer1M: 4.00,       // $4.00/1M tokens
+    outputCostPer1M: 16.00,     // $16.00/1M tokens
     maxCompletionTokens: 16384,
-    supportsReasoningEffort: false,
+    supportsReasoningEffort: true,
   },
 };
 
@@ -349,9 +370,14 @@ export const generateStoryContent = api<
     const mcpApiKey = mcpServerApiKey();
 
     const startTime = Date.now();
+
+    // Select model configuration
+    const modelKey = req.config.aiModel || DEFAULT_MODEL;
+    const selectedModel = MODEL_CONFIGS[modelKey] || MODEL_CONFIGS[DEFAULT_MODEL];
+
     const metadata: GenerateStoryContentResponse["metadata"] = {
       tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      model: MODEL,
+      model: selectedModel.name,
       processingTime: 0,
       imagesGenerated: 0,
       totalCost: { text: 0, images: 0, total: 0 },

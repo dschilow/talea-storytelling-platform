@@ -37,6 +37,9 @@ interface StoryConfig {
   hasTwist?: boolean;
   customPrompt?: string;            // optionaler Freitext
 
+  // AI Model selection
+  aiModel?: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-pro' | 'gpt-4.1-nano' | 'gpt-4.1-mini' | 'gpt-4.1' | 'o4-mini';
+
   // Bestehende Parameter
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';
@@ -66,6 +69,7 @@ const StoryWizardScreen: React.FC = () => {
     language: 'de',
     suspenseLevel: 1,
     humorLevel: 2,
+    aiModel: 'gpt-5-mini', // Default model
     pacing: 'balanced',
     pov: 'personale',
     hooks: [],
@@ -236,9 +240,11 @@ const StoryWizardScreen: React.FC = () => {
             length={storyConfig.length}
             complexity={storyConfig.complexity}
             ageGroup={storyConfig.ageGroup}
+            aiModel={storyConfig.aiModel}
             onLengthChange={(length) => updateStoryConfig({ length })}
             onComplexityChange={(complexity) => updateStoryConfig({ complexity })}
             onAgeGroupChange={(ageGroup) => updateStoryConfig({ ageGroup })}
+            onAiModelChange={(aiModel) => updateStoryConfig({ aiModel })}
           />
         );
       case 'learning':
