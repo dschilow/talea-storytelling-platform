@@ -356,23 +356,28 @@ export const generate = api<GenerateStoryRequest, Story>(
       });
 
       // Write cost data to log file
-      await logTopic("story-generation-costs", {
-        storyId: id,
-        userId: req.userId,
-        timestamp: new Date().toISOString(),
-        model: modelUsed,
-        tokens: {
-          input: tokensUsed.prompt || 0,
-          output: tokensUsed.completion || 0,
-          total: tokensUsed.total || 0,
+      await publishWithTimeout(logTopic, {
+        source: "story-generation-costs" as any, // Custom log source for cost tracking
+        timestamp: new Date(),
+        request: {
+          storyId: id,
+          userId: req.userId,
+          model: modelUsed,
         },
-        costs: {
-          input_usd: inputCost,
-          output_usd: outputCost,
-          total_usd: totalCost,
-          mcp_usd: mcpCost,
+        response: {
+          tokens: {
+            input: tokensUsed.prompt || 0,
+            output: tokensUsed.completion || 0,
+            total: tokensUsed.total || 0,
+          },
+          costs: {
+            input_usd: inputCost,
+            output_usd: outputCost,
+            total_usd: totalCost,
+            mcp_usd: mcpCost,
+          },
+          title: generatedStory.title,
         },
-        title: generatedStory.title,
       });
 
       // Update story with generated content
