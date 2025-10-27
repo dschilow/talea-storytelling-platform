@@ -6,6 +6,7 @@
 import type { AvatarVisualProfile } from "../avatar/avatar";
 import type { MinimalAvatarProfile, SpeciesType } from "./avatar-image-optimization";
 import { normalizeLanguage } from "./avatar-image-optimization";
+import { getAvatarCanon, buildVisualDistinctionWarning } from "../avatar/avatar-canon-simple";
 
 /**
  * Normalizes all text fields in a visual profile from German to English
@@ -345,7 +346,7 @@ export function buildCharacterBlock(
 ): CharacterBlock {
   // CRITICAL: Normalize profile to English BEFORE building character block
   const normalizedProfile = normalizeVisualProfile(profile);
-  
+
   const species = getSpeciesFromProfile(normalizedProfile);
   const ageHint = normalizedProfile.ageApprox || (species === "human" ? "child 6-8 years" : `young ${species}`);
 
@@ -372,12 +373,30 @@ export function buildCharacterBlock(
         ? "bright, curious eyes"
         : undefined;
   const action = sceneDetails?.action ? normalizeLanguage(sceneDetails.action) : undefined;
-  
+
+  // ADD AVATAR CANON DETAILS to mustInclude list
+  let mustInclude = extractMustInclude(normalizedProfile, species);
+
+  try {
+    // Try to get avatar canon details
+    const canon = getAvatarCanon(name);
+    mustInclude = [
+      ...mustInclude,
+      canon.hair,
+      canon.eyes,
+      canon.clothing,
+      ...canon.distinctive
+    ];
+  } catch (error) {
+    // If no canon found, continue with original profile
+    console.warn(`[character-block-builder] No avatar canon found for ${name}, using profile data`);
+  }
+
   const block: CharacterBlock = {
     name,
     species,
     ageHint,
-    mustInclude: extractMustInclude(normalizedProfile, species),
+    mustInclude,
     forbid: buildForbidList(species, name, normalizedProfile),
     pose,
     position,
@@ -558,9 +577,20 @@ export function buildMultiCharacterPrompt(
     .map((block) => formatCharacterBlockAsPrompt(block))
     .join("\n\n");
 
+  // ADD VISUAL DISTINCTION WARNING for multiple characters
+  let distinctionWarning = "";
+  if (blocks.length > 1) {
+    try {
+      const avatarNames = blocks.map(block => block.name);
+      distinctionWarning = buildVisualDistinctionWarning(avatarNames);
+    } catch (error) {
+      console.warn("[character-block-builder] Could not add visual distinction warning:", error);
+    }
+  }
+
   return {
     blocks,
-    prompt: formattedBlocks,
+    prompt: formattedBlocks + (distinctionWarning ? "\n\n" + distinctionWarning : ""),
   };
 }
 

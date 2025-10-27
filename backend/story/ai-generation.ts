@@ -1052,7 +1052,7 @@ ${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhy
 ${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 - ${config.suspenseLevel === 0 ? "Keine Spannung, sehr beruhigend" : config.suspenseLevel === 1 ? "Sehr sanft, beruhigend, ohne Konflikte" : config.suspenseLevel === 2 ? "Leichte Spannung mit schneller Auflösung" : config.suspenseLevel === 3 ? "Mittlere Spannung mit klaren Lösungen" : "Spannend mit dramatischen Momenten"}` : ""}
 ${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 - ${config.humorLevel === 0 ? "Kein Humor, ernst" : config.humorLevel === 1 ? "Subtiler Humor, warmherzig" : config.humorLevel === 2 ? "Leicht humorvoll mit sanften Scherzen" : config.humorLevel === 3 ? "Humorvoll mit lustigen Situationen" : "Sehr humorvoll mit viel Slapstick"}` : ""}
 
-👥 CHARAKTERE:
+👥 CHARAKTERE (KRITISCH - VISUELLE DETAILS!):
 - Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
 - Verankere Identitäten: ${avatars
     .map((a) => `${a.name} = ${a.physicalTraits?.characterType || "Figur"}`)
@@ -1061,11 +1061,30 @@ ${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 
 - Hebe arttypische Wahrnehmungen hervor (Tiere -> Sinne und Körper, Menschen -> Gefühle, Sprache, soziale Impulse)
 - Konsistente Namen und Pronomen (${avatars.map((a) => a.name).join(", ")})
 
+🎨 VISUELLE CHARAKTER-DETAILS (MUSS in JEDEM Kapitel erwähnt werden!):
+- Alexander: kastanienbraune Locken, bernsteinfarbene Augen, grüner Kapuzenpullover, rosige Wangen, energisch
+- Adrian: goldblondes Haar, himmelblaue Augen, blaue Jacke, helle Haut, schüchtern
+
+📝 INTEGRATION IN TEXT (Beispiele):
+- "Alexander strich sich durch seine kastanienbraunen Locken"
+- "Seine bernsteinfarbenen Augen leuchteten vor Neugier"
+- "Der grüne Pullover leuchtete im Sonnenlicht"
+- "Adrian's goldblondes Haar wehte im Wind"
+- "Seine himmelblauen Augen funkelten neugierig"
+- "Die blaue Jacke hing locker über seinen Schultern"
+
 📏 KAPITELSTRUKTUR:
 - Schreibe pro Kapitel ${minWordsPerChapter}-${maxWordsPerChapter} Wörter (Ziel ca. ${targetWordsPerChapter})
 - Struktur: Einstieg mit bildstarkem Aufhänger -> Entwicklung mit Handlung und Dialog -> Cliffhanger, der ein neues Rätsel oder Ziel ankündigt
 - Platziere pro Kapitel mindestens einen ruhigen Gefühlsmoment und eine dynamische Aktion
 - Visuell beschreibbare Momente für Illustrationen
+
+💬 DIALOG-RATIO (KRITISCH - 40-50% des Textes!):
+- Mindestens 40-50% jedes Kapitels soll Dialog sein
+- Kurze, natürliche Dialoge (5-12 Wörter pro Sprechbeitrag)
+- Abwechselnd zwischen Charakteren
+- Dialoge zeigen Persönlichkeiten: Alexander impulsiv/schnell, Adrian nachdenklich/vorsichtig
+- Beispiel: "Hör mal!", "Was ist das?", "Lass uns schauen!", "Vorsichtig..."
 
 🎯 WERTE & SICHERHEIT:
 - Positive Werte: Mut, Teamwork, Hilfsbereitschaft, Kreativität, Empathie
