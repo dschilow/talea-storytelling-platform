@@ -30,7 +30,7 @@ export async function translateToEnglish(text: string): Promise<string> {
         Authorization: `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -57,7 +57,7 @@ Output: "Diego is an orange cat with white belly"`,
             content: text,
           },
         ],
-        max_completion_tokens: 1000,
+        max_completion_tokens: 2000,
       }),
     });
 
@@ -68,11 +68,20 @@ Output: "Diego is an orange cat with white belly"`,
       return text;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
+
+    // Debug: Log the full response structure
+    console.log(`[translateToEnglish] OpenAI response structure:`, JSON.stringify({
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      firstChoice: data.choices?.[0],
+    }, null, 2));
+
     const translatedText = data.choices?.[0]?.message?.content?.trim();
 
     if (!translatedText) {
       console.error(`[translateToEnglish] Empty response from OpenAI`);
+      console.error(`[translateToEnglish] Full response:`, JSON.stringify(data, null, 2));
       return text;
     }
 
