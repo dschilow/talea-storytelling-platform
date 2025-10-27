@@ -1,7 +1,7 @@
 import { api } from "encore.dev/api";
 import { runwareGenerateImage } from "./image-generation";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
-import { normalizeLanguage } from "../story/avatar-image-optimization";
+import { translateToEnglish } from "./translate";
 
 interface GenerateAvatarImageRequest {
   characterType: string;
@@ -20,10 +20,10 @@ interface GenerateAvatarImageResponse {
 export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/generate-avatar" },
   async (req) => {
-    // CRITICAL: Validate and translate user input to English for Runware compatibility
-    console.log("🌐 Validating and translating user input to English...");
-    const translatedCharacterType = normalizeLanguage(req.characterType || "");
-    const translatedAppearance = normalizeLanguage(req.appearance || "");
+    // CRITICAL: Validate and translate user input to English using OpenAI for Runware compatibility
+    console.log("🌐 Translating user input to English using OpenAI GPT-5-mini...");
+    const translatedCharacterType = await translateToEnglish(req.characterType || "");
+    const translatedAppearance = await translateToEnglish(req.appearance || "");
 
     console.log("Original character type:", req.characterType);
     console.log("Translated character type:", translatedCharacterType);
@@ -172,8 +172,8 @@ function getPersonalityDescriptor(personality: PersonalityTraits): string {
 }
 
 function sanitizeSegment(input: string): string {
-  const normalized = normalizeLanguage(input || "");
-  return normalized
+  // Just clean up special characters, translation already done by translateToEnglish
+  return (input || "")
     .replace(/[^\x20-\x7E]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

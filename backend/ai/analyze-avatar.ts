@@ -3,102 +3,9 @@ import { secret } from "encore.dev/config";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
-import { normalizeLanguage } from "../story/avatar-image-optimization";
+import { translateVisualProfile } from "./translate";
 
 const openAIKey = secret("OpenAIKey");
-
-/**
- * Translates and validates visual profile to English
- * Runware model was trained on English data only
- */
-function translateVisualProfileToEnglish(profile: any): any {
-  if (!profile) return profile;
-
-  const translated = { ...profile };
-
-  // Translate characterType
-  if (translated.characterType) {
-    translated.characterType = normalizeLanguage(translated.characterType);
-  }
-
-  // Translate skin
-  if (translated.skin) {
-    translated.skin = {
-      ...translated.skin,
-      tone: normalizeLanguage(translated.skin.tone || ""),
-      undertone: normalizeLanguage(translated.skin.undertone || ""),
-      distinctiveFeatures: (translated.skin.distinctiveFeatures || []).map((f: string) => normalizeLanguage(f)),
-    };
-  }
-
-  // Translate hair
-  if (translated.hair) {
-    translated.hair = {
-      ...translated.hair,
-      color: normalizeLanguage(translated.hair.color || ""),
-      type: normalizeLanguage(translated.hair.type || ""),
-      style: normalizeLanguage(translated.hair.style || ""),
-    };
-  }
-
-  // Translate eyes
-  if (translated.eyes) {
-    translated.eyes = {
-      ...translated.eyes,
-      color: normalizeLanguage(translated.eyes.color || ""),
-      shape: normalizeLanguage(translated.eyes.shape || ""),
-    };
-  }
-
-  // Translate face
-  if (translated.face) {
-    translated.face = {
-      ...translated.face,
-      shape: normalizeLanguage(translated.face.shape || ""),
-      nose: normalizeLanguage(translated.face.nose || ""),
-      mouth: normalizeLanguage(translated.face.mouth || ""),
-      eyebrows: normalizeLanguage(translated.face.eyebrows || ""),
-      otherFeatures: (translated.face.otherFeatures || []).map((f: string) => normalizeLanguage(f)),
-    };
-  }
-
-  // Translate accessories
-  if (translated.accessories) {
-    translated.accessories = translated.accessories.map((a: string) => normalizeLanguage(a));
-  }
-
-  // Translate clothing
-  if (translated.clothingCanonical) {
-    translated.clothingCanonical = {
-      ...translated.clothingCanonical,
-      top: normalizeLanguage(translated.clothingCanonical.top || ""),
-      bottom: normalizeLanguage(translated.clothingCanonical.bottom || ""),
-      outfit: normalizeLanguage(translated.clothingCanonical.outfit || ""),
-      colors: (translated.clothingCanonical.colors || []).map((c: string) => normalizeLanguage(c)),
-      patterns: (translated.clothingCanonical.patterns || []).map((p: string) => normalizeLanguage(p)),
-    };
-  }
-
-  // Translate palette
-  if (translated.palette) {
-    translated.palette = {
-      primary: (translated.palette.primary || []).map((c: string) => normalizeLanguage(c)),
-      secondary: (translated.palette.secondary || []).map((c: string) => normalizeLanguage(c)),
-    };
-  }
-
-  // Translate consistent descriptors
-  if (translated.consistentDescriptors) {
-    translated.consistentDescriptors = translated.consistentDescriptors.map((d: string) => normalizeLanguage(d));
-  }
-
-  // Translate age
-  if (translated.ageApprox) {
-    translated.ageApprox = normalizeLanguage(translated.ageApprox);
-  }
-
-  return translated;
-}
 
 export interface AnalyzeAvatarImageRequest {
   imageUrl: string;
@@ -433,10 +340,10 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     const processingTime = Date.now() - startTime;
     console.log(`✅ Analysis completed successfully in ${processingTime}ms`);
 
-    // CRITICAL: Translate visual profile to English for Runware compatibility
-    console.log(`🌐 Translating visual profile to English...`);
-    const translatedProfile = translateVisualProfileToEnglish(parsed);
-    console.log(`✅ Visual profile translated to English`);
+    // CRITICAL: Translate visual profile to English using OpenAI for Runware compatibility
+    console.log(`🌐 Translating visual profile to English using OpenAI...`);
+    const translatedProfile = await translateVisualProfile(parsed);
+    console.log(`✅ Visual profile fully translated to English`);
 
     // Erweiterte Logs für bessere Analyse
     await publishWithTimeout(logTopic, {

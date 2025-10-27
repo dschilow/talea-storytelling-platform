@@ -54,10 +54,16 @@ export const migrateToEnglish = api(
         ORDER BY created_at ASC
       `;
 
-      result.totalAvatars = avatars.length;
-      console.log(`[migrateToEnglish] Found ${avatars.length} avatars with visual profiles`);
+      // Convert AsyncGenerator to Array
+      const avatarArray = [];
+      for await (const avatar of avatars) {
+        avatarArray.push(avatar);
+      }
 
-      for (const avatar of avatars) {
+      result.totalAvatars = avatarArray.length;
+      console.log(`[migrateToEnglish] Found ${avatarArray.length} avatars with visual profiles`);
+
+      for (const avatar of avatarArray) {
         try {
           if (!avatar.visual_profile) continue;
 
