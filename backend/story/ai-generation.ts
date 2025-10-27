@@ -459,16 +459,9 @@ export const generateStoryContent = api<
 
       enforceAvatarDevelopments(storyOutcome.story, req.avatarDetails);
 
-      const validationResult = await validateStoryResponse(storyOutcome.story, mcpApiKey);
-      storyOutcome.state.validationResult = validationResult;
-
-      if (!validationResult?.isValid) {
-        throw new Error(
-          `Story validation failed: ${JSON.stringify(validationResult?.errors ?? {})}`
-        );
-      }
-
-      const normalizedStory = validationResult.normalized ?? storyOutcome.story;
+      // VALIDATION DISABLED (2025-10-27): Removing validate_story_response MCP call to reduce token overhead
+      // Use story directly without external validation
+      const normalizedStory = storyOutcome.story;
       enforceAvatarDevelopments(normalizedStory, req.avatarDetails);
 
       const avatarProfilesByName: Record<string, AvatarVisualProfile> = {};
@@ -946,10 +939,16 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
 ⚠️ WICHTIG: Nur die imageDescription-Felder für Bilder müssen auf Englisch sein, ALLES andere auf ${config.language === 'en' ? 'English' : 'Deutsch'}!
 
 WORKFLOW (Schritt für Schritt):
-1. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
-2. Validiere mit validate_story_response (sende die KOMPLETTE Story im storyData-Feld!)
-3. Bei Fehlern: korrigiere und validiere erneut
+1. Rufe get_avatar_profiles auf (nur einmal!)
+2. Rufe get_avatar_memories für jeden Avatar auf (nur einmal pro Avatar!)
+3. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
 4. Gib die finale JSON-Antwort zurück
+
+WICHTIG:
+- Schreibe die KOMPLETTE Story BEVOR du antwortest!
+- Jedes Kapitel muss ${minWordsPerChapter}-${maxWordsPerChapter} Wörter haben (Ziel ca. ${targetWordsPerChapter})
+- Genau ${chapterCount} Kapitel
+- Alle Pflichtfelder müssen vorhanden sein
 
 STILRICHTLINIEN (v1.2 - SEHR WICHTIG!):
 📖 ERZÄHLSTIL:
@@ -1078,9 +1077,10 @@ Verfügbare Avatare:
 ${avatarSummary}
 
 WORKFLOW:
-1. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!)
-2. Validiere mit validate_story_response (sende die komplette Story!)
-3. Gib die finale JSON-Antwort zurück
+1. Rufe get_avatar_profiles EINMAL auf
+2. Rufe get_avatar_memories für JEDEN Avatar EINMAL auf
+3. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!)
+4. Gib die finale JSON-Antwort zurück
 
 ❗ KRITISCH - avatarDevelopments (SEHR WICHTIG!):
 Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben - NICHT MEHR, NICHT WENIGER!
@@ -1116,66 +1116,67 @@ PFLICHT-BEISPIEL für diese Geschichte (GENAU SO FORMAT):
 
 FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
 
-  // MCP TOOLS DISABLED (2025-10-27): Testing without MCP to reduce token overhead
+  // VALIDATION TOOL DISABLED (2025-10-27): Removing validate_story_response to reduce token overhead
+  // Keep MCP tools for avatar profiles and memories
   const tools = [
-    // {
-    //   type: "function",
-    //   function: {
-    //     name: "get_avatar_profiles",
-    //     description:
-    //       "Liefert kanonische visuelle Profile (Aussehen) mehrerer Avatare für konsistente Bildbeschreibungen.",
-    //     parameters: {
-    //       type: "object",
-    //       properties: {
-    //         avatar_ids: {
-    //           type: "array",
-    //           items: { type: "string" },
-    //           description: "Liste der Avatar-IDs, die geladen werden sollen.",
-    //         },
-    //       },
-    //       required: ["avatar_ids"],
-    //     },
-    //   },
-    // },
-    // {
-    //   type: "function",
-    //   function: {
-    //     name: "get_avatar_memories",
-    //     description:
-    //       "Liefert relevante Erinnerungen eines Avatars, um sie in der Geschichte zu berücksichtigen.",
-    //     parameters: {
-    //       type: "object",
-    //       properties: {
-    //         avatar_id: { type: "string", description: "ID des Avatars." },
-    //         limit: {
-    //           type: "integer",
-    //           minimum: 1,
-    //           maximum: 50,
-    //           description: "Maximale Anzahl an Erinnerungen (Standard 10).",
-    //         },
-    //       },
-    //       required: ["avatar_id"],
-    //     },
-    //   },
-    // },
     {
       type: "function",
       function: {
-        name: "validate_story_response",
+        name: "get_avatar_profiles",
         description:
-          "Validiert die fertige Story und liefert normalisierte Daten sowie Fehlermeldungen, falls das Format nicht passt.",
+          "Liefert kanonische visuelle Profile (Aussehen) mehrerer Avatare für konsistente Bildbeschreibungen.",
         parameters: {
           type: "object",
           properties: {
-            storyData: {
-              type: "object",
-              description: "Die vollständige Story als JSON, die validiert werden soll.",
+            avatar_ids: {
+              type: "array",
+              items: { type: "string" },
+              description: "Liste der Avatar-IDs, die geladen werden sollen.",
             },
           },
-          required: ["storyData"],
+          required: ["avatar_ids"],
         },
       },
     },
+    {
+      type: "function",
+      function: {
+        name: "get_avatar_memories",
+        description:
+          "Liefert relevante Erinnerungen eines Avatars, um sie in der Geschichte zu berücksichtigen.",
+        parameters: {
+          type: "object",
+          properties: {
+            avatar_id: { type: "string", description: "ID des Avatars." },
+            limit: {
+              type: "integer",
+              minimum: 1,
+              maximum: 50,
+              description: "Maximale Anzahl an Erinnerungen (Standard 10).",
+            },
+          },
+          required: ["avatar_id"],
+        },
+      },
+    },
+    // {
+    //   type: "function",
+    //   function: {
+    //     name: "validate_story_response",
+    //     description:
+    //       "Validiert die fertige Story und liefert normalisierte Daten sowie Fehlermeldungen, falls das Format nicht passt.",
+    //     parameters: {
+    //       type: "object",
+    //       properties: {
+    //         storyData: {
+    //           type: "object",
+    //           description: "Die vollständige Story als JSON, die validiert werden soll.",
+    //         },
+    //       },
+    //       required: ["storyData"],
+    //     },
+    //   },
+    // },
   ];
 
   const messages: Array<any> = [
@@ -1271,67 +1272,10 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
 
       return state.compressedMemoriesById.get(avatar_id) ?? [];
     },
-    validate_story_response: async ({ storyData }) => {
-      state.validatorFailures += 1;
-      
-      // OPTIMIERT: Nach 3 Fehlversuchen ohne Daten, brechen wir ab und fordern explizit die Story an
-      if (!storyData) {
-        if (state.validatorFailures >= 3) {
-          return {
-            error: "KRITISCH: validate_story_response wurde 3x ohne storyData aufgerufen. STOPPE Validierungsversuche.",
-            hint: "Erstelle ZUERST die vollständige Geschichte, DANN validiere sie. Sende die Geschichte JETZT als JSON-Antwort ohne weitere Tool-Aufrufe.",
-            attempts: state.validatorFailures,
-            skipValidation: true,
-          };
-        }
-        return {
-          error: "storyData ist erforderlich. Beispiel: {\"storyData\": {\"title\": \"...\", \"description\": \"...\", \"chapters\": [...]}}",
-          hint: "Sende die vollständige Story im Feld storyData, damit die Validierung funktioniert.",
-          attempts: state.validatorFailures,
-        };
-      }
-      
-      const validation = await validateStoryResponse(storyData, mcpApiKey);
-      state.validationResult = validation;
-      
-      // KRITISCH: Wenn avatarDevelopments fehlt, gib explizite Anweisungen
-      if (!validation.isValid && validation.errors) {
-        const missingAvatarDevs = validation.errors.some(
-          (err: any) => err.path?.includes("avatarDevelopments")
-        );
-        
-        if (missingAvatarDevs) {
-          const avatarNames = avatars.map(a => a.name);
-          const errorDetails = validation.errors
-            .filter((err: any) => err.path?.includes("avatarDevelopments"))
-            .map((err: any) => `Pfad: ${err.path?.join(".")} - ${err.message}`)
-            .join("; ");
-          
-          return {
-            ...validation,
-            hint: `❌ KRITISCH: avatarDevelopments ist fehlerhaft!
-            
-Fehler: ${errorDetails}
-
-Du MUSST für JEDEN der ${avatars.length} Avatare GENAU EINEN Eintrag erstellen:
-${avatars.map((a, i) => `${i + 1}. "${a.name}"`).join('\n')}
-
-❌ HÄUFIGE FEHLER:
-- Zu viele Einträge (${avatars.length} ist Maximum!)
-- Zu wenige Einträge (${avatars.length} ist Minimum!)
-- Falscher Name verwendet (nutze: ${avatarNames.join(", ")})
-- Fehlendes "name" oder "changedTraits" Feld
-
-✅ KORREKTES BEISPIEL für genau ${avatars.length} ${avatars.length === 1 ? 'Avatar' : 'Avatare'}:
-[${avatars.map(a => `
-  {"name": "${a.name}", "changedTraits": [{"trait": "courage", "change": 5}, {"trait": "empathy", "change": 3}]}`).join(',')}
-]`,
-          };
-        }
-      }
-      
-      return validation;
-    },
+    // VALIDATION TOOL DISABLED (2025-10-27): Removing validate_story_response handler
+    // validate_story_response: async ({ storyData }) => {
+    //   // Handler removed to prevent validation tool calls
+    // },
   };
 
   while (true) {
