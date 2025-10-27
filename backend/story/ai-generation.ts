@@ -940,7 +940,10 @@ BESCHREIBUNG: ${stylePresetMeta.description}
 DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
     : "";
 
-  const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea. 
+  const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea.
+
+🌍 SPRACHE: ${config.language === 'en' ? 'Write the ENTIRE story in ENGLISH' : 'Schreibe die GESAMTE Geschichte auf DEUTSCH'} (title, description, chapters, all text content)
+⚠️ WICHTIG: Nur die imageDescription-Felder für Bilder müssen auf Englisch sein, ALLES andere auf ${config.language === 'en' ? 'English' : 'Deutsch'}!
 
 WORKFLOW (Schritt für Schritt):
 1. Rufe get_avatar_profiles auf (nur einmal!)
