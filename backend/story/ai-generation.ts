@@ -9,12 +9,14 @@ import type { Avatar, AvatarVisualProfile } from "../avatar/avatar";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
-import {
-  getMultipleAvatarProfiles,
-  getAvatarMemories,
-  validateStoryResponse,
-  type ValidationResult,
-} from "../helpers/mcpClient";
+import { avatarDB } from "../avatar/db";
+// MCP imports kept for potential future use, but not currently used
+// import {
+//   getMultipleAvatarProfiles,
+//   getAvatarMemories,
+//   validateStoryResponse,
+//   type ValidationResult,
+// } from "../helpers/mcpClient";
 import {
   normalizeAvatarIds,
   createFallbackProfile,
@@ -195,7 +197,6 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
 const DEFAULT_MODEL = "gpt-5-mini";
 
 const openAIKey = secret("OpenAIKey");
-const mcpServerApiKey = secret("MCPServerAPIKey");
 
 interface McpAvatarProfile {
   id: string;
@@ -212,6 +213,97 @@ interface McpAvatarMemory {
   emotionalImpact: "positive" | "negative" | "neutral";
   personalityChanges: Array<{ trait: string; change: number }>;
   createdAt: string;
+}
+
+// Direct DB access functions (replacing MCP calls)
+async function getAvatarProfilesFromDB(avatarIds: string[]): Promise<McpAvatarProfile[]> {
+  const profiles: McpAvatarProfile[] = [];
+
+  for (const avatarId of avatarIds) {
+    const row = await avatarDB.queryRow<{
+      id: string;
+      name: string;
+      visual_profile: string | null;
+    }>`
+      SELECT id, name, visual_profile FROM avatars WHERE id = ${avatarId}
+    `;
+
+    if (row) {
+      profiles.push({
+        id: row.id,
+        name: row.name,
+        visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
+      });
+    }
+  }
+
+  return profiles;
+}
+
+async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 10): Promise<McpAvatarMemory[]> {
+  // Create table if not exists
+  await avatarDB.exec`
+    CREATE TABLE IF NOT EXISTS avatar_memories (
+      id TEXT PRIMARY KEY,
+      avatar_id TEXT NOT NULL,
+      story_id TEXT,
+      story_title TEXT,
+      experience TEXT,
+      emotional_impact TEXT CHECK (emotional_impact IN ('positive', 'negative', 'neutral')),
+      personality_changes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (avatar_id) REFERENCES avatars(id) ON DELETE CASCADE
+    )
+  `;
+
+  // Get last 5 stories + last 5 dokus (max 10 total)
+  const memoryRowsGenerator = await avatarDB.query<{
+    id: string;
+    story_id: string;
+    story_title: string;
+    experience: string;
+    emotional_impact: 'positive' | 'negative' | 'neutral';
+    personality_changes: string;
+    created_at: string;
+  }>`
+    WITH stories AS (
+      SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
+      FROM avatar_memories
+      WHERE avatar_id = ${avatarId}
+        AND (experience LIKE '%aktiver Teilnehmer%' OR experience LIKE '%Geschichte%')
+        AND experience NOT LIKE '%Doku%'
+      ORDER BY created_at DESC
+      LIMIT 5
+    ),
+    dokus AS (
+      SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
+      FROM avatar_memories
+      WHERE avatar_id = ${avatarId}
+        AND experience LIKE '%Doku%'
+      ORDER BY created_at DESC
+      LIMIT 5
+    )
+    SELECT * FROM stories
+    UNION ALL
+    SELECT * FROM dokus
+    ORDER BY created_at DESC
+  `;
+
+  const memoryRows: any[] = [];
+  for await (const row of memoryRowsGenerator) {
+    memoryRows.push(row);
+  }
+
+  return memoryRows.map(row => ({
+    id: row.id,
+    avatarId: avatarId,
+    storyId: row.story_id,
+    storyTitle: row.story_title,
+    experience: row.experience,
+    emotionalImpact: row.emotional_impact,
+    personalityChanges: JSON.parse(row.personality_changes),
+    createdAt: row.created_at,
+  }));
 }
 
 type ExtendedAvatarDetails = Omit<
@@ -364,11 +456,6 @@ export const generateStoryContent = api<
 >(
   { expose: true, method: "POST", path: "/ai/generate-story" },
   async (req) => {
-    if (!req.clerkToken) {
-      throw new Error("Missing Clerk token for MCP integration");
-    }
-    const mcpApiKey = mcpServerApiKey();
-
     const startTime = Date.now();
 
     // Select model configuration
@@ -406,8 +493,6 @@ export const generateStoryContent = api<
       const storyOutcome = await generateStoryWithOpenAITools({
         config: req.config,
         avatars: req.avatarDetails,
-        clerkToken: req.clerkToken,
-        mcpApiKey,
       });
 
       metadata.tokensUsed = storyOutcome.usage ?? {
@@ -473,8 +558,8 @@ export const generateStoryContent = api<
       const missingProfiles = req.avatarDetails.filter((av: any) => !avatarProfilesByName[av.name]);
       
       if (Object.keys(avatarProfilesByName).length === 0) {
-        console.warn("[ai-generation] ⚠️ Keine Avatarprofile über Tool-Aufrufe erhalten – Fallback auf direkten MCP-Aufruf.");
-        const fallbackProfiles = await getMultipleAvatarProfiles(avatarIds, req.clerkToken, mcpApiKey);
+        console.warn("[ai-generation] ⚠️ Keine Avatarprofile über Tool-Aufrufe erhalten – Fallback auf direkten DB-Aufruf.");
+        const fallbackProfiles = await getAvatarProfilesFromDB(avatarIds);
         (fallbackProfiles as McpAvatarProfile[] | undefined)?.forEach((profile) => {
           if (profile?.name && profile.visualProfile) {
             avatarProfilesByName[profile.name] = profile.visualProfile;
@@ -895,10 +980,8 @@ function enforceAvatarDevelopments(
 async function generateStoryWithOpenAITools(args: {
   config: StoryConfig;
   avatars: ExtendedAvatarDetails[];
-  clerkToken: string;
-  mcpApiKey: string;
 }): Promise<StoryToolOutcome> {
-  const { config, avatars, clerkToken, mcpApiKey } = args;
+  const { config, avatars } = args;
 
   // Select model configuration
   const modelKey = config.aiModel || DEFAULT_MODEL;
@@ -1223,8 +1306,8 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
           }));
       }
 
-      console.log(`[get_avatar_profiles] 🔄 Fetching ${missingIds.length} missing profiles from MCP`);
-      const results = await getMultipleAvatarProfiles(missingIds, clerkToken, mcpApiKey);
+      console.log(`[get_avatar_profiles] 🔄 Fetching ${missingIds.length} missing profiles from DB`);
+      const results = await getAvatarProfilesFromDB(missingIds);
       if (Array.isArray(results)) {
         results.forEach((profile: any) => {
           if (profile?.id && profile?.visualProfile) {
@@ -1259,9 +1342,9 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
         return cached;
       }
 
-      console.log(`[get_avatar_memories] 🔄 Fetching memories for ${avatar_id} from MCP`);
+      console.log(`[get_avatar_memories] 🔄 Fetching memories for ${avatar_id} from DB`);
       const max = typeof limit === "number" ? Math.min(limit, MAX_TOOL_MEMORIES) : MAX_TOOL_MEMORIES;
-      const memories = await getAvatarMemories(avatar_id, clerkToken, mcpApiKey, max);
+      const memories = await getAvatarMemoriesFromDB(avatar_id, max);
       if (Array.isArray(memories)) {
         state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
         state.compressedMemoriesById.set(avatar_id, compressMemories(memories as McpAvatarMemory[]));
