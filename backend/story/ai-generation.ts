@@ -11,12 +11,9 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
 // MCP imports kept for potential future use, but not currently used
-// import {
-//   getMultipleAvatarProfiles,
-//   getAvatarMemories,
-//   validateStoryResponse,
-//   type ValidationResult,
-// } from "../helpers/mcpClient";
+import {
+  type ValidationResult,
+} from "../helpers/mcpClient";
 import {
   normalizeAvatarIds,
   createFallbackProfile,
@@ -1052,8 +1049,8 @@ ${systemStyleAddendum}
 
 🎨 STIL-KONFIGURATION (WICHTIG):
 ${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhythmische Strukturen! Der Text sollte sich wie der Grüffelo lesen - mit Reimen, die natürlich fließen und Spaß machen.` : `- KEINE REIME: Schreibe in Prosa, ohne gereimte Strukturen.`}
-${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 - ${config.suspenseLevel === 1 ? "Sehr sanft, beruhigend, ohne Konflikte" : config.suspenseLevel === 2 ? "Leichte Spannung mit schneller Auflösung" : config.suspenseLevel === 3 ? "Mittlere Spannung mit klaren Lösungen" : config.suspenseLevel === 4 ? "Spannend mit dramatischen Momenten" : "Sehr spannend mit großen Herausforderungen"}` : ""}
-${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 - ${config.humorLevel === 1 ? "Subtiler Humor, warmherzig" : config.humorLevel === 2 ? "Leicht humorvoll mit sanften Scherzen" : config.humorLevel === 3 ? "Humorvoll mit lustigen Situationen" : config.humorLevel === 4 ? "Sehr humorvoll mit viel Slapstick" : "Ultra witzig, voller Überraschungen und Wortspielen"}` : ""}
+${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 - ${config.suspenseLevel === 0 ? "Keine Spannung, sehr beruhigend" : config.suspenseLevel === 1 ? "Sehr sanft, beruhigend, ohne Konflikte" : config.suspenseLevel === 2 ? "Leichte Spannung mit schneller Auflösung" : config.suspenseLevel === 3 ? "Mittlere Spannung mit klaren Lösungen" : "Spannend mit dramatischen Momenten"}` : ""}
+${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 - ${config.humorLevel === 0 ? "Kein Humor, ernst" : config.humorLevel === 1 ? "Subtiler Humor, warmherzig" : config.humorLevel === 2 ? "Leicht humorvoll mit sanften Scherzen" : config.humorLevel === 3 ? "Humorvoll mit lustigen Situationen" : "Sehr humorvoll mit viel Slapstick"}` : ""}
 
 👥 CHARAKTERE:
 - Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
@@ -1147,8 +1144,8 @@ Konfigurationsdetails:
 - Lernmodus: ${config.learningMode?.enabled ?? false}
 - Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine"}
 ${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhythmische Strukturen (wie im Grüffelo)` : ""}
-${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 (${config.suspenseLevel === 1 ? "sanft" : config.suspenseLevel === 2 ? "leicht spannend" : config.suspenseLevel === 3 ? "mittel spannend" : config.suspenseLevel === 4 ? "spannend" : "sehr spannend"})` : ""}
-${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 (${config.humorLevel === 1 ? "subtil" : config.humorLevel === 2 ? "leicht humorvoll" : config.humorLevel === 3 ? "humorvoll" : config.humorLevel === 4 ? "sehr humorvoll" : "ultra witzig"})` : ""}
+${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 (${config.suspenseLevel === 0 ? "keine Spannung" : config.suspenseLevel === 1 ? "sanft" : config.suspenseLevel === 2 ? "leicht spannend" : config.suspenseLevel === 3 ? "mittel spannend" : "spannend"})` : ""}
+${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 (${config.humorLevel === 0 ? "ernst" : config.humorLevel === 1 ? "subtil" : config.humorLevel === 2 ? "leicht humorvoll" : config.humorLevel === 3 ? "humorvoll" : "sehr humorvoll"})` : ""}
 
 ${config.learningMode?.enabled ? `
 🎓 LERNMODUS AKTIV - Spezielle Anforderungen:
@@ -1321,7 +1318,7 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
   }
 
   await publishWithTimeout(logTopic, {
-    source: "openai-story-generation-direct",
+    source: "openai-story-generation",
     timestamp: new Date(),
     request: finalRequest,
     response: finalResponse,

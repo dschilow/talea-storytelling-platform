@@ -30,7 +30,7 @@ export async function translateToEnglish(text: string): Promise<string> {
         Authorization: `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-5-mini",
         messages: [
           {
             role: "system",
