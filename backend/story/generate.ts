@@ -142,15 +142,7 @@ export interface Story {
       total: number;
     };
   };
-  // Cost tracking (stored directly in DB columns)
-  tokensInput?: number;
-  tokensOutput?: number;
-  tokensTotal?: number;
-  costInputUSD?: number;
-  costOutputUSD?: number;
-  costTotalUSD?: number;
-  costMcpUSD?: number;
-  modelUsed?: string;
+  // Cost tracking is now logged to files instead of DB
   createdAt: Date;
   updatedAt: Date;
 }
@@ -363,6 +355,26 @@ export const generate = api<GenerateStoryRequest, Story>(
         totalCost: `$${totalCost.toFixed(4)}`,
       });
 
+      // Write cost data to log file
+      await logTopic("story-generation-costs", {
+        storyId: id,
+        userId: req.userId,
+        timestamp: new Date().toISOString(),
+        model: modelUsed,
+        tokens: {
+          input: tokensUsed.prompt || 0,
+          output: tokensUsed.completion || 0,
+          total: tokensUsed.total || 0,
+        },
+        costs: {
+          input_usd: inputCost,
+          output_usd: outputCost,
+          total_usd: totalCost,
+          mcp_usd: mcpCost,
+        },
+        title: generatedStory.title,
+      });
+
       // Update story with generated content
       console.log("[story.generate] Persisting story header into DB...");
       await storyDB.exec`
@@ -372,14 +384,6 @@ export const generate = api<GenerateStoryRequest, Story>(
             cover_image_url = ${generatedStory.coverImageUrl},
             avatar_developments = ${JSON.stringify(validatedDevelopments || [])},
             metadata = ${JSON.stringify(generatedStory.metadata)},
-            tokens_input = ${tokensUsed.prompt || 0},
-            tokens_output = ${tokensUsed.completion || 0},
-            tokens_total = ${tokensUsed.total || 0},
-            cost_input_usd = ${inputCost},
-            cost_output_usd = ${outputCost},
-            cost_total_usd = ${totalCost},
-            cost_mcp_usd = ${mcpCost},
-            model_used = ${modelUsed},
             status = 'complete',
             updated_at = ${new Date()}
         WHERE id = ${id}

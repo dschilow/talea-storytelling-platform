@@ -55,7 +55,9 @@
       "Bash(curl -s https://www.talea.website/log/list?limit=10)",
       "Bash(bun install:*)",
       "Bash(bun run:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(node:*)",
+      "Bash(git rm backend/story/migrate.ts backend/story/migrations/4_add_cost_tracking.up.sql backend/story/migrations/4_add_cost_tracking.down.sql)"
     ],
     "deny": [],
     "ask": []
