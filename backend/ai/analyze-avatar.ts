@@ -3,8 +3,102 @@ import { secret } from "encore.dev/config";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { normalizeLanguage } from "../story/avatar-image-optimization";
 
 const openAIKey = secret("OpenAIKey");
+
+/**
+ * Translates and validates visual profile to English
+ * Runware model was trained on English data only
+ */
+function translateVisualProfileToEnglish(profile: any): any {
+  if (!profile) return profile;
+
+  const translated = { ...profile };
+
+  // Translate characterType
+  if (translated.characterType) {
+    translated.characterType = normalizeLanguage(translated.characterType);
+  }
+
+  // Translate skin
+  if (translated.skin) {
+    translated.skin = {
+      ...translated.skin,
+      tone: normalizeLanguage(translated.skin.tone || ""),
+      undertone: normalizeLanguage(translated.skin.undertone || ""),
+      distinctiveFeatures: (translated.skin.distinctiveFeatures || []).map((f: string) => normalizeLanguage(f)),
+    };
+  }
+
+  // Translate hair
+  if (translated.hair) {
+    translated.hair = {
+      ...translated.hair,
+      color: normalizeLanguage(translated.hair.color || ""),
+      type: normalizeLanguage(translated.hair.type || ""),
+      style: normalizeLanguage(translated.hair.style || ""),
+    };
+  }
+
+  // Translate eyes
+  if (translated.eyes) {
+    translated.eyes = {
+      ...translated.eyes,
+      color: normalizeLanguage(translated.eyes.color || ""),
+      shape: normalizeLanguage(translated.eyes.shape || ""),
+    };
+  }
+
+  // Translate face
+  if (translated.face) {
+    translated.face = {
+      ...translated.face,
+      shape: normalizeLanguage(translated.face.shape || ""),
+      nose: normalizeLanguage(translated.face.nose || ""),
+      mouth: normalizeLanguage(translated.face.mouth || ""),
+      eyebrows: normalizeLanguage(translated.face.eyebrows || ""),
+      otherFeatures: (translated.face.otherFeatures || []).map((f: string) => normalizeLanguage(f)),
+    };
+  }
+
+  // Translate accessories
+  if (translated.accessories) {
+    translated.accessories = translated.accessories.map((a: string) => normalizeLanguage(a));
+  }
+
+  // Translate clothing
+  if (translated.clothingCanonical) {
+    translated.clothingCanonical = {
+      ...translated.clothingCanonical,
+      top: normalizeLanguage(translated.clothingCanonical.top || ""),
+      bottom: normalizeLanguage(translated.clothingCanonical.bottom || ""),
+      outfit: normalizeLanguage(translated.clothingCanonical.outfit || ""),
+      colors: (translated.clothingCanonical.colors || []).map((c: string) => normalizeLanguage(c)),
+      patterns: (translated.clothingCanonical.patterns || []).map((p: string) => normalizeLanguage(p)),
+    };
+  }
+
+  // Translate palette
+  if (translated.palette) {
+    translated.palette = {
+      primary: (translated.palette.primary || []).map((c: string) => normalizeLanguage(c)),
+      secondary: (translated.palette.secondary || []).map((c: string) => normalizeLanguage(c)),
+    };
+  }
+
+  // Translate consistent descriptors
+  if (translated.consistentDescriptors) {
+    translated.consistentDescriptors = translated.consistentDescriptors.map((d: string) => normalizeLanguage(d));
+  }
+
+  // Translate age
+  if (translated.ageApprox) {
+    translated.ageApprox = normalizeLanguage(translated.ageApprox);
+  }
+
+  return translated;
+}
 
 export interface AnalyzeAvatarImageRequest {
   imageUrl: string;
@@ -46,14 +140,23 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
       };
     }
 
-    const system = `Du bist ein Experte für visuelle Charakter-Profile in Geschichten und Illustrationen. Du erhältst ein Bild (Avatar), das ein Wesen darstellen kann – Mensch, Tier, Fantasiefigur oder Anime-Stil. Deine Aufgabe: Beschreibe den Avatar so präzise und konsistent wie möglich, damit er in allen zukünftigen Illustrationen gleich aussieht.
+    const system = `Du bist ein Experte für visuelle Charakter-Profile in Geschichten und Illustrationen. Du erhältst ein Bild (Avatar), das ein Wesen darstellen kann – Mensch, Tier, Roboter, Fantasiefigur, Obst, Gemüse, unbelebtes Objekt oder Anime-Stil. Deine Aufgabe: Beschreibe den Avatar so präzise und konsistent wie möglich, damit er in allen zukünftigen Illustrationen gleich aussieht.
+
+### KRITISCH: Charaktertyp-Identifikation
+- Identifiziere ZUERST den Charaktertyp präzise: Mensch, Tier (welche Art?), Roboter, Obst/Gemüse, Objekt, Fantasiewesen
+- Gib IMMER im "characterType" Feld den genauen Typ an (z.B. "human child", "orange tabby cat", "robot", "strawberry", "talking tree")
+- Beschreibe artspezifische Merkmale: z.B. bei Tieren -> Anzahl Beine, Fell/Federn, Schwanz, Schnauze
+- Bei Robotern -> Metallteile, Bildschirme, mechanische Gelenke
+- Bei Obst/Gemüse -> Fruchtform, Textur, Stiel, Blätter
+- Bei Menschen -> aufrecht auf zwei Beinen, menschliche Gesichtszüge, Hände mit 5 Fingern
 
 ### Regeln
 - Antworte streng nur als JSON im untenstehenden Schema, ohne zusätzlichen Text.
-- Beschreibe sichtbare Merkmale exakt: Haut/Fell/Federn/Schuppen (Farbe, Muster, Besonderheiten), Haare/Mähne, Augen, Gesichtsform, Hörner, Schnauze usw.
+- Beschreibe sichtbare Merkmale exakt: Haut/Fell/Federn/Schuppen/Metall/Fruchtoberfläche (Farbe, Muster, Besonderheiten), Haare/Mähne, Augen, Gesichtsform, Hörner, Schnauze usw.
 - Kleidung nur beschreiben, wenn klar sichtbar; ansonsten leer lassen.
 - Accessories (z. B. Brille, Schmuck, Rucksack) immer angeben, wenn vorhanden, sonst [].
 - consistentDescriptors: exakt 8–10 kurze Tokens (3–6 Wörter), die die wichtigsten visuellen Merkmale festhalten. Keine Kleidung, nur konstante körperliche Eigenschaften.
+- WICHTIG: Bei Tieren IMMER erwähnen: "quadruped" (4 Beine), "on four paws", "tail visible", artspezifische Merkmale
 - Nutze einfache, klare Begriffe, keine Markennamen oder urheberrechtlich geschützten Bezüge.
 
 ### Stil & Qualität
@@ -65,20 +168,25 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
 
     const userText = `Analysiere dieses Avatar-Bild und gib die kanonische Beschreibung exakt gemäß Schema als JSON aus.
 
+WICHTIG: Identifiziere zuerst den CHARACTER TYPE genau (Mensch/Tier/Roboter/Obst/etc) und beschreibe dann alle relevanten Merkmale.
+
 Falls Hinweise zu Avatar-Eigenschaften bereitgestellt werden, berücksichtige diese bei der Analyse und integriere sie in die Beschreibung, wenn sie mit dem sichtbaren Bild übereinstimmen oder es ergänzen.
 
 Schema:
 {
-  "ageApprox": "string (z. B. '5-7' oder 'unbekannt')",
+  "characterType": "string (PFLICHT: z.B. 'human child', 'orange tabby cat', 'robot', 'strawberry', 'talking tree', 'dragon')",
+  "speciesCategory": "human | animal | robot | plant | object | fantasy",
+  "locomotion": "bipedal | quadruped | flying | aquatic | stationary | other",
+  "ageApprox": "string (z. B. '5-7', '2-3 months old kitten', 'ancient', 'unbekannt')",
   "gender": "male | female | non-binary | unknown",
   "skin": {
-    "tone": "string (z. B. 'blass beige', 'blaues Fell')",
+    "tone": "string (z. B. 'pale beige', 'orange fur', 'metallic silver', 'red fruit skin')",
     "undertone": "string (optional)",
-    "distinctiveFeatures": ["string", ...]
+    "distinctiveFeatures": ["string", ...] // z.B. ["white belly patch", "striped pattern", "rust spots"]
   },
   "hair": {
     "color": "string",
-    "type": "straight|wavy|curly|coily|none",
+    "type": "straight|wavy|curly|coily|none|fur|feathers|leaves",
     "length": "short|medium|long|none",
     "style": "string"
   },
@@ -89,11 +197,11 @@ Schema:
   },
   "face": {
     "shape": "string",
-    "nose": "string",
-    "mouth": "string",
+    "nose": "string (oder 'snout', 'beak', 'button nose')",
+    "mouth": "string (oder 'muzzle', 'beak')",
     "eyebrows": "string (falls vorhanden)",
     "freckles": false,
-    "otherFeatures": ["string", ...]
+    "otherFeatures": ["string", ...] // z.B. ["long whiskers", "antenna", "screen display"]
   },
   "accessories": ["string", ...],
   "clothingCanonical": {
@@ -107,7 +215,7 @@ Schema:
     "primary": ["string", ...],
     "secondary": ["string", ...]
   },
-  "consistentDescriptors": ["string", ...] // genau 8-10 Tokens
+  "consistentDescriptors": ["string", ...] // genau 8-10 Tokens - WICHTIG bei Tieren: "quadruped on four paws", "tail visible", etc.
 }`;
 
     const hintsText = req.hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
@@ -325,6 +433,11 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     const processingTime = Date.now() - startTime;
     console.log(`✅ Analysis completed successfully in ${processingTime}ms`);
 
+    // CRITICAL: Translate visual profile to English for Runware compatibility
+    console.log(`🌐 Translating visual profile to English...`);
+    const translatedProfile = translateVisualProfileToEnglish(parsed);
+    console.log(`✅ Visual profile translated to English`);
+
     // Erweiterte Logs für bessere Analyse
     await publishWithTimeout(logTopic, {
       source: 'openai-avatar-analysis-stable',
@@ -343,7 +456,8 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       response: {
         tokensUsed: data.usage,
         success: true,
-        visualProfile: parsed,
+        visualProfileOriginal: parsed,
+        visualProfileTranslated: translatedProfile,
         rawContent: content,
         processingTimeMs: processingTime,
         fullOpenAIResponse: {
@@ -359,7 +473,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
 
     return {
       success: true,
-      visualProfile: parsed,
+      visualProfile: translatedProfile, // Return translated version for Runware
       tokensUsed: {
         prompt: data.usage?.prompt_tokens ?? 0,
         completion: data.usage?.completion_tokens ?? 0,

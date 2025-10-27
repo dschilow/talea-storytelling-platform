@@ -782,6 +782,10 @@ interface UsageTotals {
   prompt: number;
   completion: number;
   total: number;
+  inputCostUSD?: number;
+  outputCostUSD?: number;
+  totalCostUSD?: number;
+  modelUsed?: string;
 }
 
 interface StoryToolState {
@@ -1021,11 +1025,10 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
 🌍 SPRACHE: ${config.language === 'en' ? 'Write the ENTIRE story in ENGLISH' : 'Schreibe die GESAMTE Geschichte auf DEUTSCH'} (title, description, chapters, all text content)
 ⚠️ WICHTIG: Nur die imageDescription-Felder für Bilder müssen auf Englisch sein, ALLES andere auf ${config.language === 'en' ? 'English' : 'Deutsch'}!
 
-WORKFLOW (Schritt für Schritt):
-1. Rufe get_avatar_profiles auf (nur einmal!)
-2. Rufe get_avatar_memories für jeden Avatar auf (nur einmal pro Avatar!)
-3. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
-4. Gib die finale JSON-Antwort zurück
+WORKFLOW:
+1. Du erhältst alle benötigten Avatar-Daten bereits im Prompt
+2. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
+3. Gib die finale JSON-Antwort zurück
 
 WICHTIG:
 - Schreibe die KOMPLETTE Story BEVOR du antwortest!
@@ -1159,11 +1162,12 @@ ${config.learningMode?.enabled ? `
 Verfügbare Avatare:
 ${avatarSummary}
 
+AVATAR-DATEN (bereits geladen):
+Die visuellen Profile und Erinnerungen der Avatare sind bereits verfügbar und wurden in die Story-Generierung integriert.
+
 WORKFLOW:
-1. Rufe get_avatar_profiles EINMAL auf
-2. Rufe get_avatar_memories für JEDEN Avatar EINMAL auf
-3. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!)
-4. Gib die finale JSON-Antwort zurück
+1. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!) basierend auf den bereitgestellten Avatar-Daten
+2. Gib die finale JSON-Antwort zurück
 
 ❗ KRITISCH - avatarDevelopments (SEHR WICHTIG!):
 Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben - NICHT MEHR, NICHT WENIGER!
@@ -1199,68 +1203,40 @@ PFLICHT-BEISPIEL für diese Geschichte (GENAU SO FORMAT):
 
 FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
 
-  // VALIDATION TOOL DISABLED (2025-10-27): Removing validate_story_response to reduce token overhead
-  // Keep MCP tools for avatar profiles and memories
-  const tools = [
-    {
-      type: "function",
-      function: {
-        name: "get_avatar_profiles",
-        description:
-          "Liefert kanonische visuelle Profile (Aussehen) mehrerer Avatare für konsistente Bildbeschreibungen.",
-        parameters: {
-          type: "object",
-          properties: {
-            avatar_ids: {
-              type: "array",
-              items: { type: "string" },
-              description: "Liste der Avatar-IDs, die geladen werden sollen.",
-            },
-          },
-          required: ["avatar_ids"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "get_avatar_memories",
-        description:
-          "Liefert relevante Erinnerungen eines Avatars, um sie in der Geschichte zu berücksichtigen.",
-        parameters: {
-          type: "object",
-          properties: {
-            avatar_id: { type: "string", description: "ID des Avatars." },
-            limit: {
-              type: "integer",
-              minimum: 1,
-              maximum: 50,
-              description: "Maximale Anzahl an Erinnerungen (Standard 10).",
-            },
-          },
-          required: ["avatar_id"],
-        },
-      },
-    },
-    // {
-    //   type: "function",
-    //   function: {
-    //     name: "validate_story_response",
-    //     description:
-    //       "Validiert die fertige Story und liefert normalisierte Daten sowie Fehlermeldungen, falls das Format nicht passt.",
-    //     parameters: {
-    //       type: "object",
-    //       properties: {
-    //         storyData: {
-    //           type: "object",
-    //           description: "Die vollständige Story als JSON, die validiert werden soll.",
-    //         },
-    //       },
-    //       required: ["storyData"],
-    //     },
-    //   },
-    // },
-  ];
+  // TOOLS REMOVED (2025-10-27): No longer using OpenAI function calling for avatar data
+  // Avatar profiles and memories are now fetched directly from DB before prompt generation
+
+  // Fetch avatar profiles and memories directly from DB
+  console.log(`[ai-generation] 📦 Fetching avatar data from DB for ${avatars.length} avatars`);
+  const avatarIds = avatars.map(a => a.id);
+
+  const avatarProfiles = await getAvatarProfilesFromDB(avatarIds);
+  console.log(`[ai-generation] ✅ Fetched ${avatarProfiles.length} avatar profiles from DB`);
+
+  // Fetch memories for each avatar
+  const avatarMemoriesMap = new Map<string, McpAvatarMemory[]>();
+  for (const avatarId of avatarIds) {
+    const memories = await getAvatarMemoriesFromDB(avatarId, MAX_TOOL_MEMORIES);
+    avatarMemoriesMap.set(avatarId, memories);
+    console.log(`[ai-generation] ✅ Fetched ${memories.length} memories for avatar ${avatarId}`);
+  }
+
+  // Build profile and memory data for state (used later for image generation)
+  const state: StoryToolState = {
+    avatarProfilesById: new Map(),
+    avatarProfilesByName: new Map(),
+    compressedProfilesById: new Map(),
+    avatarMemoriesById: avatarMemoriesMap,
+    compressedMemoriesById: new Map(),
+    validatorFailures: 0,
+  };
+
+  avatarProfiles.forEach((profile: any) => {
+    if (profile?.id && profile?.visualProfile) {
+      state.avatarProfilesById.set(profile.id, profile.visualProfile);
+      state.avatarProfilesByName.set(profile.name, profile.visualProfile);
+    }
+  });
 
   const messages: Array<any> = [
     { role: "system", content: systemPrompt },
@@ -1268,260 +1244,111 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
   ];
 
   const usageTotals: UsageTotals = { prompt: 0, completion: 0, total: 0 };
-  const state: StoryToolState = {
-    avatarProfilesById: new Map(),
-    avatarProfilesByName: new Map(),
-    compressedProfilesById: new Map(),
-    avatarMemoriesById: new Map(),
-    compressedMemoriesById: new Map(),
-    validatorFailures: 0,
-  };
-
   let finalRequest: any = null;
   let finalResponse: any = null;
-  
-  // OPTIMIERT: Verhindert endlose Tool-Loops (max 15 Iterationen)
-  let loopIterations = 0;
-  const MAX_LOOP_ITERATIONS = 15;
 
-  const toolHandlers: Record<
-    string,
-    (args: Record<string, any>) => Promise<unknown>
-  > = {
-    get_avatar_profiles: async ({ avatar_ids }) => {
-      if (!Array.isArray(avatar_ids) || avatar_ids.length === 0) {
-        throw new Error("avatar_ids must be a non-empty array");
-      }
-
-      const missingIds = avatar_ids.filter((id) => !state.avatarProfilesById.has(id));
-      
-      // OPTIMIERT: Wenn bereits gecacht, gib sofort zurück ohne MCP-Aufruf
-      if (missingIds.length === 0) {
-        console.log(`[get_avatar_profiles] ✅ All ${avatar_ids.length} profiles already cached`);
-        return avatar_ids
-          .filter((id) => state.compressedProfilesById.has(id))
-          .map((id) => ({
-            avatarId: id,
-            ...(state.compressedProfilesById.get(id) as Record<string, unknown>),
-          }));
-      }
-
-      console.log(`[get_avatar_profiles] 🔄 Fetching ${missingIds.length} missing profiles from DB`);
-      const results = await getAvatarProfilesFromDB(missingIds);
-      if (Array.isArray(results)) {
-        results.forEach((profile: any) => {
-          if (profile?.id && profile?.visualProfile) {
-            state.avatarProfilesById.set(profile.id, profile.visualProfile);
-            state.compressedProfilesById.set(profile.id, {
-              name: profile.name,
-              ...compressVisualProfile(profile.visualProfile),
-            });
-          }
-          if (profile?.name && profile?.visualProfile) {
-            state.avatarProfilesByName.set(profile.name, profile.visualProfile);
-          }
-        });
-      }
-
-      return avatar_ids
-        .filter((id) => state.compressedProfilesById.has(id))
-        .map((id) => ({
-          avatarId: id,
-          ...(state.compressedProfilesById.get(id) as Record<string, unknown>),
-        }));
-    },
-    get_avatar_memories: async ({ avatar_id, limit }) => {
-      if (!avatar_id || typeof avatar_id !== "string") {
-        throw new Error("avatar_id must be provided as string");
-      }
-
-      // OPTIMIERT: Wenn bereits gecacht, gib sofort zurück ohne MCP-Aufruf
-      if (state.avatarMemoriesById.has(avatar_id)) {
-        const cached = state.compressedMemoriesById.get(avatar_id) ?? [];
-        console.log(`[get_avatar_memories] ✅ Memories for ${avatar_id} already cached (${cached.length} memories)`);
-        return cached;
-      }
-
-      console.log(`[get_avatar_memories] 🔄 Fetching memories for ${avatar_id} from DB`);
-      const max = typeof limit === "number" ? Math.min(limit, MAX_TOOL_MEMORIES) : MAX_TOOL_MEMORIES;
-      const memories = await getAvatarMemoriesFromDB(avatar_id, max);
-      if (Array.isArray(memories)) {
-        state.avatarMemoriesById.set(avatar_id, memories as McpAvatarMemory[]);
-        state.compressedMemoriesById.set(avatar_id, compressMemories(memories as McpAvatarMemory[]));
-      } else {
-        state.avatarMemoriesById.set(avatar_id, []);
-        state.compressedMemoriesById.set(avatar_id, []);
-      }
-
-      return state.compressedMemoriesById.get(avatar_id) ?? [];
-    },
-    // VALIDATION TOOL DISABLED (2025-10-27): Removing validate_story_response handler
-    // validate_story_response: async ({ storyData }) => {
-    //   // Handler removed to prevent validation tool calls
-    // },
+  const payload = {
+    model: modelConfig.name,
+    messages,
+    max_completion_tokens: modelConfig.maxCompletionTokens,
+    response_format: { type: "json_object" },
+    // Add reasoning_effort if supported by model
+    ...(modelConfig.supportsReasoningEffort ? { reasoning_effort: "medium" } : {}),
   };
 
-  while (true) {
-    loopIterations++;
-    
-    // OPTIMIERT: Verhindert endlose Schleifen
-    if (loopIterations > MAX_LOOP_ITERATIONS) {
-      console.error(`[ai-generation] ABBRUCH: Maximale Loop-Iterationen (${MAX_LOOP_ITERATIONS}) erreicht`);
-      throw new Error(`Story-Generierung abgebrochen nach ${MAX_LOOP_ITERATIONS} Iterationen. Möglicherweise Tool-Loop-Problem.`);
-    }
-    
-    const payload = {
-      model: modelConfig.name,
-      messages,
-      tools,
-      tool_choice: "auto" as const,
-      max_completion_tokens: modelConfig.maxCompletionTokens,
-      response_format: { type: "json_object" },
-      // Add reasoning_effort if supported by model
-      ...(modelConfig.supportsReasoningEffort ? { reasoning_effort: "medium" } : {}),
-    };
+  finalRequest = payload;
 
-    finalRequest = payload;
+  console.log(`[ai-generation] 🤖 Calling OpenAI API without tool calling`);
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify(payload),
+  });
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAIKey()}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = (await response.json()) as OpenAIResponse;
-    finalResponse = data;
-
-    if (data.usage) {
-      usageTotals.prompt += data.usage.prompt_tokens ?? 0;
-      usageTotals.completion += data.usage.completion_tokens ?? 0;
-      usageTotals.total += data.usage.total_tokens ?? 0;
-    }
-
-    const choice = data.choices?.[0];
-    if (!choice?.message) {
-      throw new Error("Ungültige Antwort von OpenAI (keine Nachricht im vollständigen Ergebnis).");
-    }
-
-    const toolCalls = (choice.message as any).tool_calls;
-    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-      messages.push(choice.message);
-
-      for (const toolCall of toolCalls) {
-        const functionName = toolCall?.function?.name;
-        const functionArgs = toolCall?.function?.arguments ?? "{}";
-
-        const handler = toolHandlers[functionName];
-        if (!handler) {
-          console.warn(`[ai-generation] Unbekanntes Tool angefordert: ${functionName}`);
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify({ error: `Tool ${functionName} ist nicht verfügbar.` }),
-          });
-          continue;
-        }
-
-        let parsedArgs: Record<string, any> = {};
-        try {
-          parsedArgs = JSON.parse(functionArgs || "{}");
-        } catch (error) {
-          console.error("[ai-generation] Konnte Tool-Argumente nicht parsen:", error);
-        }
-
-        try {
-          const result = await handler(parsedArgs);
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify(result ?? {}),
-          });
-        } catch (error) {
-          console.error(`[ai-generation] Toolausführung fehlgeschlagen (${functionName}):`, error);
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify({
-              error: (error as Error)?.message ?? "Unbekannter Fehler bei Toolausführung",
-            }),
-          });
-        }
-      }
-
-      continue;
-    }
-
-    if (choice.finish_reason === "content_filter") {
-      throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
-    }
-
-    if (choice.finish_reason === "length") {
-      throw new Error(
-        "Die Story-Generierung wurde wegen Token-Limit abgeschnitten. Bitte versuche es mit kürzeren Einstellungen."
-      );
-    }
-
-    const content = choice.message.content;
-    if (!content) {
-      throw new Error("Leere Antwort von OpenAI erhalten.");
-    }
-
-    let parsedStory: StoryToolOutcome["story"];
-    try {
-      const cleanContent = content.replace(/```json\s*/g, "").replace(/```$/g, "").trim();
-      let tempParsed: any = JSON.parse(cleanContent);
-      
-      // Unwrap if nested in storyData
-      if (tempParsed.storyData && !tempParsed.title) {
-        console.log('[ai-generation] Unwrapping nested storyData structure');
-        tempParsed = tempParsed.storyData;
-      }
-      
-      parsedStory = tempParsed;
-    } catch (error) {
-      throw new Error(
-        `JSON Parse Fehler: ${(error as Error)?.message ?? String(error)}`
-      );
-    }
-
-    await publishWithTimeout(logTopic, {
-      source: "openai-story-generation-mcp",
-      timestamp: new Date(),
-      request: finalRequest,
-      response: finalResponse,
-    });
-
-    // Calculate costs in USD
-    const inputCostUSD = (usageTotals.prompt / 1_000_000) * modelConfig.inputCostPer1M;
-    const outputCostUSD = (usageTotals.completion / 1_000_000) * modelConfig.outputCostPer1M;
-    const totalCostUSD = inputCostUSD + outputCostUSD;
-
-    console.log(`[ai-generation] 💰 Cost breakdown:`);
-    console.log(`  Input: ${usageTotals.prompt} tokens × $${modelConfig.inputCostPer1M}/1M = $${inputCostUSD.toFixed(4)}`);
-    console.log(`  Output: ${usageTotals.completion} tokens × $${modelConfig.outputCostPer1M}/1M = $${outputCostUSD.toFixed(4)}`);
-    console.log(`  Total: $${totalCostUSD.toFixed(4)}`);
-
-    return {
-      story: parsedStory,
-      usage: {
-        ...usageTotals,
-        inputCostUSD,
-        outputCostUSD,
-        totalCostUSD,
-        modelUsed: modelConfig.name,
-      },
-      state,
-      finalRequest,
-      finalResponse,
-    };
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
   }
+
+  const data = (await response.json()) as OpenAIResponse;
+  finalResponse = data;
+
+  if (data.usage) {
+    usageTotals.prompt = data.usage.prompt_tokens ?? 0;
+    usageTotals.completion = data.usage.completion_tokens ?? 0;
+    usageTotals.total = data.usage.total_tokens ?? 0;
+  }
+
+  const choice = data.choices?.[0];
+  if (!choice?.message) {
+    throw new Error("Ungültige Antwort von OpenAI (keine Nachricht im vollständigen Ergebnis).");
+  }
+
+  if (choice.finish_reason === "content_filter") {
+    throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
+  }
+
+  if (choice.finish_reason === "length") {
+    throw new Error(
+      "Die Story-Generierung wurde wegen Token-Limit abgeschnitten. Bitte versuche es mit kürzeren Einstellungen."
+    );
+  }
+
+  const content = choice.message.content;
+  if (!content) {
+    throw new Error("Leere Antwort von OpenAI erhalten.");
+  }
+
+  let parsedStory: StoryToolOutcome["story"];
+  try {
+    const cleanContent = content.replace(/```json\s*/g, "").replace(/```$/g, "").trim();
+    let tempParsed: any = JSON.parse(cleanContent);
+
+    // Unwrap if nested in storyData
+    if (tempParsed.storyData && !tempParsed.title) {
+      console.log('[ai-generation] Unwrapping nested storyData structure');
+      tempParsed = tempParsed.storyData;
+    }
+
+    parsedStory = tempParsed;
+  } catch (error) {
+    throw new Error(
+      `JSON Parse Fehler: ${(error as Error)?.message ?? String(error)}`
+    );
+  }
+
+  await publishWithTimeout(logTopic, {
+    source: "openai-story-generation-direct",
+    timestamp: new Date(),
+    request: finalRequest,
+    response: finalResponse,
+  });
+
+  // Calculate costs in USD
+  const inputCostUSD = (usageTotals.prompt / 1_000_000) * modelConfig.inputCostPer1M;
+  const outputCostUSD = (usageTotals.completion / 1_000_000) * modelConfig.outputCostPer1M;
+  const totalCostUSD = inputCostUSD + outputCostUSD;
+
+  console.log(`[ai-generation] 💰 Cost breakdown:`);
+  console.log(`  Input: ${usageTotals.prompt} tokens × $${modelConfig.inputCostPer1M}/1M = $${inputCostUSD.toFixed(4)}`);
+  console.log(`  Output: ${usageTotals.completion} tokens × $${modelConfig.outputCostPer1M}/1M = $${outputCostUSD.toFixed(4)}`);
+  console.log(`  Total: $${totalCostUSD.toFixed(4)}`);
+
+  return {
+    story: parsedStory,
+    usage: {
+      ...usageTotals,
+      inputCostUSD,
+      outputCostUSD,
+      totalCostUSD,
+      modelUsed: modelConfig.name,
+    },
+    state,
+    finalRequest,
+    finalResponse,
+  };
 }
 

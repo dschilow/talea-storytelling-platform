@@ -20,16 +20,26 @@ interface GenerateAvatarImageResponse {
 export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvatarImageResponse>(
   { expose: true, method: "POST", path: "/ai/generate-avatar" },
   async (req) => {
+    // CRITICAL: Validate and translate user input to English for Runware compatibility
+    console.log("🌐 Validating and translating user input to English...");
+    const translatedCharacterType = normalizeLanguage(req.characterType || "");
+    const translatedAppearance = normalizeLanguage(req.appearance || "");
+
+    console.log("Original character type:", req.characterType);
+    console.log("Translated character type:", translatedCharacterType);
+    console.log("Original appearance:", req.appearance);
+    console.log("Translated appearance:", translatedAppearance);
+
     const prompt = buildAvatarPrompt(
-      req.characterType,
-      req.appearance,
+      translatedCharacterType,
+      translatedAppearance,
       req.personalityTraits,
       req.style
     );
 
-    console.log("🎨 Generating avatar with prompt:", prompt);
-    console.log("👤 Character Type:", req.characterType);
-    console.log("🎨 Appearance:", req.appearance);
+    console.log("🎨 Generating avatar with translated prompt:", prompt);
+    console.log("👤 Character Type:", translatedCharacterType);
+    console.log("🎨 Appearance:", translatedAppearance);
     console.log("🧠 Personality traits:", JSON.stringify(req.personalityTraits, null, 2));
     console.log("🎭 Style:", req.style);
 

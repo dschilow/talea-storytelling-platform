@@ -659,6 +659,7 @@ export function formatSceneStyleBlockAsPrompt(block: SceneStyleBlock): string {
 
 /**
  * Complete image prompt builder combining characters + scene/style
+ * NEW FORMAT: CHARACTERS / SCENE / COMPOSITION / LIGHTING / MOOD
  */
 export interface CompleteImagePromptOptions {
   characters: Array<{
@@ -676,6 +677,9 @@ export interface CompleteImagePromptOptions {
     style?: string;
     quality?: string;
     backgroundStyle?: string;
+    composition?: string;
+    lighting?: string;
+    mood?: string;
   };
 }
 
@@ -718,6 +722,76 @@ const defaultActionBySpecies: Record<SpeciesType, string> = {
   animal: "moves naturally through the scene",
 };
 
+/**
+ * Builds detailed character description for structured prompt format
+ * Example: "Diego (orange tabby KITTEN - feline quadruped on four paws, white belly, green eyes, long whiskers, curved tail)"
+ */
+function buildStructuredCharacterLine(block: CharacterBlock): string {
+  const parts: string[] = [];
+
+  // Determine species type with proper formatting
+  let speciesType = "";
+  if (block.species === "cat") {
+    speciesType = "KITTEN - feline quadruped on four paws";
+  } else if (block.species === "dog") {
+    speciesType = "DOG - canine quadruped on four legs";
+  } else if (block.species === "animal") {
+    speciesType = "ANIMAL - natural quadruped";
+  } else {
+    // Human
+    speciesType = `HUMAN ${block.ageHint || "child"}, standing on two legs like humans do, NO animal features`;
+  }
+
+  // Build detailed physical description
+  const physicalTraits: string[] = [];
+
+  if (block.species === "cat" || block.species === "dog" || block.species === "animal") {
+    // Animal descriptions
+    if (block.detailedDescription) {
+      physicalTraits.push(block.detailedDescription);
+    }
+    // Add must-include traits
+    block.mustInclude.slice(0, 4).forEach(trait => {
+      if (!physicalTraits.some(p => p.includes(trait))) {
+        physicalTraits.push(trait);
+      }
+    });
+  } else {
+    // Human descriptions
+    if (block.detailedDescription) {
+      physicalTraits.push(block.detailedDescription);
+    }
+    block.mustInclude.slice(0, 3).forEach(trait => {
+      if (!physicalTraits.some(p => p.includes(trait))) {
+        physicalTraits.push(trait);
+      }
+    });
+  }
+
+  const physicalDesc = physicalTraits.join(", ");
+
+  // Build action description
+  const actionDesc = block.action || block.pose || "";
+
+  // Format: "Name (species type - physical traits) action"
+  let line = `${normalizeLanguage(block.name)} (${speciesType}`;
+  if (physicalDesc) {
+    line += `, ${physicalDesc}`;
+  }
+  line += ")";
+
+  if (actionDesc) {
+    line += ` ${normalizeLanguage(actionDesc)}`;
+  }
+
+  // Add expression if provided
+  if (block.expression) {
+    line += `, ${normalizeLanguage(block.expression)}`;
+  }
+
+  return line;
+}
+
 export function buildCompleteImagePrompt(
   options: CompleteImagePromptOptions
 ): string {
@@ -740,55 +814,61 @@ export function buildCompleteImagePrompt(
     ...styleOverrides,
   };
 
+  // NEW STRUCTURED FORMAT: CHARACTERS / SCENE / COMPOSITION / LIGHTING / MOOD
+
+  // 1. CHARACTERS - Detailed description of each avatar
+  const characterLines = blocks.map(block => buildStructuredCharacterLine(block));
+  const charactersSection = `CHARACTERS: ${characterLines.join(" ")}`;
+
+  // 2. SCENE - Setting and environment description
+  const sceneText = options.scene ? limitSentences(options.scene, 2) : sceneStyle.scene;
+  const sceneSection = `SCENE: ${normalizeLanguage(sceneText)}. ${normalizeLanguage(sceneStyle.background)}`;
+
+  // 3. COMPOSITION - Positioning, camera angle, depth layers
   const compositionParts: string[] = [];
-  const sceneText = options.scene ? limitSentences(options.scene, 2) : "";
-  if (sceneText) {
-    compositionParts.push(sceneText);
+
+  // Position information
+  const positionInfo = blocks.map(block => {
+    const pos = block.position || "center";
+    return `${normalizeLanguage(block.name)} ${normalizeLanguage(pos)}`;
+  }).join(", ");
+  compositionParts.push(positionInfo);
+
+  // Camera and framing
+  compositionParts.push("child-height eye-level perspective");
+  compositionParts.push("gentle depth of field");
+
+  // Custom composition if provided
+  if (options.customStyle?.composition) {
+    compositionParts.push(normalizeLanguage(options.customStyle.composition));
   }
-  const positionSummary = blocks
-    .map((block) =>
-      block.position
-        ? `${block.name} ${block.position}`
-        : `${block.name} within scene`
-    )
-    .join(", ");
-  if (positionSummary) {
-    compositionParts.push(normalizeLanguage(positionSummary));
-  }
 
-  const compositionSummary = [sceneStyle.composition, ...compositionParts]
-    .filter(Boolean)
-    .map((line) => normalizeLanguage(line))
-    .join(". ");
+  const compositionSection = `COMPOSITION: ${compositionParts.join(". ")}`;
 
-  const characterLines = blocks
-    .map((block) => formatCharacterNarrativeLine(block))
-    .filter((line) => line.length > 0);
+  // 4. LIGHTING - Light direction, quality, mood lighting
+  const lightingText = options.customStyle?.lighting || sceneStyle.lighting;
+  const lightingSection = `LIGHTING: ${normalizeLanguage(lightingText)}`;
 
+  // 5. MOOD - Emotional atmosphere
+  const moodText = options.customStyle?.mood || sceneStyle.atmosphere;
+  const moodSection = `MOOD: ${normalizeLanguage(moodText)}`;
+
+  // Build final prompt with sections
   const sections = [
-    normalizeLanguage(
-      `${sceneStyle.masterStyle}. ${sceneStyle.mediumDetails}`
-    ),
-    normalizeLanguage(`PALETTE ${sceneStyle.colorAndLight}`),
-    normalizeLanguage(`MOOD ${sceneStyle.atmosphere}`),
-    normalizeLanguage(`SCENE ${sceneText || sceneStyle.scene}`),
-    normalizeLanguage(`BACKGROUND ${sceneStyle.background}`),
-    normalizeLanguage(`COMPOSITION ${compositionSummary}`),
-    normalizeLanguage(`LIGHTING ${sceneStyle.lighting}`),
-    characterLines.length
-      ? normalizeLanguage(`CHARACTERS ${characterLines.join(" | ")}`)
-      : "",
+    charactersSection,
+    sceneSection,
+    compositionSection,
+    lightingSection,
+    moodSection,
+    // Quality guards
     buildSpeciesGuardLine(blocks),
-    normalizeLanguage(
-      `QUALITY ${sceneStyle.qualityGuards}. FINISH ${sceneStyle.storybookFinish}. No text or typography.`
-    ),
-    "CAMERA child-height eye-level perspective, gentle depth of field.",
-    "TONE warm storytelling picture-book illustration, child-safe.",
-  ].filter((section) => section && section.trim().length > 0);
+    normalizeLanguage(`${sceneStyle.masterStyle}. ${sceneStyle.mediumDetails}`),
+    "No text or typography in image.",
+  ].filter(Boolean);
 
-  const rawPrompt = sections.join(" ").replace(/\s+/g, " ").trim();
+  const rawPrompt = sections.join("\n\n").replace(/\s+/g, " ").trim();
   const asciiPrompt = ensureAscii(rawPrompt);
-  return clampPromptLength(asciiPrompt, 1200);
+  return clampPromptLength(asciiPrompt, 1500); // Increased limit for structured format
 }
 
 function formatCharacterNarrativeLine(block: CharacterBlock): string {
