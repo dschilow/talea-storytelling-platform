@@ -94,21 +94,25 @@ export function buildEnhancedAnalysisPrompt(
   }
 ): string {
 
-  const hintsText = hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
-\${hints.name ? \`- Name des Avatars: \${hints.name}\` : ""}
-\${hints.physicalTraits ? \`- Physische Eigenschaften vom Ersteller: \${JSON.stringify(hints.physicalTraits, null, 2)}\` : ""}
-\${hints.personalityTraits ? \`- Persönlichkeitsmerkmale: \${JSON.stringify(hints.personalityTraits, null, 2)}\` : ""}
-\${hints.expectedType ? \`- Erwarteter Charakter-Typ: \${hints.expectedType}\` : ""}
-\${hints.culturalContext ? \`- Kultureller Kontext: \${hints.culturalContext}\` : ""}
-\${hints.stylePreference ? \`- Stil-Präferenz: \${hints.stylePreference}\` : ""}
+  let hintsText = "";
 
-Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild übereinstimmen oder es sinnvoll ergänzen.` : "";
+  if (hints) {
+    hintsText = `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
+${hints.name ? `- Name des Avatars: ${hints.name}` : ""}
+${hints.physicalTraits ? `- Physische Eigenschaften vom Ersteller: ${JSON.stringify(hints.physicalTraits, null, 2)}` : ""}
+${hints.personalityTraits ? `- Persönlichkeitsmerkmale: ${JSON.stringify(hints.personalityTraits, null, 2)}` : ""}
+${hints.expectedType ? `- Erwarteter Charakter-Typ: ${hints.expectedType}` : ""}
+${hints.culturalContext ? `- Kultureller Kontext: ${hints.culturalContext}` : ""}
+${hints.stylePreference ? `- Stil-Präferenz: ${hints.stylePreference}` : ""}
 
-  return \`\${ENHANCED_AVATAR_ANALYSIS_PROMPT}
+Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild übereinstimmen oder es sinnvoll ergänzen.`;
+  }
 
-\${hintsText}
+  return `${ENHANCED_AVATAR_ANALYSIS_PROMPT}
 
-Analysiere das Avatar-Bild und gib die kanonische Beschreibung exakt gemäß StandardizedAvatarAnalysis Schema als JSON aus.\`;
+${hintsText}
+
+Analysiere das Avatar-Bild und gib die kanonische Beschreibung exakt gemäß StandardizedAvatarAnalysis Schema als JSON aus.`;
 }
 
 /**
