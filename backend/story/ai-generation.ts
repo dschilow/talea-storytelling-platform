@@ -946,12 +946,10 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
 ⚠️ WICHTIG: Nur die imageDescription-Felder für Bilder müssen auf Englisch sein, ALLES andere auf ${config.language === 'en' ? 'English' : 'Deutsch'}!
 
 WORKFLOW (Schritt für Schritt):
-1. Rufe get_avatar_profiles auf (nur einmal!)
-2. Rufe get_avatar_memories für jeden Avatar auf (nur einmal pro Avatar!)
-3. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
-4. Validiere mit validate_story_response (sende die KOMPLETTE Story im storyData-Feld!)
-5. Bei Fehlern: korrigiere und validiere erneut
-6. Gib die finale JSON-Antwort zurück
+1. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
+2. Validiere mit validate_story_response (sende die KOMPLETTE Story im storyData-Feld!)
+3. Bei Fehlern: korrigiere und validiere erneut
+4. Gib die finale JSON-Antwort zurück
 
 STILRICHTLINIEN (v1.2 - SEHR WICHTIG!):
 📖 ERZÄHLSTIL:
@@ -1080,11 +1078,9 @@ Verfügbare Avatare:
 ${avatarSummary}
 
 WORKFLOW:
-1. Rufe get_avatar_profiles EINMAL auf
-2. Rufe get_avatar_memories für JEDEN Avatar EINMAL auf
-3. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!)
-4. Validiere mit validate_story_response (sende die komplette Story!)
-5. Gib die finale JSON-Antwort zurück
+1. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!)
+2. Validiere mit validate_story_response (sende die komplette Story!)
+3. Gib die finale JSON-Antwort zurück
 
 ❗ KRITISCH - avatarDevelopments (SEHR WICHTIG!):
 Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben - NICHT MEHR, NICHT WENIGER!
@@ -1120,47 +1116,48 @@ PFLICHT-BEISPIEL für diese Geschichte (GENAU SO FORMAT):
 
 FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
 
+  // MCP TOOLS DISABLED (2025-10-27): Testing without MCP to reduce token overhead
   const tools = [
-    {
-      type: "function",
-      function: {
-        name: "get_avatar_profiles",
-        description:
-          "Liefert kanonische visuelle Profile (Aussehen) mehrerer Avatare für konsistente Bildbeschreibungen.",
-        parameters: {
-          type: "object",
-          properties: {
-            avatar_ids: {
-              type: "array",
-              items: { type: "string" },
-              description: "Liste der Avatar-IDs, die geladen werden sollen.",
-            },
-          },
-          required: ["avatar_ids"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "get_avatar_memories",
-        description:
-          "Liefert relevante Erinnerungen eines Avatars, um sie in der Geschichte zu berücksichtigen.",
-        parameters: {
-          type: "object",
-          properties: {
-            avatar_id: { type: "string", description: "ID des Avatars." },
-            limit: {
-              type: "integer",
-              minimum: 1,
-              maximum: 50,
-              description: "Maximale Anzahl an Erinnerungen (Standard 10).",
-            },
-          },
-          required: ["avatar_id"],
-        },
-      },
-    },
+    // {
+    //   type: "function",
+    //   function: {
+    //     name: "get_avatar_profiles",
+    //     description:
+    //       "Liefert kanonische visuelle Profile (Aussehen) mehrerer Avatare für konsistente Bildbeschreibungen.",
+    //     parameters: {
+    //       type: "object",
+    //       properties: {
+    //         avatar_ids: {
+    //           type: "array",
+    //           items: { type: "string" },
+    //           description: "Liste der Avatar-IDs, die geladen werden sollen.",
+    //         },
+    //       },
+    //       required: ["avatar_ids"],
+    //     },
+    //   },
+    // },
+    // {
+    //   type: "function",
+    //   function: {
+    //     name: "get_avatar_memories",
+    //     description:
+    //       "Liefert relevante Erinnerungen eines Avatars, um sie in der Geschichte zu berücksichtigen.",
+    //     parameters: {
+    //       type: "object",
+    //       properties: {
+    //         avatar_id: { type: "string", description: "ID des Avatars." },
+    //         limit: {
+    //           type: "integer",
+    //           minimum: 1,
+    //           maximum: 50,
+    //           description: "Maximale Anzahl an Erinnerungen (Standard 10).",
+    //         },
+    //       },
+    //       required: ["avatar_id"],
+    //     },
+    //   },
+    // },
     {
       type: "function",
       function: {
