@@ -58,7 +58,6 @@ Output: "Diego is an orange cat with white belly"`,
           },
         ],
         max_completion_tokens: 1000,
-        temperature: 0.3, // Lower temperature for more consistent translation
       }),
     });
 
