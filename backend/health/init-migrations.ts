@@ -259,14 +259,14 @@ export const initializeDatabaseMigrations = api(
     try {
       console.log("=== Running Talea Database Migrations ===");
 
-      // Import database dynamically to avoid circular dependencies
-      const { default: userDb } = await import("../user/profile");
-      
+      // Use story database for migrations (all services share same DB in Railway)
+      const { storyDB } = await import("../story/db");
+
       // Check if users table already exists
-      const result = await userDb.queryRow<{ exists: boolean }>`
+      const result = await storyDB.queryRow<{ exists: boolean }>`
         SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
           AND table_name = 'users'
         );
       `;
@@ -286,15 +286,15 @@ export const initializeDatabaseMigrations = api(
       for (let i = 0; i < MIGRATION_STATEMENTS.length; i++) {
         const statement = MIGRATION_STATEMENTS[i];
         const preview = statement.substring(0, 80).replace(/\s+/g, ' ');
-        
+
         try {
           console.log(`  [${i + 1}/${MIGRATION_STATEMENTS.length}] ${preview}...`);
-          await userDb.exec(statement);
+          await storyDB.exec(statement);
           successCount++;
         } catch (err: any) {
           // If error is "already exists", that's OK - continue
           if (err.message && (
-            err.message.includes('already exists') || 
+            err.message.includes('already exists') ||
             err.message.includes('duplicate')
           )) {
             console.log(`    ⚠️  Already exists (skipping)`);
