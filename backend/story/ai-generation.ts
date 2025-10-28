@@ -38,7 +38,6 @@ import {
   type VisionQAExpectation,
   type VisionQAResult,
 } from "./vision-qa";
-import { enrichImageDescriptionWithSpecies } from "./image-description-enricher";
 
 interface StylePresetMeta {
   inspiration: string;
@@ -339,48 +338,190 @@ interface OpenAIResponse {
   };
 }
 
+interface ImageCharacterBeat {
+  name: string;
+  action: string;
+  expression?: string;
+  position?: string;
+  pose?: string;
+  clothingHint?: string;
+  ageGuard?: string;
+}
+
+interface ImageEnvironmentLayers {
+  foreground: string[];
+  midground: string[];
+  background: string[];
+}
+
+interface ImageAtmosphere {
+  weather: string;
+  lighting: string;
+  season: string;
+  mood: string;
+  sensoryDetails?: string[];
+}
+
+interface ImageComposition {
+  camera: string;
+  perspective: string;
+  focalPoints: string[];
+  movement?: string;
+  depth?: string;
+}
+
 interface ChapterImageDescription {
   scene: string;
   characters: {
-    [name: string]: {
-      position?: string;
-      expression?: string;
-      action?: string;
-      clothing?: string;
+    protagonists: ImageCharacterBeat[];
+    supporting: ImageCharacterBeat[];
+  };
+  environment: ImageEnvironmentLayers;
+  props: string[];
+  atmosphere: ImageAtmosphere;
+  composition: ImageComposition;
+  storytellingDetails?: string[];
+  recurringElement?: string;
+}
+
+interface ImagePromptContext {
+  summary: string;
+  protagonistLines: string[];
+  supportingLines: string[];
+  environmentLayers?: ImageEnvironmentLayers;
+  props: string[];
+  atmosphereLines: string[];
+  recurringElementNote?: string;
+  storytellingDetails: string[];
+}
+
+function describeCharacter(group: ImageCharacterBeat[], label: string): string[] {
+  if (!Array.isArray(group) || group.length === 0) {
+    return [];
+  }
+
+  return group.map((entry) => {
+    const parts: string[] = [label + ": " + entry.name];
+    if (entry.action) parts.push(entry.action);
+    if (entry.position) parts.push("position " + entry.position);
+    if (entry.expression) parts.push("expression " + entry.expression);
+    if (entry.pose) parts.push("pose " + entry.pose);
+    if (entry.clothingHint) parts.push("clothing " + entry.clothingHint);
+    if (entry.ageGuard) parts.push(entry.ageGuard);
+    return parts.join(", ");
+  });
+}
+
+function summarizeAtmosphere(atmosphere?: ImageAtmosphere): string[] {
+  if (!atmosphere) return [];
+  const lines: string[] = [];
+  if (atmosphere.weather) lines.push("Weather: " + atmosphere.weather);
+  if (atmosphere.lighting) lines.push("Lighting: " + atmosphere.lighting);
+  if (atmosphere.season) lines.push("Season: " + atmosphere.season);
+  if (atmosphere.mood) lines.push("Mood: " + atmosphere.mood);
+  if (Array.isArray(atmosphere.sensoryDetails) && atmosphere.sensoryDetails.length > 0) {
+    lines.push("Sensory: " + atmosphere.sensoryDetails.join(", "));
+  }
+  return lines;
+}
+
+function summarizeEnvironment(layers?: ImageEnvironmentLayers): string[] {
+  if (!layers) return [];
+  const lines: string[] = [];
+  if (Array.isArray(layers.foreground) && layers.foreground.length > 0) {
+    lines.push("Foreground: " + layers.foreground.join(", "));
+  }
+  if (Array.isArray(layers.midground) && layers.midground.length > 0) {
+    lines.push("Midground: " + layers.midground.join(", "));
+  }
+  if (Array.isArray(layers.background) && layers.background.length > 0) {
+    lines.push("Background: " + layers.background.join(", "));
+  }
+  return lines;
+}
+
+function extractImagePromptContext(description?: ChapterImageDescription): ImagePromptContext {
+  if (!description) {
+    return {
+      summary: "",
+      protagonistLines: [],
+      supportingLines: [],
+      environmentLayers: undefined,
+      props: [],
+      atmosphereLines: [],
+      recurringElementNote: undefined,
+      storytellingDetails: [],
     };
-  };
-  environment: {
-    setting?: string;
-    lighting?: string;
-    atmosphere?: string;
-    objects?: string[];
-  };
-  composition?: {
-    foreground?: string;
-    background?: string;
-    focus?: string;
+  }
+
+  const protagonistLines = describeCharacter(description.characters?.protagonists ?? [], "Protagonist");
+  const supportingLines = describeCharacter(description.characters?.supporting ?? [], "Supporting");
+
+  const narrativePieces: string[] = [];
+  if (description.scene) {
+    narrativePieces.push(description.scene);
+  }
+
+  const actionHighlights = [
+    ...protagonistLines.map((line) => line.replace(/^Protagonist: /, "")),
+    ...supportingLines.map((line) => line.replace(/^Supporting: /, "")),
+  ];
+  if (actionHighlights.length > 0) {
+    narrativePieces.push("Actions: " + actionHighlights.join(" | "));
+  }
+
+  const environmentSummary = summarizeEnvironment(description.environment);
+  if (environmentSummary.length > 0) {
+    narrativePieces.push(environmentSummary.join(" | "));
+  }
+
+  if (Array.isArray(description.props) && description.props.length > 0) {
+    narrativePieces.push("Props: " + description.props.join(", "));
+  }
+
+  const atmosphereLines = summarizeAtmosphere(description.atmosphere);
+  if (atmosphereLines.length > 0) {
+    narrativePieces.push(atmosphereLines.join(" | "));
+  }
+
+  if (description.recurringElement) {
+    narrativePieces.push("Recurring element: " + description.recurringElement);
+  }
+
+  if (Array.isArray(description.storytellingDetails) && description.storytellingDetails.length > 0) {
+    narrativePieces.push("Story notes: " + description.storytellingDetails.join(", "));
+  }
+
+  const summary = narrativePieces.join(" ");
+
+  return {
+    summary,
+    protagonistLines,
+    supportingLines,
+    environmentLayers: description.environment,
+    props: Array.isArray(description.props) ? description.props : [],
+    atmosphereLines,
+    recurringElementNote: description.recurringElement,
+    storytellingDetails: Array.isArray(description.storytellingDetails)
+      ? description.storytellingDetails
+      : [],
   };
 }
 
 interface CoverImageDescription {
-  mainScene: string;
+  scene: string;
   characters: {
-    [name: string]: {
-      position?: string;
-      expression?: string;
-      pose?: string;
-    };
+    protagonists: ImageCharacterBeat[];
+    supporting: ImageCharacterBeat[];
   };
-  environment: {
-    setting?: string;
-    mood?: string;
-    colorPalette?: string[];
-  };
-  composition?: {
-    layout?: string;
+  environment: ImageEnvironmentLayers;
+  props: string[];
+  atmosphere: ImageAtmosphere;
+  composition: ImageComposition & {
     titleSpace?: string;
-    visualFocus?: string;
+    layout?: string;
   };
+  storytellingDetails?: string[];
 }
 
 interface AvatarDevelopment {
@@ -399,13 +540,43 @@ interface LearningOutcome {
   practical_applications: string[];
 }
 
+interface SupportingCharacterSummary {
+  name: string;
+  role: string;
+  personality: string;
+  appearance: string;
+  motivation?: string;
+  recurringElementUsage?: string;
+}
+
+interface StoryRecurringElement {
+  name: string;
+  description: string;
+  payoffChapter: number;
+}
+
+interface ChapterBeatSummary {
+  order: number;
+  focus: string;
+  conflict: string;
+  surprise: string;
+  supportingCast: string[];
+  environmentHighlights: string[];
+  cliffhanger: string;
+  sensoryDetails: string[];
+}
+
 interface GenerateStoryContentResponse {
   title: string;
   description: string;
   coverImageUrl: string;
   coverImageDescription: CoverImageDescription;
+  supportingCharacters: SupportingCharacterSummary[];
+  recurringElement: StoryRecurringElement;
+  plotBeats: ChapterBeatSummary[];
   chapters: (Omit<Chapter, "id"> & {
     imageDescription: ChapterImageDescription;
+    beatSummary?: ChapterBeatSummary;
   })[];
   avatarDevelopments: AvatarDevelopment[];
   learningOutcomes: LearningOutcome[];
@@ -546,6 +717,22 @@ export const generateStoryContent = api<
       // Use story directly without external validation
       const normalizedStory = storyOutcome.story;
       enforceAvatarDevelopments(normalizedStory, req.avatarDetails);
+      if (!Array.isArray((normalizedStory as any).supportingCharacters)) {
+        (normalizedStory as any).supportingCharacters = [];
+      }
+      if (
+        !normalizedStory.recurringElement ||
+        typeof normalizedStory.recurringElement !== "object"
+      ) {
+        (normalizedStory as any).recurringElement = {
+          name: "",
+          description: "",
+          payoffChapter: 0,
+        };
+      }
+      if (!Array.isArray((normalizedStory as any).plotBeats)) {
+        (normalizedStory as any).plotBeats = [];
+      }
 
       const avatarProfilesByName: Record<string, AvatarVisualProfile> = {};
       storyOutcome.state.avatarProfilesByName.forEach((profile, name) => {
@@ -596,33 +783,29 @@ export const generateStoryContent = api<
       const chapterDimensions = normalizeRunwareDimensions(1024, 1024);
 
       // COVER IMAGE GENERATION with CHARACTER-BLOCKS
-      const coverSceneRaw =
-        typeof normalizedStory.coverImageDescription === "string"
-          ? normalizedStory.coverImageDescription
-          : normalizedStory.coverImageDescription?.mainScene || "";
+      const coverImageDescription =
+        typeof normalizedStory.coverImageDescription === "object"
+          ? (normalizedStory.coverImageDescription as ChapterImageDescription)
+          : undefined;
 
-      const firstChapterScene =
-        typeof normalizedStory.chapters?.[0]?.imageDescription === "string"
-          ? normalizedStory.chapters?.[0]?.imageDescription
-          : normalizedStory.chapters?.[0]?.imageDescription?.scene;
+      const firstChapterImageDescription =
+        typeof normalizedStory.chapters?.[0]?.imageDescription === "object"
+          ? (normalizedStory.chapters?.[0]?.imageDescription as ChapterImageDescription)
+          : undefined;
 
-      let safeCoverSceneText = safeCoverScene(coverSceneRaw, firstChapterScene);
+      const coverContext = extractImagePromptContext(coverImageDescription);
+      const firstChapterContext = extractImagePromptContext(firstChapterImageDescription);
 
-      // CRITICAL FIX: Enrich cover image description with species information
-      if (normalizedStory.coverImageDescription && typeof normalizedStory.coverImageDescription === 'object') {
-        const coverCharactersStr = normalizedStory.coverImageDescription.characters;
-        if (coverCharactersStr && typeof coverCharactersStr === 'string') {
-          const enrichedCoverChars = enrichImageDescriptionWithSpecies(
-            coverCharactersStr,
-            versionedProfiles
-          );
+      let safeCoverSceneText = safeCoverScene(
+        coverContext.summary,
+        firstChapterContext.summary
+      );
 
-          console.log("[ai-generation] 🔧 ENRICHED Cover characters description:");
-          console.log("[ai-generation]   Original:", coverCharactersStr);
-          console.log("[ai-generation]   Enriched:", enrichedCoverChars);
-
-          safeCoverSceneText = `${safeCoverSceneText}. CHARACTERS: ${enrichedCoverChars}`;
-        }
+      if (coverContext.protagonistLines.length > 0) {
+        safeCoverSceneText += " Protagonists: " + coverContext.protagonistLines.join(" | ");
+      }
+      if (coverContext.supportingLines.length > 0) {
+        safeCoverSceneText += " Supporting: " + coverContext.supportingLines.join(" | ");
       }
 
       const coverCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => ({
@@ -642,6 +825,12 @@ export const generateStoryContent = api<
           style: "watercolor cover, warm colors",
           quality: `${coverCharactersData.length} subjects, child-safe`,
         },
+        supportingCharacterLines: coverContext.supportingLines,
+        environmentLayers: coverContext.environmentLayers,
+        props: coverContext.props,
+        atmosphereLines: coverContext.atmosphereLines,
+        recurringElementNote: coverContext.recurringElementNote,
+        storytellingDetails: coverContext.storytellingDetails,
       });
 
       // Normalize language (DE->EN)
@@ -668,53 +857,40 @@ export const generateStoryContent = api<
       const chapterResponses: Array<{ imageUrl?: string }> = [];
       for (let i = 0; i < normalizedStory.chapters.length; i++) {
         const chapter = normalizedStory.chapters[i];
-        
         const chapterImageDescription =
-          typeof chapter.imageDescription === "object" && chapter.imageDescription
+          typeof chapter.imageDescription === "object"
+            ? (chapter.imageDescription as ChapterImageDescription)
+            : undefined;
+
+        const chapterContext = extractImagePromptContext(chapterImageDescription);
+
+        let chapterSceneText =
+          typeof chapter.imageDescription === "string"
             ? chapter.imageDescription
-            : null;
+            : chapterContext.summary;
 
-        // CRITICAL FIX: Enrich character descriptions with species information
-        // This prevents humans from getting animal features (tails, ears, etc.)
-        let chapterSceneText = "";
-        let enrichedCharactersDescription = "";
-
-        if (typeof chapter.imageDescription === "string") {
-          chapterSceneText = chapter.imageDescription;
-        } else if (chapterImageDescription) {
-          chapterSceneText = chapterImageDescription.scene || "";
-
-          // Enrich the characters string with species info
-          if (chapterImageDescription.characters && typeof chapterImageDescription.characters === 'string') {
-            enrichedCharactersDescription = enrichImageDescriptionWithSpecies(
-              chapterImageDescription.characters,
-              versionedProfiles
-            );
-
-            console.log(`[ai-generation] 🔧 ENRICHED Chapter ${i + 1} characters description:`);
-            console.log(`[ai-generation]   Original: ${chapterImageDescription.characters}`);
-            console.log(`[ai-generation]   Enriched: ${enrichedCharactersDescription}`);
-
-            // Append enriched characters to scene text
-            chapterSceneText = `${chapterSceneText}. CHARACTERS: ${enrichedCharactersDescription}`;
-          }
+        if (chapterContext.protagonistLines.length > 0) {
+          chapterSceneText += " Protagonists: " + chapterContext.protagonistLines.join(" | ");
+        }
+        if (chapterContext.supportingLines.length > 0) {
+          chapterSceneText += " Supporting: " + chapterContext.supportingLines.join(" | ");
         }
 
-        // Build character blocks for this chapter
-        const chapterCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => {
-          // Note: chapterImageDescription?.characters is now a string (from OpenAI), not an object
-          // We've already enriched it above, so we don't extract per-character details here
-
-          return {
-            name,
-            profile,
-            sceneDetails: {},
-          };
-        });
+        const chapterCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => ({
+          name,
+          profile,
+          sceneDetails: {},
+        }));
 
         const chapterPrompts = buildCompleteImagePrompt({
           characters: chapterCharactersData,
           scene: chapterSceneText,
+          supportingCharacterLines: chapterContext.supportingLines,
+          environmentLayers: chapterContext.environmentLayers,
+          props: chapterContext.props,
+          atmosphereLines: chapterContext.atmosphereLines,
+          recurringElementNote: chapterContext.recurringElementNote,
+          storytellingDetails: chapterContext.storytellingDetails,
         });
 
         const chapterPromptNormalized = normalizeLanguage(chapterPrompts.positivePrompt);
@@ -803,6 +979,9 @@ export const generateStoryContent = api<
         description: normalizedStory.description,
         coverImageUrl: coverResponse.imageUrl,
         coverImageDescription: normalizedStory.coverImageDescription,
+        supportingCharacters: normalizedStory.supportingCharacters,
+        recurringElement: normalizedStory.recurringElement,
+        plotBeats: normalizedStory.plotBeats,
         chapters: chaptersWithImages,
         avatarDevelopments: normalizedStory.avatarDevelopments,
         learningOutcomes: normalizedStory.learningOutcomes,
@@ -842,8 +1021,12 @@ interface StoryToolOutcome {
   story: {
     title: string;
     description: string;
+    supportingCharacters: SupportingCharacterSummary[];
+    recurringElement: StoryRecurringElement;
+    plotBeats: ChapterBeatSummary[];
     chapters: (Omit<Chapter, "id" | "imageUrl"> & {
       imageDescription: ChapterImageDescription;
+      beatSummary?: ChapterBeatSummary;
     })[];
     coverImageDescription: CoverImageDescription;
     avatarDevelopments: AvatarDevelopment[];
@@ -1060,276 +1243,261 @@ BESCHREIBUNG: ${stylePresetMeta.description}
 DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
     : "";
 
-  const systemPrompt = `Du bist eine professionelle Kinderbuch-Autorin für Talea.
+  const languageDirective =
+    config.language === "en"
+      ? "Write the entire story in ENGLISH."
+      : "Schreibe die gesamte Geschichte auf DEUTSCH.";
+  const nonImageLanguage = config.language === "en" ? "English" : "Deutsch";
 
-🌍 SPRACHE: ${config.language === 'en' ? 'Write the ENTIRE story in ENGLISH' : 'Schreibe die GESAMTE Geschichte auf DEUTSCH'} (title, description, chapters, all text content)
-⚠️ WICHTIG: Nur die imageDescription-Felder für Bilder müssen auf Englisch sein, ALLES andere auf ${config.language === 'en' ? 'English' : 'Deutsch'}!
+  const avatarVisualLines = avatars
+    .map((avatar) => {
+      const vp = avatar.visualProfile as any;
+      if (!vp) {
+        return "- " + avatar.name + ": no visual profile available";
+      }
 
-WORKFLOW:
-1. Du erhältst alle benötigten Avatar-Daten bereits im Prompt
-2. SCHREIBE DIE VOLLSTÄNDIGE GESCHICHTE mit ALLEN Kapiteln und VOLLEM CONTENT (${minWordsPerChapter}-${maxWordsPerChapter} Wörter pro Kapitel, Ziel ca. ${targetWordsPerChapter})
-3. Gib die finale JSON-Antwort zurück
+      const details: string[] = [];
 
-WICHTIG:
-- Schreibe die KOMPLETTE Story BEVOR du antwortest!
-- Jedes Kapitel muss ${minWordsPerChapter}-${maxWordsPerChapter} Wörter haben (Ziel ca. ${targetWordsPerChapter})
-- Genau ${chapterCount} Kapitel
-- Alle Pflichtfelder müssen vorhanden sein
+      if (vp.characterType) details.push(String(vp.characterType));
+      if (vp.speciesCategory && vp.speciesCategory !== "human") {
+        details.push("(" + vp.speciesCategory + ")");
+      }
+      if (vp.hair?.color) {
+        const hairLabel = vp.hair.style || vp.hair.length || "hair";
+        details.push((vp.hair.color + " " + hairLabel).trim());
+      }
+      if (vp.eyes?.color) details.push(vp.eyes.color + " eyes");
+      if (vp.skin?.tone) details.push(vp.skin.tone + " skin");
+      if (Array.isArray(vp.skin?.distinctiveFeatures)) {
+        details.push(...vp.skin.distinctiveFeatures.slice(0, 3));
+      }
+      if (vp.clothingCanonical?.top) details.push(vp.clothingCanonical.top);
+      if (vp.clothingCanonical?.outfit) details.push(vp.clothingCanonical.outfit);
+      if (vp.locomotion && vp.locomotion !== "bipedal") {
+        details.push(vp.locomotion);
+      }
 
-STILRICHTLINIEN (v1.2 - SEHR WICHTIG!):
-📖 ERZÄHLSTIL:
-- "Show, don't tell": Zeige Emotionen durch Handlungen, Dialoge und sensorische Details
-- Lebendige Bilder im Text (Sehen, Hören, Fühlen, Riechen, Schmecken)
-- Melodischer Satzrhythmus, sanfte Alliterationen, wiederkehrende sprachliche Motive
-- Abwechslungsreiches Tempo: Action, ruhige Momente, Humor, Spannung
-
-📚 MÄRCHENSTIMME & ILLUSTRATIONSSTIL:
-- Orientiere dich am Ton geliebter Bilderbuch-Klassiker ("Rotkäppchen", "Hänsel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das hässliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grüffelo", "Wo die wilden Kerle wohnen", "Oh, wie schön ist Panama")
-- Nutze wiederkehrende Symbole, märchenhafte Vergleiche und einen warmen Erzählsog, der Staunen und Geborgenheit vermittelt
-- Jede Szene liefert mindestens zwei bildstarke Momente, die als Illustrationsanweisungen funktionieren
-- 🎨 BILDSTIL-REFERENZ: Axel Scheffler watercolor - warme Aquarelle, sanfte Gouache-Texturen, handgezeichnete Outlines, kindgerechte Proportionen, einladende Farbpalette
-${systemStyleAddendum}
-
-🎨 STIL-KONFIGURATION (WICHTIG):
-${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhythmische Strukturen! Der Text sollte sich wie der Grüffelo lesen - mit Reimen, die natürlich fließen und Spaß machen.` : `- KEINE REIME: Schreibe in Prosa, ohne gereimte Strukturen.`}
-${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 - ${config.suspenseLevel === 0 ? "Keine Spannung, sehr beruhigend" : config.suspenseLevel === 1 ? "Sehr sanft, beruhigend, ohne Konflikte" : config.suspenseLevel === 2 ? "Leichte Spannung mit schneller Auflösung" : config.suspenseLevel === 3 ? "Mittlere Spannung mit klaren Lösungen" : "Spannend mit dramatischen Momenten"}` : ""}
-${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 - ${config.humorLevel === 0 ? "Kein Humor, ernst" : config.humorLevel === 1 ? "Subtiler Humor, warmherzig" : config.humorLevel === 2 ? "Leicht humorvoll mit sanften Scherzen" : config.humorLevel === 3 ? "Humorvoll mit lustigen Situationen" : "Sehr humorvoll mit viel Slapstick"}` : ""}
-
-👥 CHARAKTERE (KRITISCH - VISUELLE DETAILS!):
-- Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
-- Verankere Identitäten: ${avatars
-    .map((a) => {
-      const vp = a.visualProfile as any;
-      return `${a.name} = ${a.physicalTraits?.characterType || vp?.characterType || "Figur"}`;
+      return "- " + avatar.name + ": " + details.filter(Boolean).join(", ");
     })
-    .join(", ")}
-- Zeige Charakterentwicklung durch Entscheidungen und Reaktionen
-- Hebe arttypische Wahrnehmungen hervor (Tiere -> Sinne und Körper, Menschen -> Gefühle, Sprache, soziale Impulse)
-- Konsistente Namen und Pronomen (${avatars.map((a) => a.name).join(", ")})
+    .join("\n");
 
-🎨 VISUELLE CHARAKTER-DETAILS (KRITISCH - MUSS in JEDEM Kapitel erwähnt werden!):
-${avatars.map((avatar) => {
-  const vp = avatar.visualProfile as any;
-  if (!vp) return `- ${avatar.name}: Keine visuellen Details verfügbar`;
+  const avatarIntegrationExamples = avatars
+    .map((avatar) => {
+      const vp = avatar.visualProfile as any;
+      const examples: string[] = [];
 
-  // Build detailed visual description from visualProfile
-  const details: string[] = [];
+      if (vp?.hair?.color) {
+        examples.push("\"" + avatar.name + " brushes a strand of " + vp.hair.color + " hair aside.\"");
+      }
+      if (vp?.eyes?.color) {
+        examples.push("\"" + avatar.name + "'s " + vp.eyes.color + " eyes sparkle with curiosity.\"");
+      }
+      if (vp?.clothingCanonical?.top) {
+        examples.push("\"The " + vp.clothingCanonical.top + " sways as " + avatar.name + " turns.\"");
+      }
+      if (vp?.locomotion === "quadruped") {
+        examples.push("\"" + avatar.name + " darts forward on four paws.\"");
+      }
+      if (examples.length === 0) {
+        examples.push("\"" + avatar.name + " reacts vividly to the scene.\"");
+      }
 
-  // Character type and species
-  if (vp.characterType) details.push(vp.characterType);
-  if (vp.speciesCategory && vp.speciesCategory !== 'human') details.push(`(${vp.speciesCategory})`);
+      return examples.join("\n  ");
+    })
+    .join("\n");
 
-  // Hair/Fur
-  if (vp.hair?.color) {
-    if (vp.hair.type === 'fur') {
-      details.push(`${vp.hair.color} ${vp.hair.type}`);
-    } else {
-      details.push(`${vp.hair.color} ${vp.hair.style || vp.hair.length || ''} Haar`);
-    }
-  }
-
-  // Eyes
-  if (vp.eyes?.color) details.push(`${vp.eyes.color} Augen`);
-
-  // Skin/Fur tone
-  if (vp.skin?.tone) details.push(vp.skin.tone);
-
-  // Clothing (if applicable for humans/humanoids)
-  if (vp.clothingCanonical?.top) details.push(vp.clothingCanonical.top);
-  if (vp.clothingCanonical?.outfit) details.push(vp.clothingCanonical.outfit);
-
-  // Distinctive features (first 3)
-  if (vp.skin?.distinctiveFeatures && vp.skin.distinctiveFeatures.length > 0) {
-    details.push(...vp.skin.distinctiveFeatures.slice(0, 3));
-  }
-
-  // Locomotion for animals
-  if (vp.locomotion && vp.locomotion !== 'bipedal') {
-    details.push(vp.locomotion);
-  }
-
-  return `- ${avatar.name}: ${details.join(', ')}`;
-}).join('\n')}
-
-📝 INTEGRATION IN TEXT (Beispiele - ERSETZE mit echten Avatar-Details!):
-${avatars.map((avatar) => {
-  const vp = avatar.visualProfile as any;
-  if (!vp) return `- "${avatar.name} schaute nach vorne" (Keine Details verfügbar)`;
-
-  const examples: string[] = [];
-
-  // Hair/Fur example
-  if (vp.hair?.color && vp.hair.type === 'fur') {
-    examples.push(`"${avatar.name}'s ${vp.hair.color} ${vp.hair.type} glänzte im Licht"`);
-  } else if (vp.hair?.color) {
-    examples.push(`"${avatar.name} strich sich durch sein ${vp.hair.color} Haar"`);
-  }
-
-  // Eyes example
-  if (vp.eyes?.color) {
-    examples.push(`"Seine ${vp.eyes.color} Augen leuchteten vor Neugier"`);
-  }
-
-  // Clothing example (if applicable)
-  if (vp.clothingCanonical?.top && vp.speciesCategory === 'human') {
-    examples.push(`"${avatar.name}'s ${vp.clothingCanonical.top} war deutlich sichtbar"`);
-  }
-
-  // Movement/locomotion example
-  if (vp.locomotion === 'quadruped') {
-    examples.push(`"${avatar.name} lief auf vier Pfoten"`);
-  } else if (vp.locomotion === 'bipedal' && vp.speciesCategory === 'human') {
-    examples.push(`"${avatar.name} stand aufrecht"`);
-  }
-
-  return examples.length > 0 ? examples.join('\n  ') : `- "${avatar.name} bewegte sich geschickt"`;
-}).join('\n')}
-
-📏 KAPITELSTRUKTUR:
-- Schreibe pro Kapitel ${minWordsPerChapter}-${maxWordsPerChapter} Wörter (Ziel ca. ${targetWordsPerChapter})
-- Struktur: Einstieg mit bildstarkem Aufhänger -> Entwicklung mit Handlung und Dialog -> Cliffhanger, der ein neues Rätsel oder Ziel ankündigt
-- Platziere pro Kapitel mindestens einen ruhigen Gefühlsmoment und eine dynamische Aktion
-- Visuell beschreibbare Momente für Illustrationen
-
-💬 DIALOG-RATIO (KRITISCH - 40-50% des Textes!):
-- Mindestens 40-50% jedes Kapitels soll Dialog sein
-- Kurze, natürliche Dialoge (5-12 Wörter pro Sprechbeitrag)
-- Abwechselnd zwischen Charakteren
-- Dialoge zeigen Persönlichkeiten: Alexander impulsiv/schnell, Adrian nachdenklich/vorsichtig
-- Beispiel: "Hör mal!", "Was ist das?", "Lass uns schauen!", "Vorsichtig..."
-
-🎯 WERTE & SICHERHEIT:
-- Positive Werte: Mut, Teamwork, Hilfsbereitschaft, Kreativität, Empathie
-- Kindgerecht: Keine Gewalt, keine Ängste verstärkend
-- Lösungsorientiert: Probleme werden gemeinsam bewältigt
-
-🎨 BILDNOTIZEN (CRITICAL - 100% ENGLISH!):
-- ❗ WICHTIG: Beschreibe im imageDescription-Feld was die Charaktere TUN (Action/Bewegung), nicht nur wie sie aussehen
-- ❗ ALLE imageDescription-Felder MÜSSEN 100% ENGLISCH sein (NIEMALS Deutsch!)
-- Beispiel GUT: "Alexander crouches low, examining a glowing map while adrian points excitedly at a distant clocktower"
-- Beispiel SCHLECHT: "Alexander und adrian stehen vor dem Uhrturm"
-- ❗ VERBOTEN: "stehen", "standen", "sitzen", "saßen" → Nutze stattdessen: "crouches", "leans forward", "reaches up", "kneels beside", "points at"
-- Die Szene soll zeigen was im Kapitel passiert, mit dynamischem Winkel (nicht frontal)
-- Charaktere sollen unterschiedlich positioniert sein (left/right, foreground/background, different heights)
-- ❗ Axel Scheffler Stil: Warme Aquarelle, sanfte Gouache-Texturen, kindgerechte Proportionen
-
-💡 LERNMODUS (falls aktiv):
-- Lernziele NATÜRLICH einbauen (keine Lehrbuch-Tiraden!)
-- Neues Wissen durch Dialoge und Entdeckungen vermitteln
-- Sachwissen in Handlung integrieren (z.B. "Diego entdeckt, dass Katzen im Dunkeln sehen können")
-- Konsistentes Inventar (z.B. "roter Rucksack" taucht wieder auf)
-- Optional: 2 einfache Verständnisfragen am Ende (nur bei learningMode.enabled = true)
-
-✅ KONSISTENZ-CHECKLISTE (SEHR WICHTIG!):
-- Namen & Pronomen: Nutze EXAKT die Avatar-Namen (${avatars
-    .map((a) => a.name)
-    .join(", ")}) - keine Variationen!
-- Inventar-Tracking: Eingeführte Gegenstände müssen konsistent bleiben (Farbe, Eigenschaften)
-- Orte & Settings: Einmal etablierte Orte müssen wiederkehrend beschrieben werden
-- Cliffhanger: JEDES Kapitel (außer letztes) endet mit spannendem Cliffhanger
-- Charaktereigenschaften: Avatare bleiben ihrer Persönlichkeit treu (siehe Personality Traits)
-
-KRITISCH - Chapter Content:
-- Jedes Kapitel muss einen vollständigen content-Text im geforderten Umfang haben
-- NIEMALS leere oder kurze Platzhalter verwenden!
-- Schreibe den KOMPLETTEN Text BEVOR du validierst!
-
-TECHNISCHE REGELN:
-- Antworte NUR mit gültigem JSON, NIEMALS mit freiem Text
-- Rufe Tools nicht mehrfach mit denselben Parametern auf
-- Jedes Kapitel endet mit spannendem Cliffhanger
-
-PFLICHTFELDER IM JSON (ALLE müssen vorhanden sein!):
-- title (string)
-- description (string, max 500 Zeichen)
-- chapters (array mit title, content (${minWordsPerChapter}-${maxWordsPerChapter} Wörter), order, imageDescription)
-- coverImageDescription (object)
-- avatarDevelopments (array mit name, changedTraits) - KRITISCH: Muss für JEDEN Avatar vorhanden sein!
-- learningOutcomes (array mit category, description)`;
+  const systemPrompt = [
+    "You are Talea's senior picture-book author and narrative director.",
+    "",
+    "LANGUAGE RULES:",
+    "- " + languageDirective,
+    "- imageDescription fields must be written in English only; every other field stays in " + nonImageLanguage + ".",
+    "",
+    "OUTPUT CONTRACT:",
+    "- Write the full story before you respond.",
+    "- Exactly " + chapterCount + " chapters with " + minWordsPerChapter + "-" + maxWordsPerChapter + " words each (target " + targetWordsPerChapter + ").",
+    "- Return a single valid JSON object and nothing else.",
+    "",
+    "STORY ARCHITECTURE:",
+    "- Follow a cinematic children's adventure arc:",
+    "  1. Chapter 1: normal world, inciting incident, introduce at least one supporting character.",
+    "  2. Chapter 2: exploration or first encounter, new supporting character, first obstacle.",
+    "  3. Chapter 3: escalation, meaningful surprise, tougher setback.",
+    "  4. Chapter 4: climax where all characters collaborate to solve the biggest conflict.",
+    "  5. Chapter 5: resolution with character growth, payoff of the recurring element, hint at future adventures.",
+    "- If the story length differs, adapt the beats to cover inciting incident, escalation, climax, and resolution in order.",
+    "",
+    "CHARACTER ENSEMBLE:",
+    "- Keep the user avatars (" + avatars.map((a) => a.name).join(", ") + ") consistent and central.",
+    "- Invent at least three named supporting characters suited to the genre and setting (mix of helpers, mentors, rivals, comic relief).",
+    "- Give each supporting character a clear role, personality trait, and visual hook that reappears.",
+    "- Include ambient world citizens (shopkeepers, classmates, animals) to make the scenes lively.",
+    "",
+    "CONFLICT, SURPRISE, AND HEART:",
+    "- Every chapter needs a concrete challenge plus an emotional beat.",
+    "- Include at least one genuine surprise or twist across the story.",
+    "- Resolutions must arise from clever teamwork or learned skill, never coincidence.",
+    "",
+    "WORLD BUILDING AND SENSORY DETAIL:",
+    "- Paint each location with 8-12 tangible details (sight, sound, smell, texture, temperature, small props).",
+    "- Track a recurring element introduced in chapter 1 that meaningfully returns in chapter 5.",
+    "- Use dialogue generously (around 40% of each chapter) to show personality and learning moments.",
+    "",
+    "AVATAR VISUAL CANON (keep consistent in narration):",
+    avatarVisualLines,
+    "",
+    "INTEGRATE TRAITS IN TEXT (examples � adapt to real scenes):",
+    avatarIntegrationExamples,
+    "",
+    "IMAGE DESCRIPTION SPEC (English only):",
+    "- Provide structured Wimmelbild-ready data for each image:",
+    "  scene: single-sentence cinematic summary.",
+    "  characters.protagonists: 2-3 entries (name, action, expression, position, pose).",
+    "  characters.supporting: at least one entry when supporting cast is present.",
+    "  environment.foreground: 3-5 concrete items with adjectives.",
+    "  environment.midground: 5-8 elements covering main action, extra figures, and props.",
+    "  environment.background: 3+ depth elements (buildings, nature, sky, distant characters).",
+    "  props: 5-8 story-relevant or playful objects.",
+    "  atmosphere: weather, lighting, season, mood, sensoryDetails (array of sounds or smells).",
+    "  composition: camera, perspective, focalPoints (array), depth or movement cues.",
+    "  recurringElement: explain where the recurring element appears in this scene.",
+    "  storytellingDetails: short array of easter eggs or hints that link chapters together.",
+    "- Use dynamic verbs (crouches, leans, dashes, peers) instead of static words like steht/sitzen.",
+    "- Mention supporting characters, bystanders, animals, and props explicitly in midground details.",
+    "- Human characters must stay fully human (no tails, no animal ears, no fur).",
+    "",
+    "COVER IMAGE DESCRIPTION:",
+    "- Same structure as chapter imageDescription but emphasise ensemble and clear space for title typography.",
+    "",
+    "STYLE AND TONE:",
+    "- Warm, whimsical picture-book energy with gentle suspense.",
+    "- Show, do not tell: reveal feelings through actions, dialogue, and sensory detail.",
+    "- Respect Axel Scheffler watercolor aesthetics (soft gouache textures, hand-drawn outlines).",
+    systemStyleAddendum,
+    "",
+    "AVATAR DEVELOPMENTS:",
+    "- avatarDevelopments must contain exactly one entry per avatar with concrete trait deltas (allow zero change).",
+    "- Provide meaningful descriptions of how each trait changed through the story experience.",
+    "",
+    "QUALITY CHECK:",
+    "- Keep continuity on items, places, supporting cast, and the recurring element.",
+    "- Chapters 1-" + (chapterCount - 1) + " end with a hook or cliffhanger; the final chapter resolves the adventure.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const avatarSummary = avatars
     .map((avatar) => {
       const description = avatar.description ? avatar.description.trim() : "Keine Beschreibung vorhanden.";
-      return `- ${avatar.name} (id: ${avatar.id}): ${description}`;
+      return "- " + avatar.name + " (id: " + avatar.id + "): " + description;
     })
     .join("\n");
 
-  const userPrompt = `Erstelle eine ${config.genre}-Geschichte im Setting ${config.setting} für die Altersgruppe ${config.ageGroup}. Die Geschichte soll ${chapterCount} Kapitel haben.
+  const jsonSchemaBlock = [
+    "{",
+    '  "title": string,',
+    '  "description": string (max 500 characters),',
+    '  "supportingCharacters": [',
+    '    { "name": string, "role": string, "personality": string, "appearance": string, "motivation": string }',
+    '  ],',
+    '  "recurringElement": { "name": string, "description": string, "payoffChapter": number },',
+    '  "plotBeats": [',
+    '    { "order": number, "focus": string, "conflict": string, "surprise": string, "supportingCast": string[], "environmentHighlights": string[], "cliffhanger": string, "sensoryDetails": string[] }',
+    '  ],',
+    '  "chapters": [',
+    '    {',
+    '      "title": string,',
+    '      "order": number,',
+    '      "focus": string,',
+    '      "conflict": string,',
+    '      "surprise": string,',
+    '      "supportingCast": string[],',
+    '      "environmentHighlights": string[],',
+    '      "content": string,',
+    '      "imageDescription": {',
+    '        "scene": string,',
+    '        "characters": {',
+    '          "protagonists": [ { "name": string, "action": string, "expression": string, "position": string, "pose": string } ],',
+    '          "supporting": [ { "name": string, "action": string, "expression": string, "position": string, "pose": string } ]',
+    '        },',
+    '        "environment": { "foreground": string[], "midground": string[], "background": string[] },',
+    '        "props": string[],',
+    '        "atmosphere": { "weather": string, "lighting": string, "season": string, "mood": string, "sensoryDetails": string[] },',
+    '        "composition": { "camera": string, "perspective": string, "focalPoints": string[], "depth": string },',
+    '        "recurringElement": string,',
+    '        "storytellingDetails": string[]',
+    '      }',
+    '    }',
+    '  ],',
+    '  "coverImageDescription": same structure as imageDescription,',
+    '  "avatarDevelopments": [',
+    '    { "name": string, "changedTraits": [ { "trait": string, "change": number, "description": string } ] }',
+    '  ],',
+    '  "learningOutcomes": [',
+    '    { "subject": string, "newConcepts": string[], "reinforcedSkills": string[], "difficulty_mastered": string, "practical_applications": string[] }',
+    '  ]',
+    "}"
+  ].join("\n");
 
-WICHTIG - KAPITELLÄNGE:
-- Jedes Kapitel muss ${minWordsPerChapter}-${maxWordsPerChapter} Wörter haben (Ziel ca. ${targetWordsPerChapter})
-- Schreibe lebendige Beschreibungen, Dialoge und Emotionen
-- Nutze atmosphärische Details und Charakterentwicklung im Stil klassischer Bilderbücher
-- Jedes Kapitel endet mit einem spannenden Cliffhanger
-- Bleibe fokussiert und präzise
+  const exampleBlock = [
+    "[",
+    ...avatars.map((avatar, index) => {
+      const lines = [
+        "  {",
+        '    "name": "' + avatar.name + '",',
+        '    "changedTraits": [',
+        '      { "trait": "courage", "change": ' + (index === 0 ? "3" : "2") + ', "description": "earned through teamwork in the adventure" },',
+        '      { "trait": "teamwork", "change": ' + (index === 0 ? "2" : "3") + ', "description": "grew while solving the central conflict together" }',
+        '    ]',
+        "  }"
+      ];
+      if (index < avatars.length - 1) {
+        lines[lines.length - 1] += ",";
+      }
+      return lines.join("\n");
+    }),
+    "]"
+  ].join("\n");
 
-STILREFERENZEN:
-- Orientiere dich am Ton von "Rotkäppchen", "Hänsel und Gretel", "Schneewittchen", "Die kleine Meerjungfrau", "Das hässliche Entlein", "Pippi Langstrumpf", "Die kleine Raupe Nimmersatt", "Der Grüffelo", "Wo die wilden Kerle wohnen" und "Oh, wie schön ist Panama"
-- Verwende märchenhafte Vergleiche, wiederkehrende Symbole und eine warme Erzählerstimme
-- Beschreibe Szenen so, dass sie als ausdrucksstarke Illustrationen funktionieren
-- 🎨 BILDSTIL-REFERENZ: Axel Scheffler watercolor style - warme Aquarelle, sanfte Gouache-Texturen, kindgerechte Proportionen
-${userStyleAddendum}
-
-Konfigurationsdetails:
-- Komplexität: ${config.complexity}
-- Lernmodus: ${config.learningMode?.enabled ?? false}
-- Lernziele: ${(config.learningMode?.learningObjectives ?? []).join(", ") || "keine"}
-${config.allowRhymes ? `- 📝 REIME ERWÜNSCHT: Verwende gereimte Verse und rhythmische Strukturen (wie im Grüffelo)` : ""}
-${config.suspenseLevel !== undefined ? `- 🎭 Spannungslevel: ${config.suspenseLevel}/5 (${config.suspenseLevel === 0 ? "keine Spannung" : config.suspenseLevel === 1 ? "sanft" : config.suspenseLevel === 2 ? "leicht spannend" : config.suspenseLevel === 3 ? "mittel spannend" : "spannend"})` : ""}
-${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 (${config.humorLevel === 0 ? "ernst" : config.humorLevel === 1 ? "subtil" : config.humorLevel === 2 ? "leicht humorvoll" : config.humorLevel === 3 ? "humorvoll" : "sehr humorvoll"})` : ""}
-
-${config.learningMode?.enabled ? `
-🎓 LERNMODUS AKTIV - Spezielle Anforderungen:
-- Integriere die Lernziele (${(config.learningMode?.learningObjectives ?? []).join(", ")}) NATÜRLICH in die Handlung
-- Nutze Dialoge zwischen Avataren, um Wissen zu vermitteln (z.B. "Weißt du, Diego, dass...")
-- Zeige Lernen durch Entdeckung und Erfahrung, nicht durch Belehrung
-- Füge am Ende 2 einfache Verständnisfragen hinzu (im learningOutcomes-Feld)
-- Beispiel: {"category": "Sachwissen", "description": "Warum können Katzen im Dunkeln sehen?"}
-` : ""}
-
-Verfügbare Avatare:
-${avatarSummary}
-
-AVATAR-DATEN (bereits geladen):
-Die visuellen Profile und Erinnerungen der Avatare sind bereits verfügbar und wurden in die Story-Generierung integriert.
-
-WORKFLOW:
-1. Schreibe die VOLLSTÄNDIGE Geschichte (alle ${chapterCount} Kapitel!) basierend auf den bereitgestellten Avatar-Daten
-2. Gib die finale JSON-Antwort zurück
-
-❗ KRITISCH - avatarDevelopments (SEHR WICHTIG!):
-Das avatarDevelopments-Array muss EXAKT ${avatars.length} Einträge haben - NICHT MEHR, NICHT WENIGER!
-
-📋 DIE VOLLSTÄNDIGE LISTE DER AVATARE IN DIESER GESCHICHTE:
-${avatars.map((a, idx) => `${idx + 1}. "${a.name}"`).join('\n')}
-
-✅ RICHTIG: Erstelle genau ${avatars.length} Einträge für: ${avatars.map(a => a.name).join(" UND ")}
-❌ FALSCH: Andere Namen verwenden oder mehr/weniger als ${avatars.length} Einträge
-
-PFLICHT-BEISPIEL für diese Geschichte (GENAU SO FORMAT):
-[
-  {
-    "name": "${avatars[0].name}",
-    "changedTraits": [
-      {"trait": "courage", "change": 5},
-      {"trait": "teamwork", "change": 3}
-    ]
-  }${avatars.length > 1 ? `,
-  {
-    "name": "${avatars[1].name}",
-    "changedTraits": [
-      {"trait": "creativity", "change": 4},
-      {"trait": "empathy", "change": 2}
-    ]
-  }` : ''}
-]
-
-⚠️ PRÜFE VOR DEM VALIDIEREN:
-- Hast du genau ${avatars.length} Einträge? (zähle nach!)
-- Hast du die richtigen Namen verwendet? (${avatars.map(a => a.name).join(", ")})
-- Hat jeder Eintrag "name" UND "changedTraits"?
-
-FORMAT: {title, description, chapters[{title, content, order, imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments[{name, changedTraits[{trait, change}]}], learningOutcomes[{category, description}]}`;
+  const userPrompt = [
+    "Generate a " + config.genre + " story set in " + config.setting + " for the " + config.ageGroup + " age group.",
+    "Story length: exactly " + chapterCount + " chapters with " + minWordsPerChapter + "-" + maxWordsPerChapter + " words each (target " + targetWordsPerChapter + ").",
+    "",
+    "CONFIGURATION:",
+    "- Complexity: " + config.complexity,
+    "- Learning mode enabled: " + Boolean(config.learningMode?.enabled),
+    config.learningMode?.enabled ? "- Learning objectives: " + ((config.learningMode.learningObjectives ?? []).join(", ") || "keine") : undefined,
+    config.allowRhymes ? "- Rhymes: encouraged (playful and natural)." : "- Rhymes: use prose; avoid rhymed verse.",
+    config.suspenseLevel !== undefined ? "- Suspense level target: " + config.suspenseLevel + "/5." : undefined,
+    config.humorLevel !== undefined ? "- Humor level target: " + config.humorLevel + "/5." : undefined,
+    config.pacing ? "- Pacing preference: " + config.pacing + "." : undefined,
+    config.pov ? "- Narrative POV: " + config.pov + "." : undefined,
+    config.hasTwist ? "- Include at least one memorable twist." : undefined,
+    config.customPrompt ? "- Custom note: " + config.customPrompt : undefined,
+    userStyleAddendum,
+    "",
+    "AVAILABLE AVATARS:",
+    avatarSummary,
+    "",
+    "JSON SCHEMA (return exactly these fields):",
+    jsonSchemaBlock,
+    "",
+    "SUPPORTING CHARACTER RULES:",
+    "- Supporting characters must be original (do not reuse the user avatar names).",
+    "- Provide at least three supportingCharacters entries and reference them across the chapters.",
+    "",
+    "AVATAR DEVELOPMENTS MUST MATCH USER AVATARS EXACTLY:",
+    "- Required names: " + avatars.map((a) => a.name).join(", ") + ".",
+    "- Provide exactly " + avatars.length + " entries in avatarDevelopments.",
+    "- Example format (adapt trait names and values to the story):",
+    exampleBlock,
+    "",
+    "Validate before responding:",
+    "- Exactly " + avatars.length + " avatarDevelopments entries with the correct avatar names.",
+    "- No missing keys. No placeholder text."
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   // TOOLS REMOVED (2025-10-27): No longer using OpenAI function calling for avatar data
   // Avatar profiles and memories are now fetched directly from DB before prompt generation

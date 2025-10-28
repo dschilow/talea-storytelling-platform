@@ -887,6 +887,16 @@ export interface CompleteImagePromptOptions {
     lighting?: string;
     mood?: string;
   };
+  supportingCharacterLines?: string[];
+  environmentLayers?: {
+    foreground?: string[];
+    midground?: string[];
+    background?: string[];
+  };
+  props?: string[];
+  atmosphereLines?: string[];
+  recurringElementNote?: string;
+  storytellingDetails?: string[];
 }
 
 function normalizeSceneStyleOverrides(
@@ -1047,6 +1057,51 @@ export function buildCompleteImagePrompt(
   const sceneText = options.scene ? limitSentences(options.scene, 2) : sceneStyle.scene;
   const sceneSection = `SCENE: ${normalizeLanguage(sceneText)}. ${normalizeLanguage(sceneStyle.background)}`;
 
+  // Supporting characters from narrative context
+  const supportingSection =
+    options.supportingCharacterLines && options.supportingCharacterLines.length > 0
+      ? `SUPPORTING CHARACTERS: ${normalizeLanguage(options.supportingCharacterLines.join(" | "))}`
+      : "";
+
+  // Environment layers summary
+  const environmentLayerLines: string[] = [];
+  if (options.environmentLayers?.foreground?.length) {
+    environmentLayerLines.push(
+      "Foreground: " + normalizeLanguage(options.environmentLayers.foreground.join(", "))
+    );
+  }
+  if (options.environmentLayers?.midground?.length) {
+    environmentLayerLines.push(
+      "Midground: " + normalizeLanguage(options.environmentLayers.midground.join(", "))
+    );
+  }
+  if (options.environmentLayers?.background?.length) {
+    environmentLayerLines.push(
+      "Background: " + normalizeLanguage(options.environmentLayers.background.join(", "))
+    );
+  }
+  const environmentSection =
+    environmentLayerLines.length > 0 ? `ENVIRONMENT: ${environmentLayerLines.join(" | ")}` : "";
+
+  const propsSection =
+    options.props && options.props.length > 0
+      ? `PROPS & OBJECTS: ${normalizeLanguage(options.props.join(", "))}`
+      : "";
+
+  const atmosphereSection =
+    options.atmosphereLines && options.atmosphereLines.length > 0
+      ? `ATMOSPHERE: ${normalizeLanguage(options.atmosphereLines.join(" | "))}`
+      : "";
+
+  const recurringSection = options.recurringElementNote
+    ? `RECURRING ELEMENT: ${normalizeLanguage(options.recurringElementNote)}`
+    : "";
+
+  const storytellingSection =
+    options.storytellingDetails && options.storytellingDetails.length > 0
+      ? `STORY DETAILS: ${normalizeLanguage(options.storytellingDetails.join(", "))}`
+      : "";
+
   // 3. COMPOSITION - Positioning, camera angle, depth layers
   const compositionParts: string[] = [];
 
@@ -1080,6 +1135,12 @@ export function buildCompleteImagePrompt(
   const sections = [
     charactersSection,
     sceneSection,
+    supportingSection,
+    environmentSection,
+    propsSection,
+    atmosphereSection,
+    recurringSection,
+    storytellingSection,
     compositionSection,
     lightingSection,
     moodSection,
