@@ -84,6 +84,7 @@ function normalizeVisualProfile(profile: AvatarVisualProfile | MinimalAvatarProf
 export interface CharacterBlock {
   name: string;
   species: SpeciesType;
+  characterType?: string; // Full character type from visual profile (e.g., "anthropomorphic mouse-fox hybrid")
   ageHint?: string;
   mustInclude: string[];
   forbid: string[];
@@ -540,9 +541,14 @@ export function buildCharacterBlock(
     console.log(`[character-block-builder] Using visual_profile data for avatar: ${name} (no hardcoded canon)`);
   }
 
+  // Extract characterType from profile
+  const profileAny = normalizedProfile as any;
+  const characterType = profileAny.characterType || undefined;
+
   const block: CharacterBlock = {
     name,
     species,
+    characterType, // ADD: Character type from visual profile
     ageHint,
     mustInclude,
     forbid: buildForbidList(species, name, normalizedProfile),
@@ -602,15 +608,16 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
   let defaultForbid: string[] = [];
 
   if (block.species === "cat") {
-    speciesSummary = `real orange tabby kitten, quadruped animal`;
-    depictLine = `${safeName} must appear as a real small cat on four paws with natural feline anatomy and tail visible.`;
+    // CRITICAL FIX: Don't hardcode "orange tabby" - use actual description from profile
+    const catDesc = block.detailedDescription || "feline quadruped";
+    speciesSummary = `real ${catDesc}, quadruped animal`;
+    depictLine = `${safeName} must appear as a real cat on four paws with natural feline anatomy and tail visible.`;
     defaultMust = [
       "four paws grounded",
       "tail visible",
       "long whiskers",
       "feline face shape",
       "real cat anatomy",
-      "orange fur coat",
     ];
     defaultForbid = [
       "standing upright",
@@ -627,8 +634,10 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
     defaultMust = ["four paws grounded", "expressive muzzle"];
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else if (block.species === "animal") {
-    speciesSummary = `storybook animal with natural proportions`;
-    depictLine = `${safeName} should stay a natural animal, not humanoid.`;
+    // CRITICAL FIX: Use characterType from profile instead of generic "storybook animal"
+    const animalType = block.characterType || block.detailedDescription || "creature";
+    speciesSummary = `${animalType} with natural proportions`;
+    depictLine = `${safeName} should stay a ${animalType}, not humanoid.`;
     defaultMust = ["natural body silhouette"];
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else {
@@ -917,14 +926,20 @@ const defaultActionBySpecies: Record<SpeciesType, string> = {
 function buildStructuredCharacterLine(block: CharacterBlock): string {
   const parts: string[] = [];
 
-  // Determine species type with proper formatting
+  // Determine species type dynamically from profile data
   let speciesType = "";
+
   if (block.species === "cat") {
-    speciesType = "KITTEN - feline quadruped on four paws";
+    speciesType = "CAT - feline quadruped on four paws";
   } else if (block.species === "dog") {
     speciesType = "DOG - canine quadruped on four legs";
   } else if (block.species === "animal") {
-    speciesType = "ANIMAL - natural quadruped";
+    // CRITICAL FIX: Use characterType from visual profile, not hardcoded "KITTEN"
+    if (block.characterType) {
+      speciesType = `${block.characterType}`;
+    } else {
+      speciesType = "CREATURE - natural form";
+    }
   } else {
     // Human - Use Age-Guards for accurate age representation
     const ageHint = block.ageHint || "child";
