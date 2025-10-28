@@ -16,6 +16,7 @@ import {
   summarizeMemoryCategory,
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
+import { FourPhaseOrchestrator } from "./four-phase-orchestrator";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 
@@ -99,6 +100,9 @@ export interface StoryConfig {
 
   // AI Model selection for story generation
   aiModel?: AIModel;
+
+  // 4-Phase System: Enable character pool system
+  useCharacterPool?: boolean;
 }
 
 export interface LearningMode {
@@ -300,19 +304,45 @@ export const generate = api<GenerateStoryRequest, Story>(
         });
       }
 
-      console.log("[story.generate] Avatar details for story generation:", avatarDetails.map(a => ({ 
-        name: a.name, 
+      console.log("[story.generate] Avatar details for story generation:", avatarDetails.map(a => ({
+        name: a.name,
         hasImage: !!a.imageUrl,
         hasVisualProfile: !!a.visualProfile
       })));
 
-      // Generate story content using AI with avatar canonical appearance
-      console.log("[story.generate] Calling generateStoryContent with MCP context...");
-      const generatedStory = await generateStoryContent({
-        config: req.config,
-        avatarDetails,
-        clerkToken,
-      });
+      // Check if we should use the 4-phase character pool system
+      const useCharacterPool = req.config.useCharacterPool ?? true; // Default to true
+      let generatedStory: any;
+
+      if (useCharacterPool) {
+        console.log("[story.generate] Using 4-phase character pool system...");
+        const orchestrator = new FourPhaseOrchestrator();
+
+        const fourPhaseResult = await orchestrator.orchestrate({
+          config: req.config,
+          avatarDetails,
+          userId: currentUserId,
+          clerkToken,
+        });
+
+        // Store skeleton for debugging
+        // Note: skeleton storage happens inside orchestrator
+
+        // Update character usage statistics
+        // Note: This will be done after we get the character assignments
+
+        generatedStory = fourPhaseResult;
+      } else {
+        console.log("[story.generate] Using legacy story generation (no character pool)...");
+        // Generate story content using AI with avatar canonical appearance
+        console.log("[story.generate] Calling generateStoryContent with MCP context...");
+        generatedStory = await generateStoryContent({
+          config: req.config,
+          avatarDetails,
+          clerkToken,
+        });
+      }
+
       console.log("[story.generate] Story content generated:", {
         title: generatedStory?.title,
         descLen: generatedStory?.description?.length,
