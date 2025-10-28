@@ -7,6 +7,7 @@ import type { AvatarVisualProfile } from "../avatar/avatar";
 import type { MinimalAvatarProfile, SpeciesType } from "./avatar-image-optimization";
 import { normalizeLanguage } from "./avatar-image-optimization";
 import { getAvatarCanon, buildVisualDistinctionWarning } from "../avatar/avatar-canon-simple";
+import { buildAgeAccuratePrompt, buildRelativeHeightReferences } from "./age-consistency-guards";
 
 /**
  * Normalizes all text fields in a visual profile from German to English
@@ -314,24 +315,36 @@ function buildForbidList(
       "tail",
       "cat tail",
       "dog tail",
+      "fox tail",
       "any tail",
+      "any kind of tail",
       "visible tail",
+      "tail behind",
+      "tail attachment",
       "tail appendage",
       "fluffy tail",
-      "bushy tail"
+      "bushy tail",
+      "furry tail",
+      "appendage from rear",
+      "protruding from back"
     );
 
     // FUR/PELT - Fur texture on human skin MUST be forbidden
     add(
       "fur",
       "pelt",
+      "animal fur",
       "animal coat",
       "body fur",
       "furry body",
+      "fur coat",
       "fur texture",
+      "hairy body",
       "animal skin",
       "furry character",
-      "fur covering body"
+      "fur covering body",
+      "animal pelt",
+      "fuzzy skin"
     );
 
     // FACE - Animal facial features MUST be forbidden
@@ -346,7 +359,10 @@ function buildForbidList(
       "cat nose",
       "dog snout",
       "feline face shape",
-      "painted whisker markings"
+      "painted whisker markings",
+      "beast face",
+      "anthropomorphic face",
+      "animal jaw"
     );
 
     // LIMBS - Animal limbs MUST be forbidden
@@ -358,7 +374,9 @@ function buildForbidList(
       "padded hands",
       "padded feet",
       "paw pads",
-      "animal limbs"
+      "animal limbs",
+      "talons",
+      "hooves"
     );
 
     // GENERAL - Anthropomorphic/furry styles MUST be forbidden
@@ -373,8 +391,11 @@ function buildForbidList(
       "animal hybrid",
       "half-animal",
       "beast character",
+      "beast-human",
       "mascot suit",
-      "costume makeup"
+      "costume makeup",
+      "anthro",
+      "zoomorphic"
     );
 
     // CHARACTER DUPLICATION
@@ -853,8 +874,9 @@ function buildStructuredCharacterLine(block: CharacterBlock): string {
   } else if (block.species === "animal") {
     speciesType = "ANIMAL - natural quadruped";
   } else {
-    // Human
-    speciesType = `HUMAN ${block.ageHint || "child"}, standing on two legs like humans do, NO animal features`;
+    // Human - Use Age-Guards for accurate age representation
+    const ageHint = block.ageHint || "child";
+    speciesType = `HUMAN ${ageHint}, standing on two legs like humans do, NO animal features`;
   }
 
   // Build detailed physical description
@@ -988,7 +1010,48 @@ export function buildCompleteImagePrompt(
   // Build negative prompt from all character forbid lists
   const negativePrompt = buildNegativePromptFromBlocks(blocks);
 
-  return { positivePrompt, negativePrompt };
+  // Add Age-Consistency Guards for human characters
+  const humanBlocks = blocks.filter(b => b.species === 'human');
+  let ageGuardsSection = "";
+
+  if (humanBlocks.length > 0) {
+    const ageGuardLines: string[] = [];
+
+    humanBlocks.forEach(block => {
+      // Extract age from ageHint (e.g., "child 6-8 years" -> extract first number)
+      const ageMatch = block.ageHint?.match(/(\d+)/);
+      const age = ageMatch ? parseInt(ageMatch[1], 10) : undefined;
+
+      if (age || block.ageHint) {
+        const ageGuard = buildAgeAccuratePrompt(block.name, age, block.ageHint);
+        ageGuardLines.push(ageGuard);
+      }
+    });
+
+    // Add relative height references for multi-character scenes
+    if (humanBlocks.length > 1) {
+      const relativeHeights = buildRelativeHeightReferences(
+        humanBlocks.map(b => ({
+          name: b.name,
+          ageApprox: b.ageHint,
+          species: b.species
+        }))
+      );
+
+      if (relativeHeights) {
+        ageGuardLines.push(relativeHeights);
+      }
+    }
+
+    if (ageGuardLines.length > 0) {
+      ageGuardsSection = "\n\nAGE CONSISTENCY GUARDS:\n" + ageGuardLines.join("\n\n");
+    }
+  }
+
+  // Append age guards to positive prompt
+  const finalPositivePrompt = positivePrompt + ageGuardsSection;
+
+  return { positivePrompt: finalPositivePrompt, negativePrompt };
 }
 
 function formatCharacterNarrativeLine(block: CharacterBlock): string {
@@ -1185,7 +1248,7 @@ function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
         " and "
       )} as real quadruped cats with tails visible while ${humanNames.join(
         " and "
-      )} remain human children with no animal traits.`
+      )} remain human children with no animal traits. CRITICAL HUMAN FEATURES for ${humanNames.join(" and ")}: Smooth HUMAN skin (NOT fur, NOT pelt), HUMAN ears on SIDES of head (NOT on top), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy. If in doubt: Make MORE human, LESS animal.`
     );
   }
   if (catNames.length) {
@@ -1199,7 +1262,7 @@ function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
     return normalizeLanguage(
       `SPECIES GUARD Keep ${humanNames.join(
         " and "
-      )} purely human with natural skin, hair, and no animal features.`
+      )} purely human with natural skin, hair, and no animal features. CRITICAL HUMAN FEATURES: Smooth HUMAN skin (NOT fur, NOT pelt), HUMAN ears on SIDES of head (NOT on top), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy.`
     );
   }
   if (dogNames.length) {
