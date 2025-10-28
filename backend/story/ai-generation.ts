@@ -1394,6 +1394,7 @@ FORMAT: {title, description, chapters[{title, content, order, imageDescription:{
       Authorization: `Bearer ${openAIKey()}`,
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(120000), // 2 minutes timeout
   });
 
   if (!response.ok) {
