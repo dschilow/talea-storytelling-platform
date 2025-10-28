@@ -168,15 +168,31 @@ function buildDetailedDescription(
       parts.push(profile.face.otherFeatures.slice(0, 2).join("; "));
     }
   } else if (species === "dog" || species === "animal") {
-    // DOG/ANIMAL-SPECIFIC DESCRIPTION
-    if (profile.hair?.color) {
-      parts.push(`coat: ${profile.hair.color} ${profile.hair.type || "fur"}`);
+    // DOG/ANIMAL/CREATURE-SPECIFIC DESCRIPTION (generic for all non-human, non-cat)
+    const profileAny = profile as any;
+
+    // Try to get color from multiple sources
+    const color = profileAny.coat?.primaryColor || profileAny.fur?.color || profile.hair?.color || profileAny.color?.primary;
+    const colorType = profileAny.coat?.pattern || profile.hair?.type || "texture";
+
+    if (color) {
+      parts.push(`${color} ${colorType}`);
     }
+
+    // Add distinctive features
     if (profile.skin?.distinctiveFeatures?.length) {
       parts.push(profile.skin.distinctiveFeatures.slice(0, 2).join("; "));
     }
+
+    // Eyes
     if (profile.eyes) {
-      parts.push(`eyes: ${profile.eyes.color || "brown"} ${profile.eyes.shape || "round"}`);
+      parts.push(`${profile.eyes.color || "dark"} ${profile.eyes.shape || "round"} eyes`);
+    }
+
+    // Character type for non-standard creatures
+    const characterType = profileAny.characterType;
+    if (characterType && characterType !== species) {
+      parts.push(`${characterType} appearance`);
     }
   } else {
     // HUMAN - COMPACT DESCRIPTION
@@ -209,14 +225,38 @@ function extractMustInclude(
   const mustInclude: string[] = [];
 
   if (species === "cat" || species === "dog" || species === "animal") {
-    // Animals
-    if (profile.hair?.color) mustInclude.push(`${profile.hair.color} fur`, `${profile.hair.color} coat`);
+    // Animals/Creatures - Use coat, fur, or color (safely access with any cast)
+    const profileAny = profile as any;
+    const coatColor = profileAny.coat?.primaryColor || profileAny.fur?.color || profile.hair?.color || profileAny.color?.primary;
+    if (coatColor) {
+      mustInclude.push(`${coatColor} fur`, `${coatColor} coat`);
+    }
+
+    const coatPattern = profileAny.coat?.pattern || profileAny.fur?.pattern;
+    if (coatPattern) {
+      mustInclude.push(`${coatPattern} pattern`);
+    }
+
     if (profile.eyes?.color) mustInclude.push(`${profile.eyes.color} eyes`);
+
     if (species === "cat") {
       mustInclude.push("whiskers", "four legs", "non-anthropomorphic cat", "quadruped");
+    } else if (species === "dog") {
+      mustInclude.push("four legs", "non-anthropomorphic dog", "quadruped");
+    } else {
+      // Generic animal/creature
+      mustInclude.push("non-anthropomorphic");
     }
+
+    // Add distinctive features
     if (profile.skin?.distinctiveFeatures?.length) {
       mustInclude.push(profile.skin.distinctiveFeatures[0].substring(0, 50));
+    }
+
+    // Add characterType for non-standard creatures (monster, robot, etc.)
+    const characterType = profileAny.characterType;
+    if (characterType && characterType !== species) {
+      mustInclude.push(characterType);
     }
   } else {
     // HUMANS - COMPACT, ONLY ESSENTIALS
@@ -481,11 +521,16 @@ export function buildCharacterBlock(
   const action = sceneDetails?.action ? normalizeLanguage(sceneDetails.action) : undefined;
 
   // ADD AVATAR CANON DETAILS to mustInclude list
+  // PRIORITY 1: Use visual_profile data from database (analyzed appearance from Schritt 7)
+  // PRIORITY 2: Use extractMustInclude from profile
+  // PRIORITY 3: Use hardcoded canon as fallback (only for legacy avatars)
+
   let mustInclude = extractMustInclude(normalizedProfile, species);
 
+  // Try hardcoded canon ONLY as last resort for legacy avatars (alexander, adrian)
   try {
-    // Try to get avatar canon details
     const canon = getAvatarCanon(name);
+    console.log(`[character-block-builder] Using hardcoded canon for legacy avatar: ${name}`);
     mustInclude = [
       ...mustInclude,
       canon.hair,
@@ -494,8 +539,8 @@ export function buildCharacterBlock(
       ...canon.distinctive
     ];
   } catch (error) {
-    // If no canon found, continue with original profile
-    console.warn(`[character-block-builder] No avatar canon found for ${name}, using profile data`);
+    // This is EXPECTED for new avatars - they use visual_profile data
+    console.log(`[character-block-builder] Using visual_profile data for avatar: ${name} (no hardcoded canon)`);
   }
 
   const block: CharacterBlock = {
