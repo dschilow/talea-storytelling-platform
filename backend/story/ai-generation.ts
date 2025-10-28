@@ -1,4 +1,4 @@
-import { api } from "encore.dev/api";
+﻿import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type {
   StoryConfig,
@@ -454,8 +454,8 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
     };
   }
 
-  const protagonistLines = describeCharacter(description.characters?.protagonists ?? [], "Protagonist");
-  const supportingLines = describeCharacter(description.characters?.supporting ?? [], "Supporting");
+  const protagonistLines = describeCharacter(description.characters?.protagonists ?? [], "Protagonist").slice(0, 3);
+  const supportingLines = describeCharacter(description.characters?.supporting ?? [], "Supporting").slice(0, 3);
 
   const narrativePieces: string[] = [];
   if (description.scene) {
@@ -479,7 +479,7 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
     narrativePieces.push("Props: " + description.props.join(", "));
   }
 
-  const atmosphereLines = summarizeAtmosphere(description.atmosphere);
+  const atmosphereLines = summarizeAtmosphere(description.atmosphere).slice(0, 4);
   if (atmosphereLines.length > 0) {
     narrativePieces.push(atmosphereLines.join(" | "));
   }
@@ -493,18 +493,36 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
   }
 
   const summary = narrativePieces.join(" ");
+  const limitedEnvironment: ImageEnvironmentLayers = {
+    foreground: Array.isArray(description.environment?.foreground)
+      ? description.environment!.foreground.filter(Boolean).slice(0, 4)
+      : [],
+    midground: Array.isArray(description.environment?.midground)
+      ? description.environment!.midground.filter(Boolean).slice(0, 6)
+      : [],
+    background: Array.isArray(description.environment?.background)
+      ? description.environment!.background.filter(Boolean).slice(0, 4)
+      : [],
+  };
+  const limitedProps = Array.isArray(description.props) ? description.props.filter(Boolean).slice(0, 6) : [];
+  const limitedStoryDetails = Array.isArray(description.storytellingDetails)
+    ? description.storytellingDetails.filter(Boolean).slice(0, 5)
+    : [];
 
   return {
     summary,
     protagonistLines,
     supportingLines,
-    environmentLayers: description.environment,
-    props: Array.isArray(description.props) ? description.props : [],
+    environmentLayers:
+      limitedEnvironment.foreground.length ||
+      limitedEnvironment.midground.length ||
+      limitedEnvironment.background.length
+        ? limitedEnvironment
+        : undefined,
+    props: limitedProps,
     atmosphereLines,
     recurringElementNote: description.recurringElement,
-    storytellingDetails: Array.isArray(description.storytellingDetails)
-      ? description.storytellingDetails
-      : [],
+    storytellingDetails: limitedStoryDetails,
   };
 }
 
@@ -1555,16 +1573,29 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
   finalRequest = payload;
 
   console.log(`[ai-generation] 🤖 Calling OpenAI API without tool calling`);
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(120000), // 2 minutes timeout
-  });
+  const openAITimeoutMs = config.length === "long" ? 240_000 : 180_000;
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => abortController.abort(), openAITimeoutMs);
 
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAIKey()}`,
+      },
+      body: JSON.stringify(payload),
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    if ((error as any)?.name === "AbortError") {
+      throw new Error(`OpenAI request timed out after ${openAITimeoutMs / 1000}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
