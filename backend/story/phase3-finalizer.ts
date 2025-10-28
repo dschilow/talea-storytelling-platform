@@ -64,7 +64,7 @@ export class Phase3StoryFinalizer {
           ],
           response_format: { type: "json_object" },
           temperature: 0.8,
-          max_tokens: 3500,
+          max_completion_tokens: 3500,
         }),
       });
 
