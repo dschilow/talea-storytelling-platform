@@ -616,7 +616,7 @@ export const generateStoryContent = api<
         },
       }));
 
-      const coverPromptOptimized = buildCompleteImagePrompt({
+      const coverPrompts = buildCompleteImagePrompt({
         characters: coverCharactersData,
         scene: safeCoverSceneText,
         customStyle: {
@@ -627,18 +627,21 @@ export const generateStoryContent = api<
       });
 
       // Normalize language (DE->EN)
-      const coverPromptNormalized = normalizeLanguage(coverPromptOptimized);
+      const coverPromptNormalized = normalizeLanguage(coverPrompts.positivePrompt);
+      const coverNegativePromptNormalized = normalizeLanguage(coverPrompts.negativePrompt);
 
-      console.log("[ai-generation] 📸 Generating COVER image with optimized prompt");
-      console.log("[ai-generation] Cover prompt length:", coverPromptNormalized.length);
+      console.log("[ai-generation] 📸 Generating COVER image with optimized prompt + negative prompt");
+      console.log("[ai-generation] Cover positive prompt length:", coverPromptNormalized.length);
+      console.log("[ai-generation] Cover negative prompt length:", coverNegativePromptNormalized.length);
 
       const coverResponse = await ai.generateImage({
         prompt: coverPromptNormalized,
+        negativePrompt: coverNegativePromptNormalized,
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 28,
-        CFGScale: 3.5,
+        steps: 30, // Increased from 28 for better quality
+        CFGScale: 7.5, // Increased from 3.5 for stronger prompt adherence
         seed: seedBase,
         outputFormat: "JPEG",
       });
@@ -673,22 +676,26 @@ export const generateStoryContent = api<
           };
         });
 
-        const chapterPromptOptimized = buildCompleteImagePrompt({
+        const chapterPrompts = buildCompleteImagePrompt({
           characters: chapterCharactersData,
           scene: chapterSceneText,
         });
 
-        const chapterPromptNormalized = normalizeLanguage(chapterPromptOptimized);
+        const chapterPromptNormalized = normalizeLanguage(chapterPrompts.positivePrompt);
+        const chapterNegativePromptNormalized = normalizeLanguage(chapterPrompts.negativePrompt);
 
-        console.log(`[ai-generation] 📸 Generating Chapter ${i + 1} image`);
+        console.log(`[ai-generation] 📸 Generating Chapter ${i + 1} image with negative prompt`);
+        console.log(`[ai-generation] Chapter ${i + 1} positive prompt length:`, chapterPromptNormalized.length);
+        console.log(`[ai-generation] Chapter ${i + 1} negative prompt length:`, chapterNegativePromptNormalized.length);
 
         const chapterResponse = await ai.generateImage({
           prompt: chapterPromptNormalized,
+          negativePrompt: chapterNegativePromptNormalized,
           model: "runware:101@1",
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 28,
-          CFGScale: 3.5,
+          steps: 30, // Increased from 28 for better quality
+          CFGScale: 7.5, // Increased from 3.5 for stronger prompt adherence
           seed: (seedBase + i * 7) >>> 0, // FIXED: Chapter index (not +1) for correct seed strategy
           outputFormat: "JPEG",
         });

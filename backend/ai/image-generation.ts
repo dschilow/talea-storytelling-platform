@@ -7,6 +7,7 @@ const runwareApiKey = secret("RunwareApiKey");
 
 export interface ImageGenerationRequest {
   prompt: string;
+  negativePrompt?: string; // NEW: Explicit negative prompts to avoid unwanted features
   model?: string;
   width?: number;
   height?: number;
@@ -37,6 +38,7 @@ export interface ImageGenerationResponse {
 export interface BatchImageInput {
   // All fields required for Encore schemas; callers should pass defaults where needed.
   prompt: string;
+  negativePrompt?: string; // NEW: Explicit negative prompts to avoid unwanted features
   model: string;
   width: number;
   height: number;
@@ -100,6 +102,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     checkNSFW: true,
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
     positivePrompt: enhancePromptForRunware(req.prompt),
+    ...(req.negativePrompt && req.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(req.negativePrompt) } : {}),
   };
 
   try {
@@ -228,6 +231,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       outputFormat: img.outputFormat || "JPEG",
       outputQuality: 85,
       positivePrompt: enhancePromptForRunware(img.prompt),
+      ...(img.negativePrompt && img.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(img.negativePrompt) } : {}),
       width: normalizeToMultiple64(img.width || 1024),
       height: normalizeToMultiple64(img.height || 1024),
       steps: img.steps ?? 28,

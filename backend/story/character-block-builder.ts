@@ -291,39 +291,124 @@ function buildForbidList(
       `duplicate ${characterName}`
     );
   } else {
+    // CRITICAL FIX: AGGRESSIVE HUMAN-GUARD against animal features
+    // Per human-guard-fix.md - this prevents human characters from getting animal traits
+
+    // EARS - All types of animal ears MUST be forbidden
+    add(
+      "animal ears",
+      "cat ears",
+      "dog ears",
+      "furry ears",
+      "kemonomimi",
+      "neko ears",
+      "ears on top of head",
+      "pointed ears",
+      "fox ears",
+      "wolf ears",
+      "bunny ears"
+    );
+
+    // TAIL - Any kind of tail MUST be forbidden
+    add(
+      "tail",
+      "cat tail",
+      "dog tail",
+      "any tail",
+      "visible tail",
+      "tail appendage",
+      "fluffy tail",
+      "bushy tail"
+    );
+
+    // FUR/PELT - Fur texture on human skin MUST be forbidden
+    add(
+      "fur",
+      "pelt",
+      "animal coat",
+      "body fur",
+      "furry body",
+      "fur texture",
+      "animal skin",
+      "furry character",
+      "fur covering body"
+    );
+
+    // FACE - Animal facial features MUST be forbidden
+    add(
+      "snout",
+      "muzzle",
+      "animal nose",
+      "whiskers",
+      "fangs",
+      "animal mouth",
+      "animal face",
+      "cat nose",
+      "dog snout",
+      "feline face shape",
+      "painted whisker markings"
+    );
+
+    // LIMBS - Animal limbs MUST be forbidden
+    add(
+      "paws",
+      "claws",
+      "animal hands",
+      "animal feet",
+      "padded hands",
+      "padded feet",
+      "paw pads",
+      "animal limbs"
+    );
+
+    // GENERAL - Anthropomorphic/furry styles MUST be forbidden
+    add(
+      "anthropomorphic",
+      "furry character",
+      "furry",
+      "kemono",
+      "catboy",
+      "dogboy",
+      "neko",
+      "animal hybrid",
+      "half-animal",
+      "beast character",
+      "mascot suit",
+      "costume makeup"
+    );
+
+    // CHARACTER DUPLICATION
     add(
       `duplicate ${characterName}`,
       "duplicate character",
       "identical twins",
       "same appearance",
       "matching clothing",
-      "any animal traits",
-      "fur on skin",
-      "whiskers on face",
-      "animal ears",
-      "tail",
-      "feline face shape",
-      "cat nose",
-      "painted whisker markings",
-      "mascot suit",
-      "costume makeup"
+      "extra children",
+      "multiple copies"
     );
 
+    // HAIR COLOR PROTECTION - Prevent wrong hair colors
     if (profile?.hair?.color) {
       const hair = profile.hair.color.toLowerCase();
-      if (hair.includes("blond")) {
-        add("brown hair", "black hair");
-      } else if (hair.includes("brown")) {
-        add("blond hair", "red hair");
+      if (hair.includes("blond") || hair.includes("gold")) {
+        add("brown hair", "black hair", "red hair", "brunette");
+      } else if (hair.includes("brown") || hair.includes("chestnut") || hair.includes("brunette")) {
+        add("blond hair", "blonde hair", "golden hair", "red hair");
+      } else if (hair.includes("black")) {
+        add("blond hair", "brown hair", "red hair");
       }
     }
 
+    // EYE COLOR PROTECTION - Prevent wrong eye colors
     if (profile?.eyes?.color) {
       const eyes = profile.eyes.color.toLowerCase();
-      if (eyes.includes("blue")) {
-        add("brown eyes", "green eyes");
-      } else if (eyes.includes("green") || eyes.includes("grun")) {
-        add("blue eyes", "brown eyes");
+      if (eyes.includes("blue") || eyes.includes("sky")) {
+        add("brown eyes", "green eyes", "amber eyes", "hazel eyes");
+      } else if (eyes.includes("green") || eyes.includes("grun") || eyes.includes("emerald")) {
+        add("blue eyes", "brown eyes", "amber eyes");
+      } else if (eyes.includes("brown") || eyes.includes("amber")) {
+        add("blue eyes", "green eyes");
       }
     }
   }
@@ -824,7 +909,7 @@ function buildStructuredCharacterLine(block: CharacterBlock): string {
 
 export function buildCompleteImagePrompt(
   options: CompleteImagePromptOptions
-): string {
+): { positivePrompt: string; negativePrompt: string } {
   const { blocks } = buildMultiCharacterPrompt(options.characters);
   const subjectCount = blocks.length || options.characters.length;
   const speciesSet = new Set(blocks.map((b) => b.species));
@@ -898,7 +983,12 @@ export function buildCompleteImagePrompt(
 
   const rawPrompt = sections.join("\n\n").replace(/\s+/g, " ").trim();
   const asciiPrompt = ensureAscii(rawPrompt);
-  return clampPromptLength(asciiPrompt, 1500); // Increased limit for structured format
+  const positivePrompt = clampPromptLength(asciiPrompt, 1500); // Increased limit for structured format
+
+  // Build negative prompt from all character forbid lists
+  const negativePrompt = buildNegativePromptFromBlocks(blocks);
+
+  return { positivePrompt, negativePrompt };
 }
 
 function formatCharacterNarrativeLine(block: CharacterBlock): string {
@@ -1050,6 +1140,29 @@ function summarizeCharacterTraits(block: CharacterBlock): string {
     .slice(0, 3);
 
   return unique.join(", ");
+}
+
+/**
+ * Builds negative prompt from all character forbid lists
+ * This ensures unwanted features are explicitly excluded
+ */
+function buildNegativePromptFromBlocks(blocks: CharacterBlock[]): string {
+  const allForbidden: string[] = [];
+
+  // Collect all forbid items from all characters
+  blocks.forEach(block => {
+    if (block.forbid && Array.isArray(block.forbid)) {
+      allForbidden.push(...block.forbid);
+    }
+  });
+
+  // Remove duplicates and limit to most important items
+  const uniqueForbidden = Array.from(new Set(allForbidden))
+    .filter(item => item && item.trim().length > 0)
+    .slice(0, 50); // Limit to 50 most important items
+
+  // Join with commas for Runware API
+  return uniqueForbidden.join(", ");
 }
 
 function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
