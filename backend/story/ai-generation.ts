@@ -1056,8 +1056,8 @@ interface StoryToolOutcome {
   finalResponse: any;
 }
 
-// OPTIMIERT: Reduziert Memories von 3 auf 2 und Descriptors von 6 auf 4 für Token-Einsparung
-const MAX_TOOL_MEMORIES = 2;
+// OPTIMIERT: Reduziert Memories von 3 auf 1 und Descriptors von 6 auf 4 für Token-Einsparung
+const MAX_TOOL_MEMORIES = 1;
 const MAX_DESCRIPTOR_COUNT = 4;
 
 function compressVisualProfile(profile: AvatarVisualProfile) {
@@ -1573,7 +1573,12 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
   finalRequest = payload;
 
   console.log(`[ai-generation] 🤖 Calling OpenAI API without tool calling`);
-  const openAITimeoutMs = config.length === "long" ? 240_000 : 180_000;
+  const openAITimeoutMs =
+    config.length === "long"
+      ? 360_000
+      : config.length === "medium"
+      ? 240_000
+      : 180_000;
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => abortController.abort(), openAITimeoutMs);
 
