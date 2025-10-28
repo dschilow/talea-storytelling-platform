@@ -4,6 +4,7 @@
 import { api } from "encore.dev/api";
 import { storyDB } from "./db";
 import type { CharacterTemplate } from "./types";
+import { seedCharacterPool } from "./seed-characters";
 
 // ===== GET ALL CHARACTERS =====
 export const listCharacters = api(
@@ -307,5 +308,26 @@ export const resetRecentUsage = api(
       success: true,
       resetCount: 0, // Encore doesn't return affected rows count easily
     };
+  }
+);
+
+// ===== SEED CHARACTER POOL =====
+// Seeds the character pool with 18 pre-built characters
+export const seedPool = api(
+  { expose: true, method: "POST", path: "/story/character-pool/seed", auth: false },
+  async (): Promise<{ success: boolean; count: number }> => {
+    console.log("[CharacterPool] Seeding character pool...");
+
+    try {
+      const count = await seedCharacterPool();
+
+      return {
+        success: true,
+        count,
+      };
+    } catch (error) {
+      console.error("[CharacterPool] Seeding failed:", error);
+      throw error;
+    }
   }
 );

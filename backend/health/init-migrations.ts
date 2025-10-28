@@ -186,6 +186,60 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_personality_tracking_avatar ON personality_tracking(avatar_id)`,
   `CREATE INDEX IF NOT EXISTS idx_personality_tracking_type ON personality_tracking(event_type)`,
   `CREATE INDEX IF NOT EXISTS idx_personality_tracking_date ON personality_tracking(created_at DESC)`,
+
+  // 15. Character pool for supporting story characters
+  `CREATE TABLE IF NOT EXISTS character_pool (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    archetype TEXT NOT NULL,
+    emotional_nature JSONB NOT NULL,
+    visual_profile JSONB NOT NULL,
+    max_screen_time INTEGER DEFAULT 50,
+    available_chapters INTEGER[] DEFAULT '{1,2,3,4,5}',
+    canon_settings TEXT[] DEFAULT '{}',
+    recent_usage_count INTEGER DEFAULT 0,
+    total_usage_count INTEGER DEFAULT 0,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_character_pool_role ON character_pool(role)`,
+  `CREATE INDEX IF NOT EXISTS idx_character_pool_archetype ON character_pool(archetype)`,
+  `CREATE INDEX IF NOT EXISTS idx_character_pool_active ON character_pool(is_active)`,
+
+  // 16. Story-character junction table
+  `CREATE TABLE IF NOT EXISTS story_characters (
+    id TEXT PRIMARY KEY,
+    story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    character_id TEXT NOT NULL REFERENCES character_pool(id),
+    placeholder TEXT NOT NULL,
+    chapters_appeared INTEGER[] DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_story_characters_story ON story_characters(story_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_story_characters_character ON story_characters(character_id)`,
+
+  // 17. Story skeletons (Phase 1 output storage)
+  `CREATE TABLE IF NOT EXISTS story_skeletons (
+    id TEXT PRIMARY KEY,
+    story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+    title TEXT,
+    chapters JSONB NOT NULL,
+    supporting_character_requirements JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_story_skeletons_story ON story_skeletons(story_id)`,
+
+  // 18. Add avatar_developments column to stories
+  `DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='stories' AND column_name='avatar_developments') THEN
+      ALTER TABLE stories ADD COLUMN avatar_developments JSONB;
+    END IF;
+  END $$`,
 ];
 
 /**
