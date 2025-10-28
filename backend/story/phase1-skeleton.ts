@@ -2,7 +2,6 @@
 // Generates story structure with character ROLES (no names, no visuals)
 // Token Budget: ~1,500 tokens
 
-import OpenAI from "openai";
 import { secret } from "encore.dev/config";
 import type { StoryConfig } from "./generate";
 import type { StorySkeleton } from "./types";
@@ -17,37 +16,58 @@ interface Phase1Input {
   }>;
 }
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
+
 export class Phase1SkeletonGenerator {
-  private openai: OpenAI;
-
-  constructor() {
-    this.openai = new OpenAI({ apiKey: openAIKey() });
-  }
-
   async generate(input: Phase1Input): Promise<StorySkeleton> {
     console.log("[Phase1] Generating story skeleton...");
 
     const prompt = this.buildSkeletonPrompt(input);
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: input.config.aiModel || "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist eine professionelle Kinderbuch-Autorin, die Story-Strukturen mit generischen Charakter-Platzhaltern erstellt."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-        max_tokens: 2000,
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify({
+          model: input.config.aiModel || "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "Du bist eine professionelle Kinderbuch-Autorin, die Story-Strukturen mit generischen Charakter-Platzhaltern erstellt."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
       });
 
-      const content = response.choices[0]?.message?.content;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json() as OpenAIResponse;
+      const content = data.choices?.[0]?.message?.content;
       if (!content) {
         throw new Error("No content in Phase 1 response");
       }

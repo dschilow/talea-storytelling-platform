@@ -170,60 +170,36 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
   async (req): Promise<CharacterTemplate> => {
     console.log("[CharacterPool] Updating character:", req.id);
 
-    // Build dynamic update query
-    const updates: string[] = [];
-    const values: any[] = [];
+    // Simple update approach - update each field separately if provided
+    const now = new Date();
 
     if (req.updates.name) {
-      updates.push(`name = $${values.length + 1}`);
-      values.push(req.updates.name);
+      await storyDB.exec`UPDATE character_pool SET name = ${req.updates.name}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.role) {
-      updates.push(`role = $${values.length + 1}`);
-      values.push(req.updates.role);
+      await storyDB.exec`UPDATE character_pool SET role = ${req.updates.role}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.archetype) {
-      updates.push(`archetype = $${values.length + 1}`);
-      values.push(req.updates.archetype);
+      await storyDB.exec`UPDATE character_pool SET archetype = ${req.updates.archetype}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.emotionalNature) {
-      updates.push(`emotional_nature = $${values.length + 1}`);
-      values.push(JSON.stringify(req.updates.emotionalNature));
+      await storyDB.exec`UPDATE character_pool SET emotional_nature = ${JSON.stringify(req.updates.emotionalNature)}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.visualProfile) {
-      updates.push(`visual_profile = $${values.length + 1}`);
-      values.push(JSON.stringify(req.updates.visualProfile));
+      await storyDB.exec`UPDATE character_pool SET visual_profile = ${JSON.stringify(req.updates.visualProfile)}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.maxScreenTime !== undefined) {
-      updates.push(`max_screen_time = $${values.length + 1}`);
-      values.push(req.updates.maxScreenTime);
+      await storyDB.exec`UPDATE character_pool SET max_screen_time = ${req.updates.maxScreenTime}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.availableChapters) {
-      updates.push(`available_chapters = $${values.length + 1}`);
-      values.push(req.updates.availableChapters);
+      await storyDB.exec`UPDATE character_pool SET available_chapters = ${req.updates.availableChapters}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.canonSettings) {
-      updates.push(`canon_settings = $${values.length + 1}`);
-      values.push(req.updates.canonSettings);
+      await storyDB.exec`UPDATE character_pool SET canon_settings = ${req.updates.canonSettings}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.isActive !== undefined) {
-      updates.push(`is_active = $${values.length + 1}`);
-      values.push(req.updates.isActive);
+      await storyDB.exec`UPDATE character_pool SET is_active = ${req.updates.isActive}, updated_at = ${now} WHERE id = ${req.id}`;
     }
-
-    updates.push(`updated_at = $${values.length + 1}`);
-    values.push(new Date());
-
-    if (updates.length === 1) {
-      // Only updated_at, nothing to update
-      return getCharacter({ id: req.id });
-    }
-
-    await storyDB.exec`
-      UPDATE character_pool
-      SET ${updates.join(", ")}
-      WHERE id = ${req.id}
-    `;
 
     console.log("[CharacterPool] Character updated:", req.id);
 

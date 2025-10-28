@@ -2,7 +2,6 @@
 // Writes complete story with matched characters
 // Token Budget: ~2,000 tokens
 
-import OpenAI from "openai";
 import { secret } from "encore.dev/config";
 import type { StoryConfig } from "./generate";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
@@ -20,13 +19,21 @@ interface Phase3Input {
   }>;
 }
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: any;
+}
+
 export class Phase3StoryFinalizer {
-  private openai: OpenAI;
-
-  constructor() {
-    this.openai = new OpenAI({ apiKey: openAIKey() });
-  }
-
   async finalize(input: Phase3Input): Promise<FinalizedStory> {
     console.log("[Phase3] Finalizing story with character injection...");
 
@@ -37,24 +44,37 @@ export class Phase3StoryFinalizer {
     const prompt = this.buildFinalizationPrompt(skeletonWithNames, input.assignments, input.config, input.avatarDetails);
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: input.config.aiModel || "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist eine professionelle Kinderbuch-Autorin, die vollständige, lebendige Geschichten mit etablierten Charakteren schreibt."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.8,
-        max_tokens: 3500,
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify({
+          model: input.config.aiModel || "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "Du bist eine professionelle Kinderbuch-Autorin, die vollständige, lebendige Geschichten mit etablierten Charakteren schreibt."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.8,
+          max_tokens: 3500,
+        }),
       });
 
-      const content = response.choices[0]?.message?.content;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json() as OpenAIResponse;
+      const content = data.choices?.[0]?.message?.content;
       if (!content) {
         throw new Error("No content in Phase 3 response");
       }
