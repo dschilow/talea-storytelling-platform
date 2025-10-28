@@ -58,10 +58,10 @@ export function buildCharacterDescription(avatarName: string): string {
 /**
  * Build visual distinction warning
  */
-export function buildVisualDistinctionWarning(avatarNames: string[]): string {
-  if (avatarNames.length < 2) return "";
+export function buildVisualDistinctionWarning(canons: SimpleAvatarCanon[]): string {
+  if (canons.length < 2) return "";
 
-  const canons = avatarNames.map(name => getAvatarCanon(name));
+  const avatarNames = canons.map(c => c.name);
 
   return `
 CRITICAL: ${avatarNames.join(' and ')} must look VISUALLY DIFFERENT!

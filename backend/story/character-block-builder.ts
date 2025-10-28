@@ -98,43 +98,40 @@ export interface CharacterBlock {
  * Determines species from visual profile
  */
 function getSpeciesFromProfile(profile: AvatarVisualProfile | MinimalAvatarProfile): SpeciesType {
-  const descriptors = profile.consistentDescriptors?.join(" ").toLowerCase() || "";
+  const profileAny = profile as any;
+  const explicitType = (profileAny.characterType || "").toLowerCase();
+  const descriptors = (profile.consistentDescriptors?.join(" ") || "").toLowerCase();
+
+  // Priority 1: Explicit character type from the profile
+  if (explicitType.includes("monster") || explicitType.includes("creature") || explicitType.includes("fantasie-wesen") || explicitType.includes("fabelwesen")) {
+    return "animal"; // Map all fantasy creatures to the generic 'animal' type
+  }
+  if (explicitType.includes("cat") || explicitType.includes("kitten")) return "cat";
+  if (explicitType.includes("dog")) return "dog";
+  if (explicitType.includes("human")) return "human";
+
+  // Priority 2: Keywords in descriptors if explicit type is missing
+  const mentionsCat = descriptors.includes("cat") || descriptors.includes("kitten") || descriptors.includes("feline") || descriptors.includes("katze");
+  if (mentionsCat) return "cat";
+
+  const mentionsDog = descriptors.includes("dog") || descriptors.includes("hund") || descriptors.includes("canine");
+  if (mentionsDog) return "dog";
+
+  const mentionsAnimal = descriptors.includes("animal") || descriptors.includes("tier");
+  if (mentionsAnimal) return "animal";
+
+  // Priority 3: Infer from specific features (less reliable, use as a fallback)
+  const otherFeatures = (profile.face?.otherFeatures || []).join(" ").toLowerCase();
+  if (otherFeatures.includes("whisker")) return "cat";
+
   const hairType = profile.hair?.type?.toLowerCase() || "";
   const skinTone = profile.skin?.tone?.toLowerCase() || "";
   const distinctive = (profile.skin?.distinctiveFeatures || []).join(" ").toLowerCase();
-  const otherFeatures = (profile.face?.otherFeatures || []).join(" ").toLowerCase();
-
-  const mentionsCat =
-    descriptors.includes("cat") ||
-    descriptors.includes("kitten") ||
-    descriptors.includes("feline") ||
-    descriptors.includes("katze");
-  const mentionsDog =
-    descriptors.includes("dog") ||
-    descriptors.includes("hund") ||
-    descriptors.includes("canine");
-  const mentionsAnimal =
-    descriptors.includes("animal") || descriptors.includes("tier");
-  const hasWhiskers = otherFeatures.includes("whisker");
-  const hasFurHint =
-    hairType.includes("fur") ||
-    skinTone.includes("fur") ||
-    distinctive.includes("fur");
-
-  if (mentionsCat || hasWhiskers) {
-    return "cat";
-  }
-  if (mentionsDog) {
-    return "dog";
-  }
-  if (mentionsAnimal) {
-    return "animal";
-  }
-  if (hasFurHint) {
-    return "cat";
+  if (hairType.includes("fur") || skinTone.includes("fur") || distinctive.includes("fur")) {
+      return "animal"; // Inferring a generic animal is safer than defaulting to 'cat'
   }
 
-  return "human";
+  return "human"; // Default if no other criteria are met
 }
 
 /**
@@ -732,8 +729,18 @@ export function buildMultiCharacterPrompt(
   let distinctionWarning = "";
   if (blocks.length > 1) {
     try {
-      const avatarNames = blocks.map(block => block.name);
-      distinctionWarning = buildVisualDistinctionWarning(avatarNames);
+      // Create SimpleAvatarCanon objects dynamically from the full profiles
+      const simpleCanons = enrichedData.map(data => {
+        const profile = data.profile;
+        return {
+          name: data.name,
+          hair: profile.hair?.color || 'unknown',
+          eyes: profile.eyes?.color || 'unknown',
+          clothing: profile.clothingCanonical?.outfit || profile.clothingCanonical?.top || 'unknown',
+          distinctive: profile.skin?.distinctiveFeatures || []
+        };
+      });
+      distinctionWarning = buildVisualDistinctionWarning(simpleCanons);
     } catch (error) {
       console.warn("[character-block-builder] Could not add visual distinction warning:", error);
     }
