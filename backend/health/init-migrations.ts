@@ -262,8 +262,26 @@ export const initializeDatabaseMigrations = api(
       // Use story database for migrations (all services share same DB in Railway)
       const { storyDB } = await import("../story/db");
 
-      // Check if users table already exists
+      // Check if character_pool table exists (our newest table)
       const result = await storyDB.queryRow<{ exists: boolean }>`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'character_pool'
+        );
+      `;
+
+      if (result && result.exists) {
+        console.log("✓ Character pool and all tables already exist");
+        migrationsRun = true;
+        return {
+          success: true,
+          message: "Character pool and all database tables already exist"
+        };
+      }
+
+      // Also check if users table exists (for backward compatibility)
+      const usersExist = await storyDB.queryRow<{ exists: boolean }>`
         SELECT EXISTS (
           SELECT FROM information_schema.tables
           WHERE table_schema = 'public'
@@ -271,13 +289,8 @@ export const initializeDatabaseMigrations = api(
         );
       `;
 
-      if (result && result.exists) {
-        console.log("✓ Database tables already exist");
-        migrationsRun = true;
-        return { 
-          success: true, 
-          message: "Database tables already exist" 
-        };
+      if (usersExist && usersExist.exists) {
+        console.log("✓ Base tables exist, but character pool missing - running remaining migrations");
       }
 
       console.log(`Executing ${MIGRATION_STATEMENTS.length} SQL statements...`);
