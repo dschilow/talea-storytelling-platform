@@ -1098,23 +1098,92 @@ ${config.humorLevel !== undefined ? `- 😄 Humor-Level: ${config.humorLevel}/5 
 👥 CHARAKTERE (KRITISCH - VISUELLE DETAILS!):
 - Jeder Avatar hat eine unterscheidbare Stimme/Persönlichkeit
 - Verankere Identitäten: ${avatars
-    .map((a) => `${a.name} = ${a.physicalTraits?.characterType || "Figur"}`)
+    .map((a) => {
+      const vp = a.visualProfile as any;
+      return `${a.name} = ${a.physicalTraits?.characterType || vp?.characterType || "Figur"}`;
+    })
     .join(", ")}
 - Zeige Charakterentwicklung durch Entscheidungen und Reaktionen
 - Hebe arttypische Wahrnehmungen hervor (Tiere -> Sinne und Körper, Menschen -> Gefühle, Sprache, soziale Impulse)
 - Konsistente Namen und Pronomen (${avatars.map((a) => a.name).join(", ")})
 
-🎨 VISUELLE CHARAKTER-DETAILS (MUSS in JEDEM Kapitel erwähnt werden!):
-- Alexander: kastanienbraune Locken, bernsteinfarbene Augen, grüner Kapuzenpullover, rosige Wangen, energisch
-- Adrian: goldblondes Haar, himmelblaue Augen, blaue Jacke, helle Haut, schüchtern
+🎨 VISUELLE CHARAKTER-DETAILS (KRITISCH - MUSS in JEDEM Kapitel erwähnt werden!):
+${avatars.map((avatar) => {
+  const vp = avatar.visualProfile as any;
+  if (!vp) return `- ${avatar.name}: Keine visuellen Details verfügbar`;
 
-📝 INTEGRATION IN TEXT (Beispiele):
-- "Alexander strich sich durch seine kastanienbraunen Locken"
-- "Seine bernsteinfarbenen Augen leuchteten vor Neugier"
-- "Der grüne Pullover leuchtete im Sonnenlicht"
-- "Adrian's goldblondes Haar wehte im Wind"
-- "Seine himmelblauen Augen funkelten neugierig"
-- "Die blaue Jacke hing locker über seinen Schultern"
+  // Build detailed visual description from visualProfile
+  const details: string[] = [];
+
+  // Character type and species
+  if (vp.characterType) details.push(vp.characterType);
+  if (vp.speciesCategory && vp.speciesCategory !== 'human') details.push(`(${vp.speciesCategory})`);
+
+  // Hair/Fur
+  if (vp.hair?.color) {
+    if (vp.hair.type === 'fur') {
+      details.push(`${vp.hair.color} ${vp.hair.type}`);
+    } else {
+      details.push(`${vp.hair.color} ${vp.hair.style || vp.hair.length || ''} Haar`);
+    }
+  }
+
+  // Eyes
+  if (vp.eyes?.color) details.push(`${vp.eyes.color} Augen`);
+
+  // Skin/Fur tone
+  if (vp.skin?.tone) details.push(vp.skin.tone);
+
+  // Clothing (if applicable for humans/humanoids)
+  if (vp.clothingCanonical?.top) details.push(vp.clothingCanonical.top);
+  if (vp.clothingCanonical?.outfit) details.push(vp.clothingCanonical.outfit);
+
+  // Distinctive features (first 3)
+  if (vp.skin?.distinctiveFeatures && vp.skin.distinctiveFeatures.length > 0) {
+    details.push(...vp.skin.distinctiveFeatures.slice(0, 3));
+  }
+
+  // Locomotion for animals
+  if (vp.locomotion && vp.locomotion !== 'bipedal') {
+    details.push(vp.locomotion);
+  }
+
+  return `- ${avatar.name}: ${details.join(', ')}`;
+}).join('\n')}
+
+📝 INTEGRATION IN TEXT (Beispiele - ERSETZE mit echten Avatar-Details!):
+${avatars.map((avatar) => {
+  const vp = avatar.visualProfile as any;
+  if (!vp) return `- "${avatar.name} schaute nach vorne" (Keine Details verfügbar)`;
+
+  const examples: string[] = [];
+
+  // Hair/Fur example
+  if (vp.hair?.color && vp.hair.type === 'fur') {
+    examples.push(`"${avatar.name}'s ${vp.hair.color} ${vp.hair.type} glänzte im Licht"`);
+  } else if (vp.hair?.color) {
+    examples.push(`"${avatar.name} strich sich durch sein ${vp.hair.color} Haar"`);
+  }
+
+  // Eyes example
+  if (vp.eyes?.color) {
+    examples.push(`"Seine ${vp.eyes.color} Augen leuchteten vor Neugier"`);
+  }
+
+  // Clothing example (if applicable)
+  if (vp.clothingCanonical?.top && vp.speciesCategory === 'human') {
+    examples.push(`"${avatar.name}'s ${vp.clothingCanonical.top} war deutlich sichtbar"`);
+  }
+
+  // Movement/locomotion example
+  if (vp.locomotion === 'quadruped') {
+    examples.push(`"${avatar.name} lief auf vier Pfoten"`);
+  } else if (vp.locomotion === 'bipedal' && vp.speciesCategory === 'human') {
+    examples.push(`"${avatar.name} stand aufrecht"`);
+  }
+
+  return examples.length > 0 ? examples.join('\n  ') : `- "${avatar.name} bewegte sich geschickt"`;
+}).join('\n')}
 
 📏 KAPITELSTRUKTUR:
 - Schreibe pro Kapitel ${minWordsPerChapter}-${maxWordsPerChapter} Wörter (Ziel ca. ${targetWordsPerChapter})
