@@ -38,6 +38,7 @@ import {
   type VisionQAExpectation,
   type VisionQAResult,
 } from "./vision-qa";
+import { enrichImageDescriptionWithSpecies } from "./image-description-enricher";
 
 interface StylePresetMeta {
   inspiration: string;
@@ -605,7 +606,24 @@ export const generateStoryContent = api<
           ? normalizedStory.chapters?.[0]?.imageDescription
           : normalizedStory.chapters?.[0]?.imageDescription?.scene;
 
-      const safeCoverSceneText = safeCoverScene(coverSceneRaw, firstChapterScene);
+      let safeCoverSceneText = safeCoverScene(coverSceneRaw, firstChapterScene);
+
+      // CRITICAL FIX: Enrich cover image description with species information
+      if (normalizedStory.coverImageDescription && typeof normalizedStory.coverImageDescription === 'object') {
+        const coverCharactersStr = normalizedStory.coverImageDescription.characters;
+        if (coverCharactersStr && typeof coverCharactersStr === 'string') {
+          const enrichedCoverChars = enrichImageDescriptionWithSpecies(
+            coverCharactersStr,
+            versionedProfiles
+          );
+
+          console.log("[ai-generation] 🔧 ENRICHED Cover characters description:");
+          console.log("[ai-generation]   Original:", coverCharactersStr);
+          console.log("[ai-generation]   Enriched:", enrichedCoverChars);
+
+          safeCoverSceneText = `${safeCoverSceneText}. CHARACTERS: ${enrichedCoverChars}`;
+        }
+      }
 
       const coverCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => ({
         name,
@@ -656,23 +674,41 @@ export const generateStoryContent = api<
             ? chapter.imageDescription
             : null;
 
-        const chapterSceneText =
-          typeof chapter.imageDescription === "string"
-            ? chapter.imageDescription
-            : chapterImageDescription?.scene || "";
+        // CRITICAL FIX: Enrich character descriptions with species information
+        // This prevents humans from getting animal features (tails, ears, etc.)
+        let chapterSceneText = "";
+        let enrichedCharactersDescription = "";
+
+        if (typeof chapter.imageDescription === "string") {
+          chapterSceneText = chapter.imageDescription;
+        } else if (chapterImageDescription) {
+          chapterSceneText = chapterImageDescription.scene || "";
+
+          // Enrich the characters string with species info
+          if (chapterImageDescription.characters && typeof chapterImageDescription.characters === 'string') {
+            enrichedCharactersDescription = enrichImageDescriptionWithSpecies(
+              chapterImageDescription.characters,
+              versionedProfiles
+            );
+
+            console.log(`[ai-generation] 🔧 ENRICHED Chapter ${i + 1} characters description:`);
+            console.log(`[ai-generation]   Original: ${chapterImageDescription.characters}`);
+            console.log(`[ai-generation]   Enriched: ${enrichedCharactersDescription}`);
+
+            // Append enriched characters to scene text
+            chapterSceneText = `${chapterSceneText}. CHARACTERS: ${enrichedCharactersDescription}`;
+          }
+        }
 
         // Build character blocks for this chapter
         const chapterCharactersData = Object.entries(versionedProfiles).map(([name, profile]) => {
-          const charDetails = chapterImageDescription?.characters?.[name];
-          
+          // Note: chapterImageDescription?.characters is now a string (from OpenAI), not an object
+          // We've already enriched it above, so we don't extract per-character details here
+
           return {
             name,
             profile,
-            sceneDetails: charDetails ? {
-              position: charDetails.position,
-              action: charDetails.action,
-              expression: charDetails.expression,
-            } : {},
+            sceneDetails: {},
           };
         });
 
