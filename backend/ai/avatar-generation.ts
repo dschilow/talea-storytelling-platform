@@ -99,6 +99,11 @@ function buildAvatarPrompt(
 }
 
 function inferSpeciesTag(characterType?: string, appearance?: string): string {
+  // CRITICAL FIX: Use characterType directly if provided, don't hardcode species names
+  if (characterType && characterType.trim().length > 0) {
+    return characterType.trim();
+  }
+
   const text = `${characterType || ""} ${appearance || ""}`.toLowerCase();
 
   const isCat =
@@ -107,11 +112,15 @@ function inferSpeciesTag(characterType?: string, appearance?: string): string {
     /\b(dog|puppy|canine|hund|welpe)\b/.test(text);
   const isHuman =
     /\b(human|boy|girl|child|kid|mensch|mädchen|junge)\b/.test(text);
+  const isAnthro =
+    /\b(anthropomorphic|hybrid|monster|creature|fantasie|fabel)\b/.test(text);
 
-  if (isCat) return "KITTEN - feline quadruped, natural anatomy";
-  if (isDog) return "DOG - canine quadruped companion";
-  if (isHuman) return "HUMAN child - no animal traits";
-  return "FANTASY character - keep anatomy consistent";
+  // Anthropomorphic/hybrid creatures should NOT be classified as cat/dog
+  if (isAnthro) return "fantasy creature with unique anatomy";
+  if (isCat) return "feline quadruped with natural anatomy";
+  if (isDog) return "canine quadruped companion";
+  if (isHuman) return "human child with no animal traits";
+  return "character with consistent anatomy";
 }
 
 function getStyleDescriptor(style: string | undefined): string {

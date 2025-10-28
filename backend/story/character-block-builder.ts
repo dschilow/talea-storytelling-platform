@@ -103,36 +103,45 @@ function getSpeciesFromProfile(profile: AvatarVisualProfile | MinimalAvatarProfi
   const explicitType = (profileAny.characterType || "").toLowerCase();
   const descriptors = (profile.consistentDescriptors?.join(" ") || "").toLowerCase();
 
-  // Priority 1: Explicit character type from the profile
-  if (explicitType.includes("monster") || explicitType.includes("creature") || explicitType.includes("fantasie-wesen") || explicitType.includes("fabelwesen")) {
-    return "animal"; // Map all fantasy creatures to the generic 'animal' type
+  // Priority 1: Humans must be detected first
+  if (explicitType.includes("human") || explicitType.includes("child") || explicitType.includes("boy") || explicitType.includes("girl")) {
+    return "human";
   }
-  if (explicitType.includes("cat") || explicitType.includes("kitten")) return "cat";
-  if (explicitType.includes("dog")) return "dog";
-  if (explicitType.includes("human")) return "human";
 
-  // Priority 2: Keywords in descriptors if explicit type is missing
-  const mentionsCat = descriptors.includes("cat") || descriptors.includes("kitten") || descriptors.includes("feline") || descriptors.includes("katze");
-  if (mentionsCat) return "cat";
+  // Priority 2: Anthropomorphic or hybrid creatures are ALWAYS "animal" (generic fantasy creature)
+  if (explicitType.includes("anthropomorphic") || explicitType.includes("hybrid")) {
+    return "animal"; // Any anthropomorphic or hybrid creature -> generic animal type
+  }
 
-  const mentionsDog = descriptors.includes("dog") || descriptors.includes("hund") || descriptors.includes("canine");
-  if (mentionsDog) return "dog";
+  // Priority 3: Generic fantasy creatures
+  if (explicitType.includes("monster") || explicitType.includes("creature") || explicitType.includes("fantasie-wesen") || explicitType.includes("fabelwesen")) {
+    return "animal";
+  }
 
-  const mentionsAnimal = descriptors.includes("animal") || descriptors.includes("tier");
-  if (mentionsAnimal) return "animal";
+  // Priority 4: Real animals (NOT anthropomorphic) - only pure real animals!
+  // IMPORTANT: Only return "cat" or "dog" if it's a REAL quadruped animal, not a hybrid
+  if ((explicitType.includes("cat") || explicitType.includes("kitten")) && !explicitType.includes("hybrid") && !explicitType.includes("anthropomorphic")) {
+    return "cat";
+  }
+  if (explicitType.includes("dog") && !explicitType.includes("hybrid") && !explicitType.includes("anthropomorphic")) {
+    return "dog";
+  }
 
-  // Priority 3: Infer from specific features (less reliable, use as a fallback)
-  const otherFeatures = (profile.face?.otherFeatures || []).join(" ").toLowerCase();
-  if (otherFeatures.includes("whisker")) return "cat";
+  // Priority 5: Check descriptors (less reliable)
+  if (descriptors.includes("anthropomorphic") || descriptors.includes("hybrid")) {
+    return "animal";
+  }
 
+  // Priority 6: Fur presence suggests an animal (but not necessarily cat/dog)
   const hairType = profile.hair?.type?.toLowerCase() || "";
   const skinTone = profile.skin?.tone?.toLowerCase() || "";
   const distinctive = (profile.skin?.distinctiveFeatures || []).join(" ").toLowerCase();
   if (hairType.includes("fur") || skinTone.includes("fur") || distinctive.includes("fur")) {
-      return "animal"; // Inferring a generic animal is safer than defaulting to 'cat'
+    return "animal";
   }
 
-  return "human"; // Default if no other criteria are met
+  // Default: human
+  return "human";
 }
 
 /**
@@ -608,16 +617,15 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
   let defaultForbid: string[] = [];
 
   if (block.species === "cat") {
-    // CRITICAL FIX: Don't hardcode "orange tabby" - use actual description from profile
-    const catDesc = block.detailedDescription || "feline quadruped";
-    speciesSummary = `real ${catDesc}, quadruped animal`;
-    depictLine = `${safeName} must appear as a real cat on four paws with natural feline anatomy and tail visible.`;
+    // Use characterType if available, otherwise use detailedDescription
+    const typeDesc = block.characterType || block.detailedDescription || "feline quadruped";
+    speciesSummary = `${typeDesc}`;
+    depictLine = `${safeName} must appear as described: ${typeDesc}`;
     defaultMust = [
       "four paws grounded",
       "tail visible",
       "long whiskers",
       "feline face shape",
-      "real cat anatomy",
     ];
     defaultForbid = [
       "standing upright",
@@ -629,8 +637,9 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "cat with human body",
     ];
   } else if (block.species === "dog") {
-    speciesSummary = `dog companion on four paws`;
-    depictLine = `${safeName} must appear as a natural quadruped dog companion.`;
+    const typeDesc = block.characterType || block.detailedDescription || "canine quadruped";
+    speciesSummary = `${typeDesc}`;
+    depictLine = `${safeName} must appear as described: ${typeDesc}`;
     defaultMust = ["four paws grounded", "expressive muzzle"];
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else if (block.species === "animal") {
@@ -930,9 +939,19 @@ function buildStructuredCharacterLine(block: CharacterBlock): string {
   let speciesType = "";
 
   if (block.species === "cat") {
-    speciesType = "CAT - feline quadruped on four paws";
+    // Use characterType if available, otherwise generic cat description
+    if (block.characterType) {
+      speciesType = block.characterType;
+    } else {
+      speciesType = "feline quadruped on four paws";
+    }
   } else if (block.species === "dog") {
-    speciesType = "DOG - canine quadruped on four legs";
+    // Use characterType if available, otherwise generic dog description
+    if (block.characterType) {
+      speciesType = block.characterType;
+    } else {
+      speciesType = "canine quadruped on four legs";
+    }
   } else if (block.species === "animal") {
     // CRITICAL FIX: Use characterType from visual profile, not hardcoded "KITTEN"
     if (block.characterType) {
@@ -1179,13 +1198,20 @@ function buildFullVisualDescription(block: CharacterBlock): string {
 
 function determineSpeciesTag(block: CharacterBlock): string {
   const ageHint = block.ageHint ? normalizeLanguage(block.ageHint) : "";
+
+  // CRITICAL FIX: Use characterType from profile instead of hardcoded species names
+  if (block.characterType) {
+    return block.characterType;
+  }
+
+  // Fallback to generic descriptions only if characterType is missing
   switch (block.species) {
     case "cat":
-      return "KITTEN - feline quadruped";
+      return "feline quadruped";
     case "dog":
-      return "DOG - canine quadruped";
+      return "canine quadruped";
     case "animal":
-      return "ANIMAL - natural quadruped";
+      return "creature";
     default:
       return ageHint ? `HUMAN child (${ageHint})` : "HUMAN child";
   }
