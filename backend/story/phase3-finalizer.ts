@@ -51,7 +51,7 @@ export class Phase3StoryFinalizer {
           "Authorization": `Bearer ${openAIKey()}`,
         },
         body: JSON.stringify({
-          model: input.config.aiModel || "gpt-4o-mini",
+          model: input.config.aiModel || "gpt-5-mini",
           messages: [
             {
               role: "system",
