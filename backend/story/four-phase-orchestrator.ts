@@ -137,10 +137,9 @@ export class FourPhaseOrchestrator {
       response: {
         duration: phaseDurations.phase1Duration,
         title: skeleton.title,
-        description: skeleton.description,
+        chaptersCount: skeleton.chapters?.length,
         chapters: skeleton.chapters?.map(ch => ({
           order: ch.order,
-          title: ch.title,
           contentPreview: ch.content.substring(0, 200) + "...",
           wordCount: ch.content.split(/\s+/).length,
         })),
@@ -150,7 +149,7 @@ export class FourPhaseOrchestrator {
           archetype: req.archetype,
           emotionalNature: req.emotionalNature,
           importance: req.importance,
-          chaptersNeeded: req.chaptersNeeded,
+          inChapters: req.inChapters,
         })),
       },
     });
@@ -306,8 +305,7 @@ export class FourPhaseOrchestrator {
     const chaptersWithImages = await this.generateChapterImages(
       finalizedStory,
       input.avatarDetails,
-      characterAssignments,
-      input.config
+      characterAssignments
     );
     phaseDurations.phase4Duration = Date.now() - phase4Start;
     console.log(`[4-Phase] Phase 4 completed in ${phaseDurations.phase4Duration}ms`);
@@ -453,8 +451,7 @@ export class FourPhaseOrchestrator {
   private async generateChapterImages(
     story: FinalizedStory,
     avatarDetails: AvatarDetail[],
-    characterAssignments: Map<string, CharacterTemplate>,
-    config: StoryConfig
+    characterAssignments: Map<string, CharacterTemplate>
   ): Promise<Chapter[]> {
     console.log("[4-Phase] Generating chapter images...");
 
@@ -471,7 +468,7 @@ export class FourPhaseOrchestrator {
         );
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(enhancedPrompt, config);
+        const imageUrl = await this.generateImage(enhancedPrompt);
 
         return {
           id: crypto.randomUUID(),
@@ -587,12 +584,10 @@ STYLE: Axel Scheffler watercolor illustration, warm colors, child-friendly, stor
   /**
    * Generate a single image using AI service
    */
-  private async generateImage(prompt: string, config: StoryConfig): Promise<string | undefined> {
+  private async generateImage(prompt: string): Promise<string | undefined> {
     try {
       const response = await ai.generateImage({
         prompt,
-        ageGroup: config.ageGroup,
-        style: "watercolor",
       });
 
       return response.imageUrl;
@@ -632,7 +627,7 @@ ${story.description}
         characterAssignments
       );
 
-      const imageUrl = await this.generateImage(enhancedPrompt, { ageGroup: "6-8" } as any);
+      const imageUrl = await this.generateImage(enhancedPrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
       return imageUrl;
