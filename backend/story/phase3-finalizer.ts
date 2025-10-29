@@ -69,12 +69,16 @@ export class Phase3StoryFinalizer {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error("[Phase3] OpenAI API error response:", errorText);
         throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json() as OpenAIResponse;
+      console.log("[Phase3] OpenAI API response received, checking content...");
+
       const content = data.choices?.[0]?.message?.content;
       if (!content) {
+        console.error("[Phase3] No content in response. Full response:", JSON.stringify(data, null, 2));
         throw new Error("No content in Phase 3 response");
       }
 

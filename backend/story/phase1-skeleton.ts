@@ -62,12 +62,16 @@ export class Phase1SkeletonGenerator {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error("[Phase1] OpenAI API error response:", errorText);
         throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json() as OpenAIResponse;
+      console.log("[Phase1] OpenAI API response:", JSON.stringify(data, null, 2));
+
       const content = data.choices?.[0]?.message?.content;
       if (!content) {
+        console.error("[Phase1] No content in response. Full response:", JSON.stringify(data, null, 2));
         throw new Error("No content in Phase 1 response");
       }
 
