@@ -323,9 +323,20 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
         throw new Error("Each character requirement must have placeholder, role, and archetype");
       }
 
-      if (!req.placeholder.startsWith("{{") || !req.placeholder.endsWith("}}")) {
-        throw new Error(`Invalid placeholder format: ${req.placeholder}`);
+      const isPlaceholder = typeof req.placeholder === "string";
+      if (
+        isPlaceholder &&
+        req.placeholder.startsWith("{{") &&
+        req.placeholder.endsWith("}}")
+      ) {
+        continue;
       }
+
+      // Allow main avatar names or other literal identifiers without throwing
+      console.warn(
+        `[Phase1] Warning: character requirement placeholder "${req.placeholder}" is not wrapped in {{ }}. ` +
+          "Assuming this refers to a main avatar and continuing."
+      );
     }
 
     console.log("[Phase1] Skeleton structure validated successfully");
