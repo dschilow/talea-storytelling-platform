@@ -247,6 +247,52 @@ export class FourPhaseOrchestrator {
   }
 
   /**
+   * Convert structured visual profile to English text for image generation
+   */
+  private visualProfileToImagePrompt(vp: any): string {
+    if (!vp) return 'no visual details available';
+
+    const parts: string[] = [];
+
+    if (vp.ageApprox) parts.push(`${vp.ageApprox} years old`);
+    if (vp.gender) parts.push(vp.gender);
+
+    if (vp.hair) {
+      const hairParts = [];
+      if (vp.hair.color) hairParts.push(vp.hair.color);
+      if (vp.hair.length) hairParts.push(vp.hair.length);
+      if (vp.hair.type) hairParts.push(vp.hair.type);
+      if (vp.hair.style) hairParts.push(vp.hair.style);
+      if (hairParts.length > 0) parts.push(`${hairParts.join(' ')} hair`);
+    }
+
+    if (vp.eyes?.color) parts.push(`${vp.eyes.color} eyes`);
+
+    if (vp.skin?.tone) parts.push(`${vp.skin.tone} skin`);
+
+    if (vp.clothingCanonical) {
+      const clothingParts = [];
+      if (vp.clothingCanonical.outfit) clothingParts.push(vp.clothingCanonical.outfit);
+      else {
+        if (vp.clothingCanonical.top) clothingParts.push(vp.clothingCanonical.top);
+        if (vp.clothingCanonical.bottom) clothingParts.push(vp.clothingCanonical.bottom);
+      }
+      if (vp.clothingCanonical.footwear) clothingParts.push(vp.clothingCanonical.footwear);
+      if (clothingParts.length > 0) parts.push(`wearing ${clothingParts.join(', ')}`);
+    }
+
+    if (vp.accessories && vp.accessories.length > 0) {
+      parts.push(`with ${vp.accessories.join(', ')}`);
+    }
+
+    if (vp.consistentDescriptors && vp.consistentDescriptors.length > 0) {
+      parts.push(vp.consistentDescriptors.join(', '));
+    }
+
+    return parts.join(', ');
+  }
+
+  /**
    * Build enhanced image prompt with character consistency
    */
   private buildEnhancedImagePrompt(
@@ -254,10 +300,12 @@ export class FourPhaseOrchestrator {
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
-    // Add avatar canonical appearance
+    // Add avatar canonical appearance with converted visual profiles
     const avatarBlocks = avatarDetails
       .map(avatar => {
-        const visualContext = avatar.visualProfile?.promptContext || avatar.visualProfile?.description || '';
+        const visualContext = avatar.visualProfile
+          ? this.visualProfileToImagePrompt(avatar.visualProfile)
+          : (avatar.description || 'no description');
         return `[${avatar.name}]: ${visualContext}`;
       })
       .join("\n");

@@ -129,6 +129,52 @@ export class Phase3StoryFinalizer {
   }
 
   /**
+   * Convert structured visual profile to text description
+   */
+  private visualProfileToText(vp: any): string {
+    if (!vp) return 'Keine visuelle Beschreibung verfügbar';
+
+    const parts: string[] = [];
+
+    if (vp.ageApprox) parts.push(`${vp.ageApprox} Jahre alt`);
+    if (vp.gender) parts.push(vp.gender);
+
+    if (vp.hair) {
+      const hairParts = [];
+      if (vp.hair.color) hairParts.push(vp.hair.color);
+      if (vp.hair.length) hairParts.push(vp.hair.length);
+      if (vp.hair.type) hairParts.push(vp.hair.type);
+      if (vp.hair.style) hairParts.push(vp.hair.style);
+      if (hairParts.length > 0) parts.push(`Haare: ${hairParts.join(', ')}`);
+    }
+
+    if (vp.eyes?.color) parts.push(`${vp.eyes.color} Augen`);
+
+    if (vp.skin?.tone) parts.push(`Hautton: ${vp.skin.tone}`);
+
+    if (vp.clothingCanonical) {
+      const clothingParts = [];
+      if (vp.clothingCanonical.outfit) clothingParts.push(vp.clothingCanonical.outfit);
+      else {
+        if (vp.clothingCanonical.top) clothingParts.push(vp.clothingCanonical.top);
+        if (vp.clothingCanonical.bottom) clothingParts.push(vp.clothingCanonical.bottom);
+      }
+      if (vp.clothingCanonical.footwear) clothingParts.push(vp.clothingCanonical.footwear);
+      if (clothingParts.length > 0) parts.push(`Kleidung: ${clothingParts.join(', ')}`);
+    }
+
+    if (vp.accessories && vp.accessories.length > 0) {
+      parts.push(`Accessoires: ${vp.accessories.join(', ')}`);
+    }
+
+    if (vp.consistentDescriptors && vp.consistentDescriptors.length > 0) {
+      parts.push(vp.consistentDescriptors.join(', '));
+    }
+
+    return parts.join('; ');
+  }
+
+  /**
    * Build comprehensive finalization prompt
    */
   private buildFinalizationPrompt(
@@ -149,10 +195,15 @@ export class Phase3StoryFinalizer {
 - Bild-Prompt (English): "${char.visualProfile.imagePrompt}"
       `).join("\n");
 
-    // Build avatar details
+    // Build avatar details with converted visual profiles
     const avatarDetailsText = avatarDetails.map(a => {
-      const visualDesc = a.visualProfile ? `, Aussehen: ${a.visualProfile.promptContext || a.visualProfile.description}` : '';
-      return `- ${a.name}${visualDesc}`;
+      let line = `- ${a.name}`;
+      if (a.description) line += `, ${a.description}`;
+      if (a.visualProfile) {
+        const visualDesc = this.visualProfileToText(a.visualProfile);
+        line += `, Aussehen: ${visualDesc}`;
+      }
+      return line;
     }).join("\n");
 
     // Build style instructions based on config
