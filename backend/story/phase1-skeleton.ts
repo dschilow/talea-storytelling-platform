@@ -44,7 +44,7 @@ export class Phase1SkeletonGenerator {
           "Authorization": `Bearer ${openAIKey()}`,
         },
         body: JSON.stringify({
-          model: input.config.aiModel || "gpt-5-mini",
+          model: input.config.aiModel || "gpt-4.1-mini",
           messages: [
             {
               role: "system",
@@ -56,7 +56,7 @@ export class Phase1SkeletonGenerator {
             }
           ],
           response_format: { type: "json_object" },
-          max_completion_tokens: 2000,
+          max_completion_tokens: 3000,
         }),
       });
 

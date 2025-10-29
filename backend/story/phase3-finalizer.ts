@@ -51,7 +51,7 @@ export class Phase3StoryFinalizer {
           "Authorization": `Bearer ${openAIKey()}`,
         },
         body: JSON.stringify({
-          model: input.config.aiModel || "gpt-5-mini",
+          model: input.config.aiModel || "gpt-4.1-mini",
           messages: [
             {
               role: "system",
@@ -63,7 +63,7 @@ export class Phase3StoryFinalizer {
             }
           ],
           response_format: { type: "json_object" },
-          max_completion_tokens: 3500,
+          max_completion_tokens: 5000,
         }),
       });
 
