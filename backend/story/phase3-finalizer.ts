@@ -33,8 +33,19 @@ interface OpenAIResponse {
   error?: any;
 }
 
+export interface Phase3FinalizationResult {
+  story: FinalizedStory;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  openAIRequest: any;
+  openAIResponse: OpenAIResponse;
+}
+
 export class Phase3StoryFinalizer {
-  async finalize(input: Phase3Input): Promise<FinalizedStory> {
+  async finalize(input: Phase3Input): Promise<Phase3FinalizationResult> {
     console.log("[Phase3] Finalizing story with character injection...");
 
     // Step 1: Replace placeholders with actual character names
@@ -69,6 +80,7 @@ export class Phase3StoryFinalizer {
     }
 
     try {
+      const openAIRequest = { ...payload };
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -103,7 +115,20 @@ export class Phase3StoryFinalizer {
         chaptersCount: finalStory.chapters?.length,
       });
 
-      return finalStory;
+      const usage = data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens ?? 0,
+            completionTokens: data.usage.completion_tokens ?? 0,
+            totalTokens: data.usage.total_tokens ?? 0,
+          }
+        : undefined;
+
+      return {
+        story: finalStory,
+        usage,
+        openAIRequest,
+        openAIResponse: data,
+      };
     } catch (error) {
       console.error("[Phase3] Error finalizing story:", error);
       throw error;

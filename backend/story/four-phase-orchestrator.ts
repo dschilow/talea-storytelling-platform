@@ -2,13 +2,13 @@
 // Coordinates all 4 phases: Skeleton -> Matching -> Finalization -> Images
 
 import type { StoryConfig, Chapter } from "./generate";
-import { Phase1SkeletonGenerator } from "./phase1-skeleton";
+import { Phase1SkeletonGenerator, type Phase1GenerationResult } from "./phase1-skeleton";
 import { Phase2CharacterMatcher } from "./phase2-matcher";
-import { Phase3StoryFinalizer } from "./phase3-finalizer";
+import { Phase3StoryFinalizer, type Phase3FinalizationResult } from "./phase3-finalizer";
 import { ai } from "~encore/clients";
 import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
-import { logTopic } from "../log/logger";
+import { logTopic, type LogEvent } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 
 interface AvatarDetail {
@@ -44,6 +44,18 @@ interface FourPhaseOutput {
       outputCostUSD?: number;
       totalCostUSD?: number;
       modelUsed?: string;
+      breakdown?: {
+        phase1?: {
+          promptTokens: number;
+          completionTokens: number;
+          totalTokens: number;
+        } | null;
+        phase3?: {
+          promptTokens: number;
+          completionTokens: number;
+          totalTokens: number;
+        } | null;
+      };
     };
     model?: string;
     processingTime?: number;
@@ -78,6 +90,21 @@ export class FourPhaseOrchestrator {
     this.phase3Finalizer = new Phase3StoryFinalizer();
   }
 
+  private async logPhaseEvent(
+    source: LogEvent["source"],
+    request: any,
+    response: any,
+    metadata?: any
+  ): Promise<void> {
+    await publishWithTimeout(logTopic, {
+      source,
+      timestamp: new Date(),
+      request,
+      response,
+      metadata,
+    });
+  }
+
   async orchestrate(input: FourPhaseInput): Promise<FourPhaseOutput> {
     console.log("[4-Phase] Starting orchestration...");
     const startTime = Date.now();
@@ -93,49 +120,41 @@ export class FourPhaseOrchestrator {
     console.log("[4-Phase] ===== PHASE 1: SKELETON GENERATION =====");
     const phase1Start = Date.now();
 
-    await publishWithTimeout(logTopic, {
-      source: "phase1-skeleton-generation",
-      timestamp: new Date(),
-      request: {
-        phase: 1,
-        config: {
-          genre: input.config.genre,
-          setting: input.config.setting,
-          ageGroup: input.config.ageGroup,
-          complexity: input.config.complexity,
-          length: input.config.length,
-          aiModel: input.config.aiModel || "gpt-5-mini",
-        },
-        avatars: input.avatarDetails.map(a => ({
-          id: a.id,
-          name: a.name,
-          description: a.description,
-        })),
-      },
-      response: {
-        status: "started",
-      },
-    });
-
-    const skeleton = await this.phase1Generator.generate({
+    const phase1Result: Phase1GenerationResult = await this.phase1Generator.generate({
       config: input.config,
       avatarDetails: input.avatarDetails.map(a => ({
         name: a.name,
         description: a.description,
       })),
     });
+    const skeleton = phase1Result.skeleton;
     phaseDurations.phase1Duration = Date.now() - phase1Start;
     console.log(`[4-Phase] Phase 1 completed in ${phaseDurations.phase1Duration}ms`);
 
-    await publishWithTimeout(logTopic, {
-      source: "phase1-skeleton-generation",
-      timestamp: new Date(),
-      request: {
-        phase: 1,
-        status: "completed",
+    const phase1RequestPayload = {
+      phase: 1,
+      label: "PHASE 1: Story-Skeleton (Struktur)",
+      config: {
+        genre: input.config.genre,
+        setting: input.config.setting,
+        ageGroup: input.config.ageGroup,
+        complexity: input.config.complexity,
+        length: input.config.length,
+        aiModel: input.config.aiModel || "gpt-5-mini",
       },
-      response: {
-        duration: phaseDurations.phase1Duration,
+      avatars: input.avatarDetails.map(a => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+      })),
+      openAIRequest: phase1Result.openAIRequest,
+    };
+
+    const phase1ResponsePayload = {
+      status: "completed",
+      durationMs: phaseDurations.phase1Duration,
+      usage: phase1Result.usage,
+      skeleton: {
         title: skeleton.title,
         chaptersCount: skeleton.chapters?.length,
         chapters: skeleton.chapters?.map(ch => ({
@@ -152,7 +171,10 @@ export class FourPhaseOrchestrator {
           inChapters: req.inChapters,
         })),
       },
-    });
+      openAIResponse: phase1Result.openAIResponse,
+    };
+
+    await this.logPhaseEvent("phase1-skeleton-generation", phase1RequestPayload, phase1ResponsePayload);
 
     // ===== PHASE 2: Match Characters from Pool =====
     console.log("[4-Phase] ===== PHASE 2: CHARACTER MATCHING =====");
@@ -160,26 +182,6 @@ export class FourPhaseOrchestrator {
 
     // Get recent stories for freshness calculation
     const recentStoryIds = await this.getRecentStoryIds(input.userId, 5);
-
-    await publishWithTimeout(logTopic, {
-      source: "phase2-character-matching",
-      timestamp: new Date(),
-      request: {
-        phase: 2,
-        setting: input.config.setting,
-        requirements: skeleton.supportingCharacterRequirements?.map(req => ({
-          placeholder: req.placeholder,
-          role: req.role,
-          archetype: req.archetype,
-          emotionalNature: req.emotionalNature,
-          importance: req.importance,
-        })),
-        recentStoryCount: recentStoryIds.length,
-      },
-      response: {
-        status: "started",
-      },
-    });
 
     const characterAssignments = await this.phase2Matcher.match(
       skeleton,
@@ -190,84 +192,85 @@ export class FourPhaseOrchestrator {
     console.log(`[4-Phase] Phase 2 completed in ${phaseDurations.phase2Duration}ms`);
     console.log(`[4-Phase] Matched ${characterAssignments.size} characters from pool`);
 
-    await publishWithTimeout(logTopic, {
-      source: "phase2-character-matching",
-      timestamp: new Date(),
-      request: {
-        phase: 2,
-        status: "completed",
-      },
-      response: {
-        duration: phaseDurations.phase2Duration,
-        matchedCount: characterAssignments.size,
-        assignments: Array.from(characterAssignments.entries()).map(([placeholder, char]) => ({
-          placeholder,
-          character: {
-            id: char.id,
-            name: char.name,
-            role: char.role,
-            archetype: char.archetype,
-            emotionalNature: char.emotionalNature,
-            visualProfile: {
-              description: char.visualProfile.description,
-              species: char.visualProfile.species,
-              colorPalette: char.visualProfile.colorPalette,
-            },
-            usageStats: {
-              totalUsageCount: char.totalUsageCount,
-              recentUsageCount: char.recentUsageCount,
-              lastUsedAt: char.lastUsedAt,
-            },
+    const phase2RequestPayload = {
+      phase: 2,
+      label: "PHASE 2: Beste Charaktere matchen",
+      setting: input.config.setting,
+      requirements: skeleton.supportingCharacterRequirements?.map(req => ({
+        placeholder: req.placeholder,
+        role: req.role,
+        archetype: req.archetype,
+        emotionalNature: req.emotionalNature,
+        importance: req.importance,
+      })),
+      recentStoryCount: recentStoryIds.length,
+    };
+
+    const phase2ResponsePayload = {
+      status: "completed",
+      durationMs: phaseDurations.phase2Duration,
+      matchedCount: characterAssignments.size,
+      assignments: Array.from(characterAssignments.entries()).map(([placeholder, char]) => ({
+        placeholder,
+        character: {
+          id: char.id,
+          name: char.name,
+          role: char.role,
+          archetype: char.archetype,
+          emotionalNature: char.emotionalNature,
+          visualProfile: {
+            description: char.visualProfile.description,
+            species: char.visualProfile.species,
+            colorPalette: char.visualProfile.colorPalette,
           },
-        })),
-      },
-    });
+          usageStats: {
+            totalUsageCount: char.totalUsageCount,
+            recentUsageCount: char.recentUsageCount,
+            lastUsedAt: char.lastUsedAt,
+          },
+        },
+      })),
+    };
+
+    await this.logPhaseEvent("phase2-character-matching", phase2RequestPayload, phase2ResponsePayload);
 
     // ===== PHASE 3: Finalize Story with Characters =====
     console.log("[4-Phase] ===== PHASE 3: STORY FINALIZATION =====");
     const phase3Start = Date.now();
 
-    await publishWithTimeout(logTopic, {
-      source: "phase3-story-finalization",
-      timestamp: new Date(),
-      request: {
-        phase: 3,
-        config: {
-          aiModel: input.config.aiModel || "gpt-5-mini",
-          ageGroup: input.config.ageGroup,
-          genre: input.config.genre,
-          stylePreset: input.config.stylePreset,
-          tone: input.config.tone,
-        },
-        skeletonTitle: skeleton.title,
-        charactersAssigned: characterAssignments.size,
-        avatarsCount: input.avatarDetails.length,
-      },
-      response: {
-        status: "started",
-      },
-    });
-
-    const finalizedStory = await this.phase3Finalizer.finalize({
+    const phase3Result: Phase3FinalizationResult = await this.phase3Finalizer.finalize({
       skeleton,
       assignments: characterAssignments,
       config: input.config,
       avatarDetails: input.avatarDetails,
     });
+    const finalizedStory = phase3Result.story;
     phaseDurations.phase3Duration = Date.now() - phase3Start;
     console.log(`[4-Phase] Phase 3 completed in ${phaseDurations.phase3Duration}ms`);
 
     const totalWords = finalizedStory.chapters?.reduce((sum, ch) => sum + ch.content.split(/\s+/).length, 0) || 0;
 
-    await publishWithTimeout(logTopic, {
-      source: "phase3-story-finalization",
-      timestamp: new Date(),
-      request: {
-        phase: 3,
-        status: "completed",
+    const phase3RequestPayload = {
+      phase: 3,
+      label: "PHASE 3: Story finalisieren mit Charakteren",
+      config: {
+        aiModel: input.config.aiModel || "gpt-5-mini",
+        ageGroup: input.config.ageGroup,
+        genre: input.config.genre,
+        stylePreset: input.config.stylePreset,
+        tone: input.config.tone,
       },
-      response: {
-        duration: phaseDurations.phase3Duration,
+      skeletonTitle: skeleton.title,
+      charactersAssigned: characterAssignments.size,
+      avatarsCount: input.avatarDetails.length,
+      openAIRequest: phase3Result.openAIRequest,
+    };
+
+    const phase3ResponsePayload = {
+      status: "completed",
+      durationMs: phaseDurations.phase3Duration,
+      usage: phase3Result.usage,
+      story: {
         title: finalizedStory.title,
         description: finalizedStory.description,
         chaptersCount: finalizedStory.chapters?.length,
@@ -279,28 +282,14 @@ export class FourPhaseOrchestrator {
           imageDescriptionPreview: ch.imageDescription?.substring(0, 150) + "...",
         })),
       },
-    });
+      openAIResponse: phase3Result.openAIResponse,
+    };
+
+    await this.logPhaseEvent("phase3-story-finalization", phase3RequestPayload, phase3ResponsePayload);
 
     // ===== PHASE 4: Generate Chapter Images =====
     console.log("[4-Phase] ===== PHASE 4: IMAGE GENERATION =====");
     const phase4Start = Date.now();
-
-    await publishWithTimeout(logTopic, {
-      source: "phase4-image-generation",
-      timestamp: new Date(),
-      request: {
-        phase: 4,
-        chaptersToGenerate: finalizedStory.chapters?.length,
-        imageDescriptions: finalizedStory.chapters?.map(ch => ({
-          chapterOrder: ch.order,
-          chapterTitle: ch.title,
-          description: ch.imageDescription,
-        })),
-      },
-      response: {
-        status: "started",
-      },
-    });
 
     const chaptersWithImages = await this.generateChapterImages(
       finalizedStory,
@@ -312,27 +301,6 @@ export class FourPhaseOrchestrator {
 
     const successfulImages = chaptersWithImages.filter(ch => ch.imageUrl).length;
 
-    await publishWithTimeout(logTopic, {
-      source: "phase4-image-generation",
-      timestamp: new Date(),
-      request: {
-        phase: 4,
-        status: "completed",
-      },
-      response: {
-        duration: phaseDurations.phase4Duration,
-        totalImages: chaptersWithImages.length,
-        successfulImages,
-        failedImages: chaptersWithImages.length - successfulImages,
-        images: chaptersWithImages.map(ch => ({
-          chapterOrder: ch.order,
-          chapterTitle: ch.title,
-          hasImage: !!ch.imageUrl,
-          imageUrl: ch.imageUrl,
-        })),
-      },
-    });
-
     // Generate cover image
     console.log("[4-Phase] Generating cover image...");
     const coverStart = Date.now();
@@ -343,67 +311,41 @@ export class FourPhaseOrchestrator {
     );
     const coverDuration = Date.now() - coverStart;
 
-    await publishWithTimeout(logTopic, {
-      source: "4phase-cover-generation",
-      timestamp: new Date(),
-      request: {
-        storyTitle: finalizedStory.title,
-        avatarsCount: input.avatarDetails.length,
-        charactersCount: characterAssignments.size,
-      },
-      response: {
-        duration: coverDuration,
-        success: !!coverImageUrl,
-        coverImageUrl,
-      },
-    });
-
     const totalDuration = Date.now() - startTime;
     console.log(`[4-Phase] Total orchestration completed in ${totalDuration}ms`);
 
-    // Final summary log
-    await publishWithTimeout(logTopic, {
-      source: "4phase-summary",
-      timestamp: new Date(),
-      request: {
-        userId: input.userId,
-        config: {
-          genre: input.config.genre,
-          setting: input.config.setting,
-          ageGroup: input.config.ageGroup,
-          complexity: input.config.complexity,
-          length: input.config.length,
-          aiModel: input.config.aiModel || "gpt-5-mini",
-        },
-        avatarsCount: input.avatarDetails.length,
+    const phase4RequestPayload = {
+      phase: 4,
+      label: "PHASE 4: Konsistente Bilder generieren",
+      chaptersToGenerate: finalizedStory.chapters?.length,
+      imageDescriptions: finalizedStory.chapters?.map(ch => ({
+        chapterOrder: ch.order,
+        chapterTitle: ch.title,
+        description: ch.imageDescription,
+      })),
+    };
+
+    const phase4ResponsePayload = {
+      status: "completed",
+      durationMs: phaseDurations.phase4Duration,
+      totalImages: chaptersWithImages.length,
+      successfulImages,
+      failedImages: chaptersWithImages.length - successfulImages,
+      images: chaptersWithImages.map(ch => ({
+        chapterOrder: ch.order,
+        chapterTitle: ch.title,
+        hasImage: !!ch.imageUrl,
+        imageUrl: ch.imageUrl,
+      })),
+      coverImage: {
+        url: coverImageUrl,
+        durationMs: coverDuration,
+        success: !!coverImageUrl,
       },
-      response: {
-        totalDuration,
-        phaseDurations: {
-          phase1: phaseDurations.phase1Duration,
-          phase2: phaseDurations.phase2Duration,
-          phase3: phaseDurations.phase3Duration,
-          phase4: phaseDurations.phase4Duration,
-        },
-        story: {
-          title: finalizedStory.title,
-          description: finalizedStory.description,
-          chaptersCount: chaptersWithImages.length,
-          totalWords,
-        },
-        characters: {
-          fromPool: characterAssignments.size,
-          avatars: input.avatarDetails.length,
-          total: characterAssignments.size + input.avatarDetails.length,
-        },
-        images: {
-          chapters: successfulImages,
-          cover: coverImageUrl ? 1 : 0,
-          total: successfulImages + (coverImageUrl ? 1 : 0),
-          failed: chaptersWithImages.length - successfulImages,
-        },
-      },
-    });
+      totalDurationMs: totalDuration,
+    };
+
+    await this.logPhaseEvent("phase4-image-generation", phase4RequestPayload, phase4ResponsePayload);
 
     // Build metadata about character pool usage
     const characterPoolUsed = Array.from(characterAssignments.entries()).map(([placeholder, character]) => ({
@@ -411,6 +353,12 @@ export class FourPhaseOrchestrator {
       characterId: character.id,
       characterName: character.name,
     }));
+
+    const totalPromptTokens =
+      (phase1Result.usage?.promptTokens ?? 0) + (phase3Result.usage?.promptTokens ?? 0);
+    const totalCompletionTokens =
+      (phase1Result.usage?.completionTokens ?? 0) + (phase3Result.usage?.completionTokens ?? 0);
+    const totalTokens = totalPromptTokens + totalCompletionTokens;
 
     return {
       title: finalizedStory.title,
@@ -423,6 +371,15 @@ export class FourPhaseOrchestrator {
         imagesGenerated: chaptersWithImages.length + 1, // chapters + cover
         phases: phaseDurations,
         characterPoolUsed,
+        tokensUsed: {
+          prompt: totalPromptTokens,
+          completion: totalCompletionTokens,
+          total: totalTokens,
+          breakdown: {
+            phase1: phase1Result.usage ?? null,
+            phase3: phase3Result.usage ?? null,
+          },
+        },
       },
     };
   }

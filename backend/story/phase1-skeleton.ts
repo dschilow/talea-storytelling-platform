@@ -30,8 +30,19 @@ interface OpenAIResponse {
   error?: any;
 }
 
+export interface Phase1GenerationResult {
+  skeleton: StorySkeleton;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  openAIRequest: any;
+  openAIResponse: OpenAIResponse;
+}
+
 export class Phase1SkeletonGenerator {
-  async generate(input: Phase1Input): Promise<StorySkeleton> {
+  async generate(input: Phase1Input): Promise<Phase1GenerationResult> {
     console.log("[Phase1] Generating story skeleton...");
 
     const prompt = this.buildSkeletonPrompt(input);
@@ -62,6 +73,7 @@ export class Phase1SkeletonGenerator {
     }
 
     try {
+      const openAIRequest = { ...payload };
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -97,7 +109,20 @@ export class Phase1SkeletonGenerator {
         requirementsCount: skeleton.supportingCharacterRequirements?.length,
       });
 
-      return skeleton;
+      const usage = data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens ?? 0,
+            completionTokens: data.usage.completion_tokens ?? 0,
+            totalTokens: data.usage.total_tokens ?? 0,
+          }
+        : undefined;
+
+      return {
+        skeleton,
+        usage,
+        openAIRequest,
+        openAIResponse: data,
+      };
     } catch (error) {
       console.error("[Phase1] Error generating skeleton:", error);
       throw error;
