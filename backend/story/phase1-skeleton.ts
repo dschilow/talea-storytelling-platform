@@ -35,6 +35,31 @@ export class Phase1SkeletonGenerator {
     console.log("[Phase1] Generating story skeleton...");
 
     const prompt = this.buildSkeletonPrompt(input);
+    const modelName = input.config.aiModel || "gpt-5-mini";
+
+    // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
+    const isReasoningModel = modelName.includes("gpt-5") || modelName.includes("o4");
+
+    const payload: any = {
+      model: modelName,
+      messages: [
+        {
+          role: "system",
+          content: "Du bist eine professionelle Kinderbuch-Autorin, die Story-Strukturen mit generischen Charakter-Platzhaltern erstellt."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: isReasoningModel ? 16000 : 3000,
+    };
+
+    // Add reasoning_effort for reasoning models
+    if (isReasoningModel) {
+      payload.reasoning_effort = "medium";
+    }
 
     try {
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -43,21 +68,7 @@ export class Phase1SkeletonGenerator {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${openAIKey()}`,
         },
-        body: JSON.stringify({
-          model: input.config.aiModel || "gpt-4.1-mini",
-          messages: [
-            {
-              role: "system",
-              content: "Du bist eine professionelle Kinderbuch-Autorin, die Story-Strukturen mit generischen Charakter-Platzhaltern erstellt."
-            },
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          response_format: { type: "json_object" },
-          max_completion_tokens: 3000,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
