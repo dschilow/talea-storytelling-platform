@@ -16,11 +16,15 @@ interface StoryConfig {
   avatarIds: string[];
   genre: string;
   setting: string;
+  stylePreset?: string;
+  allowRhymes: boolean;
   storySoul?: string;
   emotionalFlavors?: string[];
   storyTempo?: string;
   specialIngredients?: string[];
   customPrompt?: string;
+  language?: 'de' | 'en';
+  aiModel?: string;
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
@@ -45,8 +49,9 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
   onGenerate,
   generating = false,
   generationStep = 'profiles',
-}) =>   const getGenreLabel = (genre: string) => {
-    const genres: { [key: string]: string } = {
+}) => {
+  const getGenreLabel = (genre: string) => {
+    const genres: Record<string, string> = {
       adventure: 'Abenteuer',
       fantasy: 'Fantasy',
       mystery: 'Geheimnis',
@@ -58,7 +63,7 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
   };
 
   const getSettingLabel = (setting: string) => {
-    const settings: { [key: string]: string } = {
+    const settings: Record<string, string> = {
       forest: 'Zauberwald',
       castle: 'Schloss',
       ocean: 'Unterwasserwelt',
@@ -70,7 +75,7 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
   };
 
   const getLengthLabel = (length: string) => {
-    const lengths: { [key: string]: string } = {
+    const lengths: Record<string, string> = {
       short: 'Kurz (3-5 Kapitel)',
       medium: 'Mittel (5-8 Kapitel)',
       long: 'Lang (8-12 Kapitel)',
@@ -79,7 +84,7 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
   };
 
   const getComplexityLabel = (complexity: string) => {
-    const complexities: { [key: string]: string } = {
+    const complexities: Record<string, string> = {
       simple: 'Einfach',
       medium: 'Mittel',
       complex: 'Komplex',
@@ -114,16 +119,18 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
     return ingredients
       .map((key) => SPECIAL_INGREDIENT_OPTIONS.find((option) => option.key === key)?.label || key)
       .join(', ');
-  };  return (
+  };
+
+  return (
     <div className="space-y-6">
       {/* Summary */}
       <FadeInView delay={100}>
         <Card variant="elevated">
           <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Zusammenfassung</h2>
           <p className="text-gray-600 text-center mb-6">
-            Überprüfe deine Einstellungen vor der Generierung
+            Ueberpruefe deine Einstellungen vor der Generierung
           </p>
-          
+
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 p-3 rounded-lg">
               <h3 className="font-semibold text-gray-700 text-sm mb-1">Avatare</h3>
@@ -184,33 +191,34 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
             </div>
           </div>
 
-        
           {storyConfig.customPrompt && storyConfig.customPrompt.trim().length > 0 && (
             <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-6">
               <h3 className="font-semibold text-gray-700 text-sm mb-1">Magischer Wunsch</h3>
               <p className="text-gray-800 text-sm whitespace-pre-line">{storyConfig.customPrompt}</p>
             </div>
-          )}  {storyConfig.learningMode?.enabled && (
+          )}
+
+          {storyConfig.learningMode?.enabled && (
             <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
-              <h3 className="font-bold text-purple-700 mb-3 text-center">🎓 Lernmodus aktiviert</h3>
-              
+              <h3 className="font-bold text-purple-700 mb-3 text-center">Lernmodus aktiviert</h3>
+
               {storyConfig.learningMode.subjects.length > 0 && (
                 <div className="mb-3">
-                  <h4 className="font-semibold text-purple-600 text-sm mb-1">Fächer:</h4>
+                  <h4 className="font-semibold text-purple-600 text-sm mb-1">Faecher:</h4>
                   <p className="text-purple-700">{storyConfig.learningMode.subjects.join(', ')}</p>
                 </div>
               )}
-              
+
               <div className="mb-3">
                 <h4 className="font-semibold text-purple-600 text-sm mb-1">Schwierigkeit:</h4>
                 <p className="text-purple-700">{storyConfig.learningMode.difficulty}</p>
               </div>
-              
+
               {storyConfig.learningMode.learningObjectives.length > 0 && (
                 <div>
                   <h4 className="font-semibold text-purple-600 text-sm mb-1">Lernziele:</h4>
                   {storyConfig.learningMode.learningObjectives.map((objective, index) => (
-                    <p key={index} className="text-purple-700 text-sm">• {objective}</p>
+                    <p key={index} className="text-purple-700 text-sm">- {objective}</p>
                   ))}
                 </div>
               )}
@@ -225,36 +233,35 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
           <div className="text-center">
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600" />
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              {generating ? 'Magie?e? wirkt... ✨' : 'Bereit für die Magie?e??'}
+              {generating ? 'Magie wirkt...' : 'Bereit fuer die Magie?'}
             </h2>
             <p className="text-gray-600 mb-6">
-              {generating 
+              {generating
                 ? 'Deine Geschichte wird gerade erstellt. Das kann einige Minuten dauern...'
-                : 'Deine Geschichte wird mit modernster KI-Technologie erstellt. Dieser Prozess kann einige Minuten dauern, aber das Warten lohnt sich!'
-              }
+                : 'Deine Geschichte wird mit moderner KI-Technologie erstellt. Dieser Prozess braucht etwas Zeit, lohnt sich aber!'}
             </p>
-            
+
             {!generating && (
               <div className="space-y-3 text-left">
                 <div className="flex items-center">
-                  <span className="text-lg mr-3">📖</span>
+                  <span className="text-lg mr-3">*</span>
                   <span className="text-gray-700">Personalisierte Kapitel mit deinen Avataren</span>
                 </div>
-                
+
                 <div className="flex items-center">
-                  <span className="text-lg mr-3">🎨</span>
-                  <span className="text-gray-700">Wunderschöne Illustrationen für jedes Kapitel</span>
+                  <span className="text-lg mr-3">*</span>
+                  <span className="text-gray-700">Wunderschoene Illustrationen fuer jedes Kapitel</span>
                 </div>
-                
+
                 <div className="flex items-center">
-                  <span className="text-lg mr-3">🧠</span>
+                  <span className="text-lg mr-3">*</span>
                   <span className="text-gray-700">Intelligente Handlung basierend auf deinen Einstellungen</span>
                 </div>
-                
+
                 {storyConfig.learningMode?.enabled && (
                   <div className="flex items-center">
-                    <span className="text-lg mr-3">🎓</span>
-                    <span className="text-gray-700">Integrierte Lernelemente für maximalen Bildungswert</span>
+                    <span className="text-lg mr-3">*</span>
+                    <span className="text-gray-700">Integrierte Lernelemente fuer maximalen Bildungswert</span>
                   </div>
                 )}
               </div>
@@ -268,10 +275,10 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
           </div>
         </Card>
       </FadeInView>
-      
+
       <FadeInView delay={300}>
         <Button
-          title={generating ? "Geschichte wird erstellt..." : "🚀 Geschichte erstellen"}
+          title={generating ? 'Geschichte wird erstellt...' : 'Geschichte erstellen'}
           onPress={onGenerate}
           size="lg"
           className="w-full"
@@ -284,10 +291,3 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
 };
 
 export default GenerationStep;
-
-
-
-
-
-
-
