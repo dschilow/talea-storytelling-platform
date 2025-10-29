@@ -319,24 +319,28 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
 
     // Validate character requirements
     for (const req of skeleton.supportingCharacterRequirements) {
-      if (!req.placeholder || !req.role || !req.archetype) {
-        throw new Error("Each character requirement must have placeholder, role, and archetype");
+      const hasPlaceholder = typeof req.placeholder === "string" && req.placeholder.length > 0;
+      const hasName = typeof (req as any).name === "string" && (req as any).name.length > 0;
+
+      if (!hasPlaceholder && !hasName) {
+        throw new Error("Each character requirement must declare either placeholder or name");
       }
 
-      const isPlaceholder = typeof req.placeholder === "string";
-      if (
-        isPlaceholder &&
-        req.placeholder.startsWith("{{") &&
-        req.placeholder.endsWith("}}")
-      ) {
-        continue;
+      if (!req.role || !req.archetype) {
+        throw new Error("Each character requirement must have role and archetype");
       }
 
-      // Allow main avatar names or other literal identifiers without throwing
-      console.warn(
-        `[Phase1] Warning: character requirement placeholder "${req.placeholder}" is not wrapped in {{ }}. ` +
-          "Assuming this refers to a main avatar and continuing."
-      );
+      if (hasPlaceholder) {
+        if (req.placeholder.startsWith("{{") && req.placeholder.endsWith("}}")) {
+          continue;
+        }
+
+        // Allow placeholder values that are not wrapped when they match known avatar names,
+        // but warn so we can monitor underlying prompt regressions.
+        console.warn(
+          `[Phase1] Warning: character requirement placeholder "${req.placeholder}" is not wrapped in {{ }}.`
+        );
+      }
     }
 
     console.log("[Phase1] Skeleton structure validated successfully");
