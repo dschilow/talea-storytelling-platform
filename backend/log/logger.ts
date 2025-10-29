@@ -11,7 +11,13 @@ export interface LogEvent {
     | "openai-avatar-analysis-stable"
     | "openai-doku-generation"
     | "openai-tavi-chat"
-    | "openai-story-generation-mcp";
+    | "openai-story-generation-mcp"
+    | "phase1-skeleton-generation"
+    | "phase2-character-matching"
+    | "phase3-story-finalization"
+    | "phase4-image-generation"
+    | "4phase-cover-generation"
+    | "4phase-summary";
   timestamp: Date;
   request: any;
   response: any;

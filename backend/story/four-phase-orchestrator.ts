@@ -94,16 +94,26 @@ export class FourPhaseOrchestrator {
     const phase1Start = Date.now();
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 1: Skeleton Generation started",
+      source: "phase1-skeleton-generation",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 1,
-        genre: input.config.genre,
-        setting: input.config.setting,
-        avatarCount: input.avatarDetails.length,
-        aiModel: input.config.aiModel || "gpt-5-mini",
+        config: {
+          genre: input.config.genre,
+          setting: input.config.setting,
+          ageGroup: input.config.ageGroup,
+          complexity: input.config.complexity,
+          length: input.config.length,
+          aiModel: input.config.aiModel || "gpt-5-mini",
+        },
+        avatars: input.avatarDetails.map(a => ({
+          id: a.id,
+          name: a.name,
+          description: a.description,
+        })),
+      },
+      response: {
+        status: "started",
       },
     });
 
@@ -118,16 +128,30 @@ export class FourPhaseOrchestrator {
     console.log(`[4-Phase] Phase 1 completed in ${phaseDurations.phase1Duration}ms`);
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 1: Skeleton Generation completed",
+      source: "phase1-skeleton-generation",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 1,
+        status: "completed",
+      },
+      response: {
         duration: phaseDurations.phase1Duration,
         title: skeleton.title,
-        chaptersCount: skeleton.chapters?.length,
-        requirementsCount: skeleton.supportingCharacterRequirements?.length,
+        description: skeleton.description,
+        chapters: skeleton.chapters?.map(ch => ({
+          order: ch.order,
+          title: ch.title,
+          contentPreview: ch.content.substring(0, 200) + "...",
+          wordCount: ch.content.split(/\s+/).length,
+        })),
+        supportingCharacterRequirements: skeleton.supportingCharacterRequirements?.map(req => ({
+          placeholder: req.placeholder,
+          role: req.role,
+          archetype: req.archetype,
+          emotionalNature: req.emotionalNature,
+          importance: req.importance,
+          chaptersNeeded: req.chaptersNeeded,
+        })),
       },
     });
 
@@ -135,20 +159,28 @@ export class FourPhaseOrchestrator {
     console.log("[4-Phase] ===== PHASE 2: CHARACTER MATCHING =====");
     const phase2Start = Date.now();
 
-    await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 2: Character Matching started",
-      timestamp: new Date(),
-      data: {
-        phase: 2,
-        requirementsCount: skeleton.supportingCharacterRequirements?.length,
-        setting: input.config.setting,
-      },
-    });
-
     // Get recent stories for freshness calculation
     const recentStoryIds = await this.getRecentStoryIds(input.userId, 5);
+
+    await publishWithTimeout(logTopic, {
+      source: "phase2-character-matching",
+      timestamp: new Date(),
+      request: {
+        phase: 2,
+        setting: input.config.setting,
+        requirements: skeleton.supportingCharacterRequirements?.map(req => ({
+          placeholder: req.placeholder,
+          role: req.role,
+          archetype: req.archetype,
+          emotionalNature: req.emotionalNature,
+          importance: req.importance,
+        })),
+        recentStoryCount: recentStoryIds.length,
+      },
+      response: {
+        status: "started",
+      },
+    });
 
     const characterAssignments = await this.phase2Matcher.match(
       skeleton,
@@ -160,19 +192,34 @@ export class FourPhaseOrchestrator {
     console.log(`[4-Phase] Matched ${characterAssignments.size} characters from pool`);
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 2: Character Matching completed",
+      source: "phase2-character-matching",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 2,
+        status: "completed",
+      },
+      response: {
         duration: phaseDurations.phase2Duration,
-        matchedCharacters: characterAssignments.size,
-        characters: Array.from(characterAssignments.entries()).map(([placeholder, char]) => ({
+        matchedCount: characterAssignments.size,
+        assignments: Array.from(characterAssignments.entries()).map(([placeholder, char]) => ({
           placeholder,
-          name: char.name,
-          role: char.role,
-          archetype: char.archetype,
+          character: {
+            id: char.id,
+            name: char.name,
+            role: char.role,
+            archetype: char.archetype,
+            emotionalNature: char.emotionalNature,
+            visualProfile: {
+              description: char.visualProfile.description,
+              species: char.visualProfile.species,
+              colorPalette: char.visualProfile.colorPalette,
+            },
+            usageStats: {
+              totalUsageCount: char.totalUsageCount,
+              recentUsageCount: char.recentUsageCount,
+              lastUsedAt: char.lastUsedAt,
+            },
+          },
         })),
       },
     });
@@ -182,15 +229,23 @@ export class FourPhaseOrchestrator {
     const phase3Start = Date.now();
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 3: Story Finalization started",
+      source: "phase3-story-finalization",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 3,
+        config: {
+          aiModel: input.config.aiModel || "gpt-5-mini",
+          ageGroup: input.config.ageGroup,
+          genre: input.config.genre,
+          stylePreset: input.config.stylePreset,
+          tone: input.config.tone,
+        },
         skeletonTitle: skeleton.title,
-        charactersCount: characterAssignments.size,
-        aiModel: input.config.aiModel || "gpt-5-mini",
+        charactersAssigned: characterAssignments.size,
+        avatarsCount: input.avatarDetails.length,
+      },
+      response: {
+        status: "started",
       },
     });
 
@@ -203,17 +258,27 @@ export class FourPhaseOrchestrator {
     phaseDurations.phase3Duration = Date.now() - phase3Start;
     console.log(`[4-Phase] Phase 3 completed in ${phaseDurations.phase3Duration}ms`);
 
+    const totalWords = finalizedStory.chapters?.reduce((sum, ch) => sum + ch.content.split(/\s+/).length, 0) || 0;
+
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 3: Story Finalization completed",
+      source: "phase3-story-finalization",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 3,
+        status: "completed",
+      },
+      response: {
         duration: phaseDurations.phase3Duration,
         title: finalizedStory.title,
+        description: finalizedStory.description,
         chaptersCount: finalizedStory.chapters?.length,
-        totalWords: finalizedStory.chapters?.reduce((sum, ch) => sum + ch.content.split(/\s+/).length, 0),
+        totalWords,
+        chapters: finalizedStory.chapters?.map(ch => ({
+          order: ch.order,
+          title: ch.title,
+          wordCount: ch.content.split(/\s+/).length,
+          imageDescriptionPreview: ch.imageDescription?.substring(0, 150) + "...",
+        })),
       },
     });
 
@@ -222,13 +287,19 @@ export class FourPhaseOrchestrator {
     const phase4Start = Date.now();
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 4: Image Generation started",
+      source: "phase4-image-generation",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 4,
         chaptersToGenerate: finalizedStory.chapters?.length,
+        imageDescriptions: finalizedStory.chapters?.map(ch => ({
+          chapterOrder: ch.order,
+          chapterTitle: ch.title,
+          description: ch.imageDescription,
+        })),
+      },
+      response: {
+        status: "started",
       },
     });
 
@@ -244,16 +315,23 @@ export class FourPhaseOrchestrator {
     const successfulImages = chaptersWithImages.filter(ch => ch.imageUrl).length;
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Phase 4: Image Generation completed",
+      source: "phase4-image-generation",
       timestamp: new Date(),
-      data: {
+      request: {
         phase: 4,
+        status: "completed",
+      },
+      response: {
         duration: phaseDurations.phase4Duration,
         totalImages: chaptersWithImages.length,
         successfulImages,
         failedImages: chaptersWithImages.length - successfulImages,
+        images: chaptersWithImages.map(ch => ({
+          chapterOrder: ch.order,
+          chapterTitle: ch.title,
+          hasImage: !!ch.imageUrl,
+          imageUrl: ch.imageUrl,
+        })),
       },
     });
 
@@ -268,13 +346,17 @@ export class FourPhaseOrchestrator {
     const coverDuration = Date.now() - coverStart;
 
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "Cover Image Generation completed",
+      source: "4phase-cover-generation",
       timestamp: new Date(),
-      data: {
+      request: {
+        storyTitle: finalizedStory.title,
+        avatarsCount: input.avatarDetails.length,
+        charactersCount: characterAssignments.size,
+      },
+      response: {
         duration: coverDuration,
         success: !!coverImageUrl,
+        coverImageUrl,
       },
     });
 
@@ -283,20 +365,45 @@ export class FourPhaseOrchestrator {
 
     // Final summary log
     await publishWithTimeout(logTopic, {
-      source: "4-phase-orchestrator",
-      level: "info",
-      message: "4-Phase Story Generation completed",
+      source: "4phase-summary",
       timestamp: new Date(),
-      data: {
+      request: {
+        userId: input.userId,
+        config: {
+          genre: input.config.genre,
+          setting: input.config.setting,
+          ageGroup: input.config.ageGroup,
+          complexity: input.config.complexity,
+          length: input.config.length,
+          aiModel: input.config.aiModel || "gpt-5-mini",
+        },
+        avatarsCount: input.avatarDetails.length,
+      },
+      response: {
         totalDuration,
-        phase1Duration: phaseDurations.phase1Duration,
-        phase2Duration: phaseDurations.phase2Duration,
-        phase3Duration: phaseDurations.phase3Duration,
-        phase4Duration: phaseDurations.phase4Duration,
-        title: finalizedStory.title,
-        charactersUsed: characterAssignments.size,
-        chaptersGenerated: chaptersWithImages.length,
-        imagesGenerated: successfulImages + (coverImageUrl ? 1 : 0),
+        phaseDurations: {
+          phase1: phaseDurations.phase1Duration,
+          phase2: phaseDurations.phase2Duration,
+          phase3: phaseDurations.phase3Duration,
+          phase4: phaseDurations.phase4Duration,
+        },
+        story: {
+          title: finalizedStory.title,
+          description: finalizedStory.description,
+          chaptersCount: chaptersWithImages.length,
+          totalWords,
+        },
+        characters: {
+          fromPool: characterAssignments.size,
+          avatars: input.avatarDetails.length,
+          total: characterAssignments.size + input.avatarDetails.length,
+        },
+        images: {
+          chapters: successfulImages,
+          cover: coverImageUrl ? 1 : 0,
+          total: successfulImages + (coverImageUrl ? 1 : 0),
+          failed: chaptersWithImages.length - successfulImages,
+        },
       },
     });
 
