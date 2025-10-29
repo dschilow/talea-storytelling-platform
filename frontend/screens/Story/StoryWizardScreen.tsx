@@ -10,37 +10,33 @@ import GenreSettingStep from './steps/GenreSettingStep';
 import StoryParametersStep from './steps/StoryParametersStep';
 import LearningModeStep from './steps/LearningModeStep';
 import GenerationStep from './steps/GenerationStep';
-import StoryStyleStep, { StylePresetKey } from './steps/StoryStyleStep';
-import StoryFlavorStep, { PlotHookKey, Pacing } from './steps/StoryFlavorStep';
+import StoryStyleStep, { StorySoulKey, StylePresetKey } from './steps/StoryStyleStep';
+import StoryFlavorStep, {
+  EmotionalFlavorKey,
+  StoryTempoKey,
+  SpecialIngredientKey,
+} from './steps/StoryFlavorStep';
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 
-type StepType = 'avatar' | 'genre' | 'style' | 'flavor' | 'parameters' | 'learning' | 'generation';
+type StepType = 'avatar' | 'genre' | 'soul' | 'experience' | 'parameters' | 'learning' | 'generation';
 
 interface StoryConfig {
   avatarIds: string[];
   genre: string;
   setting: string;
 
-  // NEW: Stil & Ton
   stylePreset?: StylePresetKey;
-  allowRhymes?: boolean;           // z.B. bei „Grüffelo“-Anmutung
-  tone?: 'warm' | 'witty' | 'epic' | 'soothing' | 'mischievous' | 'wonder';
+  allowRhymes: boolean;
+  storySoul?: StorySoulKey;
+  emotionalFlavors: EmotionalFlavorKey[];
+  storyTempo?: StoryTempoKey;
+  specialIngredients: SpecialIngredientKey[];
+  customPrompt?: string;
   language?: 'de' | 'en';
 
-  // NEW: Würze & Hooks
-  suspenseLevel?: 0 | 1 | 2 | 3;   // 0=sehr ruhig … 3=spannend aber kindgerecht
-  humorLevel?: 0 | 1 | 2 | 3;
-  pacing?: Pacing;                  // 'slow' | 'balanced' | 'fast'
-  pov?: 'ich' | 'personale';
-  hooks?: PlotHookKey[];
-  hasTwist?: boolean;
-  customPrompt?: string;            // optionaler Freitext
-
-  // AI Model selection
   aiModel?: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-pro' | 'gpt-4.1-nano' | 'gpt-4.1-mini' | 'gpt-4.1' | 'o4-mini';
 
-  // Bestehende Parameter
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
@@ -53,47 +49,41 @@ interface StoryConfig {
     assessmentType: 'quiz' | 'interactive' | 'discussion';
   };
 }
-
 const StoryWizardScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
   const [storyConfig, setStoryConfig] = useState<StoryConfig>({
-    avatarIds: [],
-    genre: '',
-    setting: '',
-    // Defaults für neue Felder
-    stylePreset: undefined,
-    allowRhymes: false,
-    tone: 'warm',
-    language: 'de',
-    suspenseLevel: 1,
-    humorLevel: 2,
-    aiModel: 'gpt-5-mini', // Default model
-    pacing: 'balanced',
-    pov: 'personale',
-    hooks: [],
-    hasTwist: false,
-    customPrompt: '',
-
-    length: 'medium',
-    complexity: 'medium',
-    ageGroup: '6-8',
-  });
+  avatarIds: [],
+  genre: '',
+  setting: '',
+  stylePreset: undefined,
+  allowRhymes: false,
+  storySoul: undefined,
+  emotionalFlavors: [],
+  storyTempo: 'balanced',
+  specialIngredients: [],
+  customPrompt: '',
+  language: 'de',
+  aiModel: 'gpt-5-mini',
+  length: 'medium',
+  complexity: 'medium',
+  ageGroup: '6-8',
+});
 
   const backend = useBackend();
   const { user } = useUser();
 
   // UPDATED: Neue Steps eingefügt
   const steps = [
-    { key: 'avatar',      title: 'Avatare',        icon: '👤' },
-    { key: 'genre',       title: 'Genre & Welt',   icon: '🌍' },
-    { key: 'style',       title: 'Stil & Ton',     icon: '🎨' },
-    { key: 'flavor',      title: 'Würze & Hooks',  icon: '🧪' },
-    { key: 'parameters',  title: 'Parameter',      icon: '⚙️' },
-    { key: 'learning',    title: 'Lernmodus',      icon: '🎓' },
-    { key: 'generation',  title: 'Erstellen',      icon: '✨' },
-  ] as const;
+  { key: 'avatar',      title: 'Avatare',           icon: 'A' },
+  { key: 'genre',       title: 'Genre & Welt',      icon: 'G' },
+  { key: 'soul',        title: 'Story-Seele & Stil',       icon: 'S' },
+  { key: 'experience',  title: 'Emotion & Tempo',   icon: 'E' },
+  { key: 'parameters',  title: 'Parameter',         icon: 'P' },
+  { key: 'learning',    title: 'Lernmodus',         icon: 'L' },
+  { key: 'generation',  title: 'Erstellen',         icon: '!' },
+] as const;
 
   const currentStepIndex = steps.findIndex(step => step.key === currentStep);
 
@@ -125,10 +115,10 @@ const StoryWizardScreen: React.FC = () => {
         return storyConfig.avatarIds.length > 0;
       case 'genre':
         return Boolean(storyConfig.genre && storyConfig.setting);
-      case 'style':
-        return true; // optional
-      case 'flavor':
-        return true; // alles optional und kindgerecht begrenzt
+      case 'soul':
+        return Boolean(storyConfig.storySoul);
+      case 'experience':
+        return Boolean(storyConfig.storyTempo);
       case 'parameters':
         return true;
       case 'learning':
@@ -159,7 +149,7 @@ const StoryWizardScreen: React.FC = () => {
       await new Promise(r => setTimeout(r, 1200));
       setGenerationStep('text');
 
-      // Wichtig: stylePreset/hook-Infos werden an Backend gegeben.
+      // Story-Experience-Einstellungen werden ueber storyConfig uebergeben.
       const story = await backend.story.generate({
         userId: user.id,
         config: storyConfig,
@@ -211,27 +201,24 @@ const StoryWizardScreen: React.FC = () => {
             onSettingChange={(setting) => updateStoryConfig({ setting })}
           />
         );
-      case 'style':
+      case 'soul':
         return (
           <StoryStyleStep
+            storySoul={storyConfig.storySoul}
             stylePreset={storyConfig.stylePreset}
-            allowRhymes={Boolean(storyConfig.allowRhymes)}
-            tone={storyConfig.tone ?? 'warm'}
-            language={storyConfig.language ?? 'de'}
-            onChange={(u) => updateStoryConfig(u)}
+            allowRhymes={storyConfig.allowRhymes}
+            onSelectSoul={(storySoul) => updateStoryConfig({ storySoul })}
+            onStyleChange={(update) => updateStoryConfig(update)}
           />
         );
-      case 'flavor':
+      case 'experience':
         return (
           <StoryFlavorStep
-            suspenseLevel={storyConfig.suspenseLevel ?? 1}
-            humorLevel={storyConfig.humorLevel ?? 2}
-            pacing={storyConfig.pacing ?? 'balanced'}
-            pov={storyConfig.pov ?? 'personale'}
-            hooks={storyConfig.hooks ?? []}
-            hasTwist={Boolean(storyConfig.hasTwist)}
+            emotionalFlavors={storyConfig.emotionalFlavors}
+            storyTempo={storyConfig.storyTempo}
+            specialIngredients={storyConfig.specialIngredients}
             customPrompt={storyConfig.customPrompt ?? ''}
-            onChange={(u) => updateStoryConfig(u)}
+            onChange={(update) => updateStoryConfig(update)}
           />
         );
       case 'parameters':
@@ -353,3 +340,10 @@ const StoryWizardScreen: React.FC = () => {
 };
 
 export default StoryWizardScreen;
+
+
+
+
+
+
+

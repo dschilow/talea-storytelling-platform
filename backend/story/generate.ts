@@ -17,6 +17,12 @@ import {
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
 import { FourPhaseOrchestrator } from "./four-phase-orchestrator";
+import type {
+  StorySoulKey,
+  EmotionalFlavorKey,
+  StoryTempoKey,
+  SpecialIngredientKey,
+} from "./story-experience";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 
@@ -97,6 +103,10 @@ export interface StoryConfig {
   hooks?: PlotHookKey[];
   hasTwist?: boolean;
   customPrompt?: string;
+  storySoul?: StorySoulKey;
+  emotionalFlavors?: EmotionalFlavorKey[];
+  storyTempo?: StoryTempoKey;
+  specialIngredients?: SpecialIngredientKey[];
 
   // AI Model selection for story generation
   aiModel?: AIModel;

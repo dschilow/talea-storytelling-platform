@@ -1,125 +1,191 @@
-import React from 'react';
-import Card from '../../../components/common/Card';
+import React from "react";
+import Card from "../../../components/common/Card";
+
+export type StorySoulKey =
+  | "maerchenzauber"
+  | "lieder_reime"
+  | "wilder_ritt"
+  | "traeumerei"
+  | "heldenmut"
+  | "entdeckergeist";
 
 export type StylePresetKey =
-  | 'rhymed_playful'          // „Der Grüffelo“ – spielerisch, gereimt, call&response
-  | 'gentle_minimal'          // „Die kleine Raupe Nimmersatt“ – minimalistisch, repetitiv beruhigend
-  | 'wild_imaginative'        // „Wo die wilden Kerle wohnen“ – wild, rebellisch, Fantasie-Exploration
-  | 'philosophical_warm'      // „Der kleine Prinz“ – warm, nachdenklich, bildhaft
-  | 'mischief_empowering'     // „Pippi Langstrumpf“ – schelmisch, selbstwirksam
-  | 'adventure_epic'          // „Harry Potter“ – episodisch-abenteuerlich (kindgerecht)
-  | 'quirky_dark_sweet'       // „Charlie & die Schokoladenfabrik“ – skurril, süß-düster (sanft)
-  | 'cozy_friendly'           // „Winnie Puuh“ – behaglich, dialogisch, freundlich
-  | 'classic_fantasy'         // „Peter Pan“ – klassisch-märchenhafte Fantasie
-  | 'whimsical_logic'         // „Alice im Wunderland“ – verspielt, Logik-Widersprüche (altersgerecht)
-  | 'mythic_allegory'         // „Der König von Narnia“ – mythisch, allegorisch (sanft)
-  | 'road_fantasy'            // „Der Zauberer von Oz“ – Reise-Quest
-  | 'imaginative_meta'        // „Die unendliche Geschichte“ – Fantasie über Fantasie (einfach gehalten)
-  | 'pastoral_heart'          // „Heidi“ – naturverbunden, herzenswarm
-  | 'bedtime_soothing';       // „Gute Nacht, Mond“ – Einschlaf-Ruhe, sehr sanft
+  | "rhymed_playful"
+  | "gentle_minimal"
+  | "wild_imaginative"
+  | "philosophical_warm"
+  | "mischief_empowering"
+  | "adventure_epic"
+  | "quirky_dark_sweet"
+  | "cozy_friendly"
+  | "classic_fantasy"
+  | "whimsical_logic"
+  | "mythic_allegory"
+  | "road_fantasy"
+  | "imaginative_meta"
+  | "pastoral_heart"
+  | "bedtime_soothing";
 
-const STYLE_OPTIONS: { key: StylePresetKey; label: string; desc: string }[] = [
-  { key: 'rhymed_playful',      label: 'Rhythmisch & spielerisch (inspiriert von „Der Grüffelo“)',              desc: 'Gereimte Wendungen, Call-and-Response, humorvoll.' },
-  { key: 'gentle_minimal',      label: 'Sanft & minimal (inspiriert von „Die kleine Raupe Nimmersatt“)',        desc: 'Wiederholung, klare Struktur, ruhig.' },
-  { key: 'wild_imaginative',    label: 'Wild & fantasievoll (inspiriert von „Wo die wilden Kerle wohnen“)',     desc: 'Rebellische Imagination, sichere Grenzen.' },
-  { key: 'philosophical_warm',  label: 'Warm & nachdenklich (inspiriert von „Der kleine Prinz“)',               desc: 'Kleine Weisheiten, poetische Bilder.' },
-  { key: 'mischief_empowering', label: 'Schelmisch & mutig (inspiriert von „Pippi Langstrumpf“)',               desc: 'Selbstwirksamkeit, Humor.' },
-  { key: 'adventure_epic',      label: 'Abenteuerlich & episodisch (inspiriert von „Harry Potter“)',            desc: 'Quest-Gefühl, kindgerecht dosiert.' },
-  { key: 'quirky_dark_sweet',   label: 'Skurril & süß-düster (inspiriert von „Charlie … Schokoladenfabrik“)',   desc: 'Leicht schräg, immer freundlich.' },
-  { key: 'cozy_friendly',       label: 'Behaglich & freundlich (inspiriert von „Winnie Puuh“)',                 desc: 'Gemütliche Dialoge, Freundschaft.' },
-  { key: 'classic_fantasy',     label: 'Klassisch-fantastisch (inspiriert von „Peter Pan“)',                    desc: 'Zeitlose Fantasie.' },
-  { key: 'whimsical_logic',     label: 'Verspielt & paradox (inspiriert von „Alice im Wunderland“)',            desc: 'Logikspiele, verspielt (altersgerecht).' },
-  { key: 'mythic_allegory',     label: 'Mythisch & sanft allegorisch (inspiriert von „Narnia“)',                desc: 'Symbolik, Teamgeist.' },
-  { key: 'road_fantasy',        label: 'Reise-Fantasie (inspiriert von „Der Zauberer von Oz“)',                 desc: 'Weg, Etappen, Gefährten.' },
-  { key: 'imaginative_meta',    label: 'Meta-Fantasie (inspiriert von „Die unendliche Geschichte“)',            desc: 'Geschichte in Geschichte (einfach).' },
-  { key: 'pastoral_heart',      label: 'Natur & Herz (inspiriert von „Heidi“)',                                 desc: 'Alpen-Gefühl, Geborgenheit.' },
-  { key: 'bedtime_soothing',    label: 'Einschlaf-ruhig (inspiriert von „Gute Nacht, Mond“)',                   desc: 'Sehr sanft, flüsterndes Tempo.' },
-];
-
-/**
- * Hinweis: Wir liefern nur abstrakte Stilmerkmale (Anmutung), keine Nachahmung.
- * Das Backend sollte stylePreset -> neutrale Prompt-Merkmale mappen.
- */
-interface Props {
-  stylePreset?: StylePresetKey;
-  allowRhymes: boolean;
-  tone: 'warm' | 'witty' | 'epic' | 'soothing' | 'mischievous' | 'wonder';
-  language: 'de' | 'en';
-  onChange: (u: Partial<{
-    stylePreset: StylePresetKey | undefined;
-    allowRhymes: boolean;
-    tone: Props['tone'];
-    language: Props['language'];
-  }>) => void;
+export interface StorySoulOption {
+  key: StorySoulKey;
+  label: string;
+  tagline: string;
+  description: string;
 }
 
-const StoryStyleStep: React.FC<Props> = ({ stylePreset, allowRhymes, tone, language, onChange }) => {
+export interface StylePresetOption {
+  key: StylePresetKey;
+  label: string;
+  description: string;
+}
+
+export const STORY_SOUL_OPTIONS: StorySoulOption[] = [
+  {
+    key: "maerchenzauber",
+    label: "Maerchenzauber",
+    tagline: "Zeitlos-magisch und herzlich",
+    description: "Es-war-einmal Stimmung, warme Atmosphaere, sanfte Spannung.",
+  },
+  {
+    key: "lieder_reime",
+    label: "Lieder & Reime",
+    tagline: "Rhythmisch, spielerisch, musikalisch",
+    description: "Leichte Reime, wiederkehrende Phrasen, ideal zum Mitsprechen.",
+  },
+  {
+    key: "wilder_ritt",
+    label: "Wilder Ritt",
+    tagline: "Actionreich und voller Humor",
+    description: "Schnelles Tempo, mutige Entscheidungen, freche Energie.",
+  },
+  {
+    key: "traeumerei",
+    label: "Traeumerei",
+    tagline: "Poetisch und beruhigend",
+    description: "Schwebende Bilder, leise Dialoge, sanfte Gefuehle.",
+  },
+  {
+    key: "heldenmut",
+    label: "Heldenmut",
+    tagline: "Epische Kinderquests",
+    description: "Mut, Teamgeist und triumphierende Wendungen.",
+  },
+  {
+    key: "entdeckergeist",
+    label: "Entdeckergeist",
+    tagline: "Neugierig und erfinderisch",
+    description: "Forscherdrang, clevere Ideen, Abenteuerlust.",
+  },
+];
+
+export const STYLE_PRESET_OPTIONS: StylePresetOption[] = [
+  { key: "rhymed_playful", label: "Rhythmisch spielerisch (Grueffelo)", description: "Gereimte Wendungen, Call-and-Response, humorvoll." },
+  { key: "gentle_minimal", label: "Sanft minimalistisch (Raupe Nimmersatt)", description: "Wiederholung, klare Struktur, beruhigend." },
+  { key: "wild_imaginative", label: "Wild fantasievoll (Wilde Kerle)", description: "Rebellische Imagination, sichere Grenzen." },
+  { key: "philosophical_warm", label: "Warm nachdenklich (Kleiner Prinz)", description: "Poetische Bilder, kleine Weisheiten." },
+  { key: "mischief_empowering", label: "Schelmisch mutig (Pippi Langstrumpf)", description: "Selbstwirksamkeit, Humor und Herz." },
+  { key: "adventure_epic", label: "Abenteuerlich episch (Harry Potter)", description: "Quest-Gefuehl, Teamspirit, kindgerecht." },
+  { key: "quirky_dark_sweet", label: "Skurril suess (Charlie & Schoko)", description: "Leicht schraeg, immer freundlich." },
+  { key: "cozy_friendly", label: "Gemuetlich freundlich (Winnie Puuh)", description: "Dialogreich, Snacks, Geborgenheit." },
+  { key: "classic_fantasy", label: "Klassische Fantasie (Peter Pan)", description: "Zeitlose Motive, Fliegen, Abenteuer." },
+  { key: "whimsical_logic", label: "Verspielt logisch (Alice)", description: "Logikspiele, Wortwitz, staunende Kinder." },
+  { key: "mythic_allegory", label: "Mythisch sanft (Narnia)", description: "Symbolik, ruhiger Held*innenmut." },
+  { key: "road_fantasy", label: "Reise-Quest (Oz)", description: "Etappenreise, markante Begleiter*innen." },
+  { key: "imaginative_meta", label: "Meta-Fantasie (Unendliche Geschichte)", description: "Geschichten in Geschichten, Fantasiepower." },
+  { key: "pastoral_heart", label: "Natur & Herz (Heidi)", description: "Alpenluft, Herzenswaerme, Gemeinschaft." },
+  { key: "bedtime_soothing", label: "Schlummer-sanft (Gute Nacht, Mond)", description: "Fluesterndes Tempo, Traeume in Pastell." },
+];
+
+interface Props {
+  storySoul?: StorySoulKey;
+  stylePreset?: StylePresetKey;
+  allowRhymes: boolean;
+  onSelectSoul: (storySoul: StorySoulKey) => void;
+  onStyleChange: (update: { stylePreset?: StylePresetKey; allowRhymes?: boolean }) => void;
+}
+
+const StoryStyleStep: React.FC<Props> = ({
+  storySoul,
+  stylePreset,
+  allowRhymes,
+  onSelectSoul,
+  onStyleChange,
+}) => {
   return (
     <Card variant="elevated">
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">Stil der Geschichte</h3>
+          <h3 className="text-lg font-semibold text-gray-800">Story-Seele</h3>
           <p className="text-gray-600 text-sm">
-            Wähle eine Anmutung (Dropdown) – optional. Du kannst jederzeit ohne Stilvorgabe fortfahren.
+            Waehle die Grundstimmung deines Bilderbuchs. Sie bestimmt automatisch Ton, Tempo und Grundwuerze.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {STORY_SOUL_OPTIONS.map((option) => {
+            const selected = storySoul === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onSelectSoul(option.key)}
+                className={`border rounded-lg p-4 text-left transition-all duration-200 ${
+                  selected
+                    ? "border-purple-500 bg-purple-50 shadow-sm"
+                    : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-gray-800">{option.label}</span>
+                  {selected && <span className="text-purple-600 text-xs font-semibold">ausgewaehlt</span>}
+                </div>
+                <p className="text-sm text-gray-600 mb-1">{option.tagline}</p>
+                <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-line">
+                  {option.description}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-gray-200 pt-4">
+          <h4 className="text-md font-semibold text-gray-800">Optional: Stil feinjustieren</h4>
+          <p className="text-gray-600 text-sm mb-3">
+            Du kannst zusaetzlich einen Stil auswaehlen (z. B. Gruffelo-Rhythmus). Ohne Auswahl bleibt der zur Story-Seele passende Stil aktiv.
           </p>
           <select
-            className="mt-3 w-full border rounded-lg p-3"
-            value={stylePreset ?? ''}
-            onChange={(e) => onChange({ stylePreset: (e.target.value || undefined) as StylePresetKey | undefined })}
+            className="w-full border rounded-lg p-3"
+            value={stylePreset ?? ""}
+            onChange={(event) =>
+              onStyleChange({ stylePreset: event.target.value ? (event.target.value as StylePresetKey) : undefined })
+            }
           >
-            <option value="">Ohne Vorgabe (neutral)</option>
-            {STYLE_OPTIONS.map(opt => (
-              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            <option value="">Automatisch (Story-Seele entscheidet)</option>
+            {STYLE_PRESET_OPTIONS.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
             ))}
           </select>
           {stylePreset && (
-            <p className="mt-2 text-xs text-gray-500">
-              {STYLE_OPTIONS.find(o => o.key === stylePreset)?.desc}
+            <p className="text-xs text-gray-500 mt-2">
+              {STYLE_PRESET_OPTIONS.find((option) => option.key === stylePreset)?.description}
             </p>
           )}
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Ton</label>
-            <select
-              className="w-full border rounded-lg p-2"
-              value={tone}
-              onChange={(e) => onChange({ tone: e.target.value as Props['tone'] })}
-            >
-              <option value="warm">warm</option>
-              <option value="witty">witzig</option>
-              <option value="epic">episch (kindgerecht)</option>
-              <option value="soothing">beruhigend</option>
-              <option value="mischievous">schelmisch</option>
-              <option value="wonder">staunend</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Sprache</label>
-            <select
-              className="w-full border rounded-lg p-2"
-              value={language}
-              onChange={(e) => onChange({ language: e.target.value as 'de' | 'en' })}
-            >
-              <option value="de">Deutsch</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
+          <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
             <input
-              id="allowRhymes"
               type="checkbox"
               checked={allowRhymes}
-              onChange={(e) => onChange({ allowRhymes: e.target.checked })}
+              onChange={(event) => onStyleChange({ allowRhymes: event.target.checked })}
             />
-            <label htmlFor="allowRhymes" className="text-sm text-gray-700">
-              Reimform erlauben (für gereimte Anmutungen)
-            </label>
-          </div>
+            Reime erlauben (besonders fuer Gruffelo-Stimmungen sinnvoll)
+          </label>
         </div>
+
+        <p className="text-xs text-gray-500">
+          Soul + Stil ergeben zusammen deine einzigartige Bilderbuch-Stimme. Du kannst jederzeit zurueckspringen und anpassen.
+        </p>
       </div>
     </Card>
   );

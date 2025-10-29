@@ -10,6 +10,13 @@ import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
 import { logTopic, type LogEvent } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import {
+  applyStoryExperienceToConfig,
+  buildStoryExperienceContext,
+  describeEmotionalFlavors,
+  describeSpecialIngredients,
+  type StoryExperienceContext,
+} from "./story-experience";
 
 interface AvatarDetail {
   id: string;
@@ -27,6 +34,45 @@ interface FourPhaseInput {
   avatarDetails: AvatarDetail[];
   userId: string;
   clerkToken: string;
+}
+
+interface StoryExperienceSummary {
+  soul: {
+    key: string;
+    label: string;
+    description: string;
+    storyPromise: string;
+    recommendedStylePreset: string;
+    recommendedTone: string;
+    defaultSuspense: number;
+    defaultHumor: number;
+    defaultPacing: string;
+    allowRhymes: boolean;
+  } | null;
+  emotionalFlavors: Array<{
+    key: string;
+    label: string;
+    description: string;
+    effect: string;
+  }>;
+  tempo: {
+    key: string;
+    label: string;
+    description: string;
+    pacing: string;
+  } | null;
+  specialIngredients: Array<{
+    key: string;
+    label: string;
+    description: string;
+    hookHint?: string;
+    forcesTwist: boolean;
+    emphasis?: string;
+  }>;
+  descriptions: {
+    emotionalFlavors: string;
+    specialIngredients: string;
+  };
 }
 
 interface FourPhaseOutput {
@@ -76,6 +122,7 @@ interface FourPhaseOutput {
       characterId: string;
       characterName: string;
     }[];
+    storyExperience?: StoryExperienceSummary;
   };
 }
 
@@ -116,12 +163,22 @@ export class FourPhaseOrchestrator {
       phase4Duration: 0,
     };
 
+    const configWithExperience = applyStoryExperienceToConfig({ ...input.config });
+    const experienceContext = buildStoryExperienceContext(configWithExperience);
+    console.log("[4-Phase] Story experience applied:", {
+      soul: experienceContext.soul?.label ?? "none",
+      flavors: experienceContext.emotionalFlavors.map(f => f.label),
+      tempo: experienceContext.tempo?.label ?? "default",
+      specialIngredients: experienceContext.specialIngredients.map(i => i.label),
+    });
+
     // ===== PHASE 1: Generate Story Skeleton =====
     console.log("[4-Phase] ===== PHASE 1: SKELETON GENERATION =====");
     const phase1Start = Date.now();
 
     const phase1Result: Phase1GenerationResult = await this.phase1Generator.generate({
-      config: input.config,
+      config: configWithExperience,
+      experience: experienceContext,
       avatarDetails: input.avatarDetails.map(a => ({
         name: a.name,
         description: a.description,
@@ -135,13 +192,24 @@ export class FourPhaseOrchestrator {
       phase: 1,
       label: "PHASE 1: Story-Skeleton (Struktur)",
       config: {
-        genre: input.config.genre,
-        setting: input.config.setting,
-        ageGroup: input.config.ageGroup,
-        complexity: input.config.complexity,
-        length: input.config.length,
-        aiModel: input.config.aiModel || "gpt-5-mini",
+        genre: configWithExperience.genre,
+        setting: configWithExperience.setting,
+        ageGroup: configWithExperience.ageGroup,
+        complexity: configWithExperience.complexity,
+        length: configWithExperience.length,
+        aiModel: configWithExperience.aiModel || "gpt-5-mini",
+        stylePreset: configWithExperience.stylePreset,
+        tone: configWithExperience.tone,
+        pacing: configWithExperience.pacing,
+        suspenseLevel: configWithExperience.suspenseLevel,
+        humorLevel: configWithExperience.humorLevel,
+        storySoul: configWithExperience.storySoul ?? input.config.storySoul,
+        storyTempo: configWithExperience.storyTempo ?? input.config.storyTempo,
+        specialIngredients: configWithExperience.specialIngredients ?? input.config.specialIngredients,
+        emotionalFlavors: configWithExperience.emotionalFlavors ?? input.config.emotionalFlavors,
+        hasTwist: configWithExperience.hasTwist,
       },
+      storyExperience: this.summarizeExperience(experienceContext),
       avatars: input.avatarDetails.map(a => ({
         id: a.id,
         name: a.name,
@@ -159,8 +227,9 @@ export class FourPhaseOrchestrator {
         chaptersCount: skeleton.chapters?.length,
         chapters: skeleton.chapters?.map(ch => ({
           order: ch.order,
-          contentPreview: ch.content.substring(0, 200) + "...",
+          content: ch.content,
           wordCount: ch.content.split(/\s+/).length,
+          placeholders: ch.characterRolesNeeded.map(r => r.placeholder),
         })),
         supportingCharacterRequirements: skeleton.supportingCharacterRequirements?.map(req => ({
           placeholder: req.placeholder,
@@ -241,7 +310,8 @@ export class FourPhaseOrchestrator {
     const phase3Result: Phase3FinalizationResult = await this.phase3Finalizer.finalize({
       skeleton,
       assignments: characterAssignments,
-      config: input.config,
+      config: configWithExperience,
+      experience: experienceContext,
       avatarDetails: input.avatarDetails,
     });
     const finalizedStory = phase3Result.story;
@@ -254,12 +324,18 @@ export class FourPhaseOrchestrator {
       phase: 3,
       label: "PHASE 3: Story finalisieren mit Charakteren",
       config: {
-        aiModel: input.config.aiModel || "gpt-5-mini",
-        ageGroup: input.config.ageGroup,
-        genre: input.config.genre,
-        stylePreset: input.config.stylePreset,
-        tone: input.config.tone,
+        aiModel: configWithExperience.aiModel || "gpt-5-mini",
+        ageGroup: configWithExperience.ageGroup,
+        genre: configWithExperience.genre,
+        stylePreset: configWithExperience.stylePreset,
+        tone: configWithExperience.tone,
+        pacing: configWithExperience.pacing,
+        suspenseLevel: configWithExperience.suspenseLevel,
+        humorLevel: configWithExperience.humorLevel,
+        hasTwist: configWithExperience.hasTwist,
+        hooks: configWithExperience.hooks,
       },
+      storyExperience: this.summarizeExperience(experienceContext),
       skeletonTitle: skeleton.title,
       charactersAssigned: characterAssignments.size,
       avatarsCount: input.avatarDetails.length,
@@ -371,15 +447,63 @@ export class FourPhaseOrchestrator {
         imagesGenerated: chaptersWithImages.length + 1, // chapters + cover
         phases: phaseDurations,
         characterPoolUsed,
+        model: configWithExperience.aiModel || "gpt-5-mini",
+        storyExperience: this.summarizeExperience(experienceContext),
         tokensUsed: {
           prompt: totalPromptTokens,
           completion: totalCompletionTokens,
           total: totalTokens,
+          modelUsed: configWithExperience.aiModel || "gpt-5-mini",
           breakdown: {
             phase1: phase1Result.usage ?? null,
             phase3: phase3Result.usage ?? null,
           },
         },
+      },
+    };
+  }
+
+  private summarizeExperience(context: StoryExperienceContext) {
+    return {
+      soul: context.soul
+        ? {
+            key: context.soul.key,
+            label: context.soul.label,
+            storyPromise: context.soul.storyPromise,
+            recommendedStylePreset: context.soul.recommendedStylePreset,
+            recommendedTone: context.soul.recommendedTone,
+            defaultSuspense: context.soul.defaultSuspense,
+            defaultHumor: context.soul.defaultHumor,
+            defaultPacing: context.soul.defaultPacing,
+            allowRhymes: context.soul.allowRhymes ?? false,
+            description: context.soul.description,
+          }
+        : null,
+      emotionalFlavors: context.emotionalFlavors.map(flavor => ({
+        key: flavor.key,
+        label: flavor.label,
+        description: flavor.description,
+        effect: flavor.effect,
+      })),
+      tempo: context.tempo
+        ? {
+            key: context.tempo.key,
+            label: context.tempo.label,
+            description: context.tempo.description,
+            pacing: context.tempo.pacing,
+          }
+        : null,
+      specialIngredients: context.specialIngredients.map(ingredient => ({
+        key: ingredient.key,
+        label: ingredient.label,
+        description: ingredient.description,
+        hookHint: ingredient.hookHint,
+        forcesTwist: ingredient.forcesTwist ?? false,
+        emphasis: ingredient.emphasis,
+      })),
+      descriptions: {
+        emotionalFlavors: describeEmotionalFlavors(context),
+        specialIngredients: describeSpecialIngredients(context),
       },
     };
   }

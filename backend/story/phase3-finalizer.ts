@@ -5,6 +5,11 @@
 import { secret } from "encore.dev/config";
 import type { StoryConfig } from "./generate";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
+import {
+  describeEmotionalFlavors,
+  describeSpecialIngredients,
+  type StoryExperienceContext,
+} from "./story-experience";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -17,6 +22,7 @@ interface Phase3Input {
     description?: string;
     visualProfile?: any;
   }>;
+  experience: StoryExperienceContext;
 }
 
 interface OpenAIResponse {
@@ -52,7 +58,13 @@ export class Phase3StoryFinalizer {
     const skeletonWithNames = this.injectCharacterNames(input.skeleton, input.assignments);
 
     // Step 2: Build finalization prompt with character details
-    const prompt = this.buildFinalizationPrompt(skeletonWithNames, input.assignments, input.config, input.avatarDetails);
+    const prompt = this.buildFinalizationPrompt(
+      skeletonWithNames,
+      input.assignments,
+      input.config,
+      input.avatarDetails,
+      input.experience
+    );
     const modelName = input.config.aiModel || "gpt-5-mini";
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
@@ -221,136 +233,213 @@ export class Phase3StoryFinalizer {
     skeletonWithNames: StorySkeleton,
     assignments: Map<string, CharacterTemplate>,
     config: StoryConfig,
-    avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>
+    avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>,
+    experience: StoryExperienceContext
   ): string {
-    // Build character details block
     const characterDetails = Array.from(assignments.entries())
-      .map(([placeholder, char]) => `
-**${char.name}** (${char.role}):
-- Rolle: ${char.archetype}
-- Emotionale Natur: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})
-- Aussehen: ${char.visualProfile.description}
-- Spezies: ${char.visualProfile.species}
-- Farben: ${char.visualProfile.colorPalette.join(", ")}
-- Bild-Prompt (English): "${char.visualProfile.imagePrompt}"
-      `).join("\n");
+      .map(([placeholder, char]) => [
+        `Character ${char.name} (${char.role})`,
+        `- Placeholder: ${placeholder}`,
+        `- Archetyp: ${char.archetype}`,
+        `- Emotionale Natur: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})`,
+        `- Visuelles Profil: ${char.visualProfile.description}`,
+        `- Spezies: ${char.visualProfile.species}`,
+        `- Farbpalette: ${char.visualProfile.colorPalette.join(", ")}`,
+        `- Prompt (English): ${char.visualProfile.imagePrompt}`,
+      ].join("\n"))
+      .join("\n\n");
 
-    // Build avatar details with converted visual profiles
-    const avatarDetailsText = avatarDetails.map(a => {
-      let line = `- ${a.name}`;
-      if (a.description) line += `, ${a.description}`;
-      if (a.visualProfile) {
-        const visualDesc = this.visualProfileToText(a.visualProfile);
-        line += `, Aussehen: ${visualDesc}`;
-      }
-      return line;
-    }).join("\n");
+    const avatarDetailsText = avatarDetails
+      .map((avatar) => {
+        let line = `- ${avatar.name}`;
+        if (avatar.description) {
+          line += `, ${avatar.description}`;
+        }
+        if (avatar.visualProfile) {
+          line += `, Aussehen: ${this.visualProfileToText(avatar.visualProfile)}`;
+        }
+        return line;
+      })
+      .join("\n");
 
-    // Build style instructions based on config
-    const styleInstructions = this.buildStyleInstructions(config);
+    const soulSummary = experience.soul
+      ? `${experience.soul.label} - ${experience.soul.storyPromise}`
+      : "Keine Story-Seele gewaehlt - waehle warmes, freundliches Grundgefuehl.";
 
-    const skeletonText = skeletonWithNames.chapters.map(ch =>
-      `**Kapitel ${ch.order}:**\n${ch.content}`
-    ).join("\n\n");
+    const flavorSummary = experience.emotionalFlavors.length
+      ? experience.emotionalFlavors.map((flavor) => `- ${flavor.label}: ${flavor.effect}`).join("\n")
+      : "- Natuerliche Emotionen ohne Zusatz - Fokus auf Herz und Neugier.";
+
+    const tempoSummary = experience.tempo
+      ? `${experience.tempo.label} - ${experience.tempo.description}`
+      : `Standardtempo (${config.pacing ?? "balanced"}) - kombiniere ruhige und lebendige Momente.`;
+
+    const ingredientSummary = experience.specialIngredients.length
+      ? experience.specialIngredients
+          .map((ingredient) => {
+            const extras: string[] = [];
+            if (ingredient.forcesTwist) {
+              extras.push("Wende in Kapitel 4 vorbereiten und in Kapitel 5 aufloesen.");
+            }
+            if (ingredient.hookHint) {
+              extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
+            }
+            if (ingredient.emphasis) {
+              extras.push(ingredient.emphasis);
+            }
+            const extraText = extras.length ? ` (${extras.join(" ")})` : "";
+            return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
+          })
+          .join("\n")
+      : "- Kein Spezial-Element - konzentriere dich auf Charakterentwicklung.";
+
+    const flavorDetails = describeEmotionalFlavors(experience);
+    const ingredientDetails = describeSpecialIngredients(experience);
+
+    const hooksLine =
+      config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "keine speziellen Hooks";
+
+    const styleInstructions = this.buildStyleInstructions(config, experience);
+
+    const skeletonText = skeletonWithNames.chapters
+      .map((chapter) => `Kapitel ${chapter.order}: ${chapter.content}`)
+      .join("\n\n");
+
+    const twistRequired = Boolean(config.hasTwist) || experience.specialIngredients.some((ingredient) => ingredient.forcesTwist);
+    const twistGuidance = twistRequired
+      ? "Baue eine sanfte Wende ab Kapitel 4 ein und loese sie Kapitel 5 warmherzig auf."
+      : "Kein Pflicht-Twist - sorge trotzdem fuer einen emotionalen Hoehepunkt in Kapitel 4.";
 
     return `
-Du bist eine professionelle Kinderbuch-Autorin.
+Du bist eine meisterhafte Kinderbuch-Autorin. Schreibe eine vollstaendige, filmisch wirkende Geschichte, die wie ein preisgekroentes Bilderbuch wirkt.
 
 HAUPTCHARAKTERE (Avatare):
 ${avatarDetailsText}
 
-NEBENCHARAKTERE (Bereits zugewiesen):
+NEBENCHARAKTERE AUS DEM POOL:
 ${characterDetails}
 
-STORY-SKELETT (mit Charakter-Namen):
+STORY-SKELETT MIT NAMEN:
 Titel: ${skeletonWithNames.title}
 
 ${skeletonText}
 
-STORY-KONFIGURATION:
-- Genre: ${config.genre}
-- Setting: ${config.setting}
-- Altersgruppe: ${config.ageGroup}
-- Komplexität: ${config.complexity}
-- Länge: ${config.length}
+STORY EXPERIENCE (GUIDE):
+- Story-Seele: ${soulSummary}
+- Emotionale Wuerze:
+${flavorSummary}
+- Tempo: ${tempoSummary}
+- Hooks: ${hooksLine}
+- Besondere Zutaten:
+${ingredientSummary}
+
+DETAILLIERTE WUERZE:
+${flavorDetails}
+
+DETAILLIERTE ZUTATEN:
+${ingredientDetails}
 
 ${styleInstructions}
 
-WICHTIGE AUFGABE:
-1. Schreibe eine VOLLSTÄNDIGE, LEBENDIGE Geschichte basierend auf dem Skelett
-2. Nutze EXAKT die Charakter-Namen und Beschreibungen oben
-3. Integriere visuelle Details der Charaktere natürlich in den Text
-4. Jedes Kapitel sollte 300-400 Wörter haben
-5. Die Geschichte soll engagierend, spannend und altersgerecht sein
-6. Generiere für jedes Kapitel eine detaillierte imageDescription (AUF ENGLISCH!)
-7. Die imageDescriptions müssen alle Charaktere beschreiben, die in der Szene sind
-8. Verwende die visuellen Details der Charaktere in den imageDescriptions
-9. Behalte die Charaktere konsistent über alle Kapitel hinweg
+QUALITAETSREGELN:
+- Dialog-Anteil: 40-50 % lebendige Dialoge (Kinderstimmen authentisch, Erwachsene freundlich).
+- Sinneseindruecke: mind. drei Sinne pro Kapitel (sehen, hoeren, fuehlen, riechen, schmecken).
+- Show, dont tell: Emotionen ueber Aktionen, Koerpersprache, Details vermitteln.
+- Wiederkehrende Motive: Baue 2-3 Leitmotive (z. B. Licht, Symbol, Klang) an mehreren Stellen ein.
+- Rhythmus: Wechsle zwischen Action, Humor und ruhigen Momenten; jede Szene treibt die Handlung voran.
+- Charakterentwicklung: Zeige, wie die Avatare lernen, wachsen oder sich naeher kommen.
+- Twist-Regel: ${twistGuidance}
 
-OUTPUT FORMAT (JSON):
+AUFGABE:
+1. Schreibe jedes Kapitel mit 320-420 Woertern, abwechslungsreiche Saetze, klare Abschnitte.
+2. Integriere alle Charakterdetails organisch und halte sie ueber die ganze Geschichte konsistent.
+3. Lass Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten deutlich spueren.
+4. Wenn Spezialzutaten gewaehlt sind, setze sie konkret in Handlung und Szenen um.
+5. Nutze sanfte Cliffhanger in Kapiteln 1-4 und eine warme, poetische Aufloesung in Kapitel 5.
+6. Schenke dem Finale einen Lern- oder Herzensmoment, der das Versprechen der Story-Seele einloest.
+
+OUTPUT (JSON):
 {
-  "title": "Vollständiger Titel der Geschichte",
-  "description": "Kurze Zusammenfassung der Geschichte (2-3 Sätze)",
+  "title": "Vollstaendiger Titel der Geschichte",
+  "description": "2-3 Saetze, die das Herz der Story beschreiben",
   "chapters": [
     {
       "order": 1,
       "title": "Kapitel-Titel",
-      "content": "Vollständiger Text (300-400 Worte) mit allen Charakteren lebendig beschrieben",
-      "imageDescription": "Detailed English description for image generation. Include all characters present with their visual details: [character name] ([age], [appearance details]), setting details, mood, lighting, art style: watercolor illustration in Axel Scheffler style"
+      "content": "320-420 Woerter, reich an Dialogen, Sinneseindruecken und Emotionen.",
+      "imageDescription": "Detailed English scene description with action verbs, consistent character traits, lighting, mood, camera perspective, environment specifics, recurring motifs. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly."
     }
   ]
 }
 
-WICHTIG für imageDescription:
-- Immer auf Englisch!
-- Alle sichtbaren Charaktere mit visuellen Details beschreiben
-- Setting und Stimmung beschreiben
-- Art style angeben: "watercolor illustration, Axel Scheffler style, warm colors, child-friendly"
-- Hauptcharaktere (Avatare) konsistent über alle Bilder beschreiben
-- Nebencharaktere mit ihren charakteristischen Features beschreiben
-`;
+IMAGE DESCRIPTION GUIDE (ENGLISH):
+- Use expressive action verbs and clear subject placement.
+- Mention all characters with consistent visual traits and outfits.
+- Highlight lighting, mood, camera angle or perspective, and environment specifics.
+- Include recurring motifs or signature items from the story.
+- Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly.
+    `.trim();
   }
 
-  private buildStyleInstructions(config: StoryConfig): string {
-    let instructions = "";
+  private buildStyleInstructions(config: StoryConfig, experience: StoryExperienceContext): string {
+    const parts: string[] = [];
 
     if (config.tone) {
-      instructions += `- Tonfall: ${config.tone}\n`;
+      parts.push(`- Tonfall: ${config.tone}\n`);
     }
 
     if (config.language) {
-      instructions += `- Sprache: ${config.language}\n`;
+      parts.push(`- Sprache: ${config.language}\n`);
     }
 
     if (config.pacing) {
-      instructions += `- Tempo: ${config.pacing}\n`;
+      parts.push(`- Tempo: ${config.pacing}\n`);
+    }
+
+    if (config.stylePreset) {
+      parts.push(`- Stil-Preset: ${config.stylePreset}\n`);
     }
 
     if (config.pov) {
-      instructions += `- Perspektive: ${config.pov}\n`;
+      parts.push(`- Perspektive: ${config.pov}\n`);
     }
 
     if (config.allowRhymes) {
-      instructions += `- Reime erlaubt: Ja, verwende gelegentlich Reime\n`;
+      parts.push("- Reime: sanfte Reimstrukturen sind erlaubt\n");
     }
 
     if (config.suspenseLevel !== undefined) {
-      instructions += `- Spannungslevel: ${config.suspenseLevel}/3\n`;
+      parts.push(`- Spannung: Level ${config.suspenseLevel}/3\n`);
     }
 
     if (config.humorLevel !== undefined) {
-      instructions += `- Humor-Level: ${config.humorLevel}/3\n`;
-    }
-
-    if (config.hasTwist) {
-      instructions += `- Twist: Ja, baue eine überraschende Wendung ein\n`;
+      parts.push(`- Humor: Level ${config.humorLevel}/3\n`);
     }
 
     if (config.hooks && config.hooks.length > 0) {
-      instructions += `- Plot-Hooks: ${config.hooks.join(", ")}\n`;
+      parts.push(`- Plot-Hooks: ${config.hooks.join(", ")}\n`);
     }
 
-    return instructions ? `STIL-ANWEISUNGEN:\n${instructions}` : "";
+    const soul = experience.soul;
+    if (soul) {
+      parts.push(`- Story-Seele Leitmotiv: ${soul.label} (Ton ${soul.recommendedTone}, Tempo ${soul.defaultPacing})\n`);
+    }
+
+    if (experience.emotionalFlavors.length) {
+      const flavorLabels = experience.emotionalFlavors.map((flavor) => flavor.label).join(", ");
+      parts.push(`- Emotionale Wuerze: ${flavorLabels}\n`);
+    }
+
+    if (experience.tempo) {
+      parts.push(`- Nutzer-Tempo: ${experience.tempo.label} (${experience.tempo.pacing})\n`);
+    }
+
+    if (experience.specialIngredients.length) {
+      const ingredientLabels = experience.specialIngredients.map((ingredient) => ingredient.label).join(", ");
+      parts.push(`- Spezialzutaten: ${ingredientLabels}\n`);
+    }
+
+    return parts.length ? `STIL-ANWEISUNGEN:\n${parts.join("")}` : "";
   }
 
   /**
@@ -378,16 +467,18 @@ WICHTIG für imageDescription:
         throw new Error(`Chapter ${chapter.order} is missing required fields (order, title, content, imageDescription)`);
       }
 
-      const wordCount = chapter.content.split(/\s+/).length;
-      if (wordCount < 200) {
-        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is below target 300-400`);
+      const wordCount = chapter.content.split(/\s+/).filter(Boolean).length;
+      if (wordCount < 280) {
+        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is below target 320-420`);
       }
 
-      if (wordCount > 500) {
-        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is above target 300-400`);
+      if (wordCount > 460) {
+        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is above target 320-420`);
       }
     }
 
     console.log("[Phase3] Final story validated successfully");
   }
 }
+
+

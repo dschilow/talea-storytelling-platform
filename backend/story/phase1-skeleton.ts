@@ -5,6 +5,11 @@
 import { secret } from "encore.dev/config";
 import type { StoryConfig } from "./generate";
 import type { StorySkeleton } from "./types";
+import {
+  describeEmotionalFlavors,
+  describeSpecialIngredients,
+  type StoryExperienceContext,
+} from "./story-experience";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -14,6 +19,7 @@ interface Phase1Input {
     name: string;
     description?: string;
   }>;
+  experience: StoryExperienceContext;
 }
 
 interface OpenAIResponse {
@@ -130,43 +136,125 @@ export class Phase1SkeletonGenerator {
   }
 
   private buildSkeletonPrompt(input: Phase1Input): string {
-    const { config, avatarDetails } = input;
+    const { config, avatarDetails, experience } = input;
 
-    const avatarNames = avatarDetails.map(a => a.name).join(", ");
-    const customDesc = config.customPrompt ? `\nCUSTOM DETAILS: ${config.customPrompt}` : "";
+    const avatarLine =
+      avatarDetails.length > 0
+        ? avatarDetails
+            .map((avatar) =>
+              avatar.description ? `${avatar.name} (${avatar.description})` : avatar.name
+            )
+            .join(", ")
+        : "Keine spezifischen Avatare angegeben - nutze neutrale Heldinnen und Helden.";
+
+    const suspenseLabels = ["sehr ruhig", "leicht prickelnd", "spannend", "hochspannend"];
+    const humorLabels = ["ernst", "sanft", "witzig", "sehr verspielt"];
+
+    const suspenseLabel = suspenseLabels[config.suspenseLevel ?? 1] ?? "ausgewogen";
+    const humorLabel = humorLabels[config.humorLevel ?? 1] ?? "sanft";
+
+    const soulSummary = experience.soul
+      ? `${experience.soul.label} - ${experience.soul.storyPromise} (Ton: ${experience.soul.recommendedTone}, Tempo: ${experience.soul.defaultPacing})`
+      : "Keine Story-Seele gewaehlt - erzaehle warm, fantasievoll und altersgerecht.";
+
+    const flavorSummary = experience.emotionalFlavors.length
+      ? experience.emotionalFlavors
+          .map((flavor) => `- ${flavor.label}: ${flavor.description}`)
+          .join("\n")
+      : "- Natuerliche Herzensmomente ohne zusaetzliche Wuerze.";
+
+    const tempoSummary = experience.tempo
+      ? `${experience.tempo.label} - ${experience.tempo.description} (Tempo: ${experience.tempo.pacing})`
+      : `Standardtempo (${config.pacing ?? "balanced"}) - gleiche ruhige und dynamische Momente aus.`;
+
+    const ingredientSummary = experience.specialIngredients.length
+      ? experience.specialIngredients
+          .map((ingredient) => {
+            const extras: string[] = [];
+            if (ingredient.forcesTwist) {
+              extras.push("Plane Ueberraschung oder Twist in Kapitel 4.");
+            }
+            if (ingredient.hookHint) {
+              extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
+            }
+            if (ingredient.emphasis) {
+              extras.push(ingredient.emphasis);
+            }
+            const extraText = extras.length ? ` (${extras.join(" ")})` : "";
+            return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
+          })
+          .join("\n")
+      : "- Keine Spezialzutaten - klassischer Verlauf moeglich.";
+
+    const hooksLine =
+      config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "keine speziellen Hooks";
+
+    const customLine = config.customPrompt ? `BENUTZER-WUNSCH: ${config.customPrompt}` : "";
+
+    const flavorDetails = describeEmotionalFlavors(experience);
+    const ingredientDetails = describeSpecialIngredients(experience);
+
+    const povLabel = config.pov === "ich" ? "Ich-Perspektive" : "personale Perspektive";
 
     return `
-Du bist eine professionelle Kinderbuch-Autorin.
+Du bist eine preisgekroente Kinderbuch-Autorin, die meisterhafte Story-Skelette fuer illustrierte Geschichten schreibt. Arbeite praezise, bildhaft und kindgerecht.
 
-HAUPTCHARAKTERE: ${avatarNames}
-SETTING: ${config.setting}
+HAUPTFIGUREN: ${avatarLine}
 GENRE: ${config.genre}
+SETTING: ${config.setting}
 ALTERSGRUPPE: ${config.ageGroup}
-KOMPLEXITÄT: ${config.complexity}
-LÄNGE: ${config.length}${customDesc}
+KOMPLEXITAET: ${config.complexity}
+LAENGE: ${config.length}
+ERZAELLPERSPEKTIVE: ${povLabel}
+SPRACHE: ${config.language ?? "de"}
+REIME: ${config.allowRhymes ? "Gelegentliche sanfte Reime erlaubt." : "Keine Reimpflicht - klare Prosa."}
 
-WICHTIGE AUFGABE:
-1. Generiere eine Story-STRUKTUR für 5 Kapitel
-2. SEHR WICHTIG: Verwende NUR {{PLACEHOLDER}} für Nebencharaktere, KEINE Namen!
-3. Gib für jeden Placeholder genaue Rollen und Archetypen an
-4. KEINE visuellen Beschreibungen! Nur Rollen und emotionale Natur
-5. Die Story soll lebendig und engagierend sein
+STORY EXPERIENCE (USER-WAHL):
+- Manuell gewaehlt: ${config.stylePreset ?? "Story-Seele-Empfehlung"}
+- Reime erlaubt: ${config.allowRhymes ? "Ja" : "Nein"}
+- Story-Seele: ${soulSummary}
+- Emotionale Wuerze:
+${flavorSummary}
+- Tempo: ${tempoSummary}
+- Spannung: Level ${config.suspenseLevel ?? 1} (${suspenseLabel})
+- Humor: Level ${config.humorLevel ?? 1} (${humorLabel})
+- Twist-Vorgabe: ${config.hasTwist ? "Ja - Kapitel 4 vorbereiten!" : "Nein"}
+- Hooks: ${hooksLine}
+- Besondere Zutaten:
+${ingredientSummary}
 
-PLACEHOLDER-FORMAT:
-- {{WISE_ELDER}} für weise ältere Person als Mentor
-- {{ANIMAL_HELPER}} für treues Tier als Begleiter
-- {{MAGICAL_CREATURE}} für magisches Wesen
-- {{FRIENDLY_VILLAGER}} für hilfsbereite Dorfbewohner
-- {{OBSTACLE_CHARACTER}} für Herausforderung/Hindernis
-- Verwende beschreibende Namen für die Rolle!
+DETAILLIERTE WUERZE:
+${flavorDetails}
 
-OUTPUT FORMAT (JSON):
+DETAILLIERTE ZUTATEN:
+${ingredientDetails}
+
+${customLine}
+
+AUFGABE FUER DICH:
+1. Erstelle eine Story-Struktur mit exakt 5 Kapiteln.
+2. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
+3. Jede Kapitelbeschreibung umfasst 50-80 Woerter (3-4 Saetze), enthaelt Emotionen, Sinneseindruecke und treibt die Handlung voran.
+4. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
+5. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
+6. Fuehre fuer jede Rolle emotionale Natur, wichtige Traits und Kapitel-Auftritte an - passend zu Seele und Wuerze.
+7. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.
+
+PLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):
+- {{WISE_ELDER}} - weiser Mentor oder Mentorin
+- {{ANIMAL_HELPER}} - treuer tierischer Begleiter
+- {{MAGICAL_CREATURE}} - magisches Wesen
+- {{FRIENDLY_VILLAGER}} - hilfsbereite Person vor Ort
+- {{OBSTACLE_CHARACTER}} - Hindernis oder Gegenspieler
+- Eigene Placeholder im Format {{NAME}} sind erlaubt, wenn die Rolle klar beschrieben ist.
+
+OUTPUT (JSON):
 {
   "title": "Titel der Geschichte",
   "chapters": [
     {
       "order": 1,
-      "content": "Story-Text mit {{PLACEHOLDER}} anstelle von Nebencharakteren. Der Text sollte die Handlung beschreiben und zeigen, welche Rolle die Placeholder-Charaktere spielen. Mindestens 200 Wörter pro Kapitel.",
+      "content": "50-80 Woerter, aktionsreich und sinnlich (keine Placeholder-Erklaerungen, sondern Plot).",
       "characterRolesNeeded": [
         {
           "placeholder": "{{WISE_ELDER}}",
@@ -192,14 +280,8 @@ OUTPUT FORMAT (JSON):
   ]
 }
 
-WICHTIG:
-- Exakt 5 Kapitel
-- Jedes Kapitel mindestens 200 Wörter
-- Placeholder müssen konsistent sein (gleicher Name = gleicher Charakter)
-- supportingCharacterRequirements sammelt ALLE verwendeten Placeholder
-- Gib emotionale Natur und Traits für jeden Placeholder an
-- Die Placeholder sollten sinnvoll in die Handlung integriert sein
-`;
+Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in sich stimmige Dramaturgie. Kapitel 5 zeigt emotionale Entwicklung und erfuellt das Versprechen der Story-Seele.
+    `.trim();
   }
 
   private validateSkeletonStructure(skeleton: any): void {
@@ -224,6 +306,15 @@ WICHTIG:
       if (!chapter.characterRolesNeeded || !Array.isArray(chapter.characterRolesNeeded)) {
         throw new Error("Each chapter must have characterRolesNeeded array");
       }
+
+      const wordCount = typeof chapter.content === "string"
+        ? chapter.content.split(/\s+/).filter(Boolean).length
+        : 0;
+      if (wordCount < 45 || wordCount > 90) {
+        console.warn(
+          `[Phase1] Chapter ${chapter.order} word count ${wordCount} outside target range (50-80).`
+        );
+      }
     }
 
     // Validate character requirements
@@ -240,3 +331,4 @@ WICHTIG:
     console.log("[Phase1] Skeleton structure validated successfully");
   }
 }
+

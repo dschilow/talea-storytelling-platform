@@ -1,156 +1,283 @@
-import React from 'react';
-import Card from '../../../components/common/Card';
+import React from "react";
+import Card from "../../../components/common/Card";
 
-export type PlotHookKey =
-  | 'secret_door'
-  | 'riddle_puzzle'
-  | 'lost_map'
-  | 'mysterious_guide'
-  | 'time_glitch'
-  | 'friend_turns_foe'
-  | 'foe_turns_friend'
-  | 'moral_choice';
+export type EmotionalFlavorKey =
+  | "warmherzigkeit"
+  | "lachfreude"
+  | "prickeln"
+  | "geborgenheit"
+  | "uebermut"
+  | "staunen"
+  | "zusammenhalt";
 
-export type Pacing = 'slow' | 'balanced' | 'fast';
-
-const HOOKS: { key: PlotHookKey; label: string; tip: string }[] = [
-  { key: 'secret_door',     label: 'Geheime Tür erscheint',                tip: 'Starker Einstiegshaken' },
-  { key: 'riddle_puzzle',   label: 'Rätsel/Logik-Puzzle',                   tip: 'Fördert Mitdenken' },
-  { key: 'lost_map',        label: 'Verlorene Karte/Leitfaden',            tip: 'Klare Mini-Quest' },
-  { key: 'mysterious_guide',label: 'Geheimnisvoller Helfer',                tip: 'Führt elegant durch Plot' },
-  { key: 'time_glitch',     label: 'Zeit-Glitch (sanft)',                   tip: 'Staunen, ohne Verwirrung' },
-  { key: 'friend_turns_foe',label: 'Konflikt: Freund wird Gegenspieler',   tip: 'Nur sanft, kindgerecht' },
-  { key: 'foe_turns_friend',label: 'Wende: Gegner wird Freund',            tip: 'Empathie & Versöhnung' },
-  { key: 'moral_choice',    label: 'Kleine moralische Entscheidung',        tip: 'Werte stärken' },
-];
-
-interface Props {
-  suspenseLevel: 0 | 1 | 2 | 3;
-  humorLevel: 0 | 1 | 2 | 3;
-  pacing: Pacing;
-  pov: 'ich' | 'personale';
-  hooks: PlotHookKey[];
-  hasTwist: boolean;
-  customPrompt: string;
-  onChange: (u: Partial<Props>) => void;
+export interface EmotionalFlavorOption {
+  key: EmotionalFlavorKey;
+  label: string;
+  description: string;
+  effect: string;
 }
 
-const StepSlider: React.FC<{
-  value: number; min?: number; max?: number; label: string; onChange: (v: number) => void;
-}> = ({ value, min = 0, max = 3, label, onChange }) => (
-  <div>
-    <label className="block text-sm text-gray-700 mb-1">{label}: <span className="font-semibold">{value}</span></label>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full"
-    />
-    <div className="flex justify-between text-xs text-gray-500">
-      <span>ruhig</span><span>mittel</span><span>hoch</span><span>max</span>
-    </div>
-  </div>
-);
+export const EMOTIONAL_FLAVOR_OPTIONS: EmotionalFlavorOption[] = [
+  {
+    key: "warmherzigkeit",
+    label: "Warmherzigkeit",
+    description: "Umarmungen, Trost und sanfte Naehe",
+    effect: "Verstaerkt Herzensmomente, haelt Humor zart.",
+  },
+  {
+    key: "lachfreude",
+    label: "Lachfreude",
+    description: "Slapstick, Wortspiele, Schelmerei",
+    effect: "Erhoeht Humor und spritzige Dialoge.",
+  },
+  {
+    key: "prickeln",
+    label: "Prickeln",
+    description: "Geheimnisse, kleine Guesel, Spannung",
+    effect: "Hebt das Spannungsniveau merklich an.",
+  },
+  {
+    key: "geborgenheit",
+    label: "Geborgenheit",
+    description: "Kuschel-Gefuehl, Sicherheit, Langsamkeit",
+    effect: "Verlangsamt Tempo, macht Szenen sanfter.",
+  },
+  {
+    key: "uebermut",
+    label: "Uebermut",
+    description: "Freche Ideen, Quatsch, ausgelassene Energie",
+    effect: "Steigert Humor und schnelle Aktionen.",
+  },
+  {
+    key: "staunen",
+    label: "Staunen",
+    description: "Wundersame Entdeckungen, Magisches Leuchten",
+    effect: "Betont neugierige, poetische Momente.",
+  },
+  {
+    key: "zusammenhalt",
+    label: "Zusammenhalt",
+    description: "Teamgeist, gemeinsame Loesungen",
+    effect: "Foerdert wir-Gefuehl und freundliche Dialoge.",
+  },
+];
+
+export type StoryTempoKey = "cozy" | "balanced" | "fast";
+
+export interface StoryTempoOption {
+  key: StoryTempoKey;
+  label: string;
+  description: string;
+}
+
+export const STORY_TEMPO_OPTIONS: StoryTempoOption[] = [
+  {
+    key: "cozy",
+    label: "Gemutlich",
+    description: "Ruhiges Tempo, viel Raum fuer Atmosphaere.",
+  },
+  {
+    key: "balanced",
+    label: "Ausgewogen",
+    description: "Harmonischer Wechsel aus Ruhe und Schwung.",
+  },
+  {
+    key: "fast",
+    label: "Rasant",
+    description: "Hohe Dynamik, kurze Pausen, viel Action.",
+  },
+];
+
+export type SpecialIngredientKey =
+  | "surprise"
+  | "mystery"
+  | "transformation"
+  | "magic"
+  | "trial"
+  | "aha";
+
+export interface SpecialIngredientOption {
+  key: SpecialIngredientKey;
+  label: string;
+  description: string;
+}
+
+export const SPECIAL_INGREDIENT_OPTIONS: SpecialIngredientOption[] = [
+  {
+    key: "surprise",
+    label: "Ueberraschung",
+    description: "Eine unerwartete Wendung, die alle staunen laesst.",
+  },
+  {
+    key: "mystery",
+    label: "Geheimnis",
+    description: "Ein Raetsel, das die Kinder gemeinsam loesen.",
+  },
+  {
+    key: "transformation",
+    label: "Verwandlung",
+    description: "Etwas oder jemand veraendert sich grundlegend.",
+  },
+  {
+    key: "magic",
+    label: "Magie",
+    description: "Zauberhafte Momente, leuchtende Wunder, Funkenregen.",
+  },
+  {
+    key: "trial",
+    label: "Mutprobe",
+    description: "Eine Herausforderung, die Selbstvertrauen schuetzt.",
+  },
+  {
+    key: "aha",
+    label: "Aha-Moment",
+    description: "Eine wichtige Erkenntnis, die alles zusammenbringt.",
+  },
+];
+
+const MAX_FLAVORS = 2;
+const MAX_INGREDIENTS = 2;
+
+interface Props {
+  emotionalFlavors: EmotionalFlavorKey[];
+  storyTempo?: StoryTempoKey;
+  specialIngredients: SpecialIngredientKey[];
+  customPrompt: string;
+  onChange: (update: Partial<Props>) => void;
+}
 
 const StoryFlavorStep: React.FC<Props> = ({
-  suspenseLevel, humorLevel, pacing, pov, hooks, hasTwist, customPrompt, onChange
+  emotionalFlavors,
+  storyTempo,
+  specialIngredients,
+  customPrompt,
+  onChange,
 }) => {
-  const toggleHook = (key: PlotHookKey) => {
-    if (hooks.includes(key)) {
-      onChange({ hooks: hooks.filter(h => h !== key) });
-    } else {
-      onChange({ hooks: [...hooks, key] });
+  const toggleFlavor = (key: EmotionalFlavorKey) => {
+    const isSelected = emotionalFlavors.includes(key);
+    if (!isSelected && emotionalFlavors.length >= MAX_FLAVORS) {
+      return;
     }
+    const next = isSelected
+      ? emotionalFlavors.filter((value) => value !== key)
+      : [...emotionalFlavors, key];
+    onChange({ emotionalFlavors: next });
+  };
+
+  const toggleIngredient = (key: SpecialIngredientKey) => {
+    const isSelected = specialIngredients.includes(key);
+    if (!isSelected && specialIngredients.length >= MAX_INGREDIENTS) {
+      return;
+    }
+    const next = isSelected
+      ? specialIngredients.filter((value) => value !== key)
+      : [...specialIngredients, key];
+    onChange({ specialIngredients: next });
   };
 
   return (
     <Card variant="elevated">
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-gray-800">Würze & Hooks</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <StepSlider
-            label="Spannung"
-            value={suspenseLevel}
-            onChange={(v) => onChange({ suspenseLevel: v as 0|1|2|3 })}
-          />
-          <StepSlider
-            label="Humor"
-            value={humorLevel}
-            onChange={(v) => onChange({ humorLevel: v as 0|1|2|3 })}
-          />
-
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Tempo</label>
-            <select
-              className="w-full border rounded-lg p-2"
-              value={pacing}
-              onChange={(e) => onChange({ pacing: e.target.value as Pacing })}
-            >
-              <option value="slow">ruhig</option>
-              <option value="balanced">ausgewogen</option>
-              <option value="fast">schnell</option>
-            </select>
+      <div className="space-y-8">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800">Emotionale Wuerze</h3>
+          <p className="text-gray-600 text-sm mb-3">Waehle bis zu zwei Emotionen, die deine Story traegt.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {EMOTIONAL_FLAVOR_OPTIONS.map((option) => {
+              const isSelected = emotionalFlavors.includes(option.key);
+              return (
+                <label
+                  key={option.key}
+                  className={`border rounded-lg p-3 cursor-pointer transition ${
+                    isSelected
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleFlavor(option.key)}
+                    className="mr-2"
+                  />
+                  <div className="inline-block align-top">
+                    <div className="text-sm font-semibold text-gray-800">{option.label}</div>
+                    <div className="text-xs text-gray-600">{option.description}</div>
+                    <div className="text-xs text-gray-500 mt-1">{option.effect}</div>
+                  </div>
+                </label>
+              );
+            })}
           </div>
+          <p className="text-xs text-gray-500 mt-2">Maximal {MAX_FLAVORS} Emotionen gleichzeitig.</p>
+        </div>
 
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Erzählperspektive</label>
-            <select
-              className="w-full border rounded-lg p-2"
-              value={pov}
-              onChange={(e) => onChange({ pov: e.target.value as 'ich' | 'personale' })}
-            >
-              <option value="ich">Ich-Perspektive</option>
-              <option value="personale">Personale Perspektive</option>
-            </select>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800">Tempo</h3>
+          <p className="text-gray-600 text-sm mb-3">Bestimme den Rhythmus der Reise.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {STORY_TEMPO_OPTIONS.map((option) => {
+              const isSelected = storyTempo === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => onChange({ storyTempo: option.key })}
+                  className={`border rounded-lg p-3 text-left transition ${
+                    isSelected
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                  }`}
+                >
+                  <div className="font-semibold text-sm text-gray-800">{option.label}</div>
+                  <div className="text-xs text-gray-600">{option.description}</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm text-gray-700 mb-2">Plot-Haken</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {HOOKS.map(h => (
-              <label key={h.key} className="flex items-center gap-2 border rounded-lg p-2 hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={hooks.includes(h.key)}
-                  onChange={() => toggleHook(h.key)}
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-800">{h.label}</div>
-                  <div className="text-xs text-gray-500">{h.tip}</div>
-                </div>
-              </label>
-            ))}
+          <h3 className="text-lg font-semibold text-gray-800">Spezialzutaten</h3>
+          <p className="text-gray-600 text-sm mb-3">Waehle bis zu zwei Highlights, die unbedingt vorkommen sollen.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {SPECIAL_INGREDIENT_OPTIONS.map((option) => {
+              const isSelected = specialIngredients.includes(option.key);
+              return (
+                <label
+                  key={option.key}
+                  className={`border rounded-lg p-3 cursor-pointer transition ${
+                    isSelected
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleIngredient(option.key)}
+                    className="mr-2"
+                  />
+                  <div className="inline-block align-top">
+                    <div className="text-sm font-semibold text-gray-800">{option.label}</div>
+                    <div className="text-xs text-gray-600">{option.description}</div>
+                  </div>
+                </label>
+              );
+            })}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input
-            id="hasTwist"
-            type="checkbox"
-            checked={hasTwist}
-            onChange={(e) => onChange({ hasTwist: e.target.checked })}
-          />
-          <label htmlFor="hasTwist" className="text-sm text-gray-700">
-            Überraschungs-Twist am Ende (sanft & positiv)
-          </label>
+          <p className="text-xs text-gray-500 mt-2">Maximal {MAX_INGREDIENTS} Spezialzutaten. Optional.</p>
         </div>
 
         <div>
-          <label className="block text-sm text-gray-700 mb-1">
-            Freitext (optional) – Ideen, Elemente, Wünsche
-          </label>
+          <label className="block text-sm text-gray-700 mb-1">Magische Wuensche (optional)</label>
           <textarea
             className="w-full border rounded-lg p-3 min-h-[120px]"
-            placeholder="z. B. „Bitte eine Szene am See mit Sternenpfad und einem leuchtenden Schlüssel.“"
+            placeholder="z. B. Bitte eine Szene am See mit glitzerndem Sternenpfad."
             value={customPrompt}
-            onChange={(e) => onChange({ customPrompt: e.target.value })}
+            onChange={(event) => onChange({ customPrompt: event.target.value })}
           />
           <p className="text-xs text-gray-500 mt-1">
-            Wenn leer, erzeugt die KI alles eigenständig aus den gewählten Optionen.
+            Freitext fuer besondere Ideen, Lieblingsorte oder Figuren.
           </p>
         </div>
       </div>
