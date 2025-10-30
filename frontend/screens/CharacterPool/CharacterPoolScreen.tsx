@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Edit3, RefreshCcw, Save, Sparkles, Trash2, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Download, Edit3, RefreshCcw, Save, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Card from '../../components/common/Card';
@@ -157,6 +157,9 @@ const CharacterPoolScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     void loadCharacters();
@@ -280,7 +283,83 @@ const CharacterPoolScreen: React.FC = () => {
     }
   };
 
-  const refreshButtonDisabled = useMemo(() => loading, [loading]);
+  const refreshButtonDisabled = useMemo(() => loading || importing, [importing, loading]);
+
+  const handleExportCharacters = async () => {
+    try {
+      setExporting(true);
+      const response = await backend.story.exportCharacters();
+      const blob = new Blob([JSON.stringify(response.characters, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `talea-characters-${timestamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Charaktere exportiert.');
+    } catch (err) {
+      console.error('Failed to export characters', err);
+      toast.error('Charaktere konnten nicht exportiert werden.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const triggerImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error('Die ausgewaehlte Datei enthaelt kein gueltiges JSON.');
+      }
+
+      const charactersPayload = Array.isArray(parsed)
+        ? (parsed as CharacterTemplate[])
+        : Array.isArray((parsed as { characters?: CharacterTemplate[] })?.characters)
+        ? ((parsed as { characters?: CharacterTemplate[] }).characters as CharacterTemplate[])
+        : null;
+
+      if (!charactersPayload || charactersPayload.length === 0) {
+        throw new Error('Die JSON-Datei enthaelt keine Charaktere.');
+      }
+
+      const confirmReplace = window.confirm(
+        `Vorhandene Charaktere werden durch ${charactersPayload.length} importierte Eintraege ersetzt. Fortfahren?`
+      );
+      if (!confirmReplace) {
+        return;
+      }
+
+      setImporting(true);
+      await backend.story.importCharacters({ characters: charactersPayload });
+      toast.success('Charaktere erfolgreich importiert.');
+      closeEditor();
+      await loadCharacters();
+    } catch (err) {
+      console.error('Failed to import characters', err);
+      const message = err instanceof Error ? err.message : 'Charaktere konnten nicht importiert werden.';
+      toast.error(message);
+    } finally {
+      event.target.value = '';
+      setImporting(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!editingCharacter || isNewCharacter) {
@@ -309,6 +388,13 @@ const CharacterPoolScreen: React.FC = () => {
 
   return (
     <div style={containerStyle}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json"
+        onChange={handleImportFile}
+        style={{ display: 'none' }}
+      />
       <header style={headerStyle}>
         <div>
           <h1 style={{ ...typography.textStyles.headingLg, marginBottom: spacing.xs }}>Charaktere</h1>
@@ -316,12 +402,27 @@ const CharacterPoolScreen: React.FC = () => {
             Verwalte alle verfuegbaren Charaktervorlagen. Du kannst Eigenschaften anpassen, Kapitelzuordnungen aendern und neue Bilder direkt aus dem visuellen Profil generieren.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: spacing.sm }}>
+        <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+          <Button
+            title={exporting ? 'Exportiert...' : 'Exportieren'}
+            onPress={() => void handleExportCharacters()}
+            icon={<Download size={16} />}
+            variant="outline"
+            disabled={exporting}
+          />
+          <Button
+            title={importing ? 'Importiert...' : 'Importieren'}
+            onPress={triggerImport}
+            icon={<Upload size={16} />}
+            variant="outline"
+            disabled={importing}
+          />
           <Button
             title="Neuer Charakter"
             onPress={openNewCharacter}
             icon={<Sparkles size={16} />}
             variant="primary"
+            disabled={importing || exporting}
           />
           <Button
             title={loading ? 'Laedt...' : 'Aktualisieren'}

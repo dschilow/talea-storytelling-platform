@@ -755,9 +755,11 @@ import { generateStoryContent as api_story_ai_generation_generateStoryContent } 
 import {
     addCharacter as api_story_character_pool_api_addCharacter,
     deleteCharacter as api_story_character_pool_api_deleteCharacter,
+    exportCharacters as api_story_character_pool_api_exportCharacters,
     generateCharacterImage as api_story_character_pool_api_generateCharacterImage,
     getCharacter as api_story_character_pool_api_getCharacter,
     getCharacterStats as api_story_character_pool_api_getCharacterStats,
+    importCharacters as api_story_character_pool_api_importCharacters,
     listCharacters as api_story_character_pool_api_listCharacters,
     resetRecentUsage as api_story_character_pool_api_resetRecentUsage,
     seedPool as api_story_character_pool_api_seedPool,
@@ -780,12 +782,14 @@ export namespace story {
             this.addCharacter = this.addCharacter.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
+            this.exportCharacters = this.exportCharacters.bind(this)
             this.generate = this.generate.bind(this)
             this.generateCharacterImage = this.generateCharacterImage.bind(this)
             this.generateStoryContent = this.generateStoryContent.bind(this)
             this.get = this.get.bind(this)
             this.getCharacter = this.getCharacter.bind(this)
             this.getCharacterStats = this.getCharacterStats.bind(this)
+            this.importCharacters = this.importCharacters.bind(this)
             this.list = this.list.bind(this)
             this.listCharacters = this.listCharacters.bind(this)
             this.markRead = this.markRead.bind(this)
@@ -812,6 +816,15 @@ export namespace story {
          */
         public async deleteStory(params: { id: string }): Promise<void> {
             await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        }
+
+        /**
+         * ===== EXPORT CHARACTERS =====
+         */
+        public async exportCharacters(): Promise<ResponseType<typeof api_story_character_pool_api_exportCharacters>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_exportCharacters>
         }
 
         /**
@@ -859,6 +872,12 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/stats`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_getCharacterStats>
+        }
+
+        public async importCharacters(params: RequestType<typeof api_story_character_pool_api_importCharacters>): Promise<ResponseType<typeof api_story_character_pool_api_importCharacters>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/import`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_importCharacters>
         }
 
         /**

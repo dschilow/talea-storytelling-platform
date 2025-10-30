@@ -2028,7 +2028,7 @@ function requireReactDomClient_production() {
     return isJavaScriptProtocol.test("" + url) ? "javascript:throw new Error('React has blocked a javascript: URL as a security precaution.')" : url;
   }
   var currentReplayingEvent = null;
-  function getEventTarget(nativeEvent) {
+  function getEventTarget2(nativeEvent) {
     nativeEvent = nativeEvent.target || nativeEvent.srcElement || window;
     nativeEvent.correspondingUseElement && (nativeEvent = nativeEvent.correspondingUseElement);
     return 3 === nativeEvent.nodeType ? nativeEvent.parentNode : nativeEvent;
@@ -2486,7 +2486,7 @@ function requireReactDomClient_production() {
         dispatchQueue,
         activeElementInst$1,
         nativeEvent,
-        getEventTarget(nativeEvent)
+        getEventTarget2(nativeEvent)
       );
       batchedUpdates$1(runEventInBatch, dispatchQueue);
     }
@@ -9580,7 +9580,7 @@ function requireReactDomClient_production() {
         targetInst$jscomp$0 = targetInst$jscomp$0.return;
       }
     batchedUpdates$1(function() {
-      var targetInst = ancestorInst, nativeEventTarget = getEventTarget(nativeEvent), dispatchQueue = [];
+      var targetInst = ancestorInst, nativeEventTarget = getEventTarget2(nativeEvent), dispatchQueue = [];
       a: {
         var reactName = topLevelEventsToReactNames.get(domEventName);
         if (void 0 !== reactName) {
@@ -11587,7 +11587,7 @@ function requireReactDomClient_production() {
     }
   }
   function findInstanceBlockingEvent(nativeEvent) {
-    nativeEvent = getEventTarget(nativeEvent);
+    nativeEvent = getEventTarget2(nativeEvent);
     return findInstanceBlockingTarget(nativeEvent);
   }
   var return_targetInst = null;
@@ -13556,8 +13556,8 @@ function dedupeHrefs(hrefs) {
 }
 function sortKeys(obj) {
   let sorted = {};
-  let keys = Object.keys(obj).sort();
-  for (let key of keys) {
+  let keys2 = Object.keys(obj).sort();
+  for (let key of keys2) {
     sorted[key] = obj[key];
   }
   return sorted;
@@ -13616,10 +13616,10 @@ function usePrefetchBehavior(prefetch, theirElementProps) {
           setShouldPrefetch(entry.isIntersecting);
         });
       };
-      let observer = new IntersectionObserver(callback, { threshold: 0.5 });
-      if (ref.current) observer.observe(ref.current);
+      let observer2 = new IntersectionObserver(callback, { threshold: 0.5 });
+      if (ref.current) observer2.observe(ref.current);
       return () => {
-        observer.disconnect();
+        observer2.disconnect();
       };
     }
   }, [prefetch]);
@@ -15074,8 +15074,8 @@ const stableHash$2 = (arg) => {
     }
     if (isPlainObject2) {
       result = "#";
-      const keys = OBJECT$2.keys(arg).sort();
-      while (!isUndefined$2(index = keys.pop())) {
+      const keys2 = OBJECT$2.keys(arg).sort();
+      while (!isUndefined$2(index = keys2.pop())) {
         if (!isUndefined$2(arg[index])) {
           result += index + ":" + stableHash$2(arg[index]) + ",";
         }
@@ -15495,8 +15495,8 @@ const stableHash$1 = (arg) => {
     }
     if (isPlainObject2) {
       result = "#";
-      const keys = OBJECT$1.keys(arg).sort();
-      while (!isUndefined$1(index = keys.pop())) {
+      const keys2 = OBJECT$1.keys(arg).sort();
+      while (!isUndefined$1(index = keys2.pop())) {
         if (!isUndefined$1(arg[index])) {
           result += index + ":" + stableHash$1(arg[index]) + ",";
         }
@@ -15974,8 +15974,8 @@ const stableHash = (arg) => {
     }
     if (isPlainObject2) {
       result = "#";
-      const keys = OBJECT.keys(arg).sort();
-      while (!isUndefined(index = keys.pop())) {
+      const keys2 = OBJECT.keys(arg).sort();
+      while (!isUndefined(index = keys2.pop())) {
         if (!isUndefined(arg[index])) {
           result += index + ":" + stableHash(arg[index]) + ",";
         }
@@ -17224,24 +17224,24 @@ var createAwaitableMutationObserver = (globalOptions) => {
       resolve();
       return;
     }
-    const observer = new MutationObserver((mutationsList) => {
+    const observer2 = new MutationObserver((mutationsList) => {
       for (const mutation of mutationsList) {
         if (!elementToWatch && selector) {
           elementToWatch = root == null ? void 0 : root.querySelector(selector);
         }
         if (globalOptions.childList && mutation.type === "childList" || globalOptions.attributes && mutation.type === "attributes") {
           if (isReady(elementToWatch, selector)) {
-            observer.disconnect();
+            observer2.disconnect();
             resolve();
             return;
           }
         }
       }
     });
-    observer.observe(root, globalOptions);
+    observer2.observe(root, globalOptions);
     if (timeout > 0) {
       setTimeout(() => {
-        observer.disconnect();
+        observer2.disconnect();
         reject(new Error(`Timeout waiting for ${selector}`));
       }, timeout);
     }
@@ -18398,8 +18398,8 @@ var StateProxy = class {
       return t[key].apply(t, args);
     };
   }
-  wrapMethods(getTarget, keys) {
-    return Object.fromEntries(keys.map((k) => [k, this.gateMethod(getTarget, k)]));
+  wrapMethods(getTarget, keys2) {
+    return Object.fromEntries(keys2.map((k) => [k, this.gateMethod(getTarget, k)]));
   }
 };
 if (typeof globalThis.__BUILD_DISABLE_RHC__ === "undefined") {
@@ -20134,7 +20134,7 @@ const TOAST_WIDTH = 356;
 const GAP = 14;
 const SWIPE_THRESHOLD = 45;
 const TIME_BEFORE_UNMOUNT = 200;
-function cn(...classes) {
+function cn$1(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 function getDefaultSwipeDirections(position) {
@@ -20329,12 +20329,12 @@ const Toast = (props) => {
     if (icons == null ? void 0 : icons.loading) {
       var _toast_classNames12;
       return /* @__PURE__ */ React.createElement("div", {
-        className: cn(classNames == null ? void 0 : classNames.loader, toast2 == null ? void 0 : (_toast_classNames12 = toast2.classNames) == null ? void 0 : _toast_classNames12.loader, "sonner-loader"),
+        className: cn$1(classNames == null ? void 0 : classNames.loader, toast2 == null ? void 0 : (_toast_classNames12 = toast2.classNames) == null ? void 0 : _toast_classNames12.loader, "sonner-loader"),
         "data-visible": toastType === "loading"
       }, icons.loading);
     }
     return /* @__PURE__ */ React.createElement(Loader, {
-      className: cn(classNames == null ? void 0 : classNames.loader, toast2 == null ? void 0 : (_toast_classNames9 = toast2.classNames) == null ? void 0 : _toast_classNames9.loader),
+      className: cn$1(classNames == null ? void 0 : classNames.loader, toast2 == null ? void 0 : (_toast_classNames9 = toast2.classNames) == null ? void 0 : _toast_classNames9.loader),
       visible: toastType === "loading"
     });
   }
@@ -20343,7 +20343,7 @@ const Toast = (props) => {
   return /* @__PURE__ */ React.createElement("li", {
     tabIndex: 0,
     ref: toastRef,
-    className: cn(className, toastClassname, classNames == null ? void 0 : classNames.toast, toast2 == null ? void 0 : (_toast_classNames = toast2.classNames) == null ? void 0 : _toast_classNames.toast, classNames == null ? void 0 : classNames.default, classNames == null ? void 0 : classNames[toastType], toast2 == null ? void 0 : (_toast_classNames1 = toast2.classNames) == null ? void 0 : _toast_classNames1[toastType]),
+    className: cn$1(className, toastClassname, classNames == null ? void 0 : classNames.toast, toast2 == null ? void 0 : (_toast_classNames = toast2.classNames) == null ? void 0 : _toast_classNames.toast, classNames == null ? void 0 : classNames.default, classNames == null ? void 0 : classNames[toastType], toast2 == null ? void 0 : (_toast_classNames1 = toast2.classNames) == null ? void 0 : _toast_classNames1[toastType]),
     "data-sonner-toast": "",
     "data-rich-colors": (_toast_richColors = toast2.richColors) != null ? _toast_richColors : defaultRichColors,
     "data-styled": !Boolean(toast2.jsx || toast2.unstyled || unstyled),
@@ -20474,19 +20474,19 @@ const Toast = (props) => {
       deleteToast();
       toast2.onDismiss == null ? void 0 : toast2.onDismiss.call(toast2, toast2);
     },
-    className: cn(classNames == null ? void 0 : classNames.closeButton, toast2 == null ? void 0 : (_toast_classNames2 = toast2.classNames) == null ? void 0 : _toast_classNames2.closeButton)
+    className: cn$1(classNames == null ? void 0 : classNames.closeButton, toast2 == null ? void 0 : (_toast_classNames2 = toast2.classNames) == null ? void 0 : _toast_classNames2.closeButton)
   }, (_icons_close = icons == null ? void 0 : icons.close) != null ? _icons_close : CloseIcon) : null, (toastType || toast2.icon || toast2.promise) && toast2.icon !== null && ((icons == null ? void 0 : icons[toastType]) !== null || toast2.icon) ? /* @__PURE__ */ React.createElement("div", {
     "data-icon": "",
-    className: cn(classNames == null ? void 0 : classNames.icon, toast2 == null ? void 0 : (_toast_classNames3 = toast2.classNames) == null ? void 0 : _toast_classNames3.icon)
+    className: cn$1(classNames == null ? void 0 : classNames.icon, toast2 == null ? void 0 : (_toast_classNames3 = toast2.classNames) == null ? void 0 : _toast_classNames3.icon)
   }, toast2.promise || toast2.type === "loading" && !toast2.icon ? toast2.icon || getLoadingIcon() : null, toast2.type !== "loading" ? icon : null) : null, /* @__PURE__ */ React.createElement("div", {
     "data-content": "",
-    className: cn(classNames == null ? void 0 : classNames.content, toast2 == null ? void 0 : (_toast_classNames4 = toast2.classNames) == null ? void 0 : _toast_classNames4.content)
+    className: cn$1(classNames == null ? void 0 : classNames.content, toast2 == null ? void 0 : (_toast_classNames4 = toast2.classNames) == null ? void 0 : _toast_classNames4.content)
   }, /* @__PURE__ */ React.createElement("div", {
     "data-title": "",
-    className: cn(classNames == null ? void 0 : classNames.title, toast2 == null ? void 0 : (_toast_classNames5 = toast2.classNames) == null ? void 0 : _toast_classNames5.title)
+    className: cn$1(classNames == null ? void 0 : classNames.title, toast2 == null ? void 0 : (_toast_classNames5 = toast2.classNames) == null ? void 0 : _toast_classNames5.title)
   }, toast2.jsx ? toast2.jsx : typeof toast2.title === "function" ? toast2.title() : toast2.title), toast2.description ? /* @__PURE__ */ React.createElement("div", {
     "data-description": "",
-    className: cn(descriptionClassName, toastDescriptionClassname, classNames == null ? void 0 : classNames.description, toast2 == null ? void 0 : (_toast_classNames6 = toast2.classNames) == null ? void 0 : _toast_classNames6.description)
+    className: cn$1(descriptionClassName, toastDescriptionClassname, classNames == null ? void 0 : classNames.description, toast2 == null ? void 0 : (_toast_classNames6 = toast2.classNames) == null ? void 0 : _toast_classNames6.description)
   }, typeof toast2.description === "function" ? toast2.description() : toast2.description) : null), /* @__PURE__ */ React.isValidElement(toast2.cancel) ? toast2.cancel : toast2.cancel && isAction$1(toast2.cancel) ? /* @__PURE__ */ React.createElement("button", {
     "data-button": true,
     "data-cancel": true,
@@ -20497,7 +20497,7 @@ const Toast = (props) => {
       toast2.cancel.onClick == null ? void 0 : toast2.cancel.onClick.call(toast2.cancel, event);
       deleteToast();
     },
-    className: cn(classNames == null ? void 0 : classNames.cancelButton, toast2 == null ? void 0 : (_toast_classNames7 = toast2.classNames) == null ? void 0 : _toast_classNames7.cancelButton)
+    className: cn$1(classNames == null ? void 0 : classNames.cancelButton, toast2 == null ? void 0 : (_toast_classNames7 = toast2.classNames) == null ? void 0 : _toast_classNames7.cancelButton)
   }, toast2.cancel.label) : null, /* @__PURE__ */ React.isValidElement(toast2.action) ? toast2.action : toast2.action && isAction$1(toast2.action) ? /* @__PURE__ */ React.createElement("button", {
     "data-button": true,
     "data-action": true,
@@ -20508,7 +20508,7 @@ const Toast = (props) => {
       if (event.defaultPrevented) return;
       deleteToast();
     },
-    className: cn(classNames == null ? void 0 : classNames.actionButton, toast2 == null ? void 0 : (_toast_classNames8 = toast2.classNames) == null ? void 0 : _toast_classNames8.actionButton)
+    className: cn$1(classNames == null ? void 0 : classNames.actionButton, toast2 == null ? void 0 : (_toast_classNames8 = toast2.classNames) == null ? void 0 : _toast_classNames8.actionButton)
   }, toast2.action.label) : null);
 };
 function getDocumentDirection() {
@@ -20940,12 +20940,12 @@ function createStore(reducer, preloadedState, enhancer) {
        * be used to unsubscribe the observable from the store, and prevent further
        * emission of values from the observable.
        */
-      subscribe(observer) {
-        if (typeof observer !== "object" || observer === null) {
+      subscribe(observer2) {
+        if (typeof observer2 !== "object" || observer2 === null) {
           throw new Error(formatProdErrorMessage$1(11));
         }
         function observeState() {
-          const observerAsObserver = observer;
+          const observerAsObserver = observer2;
           if (observerAsObserver.next) {
             observerAsObserver.next(getState());
           }
@@ -21142,9 +21142,9 @@ function shallowCopy(base, strict) {
   if (strict === true || strict === "class_only" && !isPlain) {
     const descriptors = Object.getOwnPropertyDescriptors(base);
     delete descriptors[DRAFT_STATE];
-    let keys = Reflect.ownKeys(descriptors);
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
+    let keys2 = Reflect.ownKeys(descriptors);
+    for (let i = 0; i < keys2.length; i++) {
+      const key = keys2[i];
       const desc = descriptors[key];
       if (desc.writable === false) {
         desc.writable = true;
@@ -22433,7 +22433,7 @@ const createLucideIcon = (iconName, iconNode) => {
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$K = [
+const __iconNode$O = [
   [
     "path",
     {
@@ -22442,48 +22442,48 @@ const __iconNode$K = [
     }
   ]
 ];
-const Activity = createLucideIcon("activity", __iconNode$K);
+const Activity = createLucideIcon("activity", __iconNode$O);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$J = [
+const __iconNode$N = [
   ["path", { d: "m12 19-7-7 7-7", key: "1l729n" }],
   ["path", { d: "M19 12H5", key: "x3x0zl" }]
 ];
-const ArrowLeft = createLucideIcon("arrow-left", __iconNode$J);
+const ArrowLeft = createLucideIcon("arrow-left", __iconNode$N);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$I = [
+const __iconNode$M = [
   ["path", { d: "M5 12h14", key: "1ays0h" }],
   ["path", { d: "m12 5 7 7-7 7", key: "xquz4c" }]
 ];
-const ArrowRight = createLucideIcon("arrow-right", __iconNode$I);
+const ArrowRight = createLucideIcon("arrow-right", __iconNode$M);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$H = [
+const __iconNode$L = [
   ["path", { d: "M4.5 3h15", key: "c7n0jr" }],
   ["path", { d: "M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3", key: "m1uhx7" }],
   ["path", { d: "M6 14h12", key: "4cwo0f" }]
 ];
-const Beaker = createLucideIcon("beaker", __iconNode$H);
+const Beaker = createLucideIcon("beaker", __iconNode$L);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$G = [
+const __iconNode$K = [
   ["path", { d: "M12 7v14", key: "1akyts" }],
   [
     "path",
@@ -22493,14 +22493,14 @@ const __iconNode$G = [
     }
   ]
 ];
-const BookOpen = createLucideIcon("book-open", __iconNode$G);
+const BookOpen = createLucideIcon("book-open", __iconNode$K);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$F = [
+const __iconNode$J = [
   [
     "path",
     {
@@ -22523,65 +22523,110 @@ const __iconNode$F = [
   ["path", { d: "M6 18a4 4 0 0 1-1.967-.516", key: "2e4loj" }],
   ["path", { d: "M19.967 17.484A4 4 0 0 1 18 18", key: "159ez6" }]
 ];
-const Brain = createLucideIcon("brain", __iconNode$F);
+const Brain = createLucideIcon("brain", __iconNode$J);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$E = [
+const __iconNode$I = [
   ["path", { d: "M8 2v4", key: "1cmpym" }],
   ["path", { d: "M16 2v4", key: "4m81vk" }],
   ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
   ["path", { d: "M3 10h18", key: "8toen8" }]
 ];
-const Calendar = createLucideIcon("calendar", __iconNode$E);
+const Calendar = createLucideIcon("calendar", __iconNode$I);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$D = [
+const __iconNode$H = [
   ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16", key: "c24i48" }],
   ["path", { d: "M18 17V9", key: "2bz60n" }],
   ["path", { d: "M13 17V5", key: "1frdt8" }],
   ["path", { d: "M8 17v-3", key: "17ska0" }]
 ];
-const ChartColumn = createLucideIcon("chart-column", __iconNode$D);
+const ChartColumn = createLucideIcon("chart-column", __iconNode$H);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$C = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
-const Check = createLucideIcon("check", __iconNode$C);
+const __iconNode$G = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
+const Check = createLucideIcon("check", __iconNode$G);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$B = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
-const ChevronDown = createLucideIcon("chevron-down", __iconNode$B);
+const __iconNode$F = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
+const ChevronDown = createLucideIcon("chevron-down", __iconNode$F);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$A = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
-const ChevronLeft = createLucideIcon("chevron-left", __iconNode$A);
+const __iconNode$E = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
+const ChevronLeft = createLucideIcon("chevron-left", __iconNode$E);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$z = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
-const ChevronRight = createLucideIcon("chevron-right", __iconNode$z);
+const __iconNode$D = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
+const ChevronRight = createLucideIcon("chevron-right", __iconNode$D);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$C = [
+  ["path", { d: "M21.801 10A10 10 0 1 1 17 3.335", key: "yps3ct" }],
+  ["path", { d: "m9 11 3 3L22 4", key: "1pflzl" }]
+];
+const CircleCheckBig = createLucideIcon("circle-check-big", __iconNode$C);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$B = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3", key: "1u773s" }],
+  ["path", { d: "M12 17h.01", key: "p32p05" }]
+];
+const CircleHelp = createLucideIcon("circle-help", __iconNode$B);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$A = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["polyline", { points: "12 6 12 12 16 14", key: "68esgv" }]
+];
+const Clock = createLucideIcon("clock", __iconNode$A);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$z = [
+  ["polyline", { points: "16 18 22 12 16 6", key: "z7tu5w" }],
+  ["polyline", { points: "8 6 2 12 8 18", key: "1eg1df" }]
+];
+const Code = createLucideIcon("code", __iconNode$z);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22589,10 +22634,16 @@ const ChevronRight = createLucideIcon("chevron-right", __iconNode$z);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$y = [
-  ["path", { d: "M21.801 10A10 10 0 1 1 17 3.335", key: "yps3ct" }],
-  ["path", { d: "m9 11 3 3L22 4", key: "1pflzl" }]
+  [
+    "path",
+    {
+      d: "M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z",
+      key: "1vdc57"
+    }
+  ],
+  ["path", { d: "M5 21h14", key: "11awu3" }]
 ];
-const CircleCheckBig = createLucideIcon("circle-check-big", __iconNode$y);
+const Crown = createLucideIcon("crown", __iconNode$y);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22600,11 +22651,11 @@ const CircleCheckBig = createLucideIcon("circle-check-big", __iconNode$y);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$x = [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-  ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3", key: "1u773s" }],
-  ["path", { d: "M12 17h.01", key: "p32p05" }]
+  ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
+  ["polyline", { points: "7 10 12 15 17 10", key: "2ggqvy" }],
+  ["line", { x1: "12", x2: "12", y1: "15", y2: "3", key: "1vk2je" }]
 ];
-const CircleHelp = createLucideIcon("circle-help", __iconNode$x);
+const Download = createLucideIcon("download", __iconNode$x);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22612,10 +22663,16 @@ const CircleHelp = createLucideIcon("circle-help", __iconNode$x);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$w = [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-  ["polyline", { points: "12 6 12 12 16 14", key: "68esgv" }]
+  [
+    "path",
+    {
+      d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",
+      key: "1nclc0"
+    }
+  ],
+  ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-const Clock = createLucideIcon("clock", __iconNode$w);
+const Eye = createLucideIcon("eye", __iconNode$w);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22623,10 +22680,13 @@ const Clock = createLucideIcon("clock", __iconNode$w);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$v = [
-  ["polyline", { points: "16 18 22 12 16 6", key: "z7tu5w" }],
-  ["polyline", { points: "8 6 2 12 8 18", key: "1eg1df" }]
+  ["path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", key: "1rqfz7" }],
+  ["path", { d: "M14 2v4a2 2 0 0 0 2 2h4", key: "tnqrlb" }],
+  ["path", { d: "M10 9H8", key: "b1mrlr" }],
+  ["path", { d: "M16 13H8", key: "t4e002" }],
+  ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-const Code = createLucideIcon("code", __iconNode$v);
+const FileText = createLucideIcon("file-text", __iconNode$v);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22637,13 +22697,14 @@ const __iconNode$u = [
   [
     "path",
     {
-      d: "M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z",
-      key: "1vdc57"
+      d: "M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2",
+      key: "18mbvz"
     }
   ],
-  ["path", { d: "M5 21h14", key: "11awu3" }]
+  ["path", { d: "M6.453 15h11.094", key: "3shlmq" }],
+  ["path", { d: "M8.5 2h7", key: "csnxdl" }]
 ];
-const Crown = createLucideIcon("crown", __iconNode$u);
+const FlaskConical = createLucideIcon("flask-conical", __iconNode$u);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22651,11 +22712,15 @@ const Crown = createLucideIcon("crown", __iconNode$u);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$t = [
-  ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
-  ["polyline", { points: "7 10 12 15 17 10", key: "2ggqvy" }],
-  ["line", { x1: "12", x2: "12", y1: "15", y2: "3", key: "1vk2je" }]
+  [
+    "path",
+    {
+      d: "M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z",
+      key: "sc7q7i"
+    }
+  ]
 ];
-const Download = createLucideIcon("download", __iconNode$t);
+const Funnel = createLucideIcon("funnel", __iconNode$t);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22666,13 +22731,12 @@ const __iconNode$s = [
   [
     "path",
     {
-      d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",
-      key: "1nclc0"
+      d: "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z",
+      key: "c3ymky"
     }
-  ],
-  ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
+  ]
 ];
-const Eye = createLucideIcon("eye", __iconNode$s);
+const Heart = createLucideIcon("heart", __iconNode$s);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22680,56 +22744,6 @@ const Eye = createLucideIcon("eye", __iconNode$s);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$r = [
-  [
-    "path",
-    {
-      d: "M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2",
-      key: "18mbvz"
-    }
-  ],
-  ["path", { d: "M6.453 15h11.094", key: "3shlmq" }],
-  ["path", { d: "M8.5 2h7", key: "csnxdl" }]
-];
-const FlaskConical = createLucideIcon("flask-conical", __iconNode$r);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$q = [
-  [
-    "path",
-    {
-      d: "M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z",
-      key: "sc7q7i"
-    }
-  ]
-];
-const Funnel = createLucideIcon("funnel", __iconNode$q);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$p = [
-  [
-    "path",
-    {
-      d: "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z",
-      key: "c3ymky"
-    }
-  ]
-];
-const Heart = createLucideIcon("heart", __iconNode$p);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$o = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -22739,26 +22753,38 @@ const __iconNode$o = [
     }
   ]
 ];
-const House = createLucideIcon("house", __iconNode$o);
+const House = createLucideIcon("house", __iconNode$r);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$n = [
+const __iconNode$q = [
+  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", ry: "2", key: "1m3agn" }],
+  ["circle", { cx: "9", cy: "9", r: "2", key: "af1f0g" }],
+  ["path", { d: "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21", key: "1xmnt7" }]
+];
+const Image = createLucideIcon("image", __iconNode$q);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$p = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "M12 16v-4", key: "1dtifu" }],
   ["path", { d: "M12 8h.01", key: "e9boi3" }]
 ];
-const Info = createLucideIcon("info", __iconNode$n);
+const Info = createLucideIcon("info", __iconNode$p);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$m = [
+const __iconNode$o = [
   [
     "path",
     {
@@ -22769,7 +22795,29 @@ const __iconNode$m = [
   ["path", { d: "M9 18h6", key: "x1upvd" }],
   ["path", { d: "M10 22h4", key: "ceow96" }]
 ];
-const Lightbulb = createLucideIcon("lightbulb", __iconNode$m);
+const Lightbulb = createLucideIcon("lightbulb", __iconNode$o);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$n = [
+  ["path", { d: "m3 17 2 2 4-4", key: "1jhpwq" }],
+  ["path", { d: "m3 7 2 2 4-4", key: "1obspn" }],
+  ["path", { d: "M13 6h8", key: "15sg57" }],
+  ["path", { d: "M13 12h8", key: "h98zly" }],
+  ["path", { d: "M13 18h8", key: "oe0vm4" }]
+];
+const ListChecks = createLucideIcon("list-checks", __iconNode$n);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$m = [["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]];
+const LoaderCircle = createLucideIcon("loader-circle", __iconNode$m);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22777,40 +22825,18 @@ const Lightbulb = createLucideIcon("lightbulb", __iconNode$m);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$l = [
-  ["path", { d: "m3 17 2 2 4-4", key: "1jhpwq" }],
-  ["path", { d: "m3 7 2 2 4-4", key: "1obspn" }],
-  ["path", { d: "M13 6h8", key: "15sg57" }],
-  ["path", { d: "M13 12h8", key: "h98zly" }],
-  ["path", { d: "M13 18h8", key: "oe0vm4" }]
-];
-const ListChecks = createLucideIcon("list-checks", __iconNode$l);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$k = [["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]];
-const LoaderCircle = createLucideIcon("loader-circle", __iconNode$k);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$j = [
   ["path", { d: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4", key: "u53s6r" }],
   ["polyline", { points: "10 17 15 12 10 7", key: "1ail0h" }],
   ["line", { x1: "15", x2: "3", y1: "12", y2: "12", key: "v6grx8" }]
 ];
-const LogIn = createLucideIcon("log-in", __iconNode$j);
+const LogIn = createLucideIcon("log-in", __iconNode$l);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$i = [
+const __iconNode$k = [
   ["path", { d: "M12 20h9", key: "t2du7b" }],
   [
     "path",
@@ -22820,15 +22846,39 @@ const __iconNode$i = [
     }
   ]
 ];
-const PenLine = createLucideIcon("pen-line", __iconNode$i);
+const PenLine = createLucideIcon("pen-line", __iconNode$k);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$h = [["polygon", { points: "6 3 20 12 6 21 6 3", key: "1oa8hb" }]];
-const Play = createLucideIcon("play", __iconNode$h);
+const __iconNode$j = [["polygon", { points: "6 3 20 12 6 21 6 3", key: "1oa8hb" }]];
+const Play = createLucideIcon("play", __iconNode$j);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$i = [
+  ["path", { d: "M5 12h14", key: "1ays0h" }],
+  ["path", { d: "M12 5v14", key: "s699le" }]
+];
+const Plus = createLucideIcon("plus", __iconNode$i);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$h = [
+  ["path", { d: "M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "14sxne" }],
+  ["path", { d: "M3 3v5h5", key: "1xhq8a" }],
+  ["path", { d: "M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16", key: "1hlbsb" }],
+  ["path", { d: "M16 16h5v5", key: "ccwih5" }]
+];
+const RefreshCcw = createLucideIcon("refresh-ccw", __iconNode$h);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22836,10 +22886,12 @@ const Play = createLucideIcon("play", __iconNode$h);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$g = [
-  ["path", { d: "M5 12h14", key: "1ays0h" }],
-  ["path", { d: "M12 5v14", key: "s699le" }]
+  ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
+  ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
+  ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
+  ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-const Plus = createLucideIcon("plus", __iconNode$g);
+const RefreshCw = createLucideIcon("refresh-cw", __iconNode$g);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22847,19 +22899,6 @@ const Plus = createLucideIcon("plus", __iconNode$g);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$f = [
-  ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
-  ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
-  ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
-  ["path", { d: "M8 16H3v5", key: "1cv678" }]
-];
-const RefreshCw = createLucideIcon("refresh-cw", __iconNode$f);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$e = [
   [
     "path",
     {
@@ -22870,7 +22909,18 @@ const __iconNode$e = [
   ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", key: "1ydtos" }],
   ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7", key: "t51u73" }]
 ];
-const Save = createLucideIcon("save", __iconNode$e);
+const Save = createLucideIcon("save", __iconNode$f);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$e = [
+  ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
+  ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
+];
+const Search = createLucideIcon("search", __iconNode$e);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22878,10 +22928,16 @@ const Save = createLucideIcon("save", __iconNode$e);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$d = [
-  ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
-  ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
+  [
+    "path",
+    {
+      d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z",
+      key: "1ffxy3"
+    }
+  ],
+  ["path", { d: "m21.854 2.147-10.94 10.939", key: "12cjpa" }]
 ];
-const Search = createLucideIcon("search", __iconNode$d);
+const Send = createLucideIcon("send", __iconNode$d);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22892,13 +22948,12 @@ const __iconNode$c = [
   [
     "path",
     {
-      d: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z",
-      key: "1ffxy3"
+      d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
+      key: "oel41y"
     }
-  ],
-  ["path", { d: "m21.854 2.147-10.94 10.939", key: "12cjpa" }]
+  ]
 ];
-const Send = createLucideIcon("send", __iconNode$c);
+const Shield = createLucideIcon("shield", __iconNode$c);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22906,22 +22961,6 @@ const Send = createLucideIcon("send", __iconNode$c);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$b = [
-  [
-    "path",
-    {
-      d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
-      key: "oel41y"
-    }
-  ]
-];
-const Shield = createLucideIcon("shield", __iconNode$b);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$a = [
   [
     "path",
     {
@@ -22934,14 +22973,14 @@ const __iconNode$a = [
   ["path", { d: "M4 17v2", key: "vumght" }],
   ["path", { d: "M5 18H3", key: "zchphs" }]
 ];
-const Sparkles = createLucideIcon("sparkles", __iconNode$a);
+const Sparkles = createLucideIcon("sparkles", __iconNode$b);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$9 = [
+const __iconNode$a = [
   ["path", { d: "M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", key: "1m0v6g" }],
   [
     "path",
@@ -22951,14 +22990,14 @@ const __iconNode$9 = [
     }
   ]
 ];
-const SquarePen = createLucideIcon("square-pen", __iconNode$9);
+const SquarePen = createLucideIcon("square-pen", __iconNode$a);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$8 = [
+const __iconNode$9 = [
   [
     "path",
     {
@@ -22967,7 +23006,21 @@ const __iconNode$8 = [
     }
   ]
 ];
-const Star = createLucideIcon("star", __iconNode$8);
+const Star = createLucideIcon("star", __iconNode$9);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$8 = [
+  ["path", { d: "M3 6h18", key: "d0wm0j" }],
+  ["path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", key: "4alrt4" }],
+  ["path", { d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", key: "v07s0e" }],
+  ["line", { x1: "10", x2: "10", y1: "11", y2: "17", key: "1uufr5" }],
+  ["line", { x1: "14", x2: "14", y1: "11", y2: "17", key: "xtxkd" }]
+];
+const Trash2 = createLucideIcon("trash-2", __iconNode$8);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22975,13 +23028,10 @@ const Star = createLucideIcon("star", __iconNode$8);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$7 = [
-  ["path", { d: "M3 6h18", key: "d0wm0j" }],
-  ["path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", key: "4alrt4" }],
-  ["path", { d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", key: "v07s0e" }],
-  ["line", { x1: "10", x2: "10", y1: "11", y2: "17", key: "1uufr5" }],
-  ["line", { x1: "14", x2: "14", y1: "11", y2: "17", key: "xtxkd" }]
+  ["polyline", { points: "22 17 13.5 8.5 8.5 13.5 2 7", key: "1r2t7k" }],
+  ["polyline", { points: "16 17 22 17 22 11", key: "11uiuu" }]
 ];
-const Trash2 = createLucideIcon("trash-2", __iconNode$7);
+const TrendingDown = createLucideIcon("trending-down", __iconNode$7);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22989,10 +23039,10 @@ const Trash2 = createLucideIcon("trash-2", __iconNode$7);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$6 = [
-  ["polyline", { points: "22 17 13.5 8.5 8.5 13.5 2 7", key: "1r2t7k" }],
-  ["polyline", { points: "16 17 22 17 22 11", key: "11uiuu" }]
+  ["polyline", { points: "22 7 13.5 15.5 8.5 10.5 2 17", key: "126l90" }],
+  ["polyline", { points: "16 7 22 7 22 13", key: "kwv8wd" }]
 ];
-const TrendingDown = createLucideIcon("trending-down", __iconNode$6);
+const TrendingUp = createLucideIcon("trending-up", __iconNode$6);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23000,10 +23050,11 @@ const TrendingDown = createLucideIcon("trending-down", __iconNode$6);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$5 = [
-  ["polyline", { points: "22 7 13.5 15.5 8.5 10.5 2 17", key: "126l90" }],
-  ["polyline", { points: "16 7 22 7 22 13", key: "kwv8wd" }]
+  ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
+  ["polyline", { points: "17 8 12 3 7 8", key: "t8dd8p" }],
+  ["line", { x1: "12", x2: "12", y1: "3", y2: "15", key: "widbto" }]
 ];
-const TrendingUp = createLucideIcon("trending-up", __iconNode$5);
+const Upload = createLucideIcon("upload", __iconNode$5);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23099,6 +23150,9 @@ const colors = {
     600: "#1DB5A0",
     700: "#179285"
   },
+  peach: {
+    500: "#FF9B5C"
+  },
   sky: {
     500: "#0EA5E9"
   },
@@ -23119,6 +23173,7 @@ const colors = {
     600: "#72A583"
   },
   background: {
+    primary: "#FEFCFB",
     card: "#FFFFFF"
   },
   text: {
@@ -23405,7 +23460,8 @@ const Button = ({
   size = "md",
   icon,
   disabled = false,
-  fullWidth = false
+  fullWidth = false,
+  className
 }) => {
   const getVariantStyles = () => {
     const baseStyles = {
@@ -23493,6 +23549,7 @@ const Button = ({
       onClick: onPress,
       disabled,
       style: buttonStyle,
+      className,
       onMouseEnter: (e) => {
         if (!disabled) {
           e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
@@ -23537,12 +23594,12 @@ const SlideUp = ({
     const timer = setTimeout(() => setVisible(true), delay2);
     return () => clearTimeout(timer);
   }, [delay2]);
-  const containerStyle = {
+  const containerStyle2 = {
     opacity: visible ? 1 : 0,
     transform: visible ? "translateY(0)" : `translateY(${distance2}px)`,
     transition: `all ${duration} ${animations$1.easing.smooth}`
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle, children });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle2, children });
 };
 const FloatAnimation = ({
   children,
@@ -23550,11 +23607,11 @@ const FloatAnimation = ({
   duration = 3,
   distance: distance2 = 10
 }) => {
-  const containerStyle = {
+  const containerStyle2 = {
     animation: `float ${duration}s ease-in-out ${delay2}s infinite`
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle, children }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle2, children }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
         @keyframes float {
           0%, 100% {
@@ -23583,7 +23640,7 @@ class Client {
     this.ai = new ai.ServiceClient(base);
     this.avatar = new avatar.ServiceClient(base);
     this.doku = new doku.ServiceClient(base);
-    this.frontend = new frontend.ServiceClient(base);
+    this.health = new health.ServiceClient(base);
     this.log = new log.ServiceClient(base);
     this.story = new story.ServiceClient(base);
     this.tavi = new tavi.ServiceClient(base);
@@ -23617,16 +23674,16 @@ var admin;
     /**
      * Deletes a user and their related content (avatars and stories).
      */
-    async deleteUser(id2) {
-      const resp = await this.baseClient.callTypedAPI("DELETE", `/admin/users/${encodeURIComponent(id2)}`);
-      return await resp.json();
+    async deleteUser(params) {
+      const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Returns aggregate admin statistics for users, avatars, and stories.
      */
     async getStats() {
-      const resp = await this.baseClient.callTypedAPI("GET", `/admin/stats`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/admin/stats`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Lists avatars across all users (admin only).
@@ -23638,8 +23695,8 @@ var admin;
         q: params.q,
         userId: params.userId
       });
-      const resp = await this.baseClient.callTypedAPI("GET", `/admin/avatars`, void 0, { query });
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/admin/avatars`, { query, method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Lists users with optional search and pagination for the admin panel.
@@ -23650,30 +23707,46 @@ var admin;
         limit: params.limit === void 0 ? void 0 : String(params.limit),
         q: params.q
       });
-      const resp = await this.baseClient.callTypedAPI("GET", `/admin/users`, void 0, { query });
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/admin/users`, { query, method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Allows the first-ever user to promote themselves to an admin.
      * This endpoint is a one-time-use mechanism for bootstrapping the first admin account.
      */
     async promoteToAdmin() {
-      const resp = await this.baseClient.callTypedAPI("POST", `/admin/promote-first-admin`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/admin/promote-first-admin`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Updates any avatar fields (admin only).
      */
-    async updateAvatarAdmin(id2, params) {
-      const resp = await this.baseClient.callTypedAPI("PUT", `/admin/avatars/${encodeURIComponent(id2)}`, JSON.stringify(params));
-      return await resp.json();
+    async updateAvatarAdmin(params) {
+      const body = {
+        description: params.description,
+        imageUrl: params.imageUrl,
+        isPublic: params.isPublic,
+        name: params.name,
+        originalAvatarId: params.originalAvatarId,
+        personalityTraits: params.personalityTraits,
+        physicalTraits: params.physicalTraits,
+        visualProfile: params.visualProfile
+      };
+      const resp = await this.baseClient.callTypedAPI(`/admin/avatars/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Updates basic fields for a user (admin only).
      */
-    async updateUser(id2, params) {
-      const resp = await this.baseClient.callTypedAPI("PUT", `/admin/users/${encodeURIComponent(id2)}`, JSON.stringify(params));
-      return await resp.json();
+    async updateUser(params) {
+      const body = {
+        email: params.email,
+        name: params.name,
+        role: params.role,
+        subscription: params.subscription
+      };
+      const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   admin2.ServiceClient = ServiceClient;
@@ -23696,57 +23769,59 @@ var ai;
      * PRODUCTION-READY SOLUTION: Nur basic analysis, 100% stabil
      */
     async analyzeAvatarImage(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/analyze-avatar-image`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/analyze-avatar-image`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     async analyzePersonalityDevelopment(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/analyze-personality`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/analyze-personality`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Check if avatar already received updates from this content
      */
     async checkPersonalityUpdate(params) {
       const query = makeRecord({
-        query: String(params.query)
+        avatarId: params.avatarId,
+        contentId: params.contentId,
+        contentType: String(params.contentType)
       });
-      const resp = await this.baseClient.callTypedAPI("GET", `/ai/check-personality-update`, void 0, { query });
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/check-personality-update`, { query, method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Generates an avatar image based on physical and personality traits.
      */
     async generateAvatarImage(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-avatar`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/generate-avatar`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Public API endpoint wrapper that calls the internal helper.
      */
     async generateImage(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-image`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/generate-image`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Public API endpoint for batch generation.
      */
     async generateImagesBatch(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-images-batch`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/generate-images-batch`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Get all personality updates for an avatar (for history/debugging)
      */
-    async getPersonalityHistory(avatarId) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/ai/personality-history/${encodeURIComponent(avatarId)}`);
-      return await resp.json();
+    async getPersonalityHistory(params) {
+      const resp = await this.baseClient.callTypedAPI(`/ai/personality-history/${encodeURIComponent(params.avatarId)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Track that an avatar received personality updates from content
      */
     async trackPersonalityUpdate(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/track-personality-update`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/track-personality-update`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   ai2.ServiceClient = ServiceClient;
@@ -23756,117 +23831,144 @@ var avatar;
   class ServiceClient {
     constructor(baseClient) {
       this.baseClient = baseClient;
-      this.create = this.create.bind(this);
-      this.deleteAvatar = this.deleteAvatar.bind(this);
-      this.get = this.get.bind(this);
-      this.list = this.list.bind(this);
-      this.update = this.update.bind(this);
-      this.updatePersonality = this.updatePersonality.bind(this);
       this.addMemory = this.addMemory.bind(this);
-      this.getMemories = this.getMemories.bind(this);
-      this.deleteMemory = this.deleteMemory.bind(this);
-      this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this);
-      this.upgradePersonalityTraits = this.upgradePersonalityTraits.bind(this);
+      this.create = this.create.bind(this);
       this.debugPersonality = this.debugPersonality.bind(this);
+      this.deleteAvatar = this.deleteAvatar.bind(this);
+      this.deleteMemory = this.deleteMemory.bind(this);
+      this.generatePortrait = this.generatePortrait.bind(this);
+      this.get = this.get.bind(this);
+      this.getMemories = this.getMemories.bind(this);
+      this.list = this.list.bind(this);
+      this.migrateToEnglish = this.migrateToEnglish.bind(this);
       this.reducePersonalityTrait = this.reducePersonalityTrait.bind(this);
       this.resetDokuHistory = this.resetDokuHistory.bind(this);
+      this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this);
+      this.update = this.update.bind(this);
+      this.updatePersonality = this.updatePersonality.bind(this);
+      this.upgradeAllPersonalityTraits = this.upgradeAllPersonalityTraits.bind(this);
     }
     /**
-     * Creates a new avatar for the authenticated user.
+     * Adds a new memory entry for an avatar
      */
+    async addMemory(params) {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/memory`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
     async create(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/avatar`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Debug endpoint to compare stored personality traits vs what they should be based on memories
+     */
+    async debugPersonality(params) {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/debug-personality`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Deletes an avatar.
      */
-    async deleteAvatar(id2) {
-      await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(id2)}`);
+    async deleteAvatar(params) {
+      await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+    }
+    /**
+     * Deletes a specific memory and recalculates personality traits
+     */
+    async deleteMemory(params) {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/memory/${encodeURIComponent(params.memoryId)}`, { method: "DELETE", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Generate avatar portrait prompt
+     */
+    async generatePortrait(params) {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/generate-portrait`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Retrieves a specific avatar by ID.
      */
-    async get(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id2)}`);
-      return await resp.json();
+    async get(params) {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Gets all memories for an avatar
+     */
+    async getMemories(params) {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/memories`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Retrieves all avatars for the authenticated user.
      */
     async list() {
-      const resp = await this.baseClient.callTypedAPI("GET", `/avatars`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/avatars`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async migrateToEnglish() {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/migrate-to-english`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Manually reduce personality trait points (for corrections/deletions)
+     */
+    async reducePersonalityTrait(params) {
+      const body = {
+        amount: params.amount,
+        reason: params.reason,
+        trait: params.trait
+      };
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reduce-trait`, { method: "POST", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Reset doku reading history for an avatar (allows re-reading dokus)
+     */
+    async resetDokuHistory(params) {
+      const body = {
+        dokuId: params.dokuId
+      };
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reset-doku-history`, { method: "POST", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Resets all personality traits of user's avatars to start at 0 (new system)
+     */
+    async resetPersonalityTraits() {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/reset-personality-traits`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Updates an existing avatar.
      */
-    async update(id2, params) {
-      const resp = await this.baseClient.callTypedAPI("PUT", `/avatar/${encodeURIComponent(id2)}`, JSON.stringify(params));
-      return await resp.json();
+    async update(params) {
+      const body = {
+        description: params.description,
+        imageUrl: params.imageUrl,
+        isPublic: params.isPublic,
+        name: params.name,
+        personalityTraits: params.personalityTraits,
+        physicalTraits: params.physicalTraits,
+        visualProfile: params.visualProfile
+      };
+      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
-     * Updates personality traits for an avatar.
+     * Updates an avatar's personality traits with delta changes
      */
     async updatePersonality(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(params.id)}/personality`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/avatar/personality`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
-     * Adds a memory to an avatar.
+     * API zum Upgrade aller Avatare (für Migration)
      */
-    async addMemory(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(params.id)}/memory`, JSON.stringify(params));
-      return await resp.json();
-    }
-    /**
-     * Gets all memories for an avatar.
-     */
-    async getMemories(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id2)}/memories`);
-      return await resp.json();
-    }
-    /**
-     * Deletes a memory from an avatar.
-     */
-    async deleteMemory(avatarId, memoryId) {
-      const resp = await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(avatarId)}/memory/${encodeURIComponent(memoryId)}`);
-      return await resp.json();
-    }
-    /**
-     * Resets all personality traits to 0.
-     */
-    async resetPersonalityTraits(id2) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id2)}/reset-personality`);
-      return await resp.json();
-    }
-    /**
-     * Upgrades personality traits by converting from old to new format.
-     */
-    async upgradePersonalityTraits(id2) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id2)}/upgrade-personality`);
-      return await resp.json();
-    }
-    /**
-     * Gets debug information about personality traits.
-     */
-    async debugPersonality(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id2)}/debug-personality`);
-      return await resp.json();
-    }
-    /**
-     * Reduces a personality trait by a specified amount.
-     */
-    async reducePersonalityTrait(id2, params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id2)}/reduce-personality-trait`, JSON.stringify(params));
-      return await resp.json();
-    }
-    /**
-     * Resets the doku history for an avatar.
-     */
-    async resetDokuHistory(id2) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(id2)}/reset-doku-history`);
-      return await resp.json();
+    async upgradeAllPersonalityTraits() {
+      const resp = await this.baseClient.callTypedAPI(`/avatar/upgrade-traits`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   avatar2.ServiceClient = ServiceClient;
@@ -23880,74 +23982,109 @@ var doku;
       this.generateDoku = this.generateDoku.bind(this);
       this.getDoku = this.getDoku.bind(this);
       this.listDokus = this.listDokus.bind(this);
+      this.markRead = this.markRead.bind(this);
       this.updateDoku = this.updateDoku.bind(this);
     }
-    async deleteDoku(id2) {
-      await this.baseClient.callTypedAPI("DELETE", `/doku/${encodeURIComponent(id2)}`);
+    async deleteDoku(params) {
+      await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
     }
     async generateDoku(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/doku/generate`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/doku/generate`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Retrieves a specific doku (only owner or admin or if public).
      */
-    async getDoku(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/doku/${encodeURIComponent(id2)}`);
-      return await resp.json();
+    async getDoku(params) {
+      const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Lists all dokus for the authenticated user.
      */
     async listDokus() {
-      const resp = await this.baseClient.callTypedAPI("GET", `/dokus`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/dokus`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
-    async updateDoku(id2, params) {
-      const resp = await this.baseClient.callTypedAPI("PUT", `/doku/${encodeURIComponent(id2)}`, JSON.stringify(params));
-      return await resp.json();
+    /**
+     * Marks a doku as read and applies personality development to all user avatars
+     */
+    async markRead(params) {
+      const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async updateDoku(params) {
+      const body = {
+        isPublic: params.isPublic,
+        title: params.title
+      };
+      const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   doku2.ServiceClient = ServiceClient;
 })(doku || (doku = {}));
-var frontend;
-((frontend2) => {
+var health;
+((health2) => {
   class ServiceClient {
     constructor(baseClient) {
       this.baseClient = baseClient;
-      this.assets = this.assets.bind(this);
+      this.health = this.health.bind(this);
+      this.initializeDatabaseMigrations = this.initializeDatabaseMigrations.bind(this);
     }
-    async assets(path) {
-      await this.baseClient.callTypedAPI("HEAD", `/frontend/${path.map(encodeURIComponent).join("/")}`);
+    /**
+     * Health check endpoint for Railway
+     * Automatically triggers database migrations on first call
+     */
+    async health() {
+      const resp = await this.baseClient.callTypedAPI(`/health`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Initialize database - runs migrations on first call
+     * This is automatically triggered by Railway's health check
+     */
+    async initializeDatabaseMigrations() {
+      const resp = await this.baseClient.callTypedAPI(`/init`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
-  frontend2.ServiceClient = ServiceClient;
-})(frontend || (frontend = {}));
+  health2.ServiceClient = ServiceClient;
+})(health || (health = {}));
 var log;
 ((log2) => {
   class ServiceClient {
     constructor(baseClient) {
       this.baseClient = baseClient;
+      this.debug = this.debug.bind(this);
       this.get = this.get.bind(this);
       this.getSources = this.getSources.bind(this);
       this.list = this.list.bind(this);
+      this.runMigration = this.runMigration.bind(this);
     }
     /**
-     * Retrieves a specific log entry by ID.
+     * Debug endpoint to check database state
      */
-    async get(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/log/get/${encodeURIComponent(id2)}`);
-      return await resp.json();
+    async debug() {
+      const resp = await this.baseClient.callTypedAPI(`/log/debug`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
-     * Gets available log sources with statistics.
+     * Retrieves a specific log entry by ID from the database.
+     */
+    async get(params) {
+      const resp = await this.baseClient.callTypedAPI(`/log/get/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Gets available log sources with statistics from PostgreSQL.
      */
     async getSources() {
-      const resp = await this.baseClient.callTypedAPI("GET", `/log/getSources`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/log/getSources`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
-     * Lists log entries from the bucket.
+     * Lists log entries from the database.
      */
     async list(params) {
       const query = makeRecord({
@@ -23955,8 +24092,15 @@ var log;
         limit: params.limit === void 0 ? void 0 : String(params.limit),
         source: params.source
       });
-      const resp = await this.baseClient.callTypedAPI("GET", `/log/list`, void 0, { query });
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/log/list`, { query, method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Endpoint to manually run the logs table migration
+     */
+    async runMigration() {
+      const resp = await this.baseClient.callTypedAPI(`/log/run-migration`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   log2.ServiceClient = ServiceClient;
@@ -23966,50 +24110,138 @@ var story;
   class ServiceClient {
     constructor(baseClient) {
       this.baseClient = baseClient;
+      this.addCharacter = this.addCharacter.bind(this);
+      this.deleteCharacter = this.deleteCharacter.bind(this);
       this.deleteStory = this.deleteStory.bind(this);
+      this.exportCharacters = this.exportCharacters.bind(this);
       this.generate = this.generate.bind(this);
+      this.generateCharacterImage = this.generateCharacterImage.bind(this);
       this.generateStoryContent = this.generateStoryContent.bind(this);
       this.get = this.get.bind(this);
+      this.getCharacter = this.getCharacter.bind(this);
+      this.getCharacterStats = this.getCharacterStats.bind(this);
+      this.importCharacters = this.importCharacters.bind(this);
       this.list = this.list.bind(this);
+      this.listCharacters = this.listCharacters.bind(this);
+      this.markRead = this.markRead.bind(this);
+      this.resetRecentUsage = this.resetRecentUsage.bind(this);
+      this.seedPool = this.seedPool.bind(this);
       this.update = this.update.bind(this);
+      this.updateCharacter = this.updateCharacter.bind(this);
+    }
+    async addCharacter(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async deleteCharacter(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Deletes a story and all its chapters.
      */
-    async deleteStory(id2) {
-      await this.baseClient.callTypedAPI("DELETE", `/story/${encodeURIComponent(id2)}`);
+    async deleteStory(params) {
+      await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+    }
+    /**
+     * ===== EXPORT CHARACTERS =====
+     */
+    async exportCharacters() {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Generates a new story based on the provided configuration.
      */
     async generate(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/story/generate`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/story/generate`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async generateCharacterImage(params) {
+      const body = {
+        style: params.style
+      };
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, { method: "POST", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     async generateStoryContent(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-story`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/ai/generate-story`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Retrieves a specific story by ID with all chapters.
      */
-    async get(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/story/${encodeURIComponent(id2)}`);
-      return await resp.json();
+    async get(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async getCharacter(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async getCharacterStats(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/stats`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async importCharacters(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/import`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Retrieves all stories for the authenticated user.
      */
     async list() {
-      const resp = await this.baseClient.callTypedAPI("GET", `/stories`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/stories`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * ===== GET ALL CHARACTERS =====
+     */
+    async listCharacters() {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * Marks a story as read and applies personality development to all user avatars
+     */
+    async markRead(params) {
+      const resp = await this.baseClient.callTypedAPI(`/story/mark-read`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * ===== RESET RECENT USAGE COUNTS =====
+     * This should be run periodically (e.g., monthly) to give all characters fresh chances
+     */
+    async resetRecentUsage() {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/reset-usage`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    /**
+     * ===== SEED CHARACTER POOL =====
+     * Seeds the character pool with 18 pre-built characters
+     */
+    async seedPool() {
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/seed`, { method: "POST", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Updates an existing story's metadata.
      */
-    async update(id2, params) {
-      const resp = await this.baseClient.callTypedAPI("PUT", `/story/${encodeURIComponent(id2)}`, JSON.stringify(params));
-      return await resp.json();
+    async update(params) {
+      const body = {
+        description: params.description,
+        isPublic: params.isPublic,
+        title: params.title
+      };
+      const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
+    }
+    async updateCharacter(params) {
+      const body = {
+        updates: params.updates
+      };
+      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   story2.ServiceClient = ServiceClient;
@@ -24022,8 +24254,8 @@ var tavi;
       this.taviChat = this.taviChat.bind(this);
     }
     async taviChat(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/tavi/chat`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/tavi/chat`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   tavi2.ServiceClient = ServiceClient;
@@ -24041,27 +24273,37 @@ var user;
      * Creates a new user profile.
      */
     async create(params) {
-      const resp = await this.baseClient.callTypedAPI("POST", `/user`, JSON.stringify(params));
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/user`, { method: "POST", body: JSON.stringify(params) });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Retrieves a user profile by ID.
      */
-    async get(id2) {
-      const resp = await this.baseClient.callTypedAPI("GET", `/user/${encodeURIComponent(id2)}`);
-      return await resp.json();
+    async get(params) {
+      const resp = await this.baseClient.callTypedAPI(`/user/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
     /**
      * Returns the authenticated user's profile.
      * The auth handler ensures the user exists in the database.
      */
     async me() {
-      const resp = await this.baseClient.callTypedAPI("GET", `/user/me`);
-      return await resp.json();
+      const resp = await this.baseClient.callTypedAPI(`/user/me`, { method: "GET", body: void 0 });
+      return JSON.parse(await resp.text(), dateReviver);
     }
   }
   user2.ServiceClient = ServiceClient;
 })(user || (user = {}));
+function dateReviver(key, value) {
+  if (typeof value === "string" && value.length >= 10 && value.charCodeAt(0) >= 48 && // '0'
+  value.charCodeAt(0) <= 57) {
+    const parsedDate = new Date(value);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return value;
+}
 function encodeQuery(parts) {
   const pairs = [];
   for (const key in parts) {
@@ -24126,7 +24368,7 @@ class StreamInOut {
     this.buffer = [];
     this.socket = new WebSocketConnection(url, headers);
     this.socket.on("message", (event) => {
-      this.buffer.push(JSON.parse(event.data));
+      this.buffer.push(JSON.parse(event.data, dateReviver));
       this.socket.resolveHasUpdateHandlers();
     });
   }
@@ -24161,7 +24403,7 @@ class StreamIn {
     this.buffer = [];
     this.socket = new WebSocketConnection(url, headers);
     this.socket.on("message", (event) => {
-      this.buffer.push(JSON.parse(event.data));
+      this.buffer.push(JSON.parse(event.data, dateReviver));
       this.socket.resolveHasUpdateHandlers();
     });
   }
@@ -24189,7 +24431,7 @@ class StreamOut {
     this.responseValue = new Promise((resolve) => responseResolver = resolve);
     this.socket = new WebSocketConnection(url, headers);
     this.socket.on("message", (event) => {
-      responseResolver(JSON.parse(event.data));
+      responseResolver(JSON.parse(event.data, dateReviver));
     });
   }
   async response() {
@@ -24213,7 +24455,7 @@ class BaseClient {
     this.baseURL = baseURL;
     this.headers = {};
     if (!BROWSER) {
-      this.headers["User-Agent"] = "talea-storytelling-platform-4ot2-Generated-TS-Client (Encore/v1.50.0)";
+      this.headers["User-Agent"] = "talea-storytelling-platform-4ot2-Generated-TS-Client (Encore/v1.50.4)";
     }
     this.requestInit = options.requestInit ?? {};
     if (options.fetcher !== void 0) {
@@ -24295,20 +24537,18 @@ class BaseClient {
     return new StreamOut(this.baseURL + path + queryString, headers);
   }
   // callTypedAPI makes an API call, defaulting content type to "application/json"
-  async callTypedAPI(method, path, body, params) {
-    return this.callAPI(method, path, body, {
+  async callTypedAPI(path, params) {
+    return this.callAPI(path, {
       ...params,
       headers: { "Content-Type": "application/json", ...params == null ? void 0 : params.headers }
     });
   }
   // callAPI is used by each generated API method to actually make the request
-  async callAPI(method, path, body, params) {
+  async callAPI(path, params) {
     let { query, headers, ...rest } = params ?? {};
     const init = {
       ...this.requestInit,
-      ...rest,
-      method,
-      body: body ?? null
+      ...rest
     };
     init.headers = { ...this.headers, ...init.headers, ...headers };
     const authData = await this.getAuthData();
@@ -24323,23 +24563,23 @@ class BaseClient {
     const queryString = query ? "?" + encodeQuery(query) : "";
     const response = await this.fetcher(this.baseURL + path + queryString, init);
     if (!response.ok) {
-      let body2 = { code: "unknown", message: `request failed: status ${response.status}` };
+      let body = { code: "unknown", message: `request failed: status ${response.status}` };
       try {
         const text = await response.text();
         try {
           const jsonBody = JSON.parse(text);
           if (isAPIErrorResponse(jsonBody)) {
-            body2 = jsonBody;
+            body = jsonBody;
           } else {
-            body2.message += ": " + JSON.stringify(jsonBody);
+            body.message += ": " + JSON.stringify(jsonBody);
           }
         } catch {
-          body2.message += ": " + text;
+          body.message += ": " + text;
         }
       } catch (e) {
-        body2.message += ": " + String(e);
+        body.message += ": " + String(e);
       }
-      throw new APIError(response.status, body2);
+      throw new APIError(response.status, body);
     }
     return response;
   }
@@ -24391,6 +24631,7 @@ var ErrCode = /* @__PURE__ */ ((ErrCode2) => {
   ErrCode2["Unauthenticated"] = "unauthenticated";
   return ErrCode2;
 })(ErrCode || {});
+new Client("http://localhost:4000", { requestInit: { credentials: "include" } });
 function getClerkPublishableKey() {
   var _a;
   if (typeof window !== "undefined" && ((_a = window.ENV) == null ? void 0 : _a.CLERK_PUBLISHABLE_KEY)) {
@@ -24420,16 +24661,13 @@ function useBackend() {
   return new Client(target, {
     auth: async () => {
       if (!isLoaded) {
-        throw new Error("Authentication not loaded yet");
+        return void 0;
       }
       if (!isSignedIn) {
         return void 0;
       }
       const token = await getToken();
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-      return { authorization: `Bearer ${token}` };
+      return token ? { authorization: `Bearer ${token}` } : void 0;
     },
     requestInit: { credentials: "include" }
   });
@@ -24518,7 +24756,7 @@ const HomeScreen = () => {
   const handleDeleteAvatar = async (avatarId, avatarName) => {
     if (window.confirm(`Möchtest du "${avatarName}" wirklich löschen?`)) {
       try {
-        await backend.avatar.deleteAvatar(avatarId);
+        await backend.avatar.deleteAvatar({ id: avatarId });
         setAvatars2(avatars.filter((a) => a.id !== avatarId));
       } catch (error) {
         console.error("Error deleting avatar:", error);
@@ -24529,7 +24767,7 @@ const HomeScreen = () => {
   const handleDeleteStory = async (storyId, storyTitle) => {
     if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen?`)) {
       try {
-        await backend.story.deleteStory(storyId);
+        await backend.story.deleteStory({ id: storyId });
         setStories2(stories.filter((s) => s.id !== storyId));
       } catch (error) {
         console.error("Error deleting story:", error);
@@ -24540,7 +24778,7 @@ const HomeScreen = () => {
   const handleDeleteDoku = async (dokuId, dokuTitle) => {
     if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen?`)) {
       try {
-        await backend.doku.deleteDoku(dokuId);
+        await backend.doku.deleteDoku({ id: dokuId });
         setDokus(dokus.filter((d) => d.id !== dokuId));
       } catch (error) {
         console.error("Error deleting doku:", error);
@@ -24548,7 +24786,7 @@ const HomeScreen = () => {
       }
     }
   };
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
     background: colors.gradients.background,
     paddingBottom: "140px",
@@ -24562,12 +24800,12 @@ const HomeScreen = () => {
     pointerEvents: "none"
   };
   if (loading || !isLoaded) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...containerStyle, display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...containerStyle2, display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(FloatAnimation, { duration: 2, distance: 20, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: "80px", marginBottom: spacing.xl }, children: "✨" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.headingMd, color: colors.text.secondary }, children: "Lade deine magische Welt..." })
     ] }) });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...decorativeBlob, width: "400px", height: "400px", top: "10%", left: "5%", background: colors.primary[300] } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...decorativeBlob, width: "350px", height: "350px", top: "40%", right: "0%", background: colors.lavender[300] } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...decorativeBlob, width: "300px", height: "300px", bottom: "10%", left: "50%", background: colors.mint[300] } }),
@@ -25240,7 +25478,7 @@ function createRenderStep(runNextFrame, stepName) {
   };
   return step;
 }
-const maxElapsed = 40;
+const maxElapsed$1 = 40;
 function createRenderBatcher(scheduleNextBatch, allowKeepAlive) {
   let runNextFrame = false;
   let useDefaultElapsed = true;
@@ -25259,7 +25497,7 @@ function createRenderBatcher(scheduleNextBatch, allowKeepAlive) {
     const timestamp = MotionGlobalConfig.useManualTiming ? state.timestamp : performance.now();
     runNextFrame = false;
     if (!MotionGlobalConfig.useManualTiming) {
-      state.delta = useDefaultElapsed ? 1e3 / 60 : Math.max(Math.min(timestamp - state.timestamp, maxElapsed), 1);
+      state.delta = useDefaultElapsed ? 1e3 / 60 : Math.max(Math.min(timestamp - state.timestamp, maxElapsed$1), 1);
     }
     state.timestamp = timestamp;
     state.isProcessing = true;
@@ -25822,8 +26060,8 @@ function calcAngularFreq(undampedFreq, dampingRatio) {
 }
 const durationKeys = ["duration", "bounce"];
 const physicsKeys = ["stiffness", "damping", "mass"];
-function isSpringType(options, keys) {
-  return keys.some((key) => options[key] !== void 0);
+function isSpringType(options, keys2) {
+  return keys2.some((key) => options[key] !== void 0);
 }
 function getSpringOptions(options) {
   let springOptions = {
@@ -26043,7 +26281,7 @@ function fillOffset(offset, remaining) {
     offset.push(mixNumber$1(min, 1, offsetProgress));
   }
 }
-function defaultOffset(arr) {
+function defaultOffset$1(arr) {
   const offset = [0];
   fillOffset(offset, arr.length - 1);
   return offset;
@@ -26063,7 +26301,7 @@ function keyframes({ duration = 300, keyframes: keyframeValues, times, ease: eas
   const absoluteTimes = convertOffsetToTimes(
     // Only use the provided offsets if they're the correct length
     // TODO Maybe we should warn here if there's a length mismatch
-    times && times.length === keyframeValues.length ? times : defaultOffset(keyframeValues),
+    times && times.length === keyframeValues.length ? times : defaultOffset$1(keyframeValues),
     duration
   );
   const mapTimeToKeyframe = interpolate(absoluteTimes, keyframeValues, {
@@ -26417,18 +26655,18 @@ const matrix3dParsers = {
 function defaultTransformValue(name) {
   return name.includes("scale") ? 1 : 0;
 }
-function parseValueFromTransform(transform, name) {
-  if (!transform || transform === "none") {
+function parseValueFromTransform(transform2, name) {
+  if (!transform2 || transform2 === "none") {
     return defaultTransformValue(name);
   }
-  const matrix3dMatch = transform.match(/^matrix3d\(([-\d.e\s,]+)\)$/u);
+  const matrix3dMatch = transform2.match(/^matrix3d\(([-\d.e\s,]+)\)$/u);
   let parsers;
   let match;
   if (matrix3dMatch) {
     parsers = matrix3dParsers;
     match = matrix3dMatch;
   } else {
-    const matrix2dMatch = transform.match(/^matrix\(([-\d.e\s,]+)\)$/u);
+    const matrix2dMatch = transform2.match(/^matrix\(([-\d.e\s,]+)\)$/u);
     parsers = matrix2dParsers;
     match = matrix2dMatch;
   }
@@ -26440,8 +26678,8 @@ function parseValueFromTransform(transform, name) {
   return typeof valueParser === "function" ? valueParser(values) : values[valueParser];
 }
 const readTransformValue = (instance, name) => {
-  const { transform = "none" } = getComputedStyle(instance);
-  return parseValueFromTransform(transform, name);
+  const { transform: transform2 = "none" } = getComputedStyle(instance);
+  return parseValueFromTransform(transform2, name);
 };
 function convertTransformToNumber(value) {
   return parseFloat(value.trim());
@@ -26489,8 +26727,8 @@ const positionalValues = {
   bottom: ({ y }, { top }) => parseFloat(top) + (y.max - y.min),
   right: ({ x }, { left }) => parseFloat(left) + (x.max - x.min),
   // Transform
-  x: (_bbox, { transform }) => parseValueFromTransform(transform, "x"),
-  y: (_bbox, { transform }) => parseValueFromTransform(transform, "y")
+  x: (_bbox, { transform: transform2 }) => parseValueFromTransform(transform2, "x"),
+  y: (_bbox, { transform: transform2 }) => parseValueFromTransform(transform2, "y")
 };
 positionalValues.translateX = positionalValues.x;
 positionalValues.translateY = positionalValues.y;
@@ -27351,7 +27589,7 @@ function resolveElements(elementOrSelector, scope, selectorCache) {
     return [elementOrSelector];
   } else if (typeof elementOrSelector === "string") {
     let root = document;
-    const elements = (selectorCache == null ? void 0 : selectorCache[elementOrSelector]) ?? root.querySelectorAll(elementOrSelector);
+    const elements = root.querySelectorAll(elementOrSelector);
     return elements ? Array.from(elements) : [];
   }
   return Array.from(elementOrSelector);
@@ -27365,6 +27603,9 @@ function isHTMLElement(element) {
 const MAX_VELOCITY_DELTA = 30;
 const isFloat = (value) => {
   return !isNaN(parseFloat(value));
+};
+const collectMotionValues = {
+  current: void 0
 };
 class MotionValue {
   /**
@@ -27543,6 +27784,9 @@ class MotionValue {
    * @public
    */
   get() {
+    if (collectMotionValues.current) {
+      collectMotionValues.current.push(this);
+    }
     return this.current;
   }
   /**
@@ -27807,10 +28051,168 @@ function press(targetOrSelector, onPressStart, options = {}) {
 function isSVGElement(element) {
   return isObject(element) && "ownerSVGElement" in element;
 }
+const resizeHandlers = /* @__PURE__ */ new WeakMap();
+let observer;
+const getSize = (borderBoxAxis, svgAxis, htmlAxis) => (target, borderBoxSize) => {
+  if (borderBoxSize && borderBoxSize[0]) {
+    return borderBoxSize[0][borderBoxAxis + "Size"];
+  } else if (isSVGElement(target) && "getBBox" in target) {
+    return target.getBBox()[svgAxis];
+  } else {
+    return target[htmlAxis];
+  }
+};
+const getWidth = /* @__PURE__ */ getSize("inline", "width", "offsetWidth");
+const getHeight = /* @__PURE__ */ getSize("block", "height", "offsetHeight");
+function notifyTarget({ target, borderBoxSize }) {
+  var _a;
+  (_a = resizeHandlers.get(target)) == null ? void 0 : _a.forEach((handler) => {
+    handler(target, {
+      get width() {
+        return getWidth(target, borderBoxSize);
+      },
+      get height() {
+        return getHeight(target, borderBoxSize);
+      }
+    });
+  });
+}
+function notifyAll(entries) {
+  entries.forEach(notifyTarget);
+}
+function createResizeObserver() {
+  if (typeof ResizeObserver === "undefined")
+    return;
+  observer = new ResizeObserver(notifyAll);
+}
+function resizeElement(target, handler) {
+  if (!observer)
+    createResizeObserver();
+  const elements = resolveElements(target);
+  elements.forEach((element) => {
+    let elementHandlers = resizeHandlers.get(element);
+    if (!elementHandlers) {
+      elementHandlers = /* @__PURE__ */ new Set();
+      resizeHandlers.set(element, elementHandlers);
+    }
+    elementHandlers.add(handler);
+    observer == null ? void 0 : observer.observe(element);
+  });
+  return () => {
+    elements.forEach((element) => {
+      const elementHandlers = resizeHandlers.get(element);
+      elementHandlers == null ? void 0 : elementHandlers.delete(handler);
+      if (!(elementHandlers == null ? void 0 : elementHandlers.size)) {
+        observer == null ? void 0 : observer.unobserve(element);
+      }
+    });
+  };
+}
+const windowCallbacks = /* @__PURE__ */ new Set();
+let windowResizeHandler;
+function createWindowResizeHandler() {
+  windowResizeHandler = () => {
+    const info = {
+      get width() {
+        return window.innerWidth;
+      },
+      get height() {
+        return window.innerHeight;
+      }
+    };
+    windowCallbacks.forEach((callback) => callback(info));
+  };
+  window.addEventListener("resize", windowResizeHandler);
+}
+function resizeWindow(callback) {
+  windowCallbacks.add(callback);
+  if (!windowResizeHandler)
+    createWindowResizeHandler();
+  return () => {
+    windowCallbacks.delete(callback);
+    if (!windowCallbacks.size && typeof windowResizeHandler === "function") {
+      window.removeEventListener("resize", windowResizeHandler);
+      windowResizeHandler = void 0;
+    }
+  };
+}
+function resize(a, b) {
+  return typeof a === "function" ? resizeWindow(a) : resizeElement(a, b);
+}
+function observeTimeline(update, timeline) {
+  let prevProgress;
+  const onFrame = () => {
+    const { currentTime } = timeline;
+    const percentage = currentTime === null ? 0 : currentTime.value;
+    const progress2 = percentage / 100;
+    if (prevProgress !== progress2) {
+      update(progress2);
+    }
+    prevProgress = progress2;
+  };
+  frame.preUpdate(onFrame, true);
+  return () => cancelFrame(onFrame);
+}
 function isSVGSVGElement(element) {
   return isSVGElement(element) && element.tagName === "svg";
 }
+function transform(...args) {
+  const useImmediate = !Array.isArray(args[0]);
+  const argOffset = useImmediate ? 0 : -1;
+  const inputValue = args[0 + argOffset];
+  const inputRange = args[1 + argOffset];
+  const outputRange = args[2 + argOffset];
+  const options = args[3 + argOffset];
+  const interpolator = interpolate(inputRange, outputRange, options);
+  return useImmediate ? interpolator(inputValue) : interpolator;
+}
 const isMotionValue = (value) => Boolean(value && value.getVelocity);
+function attachSpring(value, source, options) {
+  const initialValue = value.get();
+  let activeAnimation = null;
+  let latestValue = initialValue;
+  let latestSetter;
+  const unit = typeof initialValue === "string" ? initialValue.replace(/[\d.-]/g, "") : void 0;
+  const stopAnimation = () => {
+    if (activeAnimation) {
+      activeAnimation.stop();
+      activeAnimation = null;
+    }
+  };
+  const startAnimation = () => {
+    stopAnimation();
+    activeAnimation = new JSAnimation({
+      keyframes: [asNumber$1(value.get()), asNumber$1(latestValue)],
+      velocity: value.getVelocity(),
+      type: "spring",
+      restDelta: 1e-3,
+      restSpeed: 0.01,
+      ...options,
+      onUpdate: latestSetter
+    });
+  };
+  value.attach((v, set2) => {
+    latestValue = v;
+    latestSetter = (latest2) => set2(parseValue(latest2, unit));
+    frame.postRender(startAnimation);
+    return value.get();
+  }, stopAnimation);
+  if (isMotionValue(source)) {
+    const removeSourceOnChange = source.on("change", (v) => value.set(parseValue(v, unit)));
+    const removeValueOnDestroy = value.on("destroy", removeSourceOnChange);
+    return () => {
+      removeSourceOnChange();
+      removeValueOnDestroy();
+    };
+  }
+  return stopAnimation;
+}
+function parseValue(v, unit) {
+  return unit ? v + unit : v;
+}
+function asNumber$1(v) {
+  return typeof v === "number" ? v : parseFloat(v);
+}
 const valueTypes = [...dimensionValueTypes, color, complex];
 const findValueType = (v) => valueTypes.find(testValueType(v));
 const MotionConfigContext = reactExports.createContext({
@@ -28165,7 +28567,7 @@ const translateAlias = {
   transformPerspective: "perspective"
 };
 const numTransforms = transformPropOrder.length;
-function buildTransform(latestValues, transform, transformTemplate) {
+function buildTransform(latestValues, transform2, transformTemplate) {
   let transformString = "";
   let transformIsDefault = true;
   for (let i = 0; i < numTransforms; i++) {
@@ -28187,13 +28589,13 @@ function buildTransform(latestValues, transform, transformTemplate) {
         transformString += `${transformName}(${valueAsType}) `;
       }
       if (transformTemplate) {
-        transform[key] = valueAsType;
+        transform2[key] = valueAsType;
       }
     }
   }
   transformString = transformString.trim();
   if (transformTemplate) {
-    transformString = transformTemplate(transform, transformIsDefault ? "" : transformString);
+    transformString = transformTemplate(transform2, transformIsDefault ? "" : transformString);
   } else if (transformIsDefault) {
     transformString = "none";
   }
@@ -28284,11 +28686,11 @@ const camelKeys = {
 };
 function buildSVGPath(attrs, length, spacing2 = 1, offset = 0, useDashCase = true) {
   attrs.pathLength = 1;
-  const keys = useDashCase ? dashKeys : camelKeys;
-  attrs[keys.offset] = px.transform(-offset);
+  const keys2 = useDashCase ? dashKeys : camelKeys;
+  attrs[keys2.offset] = px.transform(-offset);
   const pathLength = px.transform(length);
   const pathSpacing = px.transform(spacing2);
-  attrs[keys.array] = `${pathLength} ${pathSpacing}`;
+  attrs[keys2.array] = `${pathLength} ${pathSpacing}`;
 }
 function buildSVGAttrs(state, {
   attrX,
@@ -28728,11 +29130,11 @@ function convertBoundingBoxToBox({ top, left, right, bottom }) {
 function convertBoxToBoundingBox({ x, y }) {
   return { top: y.min, right: x.max, bottom: y.max, left: x.min };
 }
-function transformBoxPoints(point, transformPoint2) {
+function transformBoxPoints(point2, transformPoint2) {
   if (!transformPoint2)
-    return point;
-  const topLeft = transformPoint2({ x: point.left, y: point.top });
-  const bottomRight = transformPoint2({ x: point.right, y: point.bottom });
+    return point2;
+  const topLeft = transformPoint2({ x: point2.left, y: point2.top });
+  const bottomRight = transformPoint2({ x: point2.right, y: point2.bottom });
   return {
     top: topLeft.y,
     left: topLeft.x,
@@ -28755,16 +29157,16 @@ function has2DTranslate(values) {
 function is2DTranslate(value) {
   return value && value !== "0%";
 }
-function scalePoint(point, scale2, originPoint) {
-  const distanceFromOrigin = point - originPoint;
+function scalePoint(point2, scale2, originPoint) {
+  const distanceFromOrigin = point2 - originPoint;
   const scaled = scale2 * distanceFromOrigin;
   return originPoint + scaled;
 }
-function applyPointDelta(point, translate, scale2, originPoint, boxScale) {
+function applyPointDelta(point2, translate, scale2, originPoint, boxScale) {
   if (boxScale !== void 0) {
-    point = scalePoint(point, boxScale, originPoint);
+    point2 = scalePoint(point2, boxScale, originPoint);
   }
-  return scalePoint(point, scale2, originPoint) + translate;
+  return scalePoint(point2, scale2, originPoint) + translate;
 }
 function applyAxisDelta(axis, translate = 0, scale2 = 1, originPoint, boxScale) {
   axis.min = applyPointDelta(axis.min, translate, scale2, originPoint, boxScale);
@@ -28820,19 +29222,19 @@ function transformAxis(axis, axisTranslate, axisScale, boxScale, axisOrigin = 0.
   const originPoint = mixNumber$1(axis.min, axis.max, axisOrigin);
   applyAxisDelta(axis, axisTranslate, axisScale, originPoint, boxScale);
 }
-function transformBox(box, transform) {
-  transformAxis(box.x, transform.x, transform.scaleX, transform.scale, transform.originX);
-  transformAxis(box.y, transform.y, transform.scaleY, transform.scale, transform.originY);
+function transformBox(box, transform2) {
+  transformAxis(box.x, transform2.x, transform2.scaleX, transform2.scale, transform2.originX);
+  transformAxis(box.y, transform2.y, transform2.scaleY, transform2.scale, transform2.originY);
 }
 function measureViewportBox(instance, transformPoint2) {
   return convertBoundingBoxToBox(transformBoxPoints(instance.getBoundingClientRect(), transformPoint2));
 }
 function measurePageBox(element, rootProjectionNode2, transformPagePoint) {
   const viewportBox = measureViewportBox(element, transformPagePoint);
-  const { scroll } = rootProjectionNode2;
-  if (scroll) {
-    translateAxis(viewportBox.x, scroll.offset.x);
-    translateAxis(viewportBox.y, scroll.offset.y);
+  const { scroll: scroll2 } = rootProjectionNode2;
+  if (scroll2) {
+    translateAxis(viewportBox.x, scroll2.offset.x);
+    translateAxis(viewportBox.y, scroll2.offset.y);
   }
   return viewportBox;
 }
@@ -30041,9 +30443,9 @@ class PanSession {
       const isDistancePastThreshold = distance2D(info2.offset, { x: 0, y: 0 }) >= this.distanceThreshold;
       if (!isPanStarted && !isDistancePastThreshold)
         return;
-      const { point: point2 } = info2;
+      const { point: point3 } = info2;
       const { timestamp: timestamp2 } = frameData;
-      this.history.push({ ...point2, timestamp: timestamp2 });
+      this.history.push({ ...point3, timestamp: timestamp2 });
       const { onStart, onMove } = this.handlers;
       if (!isPanStarted) {
         onStart && onStart(this.lastMoveEvent, info2);
@@ -30078,9 +30480,9 @@ class PanSession {
     this.contextWindow = contextWindow || window;
     const info = extractEventInfo(event);
     const initialInfo = transformPoint(info, this.transformPagePoint);
-    const { point } = initialInfo;
+    const { point: point2 } = initialInfo;
     const { timestamp } = frameData;
-    this.history = [{ ...point, timestamp }];
+    this.history = [{ ...point2, timestamp }];
     const { onSessionStart } = handlers;
     onSessionStart && onSessionStart(event, getPanInfo(initialInfo, this.history));
     this.removeListeners = pipe(addPointerEvent(this.contextWindow, "pointermove", this.handlePointerMove), addPointerEvent(this.contextWindow, "pointerup", this.handlePointerUp), addPointerEvent(this.contextWindow, "pointercancel", this.handlePointerUp));
@@ -30099,11 +30501,11 @@ function transformPoint(info, transformPagePoint) {
 function subtractPoint(a, b) {
   return { x: a.x - b.x, y: a.y - b.y };
 }
-function getPanInfo({ point }, history) {
+function getPanInfo({ point: point2 }, history) {
   return {
-    point,
-    delta: subtractPoint(point, lastDevicePoint(history)),
-    offset: subtractPoint(point, startDevicePoint(history)),
+    point: point2,
+    delta: subtractPoint(point2, lastDevicePoint(history)),
+    offset: subtractPoint(point2, startDevicePoint(history)),
     velocity: getVelocity(history, 0.1)
   };
 }
@@ -30146,13 +30548,13 @@ function getVelocity(history, timeDelta) {
   }
   return currentVelocity;
 }
-function applyConstraints(point, { min, max }, elastic) {
-  if (min !== void 0 && point < min) {
-    point = elastic ? mixNumber$1(min, point, elastic.min) : Math.max(point, min);
-  } else if (max !== void 0 && point > max) {
-    point = elastic ? mixNumber$1(max, point, elastic.max) : Math.min(point, max);
+function applyConstraints(point2, { min, max }, elastic) {
+  if (min !== void 0 && point2 < min) {
+    point2 = elastic ? mixNumber$1(min, point2, elastic.min) : Math.max(point2, min);
+  } else if (max !== void 0 && point2 > max) {
+    point2 = elastic ? mixNumber$1(max, point2, elastic.max) : Math.min(point2, max);
   }
-  return point;
+  return point2;
 }
 function calcRelativeAxisConstraints(axis, min, max) {
   return {
@@ -30477,7 +30879,7 @@ class VisualElementDragControls {
     const externalMotionValue = props[dragKey];
     return externalMotionValue ? externalMotionValue : this.visualElement.getValue(axis, (props.initial ? props.initial[axis] : void 0) || 0);
   }
-  snapToCursor(point) {
+  snapToCursor(point2) {
     eachAxis((axis) => {
       const { drag: drag2 } = this.getProps();
       if (!shouldDrag(axis, drag2, this.currentDirection))
@@ -30486,7 +30888,7 @@ class VisualElementDragControls {
       const axisValue = this.getAxisMotionValue(axis);
       if (projection && projection.layout) {
         const { min, max } = projection.layout.layoutBox[axis];
-        axisValue.set(point[axis] - mixNumber$1(min, max, 0.5));
+        axisValue.set(point2[axis] - mixNumber$1(min, max, 0.5));
       }
     });
   }
@@ -30911,13 +31313,13 @@ function copyAxisDeltaInto(delta, originDelta) {
   delta.originPoint = originDelta.originPoint;
   delta.origin = originDelta.origin;
 }
-function removePointDelta(point, translate, scale2, originPoint, boxScale) {
-  point -= translate;
-  point = scalePoint(point, 1 / scale2, originPoint);
+function removePointDelta(point2, translate, scale2, originPoint, boxScale) {
+  point2 -= translate;
+  point2 = scalePoint(point2, 1 / scale2, originPoint);
   if (boxScale !== void 0) {
-    point = scalePoint(point, 1 / boxScale, originPoint);
+    point2 = scalePoint(point2, 1 / boxScale, originPoint);
   }
-  return point;
+  return point2;
 }
 function removeAxisDelta(axis, translate = 0, scale2 = 1, origin = 0.5, boxScale, originAxis = axis, sourceAxis = axis) {
   if (percent.test(translate)) {
@@ -31057,37 +31459,37 @@ class NodeStack {
   }
 }
 function buildProjectionTransform(delta, treeScale, latestTransform) {
-  let transform = "";
+  let transform2 = "";
   const xTranslate = delta.x.translate / treeScale.x;
   const yTranslate = delta.y.translate / treeScale.y;
   const zTranslate = (latestTransform == null ? void 0 : latestTransform.z) || 0;
   if (xTranslate || yTranslate || zTranslate) {
-    transform = `translate3d(${xTranslate}px, ${yTranslate}px, ${zTranslate}px) `;
+    transform2 = `translate3d(${xTranslate}px, ${yTranslate}px, ${zTranslate}px) `;
   }
   if (treeScale.x !== 1 || treeScale.y !== 1) {
-    transform += `scale(${1 / treeScale.x}, ${1 / treeScale.y}) `;
+    transform2 += `scale(${1 / treeScale.x}, ${1 / treeScale.y}) `;
   }
   if (latestTransform) {
     const { transformPerspective, rotate: rotate2, rotateX, rotateY, skewX, skewY } = latestTransform;
     if (transformPerspective)
-      transform = `perspective(${transformPerspective}px) ${transform}`;
+      transform2 = `perspective(${transformPerspective}px) ${transform2}`;
     if (rotate2)
-      transform += `rotate(${rotate2}deg) `;
+      transform2 += `rotate(${rotate2}deg) `;
     if (rotateX)
-      transform += `rotateX(${rotateX}deg) `;
+      transform2 += `rotateX(${rotateX}deg) `;
     if (rotateY)
-      transform += `rotateY(${rotateY}deg) `;
+      transform2 += `rotateY(${rotateY}deg) `;
     if (skewX)
-      transform += `skewX(${skewX}deg) `;
+      transform2 += `skewX(${skewX}deg) `;
     if (skewY)
-      transform += `skewY(${skewY}deg) `;
+      transform2 += `skewY(${skewY}deg) `;
   }
   const elementScaleX = delta.x.scale * treeScale.x;
   const elementScaleY = delta.y.scale * treeScale.y;
   if (elementScaleX !== 1 || elementScaleY !== 1) {
-    transform += `scale(${elementScaleX}, ${elementScaleY})`;
+    transform2 += `scale(${elementScaleX}, ${elementScaleY})`;
   }
-  return transform || "none";
+  return transform2 || "none";
 }
 const transformAxes = ["", "X", "Y", "Z"];
 const animationTarget = 1e3;
@@ -31475,10 +31877,10 @@ function createProjectionNode({ attachResizeListener, defaultParent, measureScro
       const box = visualElement.measureViewportBox();
       const wasInScrollRoot = ((_a = this.scroll) == null ? void 0 : _a.wasRoot) || this.path.some(checkNodeWasScrollRoot);
       if (!wasInScrollRoot) {
-        const { scroll } = this.root;
-        if (scroll) {
-          translateAxis(box.x, scroll.offset.x);
-          translateAxis(box.y, scroll.offset.y);
+        const { scroll: scroll2 } = this.root;
+        if (scroll2) {
+          translateAxis(box.x, scroll2.offset.x);
+          translateAxis(box.y, scroll2.offset.y);
         }
       }
       return box;
@@ -31492,13 +31894,13 @@ function createProjectionNode({ attachResizeListener, defaultParent, measureScro
       }
       for (let i = 0; i < this.path.length; i++) {
         const node = this.path[i];
-        const { scroll, options } = node;
-        if (node !== this.root && scroll && options.layoutScroll) {
-          if (scroll.wasRoot) {
+        const { scroll: scroll2, options } = node;
+        if (node !== this.root && scroll2 && options.layoutScroll) {
+          if (scroll2.wasRoot) {
             copyBoxInto(boxWithoutScroll, box);
           }
-          translateAxis(boxWithoutScroll.x, scroll.offset.x);
-          translateAxis(boxWithoutScroll.y, scroll.offset.y);
+          translateAxis(boxWithoutScroll.x, scroll2.offset.x);
+          translateAxis(boxWithoutScroll.y, scroll2.offset.y);
         }
       }
       return boxWithoutScroll;
@@ -31703,10 +32105,10 @@ function createProjectionNode({ attachResizeListener, defaultParent, measureScro
     show() {
       this.isVisible = true;
     }
-    scheduleRender(notifyAll = true) {
+    scheduleRender(notifyAll2 = true) {
       var _a;
       (_a = this.options.visualElement) == null ? void 0 : _a.scheduleRender();
-      if (notifyAll) {
+      if (notifyAll2) {
         const stack = this.getStack();
         stack && stack.scheduleRender();
       }
@@ -31939,11 +32341,11 @@ function createProjectionNode({ attachResizeListener, defaultParent, measureScro
       targetStyle.visibility = "";
       const valuesToRender = lead.animationValues || lead.latestValues;
       this.applyTransformsToTarget();
-      let transform = buildProjectionTransform(this.projectionDeltaWithTransform, this.treeScale, valuesToRender);
+      let transform2 = buildProjectionTransform(this.projectionDeltaWithTransform, this.treeScale, valuesToRender);
       if (transformTemplate) {
-        transform = transformTemplate(valuesToRender, transform);
+        transform2 = transformTemplate(valuesToRender, transform2);
       }
-      targetStyle.transform = transform;
+      targetStyle.transform = transform2;
       const { x, y } = this.projectionDelta;
       targetStyle.transformOrigin = `${x.origin * 100}% ${y.origin * 100}% 0`;
       if (lead.animationValues) {
@@ -31955,7 +32357,7 @@ function createProjectionNode({ attachResizeListener, defaultParent, measureScro
         if (valuesToRender[key] === void 0)
           continue;
         const { correct, applyTo, isCSSVariable } = scaleCorrectors[key];
-        const corrected = transform === "none" ? valuesToRender[key] : correct(valuesToRender[key], lead);
+        const corrected = transform2 === "none" ? valuesToRender[key] : correct(valuesToRender[key], lead);
         if (applyTo) {
           const num = applyTo.length;
           for (let i = 0; i < num; i++) {
@@ -32375,6 +32777,416 @@ const featureBundle = {
   ...layout
 };
 const motion = /* @__PURE__ */ createMotionProxy(featureBundle, createDomVisualElement);
+const maxElapsed = 50;
+const createAxisInfo = () => ({
+  current: 0,
+  offset: [],
+  progress: 0,
+  scrollLength: 0,
+  targetOffset: 0,
+  targetLength: 0,
+  containerLength: 0,
+  velocity: 0
+});
+const createScrollInfo = () => ({
+  time: 0,
+  x: createAxisInfo(),
+  y: createAxisInfo()
+});
+const keys = {
+  x: {
+    length: "Width",
+    position: "Left"
+  },
+  y: {
+    length: "Height",
+    position: "Top"
+  }
+};
+function updateAxisInfo(element, axisName, info, time2) {
+  const axis = info[axisName];
+  const { length, position } = keys[axisName];
+  const prev = axis.current;
+  const prevTime = info.time;
+  axis.current = element[`scroll${position}`];
+  axis.scrollLength = element[`scroll${length}`] - element[`client${length}`];
+  axis.offset.length = 0;
+  axis.offset[0] = 0;
+  axis.offset[1] = axis.scrollLength;
+  axis.progress = /* @__PURE__ */ progress(0, axis.scrollLength, axis.current);
+  const elapsed = time2 - prevTime;
+  axis.velocity = elapsed > maxElapsed ? 0 : velocityPerSecond(axis.current - prev, elapsed);
+}
+function updateScrollInfo(element, info, time2) {
+  updateAxisInfo(element, "x", info, time2);
+  updateAxisInfo(element, "y", info, time2);
+  info.time = time2;
+}
+function calcInset(element, container) {
+  const inset = { x: 0, y: 0 };
+  let current2 = element;
+  while (current2 && current2 !== container) {
+    if (isHTMLElement(current2)) {
+      inset.x += current2.offsetLeft;
+      inset.y += current2.offsetTop;
+      current2 = current2.offsetParent;
+    } else if (current2.tagName === "svg") {
+      const svgBoundingBox = current2.getBoundingClientRect();
+      current2 = current2.parentElement;
+      const parentBoundingBox = current2.getBoundingClientRect();
+      inset.x += svgBoundingBox.left - parentBoundingBox.left;
+      inset.y += svgBoundingBox.top - parentBoundingBox.top;
+    } else if (current2 instanceof SVGGraphicsElement) {
+      const { x, y } = current2.getBBox();
+      inset.x += x;
+      inset.y += y;
+      let svg = null;
+      let parent = current2.parentNode;
+      while (!svg) {
+        if (parent.tagName === "svg") {
+          svg = parent;
+        }
+        parent = current2.parentNode;
+      }
+      current2 = svg;
+    } else {
+      break;
+    }
+  }
+  return inset;
+}
+const namedEdges = {
+  start: 0,
+  center: 0.5,
+  end: 1
+};
+function resolveEdge(edge, length, inset = 0) {
+  let delta = 0;
+  if (edge in namedEdges) {
+    edge = namedEdges[edge];
+  }
+  if (typeof edge === "string") {
+    const asNumber2 = parseFloat(edge);
+    if (edge.endsWith("px")) {
+      delta = asNumber2;
+    } else if (edge.endsWith("%")) {
+      edge = asNumber2 / 100;
+    } else if (edge.endsWith("vw")) {
+      delta = asNumber2 / 100 * document.documentElement.clientWidth;
+    } else if (edge.endsWith("vh")) {
+      delta = asNumber2 / 100 * document.documentElement.clientHeight;
+    } else {
+      edge = asNumber2;
+    }
+  }
+  if (typeof edge === "number") {
+    delta = length * edge;
+  }
+  return inset + delta;
+}
+const defaultOffset = [0, 0];
+function resolveOffset(offset, containerLength, targetLength, targetInset) {
+  let offsetDefinition = Array.isArray(offset) ? offset : defaultOffset;
+  let targetPoint = 0;
+  let containerPoint = 0;
+  if (typeof offset === "number") {
+    offsetDefinition = [offset, offset];
+  } else if (typeof offset === "string") {
+    offset = offset.trim();
+    if (offset.includes(" ")) {
+      offsetDefinition = offset.split(" ");
+    } else {
+      offsetDefinition = [offset, namedEdges[offset] ? offset : `0`];
+    }
+  }
+  targetPoint = resolveEdge(offsetDefinition[0], targetLength, targetInset);
+  containerPoint = resolveEdge(offsetDefinition[1], containerLength);
+  return targetPoint - containerPoint;
+}
+const ScrollOffset = {
+  All: [
+    [0, 0],
+    [1, 1]
+  ]
+};
+const point = { x: 0, y: 0 };
+function getTargetSize(target) {
+  return "getBBox" in target && target.tagName !== "svg" ? target.getBBox() : { width: target.clientWidth, height: target.clientHeight };
+}
+function resolveOffsets(container, info, options) {
+  const { offset: offsetDefinition = ScrollOffset.All } = options;
+  const { target = container, axis = "y" } = options;
+  const lengthLabel = axis === "y" ? "height" : "width";
+  const inset = target !== container ? calcInset(target, container) : point;
+  const targetSize = target === container ? { width: container.scrollWidth, height: container.scrollHeight } : getTargetSize(target);
+  const containerSize = {
+    width: container.clientWidth,
+    height: container.clientHeight
+  };
+  info[axis].offset.length = 0;
+  let hasChanged = !info[axis].interpolate;
+  const numOffsets = offsetDefinition.length;
+  for (let i = 0; i < numOffsets; i++) {
+    const offset = resolveOffset(offsetDefinition[i], containerSize[lengthLabel], targetSize[lengthLabel], inset[axis]);
+    if (!hasChanged && offset !== info[axis].interpolatorOffsets[i]) {
+      hasChanged = true;
+    }
+    info[axis].offset[i] = offset;
+  }
+  if (hasChanged) {
+    info[axis].interpolate = interpolate(info[axis].offset, defaultOffset$1(offsetDefinition), { clamp: false });
+    info[axis].interpolatorOffsets = [...info[axis].offset];
+  }
+  info[axis].progress = clamp(0, 1, info[axis].interpolate(info[axis].current));
+}
+function measure(container, target = container, info) {
+  info.x.targetOffset = 0;
+  info.y.targetOffset = 0;
+  if (target !== container) {
+    let node = target;
+    while (node && node !== container) {
+      info.x.targetOffset += node.offsetLeft;
+      info.y.targetOffset += node.offsetTop;
+      node = node.offsetParent;
+    }
+  }
+  info.x.targetLength = target === container ? target.scrollWidth : target.clientWidth;
+  info.y.targetLength = target === container ? target.scrollHeight : target.clientHeight;
+  info.x.containerLength = container.clientWidth;
+  info.y.containerLength = container.clientHeight;
+}
+function createOnScrollHandler(element, onScroll, info, options = {}) {
+  return {
+    measure: (time2) => {
+      measure(element, options.target, info);
+      updateScrollInfo(element, info, time2);
+      if (options.offset || options.target) {
+        resolveOffsets(element, info, options);
+      }
+    },
+    notify: () => onScroll(info)
+  };
+}
+const scrollListeners = /* @__PURE__ */ new WeakMap();
+const resizeListeners = /* @__PURE__ */ new WeakMap();
+const onScrollHandlers = /* @__PURE__ */ new WeakMap();
+const getEventTarget = (element) => element === document.scrollingElement ? window : element;
+function scrollInfo(onScroll, { container = document.scrollingElement, ...options } = {}) {
+  if (!container)
+    return noop;
+  let containerHandlers = onScrollHandlers.get(container);
+  if (!containerHandlers) {
+    containerHandlers = /* @__PURE__ */ new Set();
+    onScrollHandlers.set(container, containerHandlers);
+  }
+  const info = createScrollInfo();
+  const containerHandler = createOnScrollHandler(container, onScroll, info, options);
+  containerHandlers.add(containerHandler);
+  if (!scrollListeners.has(container)) {
+    const measureAll = () => {
+      for (const handler of containerHandlers) {
+        handler.measure(frameData.timestamp);
+      }
+      frame.preUpdate(notifyAll2);
+    };
+    const notifyAll2 = () => {
+      for (const handler of containerHandlers) {
+        handler.notify();
+      }
+    };
+    const listener2 = () => frame.read(measureAll);
+    scrollListeners.set(container, listener2);
+    const target = getEventTarget(container);
+    window.addEventListener("resize", listener2, { passive: true });
+    if (container !== document.documentElement) {
+      resizeListeners.set(container, resize(container, listener2));
+    }
+    target.addEventListener("scroll", listener2, { passive: true });
+    listener2();
+  }
+  const listener = scrollListeners.get(container);
+  frame.read(listener, false, true);
+  return () => {
+    var _a;
+    cancelFrame(listener);
+    const currentHandlers = onScrollHandlers.get(container);
+    if (!currentHandlers)
+      return;
+    currentHandlers.delete(containerHandler);
+    if (currentHandlers.size)
+      return;
+    const scrollListener = scrollListeners.get(container);
+    scrollListeners.delete(container);
+    if (scrollListener) {
+      getEventTarget(container).removeEventListener("scroll", scrollListener);
+      (_a = resizeListeners.get(container)) == null ? void 0 : _a();
+      window.removeEventListener("resize", scrollListener);
+    }
+  };
+}
+const timelineCache = /* @__PURE__ */ new Map();
+function scrollTimelineFallback(options) {
+  const currentTime = { value: 0 };
+  const cancel = scrollInfo((info) => {
+    currentTime.value = info[options.axis].progress * 100;
+  }, options);
+  return { currentTime, cancel };
+}
+function getTimeline({ source, container, ...options }) {
+  const { axis } = options;
+  if (source)
+    container = source;
+  const containerCache = timelineCache.get(container) ?? /* @__PURE__ */ new Map();
+  timelineCache.set(container, containerCache);
+  const targetKey = options.target ?? "self";
+  const targetCache = containerCache.get(targetKey) ?? {};
+  const axisKey = axis + (options.offset ?? []).join(",");
+  if (!targetCache[axisKey]) {
+    targetCache[axisKey] = !options.target && supportsScrollTimeline() ? new ScrollTimeline({ source: container, axis }) : scrollTimelineFallback({ container, ...options });
+  }
+  return targetCache[axisKey];
+}
+function attachToAnimation(animation, options) {
+  const timeline = getTimeline(options);
+  return animation.attachTimeline({
+    timeline: options.target ? void 0 : timeline,
+    observe: (valueAnimation) => {
+      valueAnimation.pause();
+      return observeTimeline((progress2) => {
+        valueAnimation.time = valueAnimation.duration * progress2;
+      }, timeline);
+    }
+  });
+}
+function isOnScrollWithInfo(onScroll) {
+  return onScroll.length === 2;
+}
+function attachToFunction(onScroll, options) {
+  if (isOnScrollWithInfo(onScroll)) {
+    return scrollInfo((info) => {
+      onScroll(info[options.axis].progress, info);
+    }, options);
+  } else {
+    return observeTimeline(onScroll, getTimeline(options));
+  }
+}
+function scroll(onScroll, { axis = "y", container = document.scrollingElement, ...options } = {}) {
+  if (!container)
+    return noop;
+  const optionsWithDefaults = { axis, container, ...options };
+  return typeof onScroll === "function" ? attachToFunction(onScroll, optionsWithDefaults) : attachToAnimation(onScroll, optionsWithDefaults);
+}
+const createScrollMotionValues = () => ({
+  scrollX: motionValue(0),
+  scrollY: motionValue(0),
+  scrollXProgress: motionValue(0),
+  scrollYProgress: motionValue(0)
+});
+const isRefPending = (ref) => {
+  if (!ref)
+    return false;
+  return !ref.current;
+};
+function useScroll({ container, target, ...options } = {}) {
+  const values = useConstant(createScrollMotionValues);
+  const scrollAnimation = reactExports.useRef(null);
+  const needsStart = reactExports.useRef(false);
+  const start = reactExports.useCallback(() => {
+    scrollAnimation.current = scroll((_progress, { x, y }) => {
+      values.scrollX.set(x.current);
+      values.scrollXProgress.set(x.progress);
+      values.scrollY.set(y.current);
+      values.scrollYProgress.set(y.progress);
+    }, {
+      ...options,
+      container: (container == null ? void 0 : container.current) || void 0,
+      target: (target == null ? void 0 : target.current) || void 0
+    });
+    return () => {
+      var _a;
+      (_a = scrollAnimation.current) == null ? void 0 : _a.call(scrollAnimation);
+    };
+  }, [container, target, JSON.stringify(options.offset)]);
+  useIsomorphicLayoutEffect(() => {
+    needsStart.current = false;
+    if (isRefPending(container) || isRefPending(target)) {
+      needsStart.current = true;
+      return;
+    } else {
+      return start();
+    }
+  }, [start]);
+  reactExports.useEffect(() => {
+    if (needsStart.current) {
+      invariant(!isRefPending(container));
+      invariant(!isRefPending(target));
+      return start();
+    } else {
+      return;
+    }
+  }, [start]);
+  return values;
+}
+function useMotionValue(initial) {
+  const value = useConstant(() => motionValue(initial));
+  const { isStatic } = reactExports.useContext(MotionConfigContext);
+  if (isStatic) {
+    const [, setLatest] = reactExports.useState(initial);
+    reactExports.useEffect(() => value.on("change", setLatest), []);
+  }
+  return value;
+}
+function useCombineMotionValues(values, combineValues) {
+  const value = useMotionValue(combineValues());
+  const updateValue = () => value.set(combineValues());
+  updateValue();
+  useIsomorphicLayoutEffect(() => {
+    const scheduleUpdate = () => frame.preRender(updateValue, false, true);
+    const subscriptions = values.map((v) => v.on("change", scheduleUpdate));
+    return () => {
+      subscriptions.forEach((unsubscribe) => unsubscribe());
+      cancelFrame(updateValue);
+    };
+  });
+  return value;
+}
+function useComputed(compute) {
+  collectMotionValues.current = [];
+  compute();
+  const value = useCombineMotionValues(collectMotionValues.current, compute);
+  collectMotionValues.current = void 0;
+  return value;
+}
+function useTransform(input, inputRangeOrTransformer, outputRange, options) {
+  if (typeof input === "function") {
+    return useComputed(input);
+  }
+  const transformer = typeof inputRangeOrTransformer === "function" ? inputRangeOrTransformer : transform(inputRangeOrTransformer, outputRange, options);
+  return Array.isArray(input) ? useListTransform(input, transformer) : useListTransform([input], ([latest2]) => transformer(latest2));
+}
+function useListTransform(values, transformer) {
+  const latest2 = useConstant(() => []);
+  return useCombineMotionValues(values, () => {
+    latest2.length = 0;
+    const numValues = values.length;
+    for (let i = 0; i < numValues; i++) {
+      latest2[i] = values[i].get();
+    }
+    return transformer(latest2);
+  });
+}
+function useSpring(source, options = {}) {
+  const { isStatic } = reactExports.useContext(MotionConfigContext);
+  const getFromSource = () => isMotionValue(source) ? source.get() : source;
+  if (isStatic) {
+    return useTransform(getFromSource);
+  }
+  const value = useMotionValue(getFromSource());
+  reactExports.useInsertionEffect(() => {
+    return attachSpring(value, source, options);
+  }, [value, JSON.stringify(options)]);
+  return value;
+}
 const AnimatedGroup = ({ children, className = "", delay: delay2 = 0 }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
   motion.div,
   {
@@ -32826,7 +33638,7 @@ const AvatarWizardScreen = () => {
       };
       localStorage.setItem(personalityKey, JSON.stringify(initialPersonality));
       __vitePreload(async () => {
-        const { showAvatarCreatedToast, showSuccessToast } = await import("./toastUtils-Djb6gB-7.js");
+        const { showAvatarCreatedToast, showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
         return { showAvatarCreatedToast, showSuccessToast };
       }, true ? [] : void 0).then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(safeValues.name);
@@ -32864,7 +33676,7 @@ const AvatarWizardScreen = () => {
       });
       setGeneratedImageUrl(result.imageUrl);
       __vitePreload(async () => {
-        const { showSuccessToast } = await import("./toastUtils-Djb6gB-7.js");
+        const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
         return { showSuccessToast };
       }, true ? [] : void 0).then(({ showSuccessToast }) => {
         showSuccessToast("🎨 Avatar-Bild wurde erfolgreich generiert!");
@@ -32872,7 +33684,7 @@ const AvatarWizardScreen = () => {
     } catch (error) {
       console.error("Error generating avatar image:", error);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-Djb6gB-7.js");
+        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.");
@@ -33196,6 +34008,35 @@ const EditAvatarScreen = () => {
       setSaving(false);
     }
   };
+  const handleAnalyzeExistingImage = async () => {
+    if (!avatar2 || !avatarId || !avatar2.imageUrl) {
+      alert("Kein Bild vorhanden zum Analysieren.");
+      return;
+    }
+    try {
+      setRegeneratingImage(true);
+      console.log("🔬 Analyzing existing avatar image...");
+      const analysis = await backend.ai.analyzeAvatarImage({
+        imageUrl: avatar2.imageUrl,
+        hints: {
+          name,
+          personalityTraits
+        }
+      });
+      const newVisualProfile = analysis.visualProfile;
+      await backend.avatar.update(avatarId, {
+        visualProfile: newVisualProfile
+      });
+      setAvatar((prev) => prev ? { ...prev, visualProfile: newVisualProfile } : null);
+      alert("Bild erfolgreich analysiert und visuelles Profil gespeichert! 🎨");
+      console.log("✅ Visual profile updated:", newVisualProfile);
+    } catch (error) {
+      console.error("Error analyzing avatar image:", error);
+      alert("Fehler beim Analysieren des Bildes. Bitte versuche es erneut.");
+    } finally {
+      setRegeneratingImage(false);
+    }
+  };
   const handleRegenerateImage = async () => {
     if (!avatar2 || !avatarId) return;
     try {
@@ -33243,12 +34084,12 @@ const EditAvatarScreen = () => {
     persistence: { label: "Ausdauer", icon: "🧗", color: colors.teal },
     logic: { label: "Logik", icon: "🔢", color: colors.purple }
   };
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
     background: colors.appBackground,
     paddingBottom: "120px"
   };
-  const headerStyle = {
+  const headerStyle2 = {
     background: colors.glass.navBackground,
     border: `1px solid ${colors.glass.border}`,
     padding: `${spacing.lg}px`,
@@ -33321,7 +34162,7 @@ const EditAvatarScreen = () => {
     boxShadow: shadows.lg
   };
   if (loading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...containerStyle, display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...containerStyle2, display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
         width: "48px",
         height: "48px",
@@ -33335,7 +34176,7 @@ const EditAvatarScreen = () => {
     ] }) });
   }
   if (!avatar2) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerContentStyle, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerContentStyle, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
@@ -33347,8 +34188,8 @@ const EditAvatarScreen = () => {
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: titleStyle, children: "Avatar nicht gefunden" })
     ] }) }) });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerContentStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerContentStyle, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
@@ -33469,6 +34310,18 @@ const EditAvatarScreen = () => {
           }
         )
       ] }) }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 350, children: avatar2.imageUrl && !avatar2.visualProfile && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: `${spacing.lg}px`, padding: `${spacing.md}px`, background: colors.warning + "20", borderRadius: `${radii.md}px`, border: `1px solid ${colors.warning}` }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.warning, marginBottom: `${spacing.sm}px` }, children: "⚠️ Kein visuelles Profil vorhanden! Bild analysieren, um konsistente Darstellung in Geschichten zu gewährleisten." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: "🔬 Bild analysieren",
+            onPress: handleAnalyzeExistingImage,
+            loading: regeneratingImage,
+            variant: "warning"
+          }
+        )
+      ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 400, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: spacing.lg }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
@@ -33838,7 +34691,7 @@ const AvatarsScreen = () => {
   const handleDeleteAvatar = async (avatar2) => {
     try {
       console.log(`Deleting avatar: ${avatar2.name} (ID: ${avatar2.id})`);
-      await backend.avatar.deleteAvatar(avatar2.id);
+      await backend.avatar.deleteAvatar({ id: avatar2.id });
       console.log(`Successfully deleted avatar: ${avatar2.name}`);
       await loadAvatars();
     } catch (error) {
@@ -33846,9 +34699,9 @@ const AvatarsScreen = () => {
       alert(`Fehler beim Löschen von "${avatar2.name}". Bitte versuche es später erneut.`);
     }
   };
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
-    background: colors.appBackground,
+    background: colors.background.primary,
     paddingBottom: "120px",
     position: "relative"
   };
@@ -33859,14 +34712,14 @@ const AvatarsScreen = () => {
     borderRadius: "50%",
     transform: "translate(-50%, -50%)"
   };
-  const headerStyle = {
+  const headerStyle2 = {
     padding: `${spacing.xl}px`,
     marginBottom: `${spacing.lg}px`
   };
   const headerCardStyle = {
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
-    background: colors.glass.heroBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     boxShadow: colors.glass.shadowStrong,
     backdropFilter: "blur(18px) saturate(160%)",
@@ -33875,7 +34728,7 @@ const AvatarsScreen = () => {
   };
   const titleStyle = {
     ...typography.textStyles.displayLg,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     marginBottom: spacing.sm,
     textShadow: "0 1px 1px rgba(255,255,255,0.35)",
     display: "flex",
@@ -33884,7 +34737,7 @@ const AvatarsScreen = () => {
   };
   const subtitleStyle = {
     ...typography.textStyles.body,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: "18px"
   };
   const newAvatarButtonStyle = {
@@ -33906,18 +34759,18 @@ const AvatarsScreen = () => {
     padding: `${spacing.xxl}px`
   };
   if (loading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: loadingStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
           width: "60px",
           height: "60px",
           border: `4px solid rgba(255,255,255,0.6)`,
-          borderTop: `4px solid ${colors.primary}`,
+          borderTop: `4px solid ${colors.primary[500]}`,
           borderRadius: "50%",
           animation: "spin 1s linear infinite",
           margin: `0 auto ${spacing.lg}px auto`
         } }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.textSecondary, fontSize: "18px" }, children: "Lade deine Avatare... ✨" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary, fontSize: "18px" }, children: "Lade deine Avatare... ✨" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
           @keyframes spin {
@@ -33927,12 +34780,12 @@ const AvatarsScreen = () => {
         ` })
     ] });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: gradients.primary } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: gradients.cool } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 240, height: 240, bottom: -40, left: "50%", background: gradients.warm } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(SignedOut, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center", padding: `${spacing.xxxl}px ${spacing.xl}px` }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayLg, color: colors.textPrimary, marginBottom: spacing.md }, children: "Melde dich an, um deine Avatare zu sehen" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }, children: "Melde dich an, um deine Avatare zu sehen" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 200, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
         Button,
         {
@@ -33944,9 +34797,9 @@ const AvatarsScreen = () => {
       ) })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(SignedIn, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerCardStyle, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerCardStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: titleStyle, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(User, { size: 36, style: { color: colors.primary } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(User, { size: 36, style: { color: colors.primary[500] } }),
           "Deine Avatare"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: subtitleStyle, children: [
@@ -33966,8 +34819,8 @@ const AvatarsScreen = () => {
       ] }) }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: contentStyle, children: avatars.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: emptyStateStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: "64px", marginBottom: `${spacing.lg}px` }, children: "👤" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }, children: "Noch keine Avatare" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: "16px" }, children: "Erstelle deinen ersten Avatar, um loszulegen!" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }, children: "Noch keine Avatare" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: "16px" }, children: "Erstelle deinen ersten Avatar, um loszulegen!" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
           {
@@ -35367,9 +36220,11 @@ const StoryParametersStep = ({
   length,
   complexity,
   ageGroup,
+  aiModel,
   onLengthChange,
   onComplexityChange,
-  onAgeGroupChange
+  onAgeGroupChange,
+  onAiModelChange
 }) => {
   const lengthOptions = [
     { key: "short", label: "Kurz", icon: "📄", description: "3-5 Kapitel, ~10 Min." },
@@ -35386,6 +36241,16 @@ const StoryParametersStep = ({
     { key: "6-8", label: "6-8 Jahre", icon: "🎒", description: "Grundschulkinder" },
     { key: "9-12", label: "9-12 Jahre", icon: "📝", description: "Schulkinder" },
     { key: "13+", label: "13+ Jahre", icon: "🎓", description: "Jugendliche" }
+  ];
+  const aiModelOptions = [
+    { key: "gpt-5-nano", label: "GPT-5 Nano", icon: "⚡", description: "$0.05/1M - Schnell & günstig", cost: "$0.05" },
+    { key: "gpt-5-mini", label: "GPT-5 Mini", icon: "✨", description: "$0.25/1M - Empfohlen", cost: "$0.25", recommended: true },
+    { key: "gpt-5", label: "GPT-5", icon: "🌟", description: "$1.25/1M - Beste Qualität", cost: "$1.25" },
+    { key: "gpt-4.1-nano", label: "GPT-4.1 Nano", icon: "🔷", description: "$0.20/1M - Sehr günstig", cost: "$0.20" },
+    { key: "gpt-4.1-mini", label: "GPT-4.1 Mini", icon: "💎", description: "$0.80/1M - GPT-4 Qualität", cost: "$0.80" },
+    { key: "gpt-4.1", label: "GPT-4.1", icon: "💠", description: "$3.00/1M - Premium", cost: "$3.00" },
+    { key: "o4-mini", label: "o4 Mini", icon: "🎯", description: "$4.00/1M - Reasoning", cost: "$4.00" },
+    { key: "gpt-5-pro", label: "GPT-5 Pro", icon: "👑", description: "$15/1M - Höchste Qualität", cost: "$15.00" }
   ];
   const renderParameterSection = (title, subtitle, options, selectedValue, onSelect, delay2) => /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: delay2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "elevated", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-bold text-gray-800 text-center mb-2", children: title }),
@@ -35427,7 +36292,24 @@ const StoryParametersStep = ({
       ageGroup,
       onAgeGroupChange,
       300
-    )
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 400, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "elevated", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-bold text-gray-800 text-center mb-2", children: "🤖 AI Model" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-center mb-6", children: "Wähle das KI-Modell für die Story-Generierung" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: aiModelOptions.map((option, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 450 + index * 30, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => onAiModelChange(option.key),
+          className: `p-3 rounded-lg border-2 transition-colors text-center relative ${aiModel === option.key ? "border-purple-500 bg-purple-50" : "border-gray-300 hover:border-purple-300"}`,
+          children: [
+            option.recommended && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-1 right-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded", children: "⭐" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl mb-1 block", children: option.icon }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: `font-semibold text-xs mb-1 ${aiModel === option.key ? "text-purple-700" : "text-gray-800"}`, children: option.label }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: `text-xs ${aiModel === option.key ? "text-purple-600" : "text-gray-600"}`, children: option.description })
+          ]
+        }
+      ) }, option.key)) })
+    ] }) })
   ] });
 };
 const LearningModeStep = ({
@@ -35592,10 +36474,701 @@ const LearningModeStep = ({
     ] })
   ] });
 };
+function cn(...inputs) {
+  return inputs.filter(Boolean).join(" ");
+}
+const StepperContext = reactExports.createContext(void 0);
+const StepItemContext = reactExports.createContext(void 0);
+function useStepper() {
+  const ctx = reactExports.useContext(StepperContext);
+  if (!ctx) throw new Error("useStepper must be used within a Stepper");
+  return ctx;
+}
+function useStepItem() {
+  const ctx = reactExports.useContext(StepItemContext);
+  if (!ctx) throw new Error("useStepItem must be used within a StepperItem");
+  return ctx;
+}
+function Stepper({
+  defaultValue = 1,
+  value,
+  onValueChange,
+  orientation = "horizontal",
+  className,
+  children,
+  indicators = {},
+  ...props
+}) {
+  const [activeStep, setActiveStep] = reactExports.useState(defaultValue);
+  const [triggerNodes, setTriggerNodes] = reactExports.useState([]);
+  const registerTrigger = reactExports.useCallback((node) => {
+    setTriggerNodes((prev) => {
+      if (node && !prev.includes(node)) {
+        return [...prev, node];
+      } else if (!node && prev.includes(node)) {
+        return prev.filter((n) => n !== node);
+      } else {
+        return prev;
+      }
+    });
+  }, []);
+  const handleSetActiveStep = reactExports.useCallback(
+    (step) => {
+      if (value === void 0) {
+        setActiveStep(step);
+      }
+      onValueChange == null ? void 0 : onValueChange(step);
+    },
+    [value, onValueChange]
+  );
+  const currentStep = value ?? activeStep;
+  const focusTrigger = (idx) => {
+    if (triggerNodes[idx]) triggerNodes[idx].focus();
+  };
+  const focusNext = (currentIdx) => focusTrigger((currentIdx + 1) % triggerNodes.length);
+  const focusPrev = (currentIdx) => focusTrigger((currentIdx - 1 + triggerNodes.length) % triggerNodes.length);
+  const focusFirst = () => focusTrigger(0);
+  const focusLast = () => focusTrigger(triggerNodes.length - 1);
+  const contextValue = reactExports.useMemo(
+    () => ({
+      activeStep: currentStep,
+      setActiveStep: handleSetActiveStep,
+      stepsCount: reactExports.Children.toArray(children).filter(
+        (child) => reactExports.isValidElement(child) && child.type.displayName === "StepperItem"
+      ).length,
+      orientation,
+      registerTrigger,
+      focusNext,
+      focusPrev,
+      focusFirst,
+      focusLast,
+      triggerNodes,
+      indicators
+    }),
+    [currentStep, handleSetActiveStep, children, orientation, registerTrigger, triggerNodes]
+  );
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(StepperContext.Provider, { value: contextValue, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      role: "tablist",
+      "aria-orientation": orientation,
+      "data-slot": "stepper",
+      className: cn("w-full", className),
+      "data-orientation": orientation,
+      ...props,
+      children
+    }
+  ) });
+}
+function StepperItem({
+  step,
+  completed = false,
+  disabled = false,
+  loading = false,
+  className,
+  children,
+  ...props
+}) {
+  const { activeStep } = useStepper();
+  const state = completed || step < activeStep ? "completed" : activeStep === step ? "active" : "inactive";
+  const isLoading = loading && step === activeStep;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(StepItemContext.Provider, { value: { step, state, isDisabled: disabled, isLoading }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      "data-slot": "stepper-item",
+      className: cn(
+        "group/step flex items-center justify-center group-data-[orientation=horizontal]/stepper-nav:flex-row group-data-[orientation=vertical]/stepper-nav:flex-col not-last:flex-1",
+        className
+      ),
+      "data-state": state,
+      ...isLoading ? { "data-loading": true } : {},
+      ...props,
+      children
+    }
+  ) });
+}
+StepperItem.displayName = "StepperItem";
+function StepperTrigger({ asChild = false, className, children, tabIndex, ...props }) {
+  const { state, isLoading } = useStepItem();
+  const stepperCtx = useStepper();
+  const { setActiveStep, activeStep, registerTrigger, triggerNodes, focusNext, focusPrev, focusFirst, focusLast } = stepperCtx;
+  const { step, isDisabled } = useStepItem();
+  const isSelected = activeStep === step;
+  const id2 = `stepper-tab-${step}`;
+  const panelId = `stepper-panel-${step}`;
+  const btnRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    if (btnRef.current) {
+      registerTrigger(btnRef.current);
+    }
+  }, [btnRef.current]);
+  const myIdx = reactExports.useMemo(
+    () => triggerNodes.findIndex((n) => n === btnRef.current),
+    [triggerNodes, btnRef.current]
+  );
+  const handleKeyDown = (e) => {
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        e.preventDefault();
+        if (myIdx !== -1 && focusNext) focusNext(myIdx);
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        e.preventDefault();
+        if (myIdx !== -1 && focusPrev) focusPrev(myIdx);
+        break;
+      case "Home":
+        e.preventDefault();
+        if (focusFirst) focusFirst();
+        break;
+      case "End":
+        e.preventDefault();
+        if (focusLast) focusLast();
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        setActiveStep(step);
+        break;
+    }
+  };
+  if (asChild) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { "data-slot": "stepper-trigger", "data-state": state, className, children });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "button",
+    {
+      ref: btnRef,
+      role: "tab",
+      id: id2,
+      "aria-selected": isSelected,
+      "aria-controls": panelId,
+      tabIndex: typeof tabIndex === "number" ? tabIndex : isSelected ? 0 : -1,
+      "data-slot": "stepper-trigger",
+      "data-state": state,
+      "data-loading": isLoading,
+      className: cn(
+        "cursor-pointer focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center gap-3 rounded-full outline-none focus-visible:z-10 focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-60",
+        className
+      ),
+      onClick: () => setActiveStep(step),
+      onKeyDown: handleKeyDown,
+      disabled: isDisabled,
+      ...props,
+      children
+    }
+  );
+}
+function StepperIndicator({ children, className }) {
+  const { state, isLoading } = useStepItem();
+  const { indicators } = useStepper();
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      "data-slot": "stepper-indicator",
+      "data-state": state,
+      className: cn(
+        "relative flex items-center overflow-hidden justify-center size-6 shrink-0 border-background bg-accent text-accent-foreground rounded-full text-xs data-[state=completed]:bg-primary data-[state=completed]:text-primary-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
+        className
+      ),
+      children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute", children: indicators && (isLoading && indicators.loading || state === "completed" && indicators.completed || state === "active" && indicators.active || state === "inactive" && indicators.inactive) ? isLoading && indicators.loading || state === "completed" && indicators.completed || state === "active" && indicators.active || state === "inactive" && indicators.inactive : children })
+    }
+  );
+}
+function StepperSeparator({ className }) {
+  const { state } = useStepItem();
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      "data-slot": "stepper-separator",
+      "data-state": state,
+      className: cn(
+        "m-0.5 rounded-full bg-muted group-data-[orientation=vertical]/stepper-nav:h-12 group-data-[orientation=vertical]/stepper-nav:w-0.5 group-data-[orientation=horizontal]/stepper-nav:h-0.5 group-data-[orientation=horizontal]/stepper-nav:flex-1",
+        className
+      )
+    }
+  );
+}
+function StepperTitle({ children, className }) {
+  const { state } = useStepItem();
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { "data-slot": "stepper-title", "data-state": state, className: cn("text-sm font-medium leading-none", className), children });
+}
+function StepperDescription({ children, className }) {
+  const { state } = useStepItem();
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { "data-slot": "stepper-description", "data-state": state, className: cn("text-sm text-muted-foreground", className), children });
+}
+function StepperNav({ children, className }) {
+  const { activeStep, orientation } = useStepper();
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "nav",
+    {
+      "data-slot": "stepper-nav",
+      "data-state": activeStep,
+      "data-orientation": orientation,
+      className: cn(
+        "group/stepper-nav inline-flex data-[orientation=horizontal]:w-full data-[orientation=horizontal]:flex-row data-[orientation=vertical]:flex-col",
+        className
+      ),
+      children
+    }
+  );
+}
+const STEP_CONFIG = {
+  profiles: {
+    step: 1,
+    icon: Users,
+    title: "Avatar-Profile laden",
+    description: "Lade visuelle Profile und Eigenschaften",
+    estimatedTime: "2-3 Sek"
+  },
+  memories: {
+    step: 2,
+    icon: Brain,
+    title: "Erinnerungen abrufen",
+    description: "Sammle Erlebnisse und Persönlichkeitsentwicklung",
+    estimatedTime: "2-3 Sek"
+  },
+  text: {
+    step: 3,
+    icon: FileText,
+    title: "Story-Text generieren",
+    description: "KI schreibt die Geschichte mit allen Kapiteln",
+    estimatedTime: "25-30 Sek"
+  },
+  validation: {
+    step: 4,
+    icon: CircleCheckBig,
+    title: "Story validieren",
+    description: "Prüfe Struktur und Konsistenz",
+    estimatedTime: "2-3 Sek"
+  },
+  images: {
+    step: 5,
+    icon: Image,
+    title: "Bilder generieren",
+    description: "Erstelle Cover und Kapitelbilder",
+    estimatedTime: "40-50 Sek"
+  },
+  complete: {
+    step: 6,
+    icon: Sparkles,
+    title: "Fertigstellen",
+    description: "Speichere Story und aktualisiere Avatare",
+    estimatedTime: "2-3 Sek"
+  }
+};
+const STEP_ORDER = ["profiles", "memories", "text", "validation", "images", "complete"];
+function StoryGenerationProgress({ currentStep, className }) {
+  const currentStepNumber = STEP_CONFIG[currentStep].step;
+  const totalSteps = STEP_ORDER.length;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      Stepper,
+      {
+        value: currentStepNumber,
+        orientation: "vertical",
+        className: "w-full",
+        indicators: {
+          completed: /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "size-4" }),
+          loading: /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "size-4 animate-spin" })
+        },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx(StepperNav, { className: "w-full", children: STEP_ORDER.map((stepKey, index) => {
+          const config2 = STEP_CONFIG[stepKey];
+          const Icon2 = config2.icon;
+          const isLast = index === totalSteps - 1;
+          const isLoading = config2.step === currentStepNumber;
+          const isCompleted = config2.step < currentStepNumber;
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            StepperItem,
+            {
+              step: config2.step,
+              loading: isLoading,
+              completed: isCompleted,
+              className: "w-full",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(StepperTrigger, { className: "w-full justify-start p-4 rounded-lg hover:bg-accent/50 transition-colors", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(StepperIndicator, { className: "data-[state=completed]:bg-green-500 data-[state=completed]:text-white data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-gray-200 data-[state=inactive]:text-gray-500 size-8", children: !isLoading && !isCompleted && /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { className: "size-4" }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 text-left ml-3", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(StepperTitle, { className: "text-base font-semibold", children: config2.title }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(StepperDescription, { className: "text-sm mt-1", children: config2.description }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-muted-foreground mt-1 flex items-center gap-2", children: [
+                      isLoading && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "size-3 animate-spin" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Läuft gerade..." })
+                      ] }),
+                      !isLoading && !isCompleted && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+                        "~",
+                        config2.estimatedTime
+                      ] }),
+                      isCompleted && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 dark:text-green-400 font-medium", children: "✓ Abgeschlossen" })
+                    ] })
+                  ] })
+                ] }),
+                !isLast && /* @__PURE__ */ jsxRuntimeExports.jsx(StepperSeparator, { className: "ml-8 group-data-[state=completed]/step:bg-green-500" })
+              ]
+            },
+            stepKey
+          );
+        }) })
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-6 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-sm", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "size-4 text-blue-600 dark:text-blue-400" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-blue-900 dark:text-blue-100", children: "Geschätzte Gesamtdauer: 75-90 Sekunden" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-blue-700 dark:text-blue-300 mt-1", children: "Die längste Phase ist die Bildgenerierung. Bitte hab etwas Geduld! 🎨" })
+    ] })
+  ] });
+}
+const STORY_SOUL_OPTIONS = [
+  {
+    key: "maerchenzauber",
+    label: "Maerchenzauber",
+    tagline: "Zeitlos-magisch und herzlich",
+    description: "Es-war-einmal Stimmung, warme Atmosphaere, sanfte Spannung."
+  },
+  {
+    key: "lieder_reime",
+    label: "Lieder & Reime",
+    tagline: "Rhythmisch, spielerisch, musikalisch",
+    description: "Leichte Reime, wiederkehrende Phrasen, ideal zum Mitsprechen."
+  },
+  {
+    key: "wilder_ritt",
+    label: "Wilder Ritt",
+    tagline: "Actionreich und voller Humor",
+    description: "Schnelles Tempo, mutige Entscheidungen, freche Energie."
+  },
+  {
+    key: "traeumerei",
+    label: "Traeumerei",
+    tagline: "Poetisch und beruhigend",
+    description: "Schwebende Bilder, leise Dialoge, sanfte Gefuehle."
+  },
+  {
+    key: "heldenmut",
+    label: "Heldenmut",
+    tagline: "Epische Kinderquests",
+    description: "Mut, Teamgeist und triumphierende Wendungen."
+  },
+  {
+    key: "entdeckergeist",
+    label: "Entdeckergeist",
+    tagline: "Neugierig und erfinderisch",
+    description: "Forscherdrang, clevere Ideen, Abenteuerlust."
+  }
+];
+const STYLE_PRESET_OPTIONS = [
+  { key: "rhymed_playful", label: "Rhythmisch spielerisch (Grueffelo)", description: "Gereimte Wendungen, Call-and-Response, humorvoll." },
+  { key: "gentle_minimal", label: "Sanft minimalistisch (Raupe Nimmersatt)", description: "Wiederholung, klare Struktur, beruhigend." },
+  { key: "wild_imaginative", label: "Wild fantasievoll (Wilde Kerle)", description: "Rebellische Imagination, sichere Grenzen." },
+  { key: "philosophical_warm", label: "Warm nachdenklich (Kleiner Prinz)", description: "Poetische Bilder, kleine Weisheiten." },
+  { key: "mischief_empowering", label: "Schelmisch mutig (Pippi Langstrumpf)", description: "Selbstwirksamkeit, Humor und Herz." },
+  { key: "adventure_epic", label: "Abenteuerlich episch (Harry Potter)", description: "Quest-Gefuehl, Teamspirit, kindgerecht." },
+  { key: "quirky_dark_sweet", label: "Skurril suess (Charlie & Schoko)", description: "Leicht schraeg, immer freundlich." },
+  { key: "cozy_friendly", label: "Gemuetlich freundlich (Winnie Puuh)", description: "Dialogreich, Snacks, Geborgenheit." },
+  { key: "classic_fantasy", label: "Klassische Fantasie (Peter Pan)", description: "Zeitlose Motive, Fliegen, Abenteuer." },
+  { key: "whimsical_logic", label: "Verspielt logisch (Alice)", description: "Logikspiele, Wortwitz, staunende Kinder." },
+  { key: "mythic_allegory", label: "Mythisch sanft (Narnia)", description: "Symbolik, ruhiger Held*innenmut." },
+  { key: "road_fantasy", label: "Reise-Quest (Oz)", description: "Etappenreise, markante Begleiter*innen." },
+  { key: "imaginative_meta", label: "Meta-Fantasie (Unendliche Geschichte)", description: "Geschichten in Geschichten, Fantasiepower." },
+  { key: "pastoral_heart", label: "Natur & Herz (Heidi)", description: "Alpenluft, Herzenswaerme, Gemeinschaft." },
+  { key: "bedtime_soothing", label: "Schlummer-sanft (Gute Nacht, Mond)", description: "Fluesterndes Tempo, Traeume in Pastell." }
+];
+const StoryStyleStep = ({
+  storySoul,
+  stylePreset,
+  allowRhymes,
+  onSelectSoul,
+  onStyleChange
+}) => {
+  var _a;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { variant: "elevated", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-lg font-semibold text-gray-800", children: "Story-Seele" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-sm", children: "Waehle die Grundstimmung deines Bilderbuchs. Sie bestimmt automatisch Ton, Tempo und Grundwuerze." })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4", children: STORY_SOUL_OPTIONS.map((option) => {
+      const selected = storySoul === option.key;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          type: "button",
+          onClick: () => onSelectSoul(option.key),
+          className: `border rounded-lg p-4 text-left transition-all duration-200 ${selected ? "border-purple-500 bg-purple-50 shadow-sm" : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"}`,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-gray-800", children: option.label }),
+              selected && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-purple-600 text-xs font-semibold", children: "ausgewaehlt" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-600 mb-1", children: option.tagline }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-500 leading-relaxed whitespace-pre-line", children: option.description })
+          ]
+        },
+        option.key
+      );
+    }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-t border-gray-200 pt-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "text-md font-semibold text-gray-800", children: "Optional: Stil feinjustieren" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-sm mb-3", children: "Du kannst zusaetzlich einen Stil auswaehlen (z. B. Gruffelo-Rhythmus). Ohne Auswahl bleibt der zur Story-Seele passende Stil aktiv." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          className: "w-full border rounded-lg p-3",
+          value: stylePreset ?? "",
+          onChange: (event) => onStyleChange({ stylePreset: event.target.value ? event.target.value : void 0 }),
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Automatisch (Story-Seele entscheidet)" }),
+            STYLE_PRESET_OPTIONS.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: option.key, children: option.label }, option.key))
+          ]
+        }
+      ),
+      stylePreset && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-500 mt-2", children: (_a = STYLE_PRESET_OPTIONS.find((option) => option.key === stylePreset)) == null ? void 0 : _a.description }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "mt-4 flex items-center gap-2 text-sm text-gray-700", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "checkbox",
+            checked: allowRhymes,
+            onChange: (event) => onStyleChange({ allowRhymes: event.target.checked })
+          }
+        ),
+        "Reime erlauben (besonders fuer Gruffelo-Stimmungen sinnvoll)"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-500", children: "Soul + Stil ergeben zusammen deine einzigartige Bilderbuch-Stimme. Du kannst jederzeit zurueckspringen und anpassen." })
+  ] }) });
+};
+const EMOTIONAL_FLAVOR_OPTIONS = [
+  {
+    key: "warmherzigkeit",
+    label: "Warmherzigkeit",
+    description: "Umarmungen, Trost und sanfte Naehe",
+    effect: "Verstaerkt Herzensmomente, haelt Humor zart."
+  },
+  {
+    key: "lachfreude",
+    label: "Lachfreude",
+    description: "Slapstick, Wortspiele, Schelmerei",
+    effect: "Erhoeht Humor und spritzige Dialoge."
+  },
+  {
+    key: "prickeln",
+    label: "Prickeln",
+    description: "Geheimnisse, kleine Guesel, Spannung",
+    effect: "Hebt das Spannungsniveau merklich an."
+  },
+  {
+    key: "geborgenheit",
+    label: "Geborgenheit",
+    description: "Kuschel-Gefuehl, Sicherheit, Langsamkeit",
+    effect: "Verlangsamt Tempo, macht Szenen sanfter."
+  },
+  {
+    key: "uebermut",
+    label: "Uebermut",
+    description: "Freche Ideen, Quatsch, ausgelassene Energie",
+    effect: "Steigert Humor und schnelle Aktionen."
+  },
+  {
+    key: "staunen",
+    label: "Staunen",
+    description: "Wundersame Entdeckungen, Magisches Leuchten",
+    effect: "Betont neugierige, poetische Momente."
+  },
+  {
+    key: "zusammenhalt",
+    label: "Zusammenhalt",
+    description: "Teamgeist, gemeinsame Loesungen",
+    effect: "Foerdert wir-Gefuehl und freundliche Dialoge."
+  }
+];
+const STORY_TEMPO_OPTIONS = [
+  {
+    key: "cozy",
+    label: "Gemutlich",
+    description: "Ruhiges Tempo, viel Raum fuer Atmosphaere."
+  },
+  {
+    key: "balanced",
+    label: "Ausgewogen",
+    description: "Harmonischer Wechsel aus Ruhe und Schwung."
+  },
+  {
+    key: "fast",
+    label: "Rasant",
+    description: "Hohe Dynamik, kurze Pausen, viel Action."
+  }
+];
+const SPECIAL_INGREDIENT_OPTIONS = [
+  {
+    key: "surprise",
+    label: "Ueberraschung",
+    description: "Eine unerwartete Wendung, die alle staunen laesst."
+  },
+  {
+    key: "mystery",
+    label: "Geheimnis",
+    description: "Ein Raetsel, das die Kinder gemeinsam loesen."
+  },
+  {
+    key: "transformation",
+    label: "Verwandlung",
+    description: "Etwas oder jemand veraendert sich grundlegend."
+  },
+  {
+    key: "magic",
+    label: "Magie",
+    description: "Zauberhafte Momente, leuchtende Wunder, Funkenregen."
+  },
+  {
+    key: "trial",
+    label: "Mutprobe",
+    description: "Eine Herausforderung, die Selbstvertrauen schuetzt."
+  },
+  {
+    key: "aha",
+    label: "Aha-Moment",
+    description: "Eine wichtige Erkenntnis, die alles zusammenbringt."
+  }
+];
+const MAX_FLAVORS = 2;
+const MAX_INGREDIENTS = 2;
+const StoryFlavorStep = ({
+  emotionalFlavors,
+  storyTempo,
+  specialIngredients,
+  customPrompt,
+  onChange
+}) => {
+  const toggleFlavor = (key) => {
+    const isSelected = emotionalFlavors.includes(key);
+    if (!isSelected && emotionalFlavors.length >= MAX_FLAVORS) {
+      return;
+    }
+    const next = isSelected ? emotionalFlavors.filter((value) => value !== key) : [...emotionalFlavors, key];
+    onChange({ emotionalFlavors: next });
+  };
+  const toggleIngredient = (key) => {
+    const isSelected = specialIngredients.includes(key);
+    if (!isSelected && specialIngredients.length >= MAX_INGREDIENTS) {
+      return;
+    }
+    const next = isSelected ? specialIngredients.filter((value) => value !== key) : [...specialIngredients, key];
+    onChange({ specialIngredients: next });
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { variant: "elevated", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-8", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-lg font-semibold text-gray-800", children: "Emotionale Wuerze" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-sm mb-3", children: "Waehle bis zu zwei Emotionen, die deine Story traegt." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: EMOTIONAL_FLAVOR_OPTIONS.map((option) => {
+        const isSelected = emotionalFlavors.includes(option.key);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "label",
+          {
+            className: `border rounded-lg p-3 cursor-pointer transition ${isSelected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: isSelected,
+                  onChange: () => toggleFlavor(option.key),
+                  className: "mr-2"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-block align-top", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold text-gray-800", children: option.label }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-gray-600", children: option.description }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-gray-500 mt-1", children: option.effect })
+              ] })
+            ]
+          },
+          option.key
+        );
+      }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-gray-500 mt-2", children: [
+        "Maximal ",
+        MAX_FLAVORS,
+        " Emotionen gleichzeitig."
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-lg font-semibold text-gray-800", children: "Tempo" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-sm mb-3", children: "Bestimme den Rhythmus der Reise." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-3", children: STORY_TEMPO_OPTIONS.map((option) => {
+        const isSelected = storyTempo === option.key;
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => onChange({ storyTempo: option.key }),
+            className: `border rounded-lg p-3 text-left transition ${isSelected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-sm text-gray-800", children: option.label }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-gray-600", children: option.description })
+            ]
+          },
+          option.key
+        );
+      }) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-lg font-semibold text-gray-800", children: "Spezialzutaten" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-sm mb-3", children: "Waehle bis zu zwei Highlights, die unbedingt vorkommen sollen." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: SPECIAL_INGREDIENT_OPTIONS.map((option) => {
+        const isSelected = specialIngredients.includes(option.key);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "label",
+          {
+            className: `border rounded-lg p-3 cursor-pointer transition ${isSelected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: isSelected,
+                  onChange: () => toggleIngredient(option.key),
+                  className: "mr-2"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-block align-top", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold text-gray-800", children: option.label }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-gray-600", children: option.description })
+              ] })
+            ]
+          },
+          option.key
+        );
+      }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-gray-500 mt-2", children: [
+        "Maximal ",
+        MAX_INGREDIENTS,
+        " Spezialzutaten. Optional."
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Magische Wuensche (optional)" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          className: "w-full border rounded-lg p-3 min-h-[120px]",
+          placeholder: "z. B. Bitte eine Szene am See mit glitzerndem Sternenpfad.",
+          value: customPrompt,
+          onChange: (event) => onChange({ customPrompt: event.target.value })
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-500 mt-1", children: "Freitext fuer besondere Ideen, Lieblingsorte oder Figuren." })
+    ] })
+  ] }) });
+};
 const GenerationStep = ({
   storyConfig,
   onGenerate,
-  generating = false
+  generating = false,
+  generationStep = "profiles"
 }) => {
   var _a, _b;
   const getGenreLabel = (genre) => {
@@ -35605,7 +37178,7 @@ const GenerationStep = ({
       mystery: "Geheimnis",
       friendship: "Freundschaft",
       learning: "Lernen",
-      comedy: "Komödie"
+      comedy: "Comedy"
     };
     return genres[genre] || genre;
   };
@@ -35616,7 +37189,7 @@ const GenerationStep = ({
       ocean: "Unterwasserwelt",
       space: "Weltraum",
       city: "Moderne Stadt",
-      village: "Märchendorf"
+      village: "Maerchendorf"
     };
     return settings[setting] || setting;
   };
@@ -35636,16 +37209,45 @@ const GenerationStep = ({
     };
     return complexities[complexity] || complexity;
   };
+  const getStyleLabel = (style) => {
+    var _a2;
+    if (!style) return "Automatisch (Story-Seele)";
+    return ((_a2 = STYLE_PRESET_OPTIONS.find((option) => option.key === style)) == null ? void 0 : _a2.label) || style;
+  };
+  const getSoulLabel = (soul) => {
+    var _a2;
+    if (!soul) return "Nicht ausgewaehlt";
+    return ((_a2 = STORY_SOUL_OPTIONS.find((option) => option.key === soul)) == null ? void 0 : _a2.label) || soul;
+  };
+  const getFlavorLabels = (flavors) => {
+    if (!flavors || flavors.length === 0) return "Natuerlich ohne Zusatz";
+    return flavors.map((key) => {
+      var _a2;
+      return ((_a2 = EMOTIONAL_FLAVOR_OPTIONS.find((option) => option.key === key)) == null ? void 0 : _a2.label) || key;
+    }).join(", ");
+  };
+  const getTempoLabel = (tempo) => {
+    var _a2;
+    if (!tempo) return "Ausgewogen";
+    return ((_a2 = STORY_TEMPO_OPTIONS.find((option) => option.key === tempo)) == null ? void 0 : _a2.label) || tempo;
+  };
+  const getIngredientLabels = (ingredients) => {
+    if (!ingredients || ingredients.length === 0) return "Kein Zusatz";
+    return ingredients.map((key) => {
+      var _a2;
+      return ((_a2 = SPECIAL_INGREDIENT_OPTIONS.find((option) => option.key === key)) == null ? void 0 : _a2.label) || key;
+    }).join(", ");
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "elevated", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-bold text-gray-800 text-center mb-2", children: "Zusammenfassung" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-center mb-6", children: "Überprüfe deine Einstellungen vor der Generierung" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 text-center mb-6", children: "Ueberpruefe deine Einstellungen vor der Generierung" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4 mb-6", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Avatare" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-gray-800", children: [
             storyConfig.avatarIds.length,
-            " ausgewählt"
+            " ausgewaehlt"
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
@@ -35657,11 +37259,11 @@ const GenerationStep = ({
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getSettingLabel(storyConfig.setting) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Länge" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Laenge" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getLengthLabel(storyConfig.length) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Komplexität" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Komplexitaet" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getComplexityLabel(storyConfig.complexity) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
@@ -35670,12 +37272,39 @@ const GenerationStep = ({
             storyConfig.ageGroup,
             " Jahre"
           ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Story-Stil" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-gray-800", children: [
+            getStyleLabel(storyConfig.stylePreset),
+            storyConfig.allowRhymes ? " (Reime erlaubt)" : ""
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Story-Seele" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getSoulLabel(storyConfig.storySoul) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Emotionale Wuerze" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getFlavorLabels(storyConfig.emotionalFlavors) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Tempo" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getTempoLabel(storyConfig.storyTempo) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 p-3 rounded-lg", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Spezialzutaten" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800", children: getIngredientLabels(storyConfig.specialIngredients) })
         ] })
       ] }),
+      storyConfig.customPrompt && storyConfig.customPrompt.trim().length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-50 border border-gray-200 p-3 rounded-lg mb-6", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-gray-700 text-sm mb-1", children: "Magischer Wunsch" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-800 text-sm whitespace-pre-line", children: storyConfig.customPrompt })
+      ] }),
       ((_a = storyConfig.learningMode) == null ? void 0 : _a.enabled) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-purple-50 border border-purple-200 p-4 rounded-lg", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-purple-700 mb-3 text-center", children: "🎓 Lernmodus aktiviert" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-purple-700 mb-3 text-center", children: "Lernmodus aktiviert" }),
         storyConfig.learningMode.subjects.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-purple-600 text-sm mb-1", children: "Fächer:" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-purple-600 text-sm mb-1", children: "Faecher:" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-purple-700", children: storyConfig.learningMode.subjects.join(", ") })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
@@ -35685,7 +37314,7 @@ const GenerationStep = ({
         storyConfig.learningMode.learningObjectives.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-purple-600 text-sm mb-1", children: "Lernziele:" }),
           storyConfig.learningMode.learningObjectives.map((objective, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-purple-700 text-sm", children: [
-            "• ",
+            "- ",
             objective
           ] }, index))
         ] })
@@ -35693,32 +37322,32 @@ const GenerationStep = ({
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 200, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { variant: "elevated", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "w-16 h-16 mx-auto mb-4 text-purple-600" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-bold text-gray-800 mb-4", children: generating ? "Magie wirkt... ✨" : "Bereit für die Magie?" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 mb-6", children: generating ? "Deine Geschichte wird gerade erstellt. Das kann einige Minuten dauern..." : "Deine Geschichte wird mit modernster KI-Technologie erstellt. Dieser Prozess kann einige Minuten dauern, aber das Warten lohnt sich!" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-bold text-gray-800 mb-4", children: generating ? "Magie wirkt..." : "Bereit fuer die Magie?" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 mb-6", children: generating ? "Deine Geschichte wird gerade erstellt. Das kann einige Minuten dauern..." : "Deine Geschichte wird mit moderner KI-Technologie erstellt. Dieser Prozess braucht etwas Zeit, lohnt sich aber!" }),
       !generating && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3 text-left", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "📖" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "*" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-gray-700", children: "Personalisierte Kapitel mit deinen Avataren" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "🎨" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-gray-700", children: "Wunderschöne Illustrationen für jedes Kapitel" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "*" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-gray-700", children: "Wunderschoene Illustrationen fuer jedes Kapitel" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "🧠" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "*" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-gray-700", children: "Intelligente Handlung basierend auf deinen Einstellungen" })
         ] }),
         ((_b = storyConfig.learningMode) == null ? void 0 : _b.enabled) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "🎓" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-gray-700", children: "Integrierte Lernelemente für maximalen Bildungswert" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg mr-3", children: "*" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-gray-700", children: "Integrierte Lernelemente fuer maximalen Bildungswert" })
         ] })
       ] }),
-      generating && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" }) })
+      generating && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-6", children: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryGenerationProgress, { currentStep: generationStep }) })
     ] }) }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 300, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
       Button,
       {
-        title: generating ? "Geschichte wird erstellt..." : "🚀 Geschichte erstellen",
+        title: generating ? "Geschichte wird erstellt..." : "Geschichte erstellen",
         onPress: onGenerate,
         size: "lg",
         className: "w-full",
@@ -35731,11 +37360,20 @@ const GenerationStep = ({
 const StoryWizardScreen = () => {
   const [currentStep, setCurrentStep] = reactExports.useState("avatar");
   const [generating, setGenerating] = reactExports.useState(false);
+  const [generationStep, setGenerationStep] = reactExports.useState("profiles");
   const [storyConfig, setStoryConfig] = reactExports.useState({
     avatarIds: [],
-    // Wird automatisch mit allen User-Avataren gefüllt
     genre: "",
     setting: "",
+    stylePreset: void 0,
+    allowRhymes: false,
+    storySoul: void 0,
+    emotionalFlavors: [],
+    storyTempo: "balanced",
+    specialIngredients: [],
+    customPrompt: "",
+    language: "de",
+    aiModel: "gpt-5-mini",
     length: "medium",
     complexity: "medium",
     ageGroup: "6-8"
@@ -35743,11 +37381,13 @@ const StoryWizardScreen = () => {
   const backend = useBackend();
   const { user: user2 } = useUser();
   const steps = [
-    { key: "avatar", title: "Avatare", icon: "👤" },
-    { key: "genre", title: "Genre", icon: "🎭" },
-    { key: "parameters", title: "Parameter", icon: "⚙️" },
-    { key: "learning", title: "Lernen", icon: "🎓" },
-    { key: "generation", title: "Erstellen", icon: "✨" }
+    { key: "avatar", title: "Avatare", icon: "A" },
+    { key: "genre", title: "Genre & Welt", icon: "G" },
+    { key: "soul", title: "Story-Seele & Stil", icon: "S" },
+    { key: "experience", title: "Emotion & Tempo", icon: "E" },
+    { key: "parameters", title: "Parameter", icon: "P" },
+    { key: "learning", title: "Lernmodus", icon: "L" },
+    { key: "generation", title: "Erstellen", icon: "!" }
   ];
   const currentStepIndex = steps.findIndex((step) => step.key === currentStep);
   const updateStoryConfig = (updates) => {
@@ -35773,16 +37413,17 @@ const StoryWizardScreen = () => {
       case "avatar":
         return storyConfig.avatarIds.length > 0;
       case "genre":
-        return storyConfig.genre && storyConfig.setting;
+        return Boolean(storyConfig.genre && storyConfig.setting);
+      case "soul":
+        return Boolean(storyConfig.storySoul);
+      case "experience":
+        return Boolean(storyConfig.storyTempo);
       case "parameters":
         return true;
-      // All parameters have defaults
       case "learning":
         return true;
-      // Learning mode is optional
       case "generation":
         return false;
-      // No next step
       default:
         return false;
     }
@@ -35798,12 +37439,21 @@ const StoryWizardScreen = () => {
     }
     try {
       setGenerating(true);
-      console.log("🚀 Starting story generation with selected avatars...", storyConfig.avatarIds);
+      setGenerationStep("profiles");
+      await new Promise((r) => setTimeout(r, 1200));
+      setGenerationStep("memories");
+      await new Promise((r) => setTimeout(r, 1200));
+      setGenerationStep("text");
       const story2 = await backend.story.generate({
         userId: user2.id,
         config: storyConfig
       });
-      console.log("✅ Story generated successfully:", story2.title);
+      setGenerationStep("validation");
+      await new Promise((r) => setTimeout(r, 900));
+      setGenerationStep("images");
+      await new Promise((r) => setTimeout(r, 1200));
+      setGenerationStep("complete");
+      await new Promise((r) => setTimeout(r, 800));
       alert(`Geschichte "${story2.title}" wurde erfolgreich generiert! 🎉`);
       window.location.href = "/";
     } catch (error) {
@@ -35813,12 +37463,13 @@ const StoryWizardScreen = () => {
         if (error.message.includes("length limit exceeded")) {
           errorMessage = "Die Anfrage ist zu groß. Bitte versuche es erneut.";
         } else if (error.message.includes("timeout")) {
-          errorMessage = "Die Generierung dauert zu lange. Bitte versuche es mit einer kürzeren Geschichte.";
+          errorMessage = "Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.";
         }
       }
       alert(errorMessage);
     } finally {
       setGenerating(false);
+      setGenerationStep("profiles");
     }
   };
   const renderStepContent = () => {
@@ -35841,6 +37492,28 @@ const StoryWizardScreen = () => {
             onSettingChange: (setting) => updateStoryConfig({ setting })
           }
         );
+      case "soul":
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          StoryStyleStep,
+          {
+            storySoul: storyConfig.storySoul,
+            stylePreset: storyConfig.stylePreset,
+            allowRhymes: storyConfig.allowRhymes,
+            onSelectSoul: (storySoul) => updateStoryConfig({ storySoul }),
+            onStyleChange: (update) => updateStoryConfig(update)
+          }
+        );
+      case "experience":
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          StoryFlavorStep,
+          {
+            emotionalFlavors: storyConfig.emotionalFlavors,
+            storyTempo: storyConfig.storyTempo,
+            specialIngredients: storyConfig.specialIngredients,
+            customPrompt: storyConfig.customPrompt ?? "",
+            onChange: (update) => updateStoryConfig(update)
+          }
+        );
       case "parameters":
         return /* @__PURE__ */ jsxRuntimeExports.jsx(
           StoryParametersStep,
@@ -35848,9 +37521,11 @@ const StoryWizardScreen = () => {
             length: storyConfig.length,
             complexity: storyConfig.complexity,
             ageGroup: storyConfig.ageGroup,
+            aiModel: storyConfig.aiModel,
             onLengthChange: (length) => updateStoryConfig({ length }),
             onComplexityChange: (complexity) => updateStoryConfig({ complexity }),
-            onAgeGroupChange: (ageGroup) => updateStoryConfig({ ageGroup })
+            onAgeGroupChange: (ageGroup) => updateStoryConfig({ ageGroup }),
+            onAiModelChange: (aiModel) => updateStoryConfig({ aiModel })
           }
         );
       case "learning":
@@ -35867,7 +37542,8 @@ const StoryWizardScreen = () => {
           {
             storyConfig,
             onGenerate: handleGenerateStory,
-            generating
+            generating,
+            generationStep
           }
         );
       default:
@@ -35981,7 +37657,7 @@ const StoryReaderScreen = () => {
     try {
       setLoading2(true);
       setError2(null);
-      const storyData = await backend.story.get(storyId);
+      const storyData = await backend.story.get({ id: storyId });
       setStory(storyData);
     } catch (err) {
       console.error("Error loading story:", err);
@@ -36068,7 +37744,7 @@ const StoryReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -36090,7 +37766,7 @@ const StoryReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showErrorToast, showStoryCompletionToast };
         }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -36100,7 +37776,7 @@ const StoryReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during story completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-Djb6gB-7.js");
+        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
         return { showErrorToast, showStoryCompletionToast };
       }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -36261,6 +37937,495 @@ const StoryReaderScreen = () => {
         )
       ] }) })
     ] }, "reader") })
+  ] });
+};
+const TracingBeam = ({
+  children,
+  className
+}) => {
+  const ref = reactExports.useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"]
+  });
+  const contentRef = reactExports.useRef(null);
+  const [svgHeight, setSvgHeight] = reactExports.useState(0);
+  reactExports.useEffect(() => {
+    const updateHeight = () => {
+      if (contentRef.current) {
+        const height = contentRef.current.offsetHeight;
+        setSvgHeight(height);
+        console.log("TracingBeam: Content height updated to", height);
+      }
+    };
+    updateHeight();
+    const resizeObserver = new ResizeObserver(() => {
+      setTimeout(updateHeight, 100);
+    });
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+    window.addEventListener("resize", updateHeight);
+    const timeouts = [
+      setTimeout(updateHeight, 100),
+      setTimeout(updateHeight, 500),
+      setTimeout(updateHeight, 1e3),
+      setTimeout(updateHeight, 2e3)
+    ];
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateHeight);
+      timeouts.forEach(clearTimeout);
+    };
+  }, [children]);
+  const y1 = useSpring(
+    useTransform(scrollYProgress, [0, 0.8], [50, svgHeight]),
+    {
+      stiffness: 500,
+      damping: 90
+    }
+  );
+  const y2 = useSpring(
+    useTransform(scrollYProgress, [0, 1], [50, svgHeight - 200]),
+    {
+      stiffness: 500,
+      damping: 90
+    }
+  );
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    motion.div,
+    {
+      ref,
+      className: cn("relative w-full max-w-4xl mx-auto h-full", className),
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute -left-4 md:-left-20 top-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            motion.div,
+            {
+              transition: {
+                duration: 0.2,
+                delay: 0.5
+              },
+              animate: {
+                boxShadow: scrollYProgress.get() > 0 ? "none" : "rgba(0, 0, 0, 0.24) 0px 3px 8px"
+              },
+              className: "ml-[27px] h-4 w-4 rounded-full border border-netural-200 shadow-sm flex items-center justify-center",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                motion.div,
+                {
+                  transition: {
+                    duration: 0.2,
+                    delay: 0.5
+                  },
+                  animate: {
+                    backgroundColor: scrollYProgress.get() > 0 ? "white" : "rgb(34 197 94)",
+                    borderColor: scrollYProgress.get() > 0 ? "white" : "rgb(22 163 74)"
+                  },
+                  className: "h-2 w-2 rounded-full border border-neutral-300 bg-white"
+                }
+              )
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              viewBox: `0 0 40 ${svgHeight}`,
+              width: "40",
+              height: svgHeight,
+              className: "ml-4 block",
+              "aria-hidden": "true",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  motion.path,
+                  {
+                    d: `M 20 0 L 20 ${svgHeight}`,
+                    fill: "none",
+                    stroke: "#9091A0",
+                    strokeOpacity: "0.16",
+                    strokeWidth: "3",
+                    transition: {
+                      duration: 10
+                    }
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  motion.path,
+                  {
+                    d: `M 20 0 L 20 ${svgHeight}`,
+                    fill: "none",
+                    stroke: "url(#gradient)",
+                    strokeWidth: "3",
+                    className: "motion-reduce:hidden",
+                    transition: {
+                      duration: 10
+                    }
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  motion.linearGradient,
+                  {
+                    id: "gradient",
+                    gradientUnits: "userSpaceOnUse",
+                    x1: "0",
+                    x2: "0",
+                    y1,
+                    y2,
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { stopColor: "#18CCFC", stopOpacity: "0" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { stopColor: "#18CCFC" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "0.325", stopColor: "#6344F5" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "1", stopColor: "#AE48FF", stopOpacity: "0" })
+                    ]
+                  }
+                ) })
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: contentRef, children })
+      ]
+    }
+  );
+};
+const TextGradientScrollContext = reactExports.createContext(
+  {}
+);
+function useGradientScroll() {
+  const context = reactExports.useContext(TextGradientScrollContext);
+  return context;
+}
+function TextGradientScroll({
+  text,
+  className,
+  type = "letter",
+  textOpacity = "soft"
+}) {
+  const ref = reactExports.useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start center", "end center"]
+  });
+  const words = text.split(" ");
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(TextGradientScrollContext.Provider, { value: { textOpacity, type }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { ref, className: cn("relative flex m-0 flex-wrap", className), children: words.map((word, i) => {
+    const start = i / words.length;
+    const end = start + 1 / words.length;
+    return type === "word" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Word, { progress: scrollYProgress, range: [start, end], children: word }, i) : /* @__PURE__ */ jsxRuntimeExports.jsx(Letter, { progress: scrollYProgress, range: [start, end], children: word }, i);
+  }) }) });
+}
+const Word = ({ children, progress: progress2, range }) => {
+  const opacity = useTransform(progress2, range, [0, 1]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "relative me-2 mt-2", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { position: "absolute", opacity: 0.1 }, children }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(motion.span, { style: { transition: "all .5s", opacity }, children })
+  ] });
+};
+const Letter = ({ children, progress: progress2, range }) => {
+  if (typeof children === "string") {
+    const amount = range[1] - range[0];
+    const step = amount / children.length;
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "relative me-2 mt-2", children: children.split("").map((char, i) => {
+      const start = range[0] + i * step;
+      const end = range[0] + (i + 1) * step;
+      return /* @__PURE__ */ jsxRuntimeExports.jsx(Char, { progress: progress2, range: [start, end], children: char }, `c_${i}`);
+    }) });
+  }
+};
+const Char = ({ children, progress: progress2, range }) => {
+  const opacity = useTransform(progress2, range, [0, 1]);
+  const { textOpacity } = useGradientScroll();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "span",
+      {
+        className: cn("absolute", {
+          "opacity-0": textOpacity == "none",
+          "opacity-10": textOpacity == "soft",
+          "opacity-30": textOpacity == "medium"
+        }),
+        children
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      motion.span,
+      {
+        style: {
+          transition: "all .5s",
+          opacity
+        },
+        children
+      }
+    )
+  ] });
+};
+const StoryScrollReaderScreen = () => {
+  var _a, _b;
+  const { storyId } = useParams();
+  const navigate = useNavigate();
+  const backend = useBackend();
+  const { getToken } = useAuth();
+  const [story2, setStory] = reactExports.useState(null);
+  const [loading, setLoading2] = reactExports.useState(true);
+  const [error, setError2] = reactExports.useState(null);
+  const [isReading, setIsReading] = reactExports.useState(false);
+  const [storyCompleted, setStoryCompleted] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (storyId) {
+      loadStory();
+    }
+  }, [storyId]);
+  const loadStory = async () => {
+    if (!storyId) return;
+    try {
+      setLoading2(true);
+      setError2(null);
+      const storyData = await backend.story.get({ id: storyId });
+      setStory(storyData);
+    } catch (err) {
+      console.error("Error loading story:", err);
+      setError2("Geschichte konnte nicht geladen werden.");
+    } finally {
+      setLoading2(false);
+    }
+  };
+  const startReading = () => {
+    setIsReading(true);
+  };
+  const handleStoryCompletion = async () => {
+    console.log("📖 Story completed - triggering personality updates for all eligible avatars");
+    if (!story2 || !storyId || storyCompleted) {
+      console.log("Story completion aborted - missing requirements or already completed");
+      return;
+    }
+    try {
+      setStoryCompleted(true);
+      const token = await getToken();
+      const { getBackendUrl: getBackendUrl2 } = await __vitePreload(async () => {
+        const { getBackendUrl: getBackendUrl3 } = await Promise.resolve().then(() => config);
+        return { getBackendUrl: getBackendUrl3 };
+      }, true ? void 0 : void 0);
+      const target = getBackendUrl2();
+      const response = await fetch(`${target}/story/mark-read`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...token ? { "Authorization": `Bearer ${token}` } : {}
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          storyId,
+          storyTitle: story2.title,
+          genre: story2.config.genre
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log("✅ Personality updates applied:", result);
+        __vitePreload(async () => {
+          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+          return { showSuccessToast };
+        }, true ? [] : void 0).then(({ showSuccessToast }) => {
+          let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
+
+`;
+          if (result.personalityChanges && result.personalityChanges.length > 0) {
+            result.personalityChanges.forEach((avatarChange) => {
+              const changes = avatarChange.changes.map((change) => {
+                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
+                return `${points} ${getTraitDisplayName(change.trait)}`;
+              }).join(", ");
+              message += `${avatarChange.avatarName}: ${changes}
+`;
+            });
+          }
+          showSuccessToast(message.trim());
+        });
+      } else {
+        const errorText = await response.text();
+        console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
+        __vitePreload(async () => {
+          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+          return { showErrorToast, showStoryCompletionToast };
+        }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
+          showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
+          showStoryCompletionToast(story2.title);
+        });
+      }
+    } catch (error2) {
+      console.error("❌ Error during story completion processing:", error2);
+      __vitePreload(async () => {
+        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+        return { showErrorToast, showStoryCompletionToast };
+      }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
+        showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
+        showStoryCompletionToast(story2.title);
+      });
+    }
+  };
+  function getTraitDisplayName(trait) {
+    const parts = trait.split(".");
+    const subcategory = parts.length > 1 ? parts[1] : null;
+    const mainTrait = parts[0];
+    const names = {
+      "knowledge": "Wissen",
+      "creativity": "Kreativität",
+      "vocabulary": "Wortschatz",
+      "courage": "Mut",
+      "curiosity": "Neugier",
+      "teamwork": "Teamgeist",
+      "empathy": "Empathie",
+      "persistence": "Ausdauer",
+      "logic": "Logik",
+      "history": "Geschichte",
+      "science": "Wissenschaft",
+      "geography": "Geografie",
+      "physics": "Physik",
+      "biology": "Biologie",
+      "chemistry": "Chemie",
+      "mathematics": "Mathematik",
+      "kindness": "Freundlichkeit",
+      "humor": "Humor",
+      "determination": "Entschlossenheit",
+      "wisdom": "Weisheit"
+    };
+    if (subcategory) {
+      return names[subcategory.toLowerCase()] || subcategory;
+    }
+    return names[mainTrait.toLowerCase()] || trait;
+  }
+  if (loading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-lg text-gray-600 dark:text-gray-300", children: "Lade Geschichte..." })
+    ] }) });
+  }
+  if (error || !story2) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-red-500 mb-4", children: "Fehler" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-700 dark:text-gray-200 mb-6", children: error || "Die Geschichte konnte nicht gefunden werden." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => navigate("/stories"), className: "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center mx-auto", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 18, className: "mr-2" }),
+        " Zurück"
+      ] })
+    ] }) });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen w-full bg-gray-100 dark:bg-gray-900", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-7xl mx-auto px-4 py-4 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => isReading ? setIsReading(false) : navigate("/stories"),
+          className: "flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "w-5 h-5" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "Zurück" })
+          ]
+        }
+      ),
+      isReading && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-gray-600 dark:text-gray-300", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { className: "w-5 h-5" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-medium", children: [
+          ((_a = story2.chapters) == null ? void 0 : _a.length) || 0,
+          " Kapitel"
+        ] })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: !isReading ? (
+      /* Cover Page */
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        motion.div,
+        {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          className: "min-h-screen flex flex-col items-center justify-center p-8 pt-24 text-center",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              motion.img,
+              {
+                src: story2.coverImageUrl || "/placeholder-story.jpg",
+                alt: story2.title,
+                className: "w-64 h-64 md:w-80 md:h-80 rounded-2xl shadow-2xl mb-8 object-cover",
+                layoutId: `story-cover-${story2.id}`
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-4xl md:text-6xl font-bold text-gray-800 dark:text-white mb-6 max-w-4xl", children: story2.title }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xl text-gray-600 dark:text-gray-300 max-w-2xl mb-10 leading-relaxed", children: story2.summary }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              motion.button,
+              {
+                onClick: startReading,
+                className: "px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transition-all",
+                whileHover: { scale: 1.05 },
+                whileTap: { scale: 0.95 },
+                children: "📖 Lesen"
+              }
+            )
+          ]
+        },
+        "cover"
+      )
+    ) : (
+      /* Scrollable Reading View with TracingBeam */
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        motion.div,
+        {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          className: "w-full",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pt-24 pb-32", children: /* @__PURE__ */ jsxRuntimeExports.jsx(TracingBeam, { className: "px-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-3xl mx-auto antialiased", children: [
+            (_b = story2.chapters) == null ? void 0 : _b.map((chapter, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-16", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full text-sm w-fit px-6 py-2 mb-6 font-semibold shadow-lg", children: [
+                "Kapitel ",
+                index + 1
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-3xl md:text-4xl mb-6 font-bold text-gray-800 dark:text-white", children: chapter.title }),
+              chapter.imageUrl && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "img",
+                {
+                  src: chapter.imageUrl,
+                  alt: chapter.title,
+                  className: "rounded-2xl mb-8 w-full object-cover shadow-2xl",
+                  style: { maxHeight: "500px" }
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg md:text-xl prose prose-lg dark:prose-invert max-w-none leading-relaxed", children: chapter.content.split("\n").map((paragraph, pIndex) => paragraph.trim() && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-6", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                TextGradientScroll,
+                {
+                  text: paragraph,
+                  type: "word",
+                  textOpacity: "soft",
+                  className: "text-gray-700 dark:text-gray-300"
+                }
+              ) }, `p-${index}-${pIndex}`)) })
+            ] }, `chapter-${index}`)),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                motion.button,
+                {
+                  onClick: handleStoryCompletion,
+                  disabled: storyCompleted,
+                  className: `px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${storyCompleted ? "bg-gradient-to-r from-green-500 to-emerald-600 cursor-default" : "bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-purple-500/50 hover:scale-105"}`,
+                  whileHover: !storyCompleted ? { scale: 1.05 } : {},
+                  whileTap: !storyCompleted ? { scale: 0.95 } : {},
+                  children: storyCompleted ? "🎉 Geschichte abgeschlossen!" : "🏁 Geschichte abschließen"
+                }
+              ),
+              storyCompleted && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                motion.p,
+                {
+                  initial: { opacity: 0, y: 10 },
+                  animate: { opacity: 1, y: 0 },
+                  className: "mt-4 text-gray-600 dark:text-gray-300 text-center",
+                  children: "Deine Avatare haben sich weiterentwickelt! ✨"
+                }
+              )
+            ] })
+          ] }) }) })
+        },
+        "reader"
+      )
+    ) })
   ] });
 };
 const StoryCard = ({ story: story2, onRead, onDelete }) => {
@@ -36476,7 +38641,7 @@ const StoriesScreen = () => {
   const handleDeleteStory = async (storyId, storyTitle) => {
     if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.story.deleteStory(storyId);
+        await backend.story.deleteStory({ id: storyId });
         setStories2(stories.filter((s) => s.id !== storyId));
         alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
@@ -36485,9 +38650,9 @@ const StoriesScreen = () => {
       }
     }
   };
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
-    background: colors.appBackground,
+    background: colors.background.primary,
     paddingBottom: "120px",
     position: "relative"
   };
@@ -36498,14 +38663,14 @@ const StoriesScreen = () => {
     borderRadius: "50%",
     transform: "translate(-50%, -50%)"
   };
-  const headerStyle = {
+  const headerStyle2 = {
     padding: `${spacing.xl}px`,
     marginBottom: `${spacing.lg}px`
   };
   const headerCardStyle = {
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
-    background: colors.glass.heroBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     boxShadow: colors.glass.shadowStrong,
     backdropFilter: "blur(18px) saturate(160%)",
@@ -36514,7 +38679,7 @@ const StoriesScreen = () => {
   };
   const titleStyle = {
     ...typography.textStyles.displayLg,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     marginBottom: spacing.sm,
     textShadow: "0 1px 1px rgba(255,255,255,0.35)",
     display: "flex",
@@ -36523,7 +38688,7 @@ const StoriesScreen = () => {
   };
   const subtitleStyle = {
     ...typography.textStyles.body,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: "18px"
   };
   const newStoryButtonStyle = {
@@ -36545,7 +38710,7 @@ const StoriesScreen = () => {
     padding: `${spacing.xxl}px`
   };
   if (loading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: loadingStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
           width: "60px",
@@ -36556,7 +38721,7 @@ const StoriesScreen = () => {
           animation: "spin 1s linear infinite",
           margin: `0 auto ${spacing.lg}px auto`
         } }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.textSecondary, fontSize: "18px" }, children: "Lade deine Geschichten... ✨" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary, fontSize: "18px" }, children: "Lade deine Geschichten... ✨" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
           @keyframes spin {
@@ -36566,12 +38731,12 @@ const StoriesScreen = () => {
         ` })
     ] });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: gradients.primary } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: gradients.cool } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 240, height: 240, bottom: -40, left: "50%", background: gradients.warm } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(SignedOut, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center", padding: `${spacing.xxxl}px ${spacing.xl}px` }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayLg, color: colors.textPrimary, marginBottom: spacing.md }, children: "Melde dich an, um deine Geschichten zu sehen" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }, children: "Melde dich an, um deine Geschichten zu sehen" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 200, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
         Button,
         {
@@ -36583,9 +38748,9 @@ const StoriesScreen = () => {
       ) })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(SignedIn, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerCardStyle, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerCardStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: titleStyle, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { size: 36, style: { color: colors.primary } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { size: 36, style: { color: colors.primary[500] } }),
           "Deine Geschichten"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: subtitleStyle, children: [
@@ -36605,8 +38770,8 @@ const StoriesScreen = () => {
       ] }) }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: contentStyle, children: stories.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: emptyStateStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: "64px", marginBottom: `${spacing.lg}px` }, children: "📚" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }, children: "Noch keine Geschichten" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: "16px" }, children: "Erschaffe deine erste magische Geschichte!" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }, children: "Noch keine Geschichten" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: "16px" }, children: "Erschaffe deine erste magische Geschichte!" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
           {
@@ -36724,12 +38889,12 @@ const LogViewerScreen = () => {
     linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
   };
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
     background: colors.appBackground,
     paddingBottom: "120px"
   };
-  const headerStyle = {
+  const headerStyle2 = {
     background: colors.glass.navBackground,
     border: `1px solid ${colors.glass.border}`,
     padding: `${spacing.lg}px`,
@@ -36785,7 +38950,7 @@ const LogViewerScreen = () => {
     cursor: "pointer",
     position: "relative"
   };
-  const modalOverlayStyle = {
+  const modalOverlayStyle2 = {
     position: "fixed",
     top: 0,
     left: 0,
@@ -36798,8 +38963,8 @@ const LogViewerScreen = () => {
     justifyContent: "center",
     padding: `${spacing.lg}px`
   };
-  const modalContentStyle = {
-    background: colors.surface,
+  const modalContentStyle2 = {
+    background: "#ffffff",
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
     maxWidth: "90vw",
@@ -36808,7 +38973,7 @@ const LogViewerScreen = () => {
     boxShadow: shadows.lg
   };
   if (loading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...containerStyle, display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...containerStyle2, display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
         width: "48px",
         height: "48px",
@@ -36821,8 +38986,8 @@ const LogViewerScreen = () => {
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.textSecondary }, children: "Lade Logs..." })
     ] }) });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerContentStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerContentStyle, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
@@ -36993,7 +39158,7 @@ const LogViewerScreen = () => {
         ] }) })
       ] })
     ] }),
-    showDetails && selectedLog && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: modalOverlayStyle, onClick: () => setShowDetails(false), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: modalContentStyle, onClick: (e) => e.stopPropagation(), children: [
+    showDetails && selectedLog && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: modalOverlayStyle2, onClick: () => setShowDetails(false), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: modalContentStyle2, onClick: (e) => e.stopPropagation(), children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: `${spacing.lg}px` }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary, display: "flex", alignItems: "center", gap: `${spacing.sm}px` }, children: [
           getSourceIcon(selectedLog.source),
@@ -37114,14 +39279,20 @@ const Navigation = () => {
     { path: "/avatar", label: "Avatare", icon: User, color: colors.lavender[500] },
     { path: "/stories", label: "Stories", icon: BookOpen, color: colors.rose[500] },
     { path: "/doku", label: "Doku", icon: FlaskConical, color: colors.mint[500] },
+    { path: "/characters", label: "Charaktere", icon: Sparkles, color: colors.peach[500] },
     { path: "/logs", label: "Logs", icon: Code, color: colors.sky[500] }
   ];
   const activeIdx = Math.max(0, tabs.findIndex((tab) => tab.path === location.pathname));
-  const containerStyle = {
+  const containerStyle2 = {
     position: "fixed",
-    bottom: spacing.xl,
-    left: "50%",
-    transform: "translateX(-50%)",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    padding: `${spacing.sm}px`,
+    paddingBottom: "max(env(safe-area-inset-bottom), 8px)",
     zIndex: 1e3,
     pointerEvents: "none"
   };
@@ -37169,7 +39340,7 @@ const Navigation = () => {
     ...typography.textStyles.tiny,
     fontWeight: "600"
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: navStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: navStyle, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: indicatorStyle }),
     tabs.map((tab) => {
       const Icon2 = tab.icon;
@@ -37311,7 +39482,7 @@ const TaviChat = ({ isOpen, onClose }) => {
     }
   };
   if (!isOpen) return null;
-  const containerStyle = {
+  const containerStyle2 = {
     position: "fixed",
     top: 0,
     left: 0,
@@ -37342,7 +39513,7 @@ const TaviChat = ({ isOpen, onClose }) => {
     overflow: "hidden",
     position: "relative"
   };
-  const headerStyle = {
+  const headerStyle2 = {
     padding: `${spacing.xl}px`,
     borderBottom: `2px solid ${colors.border.light}`,
     display: "flex",
@@ -37454,8 +39625,8 @@ const TaviChat = ({ isOpen, onClose }) => {
     maxWidth: "80%",
     boxShadow: shadows.soft
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle, onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: chatCardStyle, onClick: (e) => e.stopPropagation(), children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle2, onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: chatCardStyle, onClick: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerStyle2, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: titleStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: taviIconStyle }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -37610,9 +39781,9 @@ const TaviButton = () => {
 };
 const AuthScreen = () => {
   const [mode, setMode] = reactExports.useState("signin");
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
-    background: colors.appBackground,
+    background: colors.gradients.background,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -37622,7 +39793,7 @@ const AuthScreen = () => {
     width: "100%",
     maxWidth: 420
   };
-  const headerStyle = {
+  const headerStyle2 = {
     textAlign: "center",
     marginBottom: spacing.lg
   };
@@ -37635,15 +39806,15 @@ const AuthScreen = () => {
   const linkBtn = {
     padding: `${spacing.sm}px ${spacing.md}px`,
     borderRadius: radii.lg,
-    background: colors.glass.buttonBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     cursor: "pointer",
     boxShadow: shadows.sm
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, style: { width: "100%" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: cardStyle, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerStyle, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary }, children: "Willkommen" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { style: { ...typography.textStyles.body, color: colors.textSecondary }, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: containerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, style: { width: "100%" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: cardStyle, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerStyle2, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.headingMd, color: colors.text.primary }, children: "Willkommen" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { style: { ...typography.textStyles.body, color: colors.text.secondary }, children: [
         "Bitte ",
         mode === "signin" ? "anmelden" : "registrieren",
         " mit Google oder Facebook."
@@ -38775,7 +40946,7 @@ const QuizComponent = ({
       if (aiResult.alreadyProcessed) {
         console.log("⚠️ Avatar already received updates from this quiz");
         __vitePreload(async () => {
-          const { showWarningToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showWarningToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showWarningToast };
         }, true ? [] : void 0).then(({ showWarningToast }) => {
           showWarningToast("Du hast bereits Persönlichkeitsupdates von diesem Quiz erhalten!");
@@ -38807,7 +40978,7 @@ const QuizComponent = ({
         }
         console.log(`🎉 KI quiz completed: ${percentage}% correct, personality changes:`, personalityChanges);
         __vitePreload(async () => {
-          const { showQuizCompletionToast, showPersonalityUpdateToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showQuizCompletionToast, showPersonalityUpdateToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showQuizCompletionToast, showPersonalityUpdateToast };
         }, true ? [] : void 0).then(({ showQuizCompletionToast, showPersonalityUpdateToast }) => {
           showQuizCompletionToast(percentage);
@@ -38816,7 +40987,7 @@ const QuizComponent = ({
       } else {
         console.log("🤔 KI quiz analysis completed but no personality changes suggested");
         __vitePreload(async () => {
-          const { showQuizCompletionToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showQuizCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showQuizCompletionToast };
         }, true ? [] : void 0).then(({ showQuizCompletionToast }) => {
           showQuizCompletionToast(percentage);
@@ -38825,7 +40996,7 @@ const QuizComponent = ({
     } catch (error) {
       console.error("❌ Error processing quiz completion with KI:", error);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-Djb6gB-7.js");
+        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("Fehler beim Verarbeiten der Persönlichkeitsentwicklung");
@@ -39143,7 +41314,7 @@ const DokuReaderScreen = () => {
     setPersonalityChanges(changes);
     setShowPersonalityNotification(true);
     __vitePreload(async () => {
-      const { showPersonalityUpdateToast } = await import("./toastUtils-Djb6gB-7.js");
+      const { showPersonalityUpdateToast } = await import("./toastUtils-D_8MFf2t.js");
       return { showPersonalityUpdateToast };
     }, true ? [] : void 0).then(({ showPersonalityUpdateToast }) => {
       showPersonalityUpdateToast(changes);
@@ -39213,7 +41384,7 @@ const DokuReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -39235,7 +41406,7 @@ const DokuReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast } = await import("./toastUtils-Djb6gB-7.js");
+          const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
           return { showErrorToast };
         }, true ? [] : void 0).then(({ showErrorToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -39244,7 +41415,7 @@ const DokuReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error applying personality updates:", error2);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-Djb6gB-7.js");
+        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -39336,6 +41507,298 @@ const DokuReaderScreen = () => {
         visible: showPersonalityNotification,
         onClose: () => setShowPersonalityNotification(false)
       }
+    ) })
+  ] });
+};
+const DokuScrollReaderScreen = () => {
+  var _a, _b, _c, _d;
+  const { dokuId } = useParams();
+  const navigate = useNavigate();
+  const backend = useBackend();
+  const { getToken } = useAuth();
+  const [doku2, setDoku] = reactExports.useState(null);
+  const [loading, setLoading2] = reactExports.useState(true);
+  const [error, setError2] = reactExports.useState(null);
+  const [isReading, setIsReading] = reactExports.useState(false);
+  const [dokuCompleted, setDokuCompleted] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (dokuId) {
+      loadDoku();
+    }
+  }, [dokuId]);
+  const loadDoku = async () => {
+    if (!dokuId) return;
+    try {
+      setLoading2(true);
+      setError2(null);
+      const dokuData = await backend.doku.getDoku(dokuId);
+      setDoku(dokuData);
+    } catch (err) {
+      console.error("Error loading doku:", err);
+      setError2(err.message || "Doku konnte nicht geladen werden.");
+    } finally {
+      setLoading2(false);
+    }
+  };
+  const startReading = () => {
+    setIsReading(true);
+  };
+  const handleDokuCompletion = async () => {
+    console.log("📚 Doku completed - triggering personality updates for all eligible avatars");
+    if (!doku2 || !dokuId || dokuCompleted) {
+      console.log("Doku completion aborted - missing requirements or already completed");
+      return;
+    }
+    try {
+      setDokuCompleted(true);
+      const token = await getToken();
+      const { getBackendUrl: getBackendUrl2 } = await __vitePreload(async () => {
+        const { getBackendUrl: getBackendUrl3 } = await Promise.resolve().then(() => config);
+        return { getBackendUrl: getBackendUrl3 };
+      }, true ? void 0 : void 0);
+      const target = getBackendUrl2();
+      const response = await fetch(`${target}/doku/mark-read`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...token ? { "Authorization": `Bearer ${token}` } : {}
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          dokuId,
+          dokuTitle: doku2.title,
+          topic: doku2.topic
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log("✅ Personality updates applied:", result);
+        __vitePreload(async () => {
+          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+          return { showSuccessToast };
+        }, true ? [] : void 0).then(({ showSuccessToast }) => {
+          let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
+
+`;
+          if (result.personalityChanges && result.personalityChanges.length > 0) {
+            result.personalityChanges.forEach((avatarChange) => {
+              const changes = avatarChange.changes.map((change) => {
+                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
+                return `${points} ${getTraitDisplayName(change.trait)}`;
+              }).join(", ");
+              message += `${avatarChange.avatarName}: ${changes}
+`;
+            });
+          }
+          showSuccessToast(message.trim());
+        });
+      } else {
+        const errorText = await response.text();
+        console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
+        __vitePreload(async () => {
+          const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+          return { showErrorToast };
+        }, true ? [] : void 0).then(({ showErrorToast }) => {
+          showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
+        });
+      }
+    } catch (error2) {
+      console.error("❌ Error during doku completion processing:", error2);
+      __vitePreload(async () => {
+        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+        return { showErrorToast };
+      }, true ? [] : void 0).then(({ showErrorToast }) => {
+        showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
+      });
+    }
+  };
+  function getTraitDisplayName(trait) {
+    const parts = trait.split(".");
+    const subcategory = parts.length > 1 ? parts[1] : null;
+    const mainTrait = parts[0];
+    const names = {
+      "knowledge": "Wissen",
+      "creativity": "Kreativität",
+      "vocabulary": "Wortschatz",
+      "courage": "Mut",
+      "curiosity": "Neugier",
+      "teamwork": "Teamgeist",
+      "empathy": "Empathie",
+      "persistence": "Ausdauer",
+      "logic": "Logik",
+      "history": "Geschichte",
+      "science": "Wissenschaft",
+      "geography": "Geografie",
+      "physics": "Physik",
+      "biology": "Biologie",
+      "chemistry": "Chemie",
+      "mathematics": "Mathematik",
+      "kindness": "Freundlichkeit",
+      "humor": "Humor",
+      "determination": "Entschlossenheit",
+      "wisdom": "Weisheit"
+    };
+    if (subcategory) {
+      return names[subcategory.toLowerCase()] || subcategory;
+    }
+    return names[mainTrait.toLowerCase()] || trait;
+  }
+  if (loading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-lg text-gray-600 dark:text-gray-300", children: "Lade Doku..." })
+    ] }) });
+  }
+  if (error || !doku2) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-red-500 mb-4", children: "Fehler" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-700 dark:text-gray-200 mb-6", children: error || "Die Doku konnte nicht gefunden werden." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => navigate("/doku"), className: "px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors flex items-center mx-auto", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 18, className: "mr-2" }),
+        " Zurück"
+      ] })
+    ] }) });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen w-full bg-gray-100 dark:bg-gray-900", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-7xl mx-auto px-4 py-4 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => isReading ? setIsReading(false) : navigate("/doku"),
+          className: "flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "w-5 h-5" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "Zurück" })
+          ]
+        }
+      ),
+      isReading && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-gray-600 dark:text-gray-300", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { className: "w-5 h-5" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-medium", children: [
+          ((_b = (_a = doku2.content) == null ? void 0 : _a.sections) == null ? void 0 : _b.length) || 0,
+          " Abschnitte"
+        ] })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: !isReading ? (
+      /* Cover Page */
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        motion.div,
+        {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          className: "min-h-screen flex flex-col items-center justify-center p-8 pt-24 text-center",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              motion.img,
+              {
+                src: doku2.coverImageUrl || "/placeholder-doku.jpg",
+                alt: doku2.title,
+                className: "w-64 h-64 md:w-80 md:h-80 rounded-2xl shadow-2xl mb-8 object-cover",
+                layoutId: `doku-cover-${doku2.id}`
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-4xl md:text-6xl font-bold text-gray-800 dark:text-white mb-6 max-w-4xl", children: doku2.title }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xl text-gray-600 dark:text-gray-300 max-w-2xl mb-10 leading-relaxed", children: doku2.summary }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              motion.button,
+              {
+                onClick: startReading,
+                className: "px-10 py-4 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transition-all",
+                whileHover: { scale: 1.05 },
+                whileTap: { scale: 0.95 },
+                children: "📚 Lesen"
+              }
+            )
+          ]
+        },
+        "cover"
+      )
+    ) : (
+      /* Scrollable Reading View with TracingBeam */
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        motion.div,
+        {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          className: "w-full",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pt-24 pb-32", children: /* @__PURE__ */ jsxRuntimeExports.jsx(TracingBeam, { className: "px-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-3xl mx-auto antialiased", children: [
+            (_d = (_c = doku2.content) == null ? void 0 : _c.sections) == null ? void 0 : _d.map((section, index) => {
+              var _a2, _b2, _c2, _d2, _e, _f;
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                section.content && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-16", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-full text-sm w-fit px-6 py-2 mb-6 font-semibold shadow-lg", children: [
+                    "Abschnitt ",
+                    index + 1
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-3xl md:text-4xl mb-6 font-bold text-gray-800 dark:text-white", children: section.title }),
+                  doku2.coverImageUrl && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "img",
+                    {
+                      src: doku2.coverImageUrl,
+                      alt: section.title,
+                      className: "rounded-2xl mb-8 w-full object-cover shadow-2xl",
+                      style: { maxHeight: "500px" }
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg md:text-xl prose prose-lg dark:prose-invert max-w-none leading-relaxed", children: section.content.split("\n").map((paragraph, pIndex) => paragraph.trim() && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-6", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    TextGradientScroll,
+                    {
+                      text: paragraph,
+                      type: "word",
+                      textOpacity: "soft",
+                      className: "text-gray-700 dark:text-gray-300"
+                    }
+                  ) }, `p-${index}-${pIndex}`)) })
+                ] }),
+                section.keyFacts && section.keyFacts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-16", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FactsComponent, { section }) }),
+                ((_b2 = (_a2 = section.interactive) == null ? void 0 : _a2.activities) == null ? void 0 : _b2.enabled) && ((_c2 = section.interactive.activities.items) == null ? void 0 : _c2.length) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-16", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ActivityComponent, { section }) }),
+                ((_e = (_d2 = section.interactive) == null ? void 0 : _d2.quiz) == null ? void 0 : _e.enabled) && ((_f = section.interactive.quiz.questions) == null ? void 0 : _f.length) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-16", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  QuizComponent,
+                  {
+                    section,
+                    dokuTitle: doku2.title,
+                    dokuId,
+                    onPersonalityChange: (changes) => {
+                      __vitePreload(async () => {
+                        const { showPersonalityUpdateToast } = await import("./toastUtils-D_8MFf2t.js");
+                        return { showPersonalityUpdateToast };
+                      }, true ? [] : void 0).then(({ showPersonalityUpdateToast }) => {
+                        showPersonalityUpdateToast(changes);
+                      });
+                    }
+                  }
+                ) })
+              ] }, `section-${index}`);
+            }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                motion.button,
+                {
+                  onClick: handleDokuCompletion,
+                  disabled: dokuCompleted,
+                  className: `px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${dokuCompleted ? "bg-gradient-to-r from-green-500 to-emerald-600 cursor-default" : "bg-gradient-to-r from-teal-600 to-cyan-600 hover:shadow-teal-500/50 hover:scale-105"}`,
+                  whileHover: !dokuCompleted ? { scale: 1.05 } : {},
+                  whileTap: !dokuCompleted ? { scale: 0.95 } : {},
+                  children: dokuCompleted ? "🎉 Doku abgeschlossen!" : "🏁 Doku abschließen"
+                }
+              ),
+              dokuCompleted && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                motion.p,
+                {
+                  initial: { opacity: 0, y: 10 },
+                  animate: { opacity: 1, y: 0 },
+                  className: "mt-4 text-gray-600 dark:text-gray-300 text-center",
+                  children: "Deine Avatare haben neues Wissen erlangt! ✨"
+                }
+              )
+            ] })
+          ] }) }) })
+        },
+        "reader"
+      )
     ) })
   ] });
 };
@@ -39552,7 +42015,7 @@ const DokusScreen = () => {
   const handleDeleteDoku = async (dokuId, dokuTitle) => {
     if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.doku.deleteDoku(dokuId);
+        await backend.doku.deleteDoku({ id: dokuId });
         setDokus(dokus.filter((d) => d.id !== dokuId));
         alert(`Doku "${dokuTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
@@ -39561,9 +42024,9 @@ const DokusScreen = () => {
       }
     }
   };
-  const containerStyle = {
+  const containerStyle2 = {
     minHeight: "100vh",
-    background: colors.appBackground,
+    background: colors.background.primary,
     paddingBottom: "120px",
     position: "relative"
   };
@@ -39574,14 +42037,14 @@ const DokusScreen = () => {
     borderRadius: "50%",
     transform: "translate(-50%, -50%)"
   };
-  const headerStyle = {
+  const headerStyle2 = {
     padding: `${spacing.xl}px`,
     marginBottom: `${spacing.lg}px`
   };
   const headerCardStyle = {
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
-    background: colors.glass.heroBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     boxShadow: colors.glass.shadowStrong,
     backdropFilter: "blur(18px) saturate(160%)",
@@ -39590,7 +42053,7 @@ const DokusScreen = () => {
   };
   const titleStyle = {
     ...typography.textStyles.displayLg,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     marginBottom: spacing.sm,
     textShadow: "0 1px 1px rgba(255,255,255,0.35)",
     display: "flex",
@@ -39599,7 +42062,7 @@ const DokusScreen = () => {
   };
   const subtitleStyle = {
     ...typography.textStyles.body,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: "18px"
   };
   const newDokuButtonStyle = {
@@ -39621,18 +42084,18 @@ const DokusScreen = () => {
     padding: `${spacing.xxl}px`
   };
   if (loading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: loadingStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
           width: "60px",
           height: "60px",
           border: `4px solid rgba(255,255,255,0.6)`,
-          borderTop: `4px solid ${colors.primary}`,
+          borderTop: `4px solid ${colors.primary[500]}`,
           borderRadius: "50%",
           animation: "spin 1s linear infinite",
           margin: `0 auto ${spacing.lg}px auto`
         } }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.textSecondary, fontSize: "18px" }, children: "Lade deine Dokumentationen... 🧪" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary, fontSize: "18px" }, children: "Lade deine Dokumentationen... 🧪" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
           @keyframes spin {
@@ -39642,12 +42105,12 @@ const DokusScreen = () => {
         ` })
     ] });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle2, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: gradients.primary } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: gradients.cool } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...glassBlob, width: 240, height: 240, bottom: -40, left: "50%", background: gradients.warm } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(SignedOut, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { textAlign: "center", padding: `${spacing.xxxl}px ${spacing.xl}px` }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayLg, color: colors.textPrimary, marginBottom: spacing.md }, children: "Melde dich an, um deine Dokumentationen zu sehen" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }, children: "Melde dich an, um deine Dokumentationen zu sehen" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 200, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
         Button,
         {
@@ -39659,9 +42122,9 @@ const DokusScreen = () => {
       ) })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(SignedIn, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerCardStyle, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: headerStyle2, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: headerCardStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: titleStyle, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 36, style: { color: colors.primary } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 36, style: { color: colors.primary[500] } }),
           "Deine Dokumentationen"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: subtitleStyle, children: [
@@ -39681,8 +42144,8 @@ const DokusScreen = () => {
       ] }) }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: contentStyle, children: dokus.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: emptyStateStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: "64px", marginBottom: `${spacing.lg}px` }, children: "🧪" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }, children: "Noch keine Dokumentationen" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: "16px" }, children: "Erstelle deine erste lehrreiche Dokumentation!" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }, children: "Noch keine Dokumentationen" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: "16px" }, children: "Erstelle deine erste lehrreiche Dokumentation!" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
           {
@@ -39704,6 +42167,805 @@ const DokusScreen = () => {
     ] })
   ] });
 };
+const containerStyle = {
+  minHeight: "100vh",
+  padding: `${spacing.xl}px ${spacing.xl}px ${spacing.xxl}px`,
+  color: colors.text.primary,
+  background: colors.gradients.background,
+  fontFamily: '"Nunito", system-ui, sans-serif'
+};
+const headerStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: spacing.sm,
+  marginBottom: spacing.xl
+};
+const gridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+  gap: spacing.lg
+};
+const cardImageStyle = {
+  width: "100%",
+  height: 180,
+  borderRadius: `${radii.lg}px`,
+  overflow: "hidden",
+  background: colors.glass.backgroundAlt,
+  border: `1px solid ${colors.border.light}`,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center"
+};
+const modalOverlayStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(12, 10, 25, 0.75)",
+  backdropFilter: "blur(8px)",
+  zIndex: 1050,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: `${spacing.xl}px`
+};
+const modalContentStyle = {
+  width: "min(960px, 100%)",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  background: colors.glass.backgroundAlt,
+  borderRadius: `${radii.xl}px`,
+  border: `2px solid ${colors.border.light}`,
+  boxShadow: shadows.xl,
+  padding: `${spacing.xl}px`
+};
+const modalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: spacing.lg
+};
+const sectionStyle = {
+  marginBottom: spacing.xl,
+  display: "grid",
+  gap: spacing.lg
+};
+const sectionTitleStyle = {
+  ...typography.textStyles.headingSm,
+  marginBottom: spacing.sm
+};
+const inputLabelStyle = {
+  fontSize: 14,
+  fontWeight: 600,
+  color: colors.text.secondary,
+  marginBottom: spacing.xxs,
+  display: "block"
+};
+const inputBaseStyle = {
+  width: "100%",
+  padding: `${spacing.sm}px`,
+  borderRadius: `${radii.md}px`,
+  border: `1px solid ${colors.border.light}`,
+  background: colors.glass.background,
+  color: colors.text.primary,
+  fontSize: 14,
+  outline: "none",
+  transition: "border 120ms ease, box-shadow 120ms ease"
+};
+const textAreaStyle = {
+  ...inputBaseStyle,
+  minHeight: 80,
+  resize: "vertical"
+};
+const twoColumnStyle = {
+  display: "grid",
+  gap: spacing.lg,
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))"
+};
+const previewImageStyle = {
+  width: "100%",
+  maxWidth: 240,
+  aspectRatio: "1 / 1",
+  borderRadius: `${radii.lg}px`,
+  overflow: "hidden",
+  border: `1px solid ${colors.border.light}`
+};
+const CharacterPoolScreen = () => {
+  const backend = useBackend();
+  const [characters, setCharacters] = reactExports.useState([]);
+  const [loading, setLoading2] = reactExports.useState(true);
+  const [error, setError2] = reactExports.useState(null);
+  const [editingCharacter, setEditingCharacter] = reactExports.useState(null);
+  const [isNewCharacter, setIsNewCharacter] = reactExports.useState(false);
+  const [formState, setFormState] = reactExports.useState(null);
+  const [editorOpen, setEditorOpen] = reactExports.useState(false);
+  const [generatingImage, setGeneratingImage] = reactExports.useState(false);
+  const [saving, setSaving] = reactExports.useState(false);
+  const [detailLoading, setDetailLoading] = reactExports.useState(false);
+  const [deleting, setDeleting] = reactExports.useState(false);
+  const [exporting, setExporting] = reactExports.useState(false);
+  const [importing, setImporting] = reactExports.useState(false);
+  const fileInputRef = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    void loadCharacters();
+  }, []);
+  const loadCharacters = async () => {
+    try {
+      setLoading2(true);
+      setError2(null);
+      const response = await backend.story.listCharacters();
+      setCharacters(response.characters);
+    } catch (err) {
+      console.error("Failed to load characters", err);
+      setError2("Charaktere konnten nicht geladen werden.");
+      toast.error("Charaktere konnten nicht geladen werden.");
+    } finally {
+      setLoading2(false);
+    }
+  };
+  const openEditor = async (id2) => {
+    try {
+      setDetailLoading(true);
+      const character = await backend.story.getCharacter({ id: id2 });
+      setEditingCharacter(character);
+      setIsNewCharacter(false);
+      setFormState(mapCharacterToForm(character));
+      setEditorOpen(true);
+    } catch (err) {
+      console.error("Failed to load character details", err);
+      toast.error("Charakterdetails konnten nicht geladen werden.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+  const openNewCharacter = () => {
+    setFormState(createEmptyFormState());
+    setEditingCharacter(null);
+    setIsNewCharacter(true);
+    setEditorOpen(true);
+  };
+  const closeEditor = () => {
+    setEditorOpen(false);
+    setEditingCharacter(null);
+    setIsNewCharacter(false);
+    setFormState(null);
+  };
+  const handleGenerateImage = async () => {
+    if (isNewCharacter) {
+      toast.info("Bitte speichere den Charakter zuerst, bevor ein Bild generiert wird.");
+      return;
+    }
+    if (!editingCharacter || !formState) {
+      return;
+    }
+    try {
+      setGeneratingImage(true);
+      const response = await backend.story.generateCharacterImage({ id: editingCharacter.id });
+      setFormState((prev) => prev ? { ...prev, imageUrl: response.imageUrl } : prev);
+      toast.success("Neues Charakterbild erstellt. Vergiss nicht zu speichern.");
+    } catch (err) {
+      console.error("Failed to generate character image", err);
+      toast.error("Bild konnte nicht generiert werden.");
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+  const handleSave = async () => {
+    if (!formState) {
+      return;
+    }
+    if (isNewCharacter) {
+      if (!formState.name.trim() || !formState.role.trim() || !formState.archetype.trim()) {
+        toast.error("Bitte Name, Rolle und Archetyp ausfuellen.");
+        return;
+      }
+    }
+    let updates = null;
+    if (!isNewCharacter) {
+      if (!editingCharacter) {
+        return;
+      }
+      updates = buildUpdatePayload(editingCharacter, formState);
+      if (Object.keys(updates).length === 0) {
+        toast.info("Keine Aenderungen erkannt.");
+        return;
+      }
+    }
+    try {
+      setSaving(true);
+      if (isNewCharacter) {
+        const payload = buildCreatePayload(formState);
+        const created = await backend.story.addCharacter({ character: payload });
+        setEditingCharacter(created);
+        setFormState(mapCharacterToForm(created));
+        setIsNewCharacter(false);
+        toast.success("Charakter erfolgreich erstellt.");
+      } else if (editingCharacter && updates) {
+        await backend.story.updateCharacter({
+          id: editingCharacter.id,
+          updates
+        });
+        const refreshed = await backend.story.getCharacter({ id: editingCharacter.id });
+        setEditingCharacter(refreshed);
+        setFormState(mapCharacterToForm(refreshed));
+        toast.success("Charakter erfolgreich aktualisiert.");
+      }
+      await loadCharacters();
+    } catch (err) {
+      console.error("Failed to save character", err);
+      toast.error("Charakter konnte nicht gespeichert werden.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const refreshButtonDisabled = reactExports.useMemo(() => loading || importing, [importing, loading]);
+  const handleExportCharacters = async () => {
+    try {
+      setExporting(true);
+      const response = await backend.story.exportCharacters();
+      const blob = new Blob([JSON.stringify(response.characters, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `talea-characters-${timestamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Charaktere exportiert.");
+    } catch (err) {
+      console.error("Failed to export characters", err);
+      toast.error("Charaktere konnten nicht exportiert werden.");
+    } finally {
+      setExporting(false);
+    }
+  };
+  const triggerImport = () => {
+    var _a;
+    (_a = fileInputRef.current) == null ? void 0 : _a.click();
+  };
+  const handleImportFile = async (event) => {
+    var _a;
+    const file = (_a = event.target.files) == null ? void 0 : _a[0];
+    if (!file) {
+      return;
+    }
+    try {
+      const text = await file.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error("Die ausgewaehlte Datei enthaelt kein gueltiges JSON.");
+      }
+      const charactersPayload = Array.isArray(parsed) ? parsed : Array.isArray(parsed == null ? void 0 : parsed.characters) ? parsed.characters : null;
+      if (!charactersPayload || charactersPayload.length === 0) {
+        throw new Error("Die JSON-Datei enthaelt keine Charaktere.");
+      }
+      const confirmReplace = window.confirm(
+        `Vorhandene Charaktere werden durch ${charactersPayload.length} importierte Eintraege ersetzt. Fortfahren?`
+      );
+      if (!confirmReplace) {
+        return;
+      }
+      setImporting(true);
+      await backend.story.importCharacters({ characters: charactersPayload });
+      toast.success("Charaktere erfolgreich importiert.");
+      closeEditor();
+      await loadCharacters();
+    } catch (err) {
+      console.error("Failed to import characters", err);
+      const message = err instanceof Error ? err.message : "Charaktere konnten nicht importiert werden.";
+      toast.error(message);
+    } finally {
+      event.target.value = "";
+      setImporting(false);
+    }
+  };
+  const handleDelete = async () => {
+    if (!editingCharacter || isNewCharacter) {
+      closeEditor();
+      return;
+    }
+    const confirmDelete = window.confirm(`Soll der Charakter "${editingCharacter.name}" wirklich geloescht werden?`);
+    if (!confirmDelete) {
+      return;
+    }
+    try {
+      setDeleting(true);
+      await backend.story.deleteCharacter({ id: editingCharacter.id });
+      toast.success("Charakter wurde geloescht.");
+      closeEditor();
+      await loadCharacters();
+    } catch (err) {
+      console.error("Failed to delete character", err);
+      toast.error("Charakter konnte nicht geloescht werden.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: containerStyle, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        ref: fileInputRef,
+        type: "file",
+        accept: "application/json",
+        onChange: handleImportFile,
+        style: { display: "none" }
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { style: headerStyle, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.headingLg, marginBottom: spacing.xs }, children: "Charaktere" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { color: colors.text.secondary, maxWidth: 640 }, children: "Verwalte alle verfuegbaren Charaktervorlagen. Du kannst Eigenschaften anpassen, Kapitelzuordnungen aendern und neue Bilder direkt aus dem visuellen Profil generieren." })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: spacing.sm, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: exporting ? "Exportiert..." : "Exportieren",
+            onPress: () => void handleExportCharacters(),
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Download, { size: 16 }),
+            variant: "outline",
+            disabled: exporting
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: importing ? "Importiert..." : "Importieren",
+            onPress: triggerImport,
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Upload, { size: 16 }),
+            variant: "outline",
+            disabled: importing
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: "Neuer Charakter",
+            onPress: openNewCharacter,
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 16 }),
+            variant: "primary",
+            disabled: importing || exporting
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: loading ? "Laedt..." : "Aktualisieren",
+            onPress: () => void loadCharacters(),
+            disabled: refreshButtonDisabled,
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCcw, { size: 16 }),
+            variant: "secondary"
+          }
+        )
+      ] })
+    ] }),
+    loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { color: colors.text.secondary }, children: "Charaktere werden geladen..." }),
+    !loading && error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { color: colors.semantic.error }, children: error }),
+    !loading && !error && characters.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { color: colors.text.secondary }, children: "Keine Charaktere gefunden." }),
+    !loading && !error && characters.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: gridStyle, children: characters.map((character) => /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: { padding: spacing.lg }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: cardImageStyle, children: character.imageUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "img",
+        {
+          src: character.imageUrl,
+          alt: character.name,
+          style: { width: "100%", height: "100%", objectFit: "cover" }
+        }
+      ) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: colors.text.secondary, fontSize: 14 }, children: "Kein Bild" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: spacing.md }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { style: { ...typography.textStyles.headingSm, marginBottom: spacing.xs }, children: character.name }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { style: { color: colors.text.secondary, fontSize: 14 }, children: [
+          character.role,
+          " - ",
+          character.archetype
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: spacing.md, display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 12, color: character.isActive ? colors.semantic.success : colors.text.secondary }, children: character.isActive ? "Aktiv" : "Inaktiv" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: detailLoading && (editingCharacter == null ? void 0 : editingCharacter.id) === character.id ? "Laedt..." : "Bearbeiten",
+            onPress: () => void openEditor(character.id),
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(PenLine, { size: 16 }),
+            variant: "primary",
+            disabled: detailLoading && (editingCharacter == null ? void 0 : editingCharacter.id) === character.id
+          }
+        )
+      ] })
+    ] }, character.id)) }),
+    editorOpen && formState && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: modalOverlayStyle, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: modalContentStyle, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: modalHeaderStyle, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { style: typography.textStyles.headingMd, children: formState.name.trim() || (isNewCharacter ? "Neuer Charakter" : (editingCharacter == null ? void 0 : editingCharacter.name) ?? "Charakter") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { color: colors.text.secondary, fontSize: 14 }, children: isNewCharacter ? "Noch nicht gespeichert" : (editingCharacter == null ? void 0 : editingCharacter.id) ?? "" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: "Schliessen",
+            onPress: closeEditor,
+            variant: "outline",
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 16 })
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: spacing.xl, alignItems: "flex-start", flexWrap: "wrap", marginBottom: spacing.xl }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { flex: "1 1 360px", minWidth: 300 }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: sectionStyle, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "name", children: "Name" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                id: "name",
+                style: inputBaseStyle,
+                value: formState.name,
+                onChange: (event) => setFormState({ ...formState, name: event.target.value })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: twoColumnStyle, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "role", children: "Rolle" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  id: "role",
+                  style: inputBaseStyle,
+                  value: formState.role,
+                  onChange: (event) => setFormState({ ...formState, role: event.target.value })
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "archetype", children: "Archetyp" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  id: "archetype",
+                  style: inputBaseStyle,
+                  value: formState.archetype,
+                  onChange: (event) => setFormState({ ...formState, archetype: event.target.value })
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: twoColumnStyle, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "maxScreenTime", children: "Screen Time (%)" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  id: "maxScreenTime",
+                  style: inputBaseStyle,
+                  value: formState.maxScreenTime,
+                  onChange: (event) => setFormState({ ...formState, maxScreenTime: event.target.value }),
+                  inputMode: "numeric"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "availableChapters", children: "Kapitel (kommagetrennt)" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  id: "availableChapters",
+                  style: inputBaseStyle,
+                  value: formState.availableChapters,
+                  onChange: (event) => setFormState({ ...formState, availableChapters: event.target.value })
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "canonSettings", children: "Canon Settings (kommagetrennt)" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                id: "canonSettings",
+                style: inputBaseStyle,
+                value: formState.canonSettings,
+                onChange: (event) => setFormState({ ...formState, canonSettings: event.target.value })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: sectionTitleStyle, children: "Emotionen" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: twoColumnStyle, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "dominantEmotion", children: "Dominant" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    id: "dominantEmotion",
+                    style: inputBaseStyle,
+                    value: formState.dominantEmotion,
+                    onChange: (event) => setFormState({ ...formState, dominantEmotion: event.target.value })
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "secondaryEmotions", children: "Sekundaer (kommagetrennt)" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    id: "secondaryEmotions",
+                    style: inputBaseStyle,
+                    value: formState.secondaryEmotions,
+                    onChange: (event) => setFormState({ ...formState, secondaryEmotions: event.target.value })
+                  }
+                )
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "triggers", children: "Trigger (kommagetrennt)" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  id: "triggers",
+                  style: inputBaseStyle,
+                  value: formState.triggers,
+                  onChange: (event) => setFormState({ ...formState, triggers: event.target.value })
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: sectionTitleStyle, children: "Visual Profile" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "visualDescription", children: "Beschreibung" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "textarea",
+                {
+                  id: "visualDescription",
+                  style: textAreaStyle,
+                  value: formState.visualDescription,
+                  onChange: (event) => setFormState({ ...formState, visualDescription: event.target.value })
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "visualPrompt", children: "Prompt" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "textarea",
+                {
+                  id: "visualPrompt",
+                  style: textAreaStyle,
+                  value: formState.visualPrompt,
+                  onChange: (event) => setFormState({ ...formState, visualPrompt: event.target.value })
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: twoColumnStyle, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "species", children: "Spezies" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    id: "species",
+                    style: inputBaseStyle,
+                    value: formState.species,
+                    onChange: (event) => setFormState({ ...formState, species: event.target.value })
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: inputLabelStyle, htmlFor: "colorPalette", children: "Farben (kommagetrennt)" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    id: "colorPalette",
+                    style: inputBaseStyle,
+                    value: formState.colorPalette,
+                    onChange: (event) => setFormState({ ...formState, colorPalette: event.target.value })
+                  }
+                )
+              ] })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: spacing.sm }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                id: "isActive",
+                type: "checkbox",
+                checked: formState.isActive,
+                onChange: (event) => setFormState({ ...formState, isActive: event.target.checked })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "isActive", style: { color: colors.text.secondary, fontSize: 14 }, children: "Charakter ist aktiv" })
+          ] })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { flex: "0 0 260px", display: "flex", flexDirection: "column", gap: spacing.md }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: previewImageStyle, children: formState.imageUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "img",
+            {
+              src: formState.imageUrl,
+              alt: `${formState.name} Vorschau`,
+              style: { width: "100%", height: "100%", objectFit: "cover" }
+            }
+          ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: colors.text.secondary }, children: "Kein Bild vorhanden" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              title: generatingImage ? "Generiere..." : "Charakter Bild generieren",
+              onPress: handleGenerateImage,
+              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 16 }),
+              variant: "secondary",
+              disabled: generatingImage
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: spacing.md, alignItems: "center", flexWrap: "wrap" }, children: [
+        !isNewCharacter && editingCharacter && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            title: deleting ? "Loeschen..." : "Loeschen",
+            onPress: handleDelete,
+            disabled: deleting,
+            variant: "outline",
+            icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 16 })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: spacing.md, marginLeft: "auto" }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              title: "Schliessen",
+              onPress: closeEditor,
+              variant: "outline"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              title: saving ? "Speichert..." : "Speichern",
+              onPress: handleSave,
+              icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { size: 16 }),
+              variant: "primary",
+              disabled: saving
+            }
+          )
+        ] })
+      ] })
+    ] }) })
+  ] });
+};
+function mapCharacterToForm(character) {
+  var _a, _b, _c, _d, _e, _f, _g;
+  return {
+    name: character.name,
+    role: character.role,
+    archetype: character.archetype,
+    dominantEmotion: ((_a = character.emotionalNature) == null ? void 0 : _a.dominant) ?? "",
+    secondaryEmotions: (((_b = character.emotionalNature) == null ? void 0 : _b.secondary) ?? []).join(", "),
+    triggers: (((_c = character.emotionalNature) == null ? void 0 : _c.triggers) ?? []).join(", "),
+    visualDescription: ((_d = character.visualProfile) == null ? void 0 : _d.description) ?? "",
+    visualPrompt: ((_e = character.visualProfile) == null ? void 0 : _e.imagePrompt) ?? "",
+    species: ((_f = character.visualProfile) == null ? void 0 : _f.species) ?? "",
+    colorPalette: (((_g = character.visualProfile) == null ? void 0 : _g.colorPalette) ?? []).join(", "),
+    maxScreenTime: String(character.maxScreenTime ?? 0),
+    availableChapters: (character.availableChapters ?? []).join(", "),
+    canonSettings: (character.canonSettings ?? []).join(", "),
+    isActive: character.isActive ?? true,
+    imageUrl: character.imageUrl
+  };
+}
+function createEmptyFormState() {
+  return {
+    name: "",
+    role: "",
+    archetype: "",
+    dominantEmotion: "",
+    secondaryEmotions: "",
+    triggers: "",
+    visualDescription: "",
+    visualPrompt: "",
+    species: "",
+    colorPalette: "",
+    maxScreenTime: "50",
+    availableChapters: "1,2,3,4,5",
+    canonSettings: "",
+    isActive: true,
+    imageUrl: void 0
+  };
+}
+function parseCommaList(value) {
+  return value.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+}
+function parseNumberList(value) {
+  return value.split(",").map((entry) => parseInt(entry.trim(), 10)).filter((num) => Number.isFinite(num));
+}
+function buildCreatePayload(form) {
+  const secondaryEmotions = parseCommaList(form.secondaryEmotions);
+  const triggerList = parseCommaList(form.triggers);
+  const emotionalNature = {
+    dominant: form.dominantEmotion.trim(),
+    secondary: secondaryEmotions
+  };
+  if (triggerList.length > 0) {
+    emotionalNature.triggers = triggerList;
+  }
+  const colorPalette = parseCommaList(form.colorPalette);
+  const visualProfile = {
+    description: form.visualDescription.trim(),
+    imagePrompt: form.visualPrompt.trim(),
+    species: form.species.trim(),
+    colorPalette
+  };
+  const maxScreenTimeValue = parseInt(form.maxScreenTime, 10);
+  const maxScreenTime = Number.isNaN(maxScreenTimeValue) ? 50 : maxScreenTimeValue;
+  const availableChapters = parseNumberList(form.availableChapters);
+  return {
+    name: form.name.trim(),
+    role: form.role.trim(),
+    archetype: form.archetype.trim(),
+    emotionalNature,
+    visualProfile,
+    imageUrl: form.imageUrl,
+    maxScreenTime,
+    availableChapters: availableChapters.length > 0 ? availableChapters : [1, 2, 3, 4, 5],
+    canonSettings: parseCommaList(form.canonSettings),
+    isActive: form.isActive
+  };
+}
+function buildUpdatePayload(original, form) {
+  const updates = {};
+  if (form.name.trim() !== original.name) {
+    updates.name = form.name.trim();
+  }
+  if (form.role.trim() !== original.role) {
+    updates.role = form.role.trim();
+  }
+  if (form.archetype.trim() !== original.archetype) {
+    updates.archetype = form.archetype.trim();
+  }
+  const secondaryEmotions = parseCommaList(form.secondaryEmotions);
+  const triggerList = parseCommaList(form.triggers);
+  const emotionalNature = {
+    dominant: form.dominantEmotion.trim(),
+    secondary: secondaryEmotions
+  };
+  if (triggerList.length > 0) {
+    emotionalNature.triggers = triggerList;
+  }
+  if (JSON.stringify(emotionalNature) !== JSON.stringify(original.emotionalNature ?? {})) {
+    updates.emotionalNature = emotionalNature;
+  }
+  const visualProfile = {
+    description: form.visualDescription.trim(),
+    imagePrompt: form.visualPrompt.trim(),
+    species: form.species.trim(),
+    colorPalette: parseCommaList(form.colorPalette)
+  };
+  if (JSON.stringify(visualProfile) !== JSON.stringify(original.visualProfile ?? {})) {
+    updates.visualProfile = visualProfile;
+  }
+  const maxScreenTime = parseInt(form.maxScreenTime, 10);
+  if (!Number.isNaN(maxScreenTime) && maxScreenTime !== original.maxScreenTime) {
+    updates.maxScreenTime = maxScreenTime;
+  }
+  const availableChapters = parseNumberList(form.availableChapters);
+  if (JSON.stringify(availableChapters) !== JSON.stringify(original.availableChapters ?? [])) {
+    updates.availableChapters = availableChapters;
+  }
+  const canonSettings = parseCommaList(form.canonSettings);
+  if (JSON.stringify(canonSettings) !== JSON.stringify(original.canonSettings ?? [])) {
+    updates.canonSettings = canonSettings;
+  }
+  if (form.imageUrl !== original.imageUrl) {
+    updates.imageUrl = form.imageUrl ?? null;
+  }
+  if ((original.isActive ?? true) !== form.isActive) {
+    updates.isActive = form.isActive;
+  }
+  return updates;
+}
 const AppContent = () => /* @__PURE__ */ jsxRuntimeExports.jsx(BrowserRouter, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { minHeight: "100vh", background: colors.gradients.background }, children: [
   /* @__PURE__ */ jsxRuntimeExports.jsxs(Routes, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/", element: /* @__PURE__ */ jsxRuntimeExports.jsx(HomeScreen, {}) }),
@@ -39712,13 +42974,16 @@ const AppContent = () => /* @__PURE__ */ jsxRuntimeExports.jsx(BrowserRouter, { 
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/avatar/:avatarId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AvatarDetailScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/avatar/edit/:avatarId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(EditAvatarScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryWizardScreen, {}) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story-reader/:storyId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryReaderScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story-reader/:storyId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryScrollReaderScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story-reader-old/:storyId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryReaderScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/stories", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoriesScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/community", element: /* @__PURE__ */ jsxRuntimeExports.jsx(HomeScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/logs", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LogViewerScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/doku", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DokusScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/characters", element: /* @__PURE__ */ jsxRuntimeExports.jsx(CharacterPoolScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/doku/create", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DokuWizardScreen, {}) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/doku-reader/:dokuId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DokuReaderScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/doku-reader/:dokuId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DokuScrollReaderScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/doku-reader-old/:dokuId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DokuReaderScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/auth", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AuthScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/_admin", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AdminDashboard, {}) })
   ] }),
@@ -39816,12 +43081,12 @@ ReactDOM$1.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(React.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) })
 );
 export {
-  BookOpen as B,
+  Brain as B,
   CircleCheckBig as C,
   User as U,
   X,
   __vitePreload as _,
-  Brain as a,
+  BookOpen as a,
   traits as b,
   createLucideIcon as c,
   jsxRuntimeExports as j,

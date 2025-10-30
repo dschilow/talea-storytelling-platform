@@ -11,7 +11,7 @@ const AuthScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: "100vh",
-    background: colors.appBackground,
+    background: colors.gradients.background,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -38,7 +38,7 @@ const AuthScreen: React.FC = () => {
   const linkBtn: React.CSSProperties = {
     padding: `${spacing.sm}px ${spacing.md}px`,
     borderRadius: radii.lg,
-    background: colors.glass.buttonBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     cursor: "pointer",
     boxShadow: shadows.sm,
@@ -49,10 +49,10 @@ const AuthScreen: React.FC = () => {
       <FadeInView delay={100} style={{ width: "100%" }}>
         <Card variant="glass" style={cardStyle}>
           <div style={headerStyle}>
-            <h1 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary }}>
+            <h1 style={{ ...typography.textStyles.headingMd, color: colors.text.primary }}>
               Willkommen
             </h1>
-            <p style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+            <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
               Bitte {mode === "signin" ? "anmelden" : "registrieren"} mit Google oder Facebook.
             </p>
           </div>

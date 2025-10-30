@@ -1,7 +1,7 @@
 // Character Pool Management API
 // Endpoints for managing the character pool
 
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { storyDB } from "./db";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
@@ -26,51 +26,57 @@ async function ensureImageUrlColumn(): Promise<void> {
   }
 }
 
+async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
+  await ensureImageUrlColumn();
+
+  const rows = await storyDB.queryAll<{
+    id: string;
+    name: string;
+    role: string;
+    archetype: string;
+    emotional_nature: string;
+    visual_profile: string;
+    image_url: string | null;
+    max_screen_time: number;
+    available_chapters: number[];
+    canon_settings: string[];
+    recent_usage_count: number;
+    total_usage_count: number;
+    last_used_at: Date | null;
+    created_at: Date;
+    updated_at: Date;
+    is_active: boolean;
+  }>`
+    SELECT * FROM character_pool ORDER BY name
+  `;
+
+  return rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    archetype: row.archetype,
+    emotionalNature: JSON.parse(row.emotional_nature),
+    visualProfile: JSON.parse(row.visual_profile),
+    imageUrl: row.image_url || undefined,
+    maxScreenTime: row.max_screen_time,
+    availableChapters: row.available_chapters,
+    canonSettings: row.canon_settings,
+    recentUsageCount: row.recent_usage_count,
+    totalUsageCount: row.total_usage_count,
+    lastUsedAt: row.last_used_at || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    isActive: row.is_active,
+  }));
+}
+
 // ===== GET ALL CHARACTERS =====
 export const listCharacters = api(
   { expose: true, method: "GET", path: "/story/character-pool", auth: true },
   async (): Promise<{ characters: CharacterTemplate[] }> => {
     console.log("[CharacterPool] Listing all active characters");
 
-    const rows = await storyDB.queryAll<{
-      id: string;
-      name: string;
-      role: string;
-      archetype: string;
-      emotional_nature: string;
-      visual_profile: string;
-      image_url: string | null;
-      max_screen_time: number;
-      available_chapters: number[];
-      canon_settings: string[];
-      recent_usage_count: number;
-      total_usage_count: number;
-      last_used_at: Date | null;
-      created_at: Date;
-      updated_at: Date;
-      is_active: boolean;
-    }>`
-      SELECT * FROM character_pool ORDER BY name
-    `;
-
-    const characters = rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      role: row.role,
-      archetype: row.archetype,
-      emotionalNature: JSON.parse(row.emotional_nature),
-      visualProfile: JSON.parse(row.visual_profile),
-      imageUrl: row.image_url || undefined,
-      maxScreenTime: row.max_screen_time,
-      availableChapters: row.available_chapters,
-      canonSettings: row.canon_settings,
-      recentUsageCount: row.recent_usage_count,
-      totalUsageCount: row.total_usage_count,
-      lastUsedAt: row.last_used_at || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      isActive: row.is_active,
-    }));
+    const characters = await fetchAllCharacters();
 
     console.log(`[CharacterPool] Found ${characters.length} characters (active and inactive)`);
 
@@ -142,7 +148,7 @@ interface AddCharacterRequest {
 export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
   { expose: true, method: "POST", path: "/story/character-pool", auth: true },
   async (req): Promise<CharacterTemplate> => {
-    const id = `char_custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = crypto.randomUUID();
     const now = new Date();
 
     console.log("[CharacterPool] Adding new character:", req.character.name);
@@ -410,6 +416,80 @@ export const seedPool = api(
   }
 );
 
+// ===== EXPORT CHARACTERS =====
+export const exportCharacters = api(
+  { expose: true, method: "GET", path: "/story/character-pool/export", auth: true },
+  async (): Promise<{ characters: CharacterTemplate[] }> => {
+    console.log("[CharacterPool] Exporting all characters");
+    const characters = await fetchAllCharacters();
+    console.log(`[CharacterPool] Export payload size: ${characters.length} characters`);
+    return { characters };
+  }
+);
+
+// ===== IMPORT CHARACTERS =====
+interface ImportCharactersRequest {
+  characters: CharacterTemplate[];
+}
+
+export const importCharacters = api<ImportCharactersRequest, { success: boolean; imported: number }>(
+  { expose: true, method: "POST", path: "/story/character-pool/import", auth: true },
+  async (req): Promise<{ success: boolean; imported: number }> => {
+    console.log("[CharacterPool] Importing characters");
+
+    if (!Array.isArray(req.characters) || req.characters.length === 0) {
+      throw APIError.invalidArgument("Import requires at least one character");
+    }
+
+    await ensureImageUrlColumn();
+
+    const now = new Date();
+    const sanitized = req.characters.map((character, index) => sanitizeCharacter(character, index, now));
+
+    try {
+      await storyDB.exec`BEGIN`;
+      await storyDB.exec`DELETE FROM character_pool`;
+
+      for (const character of sanitized) {
+        await storyDB.exec`
+          INSERT INTO character_pool (
+            id, name, role, archetype, emotional_nature, visual_profile, image_url,
+            max_screen_time, available_chapters, canon_settings,
+            recent_usage_count, total_usage_count, last_used_at,
+            is_active, created_at, updated_at
+          ) VALUES (
+            ${character.id},
+            ${character.name},
+            ${character.role},
+            ${character.archetype},
+            ${JSON.stringify(character.emotionalNature)},
+            ${JSON.stringify(character.visualProfile)},
+            ${character.imageUrl || null},
+            ${character.maxScreenTime},
+            ${character.availableChapters},
+            ${character.canonSettings},
+            ${character.recentUsageCount},
+            ${character.totalUsageCount},
+            ${character.lastUsedAt || null},
+            ${character.isActive},
+            ${character.createdAt},
+            ${character.updatedAt}
+          )
+        `;
+      }
+
+      await storyDB.exec`COMMIT`;
+      console.log(`[CharacterPool] Import completed. Inserted ${sanitized.length} characters`);
+
+      return { success: true, imported: sanitized.length };
+    } catch (error) {
+      console.error("[CharacterPool] Import failed, rolling back:", error);
+      await storyDB.exec`ROLLBACK`;
+      throw APIError.internal(`Character import failed: ${(error as Error).message}`);
+    }
+  }
+);
+
 function buildCharacterImagePrompt(
   character: CharacterTemplate,
   style: GenerateCharacterImageRequest["style"]
@@ -473,4 +553,70 @@ function clampPromptLength(prompt: string, max = 900): string {
     return truncated.slice(0, lastPeriod + 1).trim();
   }
   return truncated.trim();
+}
+
+function isValidUuid(value: string | undefined | null): boolean {
+  if (!value) {
+    return false;
+  }
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+}
+
+function toNumberArray(value: unknown, fallback: number[]): number[] {
+  if (!value || !Array.isArray(value)) {
+    return fallback;
+  }
+  const numbers = value
+    .map((item) => Number(item))
+    .filter((num) => Number.isFinite(num));
+  return numbers.length > 0 ? numbers : fallback;
+}
+
+function toStringArray(value: unknown, fallback: string[] = []): string[] {
+  if (!value || !Array.isArray(value)) {
+    return fallback;
+  }
+  const strings = value
+    .map((item) => String(item).trim())
+    .filter((str) => str.length > 0);
+  return strings.length > 0 ? strings : fallback;
+}
+
+function sanitizeCharacter(character: CharacterTemplate, index: number, now: Date) {
+  const id = isValidUuid(character.id) ? character.id! : crypto.randomUUID();
+  const name = (character.name || `Character ${index + 1}`).trim();
+  const role = (character.role || "companion").trim();
+  const archetype = (character.archetype || "support").trim();
+
+  const emotionalNature = character.emotionalNature || { dominant: "calm", secondary: [], triggers: [] };
+  const visualProfile = character.visualProfile || {
+    description: "",
+    imagePrompt: "",
+    species: "unknown",
+    colorPalette: [],
+  };
+
+  const createdAt = character.createdAt ? new Date(character.createdAt) : now;
+  const updatedAt = character.updatedAt ? new Date(character.updatedAt) : now;
+  const lastUsedAt = character.lastUsedAt ? new Date(character.lastUsedAt) : null;
+
+  return {
+    id,
+    name,
+    role,
+    archetype,
+    emotionalNature,
+    visualProfile,
+    imageUrl: character.imageUrl || null,
+    maxScreenTime: Number.isFinite(character.maxScreenTime) ? character.maxScreenTime : 50,
+    availableChapters: toNumberArray(character.availableChapters, [1, 2, 3, 4, 5]),
+    canonSettings: toStringArray(character.canonSettings),
+    recentUsageCount: character.recentUsageCount ?? 0,
+    totalUsageCount: character.totalUsageCount ?? 0,
+    lastUsedAt,
+    isActive: character.isActive ?? true,
+    createdAt,
+    updatedAt,
+  };
 }
