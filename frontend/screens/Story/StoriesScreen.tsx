@@ -49,7 +49,7 @@ const StoriesScreen: React.FC = () => {
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.story.deleteStory(storyId);
+        await backend.story.deleteStory({ id: storyId });
         setStories(stories.filter(s => s.id !== storyId));
         alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {

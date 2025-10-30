@@ -76,7 +76,7 @@ const AvatarsScreen: React.FC = () => {
   const handleDeleteAvatar = async (avatar: Avatar) => {
     try {
       console.log(`Deleting avatar: ${avatar.name} (ID: ${avatar.id})`);
-      await backend.avatar.deleteAvatar(avatar.id);
+      await backend.avatar.deleteAvatar({ id: avatar.id });
       console.log(`Successfully deleted avatar: ${avatar.name}`);
 
       // Refresh the avatar list
@@ -89,7 +89,7 @@ const AvatarsScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    background: colors.appBackground,
+    background: colors.background.primary,
     paddingBottom: '120px',
     position: 'relative',
   };
@@ -110,7 +110,7 @@ const AvatarsScreen: React.FC = () => {
   const headerCardStyle: React.CSSProperties = {
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
-    background: colors.glass.heroBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     boxShadow: colors.glass.shadowStrong,
     backdropFilter: 'blur(18px) saturate(160%)',
@@ -120,7 +120,7 @@ const AvatarsScreen: React.FC = () => {
 
   const titleStyle: React.CSSProperties = {
     ...typography.textStyles.displayLg,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     marginBottom: spacing.sm,
     textShadow: '0 1px 1px rgba(255,255,255,0.35)',
     display: 'flex',
@@ -130,7 +130,7 @@ const AvatarsScreen: React.FC = () => {
 
   const subtitleStyle: React.CSSProperties = {
     ...typography.textStyles.body,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: '18px',
   };
 
@@ -173,12 +173,12 @@ const AvatarsScreen: React.FC = () => {
               width: '60px', 
               height: '60px', 
               border: `4px solid rgba(255,255,255,0.6)`,
-              borderTop: `4px solid ${colors.primary}`,
+              borderTop: `4px solid ${colors.primary[500]}`,
               borderRadius: '50%',
               animation: 'spin 1s linear infinite',
               margin: `0 auto ${spacing.lg}px auto`
             }} />
-            <p style={{ ...typography.textStyles.body, color: colors.textSecondary, fontSize: '18px' }}>
+            <p style={{ ...typography.textStyles.body, color: colors.text.secondary, fontSize: '18px' }}>
               Lade deine Avatare... ✨
             </p>
           </div>
@@ -203,7 +203,7 @@ const AvatarsScreen: React.FC = () => {
       <SignedOut>
         <div style={{ textAlign: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px` }}>
           <FadeInView delay={100}>
-            <h1 style={{ ...typography.textStyles.displayLg, color: colors.textPrimary, marginBottom: spacing.md }}>
+            <h1 style={{ ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }}>
               Melde dich an, um deine Avatare zu sehen
             </h1>
           </FadeInView>
@@ -224,7 +224,7 @@ const AvatarsScreen: React.FC = () => {
           <div style={headerStyle}>
             <div style={headerCardStyle}>
               <div style={titleStyle}>
-                <User size={36} style={{ color: colors.primary }} />
+                <User size={36} style={{ color: colors.primary[500] }} />
                 Deine Avatare
               </div>
               <div style={subtitleStyle}>
@@ -249,10 +249,10 @@ const AvatarsScreen: React.FC = () => {
             {avatars.length === 0 ? (
               <Card variant="glass" style={emptyStateStyle}>
                 <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>👤</div>
-                <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                   Noch keine Avatare
                 </div>
-                <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
+                <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                   Erstelle deinen ersten Avatar, um loszulegen!
                 </div>
                 <Button
