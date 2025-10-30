@@ -13,7 +13,7 @@ export function useBackend() {
     auth: async () => {
       // Wait for Clerk to load before checking authentication
       if (!isLoaded) {
-        throw new Error("Authentication not loaded yet");
+        return undefined;
       }
 
       // If user is not signed in, no auth header needed
@@ -23,11 +23,7 @@ export function useBackend() {
 
       // Get token for signed-in user
       const token = await getToken();
-      if (!token) {
-        // User is signed in but no token available - throw error to prevent hanging
-        throw new Error("No authentication token available");
-      }
-      return { authorization: `Bearer ${token}` };
+      return token ? { authorization: `Bearer ${token}` } : undefined;
     },
     requestInit: { credentials: "include" }
   });

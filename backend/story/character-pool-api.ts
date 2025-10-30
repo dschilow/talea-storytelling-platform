@@ -7,6 +7,25 @@ import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
 import { runwareGenerateImage } from "../ai/image-generation";
 
+let imageColumnEnsured = false;
+
+async function ensureImageUrlColumn(): Promise<void> {
+  if (imageColumnEnsured) {
+    return;
+  }
+
+  try {
+    await storyDB.exec`
+      ALTER TABLE character_pool
+      ADD COLUMN IF NOT EXISTS image_url TEXT
+    `;
+  } catch (err) {
+    console.error("[CharacterPool] Failed ensuring image_url column:", err);
+  } finally {
+    imageColumnEnsured = true;
+  }
+}
+
 // ===== GET ALL CHARACTERS =====
 export const listCharacters = api(
   { expose: true, method: "GET", path: "/story/character-pool", auth: true },
@@ -128,6 +147,8 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
 
     console.log("[CharacterPool] Adding new character:", req.character.name);
 
+    await ensureImageUrlColumn();
+
     await storyDB.exec`
       INSERT INTO character_pool (
         id, name, role, archetype, emotional_nature, visual_profile, image_url,
@@ -176,6 +197,8 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
   { expose: true, method: "PUT", path: "/story/character-pool/:id", auth: true },
   async (req): Promise<CharacterTemplate> => {
     console.log("[CharacterPool] Updating character:", req.id);
+
+    await ensureImageUrlColumn();
 
     // Simple update approach - update each field separately if provided
     const now = new Date();
