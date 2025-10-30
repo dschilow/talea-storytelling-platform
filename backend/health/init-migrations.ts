@@ -195,6 +195,7 @@ const MIGRATION_STATEMENTS = [
     archetype TEXT NOT NULL,
     emotional_nature JSONB NOT NULL,
     visual_profile JSONB NOT NULL,
+    image_url TEXT,
     max_screen_time INTEGER DEFAULT 50,
     available_chapters INTEGER[] DEFAULT '{1,2,3,4,5}',
     canon_settings TEXT[] DEFAULT '{}',
@@ -208,6 +209,13 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_character_pool_role ON character_pool(role)`,
   `CREATE INDEX IF NOT EXISTS idx_character_pool_archetype ON character_pool(archetype)`,
   `CREATE INDEX IF NOT EXISTS idx_character_pool_active ON character_pool(is_active)`,
+  `DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='character_pool' AND column_name='image_url') THEN
+      ALTER TABLE character_pool ADD COLUMN image_url TEXT;
+    END IF;
+  END $$`,
 
   // 16. Story-character junction table
   `CREATE TABLE IF NOT EXISTS story_characters (
@@ -272,7 +280,7 @@ export const initializeDatabaseMigrations = api(
       `;
 
       if (result && result.exists) {
-        console.log("✓ Character pool and all tables already exist");
+        console.log("[Init] Character pool and all tables already exist");
         migrationsRun = true;
         return {
           success: true,
@@ -290,7 +298,7 @@ export const initializeDatabaseMigrations = api(
       `;
 
       if (usersExist && usersExist.exists) {
-        console.log("✓ Base tables exist, but character pool missing - running remaining migrations");
+        console.log("[Init] Base tables exist, but character pool missing - running remaining migrations");
       }
 
       console.log(`Executing ${MIGRATION_STATEMENTS.length} SQL statements...`);
@@ -310,16 +318,16 @@ export const initializeDatabaseMigrations = api(
             err.message.includes('already exists') ||
             err.message.includes('duplicate')
           )) {
-            console.log(`    ⚠️  Already exists (skipping)`);
+            console.log("    [skip] Already exists (skipping)");
             successCount++;
             continue;
           }
           // Otherwise, log error but continue with next statement
-          console.error(`    ✗ Failed:`, err.message);
+          console.error("    [error] Failed:", err.message);
         }
       }
 
-      console.log(`✓ Migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
+      console.log(`[Init] Migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
       migrationsRun = true;
 
       return { 
@@ -328,7 +336,7 @@ export const initializeDatabaseMigrations = api(
         tablesCreated: successCount 
       };
     } catch (error: any) {
-      console.error("✗ Migration failed:", error);
+      console.error("[Init] Migration failed:", error);
       return { 
         success: false, 
         message: `Migration failed: ${error.message}` 

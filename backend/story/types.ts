@@ -20,6 +20,7 @@ export interface CharacterTemplate {
     species: string;
     colorPalette: string[];
   };
+  imageUrl?: string;
 
   // Screen Time & Availability
   maxScreenTime: number; // 0-100 percentage

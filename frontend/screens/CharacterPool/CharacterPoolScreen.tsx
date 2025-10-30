@@ -1,0 +1,634 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Edit3, RefreshCcw, Save, Sparkles, X } from 'lucide-react';
+import { toast } from 'sonner';
+
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import { useBackend } from '../../hooks/useBackend';
+import { colors } from '../../utils/constants/colors';
+import { typography } from '../../utils/constants/typography';
+import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import type { CharacterTemplate } from '~backend/story/types';
+
+interface CharacterFormState {
+  name: string;
+  role: string;
+  archetype: string;
+  dominantEmotion: string;
+  secondaryEmotions: string;
+  triggers: string;
+  visualDescription: string;
+  visualPrompt: string;
+  species: string;
+  colorPalette: string;
+  maxScreenTime: string;
+  availableChapters: string;
+  canonSettings: string;
+  isActive: boolean;
+  imageUrl?: string;
+}
+
+const containerStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  padding: `${spacing.xl}px ${spacing.xl}px ${spacing.xxl}px`,
+  color: colors.text.primary,
+  background: colors.gradients.background,
+  fontFamily: '"Nunito", system-ui, sans-serif',
+};
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: spacing.sm,
+  marginBottom: spacing.xl,
+};
+
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+  gap: spacing.lg,
+};
+
+const cardImageStyle: React.CSSProperties = {
+  width: '100%',
+  height: 180,
+  borderRadius: `${radii.lg}px`,
+  overflow: 'hidden',
+  background: colors.glass.backgroundAlt,
+  border: `1px solid ${colors.border.light}`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const modalOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(12, 10, 25, 0.75)',
+  backdropFilter: 'blur(8px)',
+  zIndex: 1050,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: `${spacing.xl}px`,
+};
+
+const modalContentStyle: React.CSSProperties = {
+  width: 'min(960px, 100%)',
+  maxHeight: '90vh',
+  overflowY: 'auto',
+  background: colors.glass.backgroundAlt,
+  borderRadius: `${radii.xl}px`,
+  border: `2px solid ${colors.border.light}`,
+  boxShadow: shadows.xl,
+  padding: `${spacing.xl}px`,
+};
+
+const modalHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: spacing.lg,
+};
+
+const sectionStyle: React.CSSProperties = {
+  marginBottom: spacing.xl,
+  display: 'grid',
+  gap: spacing.lg,
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  ...typography.textStyles.headingSm,
+  marginBottom: spacing.sm,
+};
+
+const inputLabelStyle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 600,
+  color: colors.text.secondary,
+  marginBottom: spacing.xxs,
+  display: 'block',
+};
+
+const inputBaseStyle: React.CSSProperties = {
+  width: '100%',
+  padding: `${spacing.sm}px`,
+  borderRadius: `${radii.md}px`,
+  border: `1px solid ${colors.border.light}`,
+  background: colors.glass.background,
+  color: colors.text.primary,
+  fontSize: 14,
+  outline: 'none',
+  transition: 'border 120ms ease, box-shadow 120ms ease',
+};
+
+const textAreaStyle: React.CSSProperties = {
+  ...inputBaseStyle,
+  minHeight: 80,
+  resize: 'vertical',
+};
+
+const twoColumnStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: spacing.lg,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+};
+
+const previewImageStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: 240,
+  aspectRatio: '1 / 1',
+  borderRadius: `${radii.lg}px`,
+  overflow: 'hidden',
+  border: `1px solid ${colors.border.light}`,
+};
+
+const CharacterPoolScreen: React.FC = () => {
+  const backend = useBackend();
+  const [characters, setCharacters] = useState<CharacterTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterTemplate | null>(null);
+  const [formState, setFormState] = useState<CharacterFormState | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    void loadCharacters();
+  }, []);
+
+  const loadCharacters = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await backend.story.listCharacters();
+      setCharacters(response.characters);
+    } catch (err) {
+      console.error('Failed to load characters', err);
+      setError('Charaktere konnten nicht geladen werden.');
+      toast.error('Charaktere konnten nicht geladen werden.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditor = async (id: string) => {
+    try {
+      setDetailLoading(true);
+      const character = await backend.story.getCharacter({ id });
+      setSelectedCharacter(character);
+      setFormState(mapCharacterToForm(character));
+      setEditorOpen(true);
+    } catch (err) {
+      console.error('Failed to load character details', err);
+      toast.error('Charakterdetails konnten nicht geladen werden.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeEditor = () => {
+    setEditorOpen(false);
+    setSelectedCharacter(null);
+    setFormState(null);
+  };
+
+  const handleGenerateImage = async () => {
+    if (!selectedCharacter || !formState) {
+      return;
+    }
+    try {
+      setGeneratingImage(true);
+      const response = await backend.story.generateCharacterImage({ id: selectedCharacter.id });
+      setFormState(prev => (prev ? { ...prev, imageUrl: response.imageUrl } : prev));
+      toast.success('Neues Charakterbild erstellt. Vergiss nicht zu speichern.');
+    } catch (err) {
+      console.error('Failed to generate character image', err);
+      toast.error('Bild konnte nicht generiert werden.');
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedCharacter || !formState) {
+      return;
+    }
+
+    const updates = buildUpdatePayload(selectedCharacter, formState);
+
+    if (Object.keys(updates).length === 0) {
+      toast.info('Keine Aenderungen erkannt.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await backend.story.updateCharacter({
+        id: selectedCharacter.id,
+        updates,
+      });
+
+      const refreshed = await backend.story.getCharacter({ id: selectedCharacter.id });
+      setSelectedCharacter(refreshed);
+      setFormState(mapCharacterToForm(refreshed));
+      await loadCharacters();
+
+      toast.success('Charakter erfolgreich aktualisiert.');
+    } catch (err) {
+      console.error('Failed to save character', err);
+      toast.error('Charakter konnte nicht gespeichert werden.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const refreshButtonDisabled = useMemo(() => loading, [loading]);
+
+  return (
+    <div style={containerStyle}>
+      <header style={headerStyle}>
+        <div>
+          <h1 style={{ ...typography.textStyles.headingLg, marginBottom: spacing.xs }}>Charaktere</h1>
+          <p style={{ color: colors.text.secondary, maxWidth: 640 }}>
+            Verwalte alle verfuegbaren Charaktervorlagen. Du kannst Eigenschaften anpassen, Kapitelzuordnungen aendern und neue Bilder direkt aus dem visuellen Profil generieren.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: spacing.sm }}>
+          <Button
+            title={loading ? 'Laedt...' : 'Aktualisieren'}
+            onPress={() => void loadCharacters()}
+            disabled={refreshButtonDisabled}
+            icon={<RefreshCcw size={16} />}
+            variant="secondary"
+          />
+        </div>
+      </header>
+
+      {loading && (
+        <div style={{ color: colors.text.secondary }}>Charaktere werden geladen...</div>
+      )}
+
+      {!loading && error && (
+        <div style={{ color: colors.semantic.error }}>{error}</div>
+      )}
+
+      {!loading && !error && characters.length === 0 && (
+        <div style={{ color: colors.text.secondary }}>Keine Charaktere gefunden.</div>
+      )}
+
+      {!loading && !error && characters.length > 0 && (
+        <div style={gridStyle}>
+          {characters.map((character) => (
+            <Card key={character.id} variant="glass" style={{ padding: spacing.lg }}>
+              <div style={cardImageStyle}>
+                {character.imageUrl ? (
+                  <img
+                    src={character.imageUrl}
+                    alt={character.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ color: colors.text.secondary, fontSize: 14 }}>Kein Bild</span>
+                )}
+              </div>
+              <div style={{ marginTop: spacing.md }}>
+                <h3 style={{ ...typography.textStyles.headingSm, marginBottom: spacing.xs }}>{character.name}</h3>
+                <p style={{ color: colors.text.secondary, fontSize: 14 }}>
+                  {character.role} - {character.archetype}
+                </p>
+              </div>
+              <div style={{ marginTop: spacing.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: character.isActive ? colors.semantic.success : colors.text.secondary }}>
+                  {character.isActive ? 'Aktiv' : 'Inaktiv'}
+                </span>
+                <Button
+                  title="Schliessen"
+                  onPress={() => void openEditor(character.id)}
+                  icon={<Edit3 size={16} />}
+                  variant="primary"
+                  loading={detailLoading && selectedCharacter?.id === character.id}
+                />
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {editorOpen && formState && selectedCharacter && (
+        <div style={modalOverlayStyle} role="dialog" aria-modal="true">
+          <div style={modalContentStyle}>
+            <div style={modalHeaderStyle}>
+              <div>
+                <h2 style={typography.textStyles.headingMd}>{formState.name}</h2>
+                <p style={{ color: colors.text.secondary, fontSize: 14 }}>
+                  {selectedCharacter.id}
+                </p>
+              </div>
+              <Button
+                title="Schliessen"
+                onPress={closeEditor}
+                variant="outline"
+                icon={<X size={16} />}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: spacing.xl, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: spacing.xl }}>
+              <div style={{ flex: '1 1 360px', minWidth: 300 }}>
+                <div style={sectionStyle}>
+                  <div>
+                    <label style={inputLabelStyle} htmlFor="name">Name</label>
+                    <input
+                      id="name"
+                      style={inputBaseStyle}
+                      value={formState.name}
+                      onChange={(event) => setFormState({ ...formState, name: event.target.value })}
+                    />
+                  </div>
+                  <div style={twoColumnStyle}>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="role">Rolle</label>
+                      <input
+                        id="role"
+                        style={inputBaseStyle}
+                        value={formState.role}
+                        onChange={(event) => setFormState({ ...formState, role: event.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="archetype">Archetyp</label>
+                      <input
+                        id="archetype"
+                        style={inputBaseStyle}
+                        value={formState.archetype}
+                        onChange={(event) => setFormState({ ...formState, archetype: event.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div style={twoColumnStyle}>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="maxScreenTime">Screen Time (%)</label>
+                      <input
+                        id="maxScreenTime"
+                        style={inputBaseStyle}
+                        value={formState.maxScreenTime}
+                        onChange={(event) => setFormState({ ...formState, maxScreenTime: event.target.value })}
+                        inputMode="numeric"
+                      />
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="availableChapters">Kapitel (kommagetrennt)</label>
+                      <input
+                        id="availableChapters"
+                        style={inputBaseStyle}
+                        value={formState.availableChapters}
+                        onChange={(event) => setFormState({ ...formState, availableChapters: event.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={inputLabelStyle} htmlFor="canonSettings">Canon Settings (kommagetrennt)</label>
+                    <input
+                      id="canonSettings"
+                      style={inputBaseStyle}
+                      value={formState.canonSettings}
+                      onChange={(event) => setFormState({ ...formState, canonSettings: event.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <span style={sectionTitleStyle}>Emotionen</span>
+                    <div style={twoColumnStyle}>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="dominantEmotion">Dominant</label>
+                        <input
+                          id="dominantEmotion"
+                          style={inputBaseStyle}
+                          value={formState.dominantEmotion}
+                          onChange={(event) => setFormState({ ...formState, dominantEmotion: event.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="secondaryEmotions">Sekundaer (kommagetrennt)</label>
+                        <input
+                          id="secondaryEmotions"
+                          style={inputBaseStyle}
+                          value={formState.secondaryEmotions}
+                          onChange={(event) => setFormState({ ...formState, secondaryEmotions: event.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="triggers">Trigger (kommagetrennt)</label>
+                      <input
+                        id="triggers"
+                        style={inputBaseStyle}
+                        value={formState.triggers}
+                        onChange={(event) => setFormState({ ...formState, triggers: event.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={sectionTitleStyle}>Visual Profile</span>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="visualDescription">Beschreibung</label>
+                      <textarea
+                        id="visualDescription"
+                        style={textAreaStyle}
+                        value={formState.visualDescription}
+                        onChange={(event) => setFormState({ ...formState, visualDescription: event.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="visualPrompt">Prompt</label>
+                      <textarea
+                        id="visualPrompt"
+                        style={textAreaStyle}
+                        value={formState.visualPrompt}
+                        onChange={(event) => setFormState({ ...formState, visualPrompt: event.target.value })}
+                      />
+                    </div>
+                    <div style={twoColumnStyle}>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="species">Spezies</label>
+                        <input
+                          id="species"
+                          style={inputBaseStyle}
+                          value={formState.species}
+                          onChange={(event) => setFormState({ ...formState, species: event.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="colorPalette">Farben (kommagetrennt)</label>
+                        <input
+                          id="colorPalette"
+                          style={inputBaseStyle}
+                          value={formState.colorPalette}
+                          onChange={(event) => setFormState({ ...formState, colorPalette: event.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <input
+                      id="isActive"
+                      type="checkbox"
+                      checked={formState.isActive}
+                      onChange={(event) => setFormState({ ...formState, isActive: event.target.checked })}
+                    />
+                    <label htmlFor="isActive" style={{ color: colors.text.secondary, fontSize: 14 }}>
+                      Charakter ist aktiv
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ flex: '0 0 260px', display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                <div style={previewImageStyle}>
+                  {formState.imageUrl ? (
+                    <img
+                      src={formState.imageUrl}
+                      alt={`${formState.name} Vorschau`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: colors.text.secondary }}>
+                      Kein Bild vorhanden
+                    </div>
+                  )}
+                </div>
+                <Button
+                  title={generatingImage ? 'Generiere...' : 'Charakter Bild generieren'}
+                  onPress={handleGenerateImage}
+                  loading={generatingImage}
+                  icon={<Sparkles size={16} />}
+                  variant="secondary"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: spacing.md }}>
+              <Button
+                title="Schliessen"
+                onPress={closeEditor}
+                variant="outline"
+              />
+              <Button
+                title={saving ? 'Speichert...' : 'Speichern'}
+                onPress={handleSave}
+                loading={saving}
+                icon={<Save size={16} />}
+                variant="primary"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+function mapCharacterToForm(character: CharacterTemplate): CharacterFormState {
+  return {
+    name: character.name,
+    role: character.role,
+    archetype: character.archetype,
+    dominantEmotion: character.emotionalNature?.dominant ?? '',
+    secondaryEmotions: (character.emotionalNature?.secondary ?? []).join(', '),
+    triggers: (character.emotionalNature?.triggers ?? []).join(', '),
+    visualDescription: character.visualProfile?.description ?? '',
+    visualPrompt: character.visualProfile?.imagePrompt ?? '',
+    species: character.visualProfile?.species ?? '',
+    colorPalette: (character.visualProfile?.colorPalette ?? []).join(', '),
+    maxScreenTime: String(character.maxScreenTime ?? 0),
+    availableChapters: (character.availableChapters ?? []).join(', '),
+    canonSettings: (character.canonSettings ?? []).join(', '),
+    isActive: character.isActive ?? true,
+    imageUrl: character.imageUrl,
+  };
+}
+
+function parseCommaList(value: string): string[] {
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function parseNumberList(value: string): number[] {
+  return value
+    .split(',')
+    .map((entry) => parseInt(entry.trim(), 10))
+    .filter((num) => Number.isFinite(num));
+}
+
+function buildUpdatePayload(original: CharacterTemplate, form: CharacterFormState) {
+  const updates: Record<string, any> = {};
+
+  if (form.name.trim() !== original.name) {
+    updates.name = form.name.trim();
+  }
+  if (form.role.trim() !== original.role) {
+    updates.role = form.role.trim();
+  }
+  if (form.archetype.trim() !== original.archetype) {
+    updates.archetype = form.archetype.trim();
+  }
+
+  const secondaryEmotions = parseCommaList(form.secondaryEmotions);
+  const triggerList = parseCommaList(form.triggers);
+  const emotionalNature: Record<string, any> = {
+    dominant: form.dominantEmotion.trim(),
+    secondary: secondaryEmotions,
+  };
+  if (triggerList.length > 0) {
+    emotionalNature.triggers = triggerList;
+  }
+
+  if (JSON.stringify(emotionalNature) !== JSON.stringify(original.emotionalNature ?? {})) {
+    updates.emotionalNature = emotionalNature;
+  }
+
+  const visualProfile = {
+    description: form.visualDescription.trim(),
+    imagePrompt: form.visualPrompt.trim(),
+    species: form.species.trim(),
+    colorPalette: parseCommaList(form.colorPalette),
+  };
+
+  if (JSON.stringify(visualProfile) !== JSON.stringify(original.visualProfile ?? {})) {
+    updates.visualProfile = visualProfile;
+  }
+
+  const maxScreenTime = parseInt(form.maxScreenTime, 10);
+  if (!Number.isNaN(maxScreenTime) && maxScreenTime !== original.maxScreenTime) {
+    updates.maxScreenTime = maxScreenTime;
+  }
+
+  const availableChapters = parseNumberList(form.availableChapters);
+  if (JSON.stringify(availableChapters) !== JSON.stringify(original.availableChapters ?? [])) {
+    updates.availableChapters = availableChapters;
+  }
+
+  const canonSettings = parseCommaList(form.canonSettings);
+  if (JSON.stringify(canonSettings) !== JSON.stringify(original.canonSettings ?? [])) {
+    updates.canonSettings = canonSettings;
+  }
+
+  if (form.imageUrl !== original.imageUrl) {
+    updates.imageUrl = form.imageUrl ?? null;
+  }
+
+  if ((original.isActive ?? true) !== form.isActive) {
+    updates.isActive = form.isActive;
+  }
+
+  return updates;
+}
+
+export default CharacterPoolScreen;

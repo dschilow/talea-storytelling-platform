@@ -5,6 +5,7 @@ import { api } from "encore.dev/api";
 import { storyDB } from "./db";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
+import { runwareGenerateImage } from "../ai/image-generation";
 
 // ===== GET ALL CHARACTERS =====
 export const listCharacters = api(
@@ -19,6 +20,7 @@ export const listCharacters = api(
       archetype: string;
       emotional_nature: string;
       visual_profile: string;
+      image_url: string | null;
       max_screen_time: number;
       available_chapters: number[];
       canon_settings: string[];
@@ -29,7 +31,7 @@ export const listCharacters = api(
       updated_at: Date;
       is_active: boolean;
     }>`
-      SELECT * FROM character_pool WHERE is_active = TRUE ORDER BY name
+      SELECT * FROM character_pool ORDER BY name
     `;
 
     const characters = rows.map(row => ({
@@ -39,6 +41,7 @@ export const listCharacters = api(
       archetype: row.archetype,
       emotionalNature: JSON.parse(row.emotional_nature),
       visualProfile: JSON.parse(row.visual_profile),
+      imageUrl: row.image_url || undefined,
       maxScreenTime: row.max_screen_time,
       availableChapters: row.available_chapters,
       canonSettings: row.canon_settings,
@@ -50,7 +53,7 @@ export const listCharacters = api(
       isActive: row.is_active,
     }));
 
-    console.log(`[CharacterPool] Found ${characters.length} active characters`);
+    console.log(`[CharacterPool] Found ${characters.length} characters (active and inactive)`);
 
     return { characters };
   }
@@ -73,6 +76,7 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       archetype: string;
       emotional_nature: string;
       visual_profile: string;
+      image_url: string | null;
       max_screen_time: number;
       available_chapters: number[];
       canon_settings: string[];
@@ -97,6 +101,7 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       archetype: row.archetype,
       emotionalNature: JSON.parse(row.emotional_nature),
       visualProfile: JSON.parse(row.visual_profile),
+      imageUrl: row.image_url || undefined,
       maxScreenTime: row.max_screen_time,
       availableChapters: row.available_chapters,
       canonSettings: row.canon_settings,
@@ -125,7 +130,7 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
 
     await storyDB.exec`
       INSERT INTO character_pool (
-        id, name, role, archetype, emotional_nature, visual_profile,
+        id, name, role, archetype, emotional_nature, visual_profile, image_url,
         max_screen_time, available_chapters, canon_settings,
         recent_usage_count, total_usage_count, is_active,
         created_at, updated_at
@@ -136,6 +141,7 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
         ${req.character.archetype},
         ${JSON.stringify(req.character.emotionalNature)},
         ${JSON.stringify(req.character.visualProfile)},
+        ${req.character.imageUrl || null},
         ${req.character.maxScreenTime},
         ${req.character.availableChapters},
         ${req.character.canonSettings || []},
@@ -189,6 +195,9 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
     if (req.updates.visualProfile) {
       await storyDB.exec`UPDATE character_pool SET visual_profile = ${JSON.stringify(req.updates.visualProfile)}, updated_at = ${now} WHERE id = ${req.id}`;
     }
+    if (req.updates.imageUrl !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET image_url = ${req.updates.imageUrl}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
     if (req.updates.maxScreenTime !== undefined) {
       await storyDB.exec`UPDATE character_pool SET max_screen_time = ${req.updates.maxScreenTime}, updated_at = ${now} WHERE id = ${req.id}`;
     }
@@ -205,6 +214,52 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
     console.log("[CharacterPool] Character updated:", req.id);
 
     return getCharacter({ id: req.id });
+  }
+);
+
+// ===== GENERATE CHARACTER IMAGE =====
+interface GenerateCharacterImageRequest {
+  id: string;
+  style?: "storybook" | "watercolor" | "concept";
+}
+
+interface GenerateCharacterImageResponse {
+  characterId: string;
+  imageUrl: string;
+  prompt: string;
+  debugInfo?: Record<string, unknown>;
+}
+
+export const generateCharacterImage = api<GenerateCharacterImageRequest, GenerateCharacterImageResponse>(
+  { expose: true, method: "POST", path: "/story/character-pool/:id/generate-image", auth: true },
+  async (req): Promise<GenerateCharacterImageResponse> => {
+    console.log("[CharacterPool] Generating image for character:", req.id);
+
+    const character = await getCharacter({ id: req.id });
+    const prompt = buildCharacterImagePrompt(character, req.style);
+
+    const result = await runwareGenerateImage({
+      prompt,
+      width: 640,
+      height: 640,
+      steps: 28,
+      CFGScale: 7,
+      outputFormat: "WEBP",
+      negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
+    });
+
+    console.log("[CharacterPool] Character image generation completed:", {
+      id: req.id,
+      hasUrl: Boolean(result.imageUrl),
+      promptLength: prompt.length,
+    });
+
+    return {
+      characterId: req.id,
+      imageUrl: result.imageUrl,
+      prompt,
+      debugInfo: result.debugInfo,
+    };
   }
 );
 
@@ -331,3 +386,68 @@ export const seedPool = api(
     }
   }
 );
+
+function buildCharacterImagePrompt(
+  character: CharacterTemplate,
+  style: GenerateCharacterImageRequest["style"]
+): string {
+  const visual = character.visualProfile || { description: "", imagePrompt: "", species: "", colorPalette: [] };
+  const emotional = character.emotionalNature || { dominant: "", secondary: [], triggers: [] };
+
+  const sections = [
+    "Axel Scheffler inspired watercolor illustration for a children's story",
+    visual.description ? `Primary description ${sanitizeSegment(visual.description)}` : "",
+    visual.imagePrompt ? `Detailed cues ${sanitizeSegment(visual.imagePrompt)}` : "",
+    character.role ? `Narrative role ${sanitizeSegment(character.role)}` : "",
+    character.archetype ? `Archetype ${sanitizeSegment(character.archetype)}` : "",
+    emotional.dominant ? `Emotional tone ${sanitizeSegment(emotional.dominant)}` : "",
+    emotional.secondary?.length ? `Secondary moods ${sanitizeSegment(emotional.secondary.join(", "))}` : "",
+    visual.species ? `Species or form ${sanitizeSegment(visual.species)}` : "",
+    visual.colorPalette?.length
+      ? `Color palette featuring ${sanitizeSegment(visual.colorPalette.join(", "))}`
+      : "",
+    style ? resolveCharacterStyle(style) : resolveCharacterStyle("storybook"),
+    "Composition dynamic three-quarter view, friendly expression, child safe, no text, no watermark"
+  ];
+
+  return clampPromptLength(
+    sections
+      .map((section) => sanitizeSegment(section))
+      .filter(Boolean)
+      .join(". ")
+  );
+}
+
+function sanitizeSegment(input: string | undefined | null): string {
+  if (!input) {
+    return "";
+  }
+  return String(input)
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveCharacterStyle(style: GenerateCharacterImageRequest["style"] | undefined): string {
+  switch (style) {
+    case "concept":
+      return "Style whimsical concept art, high detail ink lines, layered watercolor washes, gentle fantasy lighting";
+    case "watercolor":
+      return "Style traditional watercolor storybook painting, soft gradients, textured paper, warm highlights";
+    case "storybook":
+    default:
+      return "Style cozy European picture book, expressive gestures, inviting shapes, vibrant yet balanced colors";
+  }
+}
+
+function clampPromptLength(prompt: string, max = 900): string {
+  if (prompt.length <= max) {
+    return prompt;
+  }
+  const truncated = prompt.slice(0, max);
+  const lastPeriod = truncated.lastIndexOf(".");
+  if (lastPeriod > max * 0.6) {
+    return truncated.slice(0, lastPeriod + 1).trim();
+  }
+  return truncated.trim();
+}
