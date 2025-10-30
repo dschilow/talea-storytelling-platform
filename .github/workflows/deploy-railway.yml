@@ -38,12 +38,19 @@ jobs:
           cd frontend
           npm install
           npm run build -- --outDir=../backend/frontend/dist
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            backend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('backend/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install backend dependencies
-        run: |
-          rm -rf node_modules
-          cd backend
-          bun install --no-cache
+        working-directory: backend
+        run: bun install --frozen-lockfile
 
       - name: Install Encore CLI
         run: |
