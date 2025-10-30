@@ -25,7 +25,7 @@
 
 ---
 
-## 📁 Testdaten-Struktur
+## 📁 Testdaten Struktur
 
 ### Beispiel: Bildtest
 
