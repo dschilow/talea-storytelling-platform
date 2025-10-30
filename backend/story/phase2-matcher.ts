@@ -32,6 +32,14 @@ export class Phase2CharacterMatcher {
 
     // Match each requirement to best character
     for (const req of skeleton.supportingCharacterRequirements) {
+      if (!req.placeholder || typeof req.placeholder !== "string" || req.placeholder.trim().length === 0) {
+        console.log(
+          "[Phase2] Skipping requirement without placeholder; likely handled by avatars or fixed characters",
+          { name: (req as any).name ?? null, role: req.role }
+        );
+        continue;
+      }
+
       console.log("[Phase2] Matching requirement:", {
         placeholder: req.placeholder,
         role: req.role,

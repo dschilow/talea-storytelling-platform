@@ -173,11 +173,18 @@ export class Phase3StoryFinalizer {
     let result = text;
 
     for (const [placeholder, character] of assignments) {
-      const regex = new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g');
-      result = result.replace(regex, character.name);
+      if (!placeholder || typeof placeholder !== "string") {
+        continue;
+      }
+      const regex = new RegExp(this.escapeRegex(placeholder), 'g');
+      result = result.replace(regex, character.name ?? "Unbenannter Charakter");
     }
 
     return result;
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**
