@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Edit3, RefreshCcw, Save, Sparkles, X } from 'lucide-react';
+import { Edit3, RefreshCcw, Save, Sparkles, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Card from '../../components/common/Card';
@@ -149,12 +149,14 @@ const CharacterPoolScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedCharacter, setSelectedCharacter] = useState<CharacterTemplate | null>(null);
+  const [editingCharacter, setEditingCharacter] = useState<CharacterTemplate | null>(null);
+  const [isNewCharacter, setIsNewCharacter] = useState(false);
   const [formState, setFormState] = useState<CharacterFormState | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     void loadCharacters();
@@ -179,7 +181,8 @@ const CharacterPoolScreen: React.FC = () => {
     try {
       setDetailLoading(true);
       const character = await backend.story.getCharacter({ id });
-      setSelectedCharacter(character);
+      setEditingCharacter(character);
+      setIsNewCharacter(false);
       setFormState(mapCharacterToForm(character));
       setEditorOpen(true);
     } catch (err) {
@@ -190,19 +193,31 @@ const CharacterPoolScreen: React.FC = () => {
     }
   };
 
+  const openNewCharacter = () => {
+    setFormState(createEmptyFormState());
+    setEditingCharacter(null);
+    setIsNewCharacter(true);
+    setEditorOpen(true);
+  };
+
   const closeEditor = () => {
     setEditorOpen(false);
-    setSelectedCharacter(null);
+    setEditingCharacter(null);
+    setIsNewCharacter(false);
     setFormState(null);
   };
 
   const handleGenerateImage = async () => {
-    if (!selectedCharacter || !formState) {
+    if (isNewCharacter) {
+      toast.info('Bitte speichere den Charakter zuerst, bevor ein Bild generiert wird.');
+      return;
+    }
+    if (!editingCharacter || !formState) {
       return;
     }
     try {
       setGeneratingImage(true);
-      const response = await backend.story.generateCharacterImage({ id: selectedCharacter.id });
+      const response = await backend.story.generateCharacterImage({ id: editingCharacter.id });
       setFormState(prev => (prev ? { ...prev, imageUrl: response.imageUrl } : prev));
       toast.success('Neues Charakterbild erstellt. Vergiss nicht zu speichern.');
     } catch (err) {
@@ -214,30 +229,49 @@ const CharacterPoolScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedCharacter || !formState) {
+    if (!formState) {
       return;
     }
 
-    const updates = buildUpdatePayload(selectedCharacter, formState);
+    if (isNewCharacter) {
+      if (!formState.name.trim() || !formState.role.trim() || !formState.archetype.trim()) {
+        toast.error('Bitte Name, Rolle und Archetyp ausfuellen.');
+        return;
+      }
+    }
 
-    if (Object.keys(updates).length === 0) {
-      toast.info('Keine Aenderungen erkannt.');
-      return;
+    let updates: Record<string, unknown> | null = null;
+    if (!isNewCharacter) {
+      if (!editingCharacter) {
+        return;
+      }
+      updates = buildUpdatePayload(editingCharacter, formState);
+      if (Object.keys(updates).length === 0) {
+        toast.info('Keine Aenderungen erkannt.');
+        return;
+      }
     }
 
     try {
       setSaving(true);
-      await backend.story.updateCharacter({
-        id: selectedCharacter.id,
-        updates,
-      });
-
-      const refreshed = await backend.story.getCharacter({ id: selectedCharacter.id });
-      setSelectedCharacter(refreshed);
-      setFormState(mapCharacterToForm(refreshed));
+      if (isNewCharacter) {
+        const payload = buildCreatePayload(formState);
+        const created = await backend.story.addCharacter({ character: payload });
+        setEditingCharacter(created);
+        setFormState(mapCharacterToForm(created));
+        setIsNewCharacter(false);
+        toast.success('Charakter erfolgreich erstellt.');
+      } else if (editingCharacter && updates) {
+        await backend.story.updateCharacter({
+          id: editingCharacter.id,
+          updates,
+        });
+        const refreshed = await backend.story.getCharacter({ id: editingCharacter.id });
+        setEditingCharacter(refreshed);
+        setFormState(mapCharacterToForm(refreshed));
+        toast.success('Charakter erfolgreich aktualisiert.');
+      }
       await loadCharacters();
-
-      toast.success('Charakter erfolgreich aktualisiert.');
     } catch (err) {
       console.error('Failed to save character', err);
       toast.error('Charakter konnte nicht gespeichert werden.');
@@ -247,6 +281,31 @@ const CharacterPoolScreen: React.FC = () => {
   };
 
   const refreshButtonDisabled = useMemo(() => loading, [loading]);
+
+  const handleDelete = async () => {
+    if (!editingCharacter || isNewCharacter) {
+      closeEditor();
+      return;
+    }
+
+    const confirmDelete = window.confirm(`Soll der Charakter "${editingCharacter.name}" wirklich geloescht werden?`);
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await backend.story.deleteCharacter({ id: editingCharacter.id });
+      toast.success('Charakter wurde geloescht.');
+      closeEditor();
+      await loadCharacters();
+    } catch (err) {
+      console.error('Failed to delete character', err);
+      toast.error('Charakter konnte nicht geloescht werden.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div style={containerStyle}>
@@ -258,6 +317,12 @@ const CharacterPoolScreen: React.FC = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: spacing.sm }}>
+          <Button
+            title="Neuer Charakter"
+            onPress={openNewCharacter}
+            icon={<Sparkles size={16} />}
+            variant="primary"
+          />
           <Button
             title={loading ? 'Laedt...' : 'Aktualisieren'}
             onPress={() => void loadCharacters()}
@@ -306,11 +371,11 @@ const CharacterPoolScreen: React.FC = () => {
                   {character.isActive ? 'Aktiv' : 'Inaktiv'}
                 </span>
                 <Button
-                  title="Schliessen"
+                  title={detailLoading && editingCharacter?.id === character.id ? 'Laedt...' : 'Bearbeiten'}
                   onPress={() => void openEditor(character.id)}
                   icon={<Edit3 size={16} />}
                   variant="primary"
-                  loading={detailLoading && selectedCharacter?.id === character.id}
+                  disabled={detailLoading && editingCharacter?.id === character.id}
                 />
               </div>
             </Card>
@@ -318,14 +383,14 @@ const CharacterPoolScreen: React.FC = () => {
         </div>
       )}
 
-      {editorOpen && formState && selectedCharacter && (
+      {editorOpen && formState && (
         <div style={modalOverlayStyle} role="dialog" aria-modal="true">
           <div style={modalContentStyle}>
             <div style={modalHeaderStyle}>
               <div>
-                <h2 style={typography.textStyles.headingMd}>{formState.name}</h2>
+                <h2 style={typography.textStyles.headingMd}>{formState.name.trim() || (isNewCharacter ? "Neuer Charakter" : editingCharacter?.name ?? "Charakter")}</h2>
                 <p style={{ color: colors.text.secondary, fontSize: 14 }}>
-                  {selectedCharacter.id}
+                  {isNewCharacter ? "Noch nicht gespeichert" : editingCharacter?.id ?? ""}
                 </p>
               </div>
               <Button
@@ -505,26 +570,37 @@ const CharacterPoolScreen: React.FC = () => {
                 <Button
                   title={generatingImage ? 'Generiere...' : 'Charakter Bild generieren'}
                   onPress={handleGenerateImage}
-                  loading={generatingImage}
                   icon={<Sparkles size={16} />}
                   variant="secondary"
+                  disabled={generatingImage}
                 />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: spacing.md }}>
-              <Button
-                title="Schliessen"
-                onPress={closeEditor}
-                variant="outline"
-              />
-              <Button
-                title={saving ? 'Speichert...' : 'Speichern'}
-                onPress={handleSave}
-                loading={saving}
-                icon={<Save size={16} />}
-                variant="primary"
-              />
+            <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
+              {!isNewCharacter && editingCharacter && (
+                <Button
+                  title={deleting ? 'Loeschen...' : 'Loeschen'}
+                  onPress={handleDelete}
+                  disabled={deleting}
+                  variant="outline"
+                  icon={<Trash2 size={16} />}
+                />
+              )}
+              <div style={{ display: 'flex', gap: spacing.md, marginLeft: 'auto' }}>
+                <Button
+                  title="Schliessen"
+                  onPress={closeEditor}
+                  variant="outline"
+                />
+                <Button
+                  title={saving ? 'Speichert...' : 'Speichern'}
+                  onPress={handleSave}
+                  icon={<Save size={16} />}
+                  variant="primary"
+                  disabled={saving}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -553,6 +629,26 @@ function mapCharacterToForm(character: CharacterTemplate): CharacterFormState {
   };
 }
 
+function createEmptyFormState(): CharacterFormState {
+  return {
+    name: '',
+    role: '',
+    archetype: '',
+    dominantEmotion: '',
+    secondaryEmotions: '',
+    triggers: '',
+    visualDescription: '',
+    visualPrompt: '',
+    species: '',
+    colorPalette: '',
+    maxScreenTime: '50',
+    availableChapters: '1,2,3,4,5',
+    canonSettings: '',
+    isActive: true,
+    imageUrl: undefined,
+  };
+}
+
 function parseCommaList(value: string): string[] {
   return value
     .split(',')
@@ -565,6 +661,44 @@ function parseNumberList(value: string): number[] {
     .split(',')
     .map((entry) => parseInt(entry.trim(), 10))
     .filter((num) => Number.isFinite(num));
+}
+
+function buildCreatePayload(form: CharacterFormState): Omit<CharacterTemplate, "id" | "createdAt" | "updatedAt" | "recentUsageCount" | "totalUsageCount" | "lastUsedAt"> {
+  const secondaryEmotions = parseCommaList(form.secondaryEmotions);
+  const triggerList = parseCommaList(form.triggers);
+  const emotionalNature: CharacterTemplate["emotionalNature"] = {
+    dominant: form.dominantEmotion.trim(),
+    secondary: secondaryEmotions,
+  };
+  if (triggerList.length > 0) {
+    emotionalNature.triggers = triggerList;
+  }
+
+  const colorPalette = parseCommaList(form.colorPalette);
+  const visualProfile: CharacterTemplate["visualProfile"] = {
+    description: form.visualDescription.trim(),
+    imagePrompt: form.visualPrompt.trim(),
+    species: form.species.trim(),
+    colorPalette,
+  };
+
+  const maxScreenTimeValue = parseInt(form.maxScreenTime, 10);
+  const maxScreenTime = Number.isNaN(maxScreenTimeValue) ? 50 : maxScreenTimeValue;
+
+  const availableChapters = parseNumberList(form.availableChapters);
+
+  return {
+    name: form.name.trim(),
+    role: form.role.trim(),
+    archetype: form.archetype.trim(),
+    emotionalNature,
+    visualProfile,
+    imageUrl: form.imageUrl,
+    maxScreenTime,
+    availableChapters: availableChapters.length > 0 ? availableChapters : [1, 2, 3, 4, 5],
+    canonSettings: parseCommaList(form.canonSettings),
+    isActive: form.isActive,
+  };
 }
 
 function buildUpdatePayload(original: CharacterTemplate, form: CharacterFormState) {
@@ -582,7 +716,7 @@ function buildUpdatePayload(original: CharacterTemplate, form: CharacterFormStat
 
   const secondaryEmotions = parseCommaList(form.secondaryEmotions);
   const triggerList = parseCommaList(form.triggers);
-  const emotionalNature: Record<string, any> = {
+  const emotionalNature: CharacterTemplate["emotionalNature"] = {
     dominant: form.dominantEmotion.trim(),
     secondary: secondaryEmotions,
   };

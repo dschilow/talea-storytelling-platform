@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/clerk-react";
-import Client from "../client_new";
+import { Client as BackendClient } from "../client_new";
 import { getBackendUrl } from "../config";
 
 // Returns a backend client configured with the user's Clerk auth token.
@@ -9,7 +9,7 @@ export function useBackend() {
   // Get the target URL from environment or auto-detect
   const target = getBackendUrl();
 
-  return new Client(target, {
+  return new BackendClient(target, {
     auth: async () => {
       // Wait for Clerk to load before checking authentication
       if (!isLoaded) {
