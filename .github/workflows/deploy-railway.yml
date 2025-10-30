@@ -31,7 +31,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.0.29"
 
       - name: Build frontend assets
         run: |
@@ -50,6 +50,8 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
+        env:
+          BUN_INSTALL_REGISTRY: https://registry.npmjs.org
         run: bun install --frozen-lockfile
 
       - name: Install Encore CLI
