@@ -13,7 +13,8 @@ export class Phase2CharacterMatcher {
   async match(
     skeleton: StorySkeleton,
     setting: string,
-    recentStoryIds: string[] = []
+    recentStoryIds: string[] = [],
+    avatarNames: string[] = []
   ): Promise<Map<string, CharacterTemplate>> {
     console.log("[Phase2] Starting character matching...", {
       requirementsCount: skeleton.supportingCharacterRequirements.length,
@@ -29,6 +30,11 @@ export class Phase2CharacterMatcher {
 
     const assignments = new Map<string, CharacterTemplate>();
     const usedCharacters = new Set<string>();
+    const reservedPlaceholders = new Set(
+      avatarNames
+        .map(name => name?.trim().toLowerCase())
+        .filter((name): name is string => Boolean(name))
+    );
 
     // Match each requirement to best character
     for (const req of skeleton.supportingCharacterRequirements) {
@@ -37,6 +43,15 @@ export class Phase2CharacterMatcher {
           "[Phase2] Skipping requirement without placeholder; likely handled by avatars or fixed characters",
           { name: (req as any).name ?? null, role: req.role }
         );
+        continue;
+      }
+
+      const normalizedPlaceholder = req.placeholder.trim().toLowerCase();
+      if (reservedPlaceholders.has(normalizedPlaceholder)) {
+        console.log("[Phase2] Skipping avatar placeholder; character already defined by user", {
+          placeholder: req.placeholder,
+          role: req.role,
+        });
         continue;
       }
 

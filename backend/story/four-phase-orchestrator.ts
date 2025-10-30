@@ -252,10 +252,15 @@ export class FourPhaseOrchestrator {
     // Get recent stories for freshness calculation
     const recentStoryIds = await this.getRecentStoryIds(input.userId, 5);
 
+    const avatarNames = input.avatarDetails
+      .map((avatar) => avatar.name?.trim())
+      .filter((name): name is string => Boolean(name));
+
     const characterAssignments = await this.phase2Matcher.match(
       skeleton,
       input.config.setting,
-      recentStoryIds
+      recentStoryIds,
+      avatarNames
     );
     phaseDurations.phase2Duration = Date.now() - phase2Start;
     console.log(`[4-Phase] Phase 2 completed in ${phaseDurations.phase2Duration}ms`);

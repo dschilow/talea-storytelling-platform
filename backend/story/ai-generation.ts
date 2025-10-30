@@ -39,6 +39,24 @@ import {
   type VisionQAResult,
 } from "./vision-qa";
 
+function clampRunwarePrompt(prompt: string, maxLength = 2800): string {
+  if (!prompt) {
+    return "";
+  }
+  if (prompt.length <= maxLength) {
+    return prompt;
+  }
+  const sliced = prompt.slice(0, maxLength);
+  const lastSeparator = Math.max(
+    sliced.lastIndexOf("."),
+    sliced.lastIndexOf(","),
+    sliced.lastIndexOf(";"),
+    sliced.lastIndexOf(" ")
+  );
+  const cleanSlice = lastSeparator > maxLength * 0.6 ? sliced.slice(0, lastSeparator) : sliced;
+  return `${cleanSlice.trimEnd()}...`;
+}
+
 interface StylePresetMeta {
   inspiration: string;
   description: string;
@@ -853,14 +871,18 @@ export const generateStoryContent = api<
 
       // Normalize language (DE->EN)
       const coverPromptNormalized = normalizeLanguage(coverPrompts.positivePrompt);
+      const coverPromptClamped = clampRunwarePrompt(coverPromptNormalized);
       const coverNegativePromptNormalized = normalizeLanguage(coverPrompts.negativePrompt);
 
       console.log("[ai-generation] 📸 Generating COVER image with optimized prompt + negative prompt");
       console.log("[ai-generation] Cover positive prompt length:", coverPromptNormalized.length);
+      if (coverPromptClamped.length !== coverPromptNormalized.length) {
+        console.log("[ai-generation] Cover positive prompt clamped to length:", coverPromptClamped.length);
+      }
       console.log("[ai-generation] Cover negative prompt length:", coverNegativePromptNormalized.length);
 
       const coverResponse = await ai.generateImage({
-        prompt: coverPromptNormalized,
+        prompt: coverPromptClamped,
         negativePrompt: coverNegativePromptNormalized,
         model: "runware:101@1",
         width: coverDimensions.width,
@@ -912,14 +934,18 @@ export const generateStoryContent = api<
         });
 
         const chapterPromptNormalized = normalizeLanguage(chapterPrompts.positivePrompt);
+        const chapterPromptClamped = clampRunwarePrompt(chapterPromptNormalized);
         const chapterNegativePromptNormalized = normalizeLanguage(chapterPrompts.negativePrompt);
 
         console.log(`[ai-generation] 📸 Generating Chapter ${i + 1} image with negative prompt`);
         console.log(`[ai-generation] Chapter ${i + 1} positive prompt length:`, chapterPromptNormalized.length);
+        if (chapterPromptClamped.length !== chapterPromptNormalized.length) {
+          console.log(`[ai-generation] Chapter ${i + 1} positive prompt clamped to:`, chapterPromptClamped.length);
+        }
         console.log(`[ai-generation] Chapter ${i + 1} negative prompt length:`, chapterNegativePromptNormalized.length);
 
         const chapterResponse = await ai.generateImage({
-          prompt: chapterPromptNormalized,
+          prompt: chapterPromptClamped,
           negativePrompt: chapterNegativePromptNormalized,
           model: "runware:101@1",
           width: chapterDimensions.width,
