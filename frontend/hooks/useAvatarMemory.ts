@@ -1,19 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useBackend } from './useBackend';
-import { PersonalityTrait } from '../types/avatar';
-
-export interface AvatarMemory {
-  id: string;
-  storyId: string;
-  storyTitle: string;
-  experience: string;
-  emotionalImpact: 'positive' | 'negative' | 'neutral';
-  personalityChanges: Array<{
-    trait: string;
-    change: number;
-  }>;
-  createdAt: string;
-}
+import { PersonalityTrait, AvatarMemory } from '../types/avatar';
 
 export interface MemoryEntry {
   storyId: string;

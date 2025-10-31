@@ -33,7 +33,7 @@ const MemoryTimeline: React.FC<{
   };
 
   const sortedMemories = [...memories].sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime()
   );
 
   return (
@@ -72,7 +72,7 @@ const MemoryTimeline: React.FC<{
                       </h4>
                       <div className="flex items-center text-xs text-gray-500 mt-1">
                         <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(memory.timestamp).toLocaleDateString('de-DE')}
+                        {new Date(memory.createdAt || memory.timestamp || 0).toLocaleDateString('de-DE')}
                       </div>
                     </div>
                     <button
@@ -216,7 +216,7 @@ const AvatarDetailScreen: React.FC = () => {
           console.log('Backend avatar data:', avatarData);
           
           if (avatarData && avatarData.id) {
-            setAvatar(avatarData);
+            setAvatar(avatarData as any);
 
             // Store raw backend personality traits for hierarchical display
             if (avatarData.personalityTraits) {
@@ -334,6 +334,9 @@ const AvatarDetailScreen: React.FC = () => {
 
   // Listen for localStorage changes to update personality and memories in real time
   useEffect(() => {
+    // Guard against undefined avatarId
+    if (!avatarId) return;
+
     const handleStorageChange = (e: StorageEvent) => {
       if (!avatarId) return;
       
@@ -348,11 +351,13 @@ const AvatarDetailScreen: React.FC = () => {
       
       if (e.key === `avatar_memories_${avatarId}`) {
         console.log('Memory data changed for avatar:', avatarId);
-        // Reload memories
-        getMemories(avatarId).then(memories => {
-          setMemories(memories);
-          console.log('Updated memories from storage event:', memories);
-        });
+        // Reload memories - with guard
+        if (avatarId) {
+          getMemories(avatarId).then(memories => {
+            setMemories(memories);
+            console.log('Updated memories from storage event:', memories);
+          });
+        }
       }
     };
 
@@ -370,6 +375,7 @@ const AvatarDetailScreen: React.FC = () => {
     
     // Also check for changes every 2 seconds (backup mechanism)
     const interval = setInterval(() => {
+      // Guard against avatarId becoming undefined
       if (!avatarId) return;
       
       const personalityKey = `avatar_personality_${avatarId}`;
@@ -384,10 +390,12 @@ const AvatarDetailScreen: React.FC = () => {
           console.log('Detected recent personality update, refreshing...');
           setPersonalityTraits(currentData.traits);
           
-          // Also reload memories
-          getMemories(avatarId).then(memories => {
-            setMemories(memories);
-          });
+          // Also reload memories - with guard
+          if (avatarId) {
+            getMemories(avatarId).then(memories => {
+              setMemories(memories);
+            });
+          }
         }
       }
     }, 2000);
@@ -412,7 +420,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🗑️ Deleting memory ${memoryId} for avatar ${avatarId}`);
 
-      const response = await backend.avatar.deleteMemory(avatarId, memoryId);
+      const response = await backend.avatar.deleteMemory({ avatarId, memoryId });
 
       if (response.success) {
         console.log('✅ Memory deleted successfully, recalculated traits:', response.recalculatedTraits);
@@ -467,7 +475,8 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🔻 Reducing trait ${trait} by ${amount} for avatar ${avatarId}`);
 
-      const response = await backend.avatar.reducePersonalityTrait(avatarId, {
+      const response = await backend.avatar.reducePersonalityTrait({
+        avatarId,
         trait,
         amount,
         reason
@@ -523,7 +532,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🗑️ Resetting doku history for avatar ${avatarId}`);
 
-      const response = await backend.avatar.resetDokuHistory(avatarId, {});
+      const response = await backend.avatar.resetDokuHistory({ avatarId, dokuId: undefined });
 
       if (response.success) {
         console.log('✅ Doku history reset successfully:', response.message);
@@ -700,7 +709,7 @@ const AvatarDetailScreen: React.FC = () => {
                               if (avatarId) {
                                 const avatarData = await backend.avatar.get({ id: avatarId });
                                 if (avatarData && avatarData.id) {
-                                  setAvatar(avatarData);
+                                  setAvatar(avatarData as any);
                                   if (avatarData.personalityTraits) {
                                     setRawPersonalityTraits(avatarData.personalityTraits);
                                     console.log('🔄 Updated personality traits after reset:', avatarData.personalityTraits);
@@ -738,7 +747,11 @@ const AvatarDetailScreen: React.FC = () => {
                       console.log('🔄 Converted traits for display:', converted);
                       return converted;
                     })() : []}
-                    memories={memories}
+                    memories={memories.map(m => ({
+                      personalityChanges: m.personalityChanges,
+                      storyTitle: m.storyTitle,
+                      createdAt: m.createdAt || m.timestamp || ''
+                    }))}
                     onReduceTrait={handleReduceTrait}
                   />
                 </div>

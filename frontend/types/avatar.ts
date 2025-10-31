@@ -31,7 +31,8 @@ export interface AvatarMemory {
     trait: string;
     change: number;
   }>;
-  timestamp: string;
+  createdAt: string;
+  timestamp?: string; // deprecated, use createdAt
 }
 
 export interface Avatar {
