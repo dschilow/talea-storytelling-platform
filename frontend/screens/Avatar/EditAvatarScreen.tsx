@@ -92,22 +92,33 @@ const EditAvatarScreen: React.FC = () => {
       setAvatar(avatarData as any);
       setName((avatarData as any).name);
       setDescription((avatarData as any).description || '');
-      setPhysicalTraits((avatarData as any).physicalTraits);
+      setPhysicalTraits((avatarData as any).physicalTraits || { characterType: '', appearance: '' });
 
       // Convert new hierarchical format to old flat format
       const rawTraits = (avatarData as any).personalityTraits;
-      const flatTraits: any = {};
+      const flatTraits: PersonalityTraits = {
+        courage: 7,
+        intelligence: 6,
+        creativity: 8,
+        empathy: 7,
+        strength: 5,
+        humor: 8,
+        adventure: 9,
+        patience: 4,
+        curiosity: 9,
+        leadership: 6,
+      };
 
       // Handle both old format (numbers) and new format (objects with value/subcategories)
-      Object.entries(rawTraits).forEach(([key, val]) => {
-        if (typeof val === 'number') {
-          flatTraits[key] = val;
-        } else if (typeof val === 'object' && val !== null && 'value' in val) {
-          flatTraits[key] = (val as any).value;
-        } else {
-          flatTraits[key] = 0;
-        }
-      });
+      if (rawTraits && typeof rawTraits === 'object') {
+        Object.entries(rawTraits).forEach(([key, val]) => {
+          if (typeof val === 'number') {
+            flatTraits[key] = val;
+          } else if (typeof val === 'object' && val !== null && 'value' in val) {
+            flatTraits[key] = (val as any).value;
+          }
+        });
+      }
 
       setPersonalityTraits(flatTraits);
     } catch (error) {
