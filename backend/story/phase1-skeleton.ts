@@ -234,10 +234,10 @@ ${customLine}
 AUFGABE FUER DICH:
 1. Erstelle eine Story-Struktur mit exakt 5 Kapiteln.
 2. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
-3. Jede Kapitelbeschreibung umfasst 50-80 Woerter (3-4 Saetze), enthaelt Emotionen, Sinneseindruecke und treibt die Handlung voran.
+3. WICHTIG: Jede Kapitelbeschreibung MAXIMAL 50-70 Woerter (niemals mehr!). Schreibe praegnant, dicht, bildlich. Keine langen Saetze.
 4. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
 5. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
-6. Fuehre fuer jede Rolle emotionale Natur, wichtige Traits und Kapitel-Auftritte an - passend zu Seele und Wuerze.
+6. Fuehre fuer jede Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an - passend zu Seele und Wuerze.
 7. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.
 
 PLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):
@@ -254,13 +254,14 @@ OUTPUT (JSON):
   "chapters": [
     {
       "order": 1,
-      "content": "50-80 Woerter, aktionsreich und sinnlich (keine Placeholder-Erklaerungen, sondern Plot).",
+      "content": "MAXIMAL 50-70 Woerter! Praegnant, bildlich, dicht. Keine langen Erklaerungen.",
       "characterRolesNeeded": [
         {
           "placeholder": "{{WISE_ELDER}}",
           "role": "guide",
           "archetype": "helpful_elder",
           "emotionalNature": "wise",
+          "visualHints": "aelterer Mensch, Arzt/Doktor, warmherziges Auftreten",
           "importance": "high",
           "inChapters": [1, 3, 5]
         }
@@ -274,11 +275,16 @@ OUTPUT (JSON):
       "archetype": "helpful_elder",
       "emotionalNature": "wise",
       "requiredTraits": ["wise", "protective", "kind"],
+      "visualHints": "aelterer Mensch, Arzt/Doktor, warmherziges Auftreten, Brille moeglich",
       "importance": "high",
       "inChapters": [1, 3, 5]
     }
   ]
 }
+
+WICHTIG: 
+- Halte chapters[].content STRIKT unter 70 Woertern!
+- Fuege bei supportingCharacterRequirements immer visualHints hinzu (Tierart, Beruf, Aussehen, Kleidung)
 
 Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in sich stimmige Dramaturgie. Kapitel 5 zeigt emotionale Entwicklung und erfuellt das Versprechen der Story-Seele.
     `.trim();
@@ -310,9 +316,14 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
       const wordCount = typeof chapter.content === "string"
         ? chapter.content.split(/\s+/).filter(Boolean).length
         : 0;
-      if (wordCount < 45 || wordCount > 90) {
+      if (wordCount < 45 || wordCount > 75) {
         console.warn(
-          `[Phase1] Chapter ${chapter.order} word count ${wordCount} outside target range (50-80).`
+          `[Phase1] ⚠️ Chapter ${chapter.order} word count ${wordCount} outside target range (50-70). CRITICAL!`
+        );
+      }
+      if (wordCount > 80) {
+        throw new Error(
+          `[Phase1] Chapter ${chapter.order} exceeds maximum (${wordCount} words). Must be <= 75 words!`
         );
       }
     }

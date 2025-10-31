@@ -30,6 +30,7 @@ export class Phase2CharacterMatcher {
 
     const assignments = new Map<string, CharacterTemplate>();
     const usedCharacters = new Set<string>();
+    const usedSpecies = new Set<string>(); // Track species diversity
     const reservedPlaceholders = new Set(
       avatarNames
         .map(name => name?.trim().toLowerCase())
@@ -66,7 +67,8 @@ export class Phase2CharacterMatcher {
         pool,
         setting,
         usedCharacters,
-        recentUsage
+        recentUsage,
+        usedSpecies
       );
 
       if (!bestMatch) {
@@ -74,10 +76,16 @@ export class Phase2CharacterMatcher {
         const generated = this.generateFallbackCharacter(req);
         assignments.set(req.placeholder, generated);
         usedCharacters.add(generated.id);
+        if (generated.visualProfile.species) {
+          usedSpecies.add(generated.visualProfile.species);
+        }
       } else {
         console.log(`[Phase2] Matched ${req.placeholder} -> ${bestMatch.name} (score: ${(bestMatch as any)._matchScore})`);
         assignments.set(req.placeholder, bestMatch);
         usedCharacters.add(bestMatch.id);
+        if (bestMatch.visualProfile.species) {
+          usedSpecies.add(bestMatch.visualProfile.species);
+        }
       }
     }
 
@@ -158,7 +166,7 @@ export class Phase2CharacterMatcher {
   }
 
   /**
-   * INTELLIGENT MATCHING SCORE
+   * INTELLIGENT MATCHING SCORE V2 - Enhanced with Visual Hints
    * Evaluates each character with a comprehensive scoring system
    */
   private findBestMatch(
@@ -166,10 +174,15 @@ export class Phase2CharacterMatcher {
     pool: CharacterTemplate[],
     setting: string,
     alreadyUsed: Set<string>,
-    recentUsage: Map<string, number>
+    recentUsage: Map<string, number>,
+    usedSpecies: Set<string>
   ): CharacterTemplate | null {
     let bestMatch: CharacterTemplate | null = null;
     let bestScore = 0;
+
+    // Extract visual hints from requirement for better matching
+    const visualHints = (requirement as any).visualHints || "";
+    const visualKeywords = this.extractVisualKeywords(visualHints);
 
     for (const candidate of pool) {
       // Skip already used characters
@@ -178,28 +191,35 @@ export class Phase2CharacterMatcher {
       }
 
       let score = 0;
+      const debugScores: Record<string, number> = {};
 
-      // ===== SCORING MATRIX (Total: 500 points) =====
+      // ===== SCORING MATRIX V2 (Total: 600 points) =====
 
       // 1. ROLE MATCH (100 points) - CRITICAL
       if (candidate.role === requirement.role) {
         score += 100;
+        debugScores.roleExact = 100;
       } else if (this.isCompatibleRole(candidate.role, requirement.role)) {
-        score += 50; // Partial match for compatible roles
+        score += 50;
+        debugScores.roleCompatible = 50;
       }
 
       // 2. ARCHETYPE MATCH (80 points)
       if (candidate.archetype === requirement.archetype) {
         score += 80;
+        debugScores.archetypeExact = 80;
       } else if (this.isCompatibleArchetype(candidate.archetype, requirement.archetype)) {
-        score += 40; // Partial match
+        score += 40;
+        debugScores.archetypeCompatible = 40;
       }
 
       // 3. EMOTIONAL NATURE (60 points)
       if (candidate.emotionalNature.dominant === requirement.emotionalNature) {
         score += 60;
+        debugScores.emotionalDominant = 60;
       } else if (candidate.emotionalNature.secondary?.includes(requirement.emotionalNature)) {
         score += 30;
+        debugScores.emotionalSecondary = 30;
       }
 
       // 4. REQUIRED TRAITS (50 points total, 10 per trait)
@@ -207,52 +227,76 @@ export class Phase2CharacterMatcher {
         candidate.emotionalNature.dominant === trait ||
         candidate.emotionalNature.secondary?.includes(trait)
       ).length;
-      score += Math.min(matchingTraits * 10, 50);
+      const traitsScore = Math.min(matchingTraits * 10, 50);
+      score += traitsScore;
+      debugScores.traits = traitsScore;
 
-      // 5. IMPORTANCE ALIGNMENT (40 points)
+      // 5. VISUAL HINTS MATCHING (100 points) - NEW & CRITICAL!
+      const visualScore = this.scoreVisualMatch(candidate, visualKeywords);
+      score += visualScore;
+      debugScores.visual = visualScore;
+
+      // 6. IMPORTANCE ALIGNMENT (40 points)
       const screenTimeNeeded = this.importanceToScreenTime(requirement.importance);
       if (candidate.maxScreenTime >= screenTimeNeeded) {
         score += 40;
+        debugScores.screenTime = 40;
       } else if (candidate.maxScreenTime >= screenTimeNeeded - 20) {
-        score += 20; // Close enough
+        score += 20;
+        debugScores.screenTime = 20;
       }
 
-      // 6. CHAPTER AVAILABILITY (30 points)
+      // 7. CHAPTER AVAILABILITY (30 points)
       const availableForRequired = requirement.inChapters.every(ch =>
         candidate.availableChapters.includes(ch)
       );
       if (availableForRequired) {
         score += 30;
+        debugScores.chapters = 30;
       }
 
-      // 7. SETTING COMPATIBILITY (40 points)
+      // 8. SETTING COMPATIBILITY (40 points)
       if (candidate.canonSettings && candidate.canonSettings.length > 0) {
         if (candidate.canonSettings.includes(setting)) {
           score += 40;
+          debugScores.setting = 40;
         } else if (candidate.canonSettings.some(s => this.isCompatibleSetting(s, setting))) {
-          score += 20; // Partially compatible
+          score += 20;
+          debugScores.setting = 20;
         }
       } else {
-        score += 30; // Generic character, works anywhere
+        score += 30;
+        debugScores.setting = 30;
       }
 
-      // 8. FRESHNESS BONUS (40 points)
-      // Prefer characters not used recently
+      // 9. FRESHNESS BONUS (50 points) - Increased weight
       const usageCount = recentUsage.get(candidate.id) || 0;
-      const freshness = Math.max(0, 40 - (usageCount * 15));
+      const freshness = Math.max(0, 50 - (usageCount * 20));
       score += freshness;
+      debugScores.freshness = freshness;
 
-      // 9. VISUAL DIVERSITY BONUS (20 points)
-      // Prefer characters with different species/color palettes
-      score += 20; // Simplified - can be enhanced with actual diversity check
-
-      // 10. TOTAL USAGE PENALTY (reduce score for overused characters)
-      if (candidate.totalUsageCount && candidate.totalUsageCount > 10) {
-        score -= Math.min((candidate.totalUsageCount - 10) * 2, 20);
+      // 10. SPECIES DIVERSITY BONUS (30 points)
+      // Encourage variety in species/types
+      const species = candidate.visualProfile.species || "unknown";
+      if (!usedSpecies.has(species)) {
+        score += 30; // New species - bonus!
+        debugScores.diversity = 30;
+      } else {
+        score += 10; // Already used species - small bonus
+        debugScores.diversity = 10;
       }
 
-      // Store score for debugging
+      // 11. TOTAL USAGE PENALTY (reduce score for overused characters)
+      let usagePenalty = 0;
+      if (candidate.totalUsageCount && candidate.totalUsageCount > 10) {
+        usagePenalty = Math.min((candidate.totalUsageCount - 10) * 3, 30);
+        score -= usagePenalty;
+        debugScores.usagePenalty = -usagePenalty;
+      }
+
+      // Store score and details for debugging
       (candidate as any)._matchScore = score;
+      (candidate as any)._debugScores = debugScores;
 
       // FINAL DECISION
       if (score > bestScore) {
@@ -261,14 +305,107 @@ export class Phase2CharacterMatcher {
       }
     }
 
-    // QUALITY GATE
-    // If best score is too low, return null to trigger fallback generation
-    if (bestScore < 80) {
+    // QUALITY GATE - Lowered threshold for more flexibility
+    if (bestScore < 100) {
       console.warn(`[Phase2] Best match score too low: ${bestScore} for ${requirement.placeholder}`);
+      console.warn(`[Phase2] Visual hints: ${visualHints}`);
       return null;
     }
 
+    if (bestMatch) {
+      console.log(`[Phase2] Match details for ${requirement.placeholder}:`, {
+        character: bestMatch.name,
+        totalScore: bestScore,
+        breakdown: (bestMatch as any)._debugScores,
+        visualHints,
+      });
+    }
+
     return bestMatch;
+  }
+
+  /**
+   * Extract visual keywords from hints text
+   */
+  private extractVisualKeywords(hints: string): string[] {
+    if (!hints || typeof hints !== "string") return [];
+    
+    const normalized = hints.toLowerCase();
+    const keywords: string[] = [];
+
+    // Animal types
+    const animals = ["hund", "katze", "vogel", "hirsch", "reh", "fuchs", "baer", "hase", "maus", "eichhoernchen", "wolf", "drache", "einhorn"];
+    animals.forEach(animal => {
+      if (normalized.includes(animal)) keywords.push(animal);
+    });
+
+    // Professions
+    const professions = ["arzt", "doktor", "lehrer", "baecker", "polizist", "verkaeuferin", "gaertner", "koch", "mechaniker"];
+    professions.forEach(prof => {
+      if (normalized.includes(prof)) keywords.push(prof);
+    });
+
+    // Age indicators
+    if (normalized.includes("alt") || normalized.includes("aelter") || normalized.includes("weise")) {
+      keywords.push("elder");
+    }
+    if (normalized.includes("jung") || normalized.includes("kind")) {
+      keywords.push("young");
+    }
+
+    // Physical attributes
+    if (normalized.includes("gross")) keywords.push("large");
+    if (normalized.includes("klein")) keywords.push("small");
+    if (normalized.includes("brille")) keywords.push("glasses");
+
+    // Materials/Tech
+    if (normalized.includes("blech") || normalized.includes("metall") || normalized.includes("roboter")) {
+      keywords.push("mechanical");
+    }
+
+    return keywords;
+  }
+
+  /**
+   * Score visual match between character and requirements
+   */
+  private scoreVisualMatch(candidate: CharacterTemplate, keywords: string[]): number {
+    if (keywords.length === 0) return 50; // No visual hints, give neutral score
+
+    let score = 0;
+    const candidateDesc = (candidate.visualProfile.description || "").toLowerCase();
+    const candidateSpecies = (candidate.visualProfile.species || "").toLowerCase();
+
+    // Check each keyword
+    for (const keyword of keywords) {
+      if (candidateDesc.includes(keyword) || candidateSpecies.includes(keyword)) {
+        score += 20; // Strong match per keyword
+      } else if (this.isRelatedVisual(keyword, candidateSpecies)) {
+        score += 10; // Related match
+      }
+    }
+
+    return Math.min(score, 100); // Cap at 100 points
+  }
+
+  /**
+   * Check if visual concepts are related
+   */
+  private isRelatedVisual(keyword: string, species: string): boolean {
+    const relations: Record<string, string[]> = {
+      "mechanical": ["robot", "machine", "tech"],
+      "elder": ["human", "wise"],
+      "hund": ["animal", "dog", "canine"],
+      "katze": ["animal", "cat", "feline"],
+      "vogel": ["animal", "bird", "avian"],
+      "hirsch": ["animal", "deer", "stag"],
+      "baer": ["animal", "bear"],
+      "arzt": ["human", "doctor", "healer"],
+      "polizist": ["human", "police", "officer"],
+    };
+
+    const related = relations[keyword] || [];
+    return related.some(rel => species.includes(rel));
   }
 
   private importanceToScreenTime(importance: string): number {

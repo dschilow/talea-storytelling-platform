@@ -44,6 +44,7 @@ export interface CharacterRequirement {
   archetype: string;
   emotionalNature: string;
   requiredTraits: string[];
+  visualHints?: string; // NEW: Visual description hints (animal type, profession, appearance)
   importance: "high" | "medium" | "low";
   inChapters: number[];
 }
@@ -56,6 +57,7 @@ export interface ChapterSkeleton {
     role: string;
     archetype: string;
     emotionalNature: string;
+    visualHints?: string; // NEW: Visual description hints
     importance: "high" | "medium" | "low";
     inChapters: number[];
   }[];
