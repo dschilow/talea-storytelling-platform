@@ -216,7 +216,7 @@ const AvatarDetailScreen: React.FC = () => {
           console.log('Backend avatar data:', avatarData);
           
           if (avatarData && avatarData.id) {
-            setAvatar(avatarData as any);
+            setAvatar(avatarData as Avatar);
 
             // Store raw backend personality traits for hierarchical display
             if (avatarData.personalityTraits) {

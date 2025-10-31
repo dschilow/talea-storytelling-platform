@@ -42,8 +42,9 @@ export interface Avatar {
   description?: string;
   imageUrl?: string;
   config?: AvatarConfig;
-  creationType: 'ai-generated' | 'photo-upload';
-  status: 'generating' | 'complete' | 'error';
+  creationType?: 'ai-generated' | 'photo-upload';
+  status?: 'generating' | 'complete' | 'error';
+  personalityTraits?: any; // Backend hierarchical personality traits
   
   // Personality development system
   personality?: {
