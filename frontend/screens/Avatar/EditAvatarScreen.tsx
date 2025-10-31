@@ -133,7 +133,7 @@ const EditAvatarScreen: React.FC = () => {
     };
 
     loadAvatar();
-  }, [avatarId, backend, navigate]);
+  }, [avatarId]);
 
   const updatePhysicalTrait = <K extends keyof PhysicalTraits>(key: K, value: PhysicalTraits[K]) => {
     setPhysicalTraits(prev => ({ ...prev, [key]: value }));
