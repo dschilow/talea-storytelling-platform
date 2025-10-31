@@ -125,7 +125,7 @@ export const useAvatarMemory = () => {
 
       console.log('🔍 Getting memories from database for avatar:', avatarId);
 
-      const result = await backend.avatar.getMemories(avatarId);
+      const result = await backend.avatar.getMemories({ id: avatarId });
 
       console.log('✅ Retrieved memories from database:', result.memories.length);
 

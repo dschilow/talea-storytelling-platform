@@ -212,7 +212,7 @@ const AvatarDetailScreen: React.FC = () => {
         // Try to load avatar from backend API first
         try {
           console.log('Loading avatar from backend API:', avatarId);
-          const avatarData = await backend.avatar.get(avatarId);
+          const avatarData = await backend.avatar.get({ id: avatarId });
           console.log('Backend avatar data:', avatarData);
           
           if (avatarData && avatarData.id) {
@@ -697,12 +697,14 @@ const AvatarDetailScreen: React.FC = () => {
                               alert(`✅ ${result.message}`);
 
                               // Refresh avatar data directly instead of full page reload
-                              const avatarData = await backend.avatar.get(avatarId);
-                              if (avatarData && avatarData.id) {
-                                setAvatar(avatarData);
-                                if (avatarData.personalityTraits) {
-                                  setRawPersonalityTraits(avatarData.personalityTraits);
-                                  console.log('🔄 Updated personality traits after reset:', avatarData.personalityTraits);
+                              if (avatarId) {
+                                const avatarData = await backend.avatar.get({ id: avatarId });
+                                if (avatarData && avatarData.id) {
+                                  setAvatar(avatarData);
+                                  if (avatarData.personalityTraits) {
+                                    setRawPersonalityTraits(avatarData.personalityTraits);
+                                    console.log('🔄 Updated personality traits after reset:', avatarData.personalityTraits);
+                                  }
                                 }
                               }
                             } else {

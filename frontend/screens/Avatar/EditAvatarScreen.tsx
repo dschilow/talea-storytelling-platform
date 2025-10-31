@@ -54,8 +54,8 @@ const EditAvatarScreen: React.FC = () => {
 
     try {
       setLoading(true);
-      // The client expects the ID directly, not as an object!
-      const avatarData = await backend.avatar.get(avatarId);
+      // The client expects params as an object with id property
+      const avatarData = await backend.avatar.get({ id: avatarId });
 
       setAvatar(avatarData as any);
       setName((avatarData as any).name);
