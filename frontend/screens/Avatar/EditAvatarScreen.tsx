@@ -78,68 +78,62 @@ const EditAvatarScreen: React.FC = () => {
     leadership: 6,
   });
 
-  const loadAvatar = useCallback(async () => {
+  useEffect(() => {
     if (!avatarId) {
       console.error('No avatarId provided');
       return;
     }
 
-    try {
-      setLoading(true);
-      // The client expects params as an object with id property
-      const avatarData = await backend.avatar.get({ id: avatarId });
+    const loadAvatar = async () => {
+      try {
+        setLoading(true);
+        // The client expects params as an object with id property
+        const avatarData = await backend.avatar.get({ id: avatarId });
 
-      setAvatar(avatarData as any);
-      setName((avatarData as any).name);
-      setDescription((avatarData as any).description || '');
-      setPhysicalTraits((avatarData as any).physicalTraits || { characterType: '', appearance: '' });
+        setAvatar(avatarData as any);
+        setName((avatarData as any).name);
+        setDescription((avatarData as any).description || '');
+        setPhysicalTraits((avatarData as any).physicalTraits || { characterType: '', appearance: '' });
 
-      // Convert new hierarchical format to old flat format
-      const rawTraits = (avatarData as any).personalityTraits;
-      
-      console.log('🔍 EditAvatarScreen - Raw traits from backend:', rawTraits);
-      
-      const flatTraits: PersonalityTraits = {
-        courage: 0,
-        intelligence: 0,
-        creativity: 0,
-        empathy: 0,
-        strength: 0,
-        humor: 0,
-        adventure: 0,
-        patience: 0,
-        curiosity: 0,
-        leadership: 0,
-      };
+        // Convert new hierarchical format to old flat format
+        const rawTraits = (avatarData as any).personalityTraits;
+        
+        const flatTraits: PersonalityTraits = {
+          courage: 0,
+          intelligence: 0,
+          creativity: 0,
+          empathy: 0,
+          strength: 0,
+          humor: 0,
+          adventure: 0,
+          patience: 0,
+          curiosity: 0,
+          leadership: 0,
+        };
 
-      // Handle both old format (numbers) and new format (objects with value/subcategories)
-      if (rawTraits && typeof rawTraits === 'object' && Object.keys(rawTraits).length > 0) {
-        Object.entries(rawTraits).forEach(([key, val]) => {
-          if (typeof val === 'number') {
-            flatTraits[key] = val;
-          } else if (typeof val === 'object' && val !== null && 'value' in val) {
-            flatTraits[key] = (val as any).value;
-          }
-        });
+        // Handle both old format (numbers) and new format (objects with value/subcategories)
+        if (rawTraits && typeof rawTraits === 'object' && Object.keys(rawTraits).length > 0) {
+          Object.entries(rawTraits).forEach(([key, val]) => {
+            if (typeof val === 'number') {
+              flatTraits[key] = val;
+            } else if (typeof val === 'object' && val !== null && 'value' in val) {
+              flatTraits[key] = (val as any).value;
+            }
+          });
+        }
+
+        setPersonalityTraits(flatTraits);
+      } catch (error) {
+        console.error('Error loading avatar:', error);
+        alert('Avatar konnte nicht geladen werden.');
+        navigate('/');
+      } finally {
+        setLoading(false);
       }
-      
-      console.log('✅ EditAvatarScreen - Converted flat traits:', flatTraits);
+    };
 
-      setPersonalityTraits(flatTraits);
-    } catch (error) {
-      console.error('Error loading avatar:', error);
-      alert('Avatar konnte nicht geladen werden.');
-      navigate('/');
-    } finally {
-      setLoading(false);
-    }
+    loadAvatar();
   }, [avatarId, backend, navigate]);
-
-  useEffect(() => {
-    if (avatarId) {
-      loadAvatar();
-    }
-  }, [avatarId, loadAvatar]);
 
   const updatePhysicalTrait = <K extends keyof PhysicalTraits>(key: K, value: PhysicalTraits[K]) => {
     setPhysicalTraits(prev => ({ ...prev, [key]: value }));

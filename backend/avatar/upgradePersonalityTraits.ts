@@ -5,8 +5,6 @@ import { avatarDB } from "./db";
 
 // Erweitert und normalisiert Persönlichkeits-Traits zu hierarchischem System
 function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
-  console.log('🔧 upgradePersonalityTraits - input:', JSON.stringify(existingTraits, null, 2));
-
   const upgraded: any = {};
 
   // Initialisiere alle 9 Basis-Traits mit 0
@@ -22,10 +20,10 @@ function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
     // Normalisiere Werte und bewahre Subcategories
     if (value === null || value === undefined) {
       normalizedValue = 0;
-    } else if (typeof value === 'object' && value.value !== undefined) {
-      normalizedValue = Number(value.value) || 0;
+    } else if (typeof value === 'object' && (value as any).value !== undefined) {
+      normalizedValue = Number((value as any).value) || 0;
       // WICHTIG: Bewahre existierende Subcategories!
-      subcategories = value.subcategories || {};
+      subcategories = (value as any).subcategories || {};
     } else {
       normalizedValue = Number(value) || 0;
     }
@@ -48,7 +46,6 @@ function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
     }
   });
 
-  console.log('🔧 upgradePersonalityTraits - output:', JSON.stringify(upgraded, null, 2));
   return upgraded as PersonalityTraits;
 }
 

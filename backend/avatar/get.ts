@@ -41,14 +41,17 @@ export const get = api<GetAvatarParams, Avatar>(
 
     // Upgrade personality traits to include new knowledge categories
     const rawPersonalityTraits = JSON.parse(row.personality_traits);
-    console.log(`🔍 Raw personality traits from DB for avatar ${row.id}:`, JSON.stringify(rawPersonalityTraits, null, 2));
-    const upgradedPersonalityTraits = upgradePersonalityTraits(rawPersonalityTraits);
-    console.log(`🔧 Upgraded personality traits for avatar ${row.id}:`, JSON.stringify(upgradedPersonalityTraits, null, 2));
-
-    // If traits were upgraded, save them back to database
-    const hasNewTraits = Object.keys(upgradedPersonalityTraits).length > Object.keys(rawPersonalityTraits).length;
-    if (hasNewTraits) {
-      console.log(`🔄 Upgrading personality traits for avatar ${row.id}: added ${Object.keys(upgradedPersonalityTraits).length - Object.keys(rawPersonalityTraits).length} new traits`);
+    
+    // Check if all base traits exist (all 9 should be there)
+    const baseTraits = ['knowledge', 'creativity', 'vocabulary', 'courage', 'curiosity', 'teamwork', 'empathy', 'persistence', 'logic'];
+    const needsUpgrade = !baseTraits.every(trait => trait in rawPersonalityTraits);
+    
+    let upgradedPersonalityTraits = rawPersonalityTraits;
+    
+    if (needsUpgrade) {
+      console.log(`🔄 Upgrading personality traits for avatar ${row.id}`);
+      upgradedPersonalityTraits = upgradePersonalityTraits(rawPersonalityTraits);
+      
       try {
         await avatarDB.exec`
           UPDATE avatars
