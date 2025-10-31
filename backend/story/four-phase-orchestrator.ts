@@ -634,78 +634,61 @@ export class FourPhaseOrchestrator {
 
   /**
    * Build enhanced image prompt with character consistency
-   * OPTIMIZED: Concise character descriptions to reduce token usage
+   * CRITICAL FIX: Extract characters mentioned in scene and include FULL descriptions
    */
   private buildEnhancedImagePrompt(
     baseDescription: string,
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
-    // Build concise character reference (only essential visual traits)
-    const characterRefs: string[] = [];
+    // Build character lookup map
+    const allCharacters = new Map<string, string>();
 
-    // Add avatars (essential features only)
+    // Add avatars with FULL descriptions
     for (const avatar of avatarDetails) {
       const visualContext = avatar.visualProfile
         ? this.visualProfileToImagePrompt(avatar.visualProfile)
-        : (avatar.description || 'no description');
+        : (avatar.description || 'default appearance');
       
-      // Extract only key features (age, hair, eyes, clothing)
-      const concise = this.extractKeyVisualFeatures(visualContext);
-      characterRefs.push(`${avatar.name}: ${concise}`);
+      allCharacters.set(avatar.name.toLowerCase(), `${avatar.name}: ${visualContext}`);
     }
 
-    // Add supporting characters (essential features only)
+    // Add supporting characters with FULL descriptions
     for (const char of characterAssignments.values()) {
-      const concise = this.extractKeyVisualFeatures(char.visualProfile.description);
-      characterRefs.push(`${char.name}: ${concise}`);
+      const fullDesc = char.visualProfile.description || 'default character';
+      allCharacters.set(char.name.toLowerCase(), `${char.name}: ${fullDesc}`);
     }
 
-    // Combine all in one compact line
-    const characterGuide = characterRefs.join(" | ");
+    // Extract character names mentioned in this scene
+    const descriptionLower = baseDescription.toLowerCase();
+    const charactersInScene: string[] = [];
+
+    for (const [charName, charDesc] of allCharacters.entries()) {
+      if (descriptionLower.includes(charName)) {
+        charactersInScene.push(charDesc);
+      }
+    }
+
+    // If no characters found in description, include ALL (fallback)
+    if (charactersInScene.length === 0) {
+      console.warn("[Image Prompt] No characters detected in scene description, including all");
+      charactersInScene.push(...allCharacters.values());
+    }
+
+    // Build prompt with FULL character descriptions for consistency
+    const characterBlock = charactersInScene.join("\n\n");
 
     return `
 ${baseDescription}
 
-Characters: ${characterGuide}
+CHARACTERS IN THIS SCENE:
+${characterBlock}
 
-Style: Axel Scheffler watercolor, warm colors, child-friendly
+Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
     `.trim();
   }
 
-  /**
-   * Extract only key visual features from full description
-   * Reduces token usage by 60-70%
-   */
-  private extractKeyVisualFeatures(fullDescription: string): string {
-    if (!fullDescription) return "default character";
 
-    // Extract key elements using regex patterns
-    const keyPatterns = [
-      /(\d+\s*years?\s*old)/i,                    // Age
-      /(male|female|boy|girl)/i,                  // Gender
-      /(hair|haare):\s*([^,;.]+)/i,               // Hair
-      /(eyes|augen):\s*([^,;.]+)/i,               // Eyes
-      /(wearing|trägt|kleidung):\s*([^,;.]+)/i,   // Clothing
-      /(species|spezies|tier):\s*([^,;.]+)/i,     // Species
-    ];
-
-    const features: string[] = [];
-    
-    for (const pattern of keyPatterns) {
-      const match = fullDescription.match(pattern);
-      if (match) {
-        features.push(match[0].trim());
-      }
-    }
-
-    // If no patterns match, take first 80 characters
-    if (features.length === 0) {
-      return fullDescription.substring(0, 80).trim() + "...";
-    }
-
-    return features.join(", ");
-  }
 
   /**
    * Generate a single image using AI service
