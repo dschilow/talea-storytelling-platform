@@ -96,21 +96,24 @@ const EditAvatarScreen: React.FC = () => {
 
       // Convert new hierarchical format to old flat format
       const rawTraits = (avatarData as any).personalityTraits;
+      
+      console.log('🔍 EditAvatarScreen - Raw traits from backend:', rawTraits);
+      
       const flatTraits: PersonalityTraits = {
-        courage: 7,
-        intelligence: 6,
-        creativity: 8,
-        empathy: 7,
-        strength: 5,
-        humor: 8,
-        adventure: 9,
-        patience: 4,
-        curiosity: 9,
-        leadership: 6,
+        courage: 0,
+        intelligence: 0,
+        creativity: 0,
+        empathy: 0,
+        strength: 0,
+        humor: 0,
+        adventure: 0,
+        patience: 0,
+        curiosity: 0,
+        leadership: 0,
       };
 
       // Handle both old format (numbers) and new format (objects with value/subcategories)
-      if (rawTraits && typeof rawTraits === 'object') {
+      if (rawTraits && typeof rawTraits === 'object' && Object.keys(rawTraits).length > 0) {
         Object.entries(rawTraits).forEach(([key, val]) => {
           if (typeof val === 'number') {
             flatTraits[key] = val;
@@ -119,6 +122,8 @@ const EditAvatarScreen: React.FC = () => {
           }
         });
       }
+      
+      console.log('✅ EditAvatarScreen - Converted flat traits:', flatTraits);
 
       setPersonalityTraits(flatTraits);
     } catch (error) {
