@@ -1,0 +1,197 @@
+{
+  "id": "4e634198-c446-477c-830a-4d1265c498d1",
+  "metadata": null,
+  "request": {
+    "label": "PHASE 2: Beste Charaktere matchen",
+    "phase": 2,
+    "recentStoryCount": 5,
+    "requirements": [
+      {
+        "archetype": "helpful_elder / mysterious_guide",
+        "emotionalNature": "weise, beschützend, warmherzig",
+        "importance": "high",
+        "placeholder": "{{WISE_ELDER}}",
+        "role": "guide"
+      },
+      {
+        "archetype": "playful_spirit",
+        "emotionalNature": "schelmisch, leuchtend, tröstend",
+        "importance": "medium",
+        "placeholder": "{{MAGICAL_CREATURE}}",
+        "role": "magical_helper"
+      },
+      {
+        "archetype": "comic_relief",
+        "emotionalNature": "neugierig, frech, loyal",
+        "importance": "medium",
+        "placeholder": "{{ANIMAL_HELPER}}",
+        "role": "animal_companion"
+      },
+      {
+        "archetype": "helpful_villager",
+        "emotionalNature": "besorgt, herzlich",
+        "importance": "low",
+        "placeholder": "{{FRIENDLY_VILLAGER}}",
+        "role": "villager"
+      },
+      {
+        "archetype": "clever_child",
+        "emotionalNature": "neugierig, mutig, empathisch",
+        "importance": "high",
+        "role": "Protagonist / Erzähler"
+      },
+      {
+        "archetype": "mysterious_child / time_apprentice_revealed",
+        "emotionalNature": "zurückhaltend, tiefgründig, verletzlich",
+        "importance": "high",
+        "role": "Nebenprotagonist / geheimnisvoller Freund"
+      }
+    ],
+    "setting": "village"
+  },
+  "response": {
+    "assignments": [
+      {
+        "character": {
+          "archetype": "helpful_elder",
+          "emotionalNature": {
+            "dominant": "wise",
+            "secondary": [
+              "protective",
+              "kind"
+            ],
+            "triggers": [
+              "children in danger",
+              "nature destruction"
+            ]
+          },
+          "id": "42f0c488-0577-4023-bc53-6187a52f25e3",
+          "name": "Frau Müller",
+          "role": "guide",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "green",
+              "gray",
+              "beige"
+            ],
+            "description": "Frau Müller, 78 years, 162cm, 72kg, round friendly face, warm blue eyes laugh lines, small round nose, short wavy gray hair white streaks, round reading glasses, floral dress, knitted cardigan, comfortable shoes, pearl necklace.",
+            "species": "human"
+          }
+        },
+        "placeholder": "{{WISE_ELDER}}"
+      },
+      {
+        "character": {
+          "archetype": "playful_helper",
+          "emotionalNature": {
+            "dominant": "playful",
+            "secondary": [
+              "energetic",
+              "helpful",
+              "quick"
+            ],
+            "triggers": [
+              "fun opportunities",
+              "friends needing help"
+            ]
+          },
+          "id": "fa7cc7b3-ec36-4f36-a0fe-48b4f3560fbc",
+          "name": "Pip",
+          "role": "companion",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "red",
+              "orange",
+              "brown"
+            ],
+            "description": "Pip red squirrel, small, 1 year, 250g, rusty-red-orange bushy fur, round face, large black eyes, small black nose, tufted ears, large bushy tail, collects nuts in small leather pouch, sometimes wears green vest.",
+            "species": "animal"
+          }
+        },
+        "placeholder": "{{MAGICAL_CREATURE}}"
+      },
+      {
+        "character": {
+          "archetype": "trickster_witch",
+          "emotionalNature": {
+            "dominant": "mischievous",
+            "secondary": [
+              "clever",
+              "playful",
+              "mysterious"
+            ],
+            "triggers": [
+              "boredom",
+              "challenges",
+              "clever opponents"
+            ]
+          },
+          "id": "89446ad4-810b-43f5-ab27-3e21e16a0eaf",
+          "name": "Die Nebelhexe",
+          "role": "obstacle",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "purple",
+              "green",
+              "orange"
+            ],
+            "description": "Nebelhexe mist witch, 170cm, 58kg, age indeterminate, pale skin gray shimmer, sharp-edged face, piercing silver-gray eyes, long pointed nose, normal ears, long wavy dark gray hair silver streaks, no glasses, dark cloak mist patterns, pointed hat.",
+            "species": "magical_human"
+          }
+        },
+        "placeholder": "{{ANIMAL_HELPER}}"
+      },
+      {
+        "character": {
+          "archetype": "helpful_villager",
+          "emotionalNature": {
+            "dominant": "kind",
+            "secondary": [
+              "helpful",
+              "cheerful",
+              "generous"
+            ],
+            "triggers": [
+              "hungry children",
+              "community events"
+            ]
+          },
+          "id": "b411613d-a4e0-4d54-ac22-4a991f91d656",
+          "name": "Bäcker Braun",
+          "role": "support",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "brown",
+              "white",
+              "gold"
+            ],
+            "description": "Baker Bäcker Braun, 52 years, 172cm, 95kg, rotund, round face, warm brown eyes laugh lines, medium curved nose, short curly chestnut hair gray streaks, gray-brown beard, no glasses, white flour-dusted apron, beige shirt, baker's hat.",
+            "species": "human"
+          }
+        },
+        "placeholder": "{{FRIENDLY_VILLAGER}}"
+      }
+    ],
+    "durationMs": 22,
+    "matchedCount": 4,
+    "status": "completed"
+  },
+  "source": "phase2-character-matching",
+  "timestamp": "2025-10-31T10:20:03.027Z"
+}

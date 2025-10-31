@@ -1,0 +1,39 @@
+{
+  "id": "caab57b5-0825-42c1-ae2a-560fa50ceed4",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Dynamic chase scene through apple trees: Alexander (olive-green hoodie, tousled chestnut hair, pointed ears visible) reaches out to catch a small golden hour (tiny disc with blinking 'eyes') while Adrian (golden ringlets, sky-blue eyes) watches, breathing sharply. Pip (red squirrel, green vest) leaps in front, scattering nut crumbs like tiny planets. The Nebelhexe appears shifting between a goat form and a shimmery woman with long gray hair and a pointed hat, eyes silver-gray. Frau Müller (round friendly face, floral dress, knitted cardigan) stands calm in the background holding a copper lamp. Lighting: dappled sunlight through leaves with mist glows. Mood: frantic but wondrous. Camera perspective: slightly low-angle, mid-action, showing motion blur on the jumping hour. Environment specifics: apple scents, bakery steam in distance, cold stone underfoot. Recurring motifs: glittering light threads, clock-chime giggle, copper lamp. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. Characters: Alexander: 10 years old, male | Adrian: 8 years old, male | Frau Müller: Frau Müller, 78 years, 162cm, 72kg, round friendly face, warm blue eyes laugh li... | Pip: Pip red squirrel, small, 1 year, 250g, rusty-red-orange bushy fur, round face, l... | Die Nebelhexe: Nebelhexe mist witch, 170cm, 58kg, age indeterminate, pale skin gray shimmer, sh... | Bäcker Braun: Baker Bäcker Braun, 52 years, 172cm, 95kg, rotund, round face, warm brown eyes l... Style: Axel Scheffler watercolor, warm colors, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 347415538,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "b73fff7a-399d-4b1a-ad8e-297164a8cda4",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/ce778a31-cec1-488f-bba3-733686df0367.jpg",
+        "imageUUID": "ce778a31-cec1-488f-bba3-733686df0367",
+        "seed": 347415538,
+        "taskType": "imageInference",
+        "taskUUID": "b73fff7a-399d-4b1a-ad8e-297164a8cda4"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-10-31T10:21:48.024Z"
+}

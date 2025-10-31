@@ -1,0 +1,39 @@
+{
+  "id": "9beddb33-a0d7-49fa-a170-559d244539bf",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Book cover illustration for \"Der Uhrsprung im Apfeldorf\". Main characters Alexander, Adrian with Frau Müller, Pip in an exciting scene. Als in ihrem Apfeldorf die Zeit zu kichern beginnt, folgen Alexander und der geheimnisvolle Adrian einer blinkenden Uhr durch Gassen, Apfelbäume und einen Garten voller Uhrenblumen. Mit Hilfe von Frau Müller, dem frechen Eichhörnchen Pip und einer Nebelhexe lernen sie, dass Mut und Freundlichkeit Minuten heilen können. Characters: Alexander: 10 years old, male | Adrian: 8 years old, male | Frau Müller: Frau Müller, 78 years, 162cm, 72kg, round friendly face, warm blue eyes laugh li... | Pip: Pip red squirrel, small, 1 year, 250g, rusty-red-orange bushy fur, round face, l... | Die Nebelhexe: Nebelhexe mist witch, 170cm, 58kg, age indeterminate, pale skin gray shimmer, sh... | Bäcker Braun: Baker Bäcker Braun, 52 years, 172cm, 95kg, rotund, round face, warm brown eyes l... Style: Axel Scheffler watercolor, warm colors, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 497699176,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "22d95300-94ff-4b96-9d30-030dc5390562",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/cedf1841-70ef-4402-8f5a-00d5fd3ae8c9.jpg",
+        "imageUUID": "cedf1841-70ef-4402-8f5a-00d5fd3ae8c9",
+        "seed": 497699176,
+        "taskType": "imageInference",
+        "taskUUID": "22d95300-94ff-4b96-9d30-030dc5390562"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-10-31T10:22:03.967Z"
+}

@@ -1,0 +1,39 @@
+{
+  "id": "98c18e7f-9c4b-4e4d-b37a-b145b7cc466d",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Close-up scene of a cobblestone village square at dawn. Alexander (8-10 years, medium chestnut tousled hair, bright green eyes, pointed ears visible, olive-green hoodie) stands beside Adrian (6-8 years, golden blonde voluminous ringlets, bright sky-blue eyes, hoodie under a lightweight jacket). An old stone well with a round clock that giggles instead of ticking sits center-left. The clock's hands shimmer and emit tiny light threads. Lighting: warm morning glow with soft sparkles around the clock. Mood: curious, whimsical. Camera angle: eye-level, slight tilt to suggest movement. Environment specifics: pancake-scented air, steam from a bakery in the background, apple trees at the square's edge. Recurring motifs: glittering light, clock face, chiming giggle. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. Characters: Alexander: 10 years old, male | Adrian: 8 years old, male | Frau Müller: Frau Müller, 78 years, 162cm, 72kg, round friendly face, warm blue eyes laugh li... | Pip: Pip red squirrel, small, 1 year, 250g, rusty-red-orange bushy fur, round face, l... | Die Nebelhexe: Nebelhexe mist witch, 170cm, 58kg, age indeterminate, pale skin gray shimmer, sh... | Bäcker Braun: Baker Bäcker Braun, 52 years, 172cm, 95kg, rotund, round face, warm brown eyes l... Style: Axel Scheffler watercolor, warm colors, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 1561579953,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "49b92509-a1e6-4b2c-bac5-01159c72c5c2",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/9b8fe2ab-e935-48b8-9e21-2aa6d0a90657.jpg",
+        "imageUUID": "9b8fe2ab-e935-48b8-9e21-2aa6d0a90657",
+        "seed": 1561579953,
+        "taskType": "imageInference",
+        "taskUUID": "49b92509-a1e6-4b2c-bac5-01159c72c5c2"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-10-31T10:21:49.812Z"
+}

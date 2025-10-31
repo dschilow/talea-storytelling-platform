@@ -1,0 +1,39 @@
+{
+  "id": "b5e6bbcf-600e-4544-92c8-fd11af7380ed",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Village bakery front with Frau Müller (78 years, short wavy gray hair, warm blue eyes, floral dress, knitted cardigan, round reading glasses) standing kindly beside the door. Alexander (olive-green hoodie, pointed ears) and Adrian (hoodie under jacket, golden curly hair) listen. Pip the red squirrel (rusty fur, green vest, leather pouch) leaps from shadow, tossing a nut. Frau Müller's copper lamp glows with soft warm light. Lighting: warm bakery glow and soft lamplight, mist at the edge of the scene. Mood: inviting, mysterious. Camera perspective: medium shot, frontal, showing characters and bakery. Recurring motifs: light threads, clock-kicher. Environment: heady smells of pancakes and cinnamon, warm stone underfoot, apple trees behind. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. Characters: Alexander: 10 years old, male | Adrian: 8 years old, male | Frau Müller: Frau Müller, 78 years, 162cm, 72kg, round friendly face, warm blue eyes laugh li... | Pip: Pip red squirrel, small, 1 year, 250g, rusty-red-orange bushy fur, round face, l... | Die Nebelhexe: Nebelhexe mist witch, 170cm, 58kg, age indeterminate, pale skin gray shimmer, sh... | Bäcker Braun: Baker Bäcker Braun, 52 years, 172cm, 95kg, rotund, round face, warm brown eyes l... Style: Axel Scheffler watercolor, warm colors, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 1357967711,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "a2347fba-edf5-4d65-8ada-1ad2c60762e9",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/074ecac3-9604-4adb-b9f4-19752a543f3f.jpg",
+        "imageUUID": "074ecac3-9604-4adb-b9f4-19752a543f3f",
+        "seed": 1357967711,
+        "taskType": "imageInference",
+        "taskUUID": "a2347fba-edf5-4d65-8ada-1ad2c60762e9"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-10-31T10:21:49.905Z"
+}
