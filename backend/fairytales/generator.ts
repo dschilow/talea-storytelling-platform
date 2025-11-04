@@ -13,6 +13,7 @@ import type {
   GeneratedStoryScene,
   ResolvedCharacter,
   ValidationError,
+  ValidationWarning,
 } from "./types";
 
 // =====================================================
@@ -28,7 +29,7 @@ export const validateCharacterMapping = api<ValidateCharacterMappingRequest, Val
     console.log("[StoryGen] Validating character mapping for tale:", req.taleId);
 
     const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [] as any;
+    const warnings: ValidationWarning[] = [];
 
     // Get tale roles
     const roles = await fairytalesDB.queryAll<any>`
@@ -87,11 +88,10 @@ export const validateCharacterMapping = api<ValidateCharacterMappingRequest, Val
       if (visualProfile && role.age_range_min && role.age_range_max) {
         const age = visualProfile.age;
         if (age < role.age_range_min || age > role.age_range_max) {
-          (warnings as any).push({
+          warnings.push({
             roleType: role.role_type,
             avatarId,
             message: `Avatar age ${age} is outside recommended range ${role.age_range_min}-${role.age_range_max}`,
-            severity: 'warning',
             recommendation: `Consider choosing an avatar within the ${role.age_range_min}-${role.age_range_max} age range`,
           });
         }
@@ -103,11 +103,10 @@ export const validateCharacterMapping = api<ValidateCharacterMappingRequest, Val
         const prefs = Array.isArray(role.profession_preference) ? role.profession_preference : [];
         
         if (profession && prefs.length > 0 && !prefs.includes(profession)) {
-          (warnings as any).push({
+          warnings.push({
             roleType: role.role_type,
             avatarId,
             message: `Avatar profession "${profession}" is not in recommended list: ${prefs.join(', ')}`,
-            severity: 'warning',
             recommendation: `Recommended professions: ${prefs.join(', ')}`,
           });
         }

@@ -253,10 +253,10 @@ export const createFairyTale = api<{ tale: Omit<FairyTale, 'createdAt' | 'update
 /**
  * Add a role to a fairy tale (admin only)
  */
-export const addFairyTaleRole = api<{ role: Omit<FairyTaleRole, 'id' | 'createdAt'> }, FairyTaleRole>(
+export const addFairyTaleRole = api<{ taleId: string; role: Omit<FairyTaleRole, 'id' | 'createdAt' | 'taleId'> }, FairyTaleRole>(
   { expose: true, method: "POST", path: "/fairytales/:taleId/roles", auth: true },
   async (req) => {
-    console.log("[FairyTales] Adding role to tale:", req.role.taleId);
+    console.log("[FairyTales] Adding role to tale:", req.taleId);
 
     const auth = getAuthData()!;
     
@@ -272,18 +272,19 @@ export const addFairyTaleRole = api<{ role: Omit<FairyTaleRole, 'id' | 'createdA
         required, archetype_preference, age_range_min, age_range_max,
         profession_preference
       ) VALUES (
-        ${role.taleId}, ${role.roleType}, ${role.roleName}, ${role.roleCount},
+        ${req.taleId}, ${role.roleType}, ${role.roleName}, ${role.roleCount},
         ${role.description}, ${role.required}, ${role.archetypePreference},
         ${role.ageRangeMin}, ${role.ageRangeMax}, ${JSON.stringify(role.professionPreference)}
       )
       RETURNING id
     `;
 
-    console.log(`[FairyTales] Added role ${result!.id} to tale ${role.taleId}`);
+    console.log(`[FairyTales] Added role ${result!.id} to tale ${req.taleId}`);
 
     return {
       ...role,
       id: result!.id,
+      taleId: req.taleId,
       createdAt: new Date().toISOString(),
     };
   }
@@ -292,10 +293,10 @@ export const addFairyTaleRole = api<{ role: Omit<FairyTaleRole, 'id' | 'createdA
 /**
  * Add a scene to a fairy tale (admin only)
  */
-export const addFairyTaleScene = api<{ scene: Omit<FairyTaleScene, 'id' | 'createdAt' | 'updatedAt'> }, FairyTaleScene>(
+export const addFairyTaleScene = api<{ taleId: string; scene: Omit<FairyTaleScene, 'id' | 'createdAt' | 'updatedAt' | 'taleId'> }, FairyTaleScene>(
   { expose: true, method: "POST", path: "/fairytales/:taleId/scenes", auth: true },
   async (req) => {
-    console.log("[FairyTales] Adding scene to tale:", req.scene.taleId);
+    console.log("[FairyTales] Adding scene to tale:", req.taleId);
 
     const auth = getAuthData()!;
     
@@ -311,18 +312,19 @@ export const addFairyTaleScene = api<{ scene: Omit<FairyTaleScene, 'id' | 'creat
         dialogue_template, character_variables, setting, mood,
         illustration_prompt_template, duration_seconds
       ) VALUES (
-        ${scene.taleId}, ${scene.sceneNumber}, ${scene.sceneTitle}, ${scene.sceneDescription},
+        ${req.taleId}, ${scene.sceneNumber}, ${scene.sceneTitle}, ${scene.sceneDescription},
         ${scene.dialogueTemplate}, ${JSON.stringify(scene.characterVariables)}, ${scene.setting},
         ${scene.mood}, ${scene.illustrationPromptTemplate}, ${scene.durationSeconds}
       )
       RETURNING id
     `;
 
-    console.log(`[FairyTales] Added scene ${result!.id} to tale ${scene.taleId}`);
+    console.log(`[FairyTales] Added scene ${result!.id} to tale ${req.taleId}`);
 
     return {
       ...scene,
       id: result!.id,
+      taleId: req.taleId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
