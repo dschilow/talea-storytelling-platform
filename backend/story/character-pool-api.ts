@@ -287,7 +287,7 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
       characterId: req.id,
       imageUrl: result.imageUrl,
       prompt,
-      debugInfo: result.debugInfo,
+      debugInfo: result.debugInfo as unknown as Record<string, unknown>,
     };
   }
 );
@@ -499,8 +499,8 @@ function buildCharacterImagePrompt(
 
   const sections = [
     "Axel Scheffler inspired watercolor illustration for a children's story",
-    visual.description ? `Primary description ${sanitizeSegment(visual.description)}` : "",
-    visual.imagePrompt ? `Detailed cues ${sanitizeSegment(visual.imagePrompt)}` : "",
+    // Use only the imagePrompt field for image generation (dedicated for this purpose)
+    visual.imagePrompt ? sanitizeSegment(visual.imagePrompt) : "",
     character.role ? `Narrative role ${sanitizeSegment(character.role)}` : "",
     character.archetype ? `Archetype ${sanitizeSegment(character.archetype)}` : "",
     emotional.dominant ? `Emotional tone ${sanitizeSegment(emotional.dominant)}` : "",
