@@ -48,6 +48,13 @@
           "password": {
             "$env": "PGPASSWORD"
           }
+        },
+        "fairytales": {
+          "name": "railway",
+          "username": "postgres",
+          "password": {
+            "$env": "PGPASSWORD"
+          }
         }
       }
     }
