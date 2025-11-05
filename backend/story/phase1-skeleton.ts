@@ -275,13 +275,17 @@ KONFLIKT-REGELN (CRITICAL FOR QUALITY):
 
 AUFGABE FUER DICH:
 1. Erstelle eine Story-Struktur mit exakt 5 Kapiteln.
-2. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
-3. WICHTIG: Jede Kapitelbeschreibung MAXIMAL 50-70 Woerter (niemals mehr!). Schreibe praegnant, dicht, bildlich. Keine langen Saetze.
-4. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
-5. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
-6. Fuehre fuer jede Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an - passend zu Seele und Wuerze.
-7. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.
-8. BEACHTE KONFLIKT-REGELN OBEN - konkrete Herausforderungen sind PFLICHT für Qualität!
+2. 🚨 **KRITISCH**: Die HAUPTFIGUREN (oben genannt) sind USER-AVATARE!
+   - Nutze ihre NAMEN DIREKT im Story-Text: "Alexander findet...", "Adrian sieht..."
+   - NIEMALS Placeholders für Avatare erstellen: ❌ {{ALEXANDER}}, {{ADRIAN}}
+   - {{PLACEHOLDER}} sind NUR für NEBENFIGUREN ({{WISE_ELDER}}, {{ANIMAL_HELPER}}, etc.)
+3. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
+4. WICHTIG: Jede Kapitelbeschreibung MAXIMAL 50-70 Woerter (niemals mehr!). Schreibe praegnant, dicht, bildlich. Keine langen Saetze.
+5. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
+6. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
+7. Fuehre fuer jede NEBENFIGUREN-Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an.
+8. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.
+9. BEACHTE KONFLIKT-REGELN OBEN - konkrete Herausforderungen sind PFLICHT für Qualität!
 
 PLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):
 - {{WISE_ELDER}} - weiser Mentor oder Mentorin
@@ -297,7 +301,7 @@ OUTPUT (JSON):
   "chapters": [
     {
       "order": 1,
-      "content": "MAXIMAL 50-70 Woerter! Praegnant, bildlich, dicht. Keine langen Erklaerungen.",
+      "content": "MAXIMAL 50-70 Woerter! Nutze Avatar-Namen DIREKT (Alexander, Adrian), KEINE Placeholders für sie!",
       "characterRolesNeeded": [
         {
           "placeholder": "{{WISE_ELDER}}",
@@ -312,6 +316,7 @@ OUTPUT (JSON):
     }
   ],
   "supportingCharacterRequirements": [
+    // ⚠️ NUR NEBENFIGUREN hier! NIEMALS Avatar-Namen (Alexander, Adrian) als Placeholders!
     {
       "placeholder": "{{WISE_ELDER}}",
       "role": "guide",

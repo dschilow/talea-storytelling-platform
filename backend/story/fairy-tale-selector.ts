@@ -71,6 +71,7 @@ export class FairyTaleSelector {
 
     try {
       // Get all active fairy tales
+      console.log("[FairyTaleSelector] Querying fairy_tales table...");
       const tales = await fairytalesDB.queryAll<any>`
         SELECT 
           id, title, source, original_language, english_translation,
@@ -82,11 +83,12 @@ export class FairyTaleSelector {
       `;
 
       if (!tales || tales.length === 0) {
-        console.log("[FairyTaleSelector] No active fairy tales found in database");
+        console.warn("[FairyTaleSelector] ❌ No active fairy tales found in database!");
+        console.warn("[FairyTaleSelector] Check: 1) Are migrations run? 2) Are tales seeded? 3) Is is_active=true?");
         return null;
       }
 
-      console.log(`[FairyTaleSelector] Found ${tales.length} active fairy tales`);
+      console.log(`[FairyTaleSelector] ✅ Found ${tales.length} active fairy tales`);
 
       // Score each fairy tale
       const scoredTales = await Promise.all(
@@ -186,7 +188,15 @@ export class FairyTaleSelector {
         matchReason: `${selectedMatch.score.reason} | Usage: ${usageMap.get(selectedMatch.tale.id)?.count || 0}x`,
       };
     } catch (error) {
-      console.error("[FairyTaleSelector] Error selecting fairy tale:", error);
+      console.error("[FairyTaleSelector] ❌ FATAL ERROR selecting fairy tale:");
+      console.error("[FairyTaleSelector] Error type:", (error as any)?.name);
+      console.error("[FairyTaleSelector] Error message:", (error as any)?.message);
+      console.error("[FairyTaleSelector] Stack:", (error as any)?.stack?.slice(0, 500));
+      console.error("[FairyTaleSelector] Possible causes:");
+      console.error("  1. Database 'fairytales' does not exist");
+      console.error("  2. Table 'fairy_tales' not created (migrations not run)");
+      console.error("  3. Database connection failed");
+      console.error("  4. SQL syntax error");
       return null;
     }
   }
