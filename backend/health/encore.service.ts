@@ -6,3 +6,4 @@ export default new Service("health");
 import "./health";
 import "./db-status";
 import "./run-migrations";
+import "./create-fairy-tales-table";
