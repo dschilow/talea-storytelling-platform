@@ -15,10 +15,10 @@ export interface MigrationResponse {
 /**
  * Manual migration trigger endpoint
  * Call this URL to create all database tables
- * URL: /migrations/run
+ * URL: POST /health/run-migrations
  */
 export const runMigrations = api(
-  { expose: true, method: "POST", path: "/migrations/run", auth: false },
+  { expose: true, method: "POST", path: "/health/run-migrations", auth: false },
   async (): Promise<MigrationResponse> => {
     const migrationsRun: string[] = [];
     const errors: string[] = [];
@@ -102,7 +102,9 @@ export const runMigrations = api(
         }
       }
 
-      console.log(`✅ Migrations completed: ${migrationsRun.length} successful, ${errors.length} failed`);
+      console.log(
+        `✅ Migrations completed: ${migrationsRun.length} successful, ${errors.length} failed`
+      );
 
       return {
         success: errors.length === 0,
