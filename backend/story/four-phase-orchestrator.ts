@@ -218,6 +218,8 @@ export class FourPhaseOrchestrator {
       openAIRequest: phase1Result.openAIRequest,
     };
 
+    // Log only skeleton METADATA (not full content) to save ~6000 tokens
+    // Full skeleton is already in phase1Result.openAIResponse.choices[0].message.content
     const phase1ResponsePayload = {
       status: "completed",
       durationMs: phaseDurations.phase1Duration,
@@ -225,22 +227,14 @@ export class FourPhaseOrchestrator {
       skeleton: {
         title: skeleton.title,
         chaptersCount: skeleton.chapters?.length,
-        chapters: skeleton.chapters?.map(ch => ({
-          order: ch.order,
-          content: ch.content,
-          wordCount: ch.content.split(/\s+/).length,
-          placeholders: ch.characterRolesNeeded.map(r => r.placeholder),
-        })),
-        supportingCharacterRequirements: skeleton.supportingCharacterRequirements?.map(req => ({
-          placeholder: req.placeholder,
-          role: req.role,
-          archetype: req.archetype,
-          emotionalNature: req.emotionalNature,
-          importance: req.importance,
-          inChapters: req.inChapters,
+        requirementsCount: skeleton.supportingCharacterRequirements?.length,
+        wordCounts: skeleton.chapters?.map(ch => ({
+          chapter: ch.order,
+          words: ch.content.split(/\s+/).length
         })),
       },
-      openAIResponse: phase1Result.openAIResponse,
+      // NOTE: openAIResponse contains full skeleton in content field
+      // We don't duplicate the skeleton here to reduce log size by ~50%
     };
 
     await this.logPhaseEvent("phase1-skeleton-generation", phase1RequestPayload, phase1ResponsePayload);
@@ -598,13 +592,25 @@ export class FourPhaseOrchestrator {
 
   /**
    * Convert structured visual profile to English text for image generation
+   * CRITICAL: Maintains age/size relationships to prevent younger characters appearing older
    */
   private visualProfileToImagePrompt(vp: any): string {
     if (!vp) return 'no visual details available';
 
     const parts: string[] = [];
 
-    if (vp.ageApprox) parts.push(`${vp.ageApprox} years old`);
+    // AGE FIRST (critical for size relationships)
+    if (vp.ageApprox) {
+      parts.push(`${vp.ageApprox} years old`);
+      
+      // Add explicit size constraints based on age
+      if (vp.ageApprox <= 7) {
+        parts.push('small child size');
+      } else if (vp.ageApprox <= 10) {
+        parts.push('child-sized');
+      }
+    }
+    
     if (vp.gender) parts.push(vp.gender);
 
     if (vp.hair) {
@@ -644,55 +650,83 @@ export class FourPhaseOrchestrator {
 
   /**
    * Build enhanced image prompt with character consistency
-   * CRITICAL FIX: Extract characters mentioned in scene and include FULL descriptions
+   * CRITICAL: Maintains age/size order to prevent mix-ups
    */
   private buildEnhancedImagePrompt(
     baseDescription: string,
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
-    // Build character lookup map
-    const allCharacters = new Map<string, string>();
+    // Build character lookup with AGE for sorting
+    interface CharacterInfo {
+      name: string;
+      description: string;
+      age: number;
+    }
+    
+    const allCharacters = new Map<string, CharacterInfo>();
 
-    // Add avatars with FULL descriptions
+    // Add avatars with FULL descriptions + age
     for (const avatar of avatarDetails) {
       const visualContext = avatar.visualProfile
         ? this.visualProfileToImagePrompt(avatar.visualProfile)
         : (avatar.description || 'default appearance');
       
-      allCharacters.set(avatar.name.toLowerCase(), `${avatar.name}: ${visualContext}`);
+      const age = avatar.visualProfile?.ageApprox || 8; // fallback
+      
+      allCharacters.set(avatar.name.toLowerCase(), {
+        name: avatar.name,
+        description: visualContext,
+        age
+      });
     }
 
     // Add supporting characters with FULL descriptions
     for (const char of characterAssignments.values()) {
       const fullDesc = char.visualProfile.description || 'default character';
-      allCharacters.set(char.name.toLowerCase(), `${char.name}: ${fullDesc}`);
+      const age = 30; // Adults default to 30
+      
+      allCharacters.set(char.name.toLowerCase(), {
+        name: char.name,
+        description: fullDesc,
+        age
+      });
     }
 
     // Extract character names mentioned in this scene
     const descriptionLower = baseDescription.toLowerCase();
-    const charactersInScene: string[] = [];
+    const charactersInScene: CharacterInfo[] = [];
 
-    for (const [charName, charDesc] of allCharacters.entries()) {
+    for (const [charName, charInfo] of allCharacters.entries()) {
       if (descriptionLower.includes(charName)) {
-        charactersInScene.push(charDesc);
+        charactersInScene.push(charInfo);
       }
     }
 
-    // If no characters found in description, include ALL (fallback)
+    // If no characters found, include ALL (fallback)
     if (charactersInScene.length === 0) {
       console.warn("[Image Prompt] No characters detected in scene description, including all");
       charactersInScene.push(...allCharacters.values());
     }
 
-    // Build prompt with FULL character descriptions for consistency
-    const characterBlock = charactersInScene.join("\n\n");
+    // CRITICAL: Sort by AGE (youngest first) to establish clear size hierarchy
+    // This prevents younger children from appearing older/bigger than older ones
+    charactersInScene.sort((a, b) => a.age - b.age);
+
+    // Add explicit age ordering instruction
+    const characterBlock = charactersInScene
+      .map(c => `${c.name}: ${c.description}`)
+      .join("\n\n");
+
+    const ageOrder = charactersInScene.length > 1
+      ? `\nIMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - ${charactersInScene[0].name} (${charactersInScene[0].age}y) must be SMALLER than any older character.`
+      : '';
 
     return `
 ${baseDescription}
 
 CHARACTERS IN THIS SCENE:
-${characterBlock}
+${characterBlock}${ageOrder}
 
 Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
     `.trim();

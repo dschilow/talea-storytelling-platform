@@ -403,15 +403,26 @@ ${styleInstructions}
 QUALITAETSREGELN:
 - Dialog-Anteil: 40-50 % lebendige Dialoge (Kinderstimmen authentisch, Erwachsene freundlich).
 - Sinneseindruecke: mind. drei Sinne pro Kapitel (sehen, hoeren, fuehlen, riechen, schmecken).
+  WICHTIG: Vermeide Klischees! Statt "riecht nach Brot und Zimt" → verwende spezifische, unerwartete Details.
+  Beispiele: "riecht nach feuchter Erde und Honig", "schmeckt nach sauren Aepfeln", "klingt wie raschelndes Papier".
 - Show, dont tell: Emotionen ueber Aktionen, Koerpersprache, Details vermitteln.
 - Wiederkehrende Motive: Baue 2-3 Leitmotive (z. B. Licht, Symbol, Klang) an mehreren Stellen ein.
 - Rhythmus: Wechsle zwischen Action, Humor und ruhigen Momenten; jede Szene treibt die Handlung voran.
 - Charakterentwicklung: Zeige, wie die Avatare lernen, wachsen oder sich naeher kommen.
 - Twist-Regel: ${twistGuidance}
 
+KRITISCHE VERBOTE (QUALITY GATES):
+❌ NIEMALS aeussere Merkmale im Story-Text beschreiben!
+   - VERBOTEN: "kurze braune Haare", "gruene Augen", "helle Haut", "rote Jacke"
+   - ERLAUBT: Nur Aktionen, Emotionen, Dialoge, Gedanken
+   - Visuelle Details gehoeren AUSSCHLIESSLICH in imageDescription!
+❌ KEINE generischen Sinneseindruecke!
+   - VERBOTEN: "riecht nach Brot und Zimt", "schmeckt suess", "fuehlt sich weich an"
+   - PFLICHT: Spezifische, ueberraschende Details die zur Szene passen
+
 AUFGABE:
 1. Schreibe jedes Kapitel mit 320-420 Woertern, abwechslungsreiche Saetze, klare Abschnitte.
-2. Integriere alle Charakterdetails organisch und halte sie ueber die ganze Geschichte konsistent.
+2. Charaktere durch HANDLUNG zeigen - KEINE Aussehen-Beschreibungen!
 3. Lass Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten deutlich spueren.
 4. Wenn Spezialzutaten gewaehlt sind, setze sie konkret in Handlung und Szenen um.
 5. Nutze sanfte Cliffhanger in Kapiteln 1-4 und eine warme, poetische Aufloesung in Kapitel 5.
