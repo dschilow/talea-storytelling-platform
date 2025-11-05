@@ -40,51 +40,20 @@ const FairyTaleSelectionScreen: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Temporarily use mock data until backend is deployed
-      // TODO: Replace with actual API call when deployed
-      // const response = await backend.story.listAvailableFairyTales();
+      // Direct API call until Encore client is regenerated on Railway
+      const response = await fetch('/story/fairytales', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
-      // Mock data for development
-      const mockTales: FairyTale[] = [
-        {
-          id: 'grimm-015',
-          title: 'Hänsel und Gretel',
-          source: 'Grimm',
-          cultureRegion: 'Deutschland',
-          ageRecommendation: 6,
-          durationMinutes: 15,
-          genreTags: ['adventure', 'dark', 'moral'],
-          moralLesson: 'Geschwisterliebe und Mut',
-          summary: 'Zwei Geschwister werden im Wald ausgesetzt und finden das Hexenhaus. Durch Mut und List besiegen sie die böse Hexe.',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'grimm-026',
-          title: 'Rotkäppchen',
-          source: 'Grimm',
-          cultureRegion: 'Deutschland',
-          ageRecommendation: 5,
-          durationMinutes: 10,
-          genreTags: ['classic', 'moral', 'danger'],
-          moralLesson: 'Vorsicht vor Fremden',
-          summary: 'Ein Mädchen mit roter Kappe besucht die Großmutter und begegnet dem bösen Wolf.',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'grimm-027',
-          title: 'Die Bremer Stadtmusikanten',
-          source: 'Grimm',
-          cultureRegion: 'Deutschland',
-          ageRecommendation: 4,
-          durationMinutes: 12,
-          genreTags: ['friendship', 'adventure', 'humor'],
-          moralLesson: 'Gemeinsam sind wir stark',
-          summary: 'Vier Tiere schließen sich zusammen, um in Bremen Stadtmusikanten zu werden, und vertreiben Räuber.',
-          createdAt: new Date().toISOString(),
-        },
-      ];
+      if (!response.ok) {
+        throw new Error('Failed to load fairy tales');
+      }
       
-      setTales(mockTales);
+      const data = await response.json();
+      setTales(data.tales || []);
     } catch (err) {
       console.error('[FairyTaleSelection] Error loading tales:', err);
       setError('Fehler beim Laden der Märchen. Bitte versuche es erneut.');

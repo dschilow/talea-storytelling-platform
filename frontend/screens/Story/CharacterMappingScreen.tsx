@@ -69,51 +69,20 @@ const CharacterMappingScreen: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Load tale details with roles
-      // TODO: Replace with: const taleData = await backend.story.getFairyTaleDetails({ taleId });
-      // For now using mock data until Encore client is regenerated
-      const mockTale: FairyTaleDetail = {
-        id: taleId || '1',
-        title: 'Rotkäppchen',
-        source: 'Gebrüder Grimm',
-        summary: 'Ein Mädchen besucht ihre Großmutter im Wald...',
-        roles: [
-          {
-            id: '1',
-            roleType: 'protagonist',
-            name: 'Rotkäppchen',
-            description: 'Ein mutiges kleines Mädchen mit roter Kapuze',
-            requirements: {
-              minAge: 6,
-              maxAge: 12,
-              gender: 'female',
-            },
-            isRequired: true,
-          },
-          {
-            id: '2',
-            roleType: 'antagonist',
-            name: 'Der Wolf',
-            description: 'Ein listiger, hungriger Wolf',
-            requirements: {
-              archetype: 'villain',
-            },
-            isRequired: true,
-          },
-          {
-            id: '3',
-            roleType: 'helper',
-            name: 'Die Großmutter',
-            description: 'Eine liebe alte Dame',
-            requirements: {
-              minAge: 60,
-              gender: 'female',
-            },
-            isRequired: false,
-          },
-        ],
-      };
-      setTale(mockTale);
+      // Load tale details with roles - Direct API call until Encore client regenerates on Railway
+      const taleResponse = await fetch(`/story/fairytale/${taleId}/details`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!taleResponse.ok) {
+        throw new Error('Failed to load fairy tale details');
+      }
+      
+      const taleData = await taleResponse.json();
+      setTale(taleData);
 
       // Load user's avatars
       const avatarListResponse = await backend.avatar.list();
@@ -157,12 +126,29 @@ const CharacterMappingScreen: React.FC = () => {
       setGenerating(true);
       setError(null);
 
-      // TODO: Replace with: const story = await backend.story.generateFromFairyTale({ taleId, characterMappings: mappings, length: 'medium', style: 'classic' });
-      // For now, navigate to stories list since API is not yet in generated client
-      console.log('Would generate story with:', { taleId, characterMappings: mappings });
+      // Direct API call until Encore client regenerates on Railway
+      const generateResponse = await fetch('/story/generate-from-fairytale', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: '', // Will be filled by auth middleware
+          taleId,
+          characterMappings: mappings,
+          length: 'medium',
+          style: 'classic',
+        }),
+      });
       
-      // Temporary: Just navigate back to show the feature flow works
-      navigate('/stories');
+      if (!generateResponse.ok) {
+        throw new Error('Failed to generate story');
+      }
+      
+      const story = await generateResponse.json();
+      
+      // Navigate to the generated story
+      navigate(`/story/${story.id}`);
     } catch (err: any) {
       console.error('Error generating story:', err);
       setError('Fehler beim Generieren der Geschichte. Bitte versuche es erneut.');
