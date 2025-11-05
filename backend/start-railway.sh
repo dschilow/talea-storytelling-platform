@@ -32,6 +32,16 @@ echo "   PGDATABASE: ${PGDATABASE:-not set}"
 echo "   PGUSER: ${PGUSER:-not set}"
 echo "   PGPORT: ${PGPORT:-not set}"
 
+# Run database migrations before starting the app
+echo ""
+echo "📦 Running database migrations..."
+if [ -f "/app/run-all-migrations.sh" ]; then
+    bash /app/run-all-migrations.sh
+else
+    echo "⚠️  Migration script not found, skipping..."
+fi
+
 # Start the Encore application
+echo ""
 echo "🎯 Starting Encore runtime..."
 exec /encore-runtime

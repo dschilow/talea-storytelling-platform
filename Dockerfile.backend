@@ -72,9 +72,9 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY backend/Caddyfile /app/Caddyfile
 
 # Copy runtime start scripts and migrations runner
-COPY backend/start.sh ./start.sh
-COPY backend/run-migrations.cjs ./run-migrations.cjs
-RUN chmod +x ./start.sh
+COPY backend/start-railway.sh ./start-railway.sh
+COPY backend/run-all-migrations.sh ./run-all-migrations.sh
+RUN chmod +x ./start-railway.sh ./run-all-migrations.sh
 
 # Install production dependencies (including pg for migrations)
 RUN bun install --production && npm install pg
@@ -82,5 +82,5 @@ RUN bun install --production && npm install pg
 # Expose HTTP port
 EXPOSE 8080
 
-# Start with Caddy for CORS handling
-CMD ["/app/start.sh"]
+# Start with Railway-specific script that runs migrations first
+CMD ["/app/start-railway.sh"]
