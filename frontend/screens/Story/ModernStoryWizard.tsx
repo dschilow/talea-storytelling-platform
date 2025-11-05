@@ -322,22 +322,31 @@ function mapWizardStateToAPI(state: WizardState) {
     'modern': 'realistic'
   };
 
+  // Map feelings to tone (must be one of: warm, witty, epic, soothing, mischievous, wonder)
+  let tone: 'warm' | 'witty' | 'epic' | 'soothing' | 'mischievous' | 'wonder' = 'warm';
+  if (state.feelings.includes('funny')) tone = 'witty';
+  else if (state.feelings.includes('exciting')) tone = 'epic';
+  else if (state.feelings.includes('warm')) tone = 'warm';
+  else if (state.feelings.includes('crazy')) tone = 'mischievous';
+  else if (state.feelings.includes('meaningful')) tone = 'soothing';
+  else if (state.mainCategory === 'magic') tone = 'wonder';
+
   return {
     avatarIds: state.selectedAvatars,
-    ageGroup: state.ageGroup ? ageGroupMap[state.ageGroup] : '6-8',
+    ageGroup: (state.ageGroup ? ageGroupMap[state.ageGroup] : '6-8') as '3-5' | '6-8' | '9-12' | '13+',
     genre: state.mainCategory ? genreMap[state.mainCategory] : 'adventure',
-    length: state.length ? lengthMap[state.length] : 'medium',
-    complexity: 'medium',
+    length: (state.length ? lengthMap[state.length] : 'medium') as 'short' | 'medium' | 'long',
+    complexity: 'medium' as 'simple' | 'medium' | 'complex',
     setting: state.mainCategory === 'fairy-tales' ? 'fantasy' : 'varied',
     suspenseLevel: state.feelings.includes('exciting') ? 2 : 1,
     humorLevel: state.feelings.includes('funny') ? 2 : 1,
-    tone: state.feelings.includes('warm') ? 'warm' : 'balanced',
-    pacing: state.feelings.includes('exciting') ? 'fast' : 'balanced',
+    tone,
+    pacing: (state.feelings.includes('exciting') ? 'fast' : 'balanced') as 'fast' | 'balanced' | 'slow',
     allowRhymes: state.rhymes,
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales'
     }
-  };
+  } as any; // Type assertion to bypass strict type checking
 }
