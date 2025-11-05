@@ -32,6 +32,12 @@ interface OpenAIResponse {
     prompt_tokens?: number;
     completion_tokens?: number;
     total_tokens?: number;
+    completion_tokens_details?: {
+      reasoning_tokens?: number;
+      accepted_prediction_tokens?: number;
+      audio_tokens?: number;
+      rejected_prediction_tokens?: number;
+    };
   };
   error?: any;
 }
@@ -42,6 +48,7 @@ export interface Phase1GenerationResult {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    reasoningTokens?: number;
   };
   openAIRequest: any;
   openAIResponse: OpenAIResponse;
@@ -74,8 +81,9 @@ export class Phase1SkeletonGenerator {
     };
 
     // Add reasoning_effort for reasoning models
+    // Phase1 only needs structure, not deep reasoning - use "low" to minimize token waste
     if (isReasoningModel) {
-      payload.reasoning_effort = "medium";
+      payload.reasoning_effort = "low";
     }
 
     try {
@@ -120,8 +128,19 @@ export class Phase1SkeletonGenerator {
             promptTokens: data.usage.prompt_tokens ?? 0,
             completionTokens: data.usage.completion_tokens ?? 0,
             totalTokens: data.usage.total_tokens ?? 0,
+            reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
           }
         : undefined;
+
+      // Log reasoning token breakdown if available
+      if (usage && usage.reasoningTokens > 0) {
+        console.log("[Phase1] Reasoning tokens breakdown:", {
+          total: usage.completionTokens,
+          reasoning: usage.reasoningTokens,
+          text: usage.completionTokens - usage.reasoningTokens,
+          reasoningPercentage: ((usage.reasoningTokens / usage.completionTokens) * 100).toFixed(1) + '%'
+        });
+      }
 
       return {
         skeleton,

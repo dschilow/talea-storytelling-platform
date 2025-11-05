@@ -474,6 +474,12 @@ export class FourPhaseOrchestrator {
           completion: totalCompletionTokens,
           total: totalTokens,
           modelUsed: configWithExperience.aiModel || "gpt-5-mini",
+          // Calculate costs based on model pricing
+          // gpt-5-mini: $0.075 per 1M input, $0.30 per 1M output
+          // gpt-5: $2.50 per 1M input, $10.00 per 1M output
+          inputCostUSD: this.calculateInputCost(totalPromptTokens, configWithExperience.aiModel || "gpt-5-mini"),
+          outputCostUSD: this.calculateOutputCost(totalCompletionTokens, configWithExperience.aiModel || "gpt-5-mini"),
+          totalCostUSD: this.calculateTotalCost(totalPromptTokens, totalCompletionTokens, configWithExperience.aiModel || "gpt-5-mini"),
           breakdown: {
             phase1: phase1Result.usage ?? null,
             phase3: phase3Result.usage ?? null,
@@ -799,6 +805,55 @@ ${story.description}
       console.error("[4-Phase] Failed to generate cover image:", error);
       return undefined;
     }
+  }
+
+  /**
+   * Calculate input cost based on model pricing
+   */
+  private calculateInputCost(tokens: number, model: string): number {
+    const pricePerMillion = this.getInputPricePerMillion(model);
+    return (tokens * pricePerMillion) / 1_000_000;
+  }
+
+  /**
+   * Calculate output cost based on model pricing
+   */
+  private calculateOutputCost(tokens: number, model: string): number {
+    const pricePerMillion = this.getOutputPricePerMillion(model);
+    return (tokens * pricePerMillion) / 1_000_000;
+  }
+
+  /**
+   * Calculate total cost
+   */
+  private calculateTotalCost(inputTokens: number, outputTokens: number, model: string): number {
+    return this.calculateInputCost(inputTokens, model) + this.calculateOutputCost(outputTokens, model);
+  }
+
+  /**
+   * Get input token pricing per million tokens for model
+   */
+  private getInputPricePerMillion(model: string): number {
+    if (model.includes("gpt-5-nano")) return 0.03; // $0.03 per 1M
+    if (model.includes("gpt-5-mini")) return 0.075; // $0.075 per 1M
+    if (model.includes("gpt-5-pro")) return 5.00; // $5.00 per 1M
+    if (model.includes("gpt-5")) return 2.50; // $2.50 per 1M (base gpt-5)
+    if (model.includes("o4-mini")) return 1.10; // $1.10 per 1M
+    if (model.includes("gpt-4")) return 2.50; // $2.50 per 1M (fallback)
+    return 0.075; // Default to gpt-5-mini pricing
+  }
+
+  /**
+   * Get output token pricing per million tokens for model
+   */
+  private getOutputPricePerMillion(model: string): number {
+    if (model.includes("gpt-5-nano")) return 0.12; // $0.12 per 1M
+    if (model.includes("gpt-5-mini")) return 0.30; // $0.30 per 1M
+    if (model.includes("gpt-5-pro")) return 20.00; // $20.00 per 1M
+    if (model.includes("gpt-5")) return 10.00; // $10.00 per 1M (base gpt-5)
+    if (model.includes("o4-mini")) return 4.40; // $4.40 per 1M
+    if (model.includes("gpt-4")) return 10.00; // $10.00 per 1M (fallback)
+    return 0.30; // Default to gpt-5-mini pricing
   }
 
   /**

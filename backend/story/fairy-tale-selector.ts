@@ -100,18 +100,34 @@ export class FairyTaleSelector {
       // Sort by score (highest first)
       scoredTales.sort((a, b) => b.score.total - a.score.total);
 
+      // DEBUG: Log all scores for analysis
+      console.log("[FairyTaleSelector] Scoring results:", 
+        scoredTales.slice(0, 5).map(st => ({
+          title: st.tale.title,
+          score: st.score.total,
+          breakdown: st.score.breakdown,
+          reason: st.score.reason
+        }))
+      );
+
       // ==================== VARIANCE SYSTEM ====================
       // Instead of always picking #1, rotate through top matches based on usage
       // This prevents same fairy tale for same parameters!
       
-      const topMatches = scoredTales.filter(st => st.score.total >= 50); // Minimum score threshold
+      // LOWERED THRESHOLD: 50pt was too high (required all 3 categories to match)
+      // 25pt allows for 1 perfect category (age=40pt or genre=30pt + role=15pt)
+      const topMatches = scoredTales.filter(st => st.score.total >= 25);
       
       if (topMatches.length === 0) {
-        console.log("[FairyTaleSelector] No suitable fairy tale found (all scores < 50)");
+        console.warn("[FairyTaleSelector] No suitable fairy tale found (all scores < 25pt):", {
+          totalTales: scoredTales.length,
+          bestScore: scoredTales[0]?.score.total,
+          bestTitle: scoredTales[0]?.tale.title,
+        });
         return null;
       }
 
-      console.log(`[FairyTaleSelector] Found ${topMatches.length} good matches (score >= 50)`);
+      console.log(`[FairyTaleSelector] Found ${topMatches.length} good matches (score >= 25pt)`);
 
       // Get usage stats for top matches
       const topIds = topMatches.map(t => t.tale.id);
@@ -278,22 +294,30 @@ export class FairyTaleSelector {
     }
 
     // Character role match (0-30 points)
+    // Count protagonist roles (main characters) - these are most important
+    const protagonistRoles = roles.filter((r) => r.roleType === 'protagonist').length;
     const requiredRoles = roles.filter((r) => r.required).length;
     const totalRoles = roles.length;
     let roleScore = 0;
 
-    if (avatarCount >= requiredRoles) {
-      // Perfect: user has enough avatars for required roles
+    // Strategy: Avatars should match protagonist count (most fairy tales have 1-2 protagonists)
+    // Supporting characters can be filled from character pool
+    if (avatarCount >= protagonistRoles && avatarCount <= totalRoles) {
+      // Perfect: avatars match protagonist count, pool can provide rest
       roleScore = 30;
+      reasons.push(`Perfekte Besetzung (${avatarCount} Avatare für ${protagonistRoles} Protagonisten)`);
+    } else if (avatarCount >= requiredRoles) {
+      // Good: enough avatars for all required roles
+      roleScore = 25;
       reasons.push(`Genug Charaktere (${avatarCount}/${requiredRoles} benötigt)`);
-    } else if (avatarCount >= Math.ceil(requiredRoles * 0.5)) {
-      // Acceptable: user has at least half of required roles
+    } else if (avatarCount >= Math.ceil(protagonistRoles * 0.5)) {
+      // Acceptable: at least half of protagonists covered
       roleScore = 15;
-      reasons.push(`Akzeptable Charakteranzahl (${avatarCount}/${requiredRoles})`);
+      reasons.push(`Akzeptabel (${avatarCount}/${protagonistRoles} Protagonisten)`);
     } else {
-      // Not enough avatars
-      roleScore = 0;
-      reasons.push(`Zu wenige Charaktere (${avatarCount}/${requiredRoles})`);
+      // Possible but not ideal
+      roleScore = 5;
+      reasons.push(`Wenig Charaktere (${avatarCount}, erwartet ${protagonistRoles})`);
     }
     breakdown.roles = roleScore;
 

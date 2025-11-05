@@ -161,6 +161,15 @@ export interface Story {
       total: number;
     };
   };
+  // Cost tracking properties
+  tokensInput?: number;
+  tokensOutput?: number;
+  tokensTotal?: number;
+  costInputUSD?: number;
+  costOutputUSD?: number;
+  costTotalUSD?: number;
+  costMcpUSD?: number;
+  modelUsed?: string;
   // Cost tracking is now logged to files instead of DB
   createdAt: Date;
   updatedAt: Date;
@@ -383,21 +392,20 @@ export const generate = api<GenerateStoryRequest, Story>(
         console.warn("[story.generate] Avatar development validation warning:", validationError);
       }
 
-      // Extract cost data from metadata
+      // Extract cost data from metadata (now properly calculated in four-phase-orchestrator)
       const tokensUsed = generatedStory.metadata?.tokensUsed || { prompt: 0, completion: 0, total: 0 };
-      const costData = (generatedStory.metadata?.tokensUsed as any) || {};
-      const inputCost = costData.inputCostUSD || 0;
-      const outputCost = costData.outputCostUSD || 0;
-      const totalCost = costData.totalCostUSD || 0;
-      const modelUsed = costData.modelUsed || req.config.aiModel || 'gpt-5-mini';
+      const inputCost = (generatedStory.metadata?.tokensUsed as any)?.inputCostUSD || 0;
+      const outputCost = (generatedStory.metadata?.tokensUsed as any)?.outputCostUSD || 0;
+      const totalCost = (generatedStory.metadata?.tokensUsed as any)?.totalCostUSD || 0;
+      const modelUsed = (generatedStory.metadata?.tokensUsed as any)?.modelUsed || req.config.aiModel || 'gpt-5-mini';
       const mcpCost = 0; // TODO: Track MCP costs separately
 
       console.log("[story.generate] Cost tracking:", {
         model: modelUsed,
         tokens: tokensUsed,
-        inputCost: `$${inputCost.toFixed(4)}`,
-        outputCost: `$${outputCost.toFixed(4)}`,
-        totalCost: `$${totalCost.toFixed(4)}`,
+        inputCost: `$${inputCost.toFixed(6)}`,
+        outputCost: `$${outputCost.toFixed(6)}`,
+        totalCost: `$${totalCost.toFixed(6)}`,
       });
 
       // Write cost data to log file
