@@ -5,6 +5,9 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import { useBackend } from '../../hooks/useBackend';
+import { StoryGenerationProgress, StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 
 // Import Steps
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
@@ -50,7 +53,13 @@ const STEPS = [
 
 export default function ModernStoryWizard() {
   const navigate = useNavigate();
+  const backend = useBackend();
+  const { userId } = useAuth();
+  
   const [activeStep, setActiveStep] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
+  
   const [state, setState] = useState<WizardState>({
     selectedAvatars: [],
     mainCategory: null,
@@ -84,11 +93,64 @@ export default function ModernStoryWizard() {
   };
 
   const handleGenerate = async () => {
-    // Map wizard state to API request
-    const request = mapWizardStateToAPI(state);
-    
-    // Navigate to generation screen
-    navigate('/stories/generating', { state: { request } });
+    if (!userId) {
+      alert('Bitte melde dich an, um eine Geschichte zu erstellen.');
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      
+      // Simulate step progression
+      setGenerationStep('profiles');
+      await new Promise(r => setTimeout(r, 1200));
+      
+      setGenerationStep('memories');
+      await new Promise(r => setTimeout(r, 1200));
+      
+      setGenerationStep('text');
+      
+      // Map wizard state to API request and generate story
+      const storyConfig = mapWizardStateToAPI(state);
+      console.log('[ModernWizard] Generating story with config:', storyConfig);
+      
+      const story = await backend.story.generate({
+        userId,
+        config: storyConfig,
+      });
+      
+      console.log('[ModernWizard] Story generated:', story);
+      
+      setGenerationStep('validation');
+      await new Promise(r => setTimeout(r, 900));
+      
+      setGenerationStep('images');
+      await new Promise(r => setTimeout(r, 1200));
+      
+      setGenerationStep('complete');
+      await new Promise(r => setTimeout(r, 800));
+
+      // Success - navigate to story
+      alert(`Geschichte "${story.title}" wurde erfolgreich erstellt! 🎉`);
+      navigate(`/story/${story.id}`);
+      
+    } catch (error) {
+      console.error('[ModernWizard] Error generating story:', error);
+      let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('length limit exceeded')) {
+          errorMessage = 'Die Anfrage ist zu groß. Bitte versuche es erneut.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.';
+        }
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setGenerating(false);
+      setGenerationStep('profiles');
+    }
   };
 
   const canProceed = () => {
@@ -121,6 +183,29 @@ export default function ModernStoryWizard() {
         return null;
     }
   };
+
+  // Show generation progress when generating
+  if (generating) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600 animate-pulse" />
+            <h1 className="text-4xl font-bold text-purple-600 mb-2">
+              ✨ Deine Geschichte wird erstellt!
+            </h1>
+            <p className="text-gray-600">
+              Das kann 2-3 Minuten dauern. Bitte nicht schließen!
+            </p>
+          </div>
+          
+          {/* Generation Progress */}
+          <StoryGenerationProgress currentStep={generationStep} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
