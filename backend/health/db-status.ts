@@ -68,8 +68,9 @@ export const dbStatus = api(
         const fairyTalesResult = await fairytalesDB.queryRow<{ count: string }>`SELECT COUNT(*) as count FROM fairy_tales`;
         tables.fairyTales = true;
         counts.fairyTales = fairyTalesResult ? parseInt(fairyTalesResult.count) : 0;
-      } catch (err) {
-        console.log('Fairy tales table not found:', err);
+      } catch (err: any) {
+        console.error('Fairy tales table error:', err.message);
+        error = error ? `${error}; fairy_tales: ${err.message}` : `fairy_tales: ${err.message}`;
       }
 
       // Check fairy_tale_roles table
