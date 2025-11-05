@@ -10,6 +10,7 @@ import {
   describeSpecialIngredients,
   type StoryExperienceContext,
 } from "./story-experience";
+import { FairyTaleSelector, type SelectedFairyTale } from "./fairy-tale-selector";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -23,6 +24,7 @@ interface Phase3Input {
     visualProfile?: any;
   }>;
   experience: StoryExperienceContext;
+  useFairyTaleTemplate?: boolean; // NEW: Enable fairy tale mode
 }
 
 interface OpenAIResponse {
@@ -48,23 +50,61 @@ export interface Phase3FinalizationResult {
   };
   openAIRequest: any;
   openAIResponse: OpenAIResponse;
+  fairyTaleUsed?: {
+    id: string;
+    title: string;
+    matchScore: number;
+    matchReason: string;
+  };
 }
 
 export class Phase3StoryFinalizer {
+  private fairyTaleSelector: FairyTaleSelector;
+
+  constructor() {
+    this.fairyTaleSelector = new FairyTaleSelector();
+  }
+
   async finalize(input: Phase3Input): Promise<Phase3FinalizationResult> {
     console.log("[Phase3] Finalizing story with character injection...");
+
+    // NEW: Check if we should use fairy tale template
+    let selectedFairyTale: SelectedFairyTale | null = null;
+    if (input.useFairyTaleTemplate) {
+      console.log("[Phase3] Fairy tale mode enabled - selecting best match...");
+      selectedFairyTale = await this.fairyTaleSelector.selectBestMatch(
+        input.config,
+        input.avatarDetails.length
+      );
+      
+      if (selectedFairyTale) {
+        console.log(`[Phase3] Using fairy tale: ${selectedFairyTale.tale.title}`);
+        console.log(`[Phase3] Match score: ${selectedFairyTale.matchScore}, Reason: ${selectedFairyTale.matchReason}`);
+      } else {
+        console.log("[Phase3] No suitable fairy tale found, falling back to normal mode");
+      }
+    }
 
     // Step 1: Replace placeholders with actual character names
     const skeletonWithNames = this.injectCharacterNames(input.skeleton, input.assignments);
 
-    // Step 2: Build finalization prompt with character details
-    const prompt = this.buildFinalizationPrompt(
-      skeletonWithNames,
-      input.assignments,
-      input.config,
-      input.avatarDetails,
-      input.experience
-    );
+    // Step 2: Build finalization prompt with character details (and optional fairy tale)
+    const prompt = selectedFairyTale
+      ? this.buildFairyTalePrompt(
+          skeletonWithNames,
+          input.assignments,
+          input.config,
+          input.avatarDetails,
+          input.experience,
+          selectedFairyTale
+        )
+      : this.buildFinalizationPrompt(
+          skeletonWithNames,
+          input.assignments,
+          input.config,
+          input.avatarDetails,
+          input.experience
+        );
     const modelName = input.config.aiModel || "gpt-5-mini";
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
@@ -135,12 +175,24 @@ export class Phase3StoryFinalizer {
           }
         : undefined;
 
-      return {
+      const result: Phase3FinalizationResult = {
         story: finalStory,
         usage,
         openAIRequest,
         openAIResponse: data,
       };
+
+      // Add fairy tale info if used
+      if (selectedFairyTale) {
+        result.fairyTaleUsed = {
+          id: selectedFairyTale.tale.id,
+          title: selectedFairyTale.tale.title,
+          matchScore: selectedFairyTale.matchScore,
+          matchReason: selectedFairyTale.matchReason,
+        };
+      }
+
+      return result;
     } catch (error) {
       console.error("[Phase3] Error finalizing story:", error);
       throw error;
@@ -485,6 +537,200 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     }
 
     console.log("[Phase3] Final story validated successfully");
+  }
+
+  /**
+   * Build prompt using fairy tale template
+   */
+  private buildFairyTalePrompt(
+    skeletonWithNames: StorySkeleton,
+    assignments: Map<string, CharacterTemplate>,
+    config: StoryConfig,
+    avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>,
+    experience: StoryExperienceContext,
+    fairyTale: SelectedFairyTale
+  ): string {
+    const characterDetails = Array.from(assignments.entries())
+      .map(([placeholder, char]) => [
+        `Character ${char.name} (${char.role})`,
+        `- Placeholder: ${placeholder}`,
+        `- Archetyp: ${char.archetype}`,
+        `- Emotionale Natur: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})`,
+        `- Visuelles Profil: ${char.visualProfile.description}`,
+        `- Spezies: ${char.visualProfile.species}`,
+        `- Farbpalette: ${char.visualProfile.colorPalette.join(", ")}`,
+        `- Prompt (English): ${char.visualProfile.imagePrompt}`,
+      ].join("\n"))
+      .join("\n\n");
+
+    const avatarDetailsText = avatarDetails
+      .map((avatar) => {
+        let line = `- ${avatar.name}`;
+        if (avatar.description) {
+          line += `, ${avatar.description}`;
+        }
+        if (avatar.visualProfile) {
+          line += `, Aussehen: ${this.visualProfileToText(avatar.visualProfile)}`;
+        }
+        return line;
+      })
+      .join("\n");
+
+    // Map fairy tale roles to user avatars
+    const roleMapping = this.mapAvatarsToFairyTaleRoles(
+      fairyTale.roles,
+      avatarDetails,
+      assignments
+    );
+
+    const roleMappingText = roleMapping
+      .map((mapping) => `- ${mapping.fairyTaleRole} → ${mapping.avatarName} (${mapping.roleType})`)
+      .join("\n");
+
+    // Build scene structure from fairy tale
+    const sceneStructure = fairyTale.scenes
+      .map((scene) => {
+        let sceneText = `Szene ${scene.sceneNumber}: ${scene.sceneTitle}\n`;
+        sceneText += `Stimmung: ${scene.mood}, Setting: ${scene.setting}\n`;
+        sceneText += `Beschreibung: ${scene.sceneDescription}\n`;
+        return sceneText;
+      })
+      .join("\n");
+
+    const styleInstructions = this.buildStyleInstructions(config, experience);
+
+    return `
+Du bist eine meisterhafte Kinderbuch-Autorin. Schreibe eine vollstaendige Geschichte basierend auf dem klassischen Maerchen "${fairyTale.tale.title}", aber personalisiert mit den Avataren des Nutzers.
+
+MAERCHEN-TEMPLATE:
+Titel: ${fairyTale.tale.title}
+Quelle: ${fairyTale.tale.source}
+Altersempfehlung: ${fairyTale.tale.ageRecommendation} Jahre
+Moralische Lektion: ${fairyTale.tale.moralLesson}
+Zusammenfassung: ${fairyTale.tale.summary}
+
+ROLLEN-ZUORDNUNG (Maerchen → Benutzer-Avatare):
+${roleMappingText}
+
+HAUPTCHARAKTERE (Avatare):
+${avatarDetailsText}
+
+NEBENCHARAKTERE AUS DEM POOL:
+${characterDetails}
+
+SZENEN-STRUKTUR AUS DEM MAERCHEN:
+${sceneStructure}
+
+STORY-SKELETT MIT NAMEN:
+Titel: ${skeletonWithNames.title}
+${skeletonWithNames.chapters.map((ch) => `Kapitel ${ch.order}: ${ch.content}`).join("\n\n")}
+
+${styleInstructions}
+
+WICHTIGE ANWEISUNGEN FÜR MÄRCHEN-ADAPTATION:
+1. **Behalte die bewährte Märchen-Struktur bei**: Folge den Szenen und der Handlung des Originals
+2. **Ersetze Märchen-Figuren mit User-Avataren**: Nutze die Rollen-Zuordnung oben
+3. **Bewahre die moralische Lektion**: ${fairyTale.tale.moralLesson}
+4. **Adaptiere die Sprache**: Moderne, kindgerechte Sprache (${config.ageGroup})
+5. **Behalte Schlüsselmomente**: Die ikonischen Szenen des Märchens müssen erkennbar bleiben
+6. **Personalisiere Details**: Namen, Aussehen, Persönlichkeiten der User-Avatare einbauen
+7. **5 Kapitel Struktur**: Verteile die Märchen-Szenen auf genau 5 Kapitel
+
+AUSGABE-FORMAT (JSON):
+{
+  "title": "Personalisierter Titel (User-Avatar Namen + Märchen-Thema)",
+  "description": "Kurze Zusammenfassung der personalisierten Geschichte",
+  "chapters": [
+    {
+      "order": 1,
+      "title": "Kapitel-Titel",
+      "content": "350-420 Wörter filmische Erzählung. Nutze kurze Sätze. Beschreibe Emotionen und Sinneseindrücke lebhaft.",
+      "imageDescription": "Detaillierte Bild-Beschreibung (English, 60-100 Wörter) basierend auf Märchen-Szene mit User-Avatar Details"
+    }
+    // ... 4 weitere Kapitel
+  ]
+}
+
+Schreibe jetzt die vollständige personalisierte Märchen-Geschichte mit allen 5 Kapiteln.
+`;
+  }
+
+  /**
+   * Map user avatars to fairy tale roles
+   */
+  private mapAvatarsToFairyTaleRoles(
+    roles: Array<{ roleType: string; roleName: string; required: boolean }>,
+    avatars: Array<{ name: string; description?: string }>,
+    assignments: Map<string, CharacterTemplate>
+  ): Array<{ fairyTaleRole: string; avatarName: string; roleType: string }> {
+    const mapping: Array<{ fairyTaleRole: string; avatarName: string; roleType: string }> = [];
+
+    // Prioritize required protagonist roles
+    const protagonistRoles = roles.filter((r) => r.roleType === "protagonist" && r.required);
+    const antagonistRoles = roles.filter((r) => r.roleType === "antagonist");
+    const supportingRoles = roles.filter((r) => r.roleType === "supporting" || r.roleType === "helper");
+
+    let avatarIndex = 0;
+
+    // Map protagonists first
+    for (const role of protagonistRoles) {
+      if (avatarIndex < avatars.length) {
+        mapping.push({
+          fairyTaleRole: role.roleName,
+          avatarName: avatars[avatarIndex].name,
+          roleType: role.roleType,
+        });
+        avatarIndex++;
+      }
+    }
+
+    // Map antagonists
+    for (const role of antagonistRoles) {
+      if (avatarIndex < avatars.length) {
+        mapping.push({
+          fairyTaleRole: role.roleName,
+          avatarName: avatars[avatarIndex].name,
+          roleType: role.roleType,
+        });
+        avatarIndex++;
+      } else {
+        // Use character pool for antagonist
+        const poolCharacter = Array.from(assignments.values()).find((c) => c.role === "antagonist" || c.role === "obstacle");
+        if (poolCharacter) {
+          mapping.push({
+            fairyTaleRole: role.roleName,
+            avatarName: poolCharacter.name,
+            roleType: role.roleType,
+          });
+        }
+      }
+    }
+
+    // Map supporting roles
+    for (const role of supportingRoles) {
+      if (avatarIndex < avatars.length) {
+        mapping.push({
+          fairyTaleRole: role.roleName,
+          avatarName: avatars[avatarIndex].name,
+          roleType: role.roleType,
+        });
+        avatarIndex++;
+      } else {
+        // Use character pool
+        const poolCharacter = Array.from(assignments.values()).find(
+          (c) => c.role === "supporting" || c.role === "guide" || c.role === "companion"
+        );
+        if (poolCharacter) {
+          mapping.push({
+            fairyTaleRole: role.roleName,
+            avatarName: poolCharacter.name,
+            roleType: role.roleType,
+          });
+        }
+      }
+    }
+
+    return mapping;
   }
 }
 

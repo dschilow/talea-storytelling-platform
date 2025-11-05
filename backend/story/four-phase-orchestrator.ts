@@ -308,8 +308,8 @@ export class FourPhaseOrchestrator {
 
     await this.logPhaseEvent("phase2-character-matching", phase2RequestPayload, phase2ResponsePayload);
 
-    // ===== PHASE 3: Finalize Story with Characters =====
-    console.log("[4-Phase] ===== PHASE 3: STORY FINALIZATION =====");
+    // ===== PHASE 3: Finalize Story with Fairy Tale Template =====
+    console.log("[4-Phase] ===== PHASE 3: FAIRY TALE IMPLEMENTATION =====");
     const phase3Start = Date.now();
 
     const phase3Result: Phase3FinalizationResult = await this.phase3Finalizer.finalize({
@@ -318,16 +318,25 @@ export class FourPhaseOrchestrator {
       config: configWithExperience,
       experience: experienceContext,
       avatarDetails: input.avatarDetails,
+      useFairyTaleTemplate: true, // ENABLE FAIRY TALE MODE
     });
     const finalizedStory = phase3Result.story;
     phaseDurations.phase3Duration = Date.now() - phase3Start;
+    
+    if (phase3Result.fairyTaleUsed) {
+      console.log(`[4-Phase] ✨ Fairy tale used: ${phase3Result.fairyTaleUsed.title} (score: ${phase3Result.fairyTaleUsed.matchScore})`);
+      console.log(`[4-Phase] Match reason: ${phase3Result.fairyTaleUsed.matchReason}`);
+    } else {
+      console.log("[4-Phase] No fairy tale used - standard story generation");
+    }
+    
     console.log(`[4-Phase] Phase 3 completed in ${phaseDurations.phase3Duration}ms`);
 
     const totalWords = finalizedStory.chapters?.reduce((sum, ch) => sum + ch.content.split(/\s+/).length, 0) || 0;
 
     const phase3RequestPayload = {
       phase: 3,
-      label: "PHASE 3: Story finalisieren mit Charakteren",
+      label: "PHASE 3: Märchen-basierte Story-Implementierung",
       config: {
         aiModel: configWithExperience.aiModel || "gpt-5-mini",
         ageGroup: configWithExperience.ageGroup,
@@ -344,6 +353,7 @@ export class FourPhaseOrchestrator {
       skeletonTitle: skeleton.title,
       charactersAssigned: characterAssignments.size,
       avatarsCount: input.avatarDetails.length,
+      fairyTaleUsed: phase3Result.fairyTaleUsed || null,
       openAIRequest: phase3Result.openAIRequest,
     };
 
