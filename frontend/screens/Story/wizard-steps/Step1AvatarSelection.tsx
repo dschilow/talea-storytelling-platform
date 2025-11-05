@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Plus, Image as ImageIcon } from 'lucide-react';
-import { useAuth } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
+import { useBackend } from '../../../hooks/useBackend';
 
 interface Avatar {
   id: string;
@@ -21,7 +22,8 @@ interface Props {
 }
 
 export default function Step1AvatarSelection({ state, updateState }: Props) {
-  const { getToken } = useAuth();
+  const backend = useBackend();
+  const navigate = useNavigate();
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,15 +33,20 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
   const loadAvatars = async () => {
     try {
-      const token = await getToken();
-      const response = await fetch('/avatar', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      console.log('[Step1] Loading avatars from backend...');
+      const response = await backend.avatar.list();
+      console.log('[Step1] Backend response:', response);
       
-      if (response.ok) {
-        const data = await response.json();
-        setAvatars(data.avatars || []);
-      }
+      const loadedAvatars = (response.avatars || []).map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        imageUrl: a.imageUrl,
+        age: a.age || 0,
+        gender: a.gender || 'unknown'
+      }));
+      
+      setAvatars(loadedAvatars);
+      console.log('[Step1] Loaded avatars:', loadedAvatars.length);
     } catch (err) {
       console.error('[Step1] Error loading avatars:', err);
     } finally {
@@ -82,7 +89,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
           <User size={48} className="mx-auto text-gray-400 mb-4" />
           <p className="text-gray-600 mb-4">Du hast noch keine Avatare erstellt.</p>
           <button 
-            onClick={() => window.location.href = '/avatars/create'}
+            onClick={() => navigate('/avatar/create')}
             className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all"
           >
             <Plus size={20} />
