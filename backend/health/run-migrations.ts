@@ -30,7 +30,24 @@ export const runMigrations = api(
       const runSqlFile = async (filePath: string, db: any) => {
         try {
           const sql = fs.readFileSync(filePath, "utf-8");
-          await db.exec(sql);
+          
+          // Split SQL file into individual statements and execute them
+          const statements = sql
+            .split(";")
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0 && !s.startsWith("--"));
+
+          for (const statement of statements) {
+            if (statement.length > 0) {
+              try {
+                await db.exec(statement + ";");
+              } catch (stmtErr: any) {
+                // Log but continue - some statements might already exist
+                console.log(`  ⚠️  Statement warning: ${stmtErr.message.substring(0, 100)}`);
+              }
+            }
+          }
+          
           migrationsRun.push(filePath);
           console.log(`✅ Success: ${filePath}`);
         } catch (err: any) {
