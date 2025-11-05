@@ -208,6 +208,7 @@ export class FourPhaseOrchestrator {
         specialIngredients: configWithExperience.specialIngredients ?? input.config.specialIngredients,
         emotionalFlavors: configWithExperience.emotionalFlavors ?? input.config.emotionalFlavors,
         hasTwist: configWithExperience.hasTwist,
+        preferences: configWithExperience.preferences, // CRITICAL: Shows useFairyTaleTemplate flag
       },
       storyExperience: this.summarizeExperience(experienceContext),
       avatars: input.avatarDetails.map(a => ({
@@ -215,6 +216,7 @@ export class FourPhaseOrchestrator {
         name: a.name,
         description: a.description,
       })),
+      useFairyTaleTemplateRequested: input.config.preferences?.useFairyTaleTemplate ?? false, // Show user intent
       openAIRequest: phase1Result.openAIRequest,
     };
 
@@ -349,12 +351,14 @@ export class FourPhaseOrchestrator {
         humorLevel: configWithExperience.humorLevel,
         hasTwist: configWithExperience.hasTwist,
         hooks: configWithExperience.hooks,
+        preferences: configWithExperience.preferences, // CRITICAL: Shows useFairyTaleTemplate flag
       },
       storyExperience: this.summarizeExperience(experienceContext),
       skeletonTitle: skeleton.title,
       charactersAssigned: characterAssignments.size,
       avatarsCount: input.avatarDetails.length,
       fairyTaleUsed: phase3Result.fairyTaleUsed || null,
+      useFairyTaleTemplateRequested: input.config.preferences?.useFairyTaleTemplate ?? false, // Show user intent
       openAIRequest: phase3Result.openAIRequest,
     };
 
