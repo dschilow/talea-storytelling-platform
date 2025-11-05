@@ -11,6 +11,7 @@ import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
 import AvatarsScreen from './screens/Avatar/AvatarsScreen';
 import AvatarDetailScreen from './screens/Avatar/AvatarDetailScreen';
 import StoryWizardScreen from './screens/Story/StoryWizardScreen';
+import ModernStoryWizard from './screens/Story/ModernStoryWizard';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
 import StoryScrollReaderScreen from './screens/Story/StoryScrollReaderScreen';
 import StoriesScreen from './screens/Story/StoriesScreen';
@@ -38,7 +39,8 @@ const AppContent = () => (
         <Route path="/avatar/create" element={<AvatarWizardScreen />} />
         <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
         <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
-        <Route path="/story" element={<StoryWizardScreen />} />
+        <Route path="/story" element={<ModernStoryWizard />} />
+        <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
         <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
         <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
         <Route path="/story-reader/:storyId" element={<StoryScrollReaderScreen />} />
