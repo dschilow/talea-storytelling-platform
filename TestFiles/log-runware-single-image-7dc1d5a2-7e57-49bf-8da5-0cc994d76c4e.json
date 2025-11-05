@@ -1,0 +1,39 @@
+{
+  "id": "7dc1d5a2-7e57-49bf-8da5-0cc994d76c4e",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Scene: Interior of the Light Cave, intimate and warm, with a central polished bowl holding the glowing 'Glühstück'. Characters: Alexander (speaking, holding a small cloth), Adrian (stopping, memory-flash expression), Fuchs Ferdinand (slender fox with orange magical aura, protective posture), the dark silhouette at the cave mouth (Dunkel figure), Hase Hoppel and Eichhörnchen Emma nearby. Action: Alexander telling a bright village story; Adrian stepping forward, Fuchs Ferdinand guarding the bowl; the dark silhouette creeping near the cave entrance. Lighting: warm golden glow from the bowl illuminating faces, contrasted with deep blue-black at the cave mouth; soft rim light. Camera perspective: medium close-up to capture emotional expressions and bowl glow, slight wide-angle to include cave mouth. Environment specifics: stone textures, droplets on stalactites, scent hints of damp cloth and candle wax visualized subtly, recurring motifs: bowl of light and the hummed melody. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. CHARACTERS IN THIS SCENE: Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Hase Hoppel: Hase Hoppel • ['Hase Hoppel rabbit', ' medium-sized'] Eichhörnchen Emma: Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small'] Fuchs Ferdinand: Fuchs Ferdinand • ['Fuchs Ferdinand fox', ' slender'] IMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - Alexander (8-10y) must be SMALLER than any older character. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 341120852,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "ef4bffce-81bd-4a6f-aee3-f01ac6e135b5",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/4a24f509-1c7b-44be-a517-7518ab1964a7.jpg",
+        "imageUUID": "4a24f509-1c7b-44be-a517-7518ab1964a7",
+        "seed": 341120852,
+        "taskType": "imageInference",
+        "taskUUID": "ef4bffce-81bd-4a6f-aee3-f01ac6e135b5"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-05T17:26:34.093Z"
+}

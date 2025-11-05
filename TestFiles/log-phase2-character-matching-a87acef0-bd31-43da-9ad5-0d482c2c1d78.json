@@ -1,5 +1,5 @@
 {
-  "id": "102501a6-0dca-45cf-aa52-da25efe19c1f",
+  "id": "a87acef0-bd31-43da-9ad5-0d482c2c1d78",
   "metadata": null,
   "request": {
     "label": "PHASE 2: Beste Charaktere matchen",
@@ -7,46 +7,46 @@
     "recentStoryCount": 5,
     "requirements": [
       {
-        "archetype": "mysterious_child",
-        "emotionalNature": "neugierig, vorsichtig, innerlich sehnsuchtsvoll",
+        "archetype": "clever_child",
+        "emotionalNature": "mutig, neugierig, hilfsbereit",
         "importance": "high",
-        "placeholder": "Adrian",
+        "placeholder": "Alexander",
         "role": "protagonist"
       },
       {
-        "archetype": "clever_child",
-        "emotionalNature": "fröhlich, flink, zuverlässig",
+        "archetype": "mysterious_companion",
+        "emotionalNature": "ruhig, beschützend, nachdenklich",
         "importance": "high",
-        "placeholder": "Alexander",
-        "role": "friend"
+        "placeholder": "Adrian",
+        "role": "close_friend"
       },
       {
         "archetype": "helpful_elder",
-        "emotionalNature": "weise, warmherzig, geduldig",
+        "emotionalNature": "weise, warmherzig, beruhigend",
         "importance": "high",
         "placeholder": "{{WISE_ELDER}}",
         "role": "guide"
       },
       {
         "archetype": "loyal_helper",
-        "emotionalNature": "verspielt, tröstlich, treu",
+        "emotionalNature": "scheu, freundlich",
         "importance": "medium",
         "placeholder": "{{ANIMAL_HELPER}}",
-        "role": "animal_companion"
+        "role": "guide_animal"
       },
       {
-        "archetype": "challenger",
-        "emotionalNature": "streng, aber fair, hintergründig gütig",
-        "importance": "medium",
+        "archetype": "grumpy_guardian",
+        "emotionalNature": "misstrauisch, verletzt, eigensinnig",
+        "importance": "high",
         "placeholder": "{{OBSTACLE_CHARACTER}}",
-        "role": "gatekeeper"
+        "role": "antagonist_obstacle"
       },
       {
-        "archetype": "gentle_magic",
-        "emotionalNature": "leuchtend, tröstlich, neugierig",
-        "importance": "medium",
+        "archetype": "lonely_magical_being",
+        "emotionalNature": "ängstlich, sehnsüchtig, zurückhaltend",
+        "importance": "high",
         "placeholder": "{{MAGICAL_CREATURE}}",
-        "role": "magical_ally"
+        "role": "misunderstood_guardian"
       }
     ],
     "setting": "fantasy"
@@ -88,65 +88,9 @@
       },
       {
         "character": {
-          "archetype": "loyal_animal",
+          "archetype": "helper",
           "emotionalNature": {
-            "dominant": "protective",
-            "secondary": [
-              "noble",
-              "wise",
-              "brave"
-            ],
-            "triggers": [
-              "friends in danger",
-              "injustice"
-            ]
-          },
-          "id": "c6f643c8-2f52-4f3e-aaab-89ea1dde7e5e",
-          "name": "Silberhorn der Hirsch",
-          "role": "companion",
-          "usageStats": {
-            "recentUsageCount": 0,
-            "totalUsageCount": 0
-          },
-          "visualProfile": {
-            "colorPalette": [
-              "brown",
-              "silver",
-              "green"
-            ],
-            "description": "Silberhorn der Hirsch • ['Silberhorn majestic stag', ' 8 years']",
-            "species": "animal"
-          }
-        },
-        "placeholder": "{{ANIMAL_HELPER}}"
-      },
-      {
-        "character": {
-          "archetype": "Freundlich, gerecht, erklärt Regeln kindgerecht, hilft Verlaufenen",
-          "emotionalNature": {
-            "dominant": "",
-            "secondary": []
-          },
-          "id": "0d4765eb-0a71-4b57-8c02-e04bb460ded9",
-          "name": "Polizist Paul",
-          "role": "Beschützer der Gemeinschaft",
-          "usageStats": {
-            "recentUsageCount": 0,
-            "totalUsageCount": 0
-          },
-          "visualProfile": {
-            "colorPalette": [],
-            "description": "Polizist Paul • ['Polizist Paul police officer', ' 38 years']",
-            "species": ""
-          }
-        },
-        "placeholder": "{{OBSTACLE_CHARACTER}}"
-      },
-      {
-        "character": {
-          "archetype": "gentle",
-          "emotionalNature": {
-            "dominant": "gentle",
+            "dominant": "helper",
             "secondary": [
               "kind",
               "helpful",
@@ -159,8 +103,80 @@
               "help"
             ]
           },
-          "id": "0a0f460c-02a1-4122-9bad-812e21da4ffe",
-          "name": "Drache Dino",
+          "id": "b927c871-5d7c-40b5-8dc8-6143f31dda04",
+          "name": "Hase Hoppel",
+          "role": "sidekick",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "white",
+              "grey",
+              "pink"
+            ],
+            "description": "Hase Hoppel • ['Hase Hoppel rabbit', ' medium-sized']",
+            "species": "rabbit"
+          }
+        },
+        "placeholder": "{{ANIMAL_HELPER}}"
+      },
+      {
+        "character": {
+          "archetype": "helper",
+          "emotionalNature": {
+            "dominant": "helper",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "0f8ad343-3bf9-41fe-bb15-9b3ad1311a3e",
+          "name": "Eichhörnchen Emma",
+          "role": "sidekick",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "red-brown",
+              "cream",
+              "black"
+            ],
+            "description": "Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small']",
+            "species": "squirrel"
+          }
+        },
+        "placeholder": "{{OBSTACLE_CHARACTER}}"
+      },
+      {
+        "character": {
+          "archetype": "trickster",
+          "emotionalNature": {
+            "dominant": "trickster",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "2309250c-790e-4476-97a1-9ed194392fc1",
+          "name": "Fuchs Ferdinand",
           "role": "main",
           "usageStats": {
             "recentUsageCount": 0,
@@ -168,21 +184,21 @@
           },
           "visualProfile": {
             "colorPalette": [
-              "green",
-              "yellow",
-              "orange"
+              "orange",
+              "white",
+              "black"
             ],
-            "description": "Drache Dino • ['Drache Dino dragon', ' 5m long']",
-            "species": "friendly_dragon"
+            "description": "Fuchs Ferdinand • ['Fuchs Ferdinand fox', ' slender']",
+            "species": "fox"
           }
         },
         "placeholder": "{{MAGICAL_CREATURE}}"
       }
     ],
-    "durationMs": 31,
+    "durationMs": 24,
     "matchedCount": 4,
     "status": "completed"
   },
   "source": "phase2-character-matching",
-  "timestamp": "2025-11-05T14:25:09.618Z"
+  "timestamp": "2025-11-05T17:24:24.900Z"
 }

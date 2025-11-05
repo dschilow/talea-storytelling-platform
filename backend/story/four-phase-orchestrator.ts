@@ -218,8 +218,8 @@ export class FourPhaseOrchestrator {
       openAIRequest: phase1Result.openAIRequest,
     };
 
-    // Log only skeleton METADATA (not full content) to save ~6000 tokens
-    // Full skeleton is already in phase1Result.openAIResponse.choices[0].message.content
+    // Log skeleton with chapter summaries (not full content) to save tokens
+    // Full skeleton is in phase1Result.openAIResponse.choices[0].message.content
     const phase1ResponsePayload = {
       status: "completed",
       durationMs: phaseDurations.phase1Duration,
@@ -228,13 +228,18 @@ export class FourPhaseOrchestrator {
         title: skeleton.title,
         chaptersCount: skeleton.chapters?.length,
         requirementsCount: skeleton.supportingCharacterRequirements?.length,
-        wordCounts: skeleton.chapters?.map(ch => ({
-          chapter: ch.order,
+        chapters: skeleton.chapters?.map(ch => ({
+          order: ch.order,
+          contentPreview: ch.content.substring(0, 150) + (ch.content.length > 150 ? '...' : ''),
           words: ch.content.split(/\s+/).length
         })),
+        supportingCharacters: skeleton.supportingCharacterRequirements?.map(req => ({
+          placeholder: req.placeholder,
+          role: req.role,
+          archetype: req.archetype,
+          visualHints: req.visualHints
+        })),
       },
-      // NOTE: openAIResponse contains full skeleton in content field
-      // We don't duplicate the skeleton here to reduce log size by ~50%
     };
 
     await this.logPhaseEvent("phase1-skeleton-generation", phase1RequestPayload, phase1ResponsePayload);

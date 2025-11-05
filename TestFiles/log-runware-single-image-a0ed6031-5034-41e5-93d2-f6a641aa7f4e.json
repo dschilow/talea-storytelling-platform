@@ -1,0 +1,39 @@
+{
+  "id": "a0ed6031-5034-41e5-93d2-f6a641aa7f4e",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Scene: Return to the village at night now brightly lit, communal celebration around the restored lamp. Characters: Alexander (holding the warm cloth with the glowing core wrapped inside), Adrian (watching the lamp, soft smile), Frau Müller (embracing Adrian), Fuchs Ferdinand (lying at the lamp's base), Hase Hoppel (rabbit hopping among villagers), Eichhörnchen Emma (squirrel perched in a tree with small sparks). Action: Fuchs Ferdinand placing the glow into the village lamp; villagers emerging, celebrating; children sharing the cloth and humming the melody. Lighting: warm lamplight bathing faces, golden reflections on wet cobbles, fireworks-like tiny sparks from Emma. Mood: joyful, cozy, triumphant, cinematic wide shot moving to intimate close-up on the children. Environment specifics: street stalls, bowls of food with steam, soft morning hint on horizon; recurring motifs: the melody, the silver sparkle, the glowing bowl. Camera perspective: wide establishing shot moving to low-angle intimate portrait of the two children and the lamp. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. CHARACTERS IN THIS SCENE: Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Frau Müller: Frau Müller • ['Frau Müller', ' 78 years'] Hase Hoppel: Hase Hoppel • ['Hase Hoppel rabbit', ' medium-sized'] Eichhörnchen Emma: Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small'] Fuchs Ferdinand: Fuchs Ferdinand • ['Fuchs Ferdinand fox', ' slender'] IMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - Alexander (8-10y) must be SMALLER than any older character. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 282842457,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "723ee34a-f178-4464-b833-657054509b72",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/da3858ac-24d6-4546-ad03-8823235c9ba8.jpg",
+        "imageUUID": "da3858ac-24d6-4546-ad03-8823235c9ba8",
+        "seed": 282842457,
+        "taskType": "imageInference",
+        "taskUUID": "723ee34a-f178-4464-b833-657054509b72"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-05T17:26:34.027Z"
+}
