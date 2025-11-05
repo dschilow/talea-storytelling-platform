@@ -1,0 +1,39 @@
+{
+  "id": "e204cc5e-717d-4c73-9fea-54c263ed3e03",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "A grand domed chamber with falling golden sparks. On a pedestal lies a circular empty parchment. Alexander reaches with focused green eyes; Adrian stands beside him with trembling fingers and soft blue eyes. Frau Müller gently places a hand on Adrian’s head. Luna sits nearby, attentive. The setting is magical and tender, with star-like lights and a hush of wonder. CHARACTERS IN THIS SCENE: Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Frau Müller: Frau Müller • ['Frau Müller', ' 78 years'] Luna: Luna • ['Luna black cat', ' small delicate'] Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 273124319,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "7fba2f1f-1f03-4436-a3cb-2d40795ff9d9",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/56ecb23b-4a7d-4e61-aec9-fbb0f3fe289a.jpg",
+        "imageUUID": "56ecb23b-4a7d-4e61-aec9-fbb0f3fe289a",
+        "seed": 273124319,
+        "taskType": "imageInference",
+        "taskUUID": "7fba2f1f-1f03-4436-a3cb-2d40795ff9d9"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-05T09:50:36.704Z"
+}

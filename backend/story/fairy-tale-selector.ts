@@ -100,25 +100,74 @@ export class FairyTaleSelector {
       // Sort by score (highest first)
       scoredTales.sort((a, b) => b.score.total - a.score.total);
 
-      const bestMatch = scoredTales[0];
-
-      if (!bestMatch || bestMatch.score.total === 0) {
-        console.log("[FairyTaleSelector] No suitable fairy tale found");
+      // ==================== VARIANCE SYSTEM ====================
+      // Instead of always picking #1, rotate through top matches based on usage
+      // This prevents same fairy tale for same parameters!
+      
+      const topMatches = scoredTales.filter(st => st.score.total >= 50); // Minimum score threshold
+      
+      if (topMatches.length === 0) {
+        console.log("[FairyTaleSelector] No suitable fairy tale found (all scores < 50)");
         return null;
       }
 
-      console.log(`[FairyTaleSelector] Best match: ${bestMatch.tale.title} (score: ${bestMatch.score.total})`);
-      console.log(`[FairyTaleSelector] Match reason: ${bestMatch.score.reason}`);
+      console.log(`[FairyTaleSelector] Found ${topMatches.length} good matches (score >= 50)`);
 
-      // Load scenes for the best match
-      const scenes = await this.loadScenes(bestMatch.tale.id);
+      // Get usage stats for top matches
+      const topIds = topMatches.map(t => t.tale.id);
+      const usageStats = await fairytalesDB.queryAll<any>`
+        SELECT tale_id, usage_count, last_used_at
+        FROM fairy_tale_usage_stats
+        WHERE tale_id = ANY(${topIds})
+        ORDER BY usage_count ASC, last_used_at ASC NULLS FIRST
+      `;
+
+      // Map usage to tales
+      const usageMap = new Map(usageStats.map(u => [u.tale_id, { count: u.usage_count, last: u.last_used_at }]));
+
+      // Sort top matches by: 1) score, 2) usage count (least used first), 3) last used (oldest first)
+      topMatches.sort((a, b) => {
+        const usageA = usageMap.get(a.tale.id) || { count: 0, last: null };
+        const usageB = usageMap.get(b.tale.id) || { count: 0, last: null };
+
+        // First: prefer high scores
+        const scoreDiff = b.score.total - a.score.total;
+        if (Math.abs(scoreDiff) > 10) return scoreDiff; // Significant score difference
+
+        // Second: prefer least used
+        if (usageA.count !== usageB.count) {
+          return usageA.count - usageB.count;
+        }
+
+        // Third: prefer oldest last_used (or never used)
+        if (!usageA.last && !usageB.last) return 0;
+        if (!usageA.last) return -1; // Never used comes first
+        if (!usageB.last) return 1;
+        return new Date(usageA.last).getTime() - new Date(usageB.last).getTime();
+      });
+
+      const selectedMatch = topMatches[0];
+
+      console.log(`[FairyTaleSelector] Selected: ${selectedMatch.tale.title} (score: ${selectedMatch.score.total})`);
+      console.log(`[FairyTaleSelector] Match reason: ${selectedMatch.score.reason}`);
+      console.log(`[FairyTaleSelector] Usage count: ${usageMap.get(selectedMatch.tale.id)?.count || 0}`);
+
+      // Update usage stats
+      await fairytalesDB.exec`
+        UPDATE fairy_tale_usage_stats
+        SET usage_count = usage_count + 1, last_used_at = NOW()
+        WHERE tale_id = ${selectedMatch.tale.id}
+      `;
+
+      // Load scenes for the selected match
+      const scenes = await this.loadScenes(selectedMatch.tale.id);
 
       return {
-        tale: this.mapTale(bestMatch.tale),
-        roles: bestMatch.roles,
+        tale: this.mapTale(selectedMatch.tale),
+        roles: selectedMatch.roles,
         scenes,
-        matchScore: bestMatch.score.total,
-        matchReason: bestMatch.score.reason,
+        matchScore: selectedMatch.score.total,
+        matchReason: `${selectedMatch.score.reason} | Usage: ${usageMap.get(selectedMatch.tale.id)?.count || 0}x`,
       };
     } catch (error) {
       console.error("[FairyTaleSelector] Error selecting fairy tale:", error);

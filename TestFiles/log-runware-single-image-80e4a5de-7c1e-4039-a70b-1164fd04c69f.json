@@ -1,0 +1,39 @@
+{
+  "id": "80e4a5de-7c1e-4039-a70b-1164fd04c69f",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "A bright enchanted garden beyond an opened door. Alexander sits with a glowing map between them, smiling with relief. Adrian is embraced by Frau Müller, comforted and softer. Luna purrs at their feet, and Brumm stands guard nearby. The garden is warm, full of color and gentle magic, signaling reconciliation and shared memory. CHARACTERS IN THIS SCENE: Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Frau Müller: Frau Müller • ['Frau Müller', ' 78 years'] Luna: Luna • ['Luna black cat', ' small delicate'] Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 284439502,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "be884e22-f2c7-4504-b97d-77ada067c1d8",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/2a5161d8-9317-474f-a1d6-fbb3c23b022d.jpg",
+        "imageUUID": "2a5161d8-9317-474f-a1d6-fbb3c23b022d",
+        "seed": 284439502,
+        "taskType": "imageInference",
+        "taskUUID": "be884e22-f2c7-4504-b97d-77ada067c1d8"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-05T09:50:35.642Z"
+}

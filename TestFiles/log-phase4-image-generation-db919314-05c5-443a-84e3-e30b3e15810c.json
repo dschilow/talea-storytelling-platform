@@ -1,0 +1,83 @@
+{
+  "id": "db919314-05c5-443a-84e3-e30b3e15810c",
+  "metadata": null,
+  "request": {
+    "chaptersToGenerate": 5,
+    "imageDescriptions": [
+      {
+        "chapterOrder": 1,
+        "chapterTitle": "Im alten Schloss roch es nach Staub und Abenteuer",
+        "description": "Illustration of a dusty old castle corridor with sunlight beams. Alexander, an 8–10-year-old boy with tousled medium brown hair and bright green eyes, holds a glowing crumpled map. Adrian, a smaller boy with warm golden blond curly hair and bright blue eyes, stands half in shadow, smiling mysteriously. A small black cat, Luna, winds around Alexander’s legs. The scene feels warm, whimsical, and slightly mysterious."
+      },
+      {
+        "chapterOrder": 2,
+        "chapterTitle": "Geheime Gänge und der Steinwächter Brumm",
+        "description": "A dim stone corridor with a massive door. Brumm the stone guardian stands tall, rocky and imposing with a faint red aura. Alexander, looking determined, points to glowing lines in the air. Adrian stands slightly ahead with a mysterious smile. Luna the black cat watches from a ledge. The atmosphere is tense, magical, and cinematic."
+      },
+      {
+        "chapterOrder": 3,
+        "chapterTitle": "Treppen wie Fragen und Frau Müllers Rat",
+        "description": "A winding staircase scene lit by flickering torchlight. Frau Müller, a warm elderly woman with gray hair wearing green and beige, stands beside Alexander. Alexander holds an imaginary map pattern in the air while Adrian moves ahead with a mysterious posture. Luna curls on Alexander’s lap. The scene is comforting yet suspenseful, with intricate stone carvings and soft warm lighting."
+      },
+      {
+        "chapterOrder": 4,
+        "chapterTitle": "Das Herz der Kuppel und das leere Pergament",
+        "description": "A grand domed chamber with falling golden sparks. On a pedestal lies a circular empty parchment. Alexander reaches with focused green eyes; Adrian stands beside him with trembling fingers and soft blue eyes. Frau Müller gently places a hand on Adrian’s head. Luna sits nearby, attentive. The setting is magical and tender, with star-like lights and a hush of wonder."
+      },
+      {
+        "chapterOrder": 5,
+        "chapterTitle": "Das geteilte Erinnern und die offene Tür",
+        "description": "A bright enchanted garden beyond an opened door. Alexander sits with a glowing map between them, smiling with relief. Adrian is embraced by Frau Müller, comforted and softer. Luna purrs at their feet, and Brumm stands guard nearby. The garden is warm, full of color and gentle magic, signaling reconciliation and shared memory."
+      }
+    ],
+    "label": "PHASE 4: Konsistente Bilder generieren",
+    "phase": 4
+  },
+  "response": {
+    "coverImage": {
+      "durationMs": 2895,
+      "success": true,
+      "url": "https://im.runware.ai/image/ws/2/ii/9fcdfebc-2612-4c11-8da1-ae766439afdb.jpg"
+    },
+    "durationMs": 4516,
+    "failedImages": 0,
+    "images": [
+      {
+        "chapterOrder": 1,
+        "chapterTitle": "Im alten Schloss roch es nach Staub und Abenteuer",
+        "hasImage": true,
+        "imageUrl": "https://im.runware.ai/image/ws/2/ii/b5de0cc3-35a2-417a-8f2f-f7af24260b9e.jpg"
+      },
+      {
+        "chapterOrder": 2,
+        "chapterTitle": "Geheime Gänge und der Steinwächter Brumm",
+        "hasImage": true,
+        "imageUrl": "https://im.runware.ai/image/ws/2/ii/1c8f593f-c407-4ca2-b6b5-0eec41638d7e.jpg"
+      },
+      {
+        "chapterOrder": 3,
+        "chapterTitle": "Treppen wie Fragen und Frau Müllers Rat",
+        "hasImage": true,
+        "imageUrl": "https://im.runware.ai/image/ws/2/ii/d611d1e8-ecc8-47ea-9668-9d2a827dd685.jpg"
+      },
+      {
+        "chapterOrder": 4,
+        "chapterTitle": "Das Herz der Kuppel und das leere Pergament",
+        "hasImage": true,
+        "imageUrl": "https://im.runware.ai/image/ws/2/ii/56ecb23b-4a7d-4e61-aec9-fbb0f3fe289a.jpg"
+      },
+      {
+        "chapterOrder": 5,
+        "chapterTitle": "Das geteilte Erinnern und die offene Tür",
+        "hasImage": true,
+        "imageUrl": "https://im.runware.ai/image/ws/2/ii/2a5161d8-9317-474f-a1d6-fbb3c23b022d.jpg"
+      }
+    ],
+    "status": "completed",
+    "successfulImages": 5,
+    "totalDurationMs": 179099,
+    "totalImages": 5
+  },
+  "source": "phase4-image-generation",
+  "timestamp": "2025-11-05T09:50:39.602Z"
+}

@@ -1,0 +1,255 @@
+{
+  "id": "b411b612-fd75-4ac6-982f-7194daf21716",
+  "metadata": null,
+  "request": {
+    "avatars": [
+      {
+        "description": "Alexander ist ein Mensch aus Stadt.  Einfach \"normales\" Kind. Besucht die 2 klasse, ist super schnell und schlau. sehr gutes Gedächtnis.",
+        "id": "4826ab1e-f4da-4f6c-b559-4445c2a00e99",
+        "name": "Alexander"
+      },
+      {
+        "description": "adrian ist ein Mensch aus der Stadt. Hat eine geheimnisvolle Vergangenheit.",
+        "id": "ac50a461-47b0-47e6-9342-81e77ab78eba",
+        "name": "Adrian"
+      }
+    ],
+    "config": {
+      "ageGroup": "6-8",
+      "aiModel": "gpt-5-mini",
+      "complexity": "medium",
+      "emotionalFlavors": [],
+      "genre": "fantasy",
+      "hasTwist": false,
+      "humorLevel": 2,
+      "length": "medium",
+      "pacing": "balanced",
+      "setting": "castle",
+      "specialIngredients": [
+        "aha"
+      ],
+      "storySoul": "wilder_ritt",
+      "storyTempo": "balanced",
+      "stylePreset": "wild_imaginative",
+      "suspenseLevel": 2,
+      "tone": "mischievous"
+    },
+    "label": "PHASE 1: Story-Skeleton (Struktur)",
+    "openAIRequest": {
+      "max_completion_tokens": 16000,
+      "messages": [
+        {
+          "content": "Du bist eine professionelle Kinderbuch-Autorin, die Story-Strukturen mit generischen Charakter-Platzhaltern erstellt.",
+          "role": "system"
+        },
+        {
+          "content": "Du bist eine preisgekroente Kinderbuch-Autorin, die meisterhafte Story-Skelette fuer illustrierte Geschichten schreibt. Arbeite praezise, bildhaft und kindgerecht.\n\nHAUPTFIGUREN: Alexander (Alexander ist ein Mensch aus Stadt.  Einfach \"normales\" Kind. Besucht die 2 klasse, ist super schnell und schlau. sehr gutes Gedächtnis.), Adrian (adrian ist ein Mensch aus der Stadt. Hat eine geheimnisvolle Vergangenheit.)\nGENRE: fantasy\nSETTING: castle\nALTERSGRUPPE: 6-8\nKOMPLEXITAET: medium\nLAENGE: medium\nERZAELLPERSPEKTIVE: personale Perspektive\nSPRACHE: de\nREIME: Keine Reimpflicht - klare Prosa.\n\nSTORY EXPERIENCE (USER-WAHL):\n- Manuell gewaehlt: wild_imaginative\n- Reime erlaubt: Nein\n- Story-Seele: Wilder Ritt - Dynamische Szenen, kleine Cliffhanger und mutige Entscheidungen. (Ton: mischievous, Tempo: fast)\n- Emotionale Wuerze:\n- Natuerliche Herzensmomente ohne zusaetzliche Wuerze.\n- Tempo: Ausgewogen - Guter Mix aus Action und Ruhe | perfektes Bilderbuchtiming. (Tempo: balanced)\n- Spannung: Level 2 (spannend)\n- Humor: Level 2 (witzig)\n- Twist-Vorgabe: Nein\n- Hooks: lost_map\n- Besondere Zutaten:\n- Aha-Moment: Eine wichtige Erkenntnis bringt alles zusammen. (Nutze Plot-Hook \"lost_map\". Cleveres Denken und Einsicht.)\n\nDETAILLIERTE WUERZE:\nKeine besondere emotionale Würze ausgewählt – nutze natürliche Herzensmomente.\n\nDETAILLIERTE ZUTATEN:\nAha-Moment: Eine wichtige Erkenntnis bringt alles zusammen.\n\n\n\nAUFGABE FUER DICH:\n1. Erstelle eine Story-Struktur mit exakt 5 Kapiteln.\n2. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).\n3. WICHTIG: Jede Kapitelbeschreibung MAXIMAL 50-70 Woerter (niemals mehr!). Schreibe praegnant, dicht, bildlich. Keine langen Saetze.\n4. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.\n5. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.\n6. Fuehre fuer jede Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an - passend zu Seele und Wuerze.\n7. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.\n\nPLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):\n- {{WISE_ELDER}} - weiser Mentor oder Mentorin\n- {{ANIMAL_HELPER}} - treuer tierischer Begleiter\n- {{MAGICAL_CREATURE}} - magisches Wesen\n- {{FRIENDLY_VILLAGER}} - hilfsbereite Person vor Ort\n- {{OBSTACLE_CHARACTER}} - Hindernis oder Gegenspieler\n- Eigene Placeholder im Format {{NAME}} sind erlaubt, wenn die Rolle klar beschrieben ist.\n\nOUTPUT (JSON):\n{\n  \"title\": \"Titel der Geschichte\",\n  \"chapters\": [\n    {\n      \"order\": 1,\n      \"content\": \"MAXIMAL 50-70 Woerter! Praegnant, bildlich, dicht. Keine langen Erklaerungen.\",\n      \"characterRolesNeeded\": [\n        {\n          \"placeholder\": \"{{WISE_ELDER}}\",\n          \"role\": \"guide\",\n          \"archetype\": \"helpful_elder\",\n          \"emotionalNature\": \"wise\",\n          \"visualHints\": \"aelterer Mensch, Arzt/Doktor, warmherziges Auftreten\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 3, 5]\n        }\n      ]\n    }\n  ],\n  \"supportingCharacterRequirements\": [\n    {\n      \"placeholder\": \"{{WISE_ELDER}}\",\n      \"role\": \"guide\",\n      \"archetype\": \"helpful_elder\",\n      \"emotionalNature\": \"wise\",\n      \"requiredTraits\": [\"wise\", \"protective\", \"kind\"],\n      \"visualHints\": \"aelterer Mensch, Arzt/Doktor, warmherziges Auftreten, Brille moeglich\",\n      \"importance\": \"high\",\n      \"inChapters\": [1, 3, 5]\n    }\n  ]\n}\n\nWICHTIG: \n- Halte chapters[].content STRIKT unter 70 Woertern!\n- Fuege bei supportingCharacterRequirements immer visualHints hinzu (Tierart, Beruf, Aussehen, Kleidung)\n\nAchte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in sich stimmige Dramaturgie. Kapitel 5 zeigt emotionale Entwicklung und erfuellt das Versprechen der Story-Seele.",
+          "role": "user"
+        }
+      ],
+      "model": "gpt-5-mini",
+      "reasoning_effort": "medium",
+      "response_format": {
+        "type": "json_object"
+      }
+    },
+    "phase": 1,
+    "storyExperience": {
+      "descriptions": {
+        "emotionalFlavors": "Keine besondere emotionale Würze ausgewählt – nutze natürliche Herzensmomente.",
+        "specialIngredients": "Aha-Moment: Eine wichtige Erkenntnis bringt alles zusammen."
+      },
+      "emotionalFlavors": [],
+      "soul": {
+        "allowRhymes": false,
+        "defaultHumor": 2,
+        "defaultPacing": "fast",
+        "defaultSuspense": 2,
+        "description": "Actionreicher Wirbelsturm – keine Sekunde Stillstand.",
+        "key": "wilder_ritt",
+        "label": "Wilder Ritt",
+        "recommendedStylePreset": "wild_imaginative",
+        "recommendedTone": "mischievous",
+        "storyPromise": "Dynamische Szenen, kleine Cliffhanger und mutige Entscheidungen."
+      },
+      "specialIngredients": [
+        {
+          "description": "Eine wichtige Erkenntnis bringt alles zusammen.",
+          "emphasis": "Cleveres Denken und Einsicht.",
+          "forcesTwist": false,
+          "hookHint": "lost_map",
+          "key": "aha",
+          "label": "Aha-Moment"
+        }
+      ],
+      "tempo": {
+        "description": "Guter Mix aus Action und Ruhe | perfektes Bilderbuchtiming.",
+        "key": "balanced",
+        "label": "Ausgewogen",
+        "pacing": "balanced"
+      }
+    }
+  },
+  "response": {
+    "durationMs": 102191,
+    "openAIResponse": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "annotations": [],
+            "content": "{\n  \"title\": \"Die verlorene Karte des Schlossherzens\",\n  \"chapters\": [\n    {\n      \"order\": 1,\n      \"content\": \"Im alten Schloss roch es nach Staub und Abenteuer. Alexander hörte sein Herz schneller schlagen. Adrian zog eine zerknitterte Karte aus einer geheimen Kiste. Linien, Symbole und ein fehlendes Stück. Die Karte flimmerte leise. Alexander wusste: Das ist kein normaler Fund. Adrian lächelte rätselhaft. Wohin führte die Karte? Ein Flüstern kam aus den Mauern.\",\n      \"characterRolesNeeded\": [\n        {\n          \"placeholder\": \"Alexander\",\n          \"role\": \"protagonist\",\n          \"archetype\": \"clever_child\",\n          \"emotionalNature\": \"neugierig, mutig\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler der 2. Klasse; Aussehen: kurzes, helles Haar, muntere Augen; Kleidung: gemütlicher Pullover und feste Schuhe\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"Adrian\",\n          \"role\": \"companion\",\n          \"archetype\": \"mysterious_friend\",\n          \"emotionalNature\": \"ruhig, verschlossen\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler/kein spezieller Beruf; Aussehen: dunkle, leicht zerzauste Haare, tiefgründige Augen; Kleidung: dunkler Mantel, Schal\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        }\n      ]\n    },\n    {\n      \"order\": 2,\n      \"content\": \"Alexander folgte den Linien. Adrian kannte geheime Gänge, die nach Mond rochen. Flackerndes Licht. Eine schwere Türe stand im Weg. Ein grummeliges Torwächterschloss knarrte. Jemand lachte leise: {{OBSTACLE_CHARACTER}} hielt sie auf, stellte Fragen. Alexander überlegte blitzschnell. Adrian zögerte. Ein kleiner Schatten mit schwarzen Schwingen — {{ANIMAL_HELPER}} — streifte Alexanders Schulter. Wer verfolgte die Karte?\",\n      \"characterRolesNeeded\": [\n        {\n          \"placeholder\": \"Alexander\",\n          \"role\": \"protagonist\",\n          \"archetype\": \"clever_child\",\n          \"emotionalNature\": \"neugierig, mutig\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler der 2. Klasse; Aussehen: kurzes, helles Haar, muntere Augen; Kleidung: gemütlicher Pullover und feste Schuhe\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"Adrian\",\n          \"role\": \"companion\",\n          \"archetype\": \"mysterious_friend\",\n          \"emotionalNature\": \"ruhig, verschlossen\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler/kein spezieller Beruf; Aussehen: dunkle, leicht zerzauste Haare, tiefgründige Augen; Kleidung: dunkler Mantel, Schal\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"{{OBSTACLE_CHARACTER}}\",\n          \"role\": \"obstacle\",\n          \"archetype\": \"grumpy_guard\",\n          \"emotionalNature\": \"streng, misstrauisch\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schlosswächter/Torwächter; Aussehen: groß, strenger Blick, wettergegerbtes Gesicht; Kleidung: schwere Rüstung oder lederner Wachtmantel\",\n          \"importance\": \"medium\",\n          \"inChapters\": [2]\n        },\n        {\n          \"placeholder\": \"{{ANIMAL_HELPER}}\",\n          \"role\": \"animal_helper\",\n          \"archetype\": \"loyal_animalsidekick\",\n          \"emotionalNature\": \"frech, wachsam\",\n          \"visualHints\": \"Tierart: Rabe; Beruf: tierischer Begleiter; Aussehen: kleine schwarze Schwingen, glänzende Augen; Kleidung: trägt ein kleines blaues Band am Hals\",\n          \"importance\": \"medium\",\n          \"inChapters\": [2]\n        }\n      ]\n    },\n    {\n      \"order\": 3,\n      \"content\": \"Die Treppen drehten sich wie Fragen. Alexander erinnerte sich an jedes Muster der Karte. Adrian blieb ruhig, Augen fern. Im Kerzenschein erschien {{WISE_ELDER}} mit einem warmen Lächeln. \\\"Die Karte sucht ihr fehlendes Herz\\\", flüsterte sie. Hinweise schwanden und tauchten auf. Alexander spürte, dass sein gutes Gedächtnis mehr sah als Linien. War das Herz der Karte in den Gewölben verborgen?\",\n      \"characterRolesNeeded\": [\n        {\n          \"placeholder\": \"Alexander\",\n          \"role\": \"protagonist\",\n          \"archetype\": \"clever_child\",\n          \"emotionalNature\": \"neugierig, mutig\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler der 2. Klasse; Aussehen: kurzes, helles Haar, muntere Augen; Kleidung: gemütlicher Pullover und feste Schuhe\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"Adrian\",\n          \"role\": \"companion\",\n          \"archetype\": \"mysterious_friend\",\n          \"emotionalNature\": \"ruhig, verschlossen\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler/kein spezieller Beruf; Aussehen: dunkle, leicht zerzauste Haare, tiefgründige Augen; Kleidung: dunkler Mantel, Schal\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"{{WISE_ELDER}}\",\n          \"role\": \"guide\",\n          \"archetype\": \"helpful_elder\",\n          \"emotionalNature\": \"weise, sanft\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: ehemalige Schlossbibliothekarin / Heilerin; Aussehen: weißes Haar, gütige Falten, warmes Lächeln; Kleidung: langer, warmer Mantel, eventuell Brille\",\n          \"importance\": \"high\",\n          \"inChapters\": [3, 5]\n        }\n      ]\n    },\n    {\n      \"order\": 4,\n      \"content\": \"Im Herzen des Schlosses öffnete sich eine Kuppel. Sterne fielen wie goldene Federn. Sie fanden das fehlende Kartenstück — nur leerer Pergamentkreis. Adrian schluckte, Hände zitterten. \\\"Ich habe etwas verloren\\\", murmelte er. Alexander kniff die Augen zusammen. Sein Gedächtnis sah Muster, die keiner sah. Vielleicht war das fehlende Stück kein Bild. Was fehlte wirklich? Die Stille wartete.\",\n      \"characterRolesNeeded\": [\n        {\n          \"placeholder\": \"Alexander\",\n          \"role\": \"protagonist\",\n          \"archetype\": \"clever_child\",\n          \"emotionalNature\": \"neugierig, mutig\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler der 2. Klasse; Aussehen: kurzes, helles Haar, muntere Augen; Kleidung: gemütlicher Pullover und feste Schuhe\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"Adrian\",\n          \"role\": \"companion\",\n          \"archetype\": \"mysterious_friend\",\n          \"emotionalNature\": \"ruhig, verschlossen\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler/kein spezieller Beruf; Aussehen: dunkle, leicht zerzauste Haare, tiefgründige Augen; Kleidung: dunkler Mantel, Schal\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        }\n      ]\n    },\n    {\n      \"order\": 5,\n      \"content\": \"Alexander setzte das leere Pergament ans Herz der Karte. Er summte die Muster, die sein Gedächtnis flüsterte. Linien leuchteten, Sternbilder fügten sich. Das fehlende Stück war kein Papier, sondern ein geteiltes Erinnern. Adrian lächelte und ein leiser Wind trug Heimatklänge. {{WISE_ELDER}} nickte. Die Tür zum verwunschenen Garten öffnete sich. Wärme füllte die Brust. Alles passte zusammen.\",\n      \"characterRolesNeeded\": [\n        {\n          \"placeholder\": \"Alexander\",\n          \"role\": \"protagonist\",\n          \"archetype\": \"clever_child\",\n          \"emotionalNature\": \"neugierig, mutig\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler der 2. Klasse; Aussehen: kurzes, helles Haar, muntere Augen; Kleidung: gemütlicher Pullover und feste Schuhe\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"Adrian\",\n          \"role\": \"companion\",\n          \"archetype\": \"mysterious_friend\",\n          \"emotionalNature\": \"ruhig, verschlossen\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: Schüler/kein spezieller Beruf; Aussehen: dunkle, leicht zerzauste Haare, tiefgründige Augen; Kleidung: dunkler Mantel, Schal\",\n          \"importance\": \"high\",\n          \"inChapters\": [1, 2, 3, 4, 5]\n        },\n        {\n          \"placeholder\": \"{{WISE_ELDER}}\",\n          \"role\": \"guide\",\n          \"archetype\": \"helpful_elder\",\n          \"emotionalNature\": \"weise, sanft\",\n          \"visualHints\": \"Tierart: Mensch; Beruf: ehemalige Schlossbibliothekarin / Heilerin; Aussehen: weißes Haar, gütige Falten, warmes Lächeln; Kleidung: langer, warmer Mantel, eventuell Brille\",\n          \"importance\": \"high\",\n          \"inChapters\": [3, 5]\n        }\n      ]\n    }\n  ],\n  \"supportingCharacterRequirements\": [\n    {\n      \"placeholder\": \"Alexander\",\n      \"role\": \"protagonist\",\n      \"archetype\": \"clever_child\",\n      \"emotionalNature\": \"neugierig, mutig\",\n      \"requiredTraits\": [\"schnell\", \"schlau\", \"ausgezeichnetes Gedächtnis\", \"neugierig\", \"entscheidungsfreudig\"],\n      \"visualHints\": \"Tierart: Mensch; Beruf: Schüler der 2. Klasse; Aussehen: kurzes, helles Haar, lebhafte Augen; Kleidung: gemütlicher Pullover, feste Schuhe\",\n      \"importance\": \"high\",\n      \"inChapters\": [1, 2, 3, 4, 5]\n    },\n    {\n      \"placeholder\": \"Adrian\",\n      \"role\": \"companion\",\n      \"archetype\": \"mysterious_friend\",\n      \"emotionalNature\": \"ruhig, zurückhaltend, beschützend\",\n      \"requiredTraits\": [\"geheimnisvoll\", \"wachsam\", \"zuverlässig\", \"mit einer traurigen Note der Vergangenheit\"],\n      \"visualHints\": \"Tierart: Mensch; Beruf: Schüler/kein spezieller Beruf; Aussehen: dunkle, leicht zerzauste Haare, tiefgründige Augen; Kleidung: dunkler Mantel, Schal, abgenutzte Stiefel\",\n      \"importance\": \"high\",\n      \"inChapters\": [1, 2, 3, 4, 5]\n    },\n    {\n      \"placeholder\": \"{{WISE_ELDER}}\",\n      \"role\": \"guide\",\n      \"archetype\": \"helpful_elder\",\n      \"emotionalNature\": \"weise, warmherzig, geduldig\",\n      \"requiredTraits\": [\"weise\", \"beschützend\", \"sanft\", \"erklärend leicht\"],\n      \"visualHints\": \"Tierart: Mensch; Beruf: ehemalige Schlossbibliothekarin / Heilerin; Aussehen: weißes Haar, gütige Falten, warmes Lächeln; Kleidung: langer, warmer Mantel, eventuell Brille, handgefertigte Brosche\",\n      \"importance\": \"high\",\n      \"inChapters\": [3, 5]\n    },\n    {\n      \"placeholder\": \"{{ANIMAL_HELPER}}\",\n      \"role\": \"animal_helper\",\n      \"archetype\": \"loyal_animalsidekick\",\n      \"emotionalNature\": \"frech, wachsam, verspielt\",\n      \"requiredTraits\": [\"neugierig\", \"kundig in Verstecken\", \"mutig trotz Größe\"],\n      \"visualHints\": \"Tierart: Rabe; Beruf: tierischer Begleiter; Aussehen: kleine schwarze Schwingen, glänzende Augen, kluge Kopfhaltung; Kleidung: trägt ein kleines blaues Band am Hals\",\n      \"importance\": \"medium\",\n      \"inChapters\": [2]\n    },\n    {\n      \"placeholder\": \"{{OBSTACLE_CHARACTER}}\",\n      \"role\": \"obstacle\",\n      \"archetype\": \"grumpy_guard\",\n      \"emotionalNature\": \"streng, misstrauisch\",\n      \"requiredTraits\": [\"patrouillierend\", \"streng\", \"regelorientiert\"],\n      \"visualHints\": \"Tierart: Mensch; Beruf: Schlosswächter / Torwächter; Aussehen: groß, wettergegerbtes Gesicht, scharfer Blick; Kleidung: schwere Rüstung oder lederner Wachtmantel, schwere Stiefel\",\n      \"importance\": \"medium\",\n      \"inChapters\": [2]\n    }\n  ]\n}",
+            "refusal": null,
+            "role": "assistant"
+          }
+        }
+      ],
+      "created": 1762336061,
+      "id": "chatcmpl-CYUP7BxEa0nu7jSq1gbAFl9GOFIGG",
+      "model": "gpt-5-mini-2025-08-07",
+      "object": "chat.completion",
+      "service_tier": "default",
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 8302,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 5248,
+          "rejected_prediction_tokens": 0
+        },
+        "prompt_tokens": 1149,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0
+        },
+        "total_tokens": 9451
+      }
+    },
+    "skeleton": {
+      "chapters": [
+        {
+          "content": "Im alten Schloss roch es nach Staub und Abenteuer. Alexander hörte sein Herz schneller schlagen. Adrian zog eine zerknitterte Karte aus einer geheimen Kiste. Linien, Symbole und ein fehlendes Stück. Die Karte flimmerte leise. Alexander wusste: Das ist kein normaler Fund. Adrian lächelte rätselhaft. Wohin führte die Karte? Ein Flüstern kam aus den Mauern.",
+          "order": 1,
+          "placeholders": [
+            "Alexander",
+            "Adrian"
+          ],
+          "wordCount": 54
+        },
+        {
+          "content": "Alexander folgte den Linien. Adrian kannte geheime Gänge, die nach Mond rochen. Flackerndes Licht. Eine schwere Türe stand im Weg. Ein grummeliges Torwächterschloss knarrte. Jemand lachte leise: {{OBSTACLE_CHARACTER}} hielt sie auf, stellte Fragen. Alexander überlegte blitzschnell. Adrian zögerte. Ein kleiner Schatten mit schwarzen Schwingen — {{ANIMAL_HELPER}} — streifte Alexanders Schulter. Wer verfolgte die Karte?",
+          "order": 2,
+          "placeholders": [
+            "Alexander",
+            "Adrian",
+            "{{OBSTACLE_CHARACTER}}",
+            "{{ANIMAL_HELPER}}"
+          ],
+          "wordCount": 54
+        },
+        {
+          "content": "Die Treppen drehten sich wie Fragen. Alexander erinnerte sich an jedes Muster der Karte. Adrian blieb ruhig, Augen fern. Im Kerzenschein erschien {{WISE_ELDER}} mit einem warmen Lächeln. \"Die Karte sucht ihr fehlendes Herz\", flüsterte sie. Hinweise schwanden und tauchten auf. Alexander spürte, dass sein gutes Gedächtnis mehr sah als Linien. War das Herz der Karte in den Gewölben verborgen?",
+          "order": 3,
+          "placeholders": [
+            "Alexander",
+            "Adrian",
+            "{{WISE_ELDER}}"
+          ],
+          "wordCount": 59
+        },
+        {
+          "content": "Im Herzen des Schlosses öffnete sich eine Kuppel. Sterne fielen wie goldene Federn. Sie fanden das fehlende Kartenstück — nur leerer Pergamentkreis. Adrian schluckte, Hände zitterten. \"Ich habe etwas verloren\", murmelte er. Alexander kniff die Augen zusammen. Sein Gedächtnis sah Muster, die keiner sah. Vielleicht war das fehlende Stück kein Bild. Was fehlte wirklich? Die Stille wartete.",
+          "order": 4,
+          "placeholders": [
+            "Alexander",
+            "Adrian"
+          ],
+          "wordCount": 57
+        },
+        {
+          "content": "Alexander setzte das leere Pergament ans Herz der Karte. Er summte die Muster, die sein Gedächtnis flüsterte. Linien leuchteten, Sternbilder fügten sich. Das fehlende Stück war kein Papier, sondern ein geteiltes Erinnern. Adrian lächelte und ein leiser Wind trug Heimatklänge. {{WISE_ELDER}} nickte. Die Tür zum verwunschenen Garten öffnete sich. Wärme füllte die Brust. Alles passte zusammen.",
+          "order": 5,
+          "placeholders": [
+            "Alexander",
+            "Adrian",
+            "{{WISE_ELDER}}"
+          ],
+          "wordCount": 56
+        }
+      ],
+      "chaptersCount": 5,
+      "supportingCharacterRequirements": [
+        {
+          "archetype": "clever_child",
+          "emotionalNature": "neugierig, mutig",
+          "importance": "high",
+          "inChapters": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "placeholder": "Alexander",
+          "role": "protagonist"
+        },
+        {
+          "archetype": "mysterious_friend",
+          "emotionalNature": "ruhig, zurückhaltend, beschützend",
+          "importance": "high",
+          "inChapters": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "placeholder": "Adrian",
+          "role": "companion"
+        },
+        {
+          "archetype": "helpful_elder",
+          "emotionalNature": "weise, warmherzig, geduldig",
+          "importance": "high",
+          "inChapters": [
+            3,
+            5
+          ],
+          "placeholder": "{{WISE_ELDER}}",
+          "role": "guide"
+        },
+        {
+          "archetype": "loyal_animalsidekick",
+          "emotionalNature": "frech, wachsam, verspielt",
+          "importance": "medium",
+          "inChapters": [
+            2
+          ],
+          "placeholder": "{{ANIMAL_HELPER}}",
+          "role": "animal_helper"
+        },
+        {
+          "archetype": "grumpy_guard",
+          "emotionalNature": "streng, misstrauisch",
+          "importance": "medium",
+          "inChapters": [
+            2
+          ],
+          "placeholder": "{{OBSTACLE_CHARACTER}}",
+          "role": "obstacle"
+        }
+      ],
+      "title": "Die verlorene Karte des Schlossherzens"
+    },
+    "status": "completed",
+    "usage": {
+      "completionTokens": 8302,
+      "promptTokens": 1149,
+      "totalTokens": 9451
+    }
+  },
+  "source": "phase1-skeleton-generation",
+  "timestamp": "2025-11-05T09:49:22.696Z"
+}

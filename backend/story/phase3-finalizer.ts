@@ -597,62 +597,187 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
       })
       .join("\n");
 
+    // ==================== SCENE-TO-CHAPTER MAPPING ====================
+    // Map fairy tale scenes (6-9 scenes) to exactly 5 chapters
+    const sceneChapterMapping = this.mapScenesToChapters(fairyTale.scenes);
+    
+    const chapterStructure = sceneChapterMapping
+      .map((mapping: any, idx: number) => {
+        const sceneDetails = mapping.scenes.map((s: any) => 
+          `  - Szene ${s.sceneNumber}: ${s.sceneTitle}\n` +
+          `    Setting: ${s.setting}\n` +
+          `    Stimmung: ${s.mood}\n` +
+          `    Handlung: ${s.sceneDescription}\n` +
+          `    Bild-Template: ${s.illustrationPromptTemplate}`
+        ).join('\n');
+        
+        return `KAPITEL ${idx + 1}: ${mapping.chapterTitle}\n${sceneDetails}`;
+      })
+      .join('\n\n');
+
     const styleInstructions = this.buildStyleInstructions(config, experience);
 
     return `
-Du bist eine meisterhafte Kinderbuch-Autorin. Schreibe eine vollstaendige Geschichte basierend auf dem klassischen Maerchen "${fairyTale.tale.title}", aber personalisiert mit den Avataren des Nutzers.
+Du bist ein preisgekrönter Kinderbuch-Autor. Deine Aufgabe: Schreibe die klassische Geschichte "${fairyTale.tale.title}" NEU - personalisiert mit den Avataren des Benutzers!
 
-MAERCHEN-TEMPLATE:
-Titel: ${fairyTale.tale.title}
-Quelle: ${fairyTale.tale.source}
-Altersempfehlung: ${fairyTale.tale.ageRecommendation} Jahre
-Moralische Lektion: ${fairyTale.tale.moralLesson}
-Zusammenfassung: ${fairyTale.tale.summary}
-
-ROLLEN-ZUORDNUNG (Maerchen → Benutzer-Avatare):
+🎭 ROLLEN-BESETZUNG (Märchen → Benutzer-Avatare):
 ${roleMappingText}
 
-HAUPTCHARAKTERE (Avatare):
+👤 CHARAKTER-DETAILS:
+Hauptcharaktere (User-Avatare):
 ${avatarDetailsText}
 
-NEBENCHARAKTERE AUS DEM POOL:
+Nebencharaktere (Character Pool):
 ${characterDetails}
 
-SZENEN-STRUKTUR AUS DEM MAERCHEN:
-${sceneStructure}
+📖 HANDLUNG: PFLICHT-PLOT AUS "${fairyTale.tale.title}"
+⚠️ KRITISCH: Folge EXAKT dieser Szenen-Struktur! Dies ist die bewährte Handlung des Märchens:
 
-STORY-SKELETT MIT NAMEN:
-Titel: ${skeletonWithNames.title}
-${skeletonWithNames.chapters.map((ch) => `Kapitel ${ch.order}: ${ch.content}`).join("\n\n")}
+${chapterStructure}
+
+🎯 MORALISCHE LEKTION: ${fairyTale.tale.moralLesson}
 
 ${styleInstructions}
 
-WICHTIGE ANWEISUNGEN FÜR MÄRCHEN-ADAPTATION:
-1. **Behalte die bewährte Märchen-Struktur bei**: Folge den Szenen und der Handlung des Originals
-2. **Ersetze Märchen-Figuren mit User-Avataren**: Nutze die Rollen-Zuordnung oben
-3. **Bewahre die moralische Lektion**: ${fairyTale.tale.moralLesson}
-4. **Adaptiere die Sprache**: Moderne, kindgerechte Sprache (${config.ageGroup})
-5. **Behalte Schlüsselmomente**: Die ikonischen Szenen des Märchens müssen erkennbar bleiben
-6. **Personalisiere Details**: Namen, Aussehen, Persönlichkeiten der User-Avatare einbauen
-7. **5 Kapitel Struktur**: Verteile die Märchen-Szenen auf genau 5 Kapitel
+🎬 PROFESSIONAL STORYTELLING RULES:
 
-AUSGABE-FORMAT (JSON):
+1️⃣ **PFLICHT-PLOT**: Die Kapitel-Struktur oben ist ZWINGEND!
+   - Kapitel 1 = Szenen ${sceneChapterMapping[0].scenes.map((s: any) => s.sceneNumber).join('+')}
+   - Kapitel 2 = Szenen ${sceneChapterMapping[1].scenes.map((s: any) => s.sceneNumber).join('+')}
+   - Kapitel 3 = Szenen ${sceneChapterMapping[2].scenes.map((s: any) => s.sceneNumber).join('+')}
+   - Kapitel 4 = Szenen ${sceneChapterMapping[3].scenes.map((s: any) => s.sceneNumber).join('+')}
+   - Kapitel 5 = Szenen ${sceneChapterMapping[4].scenes.map((s: any) => s.sceneNumber).join('+')}
+
+2️⃣ **IKONISCHE MOMENTE**: Behalte die berühmten Szenen aus "${fairyTale.tale.title}"
+   - Leser müssen das Original-Märchen wiedererkennen!
+   - Aber mit den Namen und Details der User-Avatare
+
+3️⃣ **FILMISCHE SPRACHE** (Altersgruppe: ${config.ageGroup}):
+   - 40% kurze Sätze (3-7 Wörter): "Der Wald war dunkel."
+   - 40% mittlere Sätze (8-15 Wörter): "Alexander hörte ein Knacken zwischen den Bäumen."
+   - 20% lange Sätze (16-25 Wörter): "Mit klopfendem Herzen schlich er näher, die Augen weit aufgerissen vor Angst und Neugier."
+   
+4️⃣ **SENSORISCHE DETAILS** (3+ pro Kapitel):
+   - Sehen: Farben, Bewegungen, Licht/Schatten
+   - Hören: Geräusche, Stimmen, Stille
+   - Fühlen: Texturen, Temperatur, körperliche Empfindungen
+   - Riechen/Schmecken: Düfte, Geschmack
+   
+5️⃣ **EMOTIONALE TIEFE**:
+   - Zeige Gefühle durch Körpersprache: "Ihre Hände zitterten", "Sein Atem stockte"
+   - Nutze konkrete Details statt abstrakter Konzepte
+   - Vermeide: "Sie fühlte Angst" ❌
+   - Nutze: "Ihr Herz raste wie ein gehetztes Kaninchen" ✅
+
+6️⃣ **DIALOGE** (2-3 pro Kapitel):
+   - Kurz, natürlich, charakterspezifisch
+   - Mit Begleitsätzen: "flüsterte", "rief", "fragte atemlos"
+   
+7️⃣ **CINEMATIC IMAGE DESCRIPTIONS** (English, 80-120 words):
+   - Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
+   - Character details: Insert avatar names and physical features
+   - LIGHTING: "golden hour", "dramatic shadows", "soft moonlight"
+   - COMPOSITION: Foreground, midground, background
+   - MOOD/ATMOSPHERE: Specific adjectives
+   - Style reference: "Watercolor illustration style, Axel Scheffler inspired"
+   - Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset backlighting creates silhouette. FOREGROUND: Dark twisted tree roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest fading into darkness. MOOD: Brave but cautious. Watercolor style, rich shadows, warm-cool contrast."
+
+8️⃣ **STORY SOUL**: ${(experience as any).storySoul || 'magische_entdeckung'}
+   ${(experience as any).storySoul === 'wilder_ritt' ? '- Temporeiche Action! Verfolgungsjagden, Rätsel, physische Herausforderungen' : ''}
+   ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotionale Momente, Freundschaft, Zusammenhalt, warme Gefühle' : ''}
+   ${(experience as any).storySoul === 'magische_entdeckung' ? '- Staunen, Wunder, magische Entdeckungen, fantastische Elemente' : ''}
+
+9️⃣ **KAPITEL-LÄNGE**: 380-450 Wörter pro Kapitel
+   - Genug Details für immersive Erfahrung
+   - Nicht zu lang für junge Leser
+
+🔟 **NO SKELETON**: Das Story-Skelett ist IRRELEVANT!
+   - Nutze NUR die Märchen-Szenen als Plot-Basis
+   - Das Skelett war nur für die Charakter-Auswahl
+   - Die Handlung kommt 100% aus "${fairyTale.tale.title}"
+
+📝 AUSGABE-FORMAT (JSON):
 {
-  "title": "Personalisierter Titel (User-Avatar Namen + Märchen-Thema)",
-  "description": "Kurze Zusammenfassung der personalisierten Geschichte",
+  "title": "[Avatar-Namen] und das [Märchen-Thema]",
+  "description": "Eine personalisierte Version von ${fairyTale.tale.title}",
   "chapters": [
     {
       "order": 1,
-      "title": "Kapitel-Titel",
-      "content": "350-420 Wörter filmische Erzählung. Nutze kurze Sätze. Beschreibe Emotionen und Sinneseindrücke lebhaft.",
-      "imageDescription": "Detaillierte Bild-Beschreibung (English, 60-100 Wörter) basierend auf Märchen-Szene mit User-Avatar Details"
+      "title": "[Basierend auf Szenen-Titel]",
+      "content": "380-450 Wörter. Filmische Erzählung mit kurzen Sätzen, sensorischen Details, Emotionen. Folgt den Märchen-Szenen EXAKT.",
+      "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 weitere Kapitel
   ]
 }
 
-Schreibe jetzt die vollständige personalisierte Märchen-Geschichte mit allen 5 Kapiteln.
+✨ SCHREIBE JETZT: Die vollständige personalisierte ${fairyTale.tale.title}-Geschichte mit allen 5 Kapiteln!
 `;
+  }
+
+  /**
+   * Map fairy tale scenes (6-9 scenes) to exactly 5 chapters
+   * Distributes scenes evenly across chapters for optimal pacing
+   */
+  private mapScenesToChapters(scenes: Array<{
+    sceneNumber: number;
+    sceneTitle: string;
+    sceneDescription: string;
+    setting: string;
+    mood: string;
+    illustrationPromptTemplate: string;
+  }>): Array<{
+    chapterNumber: number;
+    chapterTitle: string;
+    scenes: Array<{
+      sceneNumber: number;
+      sceneTitle: string;
+      sceneDescription: string;
+      setting: string;
+      mood: string;
+      illustrationPromptTemplate: string;
+    }>;
+  }> {
+    const totalScenes = scenes.length;
+    const chapters = 5;
+    
+    // Calculate base scenes per chapter and remainder
+    const baseScenesPerChapter = Math.floor(totalScenes / chapters);
+    const remainder = totalScenes % chapters;
+    
+    const mapping: Array<{
+      chapterNumber: number;
+      chapterTitle: string;
+      scenes: Array<{
+        sceneNumber: number;
+        sceneTitle: string;
+        sceneDescription: string;
+        setting: string;
+        mood: string;
+        illustrationPromptTemplate: string;
+      }>;
+    }> = [];
+    
+    let sceneIndex = 0;
+    
+    for (let chapterNum = 1; chapterNum <= chapters; chapterNum++) {
+      // First chapters get +1 scene if there's remainder
+      const scenesInThisChapter = baseScenesPerChapter + (chapterNum <= remainder ? 1 : 0);
+      const chapterScenes = scenes.slice(sceneIndex, sceneIndex + scenesInThisChapter);
+      
+      // Chapter title from first scene
+      const chapterTitle = chapterScenes[0]?.sceneTitle || `Kapitel ${chapterNum}`;
+      
+      mapping.push({
+        chapterNumber: chapterNum,
+        chapterTitle,
+        scenes: chapterScenes,
+      });
+      
+      sceneIndex += scenesInThisChapter;
+    }
+    
+    return mapping;
   }
 
   /**
