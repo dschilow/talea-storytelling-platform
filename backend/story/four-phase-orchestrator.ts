@@ -250,11 +250,13 @@ export class FourPhaseOrchestrator {
       .map((avatar) => avatar.name?.trim())
       .filter((name): name is string => Boolean(name));
 
+    const useFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? false;
     const characterAssignments = await this.phase2Matcher.match(
       skeleton,
       input.config.setting,
       recentStoryIds,
-      avatarNames
+      avatarNames,
+      useFairyTaleTemplate
     );
     phaseDurations.phase2Duration = Date.now() - phase2Start;
     console.log(`[4-Phase] Phase 2 completed in ${phaseDurations.phase2Duration}ms`);

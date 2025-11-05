@@ -14,7 +14,8 @@ export class Phase2CharacterMatcher {
     skeleton: StorySkeleton,
     setting: string,
     recentStoryIds: string[] = [],
-    avatarNames: string[] = []
+    avatarNames: string[] = [],
+    useFairyTaleTemplate: boolean = false
   ): Promise<Map<string, CharacterTemplate>> {
     console.log("[Phase2] Starting character matching...", {
       requirementsCount: skeleton.supportingCharacterRequirements.length,
@@ -68,7 +69,8 @@ export class Phase2CharacterMatcher {
         setting,
         usedCharacters,
         recentUsage,
-        usedSpecies
+        usedSpecies,
+        useFairyTaleTemplate
       );
 
       if (!bestMatch) {
@@ -175,7 +177,8 @@ export class Phase2CharacterMatcher {
     setting: string,
     alreadyUsed: Set<string>,
     recentUsage: Map<string, number>,
-    usedSpecies: Set<string>
+    usedSpecies: Set<string>,
+    useFairyTaleTemplate: boolean = false
   ): CharacterTemplate | null {
     let bestMatch: CharacterTemplate | null = null;
     let bestScore = 0;
@@ -292,6 +295,26 @@ export class Phase2CharacterMatcher {
         usagePenalty = Math.min((candidate.totalUsageCount - 10) * 3, 30);
         score -= usagePenalty;
         debugScores.usagePenalty = -usagePenalty;
+      }
+
+      // 12. FAIRY TALE BONUS/PENALTY (CRITICAL for Märchen stories)
+      if (useFairyTaleTemplate) {
+        // MASSIVE BONUS for fairy-tale archetypes
+        const fairyTaleArchetypes = ['witch', 'wolf', 'fairy', 'magical_being', 'helper', 'wise_elder', 'trickster'];
+        if (fairyTaleArchetypes.includes(candidate.archetype)) {
+          score += 150;
+          debugScores.fairyTaleBonus = 150;
+        }
+
+        // PENALTY for modern professions in fairy tales
+        const modernKeywords = ['police', 'polizist', 'doctor', 'arzt', 'mechanic', 'mechaniker', 'teacher', 'lehrer'];
+        const candidateDescLower = (candidate.visualProfile.description || '').toLowerCase();
+        const hasModernProfession = modernKeywords.some(keyword => candidateDescLower.includes(keyword));
+        
+        if (hasModernProfession) {
+          score -= 100;
+          debugScores.modernPenalty = -100;
+        }
       }
 
       // Store score and details for debugging

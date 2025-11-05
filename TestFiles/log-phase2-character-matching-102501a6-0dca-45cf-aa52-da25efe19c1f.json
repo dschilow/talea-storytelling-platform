@@ -1,0 +1,188 @@
+{
+  "id": "102501a6-0dca-45cf-aa52-da25efe19c1f",
+  "metadata": null,
+  "request": {
+    "label": "PHASE 2: Beste Charaktere matchen",
+    "phase": 2,
+    "recentStoryCount": 5,
+    "requirements": [
+      {
+        "archetype": "mysterious_child",
+        "emotionalNature": "neugierig, vorsichtig, innerlich sehnsuchtsvoll",
+        "importance": "high",
+        "placeholder": "Adrian",
+        "role": "protagonist"
+      },
+      {
+        "archetype": "clever_child",
+        "emotionalNature": "fröhlich, flink, zuverlässig",
+        "importance": "high",
+        "placeholder": "Alexander",
+        "role": "friend"
+      },
+      {
+        "archetype": "helpful_elder",
+        "emotionalNature": "weise, warmherzig, geduldig",
+        "importance": "high",
+        "placeholder": "{{WISE_ELDER}}",
+        "role": "guide"
+      },
+      {
+        "archetype": "loyal_helper",
+        "emotionalNature": "verspielt, tröstlich, treu",
+        "importance": "medium",
+        "placeholder": "{{ANIMAL_HELPER}}",
+        "role": "animal_companion"
+      },
+      {
+        "archetype": "challenger",
+        "emotionalNature": "streng, aber fair, hintergründig gütig",
+        "importance": "medium",
+        "placeholder": "{{OBSTACLE_CHARACTER}}",
+        "role": "gatekeeper"
+      },
+      {
+        "archetype": "gentle_magic",
+        "emotionalNature": "leuchtend, tröstlich, neugierig",
+        "importance": "medium",
+        "placeholder": "{{MAGICAL_CREATURE}}",
+        "role": "magical_ally"
+      }
+    ],
+    "setting": "fantasy"
+  },
+  "response": {
+    "assignments": [
+      {
+        "character": {
+          "archetype": "helpful_elder",
+          "emotionalNature": {
+            "dominant": "wise",
+            "secondary": [
+              "protective",
+              "kind"
+            ],
+            "triggers": [
+              "children in danger",
+              "nature destruction"
+            ]
+          },
+          "id": "42f0c488-0577-4023-bc53-6187a52f25e3",
+          "name": "Frau Müller",
+          "role": "guide",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "green",
+              "gray",
+              "beige"
+            ],
+            "description": "Frau Müller • ['Frau Müller', ' 78 years']",
+            "species": "human"
+          }
+        },
+        "placeholder": "{{WISE_ELDER}}"
+      },
+      {
+        "character": {
+          "archetype": "loyal_animal",
+          "emotionalNature": {
+            "dominant": "protective",
+            "secondary": [
+              "noble",
+              "wise",
+              "brave"
+            ],
+            "triggers": [
+              "friends in danger",
+              "injustice"
+            ]
+          },
+          "id": "c6f643c8-2f52-4f3e-aaab-89ea1dde7e5e",
+          "name": "Silberhorn der Hirsch",
+          "role": "companion",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "brown",
+              "silver",
+              "green"
+            ],
+            "description": "Silberhorn der Hirsch • ['Silberhorn majestic stag', ' 8 years']",
+            "species": "animal"
+          }
+        },
+        "placeholder": "{{ANIMAL_HELPER}}"
+      },
+      {
+        "character": {
+          "archetype": "Freundlich, gerecht, erklärt Regeln kindgerecht, hilft Verlaufenen",
+          "emotionalNature": {
+            "dominant": "",
+            "secondary": []
+          },
+          "id": "0d4765eb-0a71-4b57-8c02-e04bb460ded9",
+          "name": "Polizist Paul",
+          "role": "Beschützer der Gemeinschaft",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [],
+            "description": "Polizist Paul • ['Polizist Paul police officer', ' 38 years']",
+            "species": ""
+          }
+        },
+        "placeholder": "{{OBSTACLE_CHARACTER}}"
+      },
+      {
+        "character": {
+          "archetype": "gentle",
+          "emotionalNature": {
+            "dominant": "gentle",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "0a0f460c-02a1-4122-9bad-812e21da4ffe",
+          "name": "Drache Dino",
+          "role": "main",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "green",
+              "yellow",
+              "orange"
+            ],
+            "description": "Drache Dino • ['Drache Dino dragon', ' 5m long']",
+            "species": "friendly_dragon"
+          }
+        },
+        "placeholder": "{{MAGICAL_CREATURE}}"
+      }
+    ],
+    "durationMs": 31,
+    "matchedCount": 4,
+    "status": "completed"
+  },
+  "source": "phase2-character-matching",
+  "timestamp": "2025-11-05T14:25:09.618Z"
+}

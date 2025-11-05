@@ -400,6 +400,31 @@ ${ingredientDetails}
 
 ${styleInstructions}
 
+🎯 KONFLIKT-PFLICHT (CRITICAL FOR 10/10 QUALITY):
+Jede Geschichte braucht ein konkretes Problem das gelöst wird!
+- VERBOTEN: Rein emotionale Reisen ohne äußere Handlung
+- PFLICHT: 
+  * Kapitel 1-2: Problem etablieren (Wolf taucht auf, Weg verloren, Hexe erscheint, Monster bedroht)
+  * Kapitel 3-4: Konflikt eskaliert (Gefahr steigt, Hindernis wird größer, Spannung wächst)
+  * Kapitel 5: Konkrete Lösung (Problem wird überwunden, Gefahr gebannt, Ziel erreicht)
+
+📝 STORY-MUSTER (wähle passend zum Skelett):
+- QUEST: Charakter sucht etwas (Weg nach Hause, verlorener Schatz, Freund finden)
+- KONFLIKT: Charakter vs Antagonist (Wolf, Hexe, Monster, Bully, Natur)
+- HERAUSFORDERUNG: Charakter überwindet Hindernis (Angst, Rätsel, Prüfung, Aufgabe)
+- RETTUNG: Charakter rettet jemanden (Freund gefangen, Gefahr droht, Hilfe nötig)
+
+❌ VERMEIDE (führt zu niedrigen Qualitäts-Scores):
+- Abstrakte Konzepte als Hauptplot ("vergessene Lieder", "verlorene Träume")
+- Nur emotionale Entwicklung ohne externe Handlung
+- Probleme die sich von selbst lösen (Deus ex machina)
+- Zu philosophisch für Zielgruppe
+
+✅ NUTZE (führt zu hohen Qualitäts-Scores):
+- Konkrete Action-Verben: jagen, fangen, retten, entkommen, finden, besiegen, klettern, laufen
+- Physische Herausforderungen: verstecken, kämpfen, suchen, bauen, überqueren
+- Klare Stakes: Was passiert wenn sie verlieren? (Wolf fängt sie, Hexe sperrt ein, Freund bleibt verloren)
+
 QUALITAETSREGELN:
 - Dialog-Anteil: 40-50 % lebendige Dialoge (Kinderstimmen authentisch, Erwachsene freundlich).
 - Sinneseindruecke: mind. drei Sinne pro Kapitel (sehen, hoeren, fuehlen, riechen, schmecken).

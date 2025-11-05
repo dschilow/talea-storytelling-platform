@@ -1,0 +1,39 @@
+{
+  "id": "70065538-04b3-4eb9-9a87-5e324ae2b138",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Scene: The bridge dissolves into warm glow as a small dragon-like light-being emerges; the children step forward together. Character Adrian: 5-7 year old boy, voluminous tousled golden curls, bright blue eyes, pale warm skin, wearing a casual hoodie over a white crewneck shirt—now confident and comforted. Character Alexander: 8-10 year old boy, short tousled brown hair, bright green eyes, layered hoodie and sleeveless zip vest—cheerful and quick. Animal Silberhorn: majestic stag with silver-tailed tip, calm and protective. Polizist Paul: 38-year-old with ethereal blue aura, smiling kindly. Magical creature Drache Dino: a friendly dragon-like light being with green, yellow, and orange palette, emitting blue magical glow, playful and gentle. Environment: mossy bridge, soft stream, warm light trails guiding home. Mood: warm, poetic, resolved. Lighting: warm central glow with soft blue accents. Camera perspective: wide-shot capturing group unity and the path ahead. Action verbs: singing, emerging, smiling, walking. Recurring motifs: light bands and musical motif culminating. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. CHARACTERS IN THIS SCENE: Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Polizist Paul: Polizist Paul • ['Polizist Paul police officer', ' 38 years'] Drache Dino: Drache Dino • ['Drache Dino dragon', ' 5m long'] IMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - Adrian (5-7y) must be SMALLER than any older character. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 808102378,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "ba41560e-bf28-4f9e-8da1-7ef8ccc72194",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/e9d0fed5-678f-4668-bf84-f92400e946d0.jpg",
+        "imageUUID": "e9d0fed5-678f-4668-bf84-f92400e946d0",
+        "seed": 808102378,
+        "taskType": "imageInference",
+        "taskUUID": "ba41560e-bf28-4f9e-8da1-7ef8ccc72194"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-05T14:26:54.125Z"
+}

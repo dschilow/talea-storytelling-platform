@@ -1,0 +1,39 @@
+{
+  "id": "4deff33e-f7d7-4c11-9f38-a5264242e99b",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Book cover illustration for \"Der Wald der vergessenen Lieder\". Main characters Adrian, Alexander with Frau Müller, Silberhorn der Hirsch in an exciting scene. Eine warme, epische Reise zweier Kinder durch einen leuchtenden Wald, in dem Licht, Klang und kleine Prüfungen verlorene Erinnerungen zurückbringen. Eine Geschichte über Vertrauen, das Teilen des Herzens und das Finden von Heimat in fremden Wegen. CHARACTERS IN THIS SCENE: Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Frau Müller: Frau Müller • ['Frau Müller', ' 78 years'] Silberhorn der Hirsch: Silberhorn der Hirsch • ['Silberhorn majestic stag', ' 8 years'] IMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - Adrian (5-7y) must be SMALLER than any older character. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 1572123738,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "93122c71-4f0d-47dd-854c-fc4001f8ffe7",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/ffb857fa-63b0-488a-8ed7-3384dda40f79.jpg",
+        "imageUUID": "ffb857fa-63b0-488a-8ed7-3384dda40f79",
+        "seed": 1572123738,
+        "taskType": "imageInference",
+        "taskUUID": "93122c71-4f0d-47dd-854c-fc4001f8ffe7"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-05T14:26:57.957Z"
+}

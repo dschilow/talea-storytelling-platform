@@ -231,6 +231,29 @@ ${ingredientDetails}
 
 ${customLine}
 
+KONFLIKT-REGELN (CRITICAL FOR QUALITY):
+1️⃣ **KONKRETE HERAUSFORDERUNGEN PFLICHT**:
+   - 80% aller Stories brauchen externe Gefahr/Hindernis
+   - Beispiele: Wolf jagt, Hexe sperrt ein, Drache raubt, Monster bedroht, Weg verloren, Freund gefangen
+   - 20% emotionale Reisen OK (nur bei "warm"/"meaningful" Gefühl UND Altersgruppe 9-12)
+
+2️⃣ **ALTERSGERECHTE KONFLIKTE**:
+   - 3-5 Jahre: EINFACH + KLAR (Wolf kommt, Hexe sperrt ein, Weg verloren, Monster versteckt sich)
+   - 6-8 Jahre: Komplexer (Rätsel lösen, Verhandlungen, clevere Pläne, moralische Entscheidungen)
+   - 9-12 Jahre: Subtil (innere Konflikte, soziale Probleme, Geheimnisse, komplexe Beziehungen)
+
+3️⃣ **VERBOTEN (führt zu schlechter Story-Qualität)**:
+   ❌ Rein philosophische Probleme ("vergessene Lieder", "verlorene Träume", "verschwundene Farben")
+   ❌ Abstrakte Konzepte ohne physische Komponente
+   ❌ Emotionale Reisen ohne klares Ziel/Hindernis (außer explizit gefordert)
+   ❌ Probleme die sich von selbst lösen
+   
+4️⃣ **PFLICHT-ELEMENTE für jede Story**:
+   ✅ Klarer Antagonist ODER konkretes Hindernis (Character, Natur, Situation)
+   ✅ Konkretes Problem das gelöst werden muss
+   ✅ Risiko/Spannung (Was passiert wenn Protagonist scheitert?)
+   ✅ Befriedigende Lösung (Protagonist überwindet Hindernis durch Mut/Cleverness/Freundschaft)
+
 AUFGABE FUER DICH:
 1. Erstelle eine Story-Struktur mit exakt 5 Kapiteln.
 2. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
@@ -239,6 +262,7 @@ AUFGABE FUER DICH:
 5. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
 6. Fuehre fuer jede Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an - passend zu Seele und Wuerze.
 7. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.
+8. BEACHTE KONFLIKT-REGELN OBEN - konkrete Herausforderungen sind PFLICHT für Qualität!
 
 PLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):
 - {{WISE_ELDER}} - weiser Mentor oder Mentorin
