@@ -113,6 +113,11 @@ export interface StoryConfig {
 
   // 4-Phase System: Enable character pool system
   useCharacterPool?: boolean;
+  
+  // Fairy Tale System: Enable fairy tale template mode
+  preferences?: {
+    useFairyTaleTemplate?: boolean;
+  };
 }
 
 export interface LearningMode {

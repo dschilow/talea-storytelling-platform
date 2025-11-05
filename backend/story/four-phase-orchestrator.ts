@@ -312,7 +312,7 @@ export class FourPhaseOrchestrator {
       config: configWithExperience,
       experience: experienceContext,
       avatarDetails: input.avatarDetails,
-      useFairyTaleTemplate: true, // ENABLE FAIRY TALE MODE
+      useFairyTaleTemplate: input.config.preferences?.useFairyTaleTemplate ?? false,
     });
     const finalizedStory = phase3Result.story;
     phaseDurations.phase3Duration = Date.now() - phase3Start;
