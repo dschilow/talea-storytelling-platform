@@ -3,15 +3,32 @@ import type { StorySummary } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 
-interface ListStoriesResponse {
-  stories: StorySummary[];
+interface ListStoriesRequest {
+  limit?: number;
+  offset?: number;
 }
 
-// Retrieves all stories for the authenticated user.
-export const list = api<void, ListStoriesResponse>(
+interface ListStoriesResponse {
+  stories: StorySummary[];
+  total: number;
+  hasMore: boolean;
+}
+
+// Retrieves stories for the authenticated user with pagination.
+export const list = api<ListStoriesRequest, ListStoriesResponse>(
   { expose: true, method: "GET", path: "/stories", auth: true },
-  async () => {
+  async (req) => {
     const auth = getAuthData()!;
+    const limit = req.limit || 10;
+    const offset = req.offset || 0;
+
+    // Get total count
+    const countResult = await storyDB.queryRow<{ count: number }>`
+      SELECT COUNT(*) as count FROM stories WHERE user_id = ${auth.userID}
+    `;
+    const total = countResult?.count || 0;
+
+    // Get paginated stories
     const storyRows = await storyDB.queryAll<{
       id: string;
       user_id: string;
@@ -25,9 +42,11 @@ export const list = api<void, ListStoriesResponse>(
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT id, user_id, title, description, cover_image_url, config, metadata, status, is_public, created_at, updated_at 
-      FROM stories 
-      WHERE user_id = ${auth.userID} ORDER BY created_at DESC
+      SELECT id, user_id, title, description, cover_image_url, config, metadata, status, is_public, created_at, updated_at
+      FROM stories
+      WHERE user_id = ${auth.userID}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
     `;
 
     const stories: StorySummary[] = storyRows.map(storyRow => ({
@@ -44,6 +63,8 @@ export const list = api<void, ListStoriesResponse>(
       updatedAt: storyRow.updated_at,
     }));
 
-    return { stories };
+    const hasMore = offset + limit < total;
+
+    return { stories, total, hasMore };
   }
 );

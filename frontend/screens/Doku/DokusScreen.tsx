@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, FlaskConical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,22 +21,69 @@ const DokusScreen: React.FC = () => {
 
   const [dokus, setDokus] = useState<Doku[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadDokus();
   }, []);
 
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMoreDokus();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading]);
+
   const loadDokus = async () => {
     try {
       setLoading(true);
-      const response = await backend.doku.listDokus();
+      const response = await backend.doku.listDokus({ limit: 10, offset: 0 });
       setDokus(response.dokus as any[]);
+      setTotal(response.total);
+      setHasMore(response.hasMore);
     } catch (error) {
       console.error('Error loading dokus:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMoreDokus = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const response = await backend.doku.listDokus({
+        limit: 10,
+        offset: dokus.length
+      });
+      setDokus(prev => [...prev, ...response.dokus as any[]]);
+      setHasMore(response.hasMore);
+    } catch (error) {
+      console.error('Error loading more dokus:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [backend, dokus.length, hasMore, loadingMore]);
 
   const handleReadDoku = (doku: Doku) => {
     console.log('Navigating to doku reader:', doku.id, `/doku-reader/${doku.id}`);
@@ -220,7 +267,7 @@ const DokusScreen: React.FC = () => {
                 Deine Dokumentationen
               </div>
               <div style={subtitleStyle}>
-                Entdecke alle deine lehrreichen Wissensinhalte ({dokus.length} Dokus)
+                Entdecke alle deine lehrreichen Wissensinhalte ({total} Dokus)
               </div>
               
               <div style={newDokuButtonStyle}>
@@ -255,16 +302,35 @@ const DokusScreen: React.FC = () => {
                 />
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {dokus.map((doku) => (
-                  <DokuCard
-                    key={doku.id}
-                    doku={doku}
-                    onRead={handleReadDoku}
-                    onDelete={handleDeleteDoku}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {dokus.map((doku) => (
+                    <DokuCard
+                      key={doku.id}
+                      doku={doku}
+                      onRead={handleReadDoku}
+                      onDelete={handleDeleteDoku}
+                    />
+                  ))}
+                </div>
+
+                {/* Infinite scroll trigger */}
+                <div ref={observerTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
+                  {loadingMore && (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        border: `3px solid rgba(255,255,255,0.6)`,
+                        borderTop: `3px solid ${colors.primary[500]}`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto'
+                      }} />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </FadeInView>

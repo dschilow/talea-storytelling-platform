@@ -37,6 +37,7 @@ export class Client {
     public readonly ai: ai.ServiceClient
     public readonly avatar: avatar.ServiceClient
     public readonly doku: doku.ServiceClient
+    public readonly fairytales: fairytales.ServiceClient
     public readonly health: health.ServiceClient
     public readonly log: log.ServiceClient
     public readonly story: story.ServiceClient
@@ -60,6 +61,7 @@ export class Client {
         this.ai = new ai.ServiceClient(base)
         this.avatar = new avatar.ServiceClient(base)
         this.doku = new doku.ServiceClient(base)
+        this.fairytales = new fairytales.ServiceClient(base)
         this.health = new health.ServiceClient(base)
         this.log = new log.ServiceClient(base)
         this.story = new story.ServiceClient(base)
@@ -601,11 +603,17 @@ export namespace doku {
         }
 
         /**
-         * Lists all dokus for the authenticated user.
+         * Lists dokus for the authenticated user with pagination.
          */
-        public async listDokus(): Promise<ResponseType<typeof api_doku_list_listDokus>> {
+        public async listDokus(params: RequestType<typeof api_doku_list_listDokus>): Promise<ResponseType<typeof api_doku_list_listDokus>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                offset: params.offset === undefined ? undefined : String(params.offset),
+            })
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/dokus`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/dokus`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_list_listDokus>
         }
 
@@ -635,8 +643,165 @@ export namespace doku {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import {
+    addFairyTaleRole as api_fairytales_catalog_addFairyTaleRole,
+    addFairyTaleScene as api_fairytales_catalog_addFairyTaleScene,
+    createFairyTale as api_fairytales_catalog_createFairyTale,
+    getFairyTale as api_fairytales_catalog_getFairyTale,
+    listFairyTales as api_fairytales_catalog_listFairyTales
+} from "~backend/fairytales/catalog";
+import {
+    generateStory as api_fairytales_generator_generateStory,
+    getGeneratedStory as api_fairytales_generator_getGeneratedStory,
+    validateCharacterMapping as api_fairytales_generator_validateCharacterMapping
+} from "~backend/fairytales/generator";
+
+export namespace fairytales {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.addFairyTaleRole = this.addFairyTaleRole.bind(this)
+            this.addFairyTaleScene = this.addFairyTaleScene.bind(this)
+            this.createFairyTale = this.createFairyTale.bind(this)
+            this.generateStory = this.generateStory.bind(this)
+            this.getFairyTale = this.getFairyTale.bind(this)
+            this.getGeneratedStory = this.getGeneratedStory.bind(this)
+            this.listFairyTales = this.listFairyTales.bind(this)
+            this.validateCharacterMapping = this.validateCharacterMapping.bind(this)
+        }
+
+        /**
+         * Add a role to a fairy tale (admin only)
+         */
+        public async addFairyTaleRole(params: RequestType<typeof api_fairytales_catalog_addFairyTaleRole>): Promise<ResponseType<typeof api_fairytales_catalog_addFairyTaleRole>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                role: params.role,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/roles`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_addFairyTaleRole>
+        }
+
+        /**
+         * Add a scene to a fairy tale (admin only)
+         */
+        public async addFairyTaleScene(params: RequestType<typeof api_fairytales_catalog_addFairyTaleScene>): Promise<ResponseType<typeof api_fairytales_catalog_addFairyTaleScene>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                scene: params.scene,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/scenes`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_addFairyTaleScene>
+        }
+
+        /**
+         * Create a new fairy tale (admin only)
+         */
+        public async createFairyTale(params: RequestType<typeof api_fairytales_catalog_createFairyTale>): Promise<ResponseType<typeof api_fairytales_catalog_createFairyTale>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_createFairyTale>
+        }
+
+        /**
+         * Generate a personalized story from a fairy tale template
+         */
+        public async generateStory(params: RequestType<typeof api_fairytales_generator_generateStory>): Promise<ResponseType<typeof api_fairytales_generator_generateStory>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                characterMappings: params.characterMappings,
+                params:            params.params,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/generate`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_generator_generateStory>
+        }
+
+        /**
+         * Get detailed information about a specific fairy tale
+         */
+        public async getFairyTale(params: RequestType<typeof api_fairytales_catalog_getFairyTale>): Promise<ResponseType<typeof api_fairytales_catalog_getFairyTale>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                includeRoles:  params.includeRoles === undefined ? undefined : String(params.includeRoles),
+                includeScenes: params.includeScenes === undefined ? undefined : String(params.includeScenes),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.id)}`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_getFairyTale>
+        }
+
+        /**
+         * Get a generated story with all scenes
+         */
+        public async getGeneratedStory(params: RequestType<typeof api_fairytales_generator_getGeneratedStory>): Promise<ResponseType<typeof api_fairytales_generator_getGeneratedStory>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                includeScenes: params.includeScenes === undefined ? undefined : String(params.includeScenes),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/stories/${encodeURIComponent(params.storyId)}`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_generator_getGeneratedStory>
+        }
+
+        /**
+         * List all available fairy tales with optional filtering
+         */
+        public async listFairyTales(params: RequestType<typeof api_fairytales_catalog_listFairyTales>): Promise<ResponseType<typeof api_fairytales_catalog_listFairyTales>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                genres: params.genres?.map((v) => v),
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                maxAge: params.maxAge === undefined ? undefined : String(params.maxAge),
+                minAge: params.minAge === undefined ? undefined : String(params.minAge),
+                offset: params.offset === undefined ? undefined : String(params.offset),
+                source: params.source,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_listFairyTales>
+        }
+
+        /**
+         * Validate that character mappings are compatible with tale roles
+         */
+        public async validateCharacterMapping(params: RequestType<typeof api_fairytales_generator_validateCharacterMapping>): Promise<ResponseType<typeof api_fairytales_generator_validateCharacterMapping>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                characterMappings: params.characterMappings,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/validate-mapping`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_generator_validateCharacterMapping>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { checkFairyTaleStats as api_health_check_fairy_tale_stats_checkFairyTaleStats } from "~backend/health/check-fairy-tale-stats";
+import { completeFairyTalesSetup as api_health_complete_fairy_tales_setup_completeFairyTalesSetup } from "~backend/health/complete-fairy-tales-setup";
+import { createFairyTalesTable as api_health_create_fairy_tales_table_createFairyTalesTable } from "~backend/health/create-fairy-tales-table";
+import { dbStatus as api_health_db_status_dbStatus } from "~backend/health/db-status";
+import { fixUsageCount as api_health_fix_usage_count_fixUsageCount } from "~backend/health/fix-usage-count";
+import { fixUsageCountColumn as api_health_fix_usage_count_column_fixUsageCountColumn } from "~backend/health/fix-usage-count-column";
 import { health as api_health_health_health } from "~backend/health/health";
+import { import150FairyTales as api_health_import_150_fairy_tales_import150FairyTales } from "~backend/health/import-150-fairy-tales";
 import { initializeDatabaseMigrations as api_health_init_migrations_initializeDatabaseMigrations } from "~backend/health/init-migrations";
+import { runMigrations as api_health_run_migrations_runMigrations } from "~backend/health/run-migrations";
 
 export namespace health {
 
@@ -645,8 +810,62 @@ export namespace health {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.checkFairyTaleStats = this.checkFairyTaleStats.bind(this)
+            this.completeFairyTalesSetup = this.completeFairyTalesSetup.bind(this)
+            this.createFairyTalesTable = this.createFairyTalesTable.bind(this)
+            this.dbStatus = this.dbStatus.bind(this)
+            this.fixUsageCount = this.fixUsageCount.bind(this)
+            this.fixUsageCountColumn = this.fixUsageCountColumn.bind(this)
             this.health = this.health.bind(this)
+            this.import150FairyTales = this.import150FairyTales.bind(this)
             this.initializeDatabaseMigrations = this.initializeDatabaseMigrations.bind(this)
+            this.runMigrations = this.runMigrations.bind(this)
+        }
+
+        public async checkFairyTaleStats(): Promise<ResponseType<typeof api_health_check_fairy_tale_stats_checkFairyTaleStats>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/check-fairy-tale-stats`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_check_fairy_tale_stats_checkFairyTaleStats>
+        }
+
+        public async completeFairyTalesSetup(): Promise<ResponseType<typeof api_health_complete_fairy_tales_setup_completeFairyTalesSetup>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/complete-fairy-tales-setup`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_complete_fairy_tales_setup_completeFairyTalesSetup>
+        }
+
+        /**
+         * Direct SQL test endpoint to create fairy_tales table
+         */
+        public async createFairyTalesTable(): Promise<ResponseType<typeof api_health_create_fairy_tales_table_createFairyTalesTable>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/create-fairy-tales-table`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_create_fairy_tales_table_createFairyTalesTable>
+        }
+
+        /**
+         * Database status check endpoint
+         * Shows which tables exist and basic counts
+         */
+        public async dbStatus(): Promise<ResponseType<typeof api_health_db_status_dbStatus>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/db-status`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_db_status_dbStatus>
+        }
+
+        /**
+         * GET endpoint (easier to call from browser for quick testing)
+         */
+        public async fixUsageCount(): Promise<ResponseType<typeof api_health_fix_usage_count_fixUsageCount>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/fix-usage-count`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_fix_usage_count_fixUsageCount>
+        }
+
+        public async fixUsageCountColumn(): Promise<ResponseType<typeof api_health_fix_usage_count_column_fixUsageCountColumn>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/fix-usage-count-column`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_fix_usage_count_column_fixUsageCountColumn>
         }
 
         /**
@@ -660,6 +879,16 @@ export namespace health {
         }
 
         /**
+         * Imports 150 curated fairy tales from MÄRCHEN_DATENBANK.md
+         * Returns number of tales imported successfully
+         */
+        public async import150FairyTales(): Promise<ResponseType<typeof api_health_import_150_fairy_tales_import150FairyTales>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/import-150-fairy-tales`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_import_150_fairy_tales_import150FairyTales>
+        }
+
+        /**
          * Initialize database - runs migrations on first call
          * This is automatically triggered by Railway's health check
          */
@@ -667,6 +896,17 @@ export namespace health {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/init`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_init_migrations_initializeDatabaseMigrations>
+        }
+
+        /**
+         * Manual migration trigger endpoint
+         * Call this URL to create all database tables
+         * URL: POST /health/run-migrations
+         */
+        public async runMigrations(): Promise<ResponseType<typeof api_health_run_migrations_runMigrations>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/run-migrations`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_run_migrations_runMigrations>
         }
     }
 }
@@ -755,9 +995,11 @@ import { generateStoryContent as api_story_ai_generation_generateStoryContent } 
 import {
     addCharacter as api_story_character_pool_api_addCharacter,
     deleteCharacter as api_story_character_pool_api_deleteCharacter,
+    exportCharacters as api_story_character_pool_api_exportCharacters,
     generateCharacterImage as api_story_character_pool_api_generateCharacterImage,
     getCharacter as api_story_character_pool_api_getCharacter,
     getCharacterStats as api_story_character_pool_api_getCharacterStats,
+    importCharacters as api_story_character_pool_api_importCharacters,
     listCharacters as api_story_character_pool_api_listCharacters,
     resetRecentUsage as api_story_character_pool_api_resetRecentUsage,
     seedPool as api_story_character_pool_api_seedPool,
@@ -765,6 +1007,10 @@ import {
 } from "~backend/story/character-pool-api";
 import { deleteStory as api_story_delete_deleteStory } from "~backend/story/delete";
 import { generate as api_story_generate_generate } from "~backend/story/generate";
+import {
+    generateFromFairyTale as api_story_generate_from_fairytale_generateFromFairyTale,
+    getFairyTaleDetails as api_story_generate_from_fairytale_getFairyTaleDetails
+} from "~backend/story/generate-from-fairytale";
 import { get as api_story_get_get } from "~backend/story/get";
 import { list as api_story_list_list } from "~backend/story/list";
 import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
@@ -780,13 +1026,18 @@ export namespace story {
             this.addCharacter = this.addCharacter.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
+            this.exportCharacters = this.exportCharacters.bind(this)
             this.generate = this.generate.bind(this)
             this.generateCharacterImage = this.generateCharacterImage.bind(this)
+            this.generateFromFairyTale = this.generateFromFairyTale.bind(this)
             this.generateStoryContent = this.generateStoryContent.bind(this)
             this.get = this.get.bind(this)
             this.getCharacter = this.getCharacter.bind(this)
             this.getCharacterStats = this.getCharacterStats.bind(this)
+            this.getFairyTaleDetails = this.getFairyTaleDetails.bind(this)
+            this.importCharacters = this.importCharacters.bind(this)
             this.list = this.list.bind(this)
+            this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this)
             this.listCharacters = this.listCharacters.bind(this)
             this.markRead = this.markRead.bind(this)
             this.resetRecentUsage = this.resetRecentUsage.bind(this)
@@ -815,6 +1066,15 @@ export namespace story {
         }
 
         /**
+         * ===== EXPORT CHARACTERS =====
+         */
+        public async exportCharacters(): Promise<ResponseType<typeof api_story_character_pool_api_exportCharacters>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_exportCharacters>
+        }
+
+        /**
          * Generates a new story based on the provided configuration.
          */
         public async generate(params: RequestType<typeof api_story_generate_generate>): Promise<ResponseType<typeof api_story_generate_generate>> {
@@ -832,6 +1092,16 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_generateCharacterImage>
+        }
+
+        /**
+         * Generate a personalized story from a fairy tale template
+         * This replaces the old 4-phase generation system
+         */
+        public async generateFromFairyTale(params: RequestType<typeof api_story_generate_from_fairytale_generateFromFairyTale>): Promise<ResponseType<typeof api_story_generate_from_fairytale_generateFromFairyTale>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/generate-from-fairytale`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_generate_from_fairytale_generateFromFairyTale>
         }
 
         public async generateStoryContent(params: RequestType<typeof api_story_ai_generation_generateStoryContent>): Promise<ResponseType<typeof api_story_ai_generation_generateStoryContent>> {
@@ -862,12 +1132,38 @@ export namespace story {
         }
 
         /**
-         * Retrieves all stories for the authenticated user.
+         * Get details of a specific fairy tale including roles
          */
-        public async list(): Promise<ResponseType<typeof api_story_list_list>> {
+        public async getFairyTaleDetails(params: { taleId: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/story/fairytale/${encodeURIComponent(params.taleId)}`, {method: "GET", body: undefined})
+        }
+
+        public async importCharacters(params: RequestType<typeof api_story_character_pool_api_importCharacters>): Promise<ResponseType<typeof api_story_character_pool_api_importCharacters>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/stories`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/import`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_importCharacters>
+        }
+
+        /**
+         * Retrieves stories for the authenticated user with pagination.
+         */
+        public async list(params: RequestType<typeof api_story_list_list>): Promise<ResponseType<typeof api_story_list_list>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                offset: params.offset === undefined ? undefined : String(params.offset),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/stories`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_list_list>
+        }
+
+        /**
+         * Get list of available fairy tales for story selection
+         */
+        public async listAvailableFairyTales(): Promise<void> {
+            await this.baseClient.callTypedAPI(`/story/available-fairytales`, {method: "GET", body: undefined})
         }
 
         /**

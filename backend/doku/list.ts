@@ -5,8 +5,15 @@ import { getAuthData } from "~encore/auth";
 
 const dokuDB = SQLDatabase.named("doku");
 
+interface ListDokusRequest {
+  limit?: number;
+  offset?: number;
+}
+
 interface ListDokusResponse {
   dokus: (Omit<Doku, "content" | "summary"> & { summary?: string })[];
+  total: number;
+  hasMore: boolean;
 }
 
 // Safely normalize JSONB/text content coming from the DB into an object.
@@ -25,11 +32,21 @@ function normalizeContent(raw: unknown): { sections: DokuSection[]; summary?: st
   return { sections: [] };
 }
 
-// Lists all dokus for the authenticated user.
-export const listDokus = api<void, ListDokusResponse>(
+// Lists dokus for the authenticated user with pagination.
+export const listDokus = api<ListDokusRequest, ListDokusResponse>(
   { expose: true, method: "GET", path: "/dokus", auth: true },
-  async () => {
+  async (req) => {
     const auth = getAuthData()!;
+    const limit = req.limit || 10;
+    const offset = req.offset || 0;
+
+    // Get total count
+    const countResult = await dokuDB.queryRow<{ count: number }>`
+      SELECT COUNT(*) as count FROM dokus WHERE user_id = ${auth.userID}
+    `;
+    const total = countResult?.count || 0;
+
+    // Get paginated dokus
     const rows = await dokuDB.queryAll<{
       id: string;
       user_id: string;
@@ -43,7 +60,10 @@ export const listDokus = api<void, ListDokusResponse>(
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT * FROM dokus WHERE user_id = ${auth.userID} ORDER BY created_at DESC
+      SELECT * FROM dokus
+      WHERE user_id = ${auth.userID}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
     `;
 
     const dokus = rows.map((r) => {
@@ -65,7 +85,9 @@ export const listDokus = api<void, ListDokusResponse>(
       };
     });
 
-    return { dokus };
+    const hasMore = offset + limit < total;
+
+    return { dokus, total, hasMore };
   }
 );
 

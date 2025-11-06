@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, BookOpen, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,22 +21,69 @@ const StoriesScreen: React.FC = () => {
 
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadStories();
   }, []);
 
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMoreStories();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading]);
+
   const loadStories = async () => {
     try {
       setLoading(true);
-      const response = await backend.story.list();
+      const response = await backend.story.list({ limit: 10, offset: 0 });
       setStories(response.stories as any[]);
+      setTotal(response.total);
+      setHasMore(response.hasMore);
     } catch (error) {
       console.error('Error loading stories:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMoreStories = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const response = await backend.story.list({
+        limit: 10,
+        offset: stories.length
+      });
+      setStories(prev => [...prev, ...response.stories as any[]]);
+      setHasMore(response.hasMore);
+    } catch (error) {
+      console.error('Error loading more stories:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [backend, stories.length, hasMore, loadingMore]);
 
   const handleReadStory = (story: Story) => {
     navigate(`/story-reader/${story.id}`);
@@ -201,7 +248,7 @@ const StoriesScreen: React.FC = () => {
                 Deine Geschichten
               </div>
               <div style={subtitleStyle}>
-                Entdecke all deine magischen Abenteuer ({stories.length} Geschichten)
+                Entdecke all deine magischen Abenteuer ({total} Geschichten)
               </div>
               
               <div style={newStoryButtonStyle}>
@@ -236,16 +283,35 @@ const StoriesScreen: React.FC = () => {
                 />
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {stories.map((story) => (
-                  <StoryCard
-                    key={story.id}
-                    story={story}
-                    onRead={handleReadStory}
-                    onDelete={handleDeleteStory}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {stories.map((story) => (
+                    <StoryCard
+                      key={story.id}
+                      story={story}
+                      onRead={handleReadStory}
+                      onDelete={handleDeleteStory}
+                    />
+                  ))}
+                </div>
+
+                {/* Infinite scroll trigger */}
+                <div ref={observerTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
+                  {loadingMore && (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        border: `3px solid rgba(255,255,255,0.6)`,
+                        borderTop: `3px solid ${colors.primary}`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto'
+                      }} />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </FadeInView>
