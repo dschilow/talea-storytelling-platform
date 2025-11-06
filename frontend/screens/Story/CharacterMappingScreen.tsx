@@ -148,7 +148,7 @@ const CharacterMappingScreen: React.FC = () => {
       const story = await generateResponse.json();
       
       // Navigate to the generated story
-      navigate(`/story/${story.id}`);
+      navigate(`/story-reader/${story.id}`);
     } catch (err: any) {
       console.error('Error generating story:', err);
       setError('Fehler beim Generieren der Geschichte. Bitte versuche es erneut.');

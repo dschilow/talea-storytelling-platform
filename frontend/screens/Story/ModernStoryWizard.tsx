@@ -132,7 +132,7 @@ export default function ModernStoryWizard() {
 
       // Success - navigate to story
       alert(`Geschichte "${story.title}" wurde erfolgreich erstellt! 🎉`);
-      navigate(`/story/${story.id}`);
+      navigate(`/story-reader/${story.id}`);
       
     } catch (error) {
       console.error('[ModernWizard] Error generating story:', error);
