@@ -91,16 +91,32 @@ export class FairyTaleSelector {
 
       // Get all active fairy tales (excluding recently used)
       console.log("[FairyTaleSelector] Querying fairy_tales table...");
-      const tales = await fairytalesDB.queryAll<any>`
-        SELECT 
-          id, title, source, original_language, english_translation,
-          culture_region, age_recommendation, duration_minutes,
-          genre_tags, moral_lesson, summary, is_active
-        FROM fairy_tales
-        WHERE is_active = true
-        ${recentlyUsedIds.length > 0 ? `AND id NOT IN (${recentlyUsedIds.map(id => `'${id}'`).join(',')})` : ''}
-        ORDER BY age_recommendation ASC
-      `;
+      let tales: any[];
+      
+      if (recentlyUsedIds.length > 0) {
+        // Query with exclusion using != ALL syntax (PostgreSQL array)
+        tales = await fairytalesDB.queryAll<any>`
+          SELECT 
+            id, title, source, original_language, english_translation,
+            culture_region, age_recommendation, duration_minutes,
+            genre_tags, moral_lesson, summary, is_active
+          FROM fairy_tales
+          WHERE is_active = true
+            AND id != ALL(${recentlyUsedIds})
+          ORDER BY age_recommendation ASC
+        `;
+      } else {
+        // Query without exclusion
+        tales = await fairytalesDB.queryAll<any>`
+          SELECT 
+            id, title, source, original_language, english_translation,
+            culture_region, age_recommendation, duration_minutes,
+            genre_tags, moral_lesson, summary, is_active
+          FROM fairy_tales
+          WHERE is_active = true
+          ORDER BY age_recommendation ASC
+        `;
+      }
 
       if (!tales || tales.length === 0) {
         console.warn("[FairyTaleSelector] ❌ No active fairy tales found in database!");
