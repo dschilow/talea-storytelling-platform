@@ -1,9 +1,10 @@
 import React from 'react';
-import { BookOpen, Trash2, Clock, Users } from 'lucide-react';
+import { BookOpen, Trash2, Clock } from 'lucide-react';
 import type { Story } from '../../types/story';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
+import { AvatarGroup } from '../ui/avatar-group';
 
 interface StoryCardProps {
   story: Story;
@@ -122,17 +123,6 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     color: colors.text.tertiary,
   };
 
-  const avatarContainerStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    padding: `${spacing.sm}px`,
-    background: colors.rose[50],
-    borderRadius: `${radii.md}px`,
-    border: `1px solid ${colors.rose[200]}`,
-  };
-
   return (
     <div
       onClick={() => onRead(story)}
@@ -203,11 +193,20 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
         </p>
 
         {story.config.avatars && story.config.avatars.length > 0 && (
-          <div style={avatarContainerStyle}>
-            <Users size={14} style={{ color: colors.rose[600] }} />
-            <span style={{ ...typography.textStyles.caption, color: colors.rose[700], fontWeight: '600' }}>
-              {story.config.avatars.length} {story.config.avatars.length === 1 ? 'Avatar' : 'Avatare'}
-            </span>
+          <div style={{ marginTop: spacing.md }}>
+            <div style={{ ...typography.textStyles.caption, color: colors.text.tertiary, marginBottom: spacing.xs, fontWeight: '600' }}>
+              Teilnehmer
+            </div>
+            <AvatarGroup
+              avatars={story.config.avatars.map(avatar => ({
+                src: avatar.imageUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + avatar.name,
+                alt: avatar.name,
+                label: avatar.name
+              }))}
+              maxVisible={4}
+              size={36}
+              overlap={12}
+            />
           </div>
         )}
 

@@ -23,7 +23,7 @@
         "@react-spring/web": "^10.0.1",
         "@reduxjs/toolkit": "^2.8.2",
         "@tailwindcss/vite": "^4.1.3",
-        "framer-motion": "^12.6.1",
+        "framer-motion": "^12.23.24",
         "lucide-react": "^0.484.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -192,7 +192,7 @@
 
     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" } }, ""],
 
-    "framer-motion": ["framer-motion@12.23.12", "", { "dependencies": { "motion-dom": "^12.23.12", "motion-utils": "^12.23.6", "tslib": "^2.4.0" }, "peerDependencies": { "@emotion/is-prop-valid": "*", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@emotion/is-prop-valid", "react", "react-dom"] }, "sha512-6e78rdVtnBvlEVgu6eFEAgG9v3wLnYEboM8I5O5EXvfKC8gxGQB8wXJdhkMy10iVcn05jl6CNw7/HTsTCfwcWg=="],
+    "framer-motion": ["framer-motion@12.23.24", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/framer-motion/-/framer-motion-12.23.24.tgz", { "dependencies": { "motion-dom": "^12.23.23", "motion-utils": "^12.23.6", "tslib": "^2.4.0" }, "peerDependencies": { "@emotion/is-prop-valid": "*", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@emotion/is-prop-valid", "react", "react-dom"] }, "sha1-SJW2fogL0rEInmH7qjKugC/CS4w="],
 
     "frontend": ["frontend@workspace:frontend"],
 
@@ -234,7 +234,7 @@
 
     "mkdirp": ["mkdirp@3.0.1", "", { "bin": "dist/cjs/src/bin.js" }, ""],
 
-    "motion-dom": ["motion-dom@12.23.12", "", { "dependencies": { "motion-utils": "^12.23.6" } }, "sha512-RcR4fvMCTESQBD/uKQe49D5RUeDOokkGRmz4ceaJKDBgHYtZtntC/s2vLvY38gqGaytinij/yi3hMcWVcEF5Kw=="],
+    "motion-dom": ["motion-dom@12.23.23", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/motion-dom/-/motion-dom-12.23.23.tgz", { "dependencies": { "motion-utils": "^12.23.6" } }, "sha1-j4dDM+oaBO46ieuSj1GLRj1Yng4="],
 
     "motion-utils": ["motion-utils@12.23.6", "", {}, "sha512-eAWoPgr4eFEOFfg2WjIsMoqJTW6Z8MTUCgn/GZ3VRpClWBdnbjryiA3ZSNLyxCTmCQx4RmYX6jX1iWHbenUPNQ=="],
 
