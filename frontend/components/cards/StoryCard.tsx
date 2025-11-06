@@ -211,9 +211,9 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
                   label: character.name
                 }))
               ]}
-              maxVisible={4}
-              size={36}
-              overlap={12}
+              maxVisible={5}
+              size={40}
+              overlap={4}
             />
           </div>
         )}
