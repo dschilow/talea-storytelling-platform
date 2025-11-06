@@ -54,6 +54,7 @@ export const get = api<GetStoryParams, Story>(
       id: storyRow.id,
       userId: storyRow.user_id,
       title: storyRow.title,
+      summary: storyRow.description, // Frontend expects 'summary'
       description: storyRow.description,
       coverImageUrl: storyRow.cover_image_url || undefined,
       config: JSON.parse(storyRow.config),

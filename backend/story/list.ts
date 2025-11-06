@@ -88,8 +88,11 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       row.metadata ? JSON.parse(row.metadata) : null
     );
 
+    console.log('🔍 Parsed metadata for stories:', parsedMetadata);
+
     parsedMetadata.forEach(metadata => {
       if (metadata?.characterPoolUsed && Array.isArray(metadata.characterPoolUsed)) {
+        console.log('✅ Found characterPoolUsed:', metadata.characterPoolUsed);
         metadata.characterPoolUsed.forEach((char: any) => {
           if (char.characterId) {
             allCharacterIds.add(char.characterId);
@@ -97,6 +100,8 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
         });
       }
     });
+
+    console.log('📋 All character IDs found:', Array.from(allCharacterIds));
 
     // Fetch all characters from character pool
     const characterMap = new Map<string, { id: string; name: string; imageUrl: string | null }>();
@@ -133,10 +138,17 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
         .map((char: any) => characterMap.get(char.characterId))
         .filter((character: { id: string; name: string; imageUrl: string | null } | undefined): character is { id: string; name: string; imageUrl: string | null } => character !== undefined);
 
+      console.log(`📖 Story "${storyRow.title}":`, {
+        avatars: avatars.length,
+        characters: characters.length,
+        characterPoolUsed: metadata?.characterPoolUsed,
+      });
+
       return {
         id: storyRow.id,
         userId: storyRow.user_id,
         title: storyRow.title,
+        summary: storyRow.description, // Frontend expects 'summary'
         description: storyRow.description,
         coverImageUrl: storyRow.cover_image_url || undefined,
         config: { ...config, avatars, characters },
