@@ -2,6 +2,7 @@ import { api } from "encore.dev/api";
 import type { StorySummary } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
+import { avatarDB } from "../avatar/db";
 
 interface ListStoriesRequest {
   limit?: number;
@@ -49,19 +50,57 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const stories: StorySummary[] = storyRows.map(storyRow => ({
-      id: storyRow.id,
-      userId: storyRow.user_id,
-      title: storyRow.title,
-      description: storyRow.description,
-      coverImageUrl: storyRow.cover_image_url || undefined,
-      config: JSON.parse(storyRow.config),
-      metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
-      status: storyRow.status,
-      isPublic: storyRow.is_public,
-      createdAt: storyRow.created_at,
-      updatedAt: storyRow.updated_at,
-    }));
+    // Get all unique avatar IDs from stories
+    const allAvatarIds = new Set<string>();
+    const parsedConfigs = storyRows.map(row => JSON.parse(row.config));
+
+    parsedConfigs.forEach(config => {
+      if (config.avatarIds && Array.isArray(config.avatarIds)) {
+        config.avatarIds.forEach((id: string) => allAvatarIds.add(id));
+      }
+    });
+
+    // Fetch all avatars in one query
+    const avatarMap = new Map<string, { id: string; name: string; imageUrl: string | null }>();
+    if (allAvatarIds.size > 0) {
+      const avatars = await avatarDB.queryAll<{
+        id: string;
+        name: string;
+        image_url: string | null;
+      }>`
+        SELECT id, name, image_url FROM avatars WHERE id IN (${[...allAvatarIds]})
+      `;
+      avatars.forEach(avatar => {
+        avatarMap.set(avatar.id, {
+          id: avatar.id,
+          name: avatar.name,
+          imageUrl: avatar.image_url
+        });
+      });
+    }
+
+    const stories: StorySummary[] = storyRows.map((storyRow, idx) => {
+      const config = parsedConfigs[idx];
+
+      // Add avatar details to config
+      const avatars = (config.avatarIds || [])
+        .map((avatarId: string) => avatarMap.get(avatarId))
+        .filter((avatar: { id: string; name: string; imageUrl: string | null } | undefined): avatar is { id: string; name: string; imageUrl: string | null } => avatar !== undefined);
+
+      return {
+        id: storyRow.id,
+        userId: storyRow.user_id,
+        title: storyRow.title,
+        description: storyRow.description,
+        coverImageUrl: storyRow.cover_image_url || undefined,
+        config: { ...config, avatars },
+        metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
+        status: storyRow.status,
+        isPublic: storyRow.is_public,
+        createdAt: storyRow.created_at,
+        updatedAt: storyRow.updated_at,
+      };
+    });
 
     const hasMore = offset + limit < total;
 
