@@ -82,13 +82,56 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       }
     }
 
+    // Get all unique character IDs from story metadata
+    const allCharacterIds = new Set<string>();
+    const parsedMetadata = storyRows.map(row =>
+      row.metadata ? JSON.parse(row.metadata) : null
+    );
+
+    parsedMetadata.forEach(metadata => {
+      if (metadata?.characterPoolUsed && Array.isArray(metadata.characterPoolUsed)) {
+        metadata.characterPoolUsed.forEach((char: any) => {
+          if (char.characterId) {
+            allCharacterIds.add(char.characterId);
+          }
+        });
+      }
+    });
+
+    // Fetch all characters from character pool
+    const characterMap = new Map<string, { id: string; name: string; imageUrl: string | null }>();
+    if (allCharacterIds.size > 0) {
+      for (const characterId of allCharacterIds) {
+        const character = await storyDB.queryRow<{
+          id: string;
+          name: string;
+          image_url: string | null;
+        }>`
+          SELECT id, name, image_url FROM character_pool WHERE id = ${characterId}
+        `;
+        if (character) {
+          characterMap.set(character.id, {
+            id: character.id,
+            name: character.name,
+            imageUrl: character.image_url
+          });
+        }
+      }
+    }
+
     const stories: StorySummary[] = storyRows.map((storyRow, idx) => {
       const config = parsedConfigs[idx];
+      const metadata = parsedMetadata[idx];
 
       // Add avatar details to config
       const avatars = (config.avatarIds || [])
         .map((avatarId: string) => avatarMap.get(avatarId))
         .filter((avatar: { id: string; name: string; imageUrl: string | null } | undefined): avatar is { id: string; name: string; imageUrl: string | null } => avatar !== undefined);
+
+      // Add character details from character pool
+      const characters = (metadata?.characterPoolUsed || [])
+        .map((char: any) => characterMap.get(char.characterId))
+        .filter((character: { id: string; name: string; imageUrl: string | null } | undefined): character is { id: string; name: string; imageUrl: string | null } => character !== undefined);
 
       return {
         id: storyRow.id,
@@ -96,8 +139,8 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
         title: storyRow.title,
         description: storyRow.description,
         coverImageUrl: storyRow.cover_image_url || undefined,
-        config: { ...config, avatars },
-        metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
+        config: { ...config, avatars, characters },
+        metadata,
         status: storyRow.status,
         isPublic: storyRow.is_public,
         createdAt: storyRow.created_at,

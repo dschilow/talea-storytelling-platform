@@ -87,8 +87,8 @@ const EditAvatarScreen: React.FC = () => {
     const loadAvatar = async () => {
       try {
         setLoading(true);
-        // The client expects params as an object with id property
-        const avatarData = await backend.avatar.get({ id: avatarId });
+        // The client expects params as path parameter
+        const avatarData = await backend.avatar.get(avatarId);
 
         setAvatar(avatarData as any);
         setName((avatarData as any).name);
@@ -152,9 +152,8 @@ const EditAvatarScreen: React.FC = () => {
     try {
       setSaving(true);
 
-      // The Encore client expects all params in one object including the id
-      await backend.avatar.update({
-        id: avatarId,
+      // The Encore client expects id as path param and rest as body
+      await backend.avatar.update(avatarId, {
         name: name.trim(),
         description: description.trim() || undefined,
         physicalTraits,
@@ -192,8 +191,7 @@ const EditAvatarScreen: React.FC = () => {
       const newVisualProfile = analysis.visualProfile as any;
 
       // Update avatar with the new visual profile
-      await backend.avatar.update({
-        id: avatarId!,
+      await backend.avatar.update(avatarId!, {
         visualProfile: newVisualProfile,
       });
 
@@ -235,9 +233,8 @@ const EditAvatarScreen: React.FC = () => {
         console.error('Error analyzing new avatar image:', err);
       }
 
-      // The Encore client expects all params in one object including the id
-      await backend.avatar.update({
-        id: avatarId!,
+      // The Encore client expects id as path param and rest as body
+      await backend.avatar.update(avatarId!, {
         imageUrl: result.imageUrl,
         visualProfile: newVisualProfile,
       });

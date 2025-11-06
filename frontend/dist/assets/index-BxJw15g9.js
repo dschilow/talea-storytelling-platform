@@ -22433,7 +22433,7 @@ const createLucideIcon = (iconName, iconNode) => {
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$O = [
+const __iconNode$10 = [
   [
     "path",
     {
@@ -22442,48 +22442,90 @@ const __iconNode$O = [
     }
   ]
 ];
-const Activity = createLucideIcon("activity", __iconNode$O);
+const Activity = createLucideIcon("activity", __iconNode$10);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$N = [
+const __iconNode$$ = [
   ["path", { d: "m12 19-7-7 7-7", key: "1l729n" }],
   ["path", { d: "M19 12H5", key: "x3x0zl" }]
 ];
-const ArrowLeft = createLucideIcon("arrow-left", __iconNode$N);
+const ArrowLeft = createLucideIcon("arrow-left", __iconNode$$);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$M = [
+const __iconNode$_ = [
   ["path", { d: "M5 12h14", key: "1ays0h" }],
   ["path", { d: "m12 5 7 7-7 7", key: "xquz4c" }]
 ];
-const ArrowRight = createLucideIcon("arrow-right", __iconNode$M);
+const ArrowRight = createLucideIcon("arrow-right", __iconNode$_);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$L = [
+const __iconNode$Z = [
+  ["path", { d: "M9 12h.01", key: "157uk2" }],
+  ["path", { d: "M15 12h.01", key: "1k8ypt" }],
+  ["path", { d: "M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5", key: "1u7htd" }],
+  [
+    "path",
+    {
+      d: "M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1",
+      key: "5yv0yz"
+    }
+  ]
+];
+const Baby = createLucideIcon("baby", __iconNode$Z);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$Y = [
   ["path", { d: "M4.5 3h15", key: "c7n0jr" }],
   ["path", { d: "M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3", key: "m1uhx7" }],
   ["path", { d: "M6 14h12", key: "4cwo0f" }]
 ];
-const Beaker = createLucideIcon("beaker", __iconNode$L);
+const Beaker = createLucideIcon("beaker", __iconNode$Y);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$K = [
+const __iconNode$X = [
+  [
+    "path",
+    {
+      d: "M16 8.2A2.22 2.22 0 0 0 13.8 6c-.8 0-1.4.3-1.8.9-.4-.6-1-.9-1.8-.9A2.22 2.22 0 0 0 8 8.2c0 .6.3 1.2.7 1.6A226.652 226.652 0 0 0 12 13a404 404 0 0 0 3.3-3.1 2.413 2.413 0 0 0 .7-1.7",
+      key: "1t75a8"
+    }
+  ],
+  [
+    "path",
+    {
+      d: "M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",
+      key: "k3hazp"
+    }
+  ]
+];
+const BookHeart = createLucideIcon("book-heart", __iconNode$X);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$W = [
   ["path", { d: "M12 7v14", key: "1akyts" }],
   [
     "path",
@@ -22493,14 +22535,14 @@ const __iconNode$K = [
     }
   ]
 ];
-const BookOpen = createLucideIcon("book-open", __iconNode$K);
+const BookOpen = createLucideIcon("book-open", __iconNode$W);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$J = [
+const __iconNode$V = [
   [
     "path",
     {
@@ -22523,7 +22565,133 @@ const __iconNode$J = [
   ["path", { d: "M6 18a4 4 0 0 1-1.967-.516", key: "2e4loj" }],
   ["path", { d: "M19.967 17.484A4 4 0 0 1 18 18", key: "159ez6" }]
 ];
-const Brain = createLucideIcon("brain", __iconNode$J);
+const Brain = createLucideIcon("brain", __iconNode$V);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$U = [
+  ["path", { d: "M8 2v4", key: "1cmpym" }],
+  ["path", { d: "M16 2v4", key: "4m81vk" }],
+  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
+  ["path", { d: "M3 10h18", key: "8toen8" }]
+];
+const Calendar = createLucideIcon("calendar", __iconNode$U);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$T = [
+  ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16", key: "c24i48" }],
+  ["path", { d: "M18 17V9", key: "2bz60n" }],
+  ["path", { d: "M13 17V5", key: "1frdt8" }],
+  ["path", { d: "M8 17v-3", key: "17ska0" }]
+];
+const ChartColumn = createLucideIcon("chart-column", __iconNode$T);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$S = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
+const Check = createLucideIcon("check", __iconNode$S);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$R = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
+const ChevronDown = createLucideIcon("chevron-down", __iconNode$R);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$Q = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
+const ChevronLeft = createLucideIcon("chevron-left", __iconNode$Q);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$P = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
+const ChevronRight = createLucideIcon("chevron-right", __iconNode$P);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$O = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["line", { x1: "12", x2: "12", y1: "8", y2: "12", key: "1pkeuh" }],
+  ["line", { x1: "12", x2: "12.01", y1: "16", y2: "16", key: "4dfq90" }]
+];
+const CircleAlert = createLucideIcon("circle-alert", __iconNode$O);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$N = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
+];
+const CircleCheck = createLucideIcon("circle-check", __iconNode$N);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$M = [
+  ["path", { d: "M21.801 10A10 10 0 1 1 17 3.335", key: "yps3ct" }],
+  ["path", { d: "m9 11 3 3L22 4", key: "1pflzl" }]
+];
+const CircleCheckBig = createLucideIcon("circle-check-big", __iconNode$M);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$L = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3", key: "1u773s" }],
+  ["path", { d: "M12 17h.01", key: "p32p05" }]
+];
+const CircleHelp = createLucideIcon("circle-help", __iconNode$L);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$K = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["polyline", { points: "12 6 12 12 16 14", key: "68esgv" }]
+];
+const Clock = createLucideIcon("clock", __iconNode$K);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$J = [
+  ["polyline", { points: "16 18 22 12 16 6", key: "z7tu5w" }],
+  ["polyline", { points: "8 6 2 12 8 18", key: "1eg1df" }]
+];
+const Code = createLucideIcon("code", __iconNode$J);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -22531,109 +22699,6 @@ const Brain = createLucideIcon("brain", __iconNode$J);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$I = [
-  ["path", { d: "M8 2v4", key: "1cmpym" }],
-  ["path", { d: "M16 2v4", key: "4m81vk" }],
-  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
-  ["path", { d: "M3 10h18", key: "8toen8" }]
-];
-const Calendar = createLucideIcon("calendar", __iconNode$I);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$H = [
-  ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16", key: "c24i48" }],
-  ["path", { d: "M18 17V9", key: "2bz60n" }],
-  ["path", { d: "M13 17V5", key: "1frdt8" }],
-  ["path", { d: "M8 17v-3", key: "17ska0" }]
-];
-const ChartColumn = createLucideIcon("chart-column", __iconNode$H);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$G = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
-const Check = createLucideIcon("check", __iconNode$G);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$F = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
-const ChevronDown = createLucideIcon("chevron-down", __iconNode$F);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$E = [["path", { d: "m15 18-6-6 6-6", key: "1wnfg3" }]];
-const ChevronLeft = createLucideIcon("chevron-left", __iconNode$E);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$D = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
-const ChevronRight = createLucideIcon("chevron-right", __iconNode$D);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$C = [
-  ["path", { d: "M21.801 10A10 10 0 1 1 17 3.335", key: "yps3ct" }],
-  ["path", { d: "m9 11 3 3L22 4", key: "1pflzl" }]
-];
-const CircleCheckBig = createLucideIcon("circle-check-big", __iconNode$C);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$B = [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-  ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3", key: "1u773s" }],
-  ["path", { d: "M12 17h.01", key: "p32p05" }]
-];
-const CircleHelp = createLucideIcon("circle-help", __iconNode$B);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$A = [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-  ["polyline", { points: "12 6 12 12 16 14", key: "68esgv" }]
-];
-const Clock = createLucideIcon("clock", __iconNode$A);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$z = [
-  ["polyline", { points: "16 18 22 12 16 6", key: "z7tu5w" }],
-  ["polyline", { points: "8 6 2 12 8 18", key: "1eg1df" }]
-];
-const Code = createLucideIcon("code", __iconNode$z);
-/**
- * @license lucide-react v0.484.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const __iconNode$y = [
   [
     "path",
     {
@@ -22643,26 +22708,52 @@ const __iconNode$y = [
   ],
   ["path", { d: "M5 21h14", key: "11awu3" }]
 ];
-const Crown = createLucideIcon("crown", __iconNode$y);
+const Crown = createLucideIcon("crown", __iconNode$I);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$x = [
+const __iconNode$H = [
+  ["path", { d: "M11.25 16.25h1.5L12 17z", key: "w7jh35" }],
+  ["path", { d: "M16 14v.5", key: "1lajdz" }],
+  [
+    "path",
+    {
+      d: "M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309",
+      key: "u7s9ue"
+    }
+  ],
+  ["path", { d: "M8 14v.5", key: "1nzgdb" }],
+  [
+    "path",
+    {
+      d: "M8.5 8.5c-.384 1.05-1.083 2.028-2.344 2.5-1.931.722-3.576-.297-3.656-1-.113-.994 1.177-6.53 4-7 1.923-.321 3.651.845 3.651 2.235A7.497 7.497 0 0 1 14 5.277c0-1.39 1.844-2.598 3.767-2.277 2.823.47 4.113 6.006 4 7-.08.703-1.725 1.722-3.656 1-1.261-.472-1.855-1.45-2.239-2.5",
+      key: "v8hric"
+    }
+  ]
+];
+const Dog = createLucideIcon("dog", __iconNode$H);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$G = [
   ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
   ["polyline", { points: "7 10 12 15 17 10", key: "2ggqvy" }],
   ["line", { x1: "12", x2: "12", y1: "15", y2: "3", key: "1vk2je" }]
 ];
-const Download = createLucideIcon("download", __iconNode$x);
+const Download = createLucideIcon("download", __iconNode$G);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$w = [
+const __iconNode$F = [
   [
     "path",
     {
@@ -22672,28 +22763,28 @@ const __iconNode$w = [
   ],
   ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
 ];
-const Eye = createLucideIcon("eye", __iconNode$w);
+const Eye = createLucideIcon("eye", __iconNode$F);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$v = [
+const __iconNode$E = [
   ["path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", key: "1rqfz7" }],
   ["path", { d: "M14 2v4a2 2 0 0 0 2 2h4", key: "tnqrlb" }],
   ["path", { d: "M10 9H8", key: "b1mrlr" }],
   ["path", { d: "M16 13H8", key: "t4e002" }],
   ["path", { d: "M16 17H8", key: "z1uh3a" }]
 ];
-const FileText = createLucideIcon("file-text", __iconNode$v);
+const FileText = createLucideIcon("file-text", __iconNode$E);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$u = [
+const __iconNode$D = [
   [
     "path",
     {
@@ -22704,14 +22795,14 @@ const __iconNode$u = [
   ["path", { d: "M6.453 15h11.094", key: "3shlmq" }],
   ["path", { d: "M8.5 2h7", key: "csnxdl" }]
 ];
-const FlaskConical = createLucideIcon("flask-conical", __iconNode$u);
+const FlaskConical = createLucideIcon("flask-conical", __iconNode$D);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$t = [
+const __iconNode$C = [
   [
     "path",
     {
@@ -22720,14 +22811,32 @@ const __iconNode$t = [
     }
   ]
 ];
-const Funnel = createLucideIcon("funnel", __iconNode$t);
+const Funnel = createLucideIcon("funnel", __iconNode$C);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$s = [
+const __iconNode$B = [
+  [
+    "path",
+    {
+      d: "M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z",
+      key: "j76jl0"
+    }
+  ],
+  ["path", { d: "M22 10v6", key: "1lu8f3" }],
+  ["path", { d: "M6 12.5V16a6 3 0 0 0 12 0v-3.5", key: "1r8lef" }]
+];
+const GraduationCap = createLucideIcon("graduation-cap", __iconNode$B);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$A = [
   [
     "path",
     {
@@ -22736,14 +22845,14 @@ const __iconNode$s = [
     }
   ]
 ];
-const Heart = createLucideIcon("heart", __iconNode$s);
+const Heart = createLucideIcon("heart", __iconNode$A);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$r = [
+const __iconNode$z = [
   ["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", key: "5wwlr5" }],
   [
     "path",
@@ -22753,38 +22862,38 @@ const __iconNode$r = [
     }
   ]
 ];
-const House = createLucideIcon("house", __iconNode$r);
+const House = createLucideIcon("house", __iconNode$z);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$q = [
+const __iconNode$y = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", ry: "2", key: "1m3agn" }],
   ["circle", { cx: "9", cy: "9", r: "2", key: "af1f0g" }],
   ["path", { d: "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21", key: "1xmnt7" }]
 ];
-const Image = createLucideIcon("image", __iconNode$q);
+const Image = createLucideIcon("image", __iconNode$y);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$p = [
+const __iconNode$x = [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "M12 16v-4", key: "1dtifu" }],
   ["path", { d: "M12 8h.01", key: "e9boi3" }]
 ];
-const Info = createLucideIcon("info", __iconNode$p);
+const Info = createLucideIcon("info", __iconNode$x);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$o = [
+const __iconNode$w = [
   [
     "path",
     {
@@ -22795,48 +22904,78 @@ const __iconNode$o = [
   ["path", { d: "M9 18h6", key: "x1upvd" }],
   ["path", { d: "M10 22h4", key: "ceow96" }]
 ];
-const Lightbulb = createLucideIcon("lightbulb", __iconNode$o);
+const Lightbulb = createLucideIcon("lightbulb", __iconNode$w);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$n = [
+const __iconNode$v = [
   ["path", { d: "m3 17 2 2 4-4", key: "1jhpwq" }],
   ["path", { d: "m3 7 2 2 4-4", key: "1obspn" }],
   ["path", { d: "M13 6h8", key: "15sg57" }],
   ["path", { d: "M13 12h8", key: "h98zly" }],
   ["path", { d: "M13 18h8", key: "oe0vm4" }]
 ];
-const ListChecks = createLucideIcon("list-checks", __iconNode$n);
+const ListChecks = createLucideIcon("list-checks", __iconNode$v);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$m = [["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]];
-const LoaderCircle = createLucideIcon("loader-circle", __iconNode$m);
+const __iconNode$u = [["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]];
+const LoaderCircle = createLucideIcon("loader-circle", __iconNode$u);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$l = [
+const __iconNode$t = [
   ["path", { d: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4", key: "u53s6r" }],
   ["polyline", { points: "10 17 15 12 10 7", key: "1ail0h" }],
   ["line", { x1: "15", x2: "3", y1: "12", y2: "12", key: "v6grx8" }]
 ];
-const LogIn = createLucideIcon("log-in", __iconNode$l);
+const LogIn = createLucideIcon("log-in", __iconNode$t);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$k = [
+const __iconNode$s = [
+  ["path", { d: "M7.9 20A9 9 0 1 0 4 16.1L2 22Z", key: "vv11sd" }]
+];
+const MessageCircle = createLucideIcon("message-circle", __iconNode$s);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$r = [["path", { d: "m8 3 4 8 5-5 5 15H2L8 3z", key: "otkl63" }]];
+const Mountain = createLucideIcon("mountain", __iconNode$r);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$q = [
+  ["path", { d: "M9 18V5l12-2v13", key: "1jmyc2" }],
+  ["circle", { cx: "6", cy: "18", r: "3", key: "fqmcym" }],
+  ["circle", { cx: "18", cy: "16", r: "3", key: "1hluhg" }]
+];
+const Music = createLucideIcon("music", __iconNode$q);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$p = [
   ["path", { d: "M12 20h9", key: "t2du7b" }],
   [
     "path",
@@ -22846,59 +22985,84 @@ const __iconNode$k = [
     }
   ]
 ];
-const PenLine = createLucideIcon("pen-line", __iconNode$k);
+const PenLine = createLucideIcon("pen-line", __iconNode$p);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$j = [["polygon", { points: "6 3 20 12 6 21 6 3", key: "1oa8hb" }]];
-const Play = createLucideIcon("play", __iconNode$j);
+const __iconNode$o = [["polygon", { points: "6 3 20 12 6 21 6 3", key: "1oa8hb" }]];
+const Play = createLucideIcon("play", __iconNode$o);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$i = [
+const __iconNode$n = [
   ["path", { d: "M5 12h14", key: "1ays0h" }],
   ["path", { d: "M12 5v14", key: "s699le" }]
 ];
-const Plus = createLucideIcon("plus", __iconNode$i);
+const Plus = createLucideIcon("plus", __iconNode$n);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$h = [
+const __iconNode$m = [
   ["path", { d: "M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "14sxne" }],
   ["path", { d: "M3 3v5h5", key: "1xhq8a" }],
   ["path", { d: "M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16", key: "1hlbsb" }],
   ["path", { d: "M16 16h5v5", key: "ccwih5" }]
 ];
-const RefreshCcw = createLucideIcon("refresh-ccw", __iconNode$h);
+const RefreshCcw = createLucideIcon("refresh-ccw", __iconNode$m);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$g = [
+const __iconNode$l = [
   ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-const RefreshCw = createLucideIcon("refresh-cw", __iconNode$g);
+const RefreshCw = createLucideIcon("refresh-cw", __iconNode$l);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$f = [
+const __iconNode$k = [
+  [
+    "path",
+    {
+      d: "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z",
+      key: "m3kijz"
+    }
+  ],
+  [
+    "path",
+    {
+      d: "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z",
+      key: "1fmvmk"
+    }
+  ],
+  ["path", { d: "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0", key: "1f8sc4" }],
+  ["path", { d: "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5", key: "qeys4" }]
+];
+const Rocket = createLucideIcon("rocket", __iconNode$k);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$j = [
   [
     "path",
     {
@@ -22909,25 +23073,25 @@ const __iconNode$f = [
   ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", key: "1ydtos" }],
   ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7", key: "t51u73" }]
 ];
-const Save = createLucideIcon("save", __iconNode$f);
+const Save = createLucideIcon("save", __iconNode$j);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$e = [
+const __iconNode$i = [
   ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
   ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
 ];
-const Search = createLucideIcon("search", __iconNode$e);
+const Search = createLucideIcon("search", __iconNode$i);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$d = [
+const __iconNode$h = [
   [
     "path",
     {
@@ -22937,14 +23101,14 @@ const __iconNode$d = [
   ],
   ["path", { d: "m21.854 2.147-10.94 10.939", key: "12cjpa" }]
 ];
-const Send = createLucideIcon("send", __iconNode$d);
+const Send = createLucideIcon("send", __iconNode$h);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$c = [
+const __iconNode$g = [
   [
     "path",
     {
@@ -22953,14 +23117,41 @@ const __iconNode$c = [
     }
   ]
 ];
-const Shield = createLucideIcon("shield", __iconNode$c);
+const Shield = createLucideIcon("shield", __iconNode$g);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$b = [
+const __iconNode$f = [
+  ["path", { d: "m18 14 4 4-4 4", key: "10pe0f" }],
+  ["path", { d: "m18 2 4 4-4 4", key: "pucp1d" }],
+  ["path", { d: "M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22", key: "1ailkh" }],
+  ["path", { d: "M2 6h1.972a4 4 0 0 1 3.6 2.2", key: "km57vx" }],
+  ["path", { d: "M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45", key: "os18l9" }]
+];
+const Shuffle = createLucideIcon("shuffle", __iconNode$f);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$e = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "M8 14s1.5 2 4 2 4-2 4-2", key: "1y1vjs" }],
+  ["line", { x1: "9", x2: "9.01", y1: "9", y2: "9", key: "yxxnd0" }],
+  ["line", { x1: "15", x2: "15.01", y1: "9", y2: "9", key: "1p4y9e" }]
+];
+const Smile = createLucideIcon("smile", __iconNode$e);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$d = [
   [
     "path",
     {
@@ -22973,14 +23164,14 @@ const __iconNode$b = [
   ["path", { d: "M4 17v2", key: "vumght" }],
   ["path", { d: "M5 18H3", key: "zchphs" }]
 ];
-const Sparkles = createLucideIcon("sparkles", __iconNode$b);
+const Sparkles = createLucideIcon("sparkles", __iconNode$d);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$a = [
+const __iconNode$c = [
   ["path", { d: "M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", key: "1m0v6g" }],
   [
     "path",
@@ -22990,14 +23181,14 @@ const __iconNode$a = [
     }
   ]
 ];
-const SquarePen = createLucideIcon("square-pen", __iconNode$a);
+const SquarePen = createLucideIcon("square-pen", __iconNode$c);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const __iconNode$9 = [
+const __iconNode$b = [
   [
     "path",
     {
@@ -23006,7 +23197,32 @@ const __iconNode$9 = [
     }
   ]
 ];
-const Star = createLucideIcon("star", __iconNode$9);
+const Star = createLucideIcon("star", __iconNode$b);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$a = [
+  ["path", { d: "M3 6h18", key: "d0wm0j" }],
+  ["path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", key: "4alrt4" }],
+  ["path", { d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", key: "v07s0e" }],
+  ["line", { x1: "10", x2: "10", y1: "11", y2: "17", key: "1uufr5" }],
+  ["line", { x1: "14", x2: "14", y1: "11", y2: "17", key: "xtxkd" }]
+];
+const Trash2 = createLucideIcon("trash-2", __iconNode$a);
+/**
+ * @license lucide-react v0.484.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const __iconNode$9 = [
+  ["polyline", { points: "22 17 13.5 8.5 8.5 13.5 2 7", key: "1r2t7k" }],
+  ["polyline", { points: "16 17 22 17 22 11", key: "11uiuu" }]
+];
+const TrendingDown = createLucideIcon("trending-down", __iconNode$9);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23014,13 +23230,10 @@ const Star = createLucideIcon("star", __iconNode$9);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$8 = [
-  ["path", { d: "M3 6h18", key: "d0wm0j" }],
-  ["path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", key: "4alrt4" }],
-  ["path", { d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", key: "v07s0e" }],
-  ["line", { x1: "10", x2: "10", y1: "11", y2: "17", key: "1uufr5" }],
-  ["line", { x1: "14", x2: "14", y1: "11", y2: "17", key: "xtxkd" }]
+  ["polyline", { points: "22 7 13.5 15.5 8.5 10.5 2 17", key: "126l90" }],
+  ["polyline", { points: "16 7 22 7 22 13", key: "kwv8wd" }]
 ];
-const Trash2 = createLucideIcon("trash-2", __iconNode$8);
+const TrendingUp = createLucideIcon("trending-up", __iconNode$8);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23028,10 +23241,11 @@ const Trash2 = createLucideIcon("trash-2", __iconNode$8);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$7 = [
-  ["polyline", { points: "22 17 13.5 8.5 8.5 13.5 2 7", key: "1r2t7k" }],
-  ["polyline", { points: "16 17 22 17 22 11", key: "11uiuu" }]
+  ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
+  ["polyline", { points: "17 8 12 3 7 8", key: "t8dd8p" }],
+  ["line", { x1: "12", x2: "12", y1: "3", y2: "15", key: "widbto" }]
 ];
-const TrendingDown = createLucideIcon("trending-down", __iconNode$7);
+const Upload = createLucideIcon("upload", __iconNode$7);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23039,10 +23253,11 @@ const TrendingDown = createLucideIcon("trending-down", __iconNode$7);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$6 = [
-  ["polyline", { points: "22 7 13.5 15.5 8.5 10.5 2 17", key: "126l90" }],
-  ["polyline", { points: "16 7 22 7 22 13", key: "kwv8wd" }]
+  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
+  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }],
+  ["polyline", { points: "16 11 18 13 22 9", key: "1pwet4" }]
 ];
-const TrendingUp = createLucideIcon("trending-up", __iconNode$6);
+const UserCheck = createLucideIcon("user-check", __iconNode$6);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23050,11 +23265,12 @@ const TrendingUp = createLucideIcon("trending-up", __iconNode$6);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$5 = [
-  ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
-  ["polyline", { points: "17 8 12 3 7 8", key: "t8dd8p" }],
-  ["line", { x1: "12", x2: "12", y1: "3", y2: "15", key: "widbto" }]
+  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
+  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }],
+  ["line", { x1: "19", x2: "19", y1: "8", y2: "14", key: "1bvyxn" }],
+  ["line", { x1: "22", x2: "16", y1: "11", y2: "11", key: "1shjgl" }]
 ];
-const Upload = createLucideIcon("upload", __iconNode$5);
+const UserPlus = createLucideIcon("user-plus", __iconNode$5);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23062,12 +23278,10 @@ const Upload = createLucideIcon("upload", __iconNode$5);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$4 = [
-  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
-  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }],
-  ["line", { x1: "19", x2: "19", y1: "8", y2: "14", key: "1bvyxn" }],
-  ["line", { x1: "22", x2: "16", y1: "11", y2: "11", key: "1shjgl" }]
+  ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
+  ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
 ];
-const UserPlus = createLucideIcon("user-plus", __iconNode$4);
+const User = createLucideIcon("user", __iconNode$4);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23075,10 +23289,12 @@ const UserPlus = createLucideIcon("user-plus", __iconNode$4);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$3 = [
-  ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
-  ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
+  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
+  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }],
+  ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
+  ["path", { d: "M16 3.13a4 4 0 0 1 0 7.75", key: "1da9ce" }]
 ];
-const User = createLucideIcon("user", __iconNode$3);
+const Users = createLucideIcon("users", __iconNode$3);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23086,12 +23302,22 @@ const User = createLucideIcon("user", __iconNode$3);
  * See the LICENSE file in the root directory of this source tree.
  */
 const __iconNode$2 = [
-  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
-  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }],
-  ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
-  ["path", { d: "M16 3.13a4 4 0 0 1 0 7.75", key: "1da9ce" }]
+  [
+    "path",
+    {
+      d: "m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72",
+      key: "ul74o6"
+    }
+  ],
+  ["path", { d: "m14 7 3 3", key: "1r5n42" }],
+  ["path", { d: "M5 6v4", key: "ilb8ba" }],
+  ["path", { d: "M19 14v4", key: "blhpug" }],
+  ["path", { d: "M10 2v2", key: "7u0qdc" }],
+  ["path", { d: "M7 8H3", key: "zfb6yr" }],
+  ["path", { d: "M21 16h-4", key: "1cnmox" }],
+  ["path", { d: "M11 3H9", key: "1obp7u" }]
 ];
-const Users = createLucideIcon("users", __iconNode$2);
+const WandSparkles = createLucideIcon("wand-sparkles", __iconNode$2);
 /**
  * @license lucide-react v0.484.0 - ISC
  *
@@ -23151,21 +23377,20 @@ const colors = {
     700: "#179285"
   },
   peach: {
+    400: "#FFAE7F",
     500: "#FF9B5C"
   },
   sky: {
     500: "#0EA5E9"
   },
   rose: {
-    50: "#FFF5F9",
-    200: "#FFD1E3",
     500: "#FF6FA9",
-    600: "#E85A95",
-    700: "#CC4B7F"
+    600: "#E85A95"
   },
   lilac: {
     50: "#FAF8FF",
     200: "#E7DFFF",
+    500: "#B197FF",
     700: "#8567CC"
   },
   sage: {
@@ -23174,6 +23399,8 @@ const colors = {
   },
   background: {
     primary: "#FEFCFB",
+    secondary: "#FFF8F5",
+    tertiary: "#F9F5FF",
     card: "#FFFFFF"
   },
   text: {
@@ -23640,6 +23867,8 @@ class Client {
     this.ai = new ai.ServiceClient(base);
     this.avatar = new avatar.ServiceClient(base);
     this.doku = new doku.ServiceClient(base);
+    this.fairytales = new fairytales.ServiceClient(base);
+    this.frontend = new frontend.ServiceClient(base);
     this.health = new health.ServiceClient(base);
     this.log = new log.ServiceClient(base);
     this.story = new story.ServiceClient(base);
@@ -23674,16 +23903,16 @@ var admin;
     /**
      * Deletes a user and their related content (avatars and stories).
      */
-    async deleteUser(params) {
-      const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async deleteUser(id2) {
+      const resp = await this.baseClient.callTypedAPI("DELETE", `/admin/users/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
     /**
      * Returns aggregate admin statistics for users, avatars, and stories.
      */
     async getStats() {
-      const resp = await this.baseClient.callTypedAPI(`/admin/stats`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/admin/stats`);
+      return await resp.json();
     }
     /**
      * Lists avatars across all users (admin only).
@@ -23695,8 +23924,8 @@ var admin;
         q: params.q,
         userId: params.userId
       });
-      const resp = await this.baseClient.callTypedAPI(`/admin/avatars`, { query, method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/admin/avatars`, void 0, { query });
+      return await resp.json();
     }
     /**
      * Lists users with optional search and pagination for the admin panel.
@@ -23707,46 +23936,30 @@ var admin;
         limit: params.limit === void 0 ? void 0 : String(params.limit),
         q: params.q
       });
-      const resp = await this.baseClient.callTypedAPI(`/admin/users`, { query, method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/admin/users`, void 0, { query });
+      return await resp.json();
     }
     /**
      * Allows the first-ever user to promote themselves to an admin.
      * This endpoint is a one-time-use mechanism for bootstrapping the first admin account.
      */
     async promoteToAdmin() {
-      const resp = await this.baseClient.callTypedAPI(`/admin/promote-first-admin`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/admin/promote-first-admin`);
+      return await resp.json();
     }
     /**
      * Updates any avatar fields (admin only).
      */
-    async updateAvatarAdmin(params) {
-      const body = {
-        description: params.description,
-        imageUrl: params.imageUrl,
-        isPublic: params.isPublic,
-        name: params.name,
-        originalAvatarId: params.originalAvatarId,
-        personalityTraits: params.personalityTraits,
-        physicalTraits: params.physicalTraits,
-        visualProfile: params.visualProfile
-      };
-      const resp = await this.baseClient.callTypedAPI(`/admin/avatars/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async updateAvatarAdmin(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("PUT", `/admin/avatars/${encodeURIComponent(id2)}`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Updates basic fields for a user (admin only).
      */
-    async updateUser(params) {
-      const body = {
-        email: params.email,
-        name: params.name,
-        role: params.role,
-        subscription: params.subscription
-      };
-      const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async updateUser(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("PUT", `/admin/users/${encodeURIComponent(id2)}`, JSON.stringify(params));
+      return await resp.json();
     }
   }
   admin2.ServiceClient = ServiceClient;
@@ -23769,12 +23982,12 @@ var ai;
      * PRODUCTION-READY SOLUTION: Nur basic analysis, 100% stabil
      */
     async analyzeAvatarImage(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/analyze-avatar-image`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/analyze-avatar-image`, JSON.stringify(params));
+      return await resp.json();
     }
     async analyzePersonalityDevelopment(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/analyze-personality`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/analyze-personality`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Check if avatar already received updates from this content
@@ -23785,43 +23998,43 @@ var ai;
         contentId: params.contentId,
         contentType: String(params.contentType)
       });
-      const resp = await this.baseClient.callTypedAPI(`/ai/check-personality-update`, { query, method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/ai/check-personality-update`, void 0, { query });
+      return await resp.json();
     }
     /**
      * Generates an avatar image based on physical and personality traits.
      */
     async generateAvatarImage(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/generate-avatar`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-avatar`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Public API endpoint wrapper that calls the internal helper.
      */
     async generateImage(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/generate-image`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-image`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Public API endpoint for batch generation.
      */
     async generateImagesBatch(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/generate-images-batch`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-images-batch`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Get all personality updates for an avatar (for history/debugging)
      */
-    async getPersonalityHistory(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/personality-history/${encodeURIComponent(params.avatarId)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async getPersonalityHistory(avatarId) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/ai/personality-history/${encodeURIComponent(avatarId)}`);
+      return await resp.json();
     }
     /**
      * Track that an avatar received personality updates from content
      */
     async trackPersonalityUpdate(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/track-personality-update`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/track-personality-update`, JSON.stringify(params));
+      return await resp.json();
     }
   }
   ai2.ServiceClient = ServiceClient;
@@ -23852,123 +24065,106 @@ var avatar;
      * Adds a new memory entry for an avatar
      */
     async addMemory(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/memory`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/memory`, JSON.stringify(params));
+      return await resp.json();
     }
     async create(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Debug endpoint to compare stored personality traits vs what they should be based on memories
      */
-    async debugPersonality(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/debug-personality`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async debugPersonality(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id2)}/debug-personality`);
+      return await resp.json();
     }
     /**
      * Deletes an avatar.
      */
-    async deleteAvatar(params) {
-      await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+    async deleteAvatar(id2) {
+      await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(id2)}`);
     }
     /**
      * Deletes a specific memory and recalculates personality traits
      */
-    async deleteMemory(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/memory/${encodeURIComponent(params.memoryId)}`, { method: "DELETE", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async deleteMemory(avatarId, memoryId) {
+      const resp = await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(avatarId)}/memory/${encodeURIComponent(memoryId)}`);
+      return await resp.json();
     }
     /**
      * Generate avatar portrait prompt
      */
     async generatePortrait(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/generate-portrait`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/generate-portrait`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Retrieves a specific avatar by ID.
      */
-    async get(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async get(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
     /**
      * Gets all memories for an avatar
      */
-    async getMemories(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/memories`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async getMemories(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id2)}/memories`);
+      return await resp.json();
     }
     /**
      * Retrieves all avatars for the authenticated user.
      */
     async list() {
-      const resp = await this.baseClient.callTypedAPI(`/avatars`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/avatars`);
+      return await resp.json();
     }
     async migrateToEnglish() {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/migrate-to-english`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/migrate-to-english`);
+      return await resp.json();
     }
     /**
      * Manually reduce personality trait points (for corrections/deletions)
      */
-    async reducePersonalityTrait(params) {
-      const body = {
-        amount: params.amount,
-        reason: params.reason,
-        trait: params.trait
-      };
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reduce-trait`, { method: "POST", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async reducePersonalityTrait(avatarId, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(avatarId)}/reduce-trait`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Reset doku reading history for an avatar (allows re-reading dokus)
      */
-    async resetDokuHistory(params) {
-      const body = {
-        dokuId: params.dokuId
-      };
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reset-doku-history`, { method: "POST", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async resetDokuHistory(avatarId, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(avatarId)}/reset-doku-history`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Resets all personality traits of user's avatars to start at 0 (new system)
      */
     async resetPersonalityTraits() {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/reset-personality-traits`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/reset-personality-traits`);
+      return await resp.json();
     }
     /**
      * Updates an existing avatar.
      */
-    async update(params) {
-      const body = {
-        description: params.description,
-        imageUrl: params.imageUrl,
-        isPublic: params.isPublic,
-        name: params.name,
-        personalityTraits: params.personalityTraits,
-        physicalTraits: params.physicalTraits,
-        visualProfile: params.visualProfile
-      };
-      const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async update(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("PUT", `/avatar/${encodeURIComponent(id2)}`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Updates an avatar's personality traits with delta changes
      */
     async updatePersonality(params) {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/personality`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/personality`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * API zum Upgrade aller Avatare (für Migration)
      */
     async upgradeAllPersonalityTraits() {
-      const resp = await this.baseClient.callTypedAPI(`/avatar/upgrade-traits`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/avatar/upgrade-traits`);
+      return await resp.json();
     }
   }
   avatar2.ServiceClient = ServiceClient;
@@ -23985,68 +24181,229 @@ var doku;
       this.markRead = this.markRead.bind(this);
       this.updateDoku = this.updateDoku.bind(this);
     }
-    async deleteDoku(params) {
-      await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+    async deleteDoku(id2) {
+      await this.baseClient.callTypedAPI("DELETE", `/doku/${encodeURIComponent(id2)}`);
     }
     async generateDoku(params) {
-      const resp = await this.baseClient.callTypedAPI(`/doku/generate`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/doku/generate`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Retrieves a specific doku (only owner or admin or if public).
      */
-    async getDoku(params) {
-      const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async getDoku(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/doku/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
     /**
-     * Lists all dokus for the authenticated user.
+     * Lists dokus for the authenticated user with pagination.
      */
-    async listDokus() {
-      const resp = await this.baseClient.callTypedAPI(`/dokus`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async listDokus(params) {
+      const query = makeRecord({
+        limit: params.limit === void 0 ? void 0 : String(params.limit),
+        offset: params.offset === void 0 ? void 0 : String(params.offset)
+      });
+      const resp = await this.baseClient.callTypedAPI("GET", `/dokus`, void 0, { query });
+      return await resp.json();
     }
     /**
      * Marks a doku as read and applies personality development to all user avatars
      */
     async markRead(params) {
-      const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/doku/mark-read`, JSON.stringify(params));
+      return await resp.json();
     }
-    async updateDoku(params) {
-      const body = {
-        isPublic: params.isPublic,
-        title: params.title
-      };
-      const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async updateDoku(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("PUT", `/doku/${encodeURIComponent(id2)}`, JSON.stringify(params));
+      return await resp.json();
     }
   }
   doku2.ServiceClient = ServiceClient;
 })(doku || (doku = {}));
+var fairytales;
+((fairytales2) => {
+  class ServiceClient {
+    constructor(baseClient) {
+      this.baseClient = baseClient;
+      this.addFairyTaleRole = this.addFairyTaleRole.bind(this);
+      this.addFairyTaleScene = this.addFairyTaleScene.bind(this);
+      this.createFairyTale = this.createFairyTale.bind(this);
+      this.generateStory = this.generateStory.bind(this);
+      this.getFairyTale = this.getFairyTale.bind(this);
+      this.getGeneratedStory = this.getGeneratedStory.bind(this);
+      this.listFairyTales = this.listFairyTales.bind(this);
+      this.validateCharacterMapping = this.validateCharacterMapping.bind(this);
+    }
+    /**
+     * Add a role to a fairy tale (admin only)
+     */
+    async addFairyTaleRole(taleId, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/roles`, JSON.stringify(params));
+      return await resp.json();
+    }
+    /**
+     * Add a scene to a fairy tale (admin only)
+     */
+    async addFairyTaleScene(taleId, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/scenes`, JSON.stringify(params));
+      return await resp.json();
+    }
+    /**
+     * Create a new fairy tale (admin only)
+     */
+    async createFairyTale(params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/fairytales`, JSON.stringify(params));
+      return await resp.json();
+    }
+    /**
+     * Generate a personalized story from a fairy tale template
+     */
+    async generateStory(taleId, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/generate`, JSON.stringify(params));
+      return await resp.json();
+    }
+    /**
+     * Get detailed information about a specific fairy tale
+     */
+    async getFairyTale(id2, params) {
+      const query = makeRecord({
+        includeRoles: params.includeRoles === void 0 ? void 0 : String(params.includeRoles),
+        includeScenes: params.includeScenes === void 0 ? void 0 : String(params.includeScenes)
+      });
+      const resp = await this.baseClient.callTypedAPI("GET", `/fairytales/${encodeURIComponent(id2)}`, void 0, { query });
+      return await resp.json();
+    }
+    /**
+     * Get a generated story with all scenes
+     */
+    async getGeneratedStory(storyId, params) {
+      const query = makeRecord({
+        includeScenes: params.includeScenes === void 0 ? void 0 : String(params.includeScenes)
+      });
+      const resp = await this.baseClient.callTypedAPI("GET", `/stories/${encodeURIComponent(storyId)}`, void 0, { query });
+      return await resp.json();
+    }
+    /**
+     * List all available fairy tales with optional filtering
+     */
+    async listFairyTales(params) {
+      var _a;
+      const query = makeRecord({
+        genres: (_a = params.genres) == null ? void 0 : _a.map((v) => v),
+        limit: params.limit === void 0 ? void 0 : String(params.limit),
+        maxAge: params.maxAge === void 0 ? void 0 : String(params.maxAge),
+        minAge: params.minAge === void 0 ? void 0 : String(params.minAge),
+        offset: params.offset === void 0 ? void 0 : String(params.offset),
+        source: params.source
+      });
+      const resp = await this.baseClient.callTypedAPI("GET", `/fairytales`, void 0, { query });
+      return await resp.json();
+    }
+    /**
+     * Validate that character mappings are compatible with tale roles
+     */
+    async validateCharacterMapping(taleId, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/validate-mapping`, JSON.stringify(params));
+      return await resp.json();
+    }
+  }
+  fairytales2.ServiceClient = ServiceClient;
+})(fairytales || (fairytales = {}));
+var frontend;
+((frontend2) => {
+  class ServiceClient {
+    constructor(baseClient) {
+      this.baseClient = baseClient;
+      this.assets = this.assets.bind(this);
+    }
+    async assets(path) {
+      await this.baseClient.callTypedAPI("HEAD", `/frontend/${path.map(encodeURIComponent).join("/")}`);
+    }
+  }
+  frontend2.ServiceClient = ServiceClient;
+})(frontend || (frontend = {}));
 var health;
 ((health2) => {
   class ServiceClient {
     constructor(baseClient) {
       this.baseClient = baseClient;
+      this.checkFairyTaleStats = this.checkFairyTaleStats.bind(this);
+      this.completeFairyTalesSetup = this.completeFairyTalesSetup.bind(this);
+      this.createFairyTalesTable = this.createFairyTalesTable.bind(this);
+      this.dbStatus = this.dbStatus.bind(this);
+      this.fixUsageCount = this.fixUsageCount.bind(this);
+      this.fixUsageCountColumn = this.fixUsageCountColumn.bind(this);
       this.health = this.health.bind(this);
+      this.import150FairyTales = this.import150FairyTales.bind(this);
       this.initializeDatabaseMigrations = this.initializeDatabaseMigrations.bind(this);
+      this.runMigrations = this.runMigrations.bind(this);
+    }
+    async checkFairyTaleStats() {
+      const resp = await this.baseClient.callTypedAPI("GET", `/health/check-fairy-tale-stats`);
+      return await resp.json();
+    }
+    async completeFairyTalesSetup() {
+      const resp = await this.baseClient.callTypedAPI("POST", `/health/complete-fairy-tales-setup`);
+      return await resp.json();
+    }
+    /**
+     * Direct SQL test endpoint to create fairy_tales table
+     */
+    async createFairyTalesTable() {
+      const resp = await this.baseClient.callTypedAPI("POST", `/health/create-fairy-tales-table`);
+      return await resp.json();
+    }
+    /**
+     * Database status check endpoint
+     * Shows which tables exist and basic counts
+     */
+    async dbStatus() {
+      const resp = await this.baseClient.callTypedAPI("GET", `/health/db-status`);
+      return await resp.json();
+    }
+    /**
+     * GET endpoint (easier to call from browser for quick testing)
+     */
+    async fixUsageCount() {
+      const resp = await this.baseClient.callTypedAPI("GET", `/health/fix-usage-count`);
+      return await resp.json();
+    }
+    async fixUsageCountColumn() {
+      const resp = await this.baseClient.callTypedAPI("POST", `/health/fix-usage-count-column`);
+      return await resp.json();
     }
     /**
      * Health check endpoint for Railway
      * Automatically triggers database migrations on first call
      */
     async health() {
-      const resp = await this.baseClient.callTypedAPI(`/health`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/health`);
+      return await resp.json();
+    }
+    /**
+     * Imports 150 curated fairy tales from MÄRCHEN_DATENBANK.md
+     * Returns number of tales imported successfully
+     */
+    async import150FairyTales() {
+      const resp = await this.baseClient.callTypedAPI("POST", `/health/import-150-fairy-tales`);
+      return await resp.json();
     }
     /**
      * Initialize database - runs migrations on first call
      * This is automatically triggered by Railway's health check
      */
     async initializeDatabaseMigrations() {
-      const resp = await this.baseClient.callTypedAPI(`/init`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/init`);
+      return await resp.json();
+    }
+    /**
+     * Manual migration trigger endpoint
+     * Call this URL to create all database tables
+     * URL: POST /health/run-migrations
+     */
+    async runMigrations() {
+      const resp = await this.baseClient.callTypedAPI("POST", `/health/run-migrations`);
+      return await resp.json();
     }
   }
   health2.ServiceClient = ServiceClient;
@@ -24066,22 +24423,22 @@ var log;
      * Debug endpoint to check database state
      */
     async debug() {
-      const resp = await this.baseClient.callTypedAPI(`/log/debug`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/log/debug`);
+      return await resp.json();
     }
     /**
      * Retrieves a specific log entry by ID from the database.
      */
-    async get(params) {
-      const resp = await this.baseClient.callTypedAPI(`/log/get/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async get(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/log/get/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
     /**
      * Gets available log sources with statistics from PostgreSQL.
      */
     async getSources() {
-      const resp = await this.baseClient.callTypedAPI(`/log/getSources`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/log/getSources`);
+      return await resp.json();
     }
     /**
      * Lists log entries from the database.
@@ -24092,15 +24449,15 @@ var log;
         limit: params.limit === void 0 ? void 0 : String(params.limit),
         source: params.source
       });
-      const resp = await this.baseClient.callTypedAPI(`/log/list`, { query, method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/log/list`, void 0, { query });
+      return await resp.json();
     }
     /**
      * Endpoint to manually run the logs table migration
      */
     async runMigration() {
-      const resp = await this.baseClient.callTypedAPI(`/log/run-migration`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/log/run-migration`);
+      return await resp.json();
     }
   }
   log2.ServiceClient = ServiceClient;
@@ -24116,12 +24473,15 @@ var story;
       this.exportCharacters = this.exportCharacters.bind(this);
       this.generate = this.generate.bind(this);
       this.generateCharacterImage = this.generateCharacterImage.bind(this);
+      this.generateFromFairyTale = this.generateFromFairyTale.bind(this);
       this.generateStoryContent = this.generateStoryContent.bind(this);
       this.get = this.get.bind(this);
       this.getCharacter = this.getCharacter.bind(this);
       this.getCharacterStats = this.getCharacterStats.bind(this);
+      this.getFairyTaleDetails = this.getFairyTaleDetails.bind(this);
       this.importCharacters = this.importCharacters.bind(this);
       this.list = this.list.bind(this);
+      this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this);
       this.listCharacters = this.listCharacters.bind(this);
       this.markRead = this.markRead.bind(this);
       this.resetRecentUsage = this.resetRecentUsage.bind(this);
@@ -24130,118 +24490,131 @@ var story;
       this.updateCharacter = this.updateCharacter.bind(this);
     }
     async addCharacter(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool`, JSON.stringify(params));
+      return await resp.json();
     }
-    async deleteCharacter(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async deleteCharacter(id2) {
+      const resp = await this.baseClient.callTypedAPI("DELETE", `/story/character-pool/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
     /**
      * Deletes a story and all its chapters.
      */
-    async deleteStory(params) {
-      await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, { method: "DELETE", body: void 0 });
+    async deleteStory(id2) {
+      await this.baseClient.callTypedAPI("DELETE", `/story/${encodeURIComponent(id2)}`);
     }
     /**
      * ===== EXPORT CHARACTERS =====
      */
     async exportCharacters() {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool/export`);
+      return await resp.json();
     }
     /**
      * Generates a new story based on the provided configuration.
      */
     async generate(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/generate`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/generate`, JSON.stringify(params));
+      return await resp.json();
     }
-    async generateCharacterImage(params) {
-      const body = {
-        style: params.style
-      };
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, { method: "POST", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async generateCharacterImage(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/${encodeURIComponent(id2)}/generate-image`, JSON.stringify(params));
+      return await resp.json();
+    }
+    /**
+     * Generate a personalized story from a fairy tale template
+     * This replaces the old 4-phase generation system
+     */
+    async generateFromFairyTale(params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/generate-from-fairytale`, JSON.stringify(params));
+      return await resp.json();
     }
     async generateStoryContent(params) {
-      const resp = await this.baseClient.callTypedAPI(`/ai/generate-story`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-story`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Retrieves a specific story by ID with all chapters.
      */
-    async get(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async get(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/story/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
-    async getCharacter(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async getCharacter(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
-    async getCharacterStats(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/stats`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
-    }
-    async importCharacters(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/import`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async getCharacterStats(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool/${encodeURIComponent(id2)}/stats`);
+      return await resp.json();
     }
     /**
-     * Retrieves all stories for the authenticated user.
+     * Get details of a specific fairy tale including roles
      */
-    async list() {
-      const resp = await this.baseClient.callTypedAPI(`/stories`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async getFairyTaleDetails(taleId) {
+      await this.baseClient.callTypedAPI("GET", `/story/fairytale/${encodeURIComponent(taleId)}`);
+    }
+    async importCharacters(params) {
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/import`, JSON.stringify(params));
+      return await resp.json();
+    }
+    /**
+     * Retrieves stories for the authenticated user with pagination.
+     */
+    async list(params) {
+      const query = makeRecord({
+        limit: params.limit === void 0 ? void 0 : String(params.limit),
+        offset: params.offset === void 0 ? void 0 : String(params.offset)
+      });
+      const resp = await this.baseClient.callTypedAPI("GET", `/stories`, void 0, { query });
+      return await resp.json();
+    }
+    /**
+     * Get list of available fairy tales for story selection
+     */
+    async listAvailableFairyTales() {
+      await this.baseClient.callTypedAPI("GET", `/story/available-fairytales`);
     }
     /**
      * ===== GET ALL CHARACTERS =====
      */
     async listCharacters() {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool`);
+      return await resp.json();
     }
     /**
      * Marks a story as read and applies personality development to all user avatars
      */
     async markRead(params) {
-      const resp = await this.baseClient.callTypedAPI(`/story/mark-read`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/mark-read`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * ===== RESET RECENT USAGE COUNTS =====
      * This should be run periodically (e.g., monthly) to give all characters fresh chances
      */
     async resetRecentUsage() {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/reset-usage`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/reset-usage`);
+      return await resp.json();
     }
     /**
      * ===== SEED CHARACTER POOL =====
      * Seeds the character pool with 18 pre-built characters
      */
     async seedPool() {
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/seed`, { method: "POST", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/seed`);
+      return await resp.json();
     }
     /**
      * Updates an existing story's metadata.
      */
-    async update(params) {
-      const body = {
-        description: params.description,
-        isPublic: params.isPublic,
-        title: params.title
-      };
-      const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async update(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("PUT", `/story/${encodeURIComponent(id2)}`, JSON.stringify(params));
+      return await resp.json();
     }
-    async updateCharacter(params) {
-      const body = {
-        updates: params.updates
-      };
-      const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, { method: "PUT", body: JSON.stringify(body) });
-      return JSON.parse(await resp.text(), dateReviver);
+    async updateCharacter(id2, params) {
+      const resp = await this.baseClient.callTypedAPI("PUT", `/story/character-pool/${encodeURIComponent(id2)}`, JSON.stringify(params));
+      return await resp.json();
     }
   }
   story2.ServiceClient = ServiceClient;
@@ -24254,8 +24627,8 @@ var tavi;
       this.taviChat = this.taviChat.bind(this);
     }
     async taviChat(params) {
-      const resp = await this.baseClient.callTypedAPI(`/tavi/chat`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/tavi/chat`, JSON.stringify(params));
+      return await resp.json();
     }
   }
   tavi2.ServiceClient = ServiceClient;
@@ -24273,37 +24646,27 @@ var user;
      * Creates a new user profile.
      */
     async create(params) {
-      const resp = await this.baseClient.callTypedAPI(`/user`, { method: "POST", body: JSON.stringify(params) });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("POST", `/user`, JSON.stringify(params));
+      return await resp.json();
     }
     /**
      * Retrieves a user profile by ID.
      */
-    async get(params) {
-      const resp = await this.baseClient.callTypedAPI(`/user/${encodeURIComponent(params.id)}`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+    async get(id2) {
+      const resp = await this.baseClient.callTypedAPI("GET", `/user/${encodeURIComponent(id2)}`);
+      return await resp.json();
     }
     /**
      * Returns the authenticated user's profile.
      * The auth handler ensures the user exists in the database.
      */
     async me() {
-      const resp = await this.baseClient.callTypedAPI(`/user/me`, { method: "GET", body: void 0 });
-      return JSON.parse(await resp.text(), dateReviver);
+      const resp = await this.baseClient.callTypedAPI("GET", `/user/me`);
+      return await resp.json();
     }
   }
   user2.ServiceClient = ServiceClient;
 })(user || (user = {}));
-function dateReviver(key, value) {
-  if (typeof value === "string" && value.length >= 10 && value.charCodeAt(0) >= 48 && // '0'
-  value.charCodeAt(0) <= 57) {
-    const parsedDate = new Date(value);
-    if (!isNaN(parsedDate.getTime())) {
-      return parsedDate;
-    }
-  }
-  return value;
-}
 function encodeQuery(parts) {
   const pairs = [];
   for (const key in parts) {
@@ -24368,7 +24731,7 @@ class StreamInOut {
     this.buffer = [];
     this.socket = new WebSocketConnection(url, headers);
     this.socket.on("message", (event) => {
-      this.buffer.push(JSON.parse(event.data, dateReviver));
+      this.buffer.push(JSON.parse(event.data));
       this.socket.resolveHasUpdateHandlers();
     });
   }
@@ -24403,7 +24766,7 @@ class StreamIn {
     this.buffer = [];
     this.socket = new WebSocketConnection(url, headers);
     this.socket.on("message", (event) => {
-      this.buffer.push(JSON.parse(event.data, dateReviver));
+      this.buffer.push(JSON.parse(event.data));
       this.socket.resolveHasUpdateHandlers();
     });
   }
@@ -24431,7 +24794,7 @@ class StreamOut {
     this.responseValue = new Promise((resolve) => responseResolver = resolve);
     this.socket = new WebSocketConnection(url, headers);
     this.socket.on("message", (event) => {
-      responseResolver(JSON.parse(event.data, dateReviver));
+      responseResolver(JSON.parse(event.data));
     });
   }
   async response() {
@@ -24537,18 +24900,20 @@ class BaseClient {
     return new StreamOut(this.baseURL + path + queryString, headers);
   }
   // callTypedAPI makes an API call, defaulting content type to "application/json"
-  async callTypedAPI(path, params) {
-    return this.callAPI(path, {
+  async callTypedAPI(method, path, body, params) {
+    return this.callAPI(method, path, body, {
       ...params,
       headers: { "Content-Type": "application/json", ...params == null ? void 0 : params.headers }
     });
   }
   // callAPI is used by each generated API method to actually make the request
-  async callAPI(path, params) {
+  async callAPI(method, path, body, params) {
     let { query, headers, ...rest } = params ?? {};
     const init = {
       ...this.requestInit,
-      ...rest
+      ...rest,
+      method,
+      body: body ?? null
     };
     init.headers = { ...this.headers, ...init.headers, ...headers };
     const authData = await this.getAuthData();
@@ -24563,23 +24928,23 @@ class BaseClient {
     const queryString = query ? "?" + encodeQuery(query) : "";
     const response = await this.fetcher(this.baseURL + path + queryString, init);
     if (!response.ok) {
-      let body = { code: "unknown", message: `request failed: status ${response.status}` };
+      let body2 = { code: "unknown", message: `request failed: status ${response.status}` };
       try {
         const text = await response.text();
         try {
           const jsonBody = JSON.parse(text);
           if (isAPIErrorResponse(jsonBody)) {
-            body = jsonBody;
+            body2 = jsonBody;
           } else {
-            body.message += ": " + JSON.stringify(jsonBody);
+            body2.message += ": " + JSON.stringify(jsonBody);
           }
         } catch {
-          body.message += ": " + text;
+          body2.message += ": " + text;
         }
       } catch (e) {
-        body.message += ": " + String(e);
+        body2.message += ": " + String(e);
       }
-      throw new APIError(response.status, body);
+      throw new APIError(response.status, body2);
     }
     return response;
   }
@@ -24631,7 +24996,6 @@ var ErrCode = /* @__PURE__ */ ((ErrCode2) => {
   ErrCode2["Unauthenticated"] = "unauthenticated";
   return ErrCode2;
 })(ErrCode || {});
-new Client("http://localhost:4000", { requestInit: { credentials: "include" } });
 function getClerkPublishableKey() {
   var _a;
   if (typeof window !== "undefined" && ((_a = window.ENV) == null ? void 0 : _a.CLERK_PUBLISHABLE_KEY)) {
@@ -24658,19 +25022,21 @@ const config = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
 function useBackend() {
   const { getToken, isSignedIn, isLoaded } = useAuth();
   const target = getBackendUrl();
-  return new Client(target, {
-    auth: async () => {
-      if (!isLoaded) {
-        return void 0;
-      }
-      if (!isSignedIn) {
-        return void 0;
-      }
-      const token = await getToken();
-      return token ? { authorization: `Bearer ${token}` } : void 0;
-    },
-    requestInit: { credentials: "include" }
-  });
+  return reactExports.useMemo(() => {
+    return new Client(target, {
+      auth: async () => {
+        if (!isLoaded) {
+          return void 0;
+        }
+        if (!isSignedIn) {
+          return void 0;
+        }
+        const token = await getToken();
+        return token ? { authorization: `Bearer ${token}` } : void 0;
+      },
+      requestInit: { credentials: "include" }
+    });
+  }, [target, getToken, isSignedIn, isLoaded]);
 }
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -26498,6 +26864,10 @@ class JSAnimation extends WithPromise {
   get duration() {
     return /* @__PURE__ */ millisecondsToSeconds(this.calculatedDuration);
   }
+  get iterationDuration() {
+    const { delay: delay2 = 0 } = this.options || {};
+    return this.duration + /* @__PURE__ */ millisecondsToSeconds(delay2);
+  }
   get time() {
     return /* @__PURE__ */ millisecondsToSeconds(this.currentTime);
   }
@@ -27026,6 +27396,10 @@ class NativeAnimation extends WithPromise {
     const duration = ((_b = (_a = this.animation.effect) == null ? void 0 : _a.getComputedTiming) == null ? void 0 : _b.call(_a).duration) || 0;
     return /* @__PURE__ */ millisecondsToSeconds(Number(duration));
   }
+  get iterationDuration() {
+    const { delay: delay2 = 0 } = this.options || {};
+    return this.duration + /* @__PURE__ */ millisecondsToSeconds(delay2);
+  }
   get time() {
     return /* @__PURE__ */ millisecondsToSeconds(Number(this.animation.currentTime) || 0);
   }
@@ -27157,7 +27531,7 @@ function canAnimate(keyframes2, name, type, velocity) {
 }
 function makeAnimationInstant(options) {
   options.duration = 0;
-  options.type === "keyframes";
+  options.type = "keyframes";
 }
 const acceleratedValues = /* @__PURE__ */ new Set([
   "opacity",
@@ -27263,6 +27637,9 @@ class AsyncMotionValueAnimation extends WithPromise {
   }
   get duration() {
     return this.animation.duration;
+  }
+  get iterationDuration() {
+    return this.animation.iterationDuration;
   }
   get time() {
     return this.animation.time;
@@ -28195,7 +28572,6 @@ function attachSpring(value, source, options) {
     latestValue = v;
     latestSetter = (latest2) => set2(parseValue(latest2, unit));
     frame.postRender(startAnimation);
-    return value.get();
   }, stopAnimation);
   if (isMotionValue(source)) {
     const removeSourceOnChange = source.on("change", (v) => value.set(parseValue(v, unit)));
@@ -28220,6 +28596,40 @@ const MotionConfigContext = reactExports.createContext({
   isStatic: false,
   reducedMotion: "never"
 });
+function setRef(ref, value) {
+  if (typeof ref === "function") {
+    return ref(value);
+  } else if (ref !== null && ref !== void 0) {
+    ref.current = value;
+  }
+}
+function composeRefs(...refs) {
+  return (node) => {
+    let hasCleanup = false;
+    const cleanups = refs.map((ref) => {
+      const cleanup = setRef(ref, node);
+      if (!hasCleanup && typeof cleanup === "function") {
+        hasCleanup = true;
+      }
+      return cleanup;
+    });
+    if (hasCleanup) {
+      return () => {
+        for (let i = 0; i < cleanups.length; i++) {
+          const cleanup = cleanups[i];
+          if (typeof cleanup === "function") {
+            cleanup();
+          } else {
+            setRef(refs[i], null);
+          }
+        }
+      };
+    }
+  };
+}
+function useComposedRefs(...refs) {
+  return reactExports.useCallback(composeRefs(...refs), refs);
+}
 class PopChildMeasure extends reactExports.Component {
   getSnapshotBeforeUpdate(prevProps) {
     const element = this.props.childRef.current;
@@ -28255,6 +28665,7 @@ function PopChild({ children, isPresent, anchorX, root }) {
     right: 0
   });
   const { nonce } = reactExports.useContext(MotionConfigContext);
+  const composedRef = useComposedRefs(ref, children == null ? void 0 : children.ref);
   reactExports.useInsertionEffect(() => {
     const { width, height, top, left, right } = size.current;
     if (isPresent || !ref.current || !width || !height)
@@ -28283,7 +28694,7 @@ function PopChild({ children, isPresent, anchorX, root }) {
       }
     };
   }, [isPresent]);
-  return jsxRuntimeExports.jsx(PopChildMeasure, { isPresent, childRef: ref, sizeRef: size, children: reactExports.cloneElement(children, { ref }) });
+  return jsxRuntimeExports.jsx(PopChildMeasure, { isPresent, childRef: ref, sizeRef: size, children: reactExports.cloneElement(children, { ref: composedRef }) });
 }
 const PresenceChild = ({ children, initial, isPresent, onExitComplete, custom, presenceAffectsLayout, mode, anchorX, root }) => {
   const presenceChildren = useConstant(newChildrenMap);
@@ -28954,9 +29365,8 @@ function useMotionRef(visualState, visualElement, externalRef) {
       }
     },
     /**
-     * Only pass a new ref callback to React if we've received a visual element
-     * factory. Otherwise we'll be mounting/remounting every time externalRef
-     * or other dependencies change.
+     * Include externalRef in dependencies to ensure the callback updates
+     * when the ref changes, allowing proper ref forwarding.
      */
     [visualElement]
   );
@@ -30239,7 +30649,6 @@ function createAnimationState(visualElement) {
     getState: () => state,
     reset: () => {
       state = createState();
-      isInitialRender = true;
     }
   };
 }
@@ -33053,7 +33462,7 @@ function attachToAnimation(animation, options) {
     observe: (valueAnimation) => {
       valueAnimation.pause();
       return observeTimeline((progress2) => {
-        valueAnimation.time = valueAnimation.duration * progress2;
+        valueAnimation.time = valueAnimation.iterationDuration * progress2;
       }, timeline);
     }
   });
@@ -33638,7 +34047,7 @@ const AvatarWizardScreen = () => {
       };
       localStorage.setItem(personalityKey, JSON.stringify(initialPersonality));
       __vitePreload(async () => {
-        const { showAvatarCreatedToast, showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showAvatarCreatedToast, showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showAvatarCreatedToast, showSuccessToast };
       }, true ? [] : void 0).then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(safeValues.name);
@@ -33676,7 +34085,7 @@ const AvatarWizardScreen = () => {
       });
       setGeneratedImageUrl(result.imageUrl);
       __vitePreload(async () => {
-        const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showSuccessToast };
       }, true ? [] : void 0).then(({ showSuccessToast }) => {
         showSuccessToast("🎨 Avatar-Bild wurde erfolgreich generiert!");
@@ -33684,7 +34093,7 @@ const AvatarWizardScreen = () => {
     } catch (error) {
       console.error("Error generating avatar image:", error);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.");
@@ -33947,42 +34356,51 @@ const EditAvatarScreen = () => {
     leadership: 6
   });
   reactExports.useEffect(() => {
-    if (avatarId) {
-      loadAvatar();
-    }
-  }, [avatarId]);
-  const loadAvatar = async () => {
     if (!avatarId) {
       console.error("No avatarId provided");
       return;
     }
-    try {
-      setLoading2(true);
-      const avatarData = await backend.avatar.get(avatarId);
-      setAvatar(avatarData);
-      setName(avatarData.name);
-      setDescription(avatarData.description || "");
-      setPhysicalTraits(avatarData.physicalTraits);
-      const rawTraits = avatarData.personalityTraits;
-      const flatTraits = {};
-      Object.entries(rawTraits).forEach(([key, val]) => {
-        if (typeof val === "number") {
-          flatTraits[key] = val;
-        } else if (typeof val === "object" && val !== null && "value" in val) {
-          flatTraits[key] = val.value;
-        } else {
-          flatTraits[key] = 0;
+    const loadAvatar = async () => {
+      try {
+        setLoading2(true);
+        const avatarData = await backend.avatar.get(avatarId);
+        setAvatar(avatarData);
+        setName(avatarData.name);
+        setDescription(avatarData.description || "");
+        setPhysicalTraits(avatarData.physicalTraits || { characterType: "", appearance: "" });
+        const rawTraits = avatarData.personalityTraits;
+        const flatTraits = {
+          courage: 0,
+          intelligence: 0,
+          creativity: 0,
+          empathy: 0,
+          strength: 0,
+          humor: 0,
+          adventure: 0,
+          patience: 0,
+          curiosity: 0,
+          leadership: 0
+        };
+        if (rawTraits && typeof rawTraits === "object" && Object.keys(rawTraits).length > 0) {
+          Object.entries(rawTraits).forEach(([key, val]) => {
+            if (typeof val === "number") {
+              flatTraits[key] = val;
+            } else if (typeof val === "object" && val !== null && "value" in val) {
+              flatTraits[key] = val.value;
+            }
+          });
         }
-      });
-      setPersonalityTraits(flatTraits);
-    } catch (error) {
-      console.error("Error loading avatar:", error);
-      alert("Avatar konnte nicht geladen werden.");
-      navigate("/");
-    } finally {
-      setLoading2(false);
-    }
-  };
+        setPersonalityTraits(flatTraits);
+      } catch (error) {
+        console.error("Error loading avatar:", error);
+        alert("Avatar konnte nicht geladen werden.");
+        navigate("/");
+      } finally {
+        setLoading2(false);
+      }
+    };
+    loadAvatar();
+  }, [avatarId]);
   const updatePhysicalTrait = (key, value) => {
     setPhysicalTraits((prev) => ({ ...prev, [key]: value }));
   };
@@ -34074,23 +34492,23 @@ const EditAvatarScreen = () => {
     }
   };
   const personalityLabels = {
-    knowledge: { label: "Wissen", icon: "🧠", color: colors.primary },
-    creativity: { label: "Kreativität", icon: "🎨", color: colors.orange },
-    vocabulary: { label: "Wortschatz", icon: "🔤", color: colors.purple },
-    courage: { label: "Mut", icon: "🦁", color: colors.error },
-    curiosity: { label: "Neugier", icon: "🔍", color: colors.yellow },
-    teamwork: { label: "Teamgeist", icon: "🤝", color: colors.blue },
-    empathy: { label: "Empathie", icon: "💗", color: colors.green },
-    persistence: { label: "Ausdauer", icon: "🧗", color: colors.teal },
-    logic: { label: "Logik", icon: "🔢", color: colors.purple }
+    knowledge: { label: "Wissen", icon: "🧠", color: colors.primary[500] },
+    creativity: { label: "Kreativität", icon: "🎨", color: colors.peach[500] },
+    vocabulary: { label: "Wortschatz", icon: "🔤", color: colors.lavender[500] },
+    courage: { label: "Mut", icon: "🦁", color: colors.semantic.error },
+    curiosity: { label: "Neugier", icon: "🔍", color: colors.peach[400] },
+    teamwork: { label: "Teamgeist", icon: "🤝", color: colors.sky[500] },
+    empathy: { label: "Empathie", icon: "💗", color: colors.rose[500] },
+    persistence: { label: "Ausdauer", icon: "🧗", color: colors.mint[500] },
+    logic: { label: "Logik", icon: "🔢", color: colors.lilac[500] }
   };
   const containerStyle2 = {
     minHeight: "100vh",
-    background: colors.appBackground,
+    background: colors.background.primary,
     paddingBottom: "120px"
   };
   const headerStyle2 = {
-    background: colors.glass.navBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     padding: `${spacing.lg}px`,
     boxShadow: colors.glass.shadow,
@@ -34106,16 +34524,16 @@ const EditAvatarScreen = () => {
   const backButtonStyle = {
     padding: `${spacing.sm}px`,
     borderRadius: `${radii.pill}px`,
-    background: colors.glass.buttonBackground,
+    background: colors.glass.backgroundAlt,
     border: `1px solid ${colors.glass.border}`,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     cursor: "pointer",
     marginRight: `${spacing.md}px`,
     transition: "all 0.2s ease"
   };
   const titleStyle = {
     ...typography.textStyles.headingMd,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     flex: 1,
     textAlign: "center"
   };
@@ -34127,19 +34545,22 @@ const EditAvatarScreen = () => {
   const inputStyle = {
     width: "100%",
     padding: `${spacing.lg}px`,
-    border: `2px solid ${colors.border}`,
+    border: `2px solid ${colors.border.normal}`,
     borderRadius: `${radii.lg}px`,
     fontSize: typography.textStyles.body.fontSize,
     fontFamily: typography.fonts.primary,
-    backgroundColor: colors.elevatedSurface,
-    color: colors.textPrimary,
+    backgroundColor: colors.background.card,
+    color: colors.text.primary,
     outline: "none",
     transition: "all 0.3s ease"
   };
+  ({
+    background: colors.border.normal
+  });
   const previewStyle = {
     textAlign: "center",
     padding: `${spacing.xl}px`,
-    background: colors.glass.cardBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     borderRadius: `${radii.xl}px`,
     boxShadow: colors.glass.shadow,
@@ -34150,7 +34571,7 @@ const EditAvatarScreen = () => {
     width: "140px",
     height: "140px",
     borderRadius: `${radii.pill}px`,
-    backgroundColor: colors.elevatedSurface,
+    backgroundColor: colors.background.card,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -34172,7 +34593,7 @@ const EditAvatarScreen = () => {
         animation: "spin 1s linear infinite",
         margin: `0 auto ${spacing.lg}px auto`
       } }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.textSecondary }, children: "Lade Avatar..." })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary }, children: "Lade Avatar..." })
     ] }) });
   }
   if (!avatar2) {
@@ -34202,9 +34623,9 @@ const EditAvatarScreen = () => {
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: contentStyle, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 100, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: { marginBottom: `${spacing.xl}px` }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px` }, children: "⭐ Grundinformationen" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { style: { ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.lg}px` }, children: "⭐ Grundinformationen" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: `${spacing.lg}px` }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.textPrimary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Name" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.text.primary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Name" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
             {
@@ -34216,7 +34637,7 @@ const EditAvatarScreen = () => {
           )
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: `${spacing.lg}px` }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.textPrimary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Beschreibung" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.text.primary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Beschreibung" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "textarea",
             {
@@ -34229,7 +34650,7 @@ const EditAvatarScreen = () => {
           )
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: `${spacing.lg}px` }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.textPrimary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Charakter-Typ" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.text.primary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Charakter-Typ" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
             {
@@ -34242,7 +34663,7 @@ const EditAvatarScreen = () => {
           )
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.textPrimary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Aussehen & Merkmale" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: { ...typography.textStyles.label, color: colors.text.primary, display: "block", marginBottom: `${spacing.sm}px` }, children: "Aussehen & Merkmale" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "textarea",
             {
@@ -34256,8 +34677,8 @@ const EditAvatarScreen = () => {
         ] })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 200, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { variant: "glass", style: { marginBottom: `${spacing.xl}px` }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { style: { ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }, children: "💫 Persönlichkeitsentwicklung" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { fontSize: "14px", color: colors.textSecondary, marginBottom: `${spacing.lg}px`, lineHeight: "1.5" }, children: "Die Persönlichkeit deines Avatars entwickelt sich automatisch durch Erlebnisse in Geschichten und Dokus. Du kannst diese Werte nicht manuell ändern." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { style: { ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }, children: "💫 Persönlichkeitsentwicklung" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { fontSize: "14px", color: colors.text.secondary, marginBottom: `${spacing.lg}px`, lineHeight: "1.5" }, children: "Die Persönlichkeit deines Avatars entwickelt sich automatisch durch Erlebnisse in Geschichten und Dokus. Du kannst diese Werte nicht manuell ändern." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
           backgroundColor: "#F3F4F6",
           borderRadius: `${radii.lg}px`,
@@ -34274,13 +34695,13 @@ const EditAvatarScreen = () => {
           }, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center" }, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: "20px", marginRight: `${spacing.sm}px` }, children: trait.icon }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: "14px", color: colors.textPrimary, fontWeight: "500" }, children: trait.label })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: "14px", color: colors.text.primary, fontWeight: "500" }, children: trait.label })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
               padding: `${spacing.xs}px ${spacing.md}px`,
               borderRadius: `${radii.md}px`,
               backgroundColor: trait.color,
-              color: colors.textInverse,
+              color: colors.text.inverse,
               fontWeight: "bold",
               fontSize: "14px",
               minWidth: "40px",
@@ -34288,7 +34709,7 @@ const EditAvatarScreen = () => {
             }, children: value })
           ] }, key);
         }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { fontSize: "12px", color: colors.textSecondary, marginTop: `${spacing.md}px`, fontStyle: "italic" }, children: "💡 Tipp: Lasse deinen Avatar Geschichten lesen, um seine Persönlichkeit weiterzuentwickeln!" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { fontSize: "12px", color: colors.text.secondary, marginTop: `${spacing.md}px`, fontStyle: "italic" }, children: "💡 Tipp: Lasse deinen Avatar Geschichten lesen, um seine Persönlichkeit weiterzuentwickeln!" })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 300, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { variant: "glass", style: { marginBottom: `${spacing.xl}px` }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: previewStyle, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: avatarPreviewStyle, children: avatar2.imageUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -34304,21 +34725,21 @@ const EditAvatarScreen = () => {
           {
             title: regeneratingImage ? "Generiere..." : "🎨 Neues Bild",
             onPress: handleRegenerateImage,
-            loading: regeneratingImage,
+            disabled: regeneratingImage,
             icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 16 }),
             variant: "secondary"
           }
         )
       ] }) }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 350, children: avatar2.imageUrl && !avatar2.visualProfile && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: `${spacing.lg}px`, padding: `${spacing.md}px`, background: colors.warning + "20", borderRadius: `${radii.md}px`, border: `1px solid ${colors.warning}` }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.warning, marginBottom: `${spacing.sm}px` }, children: "⚠️ Kein visuelles Profil vorhanden! Bild analysieren, um konsistente Darstellung in Geschichten zu gewährleisten." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: 350, children: avatar2.imageUrl && !avatar2.visualProfile && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: `${spacing.lg}px`, padding: `${spacing.md}px`, background: colors.semantic.warning + "20", borderRadius: `${radii.md}px`, border: `1px solid ${colors.semantic.warning}` }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.semantic.warning, marginBottom: `${spacing.sm}px` }, children: "⚠️ Kein visuelles Profil vorhanden! Bild analysieren, um konsistente Darstellung in Geschichten zu gewährleisten." }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
           {
             title: "🔬 Bild analysieren",
             onPress: handleAnalyzeExistingImage,
-            loading: regeneratingImage,
-            variant: "warning"
+            disabled: regeneratingImage,
+            variant: "secondary"
           }
         )
       ] }) }),
@@ -34337,7 +34758,7 @@ const EditAvatarScreen = () => {
           {
             title: "💾 Änderungen speichern",
             onPress: handleSave,
-            loading: saving,
+            disabled: saving,
             icon: /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { size: 16 }),
             variant: "fun",
             className: "flex-1"
@@ -35495,7 +35916,7 @@ const MemoryTimeline = ({ memories, onDeleteMemory }) => {
     }
   };
   const sortedMemories = [...memories].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    (a, b) => new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime()
   );
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     sortedMemories.map((memory, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(FadeInView, { delay: index * 100, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
@@ -35527,7 +35948,7 @@ const MemoryTimeline = ({ memories, onDeleteMemory }) => {
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center text-xs text-gray-500 mt-1", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(Calendar, { className: "w-3 h-3 mr-1" }),
-                new Date(memory.timestamp).toLocaleDateString("de-DE")
+                new Date(memory.createdAt || memory.timestamp || 0).toLocaleDateString("de-DE")
               ] })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -35700,6 +36121,7 @@ const AvatarDetailScreen = () => {
     };
   }, [avatarId]);
   reactExports.useEffect(() => {
+    if (!avatarId) return;
     const handleStorageChange = (e) => {
       if (!avatarId) return;
       if (e.key === `avatar_personality_${avatarId}`) {
@@ -35712,10 +36134,12 @@ const AvatarDetailScreen = () => {
       }
       if (e.key === `avatar_memories_${avatarId}`) {
         console.log("Memory data changed for avatar:", avatarId);
-        getMemories(avatarId).then((memories2) => {
-          setMemories(memories2);
-          console.log("Updated memories from storage event:", memories2);
-        });
+        if (avatarId) {
+          getMemories(avatarId).then((memories2) => {
+            setMemories(memories2);
+            console.log("Updated memories from storage event:", memories2);
+          });
+        }
       }
     };
     window.addEventListener("storage", handleStorageChange);
@@ -35736,9 +36160,11 @@ const AvatarDetailScreen = () => {
         if (now2 - lastUpdate < 5e3 && currentData.traits) {
           console.log("Detected recent personality update, refreshing...");
           setPersonalityTraits(currentData.traits);
-          getMemories(avatarId).then((memories2) => {
-            setMemories(memories2);
-          });
+          if (avatarId) {
+            getMemories(avatarId).then((memories2) => {
+              setMemories(memories2);
+            });
+          }
         }
       }
     }, 2e3);
@@ -35843,7 +36269,7 @@ const AvatarDetailScreen = () => {
     }
     try {
       console.log(`🗑️ Resetting doku history for avatar ${avatarId}`);
-      const response = await backend.avatar.resetDokuHistory(avatarId, {});
+      const response = await backend.avatar.resetDokuHistory(avatarId, { dokuId: void 0 });
       if (response.success) {
         console.log("✅ Doku history reset successfully:", response.message);
         window.dispatchEvent(new CustomEvent("showToast", {
@@ -35972,12 +36398,14 @@ const AvatarDetailScreen = () => {
                       if (response.ok) {
                         const result = await response.json();
                         alert(`✅ ${result.message}`);
-                        const avatarData = await backend.avatar.get(avatarId);
-                        if (avatarData && avatarData.id) {
-                          setAvatar(avatarData);
-                          if (avatarData.personalityTraits) {
-                            setRawPersonalityTraits(avatarData.personalityTraits);
-                            console.log("🔄 Updated personality traits after reset:", avatarData.personalityTraits);
+                        if (avatarId) {
+                          const avatarData = await backend.avatar.get(avatarId);
+                          if (avatarData && avatarData.id) {
+                            setAvatar(avatarData);
+                            if (avatarData.personalityTraits) {
+                              setRawPersonalityTraits(avatarData.personalityTraits);
+                              console.log("🔄 Updated personality traits after reset:", avatarData.personalityTraits);
+                            }
                           }
                         }
                       } else {
@@ -36013,7 +36441,11 @@ const AvatarDetailScreen = () => {
                 console.log("🔄 Converted traits for display:", converted);
                 return converted;
               })() : [],
-              memories,
+              memories: memories.map((m) => ({
+                personalityChanges: m.personalityChanges,
+                storyTitle: m.storyTitle,
+                createdAt: m.createdAt || m.timestamp || ""
+              })),
               onReduceTrait: handleReduceTrait
             }
           )
@@ -37620,6 +38052,927 @@ const StoryWizardScreen = () => {
     ] })
   ] });
 };
+function Step1AvatarSelection({ state, updateState }) {
+  const backend = useBackend();
+  const navigate = useNavigate();
+  const [avatars, setAvatars2] = reactExports.useState([]);
+  const [loading, setLoading2] = reactExports.useState(true);
+  reactExports.useEffect(() => {
+    loadAvatars();
+  }, []);
+  const loadAvatars = async () => {
+    try {
+      console.log("[Step1] Loading avatars from backend...");
+      const response = await backend.avatar.list();
+      console.log("[Step1] Backend response:", response);
+      const loadedAvatars = (response.avatars || []).map((a) => ({
+        id: a.id,
+        name: a.name,
+        imageUrl: a.imageUrl,
+        age: a.age || 0,
+        gender: a.gender || "unknown"
+      }));
+      setAvatars2(loadedAvatars);
+      console.log("[Step1] Loaded avatars:", loadedAvatars.length);
+    } catch (err) {
+      console.error("[Step1] Error loading avatars:", err);
+    } finally {
+      setLoading2(false);
+    }
+  };
+  const toggleAvatar = (avatarId) => {
+    const newSelection = state.selectedAvatars.includes(avatarId) ? state.selectedAvatars.filter((id2) => id2 !== avatarId) : [...state.selectedAvatars, avatarId];
+    updateState({ selectedAvatars: newSelection });
+  };
+  if (loading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center py-12", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "animate-spin w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mb-4" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Lade Avatare..." })
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-gray-800 mb-2", children: "🧸 Wer spielt in der Geschichte mit?" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Wähle 1-4 Avatare aus, die Teil der Geschichte werden sollen." })
+    ] }),
+    avatars.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-12 bg-gray-50 rounded-xl", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(User, { size: 48, className: "mx-auto text-gray-400 mb-4" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600 mb-4", children: "Du hast noch keine Avatare erstellt." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => navigate("/avatar/create"),
+          className: "inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 20 }),
+            "Ersten Avatar erstellen"
+          ]
+        }
+      )
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4", children: avatars.map((avatar2) => {
+      const isSelected = state.selectedAvatars.includes(avatar2.id);
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => toggleAvatar(avatar2.id),
+          className: `
+                  relative p-4 rounded-xl border-2 transition-all transform
+                  ${isSelected ? "border-purple-600 bg-purple-50 ring-4 ring-purple-200 scale-105" : "border-gray-200 bg-white hover:border-purple-300 hover:scale-102"}
+                `,
+          children: [
+            isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg", children: "✓" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "aspect-square rounded-lg bg-gradient-to-br from-purple-200 to-pink-200 mb-3 flex items-center justify-center overflow-hidden", children: avatar2.imageUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "img",
+              {
+                src: avatar2.imageUrl,
+                alt: avatar2.name,
+                className: "w-full h-full object-cover"
+              }
+            ) : /* @__PURE__ */ jsxRuntimeExports.jsx(Image, { size: 40, className: "text-purple-400" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-left", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 truncate", children: avatar2.name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-gray-500", children: [
+                avatar2.age,
+                " Jahre, ",
+                avatar2.gender === "male" ? "👦" : avatar2.gender === "female" ? "👧" : "🧒"
+              ] })
+            ] })
+          ]
+        },
+        avatar2.id
+      );
+    }) }),
+    state.selectedAvatars.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-green-50 border-2 border-green-500 rounded-xl p-4 flex items-center justify-between", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "font-semibold text-green-800", children: [
+        "✓ ",
+        state.selectedAvatars.length,
+        " Avatar",
+        state.selectedAvatars.length > 1 ? "e" : "",
+        " ausgewählt"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-green-600", children: [
+        state.selectedAvatars.length === 1 && "Perfekt für eine fokussierte Geschichte!",
+        state.selectedAvatars.length === 2 && "Ideal für eine Geschichte mit Freundschaft!",
+        state.selectedAvatars.length === 3 && "Spannende Gruppe für Abenteuer!",
+        state.selectedAvatars.length >= 4 && "Große Gruppe - viele Charaktere!"
+      ] })
+    ] }) })
+  ] });
+}
+const CATEGORIES = [
+  {
+    id: "fairy-tales",
+    title: "🏰 Klassische Märchen",
+    description: "Verwunschene Welten, Könige & Prinzessinnen, magische Wesen",
+    icon: Sparkles,
+    color: "purple",
+    examples: "Hänsel & Gretel, Rotkäppchen, Bremer Stadtmusikanten",
+    gradient: "from-purple-500 to-pink-500"
+  },
+  {
+    id: "adventure",
+    title: "🗺️ Abenteuer & Schätze",
+    description: "Spannende Reisen, versteckte Schätze, mutige Helden",
+    icon: Mountain,
+    color: "orange",
+    examples: "Schatzsuche, Geheime Höhlen, Wilde Expeditionen",
+    gradient: "from-orange-500 to-red-500"
+  },
+  {
+    id: "magic",
+    title: "✨ Märchenwelten & Magie",
+    description: "Zaubersprüche, fliegende Teppiche, magische Kräfte",
+    icon: WandSparkles,
+    color: "blue",
+    examples: "Zauberer, Feen, Magische Gegenstände",
+    gradient: "from-blue-500 to-indigo-500"
+  },
+  {
+    id: "animals",
+    title: "🦊 Tierwelten",
+    description: "Sprechende Tiere, Waldabenteuer, Tierfreundschaften",
+    icon: Dog,
+    color: "green",
+    examples: "Im Wald, Auf dem Bauernhof, In der Wildnis",
+    gradient: "from-green-500 to-emerald-500"
+  },
+  {
+    id: "scifi",
+    title: "🚀 Sci-Fi & Zukunft",
+    description: "Raumschiffe, fremde Planeten, futuristische Welten",
+    icon: Rocket,
+    color: "cyan",
+    examples: "Weltraumabenteuer, Roboter, Zeitreisen",
+    gradient: "from-cyan-500 to-blue-500"
+  },
+  {
+    id: "modern",
+    title: "🏡 Modern & Realität",
+    description: "Alltag, Schule, Familie, echte Erlebnisse",
+    icon: House,
+    color: "gray",
+    examples: "Heute & Hier, Realistische Geschichten",
+    gradient: "from-gray-500 to-slate-500"
+  }
+];
+function Step2CategorySelection({ state, updateState }) {
+  const handleSelectCategory = (categoryId) => {
+    updateState({ mainCategory: categoryId });
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-gray-800 mb-2", children: "📚 Was für eine Geschichte soll es werden?" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Wähle eine Kategorie aus - deine Avatare werden Teil einer einzigartigen Geschichte!" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4", children: CATEGORIES.map((category) => {
+      const isSelected = state.mainCategory === category.id;
+      const Icon2 = category.icon;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => handleSelectCategory(category.id),
+          className: `
+                relative p-6 rounded-2xl border-2 text-left transition-all transform
+                ${isSelected ? `border-${category.color}-600 bg-${category.color}-50 ring-4 ring-${category.color}-200 scale-105 shadow-xl` : "border-gray-200 bg-white hover:border-gray-400 hover:scale-102 shadow-lg hover:shadow-xl"}
+              `,
+          children: [
+            isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-3 -right-3 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg animate-bounce", children: "✓" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-4 mb-3", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `p-3 rounded-xl bg-gradient-to-br ${category.gradient} shadow-lg`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 32, className: "text-white" }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-xl text-gray-800 mb-1", children: category.title }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-600", children: category.description })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 pt-4 border-t border-gray-200", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-semibold text-gray-500 mb-1", children: "BEISPIELE:" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-700", children: category.examples })
+            ] })
+          ]
+        },
+        category.id
+      );
+    }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border-2 border-blue-400 rounded-xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-blue-800", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "💡 Hinweis:" }),
+      " Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine ",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "individuelle" }),
+      " Geschichte erschaffen!"
+    ] }) })
+  ] });
+}
+const AGE_GROUPS = [
+  {
+    id: "3-5",
+    title: "3-5 Jahre",
+    icon: Baby,
+    description: "Einfache Worte, kurze Sätze, viele Bilder",
+    color: "pink"
+  },
+  {
+    id: "6-8",
+    title: "6-8 Jahre",
+    icon: Users,
+    description: "Spannende Abenteuer, leicht zu folgen",
+    color: "blue"
+  },
+  {
+    id: "9-12",
+    title: "9-12 Jahre",
+    icon: GraduationCap,
+    description: "Komplexere Handlung, mehr Details",
+    color: "purple"
+  },
+  {
+    id: "13+",
+    title: "13+ Jahre",
+    icon: UserCheck,
+    description: "Tiefgründige Themen, anspruchsvoll",
+    color: "indigo"
+  }
+];
+const LENGTHS = [
+  {
+    id: "short",
+    title: "⚡ Kurz",
+    duration: "5-10 Min",
+    chapters: "3-4 Kapitel",
+    color: "green"
+  },
+  {
+    id: "medium",
+    title: "📖 Mittel",
+    duration: "10-15 Min",
+    chapters: "5-6 Kapitel",
+    color: "yellow"
+  },
+  {
+    id: "long",
+    title: "📚 Lang",
+    duration: "15-25 Min",
+    chapters: "7-9 Kapitel",
+    color: "orange"
+  }
+];
+function Step3AgeAndLength({ state, updateState }) {
+  const handleSelectAge = (ageGroup) => {
+    updateState({ ageGroup });
+  };
+  const handleSelectLength = (length) => {
+    updateState({ length });
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-8", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-gray-800 mb-2", children: "🎯 Für welches Alter & wie lang?" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Passe die Geschichte an das Alter und die verfügbare Zeit an." })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Users, { size: 20 }),
+        "Altersgruppe"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: AGE_GROUPS.map((group) => {
+        const isSelected = state.ageGroup === group.id;
+        const Icon2 = group.icon;
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => handleSelectAge(group.id),
+            className: `
+                  relative p-4 rounded-xl border-2 transition-all transform
+                  ${isSelected ? `border-${group.color}-600 bg-${group.color}-50 ring-4 ring-${group.color}-200 scale-105` : "border-gray-200 bg-white hover:border-gray-400 hover:scale-102"}
+                `,
+            children: [
+              isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold", children: "✓" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center text-center", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 32, className: `mb-2 ${isSelected ? `text-${group.color}-600` : "text-gray-400"}` }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-sm text-gray-800 mb-1", children: group.title }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-600", children: group.description })
+              ] })
+            ]
+          },
+          group.id
+        );
+      }) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { size: 20 }),
+        "Geschichtenlänge"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-3", children: LENGTHS.map((length) => {
+        const isSelected = state.length === length.id;
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => handleSelectLength(length.id),
+            className: `
+                  relative p-5 rounded-xl border-2 transition-all transform
+                  ${isSelected ? `border-${length.color}-600 bg-${length.color}-50 ring-4 ring-${length.color}-200 scale-105` : "border-gray-200 bg-white hover:border-gray-400 hover:scale-102"}
+                `,
+            children: [
+              isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold", children: "✓" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-2xl mb-2", children: length.title }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 mb-1", children: length.duration }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-600", children: length.chapters })
+              ] })
+            ]
+          },
+          length.id
+        );
+      }) })
+    ] }),
+    state.ageGroup && state.length && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-green-50 border-2 border-green-500 rounded-xl p-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-green-800 mb-1", children: "✓ Einstellungen gewählt" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-green-600", children: [
+        "Geschichte für ",
+        state.ageGroup,
+        " Jahre, ",
+        state.length === "short" ? "kurz (5-10 Min)" : state.length === "medium" ? "mittel (10-15 Min)" : "lang (15-25 Min)"
+      ] })
+    ] })
+  ] });
+}
+const FEELINGS = [
+  {
+    id: "funny",
+    title: "😂 Lustig",
+    description: "Zum Lachen, humorvoll, witzig",
+    icon: Smile,
+    color: "yellow",
+    gradient: "from-yellow-400 to-orange-400"
+  },
+  {
+    id: "warm",
+    title: "❤️ Herzlich",
+    description: "Warm, gemütlich, liebevoll",
+    icon: Heart,
+    color: "red",
+    gradient: "from-red-400 to-pink-400"
+  },
+  {
+    id: "exciting",
+    title: "⚡ Spannend",
+    description: "Action, Abenteuer, aufregend",
+    icon: Zap,
+    color: "blue",
+    gradient: "from-blue-400 to-cyan-400"
+  },
+  {
+    id: "crazy",
+    title: "🤪 Verrückt",
+    description: "Skurril, fantasievoll, überraschend",
+    icon: Sparkles,
+    color: "purple",
+    gradient: "from-purple-400 to-pink-400"
+  },
+  {
+    id: "meaningful",
+    title: "💭 Bedeutungsvoll",
+    description: "Tiefgründig, lehrreich, emotional",
+    icon: MessageCircle,
+    color: "green",
+    gradient: "from-green-400 to-emerald-400"
+  }
+];
+function Step4StoryFeeling({ state, updateState }) {
+  const handleToggleFeeling = (feelingId) => {
+    const currentFeelings = state.feelings;
+    if (currentFeelings.includes(feelingId)) {
+      updateState({ feelings: currentFeelings.filter((f) => f !== feelingId) });
+    } else {
+      if (currentFeelings.length < 3) {
+        updateState({ feelings: [...currentFeelings, feelingId] });
+      }
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-gray-800 mb-2", children: "🎭 Welches Gefühl soll die Geschichte haben?" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Wähle 1-3 Stimmungen aus, die die Geschichte prägen sollen." })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 md:grid-cols-3 gap-4", children: FEELINGS.map((feeling) => {
+      const isSelected = state.feelings.includes(feeling.id);
+      const Icon2 = feeling.icon;
+      const isDisabled = !isSelected && state.feelings.length >= 3;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => handleToggleFeeling(feeling.id),
+          disabled: isDisabled,
+          className: `
+                relative p-6 rounded-2xl border-2 transition-all transform
+                ${isSelected ? `border-${feeling.color}-600 bg-${feeling.color}-50 ring-4 ring-${feeling.color}-200 scale-105 shadow-xl` : isDisabled ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed" : "border-gray-200 bg-white hover:border-gray-400 hover:scale-102 shadow-lg"}
+              `,
+          children: [
+            isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-3 -right-3 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg", children: "✓" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `
+                w-16 h-16 mx-auto mb-3 rounded-xl bg-gradient-to-br ${feeling.gradient} 
+                flex items-center justify-center shadow-lg
+              `, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 32, className: "text-white" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-lg text-gray-800 mb-1", children: feeling.title }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-600", children: feeling.description })
+            ] })
+          ]
+        },
+        feeling.id
+      );
+    }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `
+        p-4 rounded-xl border-2 transition-all
+        ${state.feelings.length === 0 ? "border-gray-300 bg-gray-50" : state.feelings.length < 3 ? "border-blue-400 bg-blue-50" : "border-green-500 bg-green-50"}
+      `, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "font-semibold text-center", children: [
+      state.feelings.length === 0 && "👆 Wähle mindestens 1 Gefühl aus",
+      state.feelings.length === 1 && "✓ 1 Gefühl gewählt - Du kannst noch 2 weitere wählen",
+      state.feelings.length === 2 && "✓ 2 Gefühle gewählt - Du kannst noch 1 weiteres wählen",
+      state.feelings.length === 3 && "✓ 3 Gefühle gewählt - Perfekte Mischung!"
+    ] }) }),
+    state.feelings.length >= 2 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-purple-50 border-2 border-purple-400 rounded-xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-purple-800", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "💡 Tolle Kombination!" }),
+      state.feelings.includes("funny") && state.feelings.includes("exciting") && " Lustig UND spannend = actiongeladener Spaß!",
+      state.feelings.includes("warm") && state.feelings.includes("meaningful") && " Herzlich UND bedeutungsvoll = emotionale Tiefe!",
+      state.feelings.includes("crazy") && state.feelings.includes("funny") && " Verrückt UND lustig = absolut abgedrehte Geschichte!",
+      !state.feelings.includes("funny") && !state.feelings.includes("exciting") && !state.feelings.includes("warm") && !state.feelings.includes("meaningful") && !state.feelings.includes("crazy") && " Deine Gefühle-Mischung wird eine einzigartige Geschichte!"
+    ] }) })
+  ] });
+}
+const WISHES = [
+  {
+    id: "rhymes",
+    title: "🎵 Mit Reimen",
+    description: "Geschichte enthält Verse und Reime",
+    icon: Music,
+    color: "pink"
+  },
+  {
+    id: "moral",
+    title: "📖 Mit Moral",
+    description: "Geschichte hat eine Lehre oder Botschaft",
+    icon: BookHeart,
+    color: "blue"
+  },
+  {
+    id: "avatarIsHero",
+    title: "⭐ Avatar ist Held",
+    description: "Deine Avatare sind die Haupthelden",
+    icon: Star,
+    color: "yellow",
+    defaultActive: true
+  },
+  {
+    id: "famousCharacters",
+    title: "👑 Bekannte Figuren",
+    description: "Berühmte Märchenfiguren einbauen",
+    icon: Shuffle,
+    color: "purple"
+  },
+  {
+    id: "happyEnd",
+    title: "😊 Happy End",
+    description: "Geschichte endet glücklich",
+    icon: Smile,
+    color: "green",
+    defaultActive: true
+  },
+  {
+    id: "surpriseEnd",
+    title: "❗ Überraschungs-Ende",
+    description: "Unerwartete Wendung am Schluss",
+    icon: CircleAlert,
+    color: "orange"
+  }
+];
+function Step5SpecialWishes({ state, updateState }) {
+  const handleToggleWish = (wishId) => {
+    updateState({ [wishId]: !state[wishId] });
+  };
+  const handleCustomWishChange = (e) => {
+    updateState({ customWish: e.target.value });
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-gray-800 mb-2", children: "✨ Besondere Wünsche? (Optional)" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Füge besondere Features hinzu oder überspringe diesen Schritt." })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 md:grid-cols-3 gap-3", children: WISHES.map((wish) => {
+      const isSelected = state[wish.id];
+      const Icon2 = wish.icon;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => handleToggleWish(wish.id),
+          className: `
+                relative p-4 rounded-xl border-2 transition-all transform
+                ${isSelected ? `border-${wish.color}-500 bg-${wish.color}-50 ring-2 ring-${wish.color}-200 scale-102` : "border-gray-200 bg-white hover:border-gray-400"}
+              `,
+          children: [
+            isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold", children: "✓" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center text-center", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 28, className: `mb-2 ${isSelected ? `text-${wish.color}-600` : "text-gray-400"}` }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-sm text-gray-800 mb-1", children: wish.title }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-600", children: wish.description })
+            ] })
+          ]
+        },
+        wish.id
+      );
+    }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block mb-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-gray-700", children: "💬 Eigener Wunsch (optional):" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          value: state.customWish,
+          onChange: handleCustomWishChange,
+          placeholder: "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
+          maxLength: 200,
+          className: "\r\n            w-full p-4 border-2 border-gray-200 rounded-xl\r\n            focus:border-purple-500 focus:ring-4 focus:ring-purple-100\r\n            resize-none transition-all\r\n          ",
+          rows: 3
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-gray-500 mt-1", children: [
+        state.customWish.length,
+        "/200 Zeichen"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border-2 border-blue-400 rounded-xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-blue-800", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "💡 Hinweis:" }),
+      " Alle Wünsche sind optional. Die KI wird ihr Bestes tun, deine Wünsche einzubauen, aber die Geschichte bleibt immer spannend und logisch!"
+    ] }) })
+  ] });
+}
+const CATEGORY_NAMES = {
+  "fairy-tales": "🏰 Klassische Märchen",
+  "adventure": "🗺️ Abenteuer & Schätze",
+  "magic": "✨ Märchenwelten & Magie",
+  "animals": "🦊 Tierwelten",
+  "scifi": "🚀 Sci-Fi & Zukunft",
+  "modern": "🏡 Modern & Realität"
+};
+const AGE_LABELS = {
+  "3-5": "3-5 Jahre",
+  "6-8": "6-8 Jahre",
+  "9-12": "9-12 Jahre",
+  "13+": "13+ Jahre"
+};
+const LENGTH_LABELS = {
+  "short": "⚡ Kurz (5-10 Min)",
+  "medium": "📖 Mittel (10-15 Min)",
+  "long": "📚 Lang (15-25 Min)"
+};
+const FEELING_EMOJIS = {
+  "funny": "😂 Lustig",
+  "warm": "❤️ Herzlich",
+  "exciting": "⚡ Spannend",
+  "crazy": "🤪 Verrückt",
+  "meaningful": "💭 Bedeutungsvoll"
+};
+function Step6Summary({ state, onGenerate }) {
+  const activeWishes = [
+    state.rhymes && "🎵 Mit Reimen",
+    state.moral && "📖 Mit Moral",
+    state.avatarIsHero && "⭐ Avatar ist Held",
+    state.famousCharacters && "👑 Bekannte Figuren",
+    state.happyEnd && "😊 Happy End",
+    state.surpriseEnd && "❗ Überraschungs-Ende"
+  ].filter(Boolean);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl font-bold text-gray-800 mb-2", children: "🎉 Alles bereit!" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Überprüfe deine Auswahl und erstelle die Geschichte." })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border-2 border-purple-200 rounded-xl p-4 flex items-start gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(User, { size: 24, className: "text-purple-600" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 mb-1", children: "Avatare" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-gray-600", children: [
+            state.selectedAvatars.length,
+            " Avatar",
+            state.selectedAvatars.length > 1 ? "e" : "",
+            " ausgewählt"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { size: 20, className: "text-green-500 flex-shrink-0" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border-2 border-blue-200 rounded-xl p-4 flex items-start gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BookOpen, { size: 24, className: "text-blue-600" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 mb-1", children: "Kategorie" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-600", children: state.mainCategory ? CATEGORY_NAMES[state.mainCategory] : "Nicht gewählt" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { size: 20, className: "text-green-500 flex-shrink-0" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border-2 border-green-200 rounded-xl p-4 flex items-start gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { size: 24, className: "text-green-600" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 mb-1", children: "Alter & Länge" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-gray-600", children: [
+            state.ageGroup && AGE_LABELS[state.ageGroup],
+            ", ",
+            state.length && LENGTH_LABELS[state.length]
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { size: 20, className: "text-green-500 flex-shrink-0" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border-2 border-pink-200 rounded-xl p-4 flex items-start gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Heart, { size: 24, className: "text-pink-600" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 mb-1", children: "Gefühle" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-600", children: state.feelings.map((f) => FEELING_EMOJIS[f]).join(", ") })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { size: 20, className: "text-green-500 flex-shrink-0" })
+      ] }),
+      (activeWishes.length > 0 || state.customWish) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border-2 border-yellow-200 rounded-xl p-4 flex items-start gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 24, className: "text-yellow-600" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold text-gray-800 mb-1", children: "Besondere Wünsche" }),
+          activeWishes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-600 mb-1", children: activeWishes.join(", ") }),
+          state.customWish && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-gray-600 italic", children: [
+            '"',
+            state.customWish,
+            '"'
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { size: 20, className: "text-green-500 flex-shrink-0" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 32, className: "text-purple-600 flex-shrink-0" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-purple-900 mb-2", children: "✨ Deine einzigartige Geschichte wird jetzt erstellt!" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-purple-800", children: [
+          "Die KI erstellt eine komplett neue Geschichte basierend auf deinen Wünschen. Das dauert ca. ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "60-90 Sekunden" }),
+          ". Mit Bildern insgesamt ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "2-3 Minuten" }),
+          "."
+        ] })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        onClick: onGenerate,
+        className: "\r\n          w-full py-6 rounded-2xl font-bold text-2xl\r\n          bg-gradient-to-r from-purple-600 via-pink-600 to-red-600\r\n          text-white shadow-2xl transform transition-all duration-200\r\n          hover:scale-105 active:scale-95\r\n          flex items-center justify-center gap-4\r\n        ",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 32, className: "animate-pulse" }),
+          "GESCHICHTE JETZT ERSTELLEN!",
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 32, className: "animate-pulse" })
+        ]
+      }
+    )
+  ] });
+}
+const STEPS = [
+  "Wer spielt mit?",
+  "Was für eine Geschichte?",
+  "Wie alt & wie lang?",
+  "Welches Gefühl?",
+  "Besondere Wünsche",
+  "Zusammenfassung"
+];
+function ModernStoryWizard() {
+  const navigate = useNavigate();
+  const backend = useBackend();
+  const { userId } = useAuth();
+  const [activeStep, setActiveStep] = reactExports.useState(0);
+  const [generating, setGenerating] = reactExports.useState(false);
+  const [generationStep, setGenerationStep] = reactExports.useState("profiles");
+  const [state, setState] = reactExports.useState({
+    selectedAvatars: [],
+    mainCategory: null,
+    subCategory: null,
+    ageGroup: null,
+    length: null,
+    feelings: [],
+    rhymes: false,
+    moral: false,
+    avatarIsHero: true,
+    famousCharacters: false,
+    happyEnd: true,
+    surpriseEnd: false,
+    customWish: ""
+  });
+  const updateState = (updates) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  };
+  const handleNext = () => {
+    if (activeStep < STEPS.length - 1) {
+      setActiveStep((prev) => prev + 1);
+    }
+  };
+  const handleBack = () => {
+    if (activeStep > 0) {
+      setActiveStep((prev) => prev - 1);
+    }
+  };
+  const handleGenerate = async () => {
+    if (!userId) {
+      alert("Bitte melde dich an, um eine Geschichte zu erstellen.");
+      return;
+    }
+    try {
+      setGenerating(true);
+      setGenerationStep("profiles");
+      await new Promise((r) => setTimeout(r, 1200));
+      setGenerationStep("memories");
+      await new Promise((r) => setTimeout(r, 1200));
+      setGenerationStep("text");
+      const storyConfig = mapWizardStateToAPI(state);
+      console.log("[ModernWizard] Generating story with config:", storyConfig);
+      const story2 = await backend.story.generate({
+        userId,
+        config: storyConfig
+      });
+      console.log("[ModernWizard] Story generated:", story2);
+      setGenerationStep("validation");
+      await new Promise((r) => setTimeout(r, 900));
+      setGenerationStep("images");
+      await new Promise((r) => setTimeout(r, 1200));
+      setGenerationStep("complete");
+      await new Promise((r) => setTimeout(r, 800));
+      alert(`Geschichte "${story2.title}" wurde erfolgreich erstellt! 🎉`);
+      navigate(`/story/${story2.id}`);
+    } catch (error) {
+      console.error("[ModernWizard] Error generating story:", error);
+      let errorMessage = "Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.";
+      if (error instanceof Error) {
+        if (error.message.includes("length limit exceeded")) {
+          errorMessage = "Die Anfrage ist zu groß. Bitte versuche es erneut.";
+        } else if (error.message.includes("timeout")) {
+          errorMessage = "Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.";
+        }
+      }
+      alert(errorMessage);
+    } finally {
+      setGenerating(false);
+      setGenerationStep("profiles");
+    }
+  };
+  const canProceed = () => {
+    switch (activeStep) {
+      case 0:
+        return state.selectedAvatars.length > 0;
+      case 1:
+        return state.mainCategory !== null;
+      case 2:
+        return state.ageGroup !== null && state.length !== null;
+      case 3:
+        return state.feelings.length > 0;
+      case 4:
+        return true;
+      // Optional step
+      case 5:
+        return true;
+      // Summary
+      default:
+        return false;
+    }
+  };
+  const renderStep = () => {
+    switch (activeStep) {
+      case 0:
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(Step1AvatarSelection, { state, updateState });
+      case 1:
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(Step2CategorySelection, { state, updateState });
+      case 2:
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(Step3AgeAndLength, { state, updateState });
+      case 3:
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(Step4StoryFeeling, { state, updateState });
+      case 4:
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(Step5SpecialWishes, { state, updateState });
+      case 5:
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(Step6Summary, { state, onGenerate: handleGenerate });
+      default:
+        return null;
+    }
+  };
+  if (generating) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-4xl mx-auto p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl shadow-2xl p-8", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center mb-8", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "w-16 h-16 mx-auto mb-4 text-purple-600 animate-pulse" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-4xl font-bold text-purple-600 mb-2", children: "✨ Deine Geschichte wird erstellt!" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-600", children: "Das kann 2-3 Minuten dauern. Bitte nicht schließen!" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(StoryGenerationProgress, { currentStep: generationStep })
+    ] }) });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-4xl mx-auto p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl shadow-2xl p-8", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center mb-8", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-4xl font-bold text-purple-600 mb-2", children: "✨ Neue Geschichte erstellen" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-gray-600", children: [
+        "Schritt ",
+        activeStep + 1,
+        " von ",
+        STEPS.length
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-between mb-8", children: STEPS.map((label, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center flex-1", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center flex-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `
+                  w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
+                  ${index < activeStep ? "bg-green-500 text-white" : ""}
+                  ${index === activeStep ? "bg-purple-600 text-white ring-4 ring-purple-200" : ""}
+                  ${index > activeStep ? "bg-gray-200 text-gray-500" : ""}
+                `, children: index < activeStep ? /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { size: 20 }) : index + 1 }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs mt-2 text-center ${index === activeStep ? "font-bold text-purple-600" : "text-gray-500"}`, children: label })
+      ] }),
+      index < STEPS.length - 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `h-1 flex-1 mx-2 rounded ${index < activeStep ? "bg-green-500" : "bg-gray-200"}` })
+    ] }, label)) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-[400px] mb-8", children: renderStep() }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center pt-6 border-t border-gray-200", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: handleBack,
+          disabled: activeStep === 0,
+          className: `
+              flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
+              ${activeStep === 0 ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95"}
+            `,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 20 }),
+            "Zurück"
+          ]
+        }
+      ),
+      activeStep < STEPS.length - 1 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: handleNext,
+          disabled: !canProceed(),
+          className: `
+                flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
+                ${!canProceed() ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-purple-600 text-white hover:bg-purple-700 active:scale-95 shadow-lg"}
+              `,
+          children: [
+            "Weiter",
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { size: 20 })
+          ]
+        }
+      ) : /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: handleGenerate,
+          className: "\r\n                flex items-center gap-3 px-8 py-4 rounded-lg font-bold text-xl\r\n                bg-gradient-to-r from-green-500 to-emerald-600 text-white\r\n                hover:from-green-600 hover:to-emerald-700 active:scale-95\r\n                shadow-2xl transform transition-all duration-200\r\n              ",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 24 }),
+            "GESCHICHTE ERSTELLEN!"
+          ]
+        }
+      )
+    ] })
+  ] }) });
+}
+function mapWizardStateToAPI(state) {
+  const ageGroupMap = {
+    "3-5": "3-5",
+    "6-8": "6-8",
+    "9-12": "9-12",
+    "13+": "13+"
+  };
+  const lengthMap = {
+    "short": "short",
+    "medium": "medium",
+    "long": "long"
+  };
+  const genreMap = {
+    "fairy-tales": "fantasy",
+    "adventure": "adventure",
+    "magic": "fantasy",
+    "animals": "animals",
+    "scifi": "scifi",
+    "modern": "realistic"
+  };
+  let tone = "warm";
+  if (state.feelings.includes("funny")) tone = "witty";
+  else if (state.feelings.includes("exciting")) tone = "epic";
+  else if (state.feelings.includes("warm")) tone = "warm";
+  else if (state.feelings.includes("crazy")) tone = "mischievous";
+  else if (state.feelings.includes("meaningful")) tone = "soothing";
+  else if (state.mainCategory === "magic") tone = "wonder";
+  return {
+    avatarIds: state.selectedAvatars,
+    ageGroup: state.ageGroup ? ageGroupMap[state.ageGroup] : "6-8",
+    genre: state.mainCategory ? genreMap[state.mainCategory] : "adventure",
+    length: state.length ? lengthMap[state.length] : "medium",
+    complexity: "medium",
+    setting: state.mainCategory === "fairy-tales" ? "fantasy" : "varied",
+    suspenseLevel: state.feelings.includes("exciting") ? 2 : 1,
+    humorLevel: state.feelings.includes("funny") ? 2 : 1,
+    tone,
+    pacing: state.feelings.includes("exciting") ? "fast" : "balanced",
+    allowRhymes: state.rhymes,
+    hasTwist: state.surpriseEnd,
+    customPrompt: state.customWish || void 0,
+    preferences: {
+      useFairyTaleTemplate: state.mainCategory === "fairy-tales"
+    }
+  };
+}
 const StoryReaderScreen = () => {
   var _a, _b, _c;
   const { storyId } = useParams();
@@ -37744,7 +39097,7 @@ const StoryReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -37766,7 +39119,7 @@ const StoryReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showErrorToast, showStoryCompletionToast };
         }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -37776,7 +39129,7 @@ const StoryReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during story completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showErrorToast, showStoryCompletionToast };
       }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -38221,7 +39574,7 @@ const StoryScrollReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -38243,7 +39596,7 @@ const StoryScrollReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showErrorToast, showStoryCompletionToast };
         }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -38253,7 +39606,7 @@ const StoryScrollReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during story completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showErrorToast, showStoryCompletionToast };
       }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -38428,6 +39781,110 @@ const StoryScrollReaderScreen = () => {
     ) })
   ] });
 };
+const AvatarGroup = ({
+  avatars,
+  maxVisible = 5,
+  size = 40,
+  overlap = 14
+}) => {
+  const [hoveredIdx, setHoveredIdx] = reactExports.useState(null);
+  const visibleAvatars = avatars.slice(0, maxVisible);
+  const extraCount = avatars.length - maxVisible;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex -space-x-3", children: [
+    visibleAvatars.map((avatar2, idx) => {
+      const isHovered = hoveredIdx === idx;
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "border-4 border-background rounded-full bg-background transition-all duration-300 relative",
+          style: {
+            width: size,
+            height: size,
+            zIndex: isHovered ? 100 : visibleAvatars.length - idx,
+            marginLeft: idx === 0 ? 0 : -overlap,
+            position: "relative",
+            transition: "margin-left 0.3s cubic-bezier(0.4,0,0.2,1), z-index 0s, box-shadow 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+            transform: isHovered ? "translateY(-10px)" : "translateY(0)"
+          },
+          onMouseEnter: () => setHoveredIdx(idx),
+          onMouseLeave: () => setHoveredIdx(null),
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "img",
+              {
+                src: avatar2.src,
+                alt: avatar2.alt || `Avatar ${idx + 1}`,
+                width: size,
+                height: size,
+                className: "rounded-full object-cover",
+                style: { width: size, height: size },
+                draggable: false
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { children: isHovered && avatar2.label && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              motion.div,
+              {
+                initial: {
+                  x: "-50%",
+                  y: 10,
+                  opacity: 0,
+                  scale: 0.7
+                },
+                animate: {
+                  x: "-50%",
+                  y: 0,
+                  opacity: 1,
+                  scale: 1
+                },
+                exit: {
+                  x: "-50%",
+                  y: 10,
+                  opacity: 0,
+                  scale: 0.7
+                },
+                transition: {
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 24
+                },
+                className: "absolute z-50 px-2 py-1 text-xs rounded shadow-lg whitespace-nowrap pointer-events-none font-semibold",
+                style: {
+                  top: -size * 0.7,
+                  left: "50%",
+                  backgroundColor: "rgba(0, 0, 0, 0.85)",
+                  color: "white"
+                },
+                children: avatar2.label
+              },
+              "tooltip"
+            ) })
+          ]
+        },
+        idx
+      );
+    }),
+    extraCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "flex items-center justify-center font-semibold border-4 border-background rounded-full",
+        style: {
+          width: size,
+          height: size,
+          marginLeft: -overlap,
+          zIndex: 0,
+          fontSize: size * 0.32,
+          transition: "margin-left 0.3s cubic-bezier(0.4,0,0.2,1)",
+          backgroundColor: "#e879f9",
+          color: "white"
+        },
+        children: [
+          "+",
+          extraCount
+        ]
+      }
+    )
+  ] }) });
+};
 const StoryCard = ({ story: story2, onRead, onDelete }) => {
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -38526,16 +39983,6 @@ const StoryCard = ({ story: story2, onRead, onDelete }) => {
     ...typography.textStyles.caption,
     color: colors.text.tertiary
   };
-  const avatarContainerStyle = {
-    display: "flex",
-    alignItems: "center",
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    padding: `${spacing.sm}px`,
-    background: colors.rose[50],
-    borderRadius: `${radii.md}px`,
-    border: `1px solid ${colors.rose[200]}`
-  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
@@ -38590,13 +40037,28 @@ const StoryCard = ({ story: story2, onRead, onDelete }) => {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: contentStyle, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { style: titleStyle, "data-title": true, children: story2.title }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: descriptionStyle, children: story2.summary || "Eine magische Geschichte voller Abenteuer" }),
-          story2.config.avatars && story2.config.avatars.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: avatarContainerStyle, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Users, { size: 14, style: { color: colors.rose[600] } }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...typography.textStyles.caption, color: colors.rose[700], fontWeight: "600" }, children: [
-              story2.config.avatars.length,
-              " ",
-              story2.config.avatars.length === 1 ? "Avatar" : "Avatare"
-            ] })
+          (story2.config.avatars && story2.config.avatars.length > 0 || story2.config.characters && story2.config.characters.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: spacing.md }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { ...typography.textStyles.caption, color: colors.text.tertiary, marginBottom: spacing.xs, fontWeight: "600" }, children: "Teilnehmer" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              AvatarGroup,
+              {
+                avatars: [
+                  ...(story2.config.avatars || []).map((avatar2) => ({
+                    src: avatar2.imageUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + avatar2.name,
+                    alt: avatar2.name,
+                    label: avatar2.name
+                  })),
+                  ...(story2.config.characters || []).map((character) => ({
+                    src: character.imageUrl || "https://api.dicebear.com/7.x/bottts/svg?seed=" + character.name,
+                    alt: character.name,
+                    label: character.name
+                  }))
+                ],
+                maxVisible: 4,
+                size: 36,
+                overlap: 12
+              }
+            )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: metaContainerStyle, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: metaItemStyle, children: [
@@ -38621,27 +40083,84 @@ const StoriesScreen = () => {
   const backend = useBackend();
   const [stories, setStories2] = reactExports.useState([]);
   const [loading, setLoading2] = reactExports.useState(true);
-  reactExports.useEffect(() => {
-    loadStories();
-  }, []);
+  const [loadingMore, setLoadingMore] = reactExports.useState(false);
+  const [hasMore, setHasMore] = reactExports.useState(true);
+  const [total, setTotal] = reactExports.useState(0);
+  const observerTarget = reactExports.useRef(null);
   const loadStories = async () => {
     try {
       setLoading2(true);
-      const response = await backend.story.list();
+      const response = await backend.story.list({ limit: 10, offset: 0 });
       setStories2(response.stories);
+      setTotal(response.total);
+      setHasMore(response.hasMore);
     } catch (error) {
       console.error("Error loading stories:", error);
     } finally {
       setLoading2(false);
     }
   };
+  const loadMoreStories = reactExports.useCallback(async () => {
+    if (loadingMore || !hasMore) {
+      console.log("Skipping load more:", { loadingMore, hasMore });
+      return;
+    }
+    console.log("Starting to load more stories. Current count:", stories.length);
+    try {
+      setLoadingMore(true);
+      const response = await backend.story.list({
+        limit: 10,
+        offset: stories.length
+      });
+      console.log("Loaded more stories:", response.stories.length, "hasMore:", response.hasMore);
+      setStories2((prev) => [...prev, ...response.stories]);
+      setHasMore(response.hasMore);
+    } catch (error) {
+      console.error("Error loading more stories:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [backend, stories.length, hasMore, loadingMore, stories]);
+  reactExports.useEffect(() => {
+    loadStories();
+  }, []);
+  reactExports.useEffect(() => {
+    const observer2 = new IntersectionObserver(
+      (entries) => {
+        console.log("Intersection observer triggered:", {
+          isIntersecting: entries[0].isIntersecting,
+          hasMore,
+          loadingMore,
+          loading,
+          storiesCount: stories.length
+        });
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          console.log("Loading more stories...");
+          loadMoreStories();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      console.log("Observer target attached");
+      observer2.observe(currentTarget);
+    } else {
+      console.log("Observer target NOT found");
+    }
+    return () => {
+      if (currentTarget) {
+        observer2.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading, loadMoreStories, stories.length]);
   const handleReadStory = (story2) => {
     navigate(`/story-reader/${story2.id}`);
   };
   const handleDeleteStory = async (storyId, storyTitle) => {
     if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.story.deleteStory({ id: storyId });
+        await backend.story.deleteStory(storyId);
         setStories2(stories.filter((s) => s.id !== storyId));
         alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
@@ -38755,7 +40274,7 @@ const StoriesScreen = () => {
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: subtitleStyle, children: [
           "Entdecke all deine magischen Abenteuer (",
-          stories.length,
+          total,
           " Geschichten)"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: newStoryButtonStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -38781,17 +40300,493 @@ const StoriesScreen = () => {
             variant: "secondary"
           }
         )
-      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8", children: stories.map((story2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        StoryCard,
-        {
-          story: story2,
-          onRead: handleReadStory,
-          onDelete: handleDeleteStory
-        },
-        story2.id
-      )) }) }) })
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8", children: stories.map((story2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          StoryCard,
+          {
+            story: story2,
+            onRead: handleReadStory,
+            onDelete: handleDeleteStory
+          },
+          story2.id
+        )) }),
+        hasMore && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: observerTarget, style: { height: "20px", margin: `${spacing.lg}px 0` }, children: loadingMore && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { textAlign: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+          width: "40px",
+          height: "40px",
+          border: `3px solid rgba(255,255,255,0.6)`,
+          borderTop: `3px solid ${colors.primary}`,
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+          margin: "0 auto"
+        } }) }) })
+      ] }) }) })
     ] })
   ] });
+};
+const FairyTaleSelectionScreen = () => {
+  const navigate = useNavigate();
+  useBackend();
+  const [tales, setTales] = reactExports.useState([]);
+  const [loading, setLoading2] = reactExports.useState(true);
+  const [error, setError2] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    loadFairyTales();
+  }, []);
+  const loadFairyTales = async () => {
+    try {
+      setLoading2(true);
+      setError2(null);
+      const response = await fetch("/story/fairytales", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load fairy tales");
+      }
+      const data = await response.json();
+      setTales(data.tales || []);
+    } catch (err) {
+      console.error("[FairyTaleSelection] Error loading tales:", err);
+      setError2("Fehler beim Laden der Märchen. Bitte versuche es erneut.");
+    } finally {
+      setLoading2(false);
+    }
+  };
+  const handleSelectTale = (tale) => {
+    navigate(`/story/fairytale/${tale.id}/map-characters`, { state: { tale } });
+  };
+  if (loading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", padding: spacing.xl }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "spinner", style: { marginBottom: spacing.md } }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary }, children: "Märchen werden geladen..." })
+    ] });
+  }
+  if (error) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", padding: spacing.xl }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { size: 48, color: colors.semantic.error, style: { marginBottom: spacing.md } }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.semantic.error, textAlign: "center", marginBottom: spacing.lg }, children: error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { title: "Erneut versuchen", variant: "primary", onPress: loadFairyTales })
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { padding: spacing.xl, maxWidth: "1200px", margin: "0 auto" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(FadeInView, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: spacing.xl }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayMd, marginBottom: spacing.sm }, children: "Wähle ein Märchen" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary }, children: "Personalisiere klassische Geschichten mit deinen Avataren" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: spacing.lg }, children: tales.map((tale) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      motion.div,
+      {
+        whileHover: { scale: 1.02, y: -4 },
+        transition: { duration: 0.2 },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          Card,
+          {
+            onPress: () => handleSelectTale(tale),
+            style: { cursor: "pointer", height: "100%", display: "flex", flexDirection: "column" },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: spacing.md }, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { style: { ...typography.textStyles.headingMd, marginBottom: spacing.xs }, children: tale.title }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.caption, color: colors.primary[500], fontWeight: 600 }, children: tale.source })
+              ] }),
+              tale.summary && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: {
+                ...typography.textStyles.body,
+                color: colors.text.secondary,
+                marginBottom: spacing.md,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical"
+              }, children: tale.summary }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: spacing.lg, marginBottom: spacing.md }, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: spacing.xs }, children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Users, { size: 16, color: colors.text.secondary }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...typography.textStyles.caption, color: colors.text.secondary }, children: [
+                    tale.ageRecommendation,
+                    "+ Jahre"
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: spacing.xs }, children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { size: 16, color: colors.text.secondary }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...typography.textStyles.caption, color: colors.text.secondary }, children: [
+                    "~",
+                    tale.durationMinutes,
+                    " Min"
+                  ] })
+                ] })
+              ] }),
+              tale.genreTags && tale.genreTags.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: spacing.xs, marginTop: "auto" }, children: tale.genreTags.slice(0, 3).map((tag, index) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "span",
+                {
+                  style: {
+                    ...typography.textStyles.caption,
+                    backgroundColor: colors.background.secondary,
+                    color: colors.text.secondary,
+                    padding: `${spacing.xs}px ${spacing.sm}px`,
+                    borderRadius: radii.pill,
+                    fontWeight: 500
+                  },
+                  children: tag
+                },
+                index
+              )) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+                marginTop: spacing.md,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                color: colors.primary[500]
+              }, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 18 }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { ...typography.textStyles.caption, marginLeft: spacing.xs, fontWeight: 600 }, children: "Auswählen" })
+              ] })
+            ]
+          }
+        )
+      },
+      tale.id
+    )) })
+  ] }) });
+};
+const CharacterMappingScreen = () => {
+  const { taleId } = useParams();
+  const navigate = useNavigate();
+  useLocation();
+  const backend = useBackend();
+  const [tale, setTale] = reactExports.useState(null);
+  const [avatars, setAvatars2] = reactExports.useState([]);
+  const [mappings, setMappings] = reactExports.useState({});
+  const [loading, setLoading2] = reactExports.useState(true);
+  const [generating, setGenerating] = reactExports.useState(false);
+  const [error, setError2] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    loadData();
+  }, [taleId]);
+  const loadData = async () => {
+    try {
+      setLoading2(true);
+      setError2(null);
+      const taleResponse = await fetch(`/story/fairytale/${taleId}/details`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (!taleResponse.ok) {
+        throw new Error("Failed to load fairy tale details");
+      }
+      const taleData = await taleResponse.json();
+      setTale(taleData);
+      const avatarListResponse = await backend.avatar.list();
+      setAvatars2(avatarListResponse.avatars || []);
+    } catch (err) {
+      console.error("Error loading data:", err);
+      setError2("Fehler beim Laden der Daten. Bitte versuche es erneut.");
+    } finally {
+      setLoading2(false);
+    }
+  };
+  const handleSelectAvatar = (roleType, avatarId) => {
+    setMappings((prev) => ({
+      ...prev,
+      [roleType]: avatarId
+    }));
+  };
+  const validateMappings = () => {
+    if (!tale) return "Märchen nicht geladen";
+    const requiredRoles = tale.roles.filter((r) => r.isRequired);
+    const missingRoles = requiredRoles.filter((r) => !mappings[r.roleType]);
+    if (missingRoles.length > 0) {
+      return `Bitte weise Avatare für alle erforderlichen Rollen zu: ${missingRoles.map((r) => r.name).join(", ")}`;
+    }
+    return null;
+  };
+  const handleGenerate = async () => {
+    const validationError = validateMappings();
+    if (validationError) {
+      setError2(validationError);
+      return;
+    }
+    try {
+      setGenerating(true);
+      setError2(null);
+      const generateResponse = await fetch("/story/generate-from-fairytale", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId: "",
+          // Will be filled by auth middleware
+          taleId,
+          characterMappings: mappings,
+          length: "medium",
+          style: "classic"
+        })
+      });
+      if (!generateResponse.ok) {
+        throw new Error("Failed to generate story");
+      }
+      const story2 = await generateResponse.json();
+      navigate(`/story/${story2.id}`);
+    } catch (err) {
+      console.error("Error generating story:", err);
+      setError2("Fehler beim Generieren der Geschichte. Bitte versuche es erneut.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+  const getAvatarMatches = (role) => {
+    return avatars.filter((avatar2) => {
+      var _a, _b, _c;
+      const req = role.requirements;
+      const age = ((_a = avatar2.visualProfile) == null ? void 0 : _a.ageApprox) ? parseInt(avatar2.visualProfile.ageApprox) : void 0;
+      const gender = (_c = (_b = avatar2.visualProfile) == null ? void 0 : _b.gender) == null ? void 0 : _c.toLowerCase();
+      if (req.minAge && age && age < req.minAge) return false;
+      if (req.maxAge && age && age > req.maxAge) return false;
+      if (req.gender && gender && gender !== req.gender.toLowerCase()) return false;
+      return true;
+    });
+  };
+  if (loading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", padding: spacing.xl }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "spinner", style: { marginBottom: spacing.md } }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary }, children: "Wird geladen..." })
+    ] });
+  }
+  if (error && !tale) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", padding: spacing.xl }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { size: 48, color: colors.semantic.error, style: { marginBottom: spacing.md } }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.semantic.error, textAlign: "center", marginBottom: spacing.lg }, children: error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { title: "Zurück", variant: "outline", onPress: () => navigate("/story/fairytale-selection") })
+    ] });
+  }
+  if (!tale) {
+    return null;
+  }
+  const requiredRolesFilled = tale.roles.filter((r) => r.isRequired).every((r) => mappings[r.roleType]);
+  const canGenerate = requiredRolesFilled && !generating;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { padding: spacing.xl, maxWidth: "1200px", margin: "0 auto" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(FadeInView, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: spacing.xl }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => navigate("/story/fairytale-selection"),
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: spacing.xs,
+            marginBottom: spacing.lg,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: colors.text.secondary,
+            ...typography.textStyles.body
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 20 }),
+            "Zurück zur Auswahl"
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { style: { ...typography.textStyles.displayMd, marginBottom: spacing.sm }, children: tale.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.body, color: colors.text.secondary }, children: "Weise deine Avatare den Rollen zu" })
+    ] }),
+    error && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      motion.div,
+      {
+        initial: { opacity: 0, y: -10 },
+        animate: { opacity: 1, y: 0 },
+        style: {
+          padding: spacing.md,
+          marginBottom: spacing.lg,
+          backgroundColor: colors.semantic.error + "15",
+          border: `1px solid ${colors.semantic.error}`,
+          borderRadius: radii.lg,
+          display: "flex",
+          alignItems: "center",
+          gap: spacing.sm
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { size: 20, color: colors.semantic.error }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.bodySm, color: colors.semantic.error, margin: 0 }, children: error })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexDirection: "column", gap: spacing.lg, marginBottom: spacing.xl }, children: tale.roles.map((role) => {
+      const matches = getAvatarMatches(role);
+      const selectedAvatarId = mappings[role.roleType];
+      const selectedAvatar = avatars.find((a) => a.id === selectedAvatarId);
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { padding: "lg", variant: "elevated", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: spacing.md }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.xs }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { style: { ...typography.textStyles.headingMd, margin: 0 }, children: role.name }),
+            role.isRequired && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
+              ...typography.textStyles.caption,
+              color: colors.primary[500],
+              backgroundColor: colors.primary[50],
+              padding: `${spacing.xs}px ${spacing.sm}px`,
+              borderRadius: radii.pill,
+              fontWeight: 600
+            }, children: "Erforderlich" })
+          ] }),
+          role.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.bodySm, color: colors.text.secondary, margin: 0 }, children: role.description })
+        ] }),
+        (role.requirements.minAge || role.requirements.gender || role.requirements.archetype) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+          padding: spacing.sm,
+          backgroundColor: colors.background.tertiary,
+          borderRadius: radii.md,
+          marginBottom: spacing.md
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.caption, color: colors.text.tertiary, margin: 0, marginBottom: spacing.xs }, children: "Anforderungen:" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexWrap: "wrap", gap: spacing.sm }, children: [
+            role.requirements.minAge && role.requirements.maxAge && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...typography.textStyles.bodySm, color: colors.text.secondary }, children: [
+              "• Alter: ",
+              role.requirements.minAge,
+              "-",
+              role.requirements.maxAge,
+              " Jahre"
+            ] }),
+            role.requirements.gender && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...typography.textStyles.bodySm, color: colors.text.secondary }, children: [
+              "• Geschlecht: ",
+              role.requirements.gender
+            ] }),
+            role.requirements.archetype && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...typography.textStyles.bodySm, color: colors.text.secondary }, children: [
+              "• Typ: ",
+              role.requirements.archetype
+            ] })
+          ] })
+        ] }),
+        selectedAvatar && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          gap: spacing.md,
+          padding: spacing.md,
+          backgroundColor: colors.primary[50],
+          borderRadius: radii.lg,
+          marginBottom: spacing.md
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { size: 24, color: colors.primary[500] }),
+          selectedAvatar.imageUrl && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "img",
+            {
+              src: selectedAvatar.imageUrl,
+              alt: selectedAvatar.name,
+              style: {
+                width: "48px",
+                height: "48px",
+                borderRadius: radii.md,
+                objectFit: "cover"
+              }
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { flex: 1 }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.label, margin: 0 }, children: selectedAvatar.name }),
+            selectedAvatar.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.caption, color: colors.text.secondary, margin: 0 }, children: selectedAvatar.description })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.label, marginBottom: spacing.sm }, children: matches.length > 0 ? "Passende Avatare:" : "Alle Avatare:" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: spacing.sm }, children: (matches.length > 0 ? matches : avatars).map((avatar2) => {
+            const isSelected = mappings[role.roleType] === avatar2.id;
+            const isMatch = matches.includes(avatar2);
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              motion.button,
+              {
+                onClick: () => handleSelectAvatar(role.roleType, avatar2.id),
+                whileHover: { scale: 1.05 },
+                whileTap: { scale: 0.95 },
+                style: {
+                  padding: spacing.sm,
+                  borderRadius: radii.md,
+                  border: `2px solid ${isSelected ? colors.primary[500] : isMatch ? colors.primary[200] : colors.border.light}`,
+                  backgroundColor: isSelected ? colors.primary[50] : colors.background.card,
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: spacing.xs,
+                  position: "relative"
+                },
+                children: [
+                  avatar2.imageUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "img",
+                    {
+                      src: avatar2.imageUrl,
+                      alt: avatar2.name,
+                      style: {
+                        width: "60px",
+                        height: "60px",
+                        borderRadius: radii.md,
+                        objectFit: "cover"
+                      }
+                    }
+                  ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+                    width: "60px",
+                    height: "60px",
+                    borderRadius: radii.md,
+                    backgroundColor: colors.background.secondary,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(User, { size: 32, color: colors.text.tertiary }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
+                    ...typography.textStyles.caption,
+                    color: isSelected ? colors.primary[700] : colors.text.primary,
+                    fontWeight: isSelected ? 600 : 400,
+                    textAlign: "center"
+                  }, children: avatar2.name }),
+                  isSelected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+                    position: "absolute",
+                    top: spacing.xs,
+                    right: spacing.xs,
+                    backgroundColor: colors.primary[500],
+                    borderRadius: "50%",
+                    padding: "2px"
+                  }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { size: 16, color: "white" }) })
+                ]
+              },
+              avatar2.id
+            );
+          }) })
+        ] })
+      ] }, role.id);
+    }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+      position: "sticky",
+      bottom: spacing.lg,
+      display: "flex",
+      justifyContent: "center",
+      paddingTop: spacing.lg
+    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      Card,
+      {
+        padding: "md",
+        variant: "glass",
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: spacing.md
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              title: generating ? "Geschichte wird erstellt..." : "Geschichte generieren",
+              variant: "primary",
+              size: "lg",
+              onPress: handleGenerate,
+              disabled: !canGenerate,
+              icon: generating ? void 0 : /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 20 })
+            }
+          ),
+          !canGenerate && !generating && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { style: { ...typography.textStyles.caption, color: colors.text.secondary, margin: 0 }, children: "Bitte weise alle erforderlichen Rollen zu" })
+        ]
+      }
+    ) })
+  ] }) });
 };
 const LogViewerScreen = () => {
   const navigate = useNavigate();
@@ -40946,7 +42941,7 @@ const QuizComponent = ({
       if (aiResult.alreadyProcessed) {
         console.log("⚠️ Avatar already received updates from this quiz");
         __vitePreload(async () => {
-          const { showWarningToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showWarningToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showWarningToast };
         }, true ? [] : void 0).then(({ showWarningToast }) => {
           showWarningToast("Du hast bereits Persönlichkeitsupdates von diesem Quiz erhalten!");
@@ -40978,7 +42973,7 @@ const QuizComponent = ({
         }
         console.log(`🎉 KI quiz completed: ${percentage}% correct, personality changes:`, personalityChanges);
         __vitePreload(async () => {
-          const { showQuizCompletionToast, showPersonalityUpdateToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showQuizCompletionToast, showPersonalityUpdateToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showQuizCompletionToast, showPersonalityUpdateToast };
         }, true ? [] : void 0).then(({ showQuizCompletionToast, showPersonalityUpdateToast }) => {
           showQuizCompletionToast(percentage);
@@ -40987,7 +42982,7 @@ const QuizComponent = ({
       } else {
         console.log("🤔 KI quiz analysis completed but no personality changes suggested");
         __vitePreload(async () => {
-          const { showQuizCompletionToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showQuizCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showQuizCompletionToast };
         }, true ? [] : void 0).then(({ showQuizCompletionToast }) => {
           showQuizCompletionToast(percentage);
@@ -40996,7 +42991,7 @@ const QuizComponent = ({
     } catch (error) {
       console.error("❌ Error processing quiz completion with KI:", error);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("Fehler beim Verarbeiten der Persönlichkeitsentwicklung");
@@ -41314,7 +43309,7 @@ const DokuReaderScreen = () => {
     setPersonalityChanges(changes);
     setShowPersonalityNotification(true);
     __vitePreload(async () => {
-      const { showPersonalityUpdateToast } = await import("./toastUtils-D_8MFf2t.js");
+      const { showPersonalityUpdateToast } = await import("./toastUtils-CnJ0xGKS.js");
       return { showPersonalityUpdateToast };
     }, true ? [] : void 0).then(({ showPersonalityUpdateToast }) => {
       showPersonalityUpdateToast(changes);
@@ -41384,7 +43379,7 @@ const DokuReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -41406,7 +43401,7 @@ const DokuReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showErrorToast };
         }, true ? [] : void 0).then(({ showErrorToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -41415,7 +43410,7 @@ const DokuReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error applying personality updates:", error2);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -41574,7 +43569,7 @@ const DokuScrollReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -41596,7 +43591,7 @@ const DokuScrollReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+          const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
           return { showErrorToast };
         }, true ? [] : void 0).then(({ showErrorToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -41605,7 +43600,7 @@ const DokuScrollReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during doku completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-D_8MFf2t.js");
+        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -41763,7 +43758,7 @@ const DokuScrollReaderScreen = () => {
                     dokuId,
                     onPersonalityChange: (changes) => {
                       __vitePreload(async () => {
-                        const { showPersonalityUpdateToast } = await import("./toastUtils-D_8MFf2t.js");
+                        const { showPersonalityUpdateToast } = await import("./toastUtils-CnJ0xGKS.js");
                         return { showPersonalityUpdateToast };
                       }, true ? [] : void 0).then(({ showPersonalityUpdateToast }) => {
                         showPersonalityUpdateToast(changes);
@@ -41994,20 +43989,66 @@ const DokusScreen = () => {
   const backend = useBackend();
   const [dokus, setDokus] = reactExports.useState([]);
   const [loading, setLoading2] = reactExports.useState(true);
-  reactExports.useEffect(() => {
-    loadDokus();
-  }, []);
+  const [loadingMore, setLoadingMore] = reactExports.useState(false);
+  const [hasMore, setHasMore] = reactExports.useState(true);
+  const [total, setTotal] = reactExports.useState(0);
+  const observerTarget = reactExports.useRef(null);
   const loadDokus = async () => {
     try {
       setLoading2(true);
-      const response = await backend.doku.listDokus();
+      const response = await backend.doku.listDokus({ limit: 10, offset: 0 });
       setDokus(response.dokus);
+      setTotal(response.total);
+      setHasMore(response.hasMore);
     } catch (error) {
       console.error("Error loading dokus:", error);
     } finally {
       setLoading2(false);
     }
   };
+  const loadMoreDokus = reactExports.useCallback(async () => {
+    if (loadingMore || !hasMore) {
+      console.log("Skipping load more dokus:", { loadingMore, hasMore });
+      return;
+    }
+    console.log("Starting to load more dokus. Current count:", dokus.length);
+    try {
+      setLoadingMore(true);
+      const response = await backend.doku.listDokus({
+        limit: 10,
+        offset: dokus.length
+      });
+      console.log("Loaded more dokus:", response.dokus.length, "hasMore:", response.hasMore);
+      setDokus((prev) => [...prev, ...response.dokus]);
+      setHasMore(response.hasMore);
+    } catch (error) {
+      console.error("Error loading more dokus:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [backend, dokus.length, hasMore, loadingMore, dokus]);
+  reactExports.useEffect(() => {
+    loadDokus();
+  }, []);
+  reactExports.useEffect(() => {
+    const observer2 = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMoreDokus();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer2.observe(currentTarget);
+    }
+    return () => {
+      if (currentTarget) {
+        observer2.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading, loadMoreDokus]);
   const handleReadDoku = (doku2) => {
     console.log("Navigating to doku reader:", doku2.id, `/doku-reader/${doku2.id}`);
     navigate(`/doku-reader/${doku2.id}`);
@@ -42015,7 +44056,7 @@ const DokusScreen = () => {
   const handleDeleteDoku = async (dokuId, dokuTitle) => {
     if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.doku.deleteDoku({ id: dokuId });
+        await backend.doku.deleteDoku(dokuId);
         setDokus(dokus.filter((d) => d.id !== dokuId));
         alert(`Doku "${dokuTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
@@ -42129,7 +44170,7 @@ const DokusScreen = () => {
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: subtitleStyle, children: [
           "Entdecke alle deine lehrreichen Wissensinhalte (",
-          dokus.length,
+          total,
           " Dokus)"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: newDokuButtonStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -42155,15 +44196,26 @@ const DokusScreen = () => {
             variant: "secondary"
           }
         )
-      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8", children: dokus.map((doku2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        DokuCard,
-        {
-          doku: doku2,
-          onRead: handleReadDoku,
-          onDelete: handleDeleteDoku
-        },
-        doku2.id
-      )) }) }) })
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8", children: dokus.map((doku2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          DokuCard,
+          {
+            doku: doku2,
+            onRead: handleReadDoku,
+            onDelete: handleDeleteDoku
+          },
+          doku2.id
+        )) }),
+        hasMore && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: observerTarget, style: { height: "20px", margin: `${spacing.lg}px 0` }, children: loadingMore && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { textAlign: "center" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+          width: "40px",
+          height: "40px",
+          border: `3px solid rgba(255,255,255,0.6)`,
+          borderTop: `3px solid ${colors.primary[500]}`,
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+          margin: "0 auto"
+        } }) }) })
+      ] }) }) })
     ] })
   ] });
 };
@@ -42973,7 +45025,10 @@ const AppContent = () => /* @__PURE__ */ jsxRuntimeExports.jsx(BrowserRouter, { 
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/avatar/create", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AvatarWizardScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/avatar/:avatarId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AvatarDetailScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/avatar/edit/:avatarId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(EditAvatarScreen, {}) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryWizardScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story", element: /* @__PURE__ */ jsxRuntimeExports.jsx(ModernStoryWizard, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story/wizard-old", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryWizardScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story/fairytale-selection", element: /* @__PURE__ */ jsxRuntimeExports.jsx(FairyTaleSelectionScreen, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story/fairytale/:taleId/map-characters", element: /* @__PURE__ */ jsxRuntimeExports.jsx(CharacterMappingScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story-reader/:storyId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryScrollReaderScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/story-reader-old/:storyId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoryReaderScreen, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/stories", element: /* @__PURE__ */ jsxRuntimeExports.jsx(StoriesScreen, {}) }),
@@ -43086,9 +45141,10 @@ export {
   User as U,
   X,
   __vitePreload as _,
-  BookOpen as a,
-  traits as b,
+  CircleAlert as a,
+  BookOpen as b,
   createLucideIcon as c,
+  traits as d,
   jsxRuntimeExports as j,
   motion as m,
   toast as t

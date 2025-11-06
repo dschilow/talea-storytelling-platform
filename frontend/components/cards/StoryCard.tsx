@@ -192,17 +192,25 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
           {story.summary || 'Eine magische Geschichte voller Abenteuer'}
         </p>
 
-        {story.config.avatars && story.config.avatars.length > 0 && (
+        {((story.config.avatars && story.config.avatars.length > 0) ||
+          (story.config.characters && story.config.characters.length > 0)) && (
           <div style={{ marginTop: spacing.md }}>
             <div style={{ ...typography.textStyles.caption, color: colors.text.tertiary, marginBottom: spacing.xs, fontWeight: '600' }}>
               Teilnehmer
             </div>
             <AvatarGroup
-              avatars={story.config.avatars.map(avatar => ({
-                src: avatar.imageUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + avatar.name,
-                alt: avatar.name,
-                label: avatar.name
-              }))}
+              avatars={[
+                ...(story.config.avatars || []).map(avatar => ({
+                  src: avatar.imageUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + avatar.name,
+                  alt: avatar.name,
+                  label: avatar.name
+                })),
+                ...(story.config.characters || []).map(character => ({
+                  src: character.imageUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + character.name,
+                  alt: character.name,
+                  label: character.name
+                }))
+              ]}
               maxVisible={4}
               size={36}
               overlap={12}

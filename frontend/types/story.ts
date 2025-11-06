@@ -4,9 +4,16 @@ export interface StoryConfig {
   ageGroup: string;
   moral?: string;
   avatars?: Avatar[];
+  characters?: Character[];
 }
 
 export interface Avatar {
+  id: string;
+  name: string;
+  imageUrl?: string;
+}
+
+export interface Character {
   id: string;
   name: string;
   imageUrl?: string;

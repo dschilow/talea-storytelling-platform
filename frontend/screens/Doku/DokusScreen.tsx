@@ -102,7 +102,7 @@ const DokusScreen: React.FC = () => {
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       try {
-        await backend.doku.deleteDoku({ id: dokuId });
+        await backend.doku.deleteDoku(dokuId);
         setDokus(dokus.filter(d => d.id !== dokuId));
         alert(`Doku "${dokuTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {

@@ -208,13 +208,13 @@ const AvatarDetailScreen: React.FC = () => {
       
       try {
         setLoading(true);
-        
+
         // Try to load avatar from backend API first
         try {
           console.log('Loading avatar from backend API:', avatarId);
-          const avatarData = await backend.avatar.get({ id: avatarId });
+          const avatarData = await backend.avatar.get(avatarId);
           console.log('Backend avatar data:', avatarData);
-          
+
           if (avatarData && avatarData.id) {
             setAvatar(avatarData as Avatar);
 
@@ -420,7 +420,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🗑️ Deleting memory ${memoryId} for avatar ${avatarId}`);
 
-      const response = await backend.avatar.deleteMemory({ avatarId, memoryId });
+      const response = await backend.avatar.deleteMemory(avatarId, memoryId);
 
       if (response.success) {
         console.log('✅ Memory deleted successfully, recalculated traits:', response.recalculatedTraits);
@@ -475,8 +475,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🔻 Reducing trait ${trait} by ${amount} for avatar ${avatarId}`);
 
-      const response = await backend.avatar.reducePersonalityTrait({
-        avatarId,
+      const response = await backend.avatar.reducePersonalityTrait(avatarId, {
         trait,
         amount,
         reason
@@ -532,7 +531,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🗑️ Resetting doku history for avatar ${avatarId}`);
 
-      const response = await backend.avatar.resetDokuHistory({ avatarId, dokuId: undefined });
+      const response = await backend.avatar.resetDokuHistory(avatarId, { dokuId: undefined });
 
       if (response.success) {
         console.log('✅ Doku history reset successfully:', response.message);
@@ -707,7 +706,7 @@ const AvatarDetailScreen: React.FC = () => {
 
                               // Refresh avatar data directly instead of full page reload
                               if (avatarId) {
-                                const avatarData = await backend.avatar.get({ id: avatarId });
+                                const avatarData = await backend.avatar.get(avatarId);
                                 if (avatarData && avatarData.id) {
                                   setAvatar(avatarData as any);
                                   if (avatarData.personalityTraits) {
