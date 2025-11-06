@@ -63,20 +63,23 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     // Fetch all avatars in one query
     const avatarMap = new Map<string, { id: string; name: string; imageUrl: string | null }>();
     if (allAvatarIds.size > 0) {
-      const avatars = await avatarDB.queryAll<{
-        id: string;
-        name: string;
-        image_url: string | null;
-      }>`
-        SELECT id, name, image_url FROM avatars WHERE id IN (${[...allAvatarIds]})
-      `;
-      avatars.forEach(avatar => {
-        avatarMap.set(avatar.id, {
-          id: avatar.id,
-          name: avatar.name,
-          imageUrl: avatar.image_url
-        });
-      });
+      // Fetch avatars one by one to avoid SQL IN array issues
+      for (const avatarId of allAvatarIds) {
+        const avatar = await avatarDB.queryRow<{
+          id: string;
+          name: string;
+          image_url: string | null;
+        }>`
+          SELECT id, name, image_url FROM avatars WHERE id = ${avatarId}
+        `;
+        if (avatar) {
+          avatarMap.set(avatar.id, {
+            id: avatar.id,
+            name: avatar.name,
+            imageUrl: avatar.image_url
+          });
+        }
+      }
     }
 
     const stories: StorySummary[] = storyRows.map((storyRow, idx) => {
