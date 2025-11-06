@@ -294,14 +294,35 @@ export class FairyTaleSelector {
       reasons.push(`Perfekte Altersgruppe (${tale.age_recommendation} Jahre)`);
     }
 
-    // Genre match (0-30 points)
+    // Genre match (0-30 points) with fuzzy matching
     const genreTags = this.parseJsonArray(tale.genre_tags);
-    const genreMatch = genreTags.includes(config.genre);
-    const genreScore = genreMatch ? 30 : 10;
-    breakdown.genre = genreScore;
-    if (genreMatch) {
-      reasons.push(`Passendes Genre (${config.genre})`);
+    const exactMatch = genreTags.includes(config.genre);
+    
+    // Genre mapping: Story genres → Fairy tale genres
+    const genreAliases: Record<string, string[]> = {
+      "fantasy": ["adventure", "magic", "mystery", "dark"],
+      "adventure": ["adventure", "quest", "journey"],
+      "mystery": ["mystery", "puzzle", "riddle"],
+      "friendship": ["moral", "teamwork", "family"],
+      "educational": ["moral", "learning"],
+      "animals": ["animals", "nature"],
+    };
+    
+    const aliases = genreAliases[config.genre.toLowerCase()] || [];
+    const fuzzyMatch = aliases.some(alias => genreTags.includes(alias));
+    
+    let genreScore = 0;
+    if (exactMatch) {
+      genreScore = 30; // Perfect match
+      reasons.push(`Perfektes Genre (${config.genre})`);
+    } else if (fuzzyMatch) {
+      genreScore = 25; // Close match via aliases
+      const matchedTag = genreTags.find(tag => aliases.includes(tag));
+      reasons.push(`Passendes Genre (${matchedTag} ≈ ${config.genre})`);
+    } else {
+      genreScore = 10; // No match but still usable
     }
+    breakdown.genre = genreScore;
 
     // Character role match (0-30 points)
     // Count protagonist roles (main characters) - these are most important
