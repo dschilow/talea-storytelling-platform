@@ -13,6 +13,9 @@ ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 # Copy all frontend files
 COPY frontend/ ./
 
+# Remove any pre-built dist directory to ensure fresh build
+RUN rm -rf dist
+
 # Install dependencies
 RUN npm install
 
