@@ -26,33 +26,6 @@ const StoriesScreen: React.FC = () => {
   const [total, setTotal] = useState(0);
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadStories();
-  }, []);
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          loadMoreStories();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasMore, loadingMore, loading]);
-
   const loadStories = async () => {
     try {
       setLoading(true);
@@ -84,6 +57,44 @@ const StoriesScreen: React.FC = () => {
       setLoadingMore(false);
     }
   }, [backend, stories.length, hasMore, loadingMore]);
+
+  useEffect(() => {
+    loadStories();
+  }, []);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        console.log('Intersection observer triggered:', {
+          isIntersecting: entries[0].isIntersecting,
+          hasMore,
+          loadingMore,
+          loading,
+          storiesCount: stories.length
+        });
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          console.log('Loading more stories...');
+          loadMoreStories();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      console.log('Observer target attached');
+      observer.observe(currentTarget);
+    } else {
+      console.log('Observer target NOT found');
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading, loadMoreStories, stories.length]);
 
   const handleReadStory = (story: Story) => {
     navigate(`/story-reader/${story.id}`);

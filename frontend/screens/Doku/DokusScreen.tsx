@@ -26,33 +26,6 @@ const DokusScreen: React.FC = () => {
   const [total, setTotal] = useState(0);
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadDokus();
-  }, []);
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          loadMoreDokus();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasMore, loadingMore, loading]);
-
   const loadDokus = async () => {
     try {
       setLoading(true);
@@ -84,6 +57,33 @@ const DokusScreen: React.FC = () => {
       setLoadingMore(false);
     }
   }, [backend, dokus.length, hasMore, loadingMore]);
+
+  useEffect(() => {
+    loadDokus();
+  }, []);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMoreDokus();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading, loadMoreDokus]);
 
   const handleReadDoku = (doku: Doku) => {
     console.log('Navigating to doku reader:', doku.id, `/doku-reader/${doku.id}`);
