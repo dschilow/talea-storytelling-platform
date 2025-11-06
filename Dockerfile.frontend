@@ -16,6 +16,10 @@ COPY frontend/package*.json ./
 # Install dependencies
 RUN npm install
 
+# Copy backend directory for TypeScript type references
+# Frontend imports types from backend via ~backend alias
+COPY backend ../backend
+
 # Copy all frontend source files
 COPY frontend/ ./
 
@@ -23,6 +27,7 @@ COPY frontend/ ./
 RUN rm -rf dist
 
 # Build the frontend with production mode
+# Note: Vite doesn't fail on TypeScript errors during build, only reports them
 RUN NODE_ENV=production npm run build
 
 # Stage 2: Serve with nginx
