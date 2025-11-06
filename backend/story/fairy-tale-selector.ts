@@ -78,9 +78,10 @@ export class FairyTaleSelector {
       if (excludeRecentlyUsed > 0) {
         console.log(`[FairyTaleSelector] Checking last ${excludeRecentlyUsed} used tales...`);
         const recentUsage = await fairytalesDB.queryAll<any>`
-          SELECT DISTINCT tale_id
+          SELECT tale_id, MAX(last_used_at) as last_used
           FROM fairy_tale_usage_stats
-          ORDER BY last_used_at DESC
+          GROUP BY tale_id
+          ORDER BY last_used DESC
           LIMIT ${excludeRecentlyUsed}
         `;
         recentlyUsedIds = recentUsage.map(r => r.tale_id);

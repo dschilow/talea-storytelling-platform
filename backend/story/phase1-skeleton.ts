@@ -111,17 +111,18 @@ export class Phase1SkeletonGenerator {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: isReasoningModel ? 16000 : 3000,
-      // Creativity parameters for story diversity
-      temperature: 0.9,           // High creativity (0.0-1.0)
-      top_p: 0.95,                // Nucleus sampling for variety
-      frequency_penalty: 0.3,     // Reduce repetition
-      presence_penalty: 0.2,      // Encourage new topics
     };
 
-    // Add reasoning_effort for reasoning models
+    // Add reasoning_effort for reasoning models (they don't support temperature/top_p)
     // Phase1 only needs structure, not deep reasoning - use "low" to minimize token waste
     if (isReasoningModel) {
       payload.reasoning_effort = "low";
+    } else {
+      // Only add creativity parameters for non-reasoning models
+      payload.temperature = 0.9;           // High creativity (0.0-1.0)
+      payload.top_p = 0.95;                // Nucleus sampling for variety
+      payload.frequency_penalty = 0.3;     // Reduce repetition
+      payload.presence_penalty = 0.2;      // Encourage new topics
     }
 
     try {

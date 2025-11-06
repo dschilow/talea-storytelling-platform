@@ -130,16 +130,17 @@ export class Phase3StoryFinalizer {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: isReasoningModel ? 16000 : 5000,
-      // Creativity parameters for story diversity
-      temperature: 0.9,           // High creativity for unique stories
-      top_p: 0.95,                // Nucleus sampling
-      frequency_penalty: 0.3,     // Reduce repetition within story
-      presence_penalty: 0.2,      // Encourage diverse vocabulary
     };
 
-    // Add reasoning_effort for reasoning models
+    // Add reasoning_effort for reasoning models (they don't support temperature/top_p)
     if (isReasoningModel) {
       payload.reasoning_effort = "medium";
+    } else {
+      // Only add creativity parameters for non-reasoning models
+      payload.temperature = 0.9;           // High creativity for unique stories
+      payload.top_p = 0.95;                // Nucleus sampling
+      payload.frequency_penalty = 0.3;     // Reduce repetition within story
+      payload.presence_penalty = 0.2;      // Encourage diverse vocabulary
     }
 
     try {
