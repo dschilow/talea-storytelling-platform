@@ -34047,7 +34047,7 @@ const AvatarWizardScreen = () => {
       };
       localStorage.setItem(personalityKey, JSON.stringify(initialPersonality));
       __vitePreload(async () => {
-        const { showAvatarCreatedToast, showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showAvatarCreatedToast, showSuccessToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showAvatarCreatedToast, showSuccessToast };
       }, true ? [] : void 0).then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(safeValues.name);
@@ -34085,7 +34085,7 @@ const AvatarWizardScreen = () => {
       });
       setGeneratedImageUrl(result.imageUrl);
       __vitePreload(async () => {
-        const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showSuccessToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showSuccessToast };
       }, true ? [] : void 0).then(({ showSuccessToast }) => {
         showSuccessToast("🎨 Avatar-Bild wurde erfolgreich generiert!");
@@ -34093,7 +34093,7 @@ const AvatarWizardScreen = () => {
     } catch (error) {
       console.error("Error generating avatar image:", error);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showErrorToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.");
@@ -39010,7 +39010,7 @@ const StoryReaderScreen = () => {
     try {
       setLoading2(true);
       setError2(null);
-      const storyData = await backend.story.get({ id: storyId });
+      const storyData = await backend.story.get(storyId);
       setStory(storyData);
     } catch (err) {
       console.error("Error loading story:", err);
@@ -39097,7 +39097,7 @@ const StoryReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showSuccessToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -39119,7 +39119,7 @@ const StoryReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showErrorToast, showStoryCompletionToast };
         }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -39129,7 +39129,7 @@ const StoryReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during story completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showErrorToast, showStoryCompletionToast };
       }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -39531,7 +39531,7 @@ const StoryScrollReaderScreen = () => {
     try {
       setLoading2(true);
       setError2(null);
-      const storyData = await backend.story.get({ id: storyId });
+      const storyData = await backend.story.get(storyId);
       setStory(storyData);
     } catch (err) {
       console.error("Error loading story:", err);
@@ -39574,7 +39574,7 @@ const StoryScrollReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showSuccessToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -39596,7 +39596,7 @@ const StoryScrollReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showErrorToast, showStoryCompletionToast };
         }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -39606,7 +39606,7 @@ const StoryScrollReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during story completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showErrorToast, showStoryCompletionToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showErrorToast, showStoryCompletionToast };
       }, true ? [] : void 0).then(({ showErrorToast, showStoryCompletionToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -42941,7 +42941,7 @@ const QuizComponent = ({
       if (aiResult.alreadyProcessed) {
         console.log("⚠️ Avatar already received updates from this quiz");
         __vitePreload(async () => {
-          const { showWarningToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showWarningToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showWarningToast };
         }, true ? [] : void 0).then(({ showWarningToast }) => {
           showWarningToast("Du hast bereits Persönlichkeitsupdates von diesem Quiz erhalten!");
@@ -42973,7 +42973,7 @@ const QuizComponent = ({
         }
         console.log(`🎉 KI quiz completed: ${percentage}% correct, personality changes:`, personalityChanges);
         __vitePreload(async () => {
-          const { showQuizCompletionToast, showPersonalityUpdateToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showQuizCompletionToast, showPersonalityUpdateToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showQuizCompletionToast, showPersonalityUpdateToast };
         }, true ? [] : void 0).then(({ showQuizCompletionToast, showPersonalityUpdateToast }) => {
           showQuizCompletionToast(percentage);
@@ -42982,7 +42982,7 @@ const QuizComponent = ({
       } else {
         console.log("🤔 KI quiz analysis completed but no personality changes suggested");
         __vitePreload(async () => {
-          const { showQuizCompletionToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showQuizCompletionToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showQuizCompletionToast };
         }, true ? [] : void 0).then(({ showQuizCompletionToast }) => {
           showQuizCompletionToast(percentage);
@@ -42991,7 +42991,7 @@ const QuizComponent = ({
     } catch (error) {
       console.error("❌ Error processing quiz completion with KI:", error);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showErrorToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("Fehler beim Verarbeiten der Persönlichkeitsentwicklung");
@@ -43309,7 +43309,7 @@ const DokuReaderScreen = () => {
     setPersonalityChanges(changes);
     setShowPersonalityNotification(true);
     __vitePreload(async () => {
-      const { showPersonalityUpdateToast } = await import("./toastUtils-CnJ0xGKS.js");
+      const { showPersonalityUpdateToast } = await import("./toastUtils-DFIa5LQ5.js");
       return { showPersonalityUpdateToast };
     }, true ? [] : void 0).then(({ showPersonalityUpdateToast }) => {
       showPersonalityUpdateToast(changes);
@@ -43379,7 +43379,7 @@ const DokuReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showSuccessToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -43401,7 +43401,7 @@ const DokuReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showErrorToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showErrorToast };
         }, true ? [] : void 0).then(({ showErrorToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -43410,7 +43410,7 @@ const DokuReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error applying personality updates:", error2);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showErrorToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -43569,7 +43569,7 @@ const DokuScrollReaderScreen = () => {
         const result = await response.json();
         console.log("✅ Personality updates applied:", result);
         __vitePreload(async () => {
-          const { showSuccessToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showSuccessToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showSuccessToast };
         }, true ? [] : void 0).then(({ showSuccessToast }) => {
           let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.
@@ -43591,7 +43591,7 @@ const DokuScrollReaderScreen = () => {
         const errorText = await response.text();
         console.warn("⚠️ Failed to apply personality updates:", response.statusText, errorText);
         __vitePreload(async () => {
-          const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
+          const { showErrorToast } = await import("./toastUtils-DFIa5LQ5.js");
           return { showErrorToast };
         }, true ? [] : void 0).then(({ showErrorToast }) => {
           showErrorToast("❌ Fehler bei der Persönlichkeitsentwicklung");
@@ -43600,7 +43600,7 @@ const DokuScrollReaderScreen = () => {
     } catch (error2) {
       console.error("❌ Error during doku completion processing:", error2);
       __vitePreload(async () => {
-        const { showErrorToast } = await import("./toastUtils-CnJ0xGKS.js");
+        const { showErrorToast } = await import("./toastUtils-DFIa5LQ5.js");
         return { showErrorToast };
       }, true ? [] : void 0).then(({ showErrorToast }) => {
         showErrorToast("❌ Netzwerkfehler bei der Persönlichkeitsentwicklung");
@@ -43758,7 +43758,7 @@ const DokuScrollReaderScreen = () => {
                     dokuId,
                     onPersonalityChange: (changes) => {
                       __vitePreload(async () => {
-                        const { showPersonalityUpdateToast } = await import("./toastUtils-CnJ0xGKS.js");
+                        const { showPersonalityUpdateToast } = await import("./toastUtils-DFIa5LQ5.js");
                         return { showPersonalityUpdateToast };
                       }, true ? [] : void 0).then(({ showPersonalityUpdateToast }) => {
                         showPersonalityUpdateToast(changes);

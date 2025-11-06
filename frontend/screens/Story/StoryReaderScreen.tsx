@@ -60,7 +60,7 @@ const StoryReaderScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const storyData = await backend.story.get({ id: storyId });
+      const storyData = await backend.story.get(storyId);
       setStory(storyData as unknown as Story);
     } catch (err) {
       console.error('Error loading story:', err);
