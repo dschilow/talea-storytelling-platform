@@ -10,17 +10,20 @@ ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
-# Copy all frontend files
+# Copy package files first for better caching
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy all frontend source files
 COPY frontend/ ./
 
 # Remove any pre-built dist directory to ensure fresh build
 RUN rm -rf dist
 
-# Install dependencies
-RUN npm install
-
-# Build the frontend
-RUN npm run build
+# Build the frontend with production mode
+RUN NODE_ENV=production npm run build
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine

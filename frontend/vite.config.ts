@@ -12,8 +12,8 @@ export default defineConfig({
     },
   },
   plugins: [tailwindcss(), react()],
-  mode: "development",
   build: {
-    minify: false,
+    minify: 'esbuild',
+    sourcemap: false,
   }
 })
