@@ -13,6 +13,9 @@ import {
 
 const openAIKey = secret("OpenAIKey");
 
+// Import SelectedFairyTale type from fairy-tale-selector
+import type { SelectedFairyTale } from "./fairy-tale-selector";
+
 interface Phase1Input {
   config: StoryConfig;
   avatarDetails: Array<{
@@ -20,6 +23,7 @@ interface Phase1Input {
     description?: string;
   }>;
   experience: StoryExperienceContext;
+  selectedFairyTale?: SelectedFairyTale | null; // NEW: If provided, skip expensive skeleton generation
 }
 
 interface OpenAIResponse {
@@ -56,6 +60,35 @@ export interface Phase1GenerationResult {
 
 export class Phase1SkeletonGenerator {
   async generate(input: Phase1Input): Promise<Phase1GenerationResult> {
+    // ===== NEW: Check if fairy tale is pre-selected (Phase 0) =====
+    if (input.selectedFairyTale) {
+      console.log(`[Phase1] 🚀 FAIRY TALE MODE DETECTED: ${input.selectedFairyTale.tale.title}`);
+      console.log("[Phase1] Skipping expensive skeleton generation - will use fairy tale structure");
+      
+      // Return minimal skeleton with only title - saves ~47 seconds + 3757 tokens + $0.0003
+      const minimalSkeleton: StorySkeleton = {
+        title: input.selectedFairyTale.tale.title, // Use fairy tale title
+        chapters: [], // Empty - will be filled by fairy tale scenes in Phase 3
+        supportingCharacterRequirements: [], // Empty - roles loaded from fairy_tale_roles in Phase 3
+      };
+
+      console.log("[Phase1] ✅ Minimal skeleton created (no OpenAI call)");
+      console.log("[Phase1] Savings: ~47 seconds latency + ~3757 tokens + ~$0.0003 per story");
+
+      return {
+        skeleton: minimalSkeleton,
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          reasoningTokens: 0,
+        },
+        openAIRequest: { skipped: true, reason: "Fairy tale pre-selected in Phase 0" },
+        openAIResponse: { choices: [], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } } as OpenAIResponse,
+      };
+    }
+
+    // ===== STANDARD MODE: Generate skeleton with OpenAI =====
     console.log("[Phase1] Generating story skeleton...");
 
     const prompt = this.buildSkeletonPrompt(input);

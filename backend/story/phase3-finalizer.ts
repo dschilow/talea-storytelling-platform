@@ -11,6 +11,12 @@ import {
   type StoryExperienceContext,
 } from "./story-experience";
 import { FairyTaleSelector, type SelectedFairyTale } from "./fairy-tale-selector";
+import {
+  FAIRY_TALE_ROLE_MAPPINGS,
+  applyRoleTransformation,
+  getAdaptedRoleTitle,
+  getAdaptedPronouns,
+} from "../fairytales/role-transformations";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -599,14 +605,35 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
       ].join("\n"))
       .join("\n\n");
 
+    // ===== NEW: Apply role transformations to avatar visual profiles =====
+    const roleTransformations = FAIRY_TALE_ROLE_MAPPINGS[fairyTale.tale.id];
+    
     const avatarDetailsText = avatarDetails
-      .map((avatar) => {
+      .map((avatar, idx) => {
         let line = `- ${avatar.name}`;
         if (avatar.description) {
           line += `, ${avatar.description}`;
         }
         if (avatar.visualProfile) {
-          line += `, Aussehen: ${this.visualProfileToText(avatar.visualProfile)}`;
+          // Apply transformation if role mapping exists for this avatar
+          const avatarGender = avatar.visualProfile.gender || 'neutral';
+          const protagonistTransformation = roleTransformations?.roles['{protagonist}']?.transformation;
+          
+          let visualDescription = this.visualProfileToText(avatar.visualProfile);
+          
+          // Transform avatar appearance for fairy tale role (e.g., human → mermaid)
+          if (protagonistTransformation && idx === 0) { // First avatar = protagonist
+            visualDescription = applyRoleTransformation(
+              visualDescription,
+              avatarGender,
+              protagonistTransformation
+            );
+            console.log(`[Phase3] 🎨 Transformed avatar ${avatar.name} visual profile:`);
+            console.log(`[Phase3] Original: ${this.visualProfileToText(avatar.visualProfile)}`);
+            console.log(`[Phase3] Transformed: ${visualDescription}`);
+          }
+          
+          line += `, Aussehen: ${visualDescription}`;
         }
         return line;
       })
@@ -637,15 +664,38 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     // Map fairy tale scenes (6-9 scenes) to exactly 5 chapters
     const sceneChapterMapping = this.mapScenesToChapters(fairyTale.scenes);
     
+    // ===== NEW: Get gender-adapted pronouns and role titles =====
+    const protagonistAvatar = avatarDetails[0]; // First avatar is protagonist
+    const protagonistGender = protagonistAvatar?.visualProfile?.gender || 'neutral';
+    const adaptedPronouns = roleTransformations 
+      ? getAdaptedPronouns(roleTransformations.roles['{protagonist}'], protagonistGender)
+      : {};
+    const adaptedRoleTitle = roleTransformations
+      ? getAdaptedRoleTitle(roleTransformations.roles['{protagonist}'], protagonistGender)
+      : fairyTale.tale.title;
+    
+    console.log(`[Phase3] 🔄 Gender adaptation for ${protagonistAvatar.name} (${protagonistGender}):`);
+    console.log(`[Phase3] Role title: ${fairyTale.tale.title} → ${adaptedRoleTitle}`);
+    console.log(`[Phase3] Pronouns: ${JSON.stringify(adaptedPronouns)}`);
+    
     const chapterStructure = sceneChapterMapping
       .map((mapping: any, idx: number) => {
-        const sceneDetails = mapping.scenes.map((s: any) => 
-          `  - Szene ${s.sceneNumber}: ${s.sceneTitle}\n` +
-          `    Setting: ${s.setting}\n` +
-          `    Stimmung: ${s.mood}\n` +
-          `    Handlung: ${s.sceneDescription}\n` +
-          `    Bild-Template: ${s.illustrationPromptTemplate}`
-        ).join('\n');
+        const sceneDetails = mapping.scenes.map((s: any) => {
+          // Replace gender placeholders in scene description
+          let sceneDescription = s.sceneDescription || '';
+          sceneDescription = sceneDescription.replace(/{protagonist_title}/g, adaptedRoleTitle);
+          sceneDescription = sceneDescription.replace(/{protagonist_sie}/g, adaptedPronouns.sie || 'sie');
+          sceneDescription = sceneDescription.replace(/{protagonist_sie_cap}/g, adaptedPronouns.sie_cap || 'Sie');
+          sceneDescription = sceneDescription.replace(/{protagonist_ihr}/g, adaptedPronouns.ihr || 'ihr');
+          sceneDescription = sceneDescription.replace(/{protagonist_ihre}/g, adaptedPronouns.ihre || 'ihre');
+          sceneDescription = sceneDescription.replace(/{protagonist_name}/g, protagonistAvatar.name);
+          
+          return `  - Szene ${s.sceneNumber}: ${s.sceneTitle}\n` +
+            `    Setting: ${s.setting}\n` +
+            `    Stimmung: ${s.mood}\n` +
+            `    Handlung: ${sceneDescription}\n` +
+            `    Bild-Template: ${s.illustrationPromptTemplate}`;
+        }).join('\n');
         
         return `KAPITEL ${idx + 1}: ${mapping.chapterTitle}\n${sceneDetails}`;
       })

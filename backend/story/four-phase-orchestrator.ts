@@ -5,6 +5,7 @@ import type { StoryConfig, Chapter } from "./generate";
 import { Phase1SkeletonGenerator, type Phase1GenerationResult } from "./phase1-skeleton";
 import { Phase2CharacterMatcher } from "./phase2-matcher";
 import { Phase3StoryFinalizer, type Phase3FinalizationResult } from "./phase3-finalizer";
+import { FairyTaleSelector, type SelectedFairyTale } from "./fairy-tale-selector";
 import { ai } from "~encore/clients";
 import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
@@ -130,11 +131,13 @@ export class FourPhaseOrchestrator {
   private phase1Generator: Phase1SkeletonGenerator;
   private phase2Matcher: Phase2CharacterMatcher;
   private phase3Finalizer: Phase3StoryFinalizer;
+  private fairyTaleSelector: FairyTaleSelector;
 
   constructor() {
     this.phase1Generator = new Phase1SkeletonGenerator();
     this.phase2Matcher = new Phase2CharacterMatcher();
     this.phase3Finalizer = new Phase3StoryFinalizer();
+    this.fairyTaleSelector = new FairyTaleSelector();
   }
 
   private async logPhaseEvent(
@@ -172,6 +175,33 @@ export class FourPhaseOrchestrator {
       specialIngredients: experienceContext.specialIngredients.map(i => i.label),
     });
 
+    // ===== PHASE 0: Fairy Tale Pre-Selection (NEW) =====
+    let selectedFairyTale: SelectedFairyTale | null = null;
+    const useFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? false;
+
+    if (useFairyTaleTemplate) {
+      console.log("[4-Phase] ===== PHASE 0: FAIRY TALE SELECTION =====");
+      const phase0Start = Date.now();
+
+      selectedFairyTale = await this.fairyTaleSelector.selectBestMatch(
+        configWithExperience,
+        input.avatarDetails.length
+      );
+
+      const phase0Duration = Date.now() - phase0Start;
+
+      if (selectedFairyTale) {
+        console.log(`[4-Phase] ✅ Phase 0 completed in ${phase0Duration}ms`);
+        console.log(`[4-Phase] Selected: ${selectedFairyTale.tale.title} (score: ${selectedFairyTale.matchScore})`);
+        console.log(`[4-Phase] This will save ~47 seconds in Phase 1 by skipping skeleton generation`);
+      } else {
+        console.log(`[4-Phase] ⚠️ Phase 0 completed in ${phase0Duration}ms - No suitable fairy tale found`);
+        console.log(`[4-Phase] Will proceed with standard skeleton generation`);
+      }
+    } else {
+      console.log("[4-Phase] Fairy tale template disabled - skipping Phase 0");
+    }
+
     // ===== PHASE 1: Generate Story Skeleton =====
     console.log("[4-Phase] ===== PHASE 1: SKELETON GENERATION =====");
     const phase1Start = Date.now();
@@ -183,6 +213,7 @@ export class FourPhaseOrchestrator {
         name: a.name,
         description: a.description,
       })),
+      selectedFairyTale, // NEW: Pass to Phase1 to signal skip
     });
     const skeleton = phase1Result.skeleton;
     phaseDurations.phase1Duration = Date.now() - phase1Start;
@@ -257,7 +288,7 @@ export class FourPhaseOrchestrator {
       .map((avatar) => avatar.name?.trim())
       .filter((name): name is string => Boolean(name));
 
-    const useFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? false;
+    // Use the useFairyTaleTemplate variable declared in Phase 0
     const characterAssignments = await this.phase2Matcher.match(
       skeleton,
       input.config.setting,
