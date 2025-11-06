@@ -130,6 +130,11 @@ export class Phase3StoryFinalizer {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: isReasoningModel ? 16000 : 5000,
+      // Creativity parameters for story diversity
+      temperature: 0.9,           // High creativity for unique stories
+      top_p: 0.95,                // Nucleus sampling
+      frequency_penalty: 0.3,     // Reduce repetition within story
+      presence_penalty: 0.2,      // Encourage diverse vocabulary
     };
 
     // Add reasoning_effort for reasoning models

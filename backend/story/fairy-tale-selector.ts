@@ -58,19 +58,38 @@ export interface SelectedFairyTale {
 export class FairyTaleSelector {
   /**
    * Selects the best matching fairy tale for the story generation
+   * @param excludeRecentlyUsed - Optional: Exclude tales used in last N stories (default: 3)
    */
   async selectBestMatch(
     config: StoryConfig,
-    availableAvatarCount: number
+    availableAvatarCount: number,
+    excludeRecentlyUsed: number = 3
   ): Promise<SelectedFairyTale | null> {
     console.log("[FairyTaleSelector] Selecting fairy tale for:", {
       ageGroup: config.ageGroup,
       genre: config.genre,
       avatars: availableAvatarCount,
+      excludeRecent: excludeRecentlyUsed,
     });
 
     try {
-      // Get all active fairy tales
+      // Get recently used fairy tales for this user (for diversity)
+      let recentlyUsedIds: string[] = [];
+      if (excludeRecentlyUsed > 0) {
+        console.log(`[FairyTaleSelector] Checking last ${excludeRecentlyUsed} used tales...`);
+        const recentUsage = await fairytalesDB.queryAll<any>`
+          SELECT DISTINCT tale_id
+          FROM fairy_tale_usage_stats
+          ORDER BY last_used_at DESC
+          LIMIT ${excludeRecentlyUsed}
+        `;
+        recentlyUsedIds = recentUsage.map(r => r.tale_id);
+        if (recentlyUsedIds.length > 0) {
+          console.log(`[FairyTaleSelector] 🔄 Excluding recently used: ${recentlyUsedIds.join(', ')}`);
+        }
+      }
+
+      // Get all active fairy tales (excluding recently used)
       console.log("[FairyTaleSelector] Querying fairy_tales table...");
       const tales = await fairytalesDB.queryAll<any>`
         SELECT 
@@ -79,6 +98,7 @@ export class FairyTaleSelector {
           genre_tags, moral_lesson, summary, is_active
         FROM fairy_tales
         WHERE is_active = true
+        ${recentlyUsedIds.length > 0 ? `AND id NOT IN (${recentlyUsedIds.map(id => `'${id}'`).join(',')})` : ''}
         ORDER BY age_recommendation ASC
       `;
 
