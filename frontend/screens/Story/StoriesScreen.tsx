@@ -41,14 +41,19 @@ const StoriesScreen: React.FC = () => {
   };
 
   const loadMoreStories = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore || !hasMore) {
+      console.log('Skipping load more:', { loadingMore, hasMore });
+      return;
+    }
 
+    console.log('Starting to load more stories. Current count:', stories.length);
     try {
       setLoadingMore(true);
       const response = await backend.story.list({
         limit: 10,
         offset: stories.length
       });
+      console.log('Loaded more stories:', response.stories.length, 'hasMore:', response.hasMore);
       setStories(prev => [...prev, ...response.stories as any[]]);
       setHasMore(response.hasMore);
     } catch (error) {
@@ -56,7 +61,7 @@ const StoriesScreen: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [backend, stories.length, hasMore, loadingMore]);
+  }, [backend, stories.length, hasMore, loadingMore, stories]);
 
   useEffect(() => {
     loadStories();
@@ -307,21 +312,23 @@ const StoriesScreen: React.FC = () => {
                 </div>
 
                 {/* Infinite scroll trigger */}
-                <div ref={observerTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
-                  {loadingMore && (
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                        border: `3px solid rgba(255,255,255,0.6)`,
-                        borderTop: `3px solid ${colors.primary}`,
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        margin: '0 auto'
-                      }} />
-                    </div>
-                  )}
-                </div>
+                {hasMore && (
+                  <div ref={observerTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
+                    {loadingMore && (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          border: `3px solid rgba(255,255,255,0.6)`,
+                          borderTop: `3px solid ${colors.primary}`,
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                          margin: '0 auto'
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
