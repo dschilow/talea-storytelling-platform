@@ -1,5 +1,5 @@
 {
-  "id": "a87acef0-bd31-43da-9ad5-0d482c2c1d78",
+  "id": "7355caf4-47b7-4345-ba62-bf39b3924a6c",
   "metadata": null,
   "request": {
     "label": "PHASE 2: Beste Charaktere matchen",
@@ -7,46 +7,32 @@
     "recentStoryCount": 5,
     "requirements": [
       {
-        "archetype": "clever_child",
-        "emotionalNature": "mutig, neugierig, hilfsbereit",
-        "importance": "high",
-        "placeholder": "Alexander",
-        "role": "protagonist"
-      },
-      {
-        "archetype": "mysterious_companion",
-        "emotionalNature": "ruhig, beschützend, nachdenklich",
-        "importance": "high",
-        "placeholder": "Adrian",
-        "role": "close_friend"
-      },
-      {
         "archetype": "helpful_elder",
-        "emotionalNature": "weise, warmherzig, beruhigend",
+        "emotionalNature": "wise",
         "importance": "high",
         "placeholder": "{{WISE_ELDER}}",
         "role": "guide"
       },
       {
-        "archetype": "loyal_helper",
-        "emotionalNature": "scheu, freundlich",
+        "archetype": "magical_helper",
+        "emotionalNature": "timid_but_hopeful",
+        "importance": "medium",
+        "placeholder": "{{MAGICAL_CREATURE}}",
+        "role": "rescued"
+      },
+      {
+        "archetype": "loyal_companion",
+        "emotionalNature": "stubborn_but_loyal",
         "importance": "medium",
         "placeholder": "{{ANIMAL_HELPER}}",
         "role": "guide_animal"
       },
       {
-        "archetype": "grumpy_guardian",
-        "emotionalNature": "misstrauisch, verletzt, eigensinnig",
+        "archetype": "guardian_obstacle",
+        "emotionalNature": "stern_but_fair",
         "importance": "high",
         "placeholder": "{{OBSTACLE_CHARACTER}}",
-        "role": "antagonist_obstacle"
-      },
-      {
-        "archetype": "lonely_magical_being",
-        "emotionalNature": "ängstlich, sehnsüchtig, zurückhaltend",
-        "importance": "high",
-        "placeholder": "{{MAGICAL_CREATURE}}",
-        "role": "misunderstood_guardian"
+        "role": "antagonist"
       }
     ],
     "setting": "fantasy"
@@ -103,8 +89,8 @@
               "help"
             ]
           },
-          "id": "b927c871-5d7c-40b5-8dc8-6143f31dda04",
-          "name": "Hase Hoppel",
+          "id": "0f8ad343-3bf9-41fe-bb15-9b3ad1311a3e",
+          "name": "Eichhörnchen Emma",
           "role": "sidekick",
           "usageStats": {
             "recentUsageCount": 0,
@@ -112,12 +98,48 @@
           },
           "visualProfile": {
             "colorPalette": [
-              "white",
-              "grey",
-              "pink"
+              "red-brown",
+              "cream",
+              "black"
             ],
-            "description": "Hase Hoppel • ['Hase Hoppel rabbit', ' medium-sized']",
-            "species": "rabbit"
+            "description": "Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small']",
+            "species": "squirrel"
+          }
+        },
+        "placeholder": "{{MAGICAL_CREATURE}}"
+      },
+      {
+        "character": {
+          "archetype": "helper",
+          "emotionalNature": {
+            "dominant": "helper",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "ed08685a-bc06-42ea-82fb-0551dc96b5fd",
+          "name": "Gärtnerin Rosa",
+          "role": "helper",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "green",
+              "yellow",
+              "brown"
+            ],
+            "description": "Gärtnerin Rosa • ['Gärtnerin Rosa gardener', ' 40 years']",
+            "species": "human_gardener"
           }
         },
         "placeholder": "{{ANIMAL_HELPER}}"
@@ -139,66 +161,30 @@
               "help"
             ]
           },
-          "id": "0f8ad343-3bf9-41fe-bb15-9b3ad1311a3e",
-          "name": "Eichhörnchen Emma",
-          "role": "sidekick",
+          "id": "f28cfdd1-21ca-415c-a6d5-062d13492421",
+          "name": "Verkäufer Viktor",
+          "role": "helper",
           "usageStats": {
             "recentUsageCount": 0,
             "totalUsageCount": 0
           },
           "visualProfile": {
             "colorPalette": [
-              "red-brown",
-              "cream",
-              "black"
+              "green",
+              "brown",
+              "white"
             ],
-            "description": "Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small']",
-            "species": "squirrel"
+            "description": "Verkäufer Viktor • ['Verkäufer Viktor salesperson', ' 28 years']",
+            "species": "human_shopkeeper"
           }
         },
         "placeholder": "{{OBSTACLE_CHARACTER}}"
-      },
-      {
-        "character": {
-          "archetype": "trickster",
-          "emotionalNature": {
-            "dominant": "trickster",
-            "secondary": [
-              "kind",
-              "helpful",
-              "cheerful"
-            ],
-            "triggers": [
-              "children",
-              "friends",
-              "adventure",
-              "help"
-            ]
-          },
-          "id": "2309250c-790e-4476-97a1-9ed194392fc1",
-          "name": "Fuchs Ferdinand",
-          "role": "main",
-          "usageStats": {
-            "recentUsageCount": 0,
-            "totalUsageCount": 0
-          },
-          "visualProfile": {
-            "colorPalette": [
-              "orange",
-              "white",
-              "black"
-            ],
-            "description": "Fuchs Ferdinand • ['Fuchs Ferdinand fox', ' slender']",
-            "species": "fox"
-          }
-        },
-        "placeholder": "{{MAGICAL_CREATURE}}"
       }
     ],
-    "durationMs": 24,
+    "durationMs": 19,
     "matchedCount": 4,
     "status": "completed"
   },
   "source": "phase2-character-matching",
-  "timestamp": "2025-11-05T17:24:24.900Z"
+  "timestamp": "2025-11-06T06:24:35.052Z"
 }

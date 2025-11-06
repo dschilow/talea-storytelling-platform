@@ -298,14 +298,21 @@ export class FairyTaleSelector {
     const genreTags = this.parseJsonArray(tale.genre_tags);
     const exactMatch = genreTags.includes(config.genre);
     
-    // Genre mapping: Story genres → Fairy tale genres
+    // Genre mapping: Story genres (from Frontend) → Fairy tale genre_tags (in DB)
     const genreAliases: Record<string, string[]> = {
-      "fantasy": ["adventure", "magic", "mystery", "dark"],
-      "adventure": ["adventure", "quest", "journey"],
-      "mystery": ["mystery", "puzzle", "riddle"],
-      "friendship": ["moral", "teamwork", "family"],
-      "educational": ["moral", "learning"],
-      "animals": ["animals", "nature"],
+      // Frontend category IDs → DB genre_tags
+      "fairy-tales": ["fantasy", "adventure", "magic", "moral", "dark"],  // ✅ Klassische Märchen
+      "adventure": ["adventure", "quest", "journey", "treasure"],          // ✅ Abenteuer & Schätze
+      "magic": ["magic", "fantasy", "mystery", "enchanted"],              // ✅ Märchenwelten & Magie
+      "animals": ["animals", "nature", "forest", "creatures"],            // ✅ Tierwelten
+      "scifi": ["scifi", "future", "space", "technology"],                // ✅ Sci-Fi & Zukunft
+      "modern": ["modern", "realistic", "contemporary", "family"],        // ✅ Modern & Realität
+      
+      // Backwards compatibility for internal genre names
+      "fantasy": ["fantasy", "adventure", "magic", "mystery", "dark"],
+      "friendship": ["moral", "teamwork", "family", "love"],
+      "educational": ["moral", "learning", "wisdom"],
+      "mystery": ["mystery", "puzzle", "riddle", "detective"],
     };
     
     const aliases = genreAliases[config.genre.toLowerCase()] || [];
@@ -316,9 +323,9 @@ export class FairyTaleSelector {
       genreScore = 30; // Perfect match
       reasons.push(`Perfektes Genre (${config.genre})`);
     } else if (fuzzyMatch) {
-      genreScore = 25; // Close match via aliases
+      genreScore = 28; // Very close match via aliases (increased from 25pt)
       const matchedTag = genreTags.find(tag => aliases.includes(tag));
-      reasons.push(`Passendes Genre (${matchedTag} ≈ ${config.genre})`);
+      reasons.push(`Sehr passendes Genre (${matchedTag} für ${config.genre})`);
     } else {
       genreScore = 10; // No match but still usable
     }

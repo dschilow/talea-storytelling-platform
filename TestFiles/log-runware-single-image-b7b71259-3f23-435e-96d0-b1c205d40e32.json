@@ -1,0 +1,39 @@
+{
+  "id": "b7b71259-3f23-435e-96d0-b1c205d40e32",
+  "metadata": null,
+  "request": {
+    "CFGScale": 3.5,
+    "checkNSFW": true,
+    "height": 1024,
+    "includeCost": true,
+    "model": "runware:101@1",
+    "numberResults": 1,
+    "outputFormat": "JPEG",
+    "outputQuality": 85,
+    "outputType": [
+      "URL"
+    ],
+    "positivePrompt": "Scene: Alley at dusk with a glowing light emerging from a storm drain. Characters: Adrian (5-7-year-old boy with voluminous short curly golden hair, bright blue eyes, casual hoodie over white crewneck), Alexander (8-10-year-old boy with short tousled brown hair, bright green eyes, layered hoodie and sleeveless zip vest), and Frau Müller (78-year-old woman, green/gray/beige outfit). Action: Boys peering into a drain, one hand reaching toward shimmering patterned light, Frau Müller leaning forward with a protective, wise expression. Lighting: warm watercolor glow from the drain illuminates faces; soft evening street light contrasts with bright inner glow. Mood: curious, slightly tense, wonder. Camera perspective: low-angle three-quarter view, slightly close-up to emphasize the children's reactions and the glowing patterns in the water. Environment specifics: narrow cobblestone alley, wet stone walls, small puddles reflecting light, faint citrus peel on the ground. Recurring motifs: light patterns and a whispering melody suggested by visual ripples. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly. CHARACTERS IN THIS SCENE: Adrian: 5-7 years old, male, warm golden blond short curly voluminous tousled curls hair, bright blue eyes, pale peach skin, wearing casual hoodie over white crewneck shirt, voluminous curly golden hair, large expressive bright blue eyes, rosy round childlike cheeks, small button-shaped nose, gentle small smiling mouth, prominent rounded ears slightly visible, soft pale warm skin, innocent empathetic friendly expression Alexander: 8-10 years old, male, medium brown short straight with slight wave tousled, slightly spiky at crown hair, bright green eyes, light warm peach skin, wearing casual layered hoodie and sleeveless zip vest, short tousled brown hair, large bright green eyes, round youthful face, rosy button nose, small smiling mouth, light freckles and blush, slim neck and shoulders, expressive arched eyebrows, soft natural lighting Frau Müller: Frau Müller • ['Frau Müller', ' 78 years'] IMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - Adrian (5-7y) must be SMALLER than any older character. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly",
+    "scheduler": "FlowMatchEulerDiscreteScheduler",
+    "seed": 1660991262,
+    "steps": 28,
+    "taskType": "imageInference",
+    "taskUUID": "6ad513e1-5269-42da-b7ca-db7ae934ae57",
+    "width": 1024
+  },
+  "response": {
+    "data": [
+      {
+        "NSFWContent": false,
+        "cost": 0.0038,
+        "imageURL": "https://im.runware.ai/image/ws/2/ii/fc221d6a-489f-4d26-b5f1-6bed0f205f77.jpg",
+        "imageUUID": "fc221d6a-489f-4d26-b5f1-6bed0f205f77",
+        "seed": 1660991262,
+        "taskType": "imageInference",
+        "taskUUID": "6ad513e1-5269-42da-b7ca-db7ae934ae57"
+      }
+    ]
+  },
+  "source": "runware-single-image",
+  "timestamp": "2025-11-06T06:26:36.111Z"
+}
