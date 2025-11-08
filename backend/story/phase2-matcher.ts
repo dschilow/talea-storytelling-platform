@@ -57,6 +57,7 @@ export class Phase2CharacterMatcher {
           archetype: role.archetypePreference || 'neutral',
           emotionalNature: role.description || 'neutral',
           visualHints: role.professionPreference?.join(', ') || '',
+          requiredTraits: [],  // CRITICAL FIX: Add empty array for requiredTraits
           importance: role.required ? 'high' : 'medium',
           inChapters: [1, 2, 3, 4, 5]  // Available in all chapters by default
         }));
