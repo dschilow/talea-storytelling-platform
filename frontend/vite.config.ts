@@ -7,8 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname),
-      '~backend/client': path.resolve(__dirname, './client'),
-      '~backend': path.resolve(__dirname, '../backend'),
+      // CRITICAL: Point ~backend to the generated client file to avoid loading Encore code
+      '~backend': path.resolve(__dirname, './client'),
     },
   },
   plugins: [tailwindcss(), react()],
