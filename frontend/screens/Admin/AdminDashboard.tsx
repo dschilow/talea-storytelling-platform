@@ -7,9 +7,11 @@ import { typography } from "../../utils/constants/typography";
 import { spacing, radii, shadows } from "../../utils/constants/spacing";
 import { Shield, Users, Search, Trash2, Edit3, RefreshCw, BarChart3, Crown, UserPlus } from "lucide-react";
 import { useBackend } from "../../hooks/useBackend";
-import type { UserProfile } from "~backend/user/profile";
-import type { Avatar } from "~backend/avatar/create";
+import type { user, avatar } from "../../client";
 import Button from "../../components/common/Button";
+
+type UserProfile = user.UserProfile;
+type Avatar = avatar.Avatar;
 
 interface AdminStats {
   totals: { users: number; avatars: number; stories: number };

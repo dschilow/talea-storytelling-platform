@@ -8,7 +8,9 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
-import type { DokuConfig } from '~backend/doku/generate';
+import type { doku } from '../../client';
+
+type DokuConfig = doku.DokuConfig;
 
 interface DokuListItem {
   id: string;

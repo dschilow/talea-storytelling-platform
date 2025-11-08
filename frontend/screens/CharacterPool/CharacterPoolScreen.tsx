@@ -8,7 +8,9 @@ import { useBackend } from '../../hooks/useBackend';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import type { CharacterTemplate } from '~backend/story/types';
+import type { story } from '../../client';
+
+type CharacterTemplate = story.CharacterTemplate;
 
 interface CharacterFormState {
   name: string;
