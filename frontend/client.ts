@@ -802,6 +802,7 @@ import { health as api_health_health_health } from "~backend/health/health";
 import { import150FairyTales as api_health_import_150_fairy_tales_import150FairyTales } from "~backend/health/import-150-fairy-tales";
 import { initializeDatabaseMigrations as api_health_init_migrations_initializeDatabaseMigrations } from "~backend/health/init-migrations";
 import { runMigrations as api_health_run_migrations_runMigrations } from "~backend/health/run-migrations";
+import { testClerk as api_health_test_clerk_testClerk } from "~backend/health/test-clerk";
 
 export namespace health {
 
@@ -820,6 +821,7 @@ export namespace health {
             this.import150FairyTales = this.import150FairyTales.bind(this)
             this.initializeDatabaseMigrations = this.initializeDatabaseMigrations.bind(this)
             this.runMigrations = this.runMigrations.bind(this)
+            this.testClerk = this.testClerk.bind(this)
         }
 
         public async checkFairyTaleStats(): Promise<ResponseType<typeof api_health_check_fairy_tale_stats_checkFairyTaleStats>> {
@@ -907,6 +909,16 @@ export namespace health {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/health/run-migrations`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_run_migrations_runMigrations>
+        }
+
+        /**
+         * Test Clerk API connectivity and configuration
+         * Use this endpoint to diagnose authentication issues
+         */
+        public async testClerk(): Promise<ResponseType<typeof api_health_test_clerk_testClerk>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/test-clerk`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_test_clerk_testClerk>
         }
     }
 }
