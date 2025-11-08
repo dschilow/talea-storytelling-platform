@@ -185,7 +185,7 @@ const CharacterPoolScreen: React.FC = () => {
   const openEditor = async (id: string) => {
     try {
       setDetailLoading(true);
-      const character = await backend.story.getCharacter({ id });
+      const character = await backend.story.getCharacter(id);
       setEditingCharacter(character);
       setIsNewCharacter(false);
       setFormState(mapCharacterToForm(character));
@@ -222,7 +222,7 @@ const CharacterPoolScreen: React.FC = () => {
     }
     try {
       setGeneratingImage(true);
-      const response = await backend.story.generateCharacterImage({ id: editingCharacter.id });
+      const response = await backend.story.generateCharacterImage(editingCharacter.id, {});
       setFormState(prev => (prev ? { ...prev, imageUrl: response.imageUrl } : prev));
       toast.success('Neues Charakterbild erstellt. Vergiss nicht zu speichern.');
     } catch (err) {
@@ -271,7 +271,7 @@ const CharacterPoolScreen: React.FC = () => {
           id: editingCharacter.id,
           updates,
         });
-        const refreshed = await backend.story.getCharacter({ id: editingCharacter.id });
+        const refreshed = await backend.story.getCharacter(editingCharacter.id);
         setEditingCharacter(refreshed);
         setFormState(mapCharacterToForm(refreshed));
         toast.success('Charakter erfolgreich aktualisiert.');
@@ -376,7 +376,7 @@ const CharacterPoolScreen: React.FC = () => {
 
     try {
       setDeleting(true);
-      await backend.story.deleteCharacter({ id: editingCharacter.id });
+      await backend.story.deleteCharacter(editingCharacter.id);
       toast.success('Charakter wurde geloescht.');
       closeEditor();
       await loadCharacters();

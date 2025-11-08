@@ -98,7 +98,7 @@ const DokuWizardScreen: React.FC = () => {
   const onDelete = async (id: string) => {
     if (!window.confirm('Doku wirklich löschen?')) return;
     try {
-      await backend.doku.deleteDoku({ id });
+      await backend.doku.deleteDoku(id);
       setDokus(dokus.filter(d => d.id !== id));
     } catch (e) {
       console.error('Failed to delete doku', e);

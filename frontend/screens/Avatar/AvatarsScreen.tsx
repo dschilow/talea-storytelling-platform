@@ -76,7 +76,7 @@ const AvatarsScreen: React.FC = () => {
   const handleDeleteAvatar = async (avatar: Avatar) => {
     try {
       console.log(`Deleting avatar: ${avatar.name} (ID: ${avatar.id})`);
-      await backend.avatar.deleteAvatar({ id: avatar.id });
+      await backend.avatar.deleteAvatar(avatar.id);
       console.log(`Successfully deleted avatar: ${avatar.name}`);
 
       // Refresh the avatar list

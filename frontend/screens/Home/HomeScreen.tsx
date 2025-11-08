@@ -142,7 +142,7 @@ const HomeScreen: React.FC = () => {
   const handleDeleteAvatar = async (avatarId: string, avatarName: string) => {
     if (window.confirm(`Möchtest du "${avatarName}" wirklich löschen?`)) {
       try {
-        await backend.avatar.deleteAvatar({ id: avatarId });
+        await backend.avatar.deleteAvatar(avatarId);
         setAvatars(avatars.filter(a => a.id !== avatarId));
       } catch (error) {
         console.error('Error deleting avatar:', error);
@@ -154,7 +154,7 @@ const HomeScreen: React.FC = () => {
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen?`)) {
       try {
-        await backend.story.deleteStory({ id: storyId });
+        await backend.story.deleteStory(storyId);
         setStories(stories.filter(s => s.id !== storyId));
       } catch (error) {
         console.error('Error deleting story:', error);
@@ -166,7 +166,7 @@ const HomeScreen: React.FC = () => {
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen?`)) {
       try {
-        await backend.doku.deleteDoku({ id: dokuId });
+        await backend.doku.deleteDoku(dokuId);
         setDokus(dokus.filter(d => d.id !== dokuId));
       } catch (error) {
         console.error('Error deleting doku:', error);
