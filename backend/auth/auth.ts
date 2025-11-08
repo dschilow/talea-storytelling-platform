@@ -154,8 +154,17 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
   try {
     console.log("Starting Clerk token verification...");
 
+    // CRITICAL: Check if ClerkSecretKey is configured
+    const secretKey = clerkSecretKey();
+    if (!secretKey || secretKey.length === 0) {
+      console.error("❌ CRITICAL: ClerkSecretKey is missing or empty!");
+      throw new Error("ClerkSecretKey not configured - check Railway environment variables");
+    }
+
+    console.log("✅ ClerkSecretKey is configured (length: " + secretKey.length + ")");
+
     const verifiedToken = await verifyToken(token, {
-      secretKey: clerkSecretKey(),
+      secretKey,
       // Clock-Skew-Toleranz fuer Edge-Deployments.
       clockSkewInMs: 120000,
     });
@@ -269,7 +278,7 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
         clerkToken: token,
       };
   } catch (err: any) {
-    console.error("Authentication failed:", err.message);
+    console.error("❌ Authentication failed:", err.message);
     console.error("Error reason:", err.reason || "unknown");
 
     if (err.longMessage) {
@@ -277,6 +286,21 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
     }
     if (err.code) {
       console.error("Error code:", err.code);
+    }
+
+    // CRITICAL: Diagnose "fetch failed" errors which indicate Clerk API connectivity issues
+    const errorReason = (typeof err.reason === "string" ? err.reason : err.message) || "unknown";
+    if (errorReason.includes("fetch") || errorReason.includes("network") || errorReason.includes("ECONNREFUSED")) {
+      console.error("🔥 CRITICAL: Network connectivity issue with Clerk API!");
+      console.error("Possible causes:");
+      console.error("  1. ClerkSecretKey is invalid or missing in Railway environment");
+      console.error("  2. Network/firewall blocking Clerk API (api.clerk.com)");
+      console.error("  3. Clerk API is down (check status.clerk.com)");
+      console.error("");
+      console.error("🔧 To fix:");
+      console.error("  1. Verify ClerkSecretKey is set in Railway: railway variables");
+      console.error("  2. Check Railway logs for network errors");
+      console.error("  3. Test Clerk API: curl https://api.clerk.com/v1/jwks");
     }
 
     const payload = decodeTokenPayload(token);

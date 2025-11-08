@@ -11,3 +11,4 @@ import "./complete-fairy-tales-setup";
 import "./import-150-fairy-tales";
 import "./check-fairy-tale-stats";
 import "./fix-usage-count-column";
+import "./test-clerk";
