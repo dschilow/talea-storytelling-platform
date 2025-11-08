@@ -288,13 +288,15 @@ export class FourPhaseOrchestrator {
       .map((avatar) => avatar.name?.trim())
       .filter((name): name is string => Boolean(name));
 
-    // Use the useFairyTaleTemplate variable declared in Phase 0
+    // CRITICAL FIX: When using fairy tale template, pass selectedFairyTale to Phase 2
+    // so it can load roles from fairy_tale_roles table instead of empty skeleton
     const characterAssignments = await this.phase2Matcher.match(
       skeleton,
       input.config.setting,
       recentStoryIds,
       avatarNames,
-      useFairyTaleTemplate
+      useFairyTaleTemplate,
+      selectedFairyTale  // NEW: Pass fairy tale so Phase2 can load roles from DB
     );
     phaseDurations.phase2Duration = Date.now() - phase2Start;
     console.log(`[4-Phase] Phase 2 completed in ${phaseDurations.phase2Duration}ms`);

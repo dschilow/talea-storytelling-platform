@@ -15,10 +15,13 @@ export class Phase2CharacterMatcher {
     setting: string,
     recentStoryIds: string[] = [],
     avatarNames: string[] = [],
-    useFairyTaleTemplate: boolean = false
+    useFairyTaleTemplate: boolean = false,
+    selectedFairyTale?: any  // NEW: If provided, load roles from fairy_tale_roles instead of skeleton
   ): Promise<Map<string, CharacterTemplate>> {
     console.log("[Phase2] Starting character matching...", {
       requirementsCount: skeleton.supportingCharacterRequirements.length,
+      fairyTaleMode: !!selectedFairyTale,
+      fairyTaleTitle: selectedFairyTale?.tale.title,
       setting,
     });
 
@@ -38,8 +41,33 @@ export class Phase2CharacterMatcher {
         .filter((name): name is string => Boolean(name))
     );
 
+    // CRITICAL FIX: For fairy tales, use roles from fairy_tale_roles table instead of empty skeleton
+    let characterRequirements: any[] = skeleton.supportingCharacterRequirements;
+
+    if (selectedFairyTale && selectedFairyTale.roles) {
+      console.log(`[Phase2] 🎭 Fairy Tale Mode: Loading ${selectedFairyTale.roles.length} roles from "${selectedFairyTale.tale.title}"`);
+
+      // Convert fairy tale roles to character requirements format
+      // Skip protagonist roles (those are for user avatars)
+      characterRequirements = selectedFairyTale.roles
+        .filter((role: any) => role.roleType !== 'protagonist')  // Only supporting characters
+        .map((role: any) => ({
+          placeholder: `{{${role.roleName.toUpperCase().replace(/\s+/g, '_')}}}`,
+          role: role.roleType,
+          archetype: role.archetypePreference || 'neutral',
+          emotionalNature: role.description || 'neutral',
+          visualHints: role.professionPreference?.join(', ') || '',
+          importance: role.required ? 'high' : 'medium',
+          inChapters: [1, 2, 3, 4, 5]  // Available in all chapters by default
+        }));
+
+      console.log(`[Phase2] Converted ${characterRequirements.length} fairy tale roles to requirements:`,
+        characterRequirements.map((r: any) => `${r.placeholder} (${r.role})`)
+      );
+    }
+
     // Match each requirement to best character
-    for (const req of skeleton.supportingCharacterRequirements) {
+    for (const req of characterRequirements) {
       if (!req.placeholder || typeof req.placeholder !== "string" || req.placeholder.trim().length === 0) {
         console.log(
           "[Phase2] Skipping requirement without placeholder; likely handled by avatars or fixed characters",

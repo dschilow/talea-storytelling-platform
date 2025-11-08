@@ -59,7 +59,8 @@
       "Bash(node:*)",
       "Bash(git rm backend/story/migrate.ts backend/story/migrations/4_add_cost_tracking.up.sql backend/story/migrations/4_add_cost_tracking.down.sql)",
       "Bash(nul)",
-      "Bash(cmd /c copy:*)"
+      "Bash(cmd /c copy:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

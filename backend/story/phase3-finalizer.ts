@@ -143,6 +143,14 @@ export class Phase3StoryFinalizer {
       payload.presence_penalty = 0.2;      // Encourage diverse vocabulary
     }
 
+    // CRITICAL FIX: Add time-based seed for variance even with identical parameters
+    // This prevents generating the exact same story multiple times
+    // The seed changes based on current time (minute precision), ensuring variance
+    const varianceSeed = Math.floor(Date.now() / 60000); // Changes every minute
+    payload.seed = varianceSeed;
+
+    console.log(`[Phase3] Using variance seed: ${varianceSeed} to prevent duplicate stories`);
+
     try {
       const openAIRequest = { ...payload };
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
