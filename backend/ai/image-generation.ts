@@ -90,7 +90,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     taskUUID: crypto.randomUUID(),
     model: req.model || "runware:101@1",
     numberResults: 1,
-    outputType: ["BASE64"],  // CRITICAL FIX: Use BASE64 instead of URL to prevent image loss
+    outputType: ["base64Data"],  // FIXED: Runware expects "base64Data", not "BASE64"
     outputFormat: req.outputFormat || "JPEG",
     outputQuality: 85,
     width: normalizeToMultiple64(req.width ?? 1024),
@@ -227,7 +227,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       taskUUID: crypto.randomUUID(),
       model: img.model || "runware:101@1",
       numberResults: 1,
-      outputType: ["BASE64"],  // CRITICAL FIX: Use BASE64 instead of URL to prevent image loss
+      outputType: ["base64Data"],  // FIXED: Runware expects "base64Data", not "BASE64"
       outputFormat: img.outputFormat || "JPEG",
       outputQuality: 85,
       positivePrompt: enhancePromptForRunware(img.prompt),
