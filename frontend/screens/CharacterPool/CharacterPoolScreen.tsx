@@ -12,6 +12,30 @@ import type { story } from '../../client';
 
 type CharacterTemplate = story.CharacterTemplate;
 
+type CharacterIdentifier = string | CharacterTemplate | { id?: string } | { value?: string } | null | undefined;
+
+function resolveCharacterId(source: CharacterIdentifier): string | null {
+  if (!source) {
+    return null;
+  }
+  if (typeof source === 'string') {
+    const trimmed = source.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (typeof source === 'object') {
+    const fromId = (source as { id?: string }).id;
+    if (typeof fromId === 'string' && fromId.trim().length > 0) {
+      return fromId.trim();
+    }
+    const fromValue = (source as { value?: string }).value;
+    if (typeof fromValue === 'string' && fromValue.trim().length > 0) {
+      return fromValue.trim();
+    }
+  }
+  console.warn('[CharacterPool] Unable to resolve character identifier', source);
+  return null;
+}
+
 interface CharacterFormState {
   name: string;
   role: string;
@@ -182,7 +206,12 @@ const CharacterPoolScreen: React.FC = () => {
     }
   };
 
-  const openEditor = async (id: string) => {
+  const openEditor = async (idLike: CharacterIdentifier) => {
+    const id = resolveCharacterId(idLike);
+    if (!id) {
+      toast.error('Charakter konnte nicht identifiziert werden.');
+      return;
+    }
     try {
       setDetailLoading(true);
       const character = await backend.story.getCharacter(id);
@@ -220,9 +249,14 @@ const CharacterPoolScreen: React.FC = () => {
     if (!editingCharacter || !formState) {
       return;
     }
+    const characterId = resolveCharacterId(editingCharacter);
+    if (!characterId) {
+      toast.error('Charakter konnte nicht identifiziert werden.');
+      return;
+    }
     try {
       setGeneratingImage(true);
-      const response = await backend.story.generateCharacterImage(editingCharacter.id, {});
+      const response = await backend.story.generateCharacterImage(characterId, {});
       setFormState(prev => (prev ? { ...prev, imageUrl: response.imageUrl } : prev));
       toast.success('Neues Charakterbild erstellt. Vergiss nicht zu speichern.');
     } catch (err) {
@@ -246,8 +280,14 @@ const CharacterPoolScreen: React.FC = () => {
     }
 
     let updates: Record<string, unknown> | null = null;
+    let existingCharacterId: string | null = null;
     if (!isNewCharacter) {
       if (!editingCharacter) {
+        return;
+      }
+      existingCharacterId = resolveCharacterId(editingCharacter);
+      if (!existingCharacterId) {
+        toast.error('Charakter konnte nicht identifiziert werden.');
         return;
       }
       updates = buildUpdatePayload(editingCharacter, formState);
@@ -266,12 +306,11 @@ const CharacterPoolScreen: React.FC = () => {
         setFormState(mapCharacterToForm(created));
         setIsNewCharacter(false);
         toast.success('Charakter erfolgreich erstellt.');
-      } else if (editingCharacter && updates) {
-        await backend.story.updateCharacter({
-          id: editingCharacter.id,
+      } else if (editingCharacter && updates && existingCharacterId) {
+        await backend.story.updateCharacter(existingCharacterId, {
           updates,
         });
-        const refreshed = await backend.story.getCharacter(editingCharacter.id);
+        const refreshed = await backend.story.getCharacter(existingCharacterId);
         setEditingCharacter(refreshed);
         setFormState(mapCharacterToForm(refreshed));
         toast.success('Charakter erfolgreich aktualisiert.');
@@ -374,9 +413,15 @@ const CharacterPoolScreen: React.FC = () => {
       return;
     }
 
+    const characterId = resolveCharacterId(editingCharacter);
+    if (!characterId) {
+      toast.error('Charakter konnte nicht identifiziert werden.');
+      return;
+    }
+
     try {
       setDeleting(true);
-      await backend.story.deleteCharacter(editingCharacter.id);
+      await backend.story.deleteCharacter(characterId);
       toast.success('Charakter wurde geloescht.');
       closeEditor();
       await loadCharacters();
