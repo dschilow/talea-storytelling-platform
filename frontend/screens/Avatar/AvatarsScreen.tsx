@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 
@@ -8,6 +8,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { AvatarCard } from '../../components/cards/AvatarCard';
+import { AvatarConfigDrawer } from '../../components/drawers/AvatarConfigDrawer';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
@@ -84,6 +85,16 @@ const AvatarsScreen: React.FC = () => {
     } catch (error) {
       console.error(`Error deleting avatar ${avatar.name}:`, error);
       alert(`Fehler beim Löschen von "${avatar.name}". Bitte versuche es später erneut.`);
+    }
+  };
+
+  const handleAvatarConfig = async (config: any) => {
+    try {
+      // Navigate to wizard with pre-filled config
+      navigate('/avatar/create', { state: { config } });
+    } catch (error) {
+      console.error('Error creating avatar:', error);
+      alert('Fehler beim Erstellen des Avatars. Bitte versuche es erneut.');
     }
   };
 
@@ -230,14 +241,9 @@ const AvatarsScreen: React.FC = () => {
               <div style={subtitleStyle}>
                 Verwalte all deine einzigartigen Charaktere ({avatars.length} Avatare)
               </div>
-              
+
               <div style={newAvatarButtonStyle}>
-                <Button
-                  title="Neuer Avatar"
-                  onPress={() => navigate('/avatar/create')}
-                  variant="fun"
-                  icon={<Plus size={20} />}
-                />
+                <AvatarConfigDrawer onSubmit={handleAvatarConfig} />
               </div>
             </div>
           </div>
@@ -255,12 +261,7 @@ const AvatarsScreen: React.FC = () => {
                 <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                   Erstelle deinen ersten Avatar, um loszulegen!
                 </div>
-                <Button
-                  title="Avatar erstellen"
-                  onPress={() => navigate('/avatar/create')}
-                  icon={<Plus size={16} />}
-                  variant="secondary"
-                />
+                <AvatarConfigDrawer onSubmit={handleAvatarConfig} />
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
