@@ -2,13 +2,13 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FlaskConical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { DokuCard } from '../../components/cards/DokuCard';
-import { DokuConfigDrawer } from '../../components/drawers/DokuConfigDrawer';
+import { DokuWizardDrawer } from '../../components/drawers/DokuWizardDrawer';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
@@ -19,7 +19,6 @@ import type { Doku } from '../../types/doku';
 const DokusScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
-  const { user } = useUser();
 
   const [dokus, setDokus] = useState<Doku[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,17 +113,6 @@ const DokusScreen: React.FC = () => {
     }
   };
 
-  const handleDokuConfig = async (config: any) => {
-    if (!user) return;
-
-    try {
-      // Navigate to wizard with pre-filled config
-      navigate('/doku/create', { state: { config } });
-    } catch (error) {
-      console.error('Error creating doku:', error);
-      alert('Fehler beim Erstellen der Doku. Bitte versuche es erneut.');
-    }
-  };
 
 
   const containerStyle: React.CSSProperties = {
@@ -290,7 +278,7 @@ const DokusScreen: React.FC = () => {
               </div>
 
               <div style={newDokuButtonStyle}>
-                <DokuConfigDrawer onSubmit={handleDokuConfig} />
+                <DokuWizardDrawer />
               </div>
             </div>
           </div>
@@ -308,7 +296,7 @@ const DokusScreen: React.FC = () => {
                 <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                   Erstelle deine erste lehrreiche Dokumentation!
                 </div>
-                <DokuConfigDrawer onSubmit={handleDokuConfig} />
+                <DokuWizardDrawer />
               </Card>
             ) : (
               <>

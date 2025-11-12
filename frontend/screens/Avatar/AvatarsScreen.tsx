@@ -8,7 +8,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { AvatarCard } from '../../components/cards/AvatarCard';
-import { AvatarConfigDrawer } from '../../components/drawers/AvatarConfigDrawer';
+import { AvatarWizardDrawer } from '../../components/drawers/AvatarWizardDrawer';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
@@ -88,15 +88,6 @@ const AvatarsScreen: React.FC = () => {
     }
   };
 
-  const handleAvatarConfig = async (config: any) => {
-    try {
-      // Navigate to wizard with pre-filled config
-      navigate('/avatar/create', { state: { config } });
-    } catch (error) {
-      console.error('Error creating avatar:', error);
-      alert('Fehler beim Erstellen des Avatars. Bitte versuche es erneut.');
-    }
-  };
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -243,7 +234,7 @@ const AvatarsScreen: React.FC = () => {
               </div>
 
               <div style={newAvatarButtonStyle}>
-                <AvatarConfigDrawer onSubmit={handleAvatarConfig} />
+                <AvatarWizardDrawer />
               </div>
             </div>
           </div>
@@ -261,7 +252,7 @@ const AvatarsScreen: React.FC = () => {
                 <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                   Erstelle deinen ersten Avatar, um loszulegen!
                 </div>
-                <AvatarConfigDrawer onSubmit={handleAvatarConfig} />
+                <AvatarWizardDrawer />
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">

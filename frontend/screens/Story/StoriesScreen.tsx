@@ -2,13 +2,13 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { StoryCard } from '../../components/cards/StoryCard';
-import { StoryConfigDrawer } from '../../components/drawers/StoryConfigDrawer';
+import { StoryWizardDrawer } from '../../components/drawers/StoryWizardDrawer';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
@@ -19,7 +19,6 @@ import type { Story } from '../../types/story';
 const StoriesScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
-  const { user } = useUser();
 
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,17 +123,6 @@ const StoriesScreen: React.FC = () => {
     }
   };
 
-  const handleStoryConfig = async (config: any) => {
-    if (!user) return;
-
-    try {
-      // Navigate to wizard with pre-filled config
-      navigate('/story', { state: { config } });
-    } catch (error) {
-      console.error('Error creating story:', error);
-      alert('Fehler beim Erstellen der Geschichte. Bitte versuche es erneut.');
-    }
-  };
 
 
   const containerStyle: React.CSSProperties = {
@@ -282,7 +270,7 @@ const StoriesScreen: React.FC = () => {
               </div>
 
               <div style={newStoryButtonStyle}>
-                <StoryConfigDrawer onSubmit={handleStoryConfig} />
+                <StoryWizardDrawer />
               </div>
             </div>
           </div>
@@ -300,7 +288,7 @@ const StoriesScreen: React.FC = () => {
                 <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
                   Erschaffe deine erste magische Geschichte!
                 </div>
-                <StoryConfigDrawer onSubmit={handleStoryConfig} />
+                <StoryWizardDrawer />
               </Card>
             ) : (
               <>
