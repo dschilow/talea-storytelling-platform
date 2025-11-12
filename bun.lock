@@ -20,9 +20,14 @@
       "version": "1.0.0",
       "dependencies": {
         "@clerk/clerk-react": "^5.25.6",
+        "@radix-ui/react-dialog": "^1.1.15",
+        "@radix-ui/react-label": "^2.1.8",
+        "@radix-ui/react-slot": "^1.2.4",
         "@react-spring/web": "^10.0.1",
         "@reduxjs/toolkit": "^2.8.2",
         "@tailwindcss/vite": "^4.1.3",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
         "framer-motion": "^12.23.24",
         "lucide-react": "^0.484.0",
         "react": "^19.0.0",
@@ -30,7 +35,9 @@
         "react-redux": "^9.2.0",
         "react-router-dom": "^7.5.0",
         "sonner": "^2.0.1",
+        "tailwind-merge": "^3.4.0",
         "tailwindcss": "^4.1.3",
+        "vaul": "^1.1.2",
       },
       "devDependencies": {
         "@tailwindcss/oxide": "^4.1.3",
@@ -108,6 +115,42 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.30", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, ""],
 
+    "@radix-ui/primitive": ["@radix-ui/primitive@1.1.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/primitive/-/primitive-1.1.3.tgz", {}, "sha1-4tvBO9xeQWj0M091gy173T4t5bo="],
+
+    "@radix-ui/react-compose-refs": ["@radix-ui/react-compose-refs@1.1.2", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-compose-refs/-/react-compose-refs-1.1.2.tgz", { "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-osTEevYzcEjueP9twNCQs5DSuzA="],
+
+    "@radix-ui/react-context": ["@radix-ui/react-context@1.1.2", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-context/-/react-context-1.1.2.tgz", { "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-YWKO8mmkMzgsNk9vHjeIptwhOjY="],
+
+    "@radix-ui/react-dialog": ["@radix-ui/react-dialog@1.1.15", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-dialog/-/react-dialog-1.1.15.tgz", { "dependencies": { "@radix-ui/primitive": "1.1.3", "@radix-ui/react-compose-refs": "1.1.2", "@radix-ui/react-context": "1.1.2", "@radix-ui/react-dismissable-layer": "1.1.11", "@radix-ui/react-focus-guards": "1.1.3", "@radix-ui/react-focus-scope": "1.1.7", "@radix-ui/react-id": "1.1.1", "@radix-ui/react-portal": "1.1.9", "@radix-ui/react-presence": "1.1.5", "@radix-ui/react-primitive": "2.1.3", "@radix-ui/react-slot": "1.2.3", "@radix-ui/react-use-controllable-state": "1.2.2", "aria-hidden": "^1.2.4", "react-remove-scroll": "^2.6.3" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-HePXp+mheph00pwH9ZQKGKEZtjI="],
+
+    "@radix-ui/react-dismissable-layer": ["@radix-ui/react-dismissable-layer@1.1.11", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-dismissable-layer/-/react-dismissable-layer-1.1.11.tgz", { "dependencies": { "@radix-ui/primitive": "1.1.3", "@radix-ui/react-compose-refs": "1.1.2", "@radix-ui/react-primitive": "2.1.3", "@radix-ui/react-use-callback-ref": "1.1.1", "@radix-ui/react-use-escape-keydown": "1.1.1" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-4zq29r2qAPj3MnxAjZ9jE3a4izc="],
+
+    "@radix-ui/react-focus-guards": ["@radix-ui/react-focus-guards@1.1.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-focus-guards/-/react-focus-guards-1.1.3.tgz", { "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-KlZp5GStX96fhtIvf9wXeBpN+n8="],
+
+    "@radix-ui/react-focus-scope": ["@radix-ui/react-focus-scope@1.1.7", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-focus-scope/-/react-focus-scope-1.1.7.tgz", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2", "@radix-ui/react-primitive": "2.1.3", "@radix-ui/react-use-callback-ref": "1.1.1" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-3+dvwQNTfYC/QnI6GDdz/Qe/tY0="],
+
+    "@radix-ui/react-id": ["@radix-ui/react-id@1.1.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-id/-/react-id-1.1.1.tgz", { "dependencies": { "@radix-ui/react-use-layout-effect": "1.1.1" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-FAQALnmgP+Bit+OGSqAeJL0Ucfc="],
+
+    "@radix-ui/react-label": ["@radix-ui/react-label@2.1.8", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-label/-/react-label-2.1.8.tgz", { "dependencies": { "@radix-ui/react-primitive": "2.1.4" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-2Tt8Bj7y6gNN8UOiRkv8BUjkt+U="],
+
+    "@radix-ui/react-portal": ["@radix-ui/react-portal@1.1.9", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-portal/-/react-portal-1.1.9.tgz", { "dependencies": { "@radix-ui/react-primitive": "2.1.3", "@radix-ui/react-use-layout-effect": "1.1.1" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-FMNkn+SOxHSsUe2fK59dpNkcRHI="],
+
+    "@radix-ui/react-presence": ["@radix-ui/react-presence@1.1.5", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-presence/-/react-presence-1.1.5.tgz", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2", "@radix-ui/react-use-layout-effect": "1.1.1" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-XY8orDFsMvB4r84ploOSUMEGk9s="],
+
+    "@radix-ui/react-primitive": ["@radix-ui/react-primitive@2.1.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-primitive/-/react-primitive-2.1.3.tgz", { "dependencies": { "@radix-ui/react-slot": "1.2.3" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-25uLz/SeAb5RCteYk/sOTNpQ8bw="],
+
+    "@radix-ui/react-slot": ["@radix-ui/react-slot@1.2.4", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-slot/-/react-slot-1.2.4.tgz", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-Y8C6Bf35DMSQdrlAKchS17rB+4M="],
+
+    "@radix-ui/react-use-callback-ref": ["@radix-ui/react-use-callback-ref@1.1.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-use-callback-ref/-/react-use-callback-ref-1.1.1.tgz", { "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-YqTbqLMlX9xcx3h/rqwcbkzFjUA="],
+
+    "@radix-ui/react-use-controllable-state": ["@radix-ui/react-use-controllable-state@1.2.2", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-use-controllable-state/-/react-use-controllable-state-1.2.2.tgz", { "dependencies": { "@radix-ui/react-use-effect-event": "0.0.2", "@radix-ui/react-use-layout-effect": "1.1.1" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-kFeTQF3lfWGkOfSv67sX0GRfMZA="],
+
+    "@radix-ui/react-use-effect-event": ["@radix-ui/react-use-effect-event@0.0.2", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-use-effect-event/-/react-use-effect-event-0.0.2.tgz", { "dependencies": { "@radix-ui/react-use-layout-effect": "1.1.1" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-CQzzDQCkx2MqFVSFEukVIhdZOQc="],
+
+    "@radix-ui/react-use-escape-keydown": ["@radix-ui/react-use-escape-keydown@1.1.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-use-escape-keydown/-/react-use-escape-keydown-1.1.1.tgz", { "dependencies": { "@radix-ui/react-use-callback-ref": "1.1.1" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-s/7Zu+o2ahGPQEJ6xAUAqhQjzCk="],
+
+    "@radix-ui/react-use-layout-effect": ["@radix-ui/react-use-layout-effect@1.1.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-use-layout-effect/-/react-use-layout-effect-1.1.1.tgz", { "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-DEIwqe7UnUWJyWfi2cDZ1gojlx4="],
+
     "@react-spring/animated": ["@react-spring/animated@10.0.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@react-spring/animated/-/animated-10.0.3.tgz", { "dependencies": { "@react-spring/shared": "~10.0.3", "@react-spring/types": "~10.0.3" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha1-tC9wQaUdOPOV6bpftTymjDTNMk8="],
 
     "@react-spring/core": ["@react-spring/core@10.0.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@react-spring/core/-/core-10.0.3.tgz", { "dependencies": { "@react-spring/animated": "~10.0.3", "@react-spring/shared": "~10.0.3", "@react-spring/types": "~10.0.3" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha1-O085kfWQLORncMLB7wXI5Tw6D3M="],
@@ -158,6 +201,8 @@
 
     "@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, ""],
 
+    "aria-hidden": ["aria-hidden@1.2.6", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/aria-hidden/-/aria-hidden-1.2.6.tgz", { "dependencies": { "tslib": "^2.0.0" } }, "sha1-cwUcmwiBFMeVsepBTpwP/4dP/Bo="],
+
     "backend": ["backend@workspace:backend"],
 
     "browserslist": ["browserslist@4.25.4", "", { "dependencies": { "caniuse-lite": "^1.0.30001737", "electron-to-chromium": "^1.5.211", "node-releases": "^2.0.19", "update-browserslist-db": "^1.1.3" }, "bin": "cli.js" }, ""],
@@ -165,6 +210,10 @@
     "caniuse-lite": ["caniuse-lite@1.0.30001741", "", {}, ""],
 
     "chownr": ["chownr@3.0.0", "", {}, ""],
+
+    "class-variance-authority": ["class-variance-authority@0.7.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/class-variance-authority/-/class-variance-authority-0.7.1.tgz", { "dependencies": { "clsx": "^2.1.1" } }, "sha1-QAinmKDkVTp4GlesUXfJ+10EN4c="],
+
+    "clsx": ["clsx@2.1.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/clsx/-/clsx-2.1.1.tgz", {}, "sha1-7tOXyf2L2IK/sY3qtxAgSaLzKZk="],
 
     "convert-source-map": ["convert-source-map@2.0.0", "", {}, ""],
 
@@ -177,6 +226,8 @@
     "dequal": ["dequal@2.0.3", "", {}, ""],
 
     "detect-libc": ["detect-libc@2.0.4", "", {}, ""],
+
+    "detect-node-es": ["detect-node-es@1.1.0", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/detect-node-es/-/detect-node-es-1.1.0.tgz", {}, "sha1-FjrN9kMzDKoLTNfCHn7ndV1vpJM="],
 
     "dot-case": ["dot-case@3.0.4", "", { "dependencies": { "no-case": "^3.0.4", "tslib": "^2.0.3" } }, ""],
 
@@ -197,6 +248,8 @@
     "frontend": ["frontend@workspace:frontend"],
 
     "gensync": ["gensync@1.0.0-beta.2", "", {}, ""],
+
+    "get-nonce": ["get-nonce@1.0.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/get-nonce/-/get-nonce-1.0.1.tgz", {}, "sha1-/fPwJ4Bzgg0s6UJsGPB0gbHgzfM="],
 
     "glob-to-regexp": ["glob-to-regexp@0.4.1", "", {}, ""],
 
@@ -260,9 +313,15 @@
 
     "react-refresh": ["react-refresh@0.17.0", "", {}, ""],
 
+    "react-remove-scroll": ["react-remove-scroll@2.7.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/react-remove-scroll/-/react-remove-scroll-2.7.1.tgz", { "dependencies": { "react-remove-scroll-bar": "^2.3.7", "react-style-singleton": "^2.2.3", "tslib": "^2.1.0", "use-callback-ref": "^1.3.3", "use-sidecar": "^1.1.3" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-0hAdQU9tgdfTvwM/PBy0eFeJ91M="],
+
+    "react-remove-scroll-bar": ["react-remove-scroll-bar@2.3.8", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/react-remove-scroll-bar/-/react-remove-scroll-bar-2.3.8.tgz", { "dependencies": { "react-style-singleton": "^2.2.2", "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha1-mcIPkI7kZ7OFtoo0abSj51ABIiM="],
+
     "react-router": ["react-router@7.8.2", "", { "dependencies": { "cookie": "^1.0.1", "set-cookie-parser": "^2.6.0" }, "peerDependencies": { "react": ">=18", "react-dom": ">=18" } }, ""],
 
     "react-router-dom": ["react-router-dom@7.8.2", "", { "dependencies": { "react-router": "7.8.2" }, "peerDependencies": { "react": ">=18", "react-dom": ">=18" } }, ""],
+
+    "react-style-singleton": ["react-style-singleton@2.2.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/react-style-singleton/-/react-style-singleton-2.2.3.tgz", { "dependencies": { "get-nonce": "^1.0.0", "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-QmVgi+aaTXDP4wR/LGyIssOs44g="],
 
     "redux": ["redux@5.0.1", "", {}, ""],
 
@@ -290,6 +349,8 @@
 
     "swr": ["swr@2.3.4", "", { "dependencies": { "dequal": "^2.0.3", "use-sync-external-store": "^1.4.0" }, "peerDependencies": { "react": "^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, ""],
 
+    "tailwind-merge": ["tailwind-merge@3.4.0", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/tailwind-merge/-/tailwind-merge-3.4.0.tgz", {}, "sha1-WiZOExoJaHmWXxF10R+MNua2Tso="],
+
     "tailwindcss": ["tailwindcss@4.1.13", "", {}, ""],
 
     "tapable": ["tapable@2.2.3", "", {}, ""],
@@ -310,11 +371,23 @@
 
     "update-browserslist-db": ["update-browserslist-db@1.1.3", "", { "dependencies": { "escalade": "^3.2.0", "picocolors": "^1.1.1" }, "peerDependencies": { "browserslist": ">= 4.21.0" }, "bin": "cli.js" }, ""],
 
+    "use-callback-ref": ["use-callback-ref@1.3.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/use-callback-ref/-/use-callback-ref-1.3.3.tgz", { "dependencies": { "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-mNn6sGcHWEHFssaFIJDV0P6r4r8="],
+
+    "use-sidecar": ["use-sidecar@1.1.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/use-sidecar/-/use-sidecar-1.1.3.tgz", { "dependencies": { "detect-node-es": "^1.1.0", "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-EOf9iX0TC4luLFRsY6XoIz0A79s="],
+
     "use-sync-external-store": ["use-sync-external-store@1.5.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, ""],
+
+    "vaul": ["vaul@1.1.2", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/vaul/-/vaul-1.1.2.tgz", { "dependencies": { "@radix-ui/react-dialog": "^1.1.1" }, "peerDependencies": { "react": "^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc" } }, "sha1-yVn4udwu1PfZk2bK7kM/vvkfW6k="],
 
     "vite": ["vite@6.3.6", "", { "dependencies": { "esbuild": "^0.25.0", "fdir": "^6.4.4", "picomatch": "^4.0.2", "postcss": "^8.5.3", "rollup": "^4.34.9", "tinyglobby": "^0.2.13" }, "peerDependencies": { "@types/node": "^18.0.0 || ^20.0.0 || >=22.0.0", "jiti": ">=1.21.0", "less": "*", "lightningcss": "^1.21.0", "sass": "*", "sass-embedded": "*", "stylus": "*", "sugarss": "*", "terser": "^5.16.0", "tsx": "^4.8.1", "yaml": "^2.4.2" }, "optionalPeers": ["less", "sass", "sass-embedded", "stylus", "sugarss", "terser", "tsx", "yaml"], "bin": "bin/vite.js" }, ""],
 
     "yallist": ["yallist@5.0.0", "", {}, ""],
+
+    "@radix-ui/react-dialog/@radix-ui/react-slot": ["@radix-ui/react-slot@1.2.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-slot/-/react-slot-1.2.3.tgz", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-UC1uNU/IR9QWnDvF8Yned39oz+E="],
+
+    "@radix-ui/react-label/@radix-ui/react-primitive": ["@radix-ui/react-primitive@2.1.4", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-primitive/-/react-primitive-2.1.4.tgz", { "dependencies": { "@radix-ui/react-slot": "1.2.4" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha1-JibqMJ69Y79XZ9Pn/ECB+BuZPfA="],
+
+    "@radix-ui/react-primitive/@radix-ui/react-slot": ["@radix-ui/react-slot@1.2.3", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@radix-ui/react-slot/-/react-slot-1.2.3.tgz", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha1-UC1uNU/IR9QWnDvF8Yned39oz+E="],
 
     "lru-cache/yallist": ["yallist@3.1.1", "", {}, ""],
   }
