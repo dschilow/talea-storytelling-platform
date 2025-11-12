@@ -136,12 +136,12 @@ const LogViewerScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    background: colors.appBackground,
+    background: colors.gradients.background,
     paddingBottom: '120px',
   };
 
   const headerStyle: React.CSSProperties = {
-    background: colors.glass.navBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
     padding: `${spacing.lg}px`,
     boxShadow: colors.glass.shadow,
@@ -159,9 +159,9 @@ const LogViewerScreen: React.FC = () => {
   const backButtonStyle: React.CSSProperties = {
     padding: `${spacing.sm}px`,
     borderRadius: `${radii.pill}px`,
-    background: colors.glass.buttonBackground,
+    background: colors.glass.background,
     border: `1px solid ${colors.glass.border}`,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     cursor: 'pointer',
     marginRight: `${spacing.md}px`,
     transition: 'all 0.2s ease',
@@ -169,7 +169,7 @@ const LogViewerScreen: React.FC = () => {
 
   const titleStyle: React.CSSProperties = {
     ...typography.textStyles.headingMd,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     flex: 1,
     textAlign: 'center' as const,
   };
@@ -237,12 +237,12 @@ const LogViewerScreen: React.FC = () => {
             width: '48px', 
             height: '48px', 
             border: `4px solid rgba(255,255,255,0.6)`,
-            borderTop: `4px solid ${colors.primary}`,
+            borderTop: `4px solid ${colors.primary[500]}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: `0 auto ${spacing.lg}px auto`
           }} />
-          <p style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+          <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
             Lade Logs...
           </p>
         </div>
@@ -273,10 +273,10 @@ const LogViewerScreen: React.FC = () => {
       <div style={contentStyle}>
         <SignedOut>
           <Card variant="glass" style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
-            <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: spacing.sm }}>
+            <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: spacing.sm }}>
               Anmeldung erforderlich
             </div>
-            <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+            <div style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
               Bitte melde dich an, um Logs zu sehen.
             </div>
           </Card>
@@ -286,8 +286,8 @@ const LogViewerScreen: React.FC = () => {
           {/* Source Statistics */}
           <FadeInView delay={100}>
             <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>
-              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-                <Activity size={24} style={{ color: colors.primary }} />
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+                <Activity size={24} style={{ color: colors.primary[500] }} />
                 Log Quellen Übersicht
               </h2>
               <div style={sourceStatsStyle}>
@@ -295,7 +295,7 @@ const LogViewerScreen: React.FC = () => {
                   <FadeInView key={source.name} delay={150 + index * 50}>
                     <div style={{
                       padding: `${spacing.lg}px`,
-                      background: colors.glass.cardBackground,
+                      background: colors.glass.backgroundAlt,
                       border: `1px solid ${colors.glass.border}`,
                       borderRadius: `${radii.lg}px`,
                       textAlign: 'center' as const,
@@ -303,13 +303,13 @@ const LogViewerScreen: React.FC = () => {
                       <div style={{ fontSize: '32px', marginBottom: `${spacing.sm}px` }}>
                         {getSourceIcon(source.name)}
                       </div>
-                      <div style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.xs}px` }}>
+                      <div style={{ ...typography.textStyles.label, color: colors.text.primary, marginBottom: `${spacing.xs}px` }}>
                         {getSourceLabel(source.name)}
                       </div>
-                      <div style={{ ...typography.textStyles.headingMd, color: colors.primary, marginBottom: `${spacing.xs}px` }}>
+                      <div style={{ ...typography.textStyles.headingMd, color: colors.primary[500], marginBottom: `${spacing.xs}px` }}>
                         {source.count}
                       </div>
-                      <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+                      <div style={{ ...typography.textStyles.caption, color: colors.text.secondary }}>
                         {source.lastActivity ? `Zuletzt: ${formatTimestamp(source.lastActivity)}` : 'Keine Aktivität'}
                       </div>
                     </div>
@@ -322,13 +322,13 @@ const LogViewerScreen: React.FC = () => {
           {/* Filters */}
           <FadeInView delay={200}>
             <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>
-              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-                <Filter size={24} style={{ color: colors.primary }} />
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+                <Filter size={24} style={{ color: colors.primary[500] }} />
                 Filter
               </h2>
               <div style={filtersStyle}>
                 <div>
-                  <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                  <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: `${spacing.sm}px` }}>
                     Quelle
                   </label>
                   <select
@@ -337,10 +337,10 @@ const LogViewerScreen: React.FC = () => {
                     style={{
                       width: '100%',
                       padding: `${spacing.md}px`,
-                      border: `1px solid ${colors.border}`,
+                      border: `1px solid ${colors.border.normal}`,
                       borderRadius: `${radii.lg}px`,
-                      backgroundColor: colors.surface,
-                      color: colors.textPrimary,
+                      backgroundColor: colors.background.card,
+                      color: colors.text.primary,
                       fontSize: typography.textStyles.body.fontSize,
                     }}
                   >
@@ -352,9 +352,9 @@ const LogViewerScreen: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
-                  <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: `${spacing.sm}px` }}>
+                  <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: `${spacing.sm}px` }}>
                     Datum
                   </label>
                   <input
@@ -364,10 +364,10 @@ const LogViewerScreen: React.FC = () => {
                     style={{
                       width: '100%',
                       padding: `${spacing.md}px`,
-                      border: `1px solid ${colors.border}`,
+                      border: `1px solid ${colors.border.normal}`,
                       borderRadius: `${radii.lg}px`,
-                      backgroundColor: colors.surface,
-                      color: colors.textPrimary,
+                      backgroundColor: colors.background.card,
+                      color: colors.text.primary,
                       fontSize: typography.textStyles.body.fontSize,
                     }}
                   />
@@ -390,18 +390,18 @@ const LogViewerScreen: React.FC = () => {
           {/* Logs */}
           <FadeInView delay={300}>
             <Card variant="glass" style={{ padding: `${spacing.xl}px` }}>
-              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
-                <Code size={24} style={{ color: colors.primary }} />
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.lg}px`, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+                <Code size={24} style={{ color: colors.primary[500] }} />
                 Log Einträge ({logs.length})
               </h2>
-              
+
               {logs.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: `${spacing.xl}px` }}>
                   <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📋</div>
-                  <div style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                  <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                     Keine Logs gefunden
                   </div>
-                  <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
+                  <div style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
                     Keine Log-Einträge für die ausgewählten Filter gefunden.
                   </div>
                 </div>
@@ -420,35 +420,35 @@ const LogViewerScreen: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: `${spacing.md}px`, marginBottom: `${spacing.sm}px` }}>
                           <span style={{ fontSize: '24px' }}>{getSourceIcon(log.source)}</span>
                           <div style={{ flex: 1 }}>
-                            <div style={{ ...typography.textStyles.label, color: colors.textPrimary }}>
+                            <div style={{ ...typography.textStyles.label, color: colors.text.primary }}>
                               {getSourceLabel(log.source)}
                             </div>
-                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+                            <div style={{ ...typography.textStyles.caption, color: colors.text.secondary }}>
                               ID: {log.id}
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
+                            <div style={{ ...typography.textStyles.caption, color: colors.text.secondary, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
                               <Clock size={12} />
                               {formatTimestamp(log.timestamp)}
                             </div>
                           </div>
                         </div>
-                        
+
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: `${spacing.sm}px`, fontSize: '11px' }}>
-                          <div style={{ 
+                          <div style={{
                             padding: `${spacing.xs}px ${spacing.sm}px`,
                             background: 'rgba(99, 102, 241, 0.1)',
                             borderRadius: `${radii.sm}px`,
-                            color: colors.textSecondary,
+                            color: colors.text.secondary,
                           }}>
                             📤 Request: {JSON.stringify(log.request).length} chars
                           </div>
-                          <div style={{ 
+                          <div style={{
                             padding: `${spacing.xs}px ${spacing.sm}px`,
                             background: 'rgba(34, 197, 94, 0.1)',
                             borderRadius: `${radii.sm}px`,
-                            color: colors.textSecondary,
+                            color: colors.text.secondary,
                           }}>
                             📥 Response: {JSON.stringify(log.response).length} chars
                           </div>
@@ -468,7 +468,7 @@ const LogViewerScreen: React.FC = () => {
         <div style={modalOverlayStyle} onClick={() => setShowDetails(false)}>
           <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: `${spacing.lg}px` }}>
-              <h2 style={{ ...typography.textStyles.headingMd, color: colors.textPrimary, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
+              <h2 style={{ ...typography.textStyles.headingMd, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: `${spacing.sm}px` }}>
                 {getSourceIcon(selectedLog.source)} {getSourceLabel(selectedLog.source)}
               </h2>
               <div style={{ display: 'flex', gap: `${spacing.sm}px` }}>
@@ -477,8 +477,8 @@ const LogViewerScreen: React.FC = () => {
                   style={{
                     padding: `${spacing.sm}px`,
                     borderRadius: `${radii.lg}px`,
-                    background: colors.primary,
-                    color: colors.textInverse,
+                    background: colors.primary[500],
+                    color: colors.text.inverse,
                     border: 'none',
                     cursor: 'pointer',
                     display: 'flex',
@@ -494,8 +494,8 @@ const LogViewerScreen: React.FC = () => {
                   style={{
                     padding: `${spacing.sm}px`,
                     borderRadius: `${radii.lg}px`,
-                    background: colors.border,
-                    color: colors.textPrimary,
+                    background: colors.border.normal,
+                    color: colors.text.primary,
                     border: 'none',
                     cursor: 'pointer',
                   }}
@@ -504,31 +504,31 @@ const LogViewerScreen: React.FC = () => {
                 </button>
               </div>
             </div>
-            
+
             <div style={{ marginBottom: `${spacing.lg}px` }}>
-              <div style={{ ...typography.textStyles.body, color: colors.textSecondary, marginBottom: `${spacing.sm}px` }}>
+              <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.sm}px` }}>
                 <Clock size={16} style={{ display: 'inline', marginRight: `${spacing.xs}px` }} />
                 {formatTimestamp(selectedLog.timestamp)}
               </div>
-              <div style={{ ...typography.textStyles.caption, color: colors.textSecondary }}>
+              <div style={{ ...typography.textStyles.caption, color: colors.text.secondary }}>
                 ID: {selectedLog.id}
               </div>
             </div>
 
             <div style={{ display: 'grid', gap: `${spacing.lg}px` }}>
               <div>
-                <h3 style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                <h3 style={{ ...typography.textStyles.label, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                   📤 Request:
                 </h3>
                 <pre style={{
-                  background: colors.muted,
+                  background: `rgba(107, 112, 136, 0.1)`,
                   padding: `${spacing.md}px`,
                   borderRadius: `${radii.md}px`,
                   fontSize: '12px',
                   maxHeight: '300px',
                   overflow: 'auto',
                   fontFamily: 'monospace',
-                  color: colors.textPrimary,
+                  color: colors.text.primary,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-all',
                 }}>
@@ -537,18 +537,18 @@ const LogViewerScreen: React.FC = () => {
               </div>
 
               <div>
-                <h3 style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                <h3 style={{ ...typography.textStyles.label, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                   📥 Response:
                 </h3>
                 <pre style={{
-                  background: colors.muted,
+                  background: `rgba(107, 112, 136, 0.1)`,
                   padding: `${spacing.md}px`,
                   borderRadius: `${radii.md}px`,
                   fontSize: '12px',
                   maxHeight: '300px',
                   overflow: 'auto',
                   fontFamily: 'monospace',
-                  color: colors.textPrimary,
+                  color: colors.text.primary,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-all',
                 }}>
@@ -558,18 +558,18 @@ const LogViewerScreen: React.FC = () => {
 
               {selectedLog.metadata && (
                 <div>
-                  <h3 style={{ ...typography.textStyles.label, color: colors.textPrimary, marginBottom: `${spacing.sm}px` }}>
+                  <h3 style={{ ...typography.textStyles.label, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                     🏷️ Metadata:
                   </h3>
                   <pre style={{
-                    background: colors.muted,
+                    background: `rgba(107, 112, 136, 0.1)`,
                     padding: `${spacing.md}px`,
                     borderRadius: `${radii.md}px`,
                     fontSize: '12px',
                     maxHeight: '200px',
                     overflow: 'auto',
                     fontFamily: 'monospace',
-                    color: colors.textPrimary,
+                    color: colors.text.primary,
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-all',
                   }}>
