@@ -61,7 +61,9 @@
       "Bash(nul)",
       "Bash(cmd /c copy:*)",
       "Bash(git rm:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(xcopy:*)",
+      "Bash(robocopy:*)"
     ],
     "deny": [],
     "ask": []
