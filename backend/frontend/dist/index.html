@@ -2,10 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Talea - KI-gestützte Storytelling-Plattform</title>
-    <script type="module" crossorigin src="/assets/index-Cvnot9vQ.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D7pyVtHh.css">
+    <link rel="icon" type="image/png" href="/tavi.png" />
+    <!-- Load runtime config before the app starts -->
+    <script src="/config.js"></script>
+    <style>
+      /* Mobile optimizations while keeping scroll tracking */
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100vh;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      #root {
+        width: 100%;
+        min-height: 100vh;
+        position: relative;
+      }
+      
+      /* Hide mobile browser address bar on iOS */
+      @supports (-webkit-touch-callout: none) {
+        html, body {
+          min-height: -webkit-fill-available;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index--i7HWEhy.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DkM0BkwE.css">
   </head>
   <body>
     <div id="root"></div>
