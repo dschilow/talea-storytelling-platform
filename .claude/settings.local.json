@@ -63,7 +63,8 @@
       "Bash(git rm:*)",
       "Bash(psql:*)",
       "Bash(xcopy:*)",
-      "Bash(robocopy:*)"
+      "Bash(robocopy:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

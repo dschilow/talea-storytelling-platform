@@ -9,10 +9,7 @@ import FadeInView from '../../components/animated/FadeInView';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import Client from '../../client';
 import { getBackendUrl } from '../../config';
-
-const backend = new Client(getBackendUrl());
 
 interface LogEntry {
   id: string;
