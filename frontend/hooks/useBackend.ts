@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import BackendClient from "../client_new";
+import { Client as BackendClient } from "../client";
 import { getBackendUrl } from "../config";
 
 // Returns a backend client configured with the user's Clerk auth token.

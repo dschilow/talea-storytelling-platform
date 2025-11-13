@@ -1,11 +1,11 @@
-import React, { CSSProperties } from 'react';
+import React, { CSSProperties, MouseEventHandler } from 'react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 
 interface ButtonProps {
   title: string;
-  onPress: () => void;
+  onPress: MouseEventHandler<HTMLButtonElement>;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'fun';
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
