@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Start for New Sessions
+
+**IMPORTANT:** Before starting any work, read [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) first. This file contains a comprehensive project overview that enables rapid work resumption:
+- Complete architecture overview (11 microservices)
+- All service APIs, database schemas, and data flows
+- Critical patterns and best practices
+- Development commands and troubleshooting guide
+
+Reading PROJECT_SUMMARY.md first will save significant time by avoiding the need to explore the codebase from scratch.
+
 ## Project Overview
 
 Talea is an AI-powered storytelling platform where avatars with evolving personalities create unique, personalized stories. The platform uses Encore.ts (TypeScript backend framework) with a React frontend, deployed on Railway.
