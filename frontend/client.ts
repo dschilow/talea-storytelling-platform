@@ -4,6 +4,7 @@
 /* eslint-disable */
 /* jshint ignore:start */
 /*jslint-disable*/
+import type { CookieWithOptions } from "encore.dev/api";
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.
@@ -31,13 +32,12 @@ const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
 /**
  * Client is an API client for the talea-storytelling-platform-4ot2 Encore application.
  */
-export default class Client {
+export class Client {
     public readonly admin: admin.ServiceClient
     public readonly ai: ai.ServiceClient
     public readonly avatar: avatar.ServiceClient
     public readonly doku: doku.ServiceClient
     public readonly fairytales: fairytales.ServiceClient
-    public readonly frontend: frontend.ServiceClient
     public readonly health: health.ServiceClient
     public readonly log: log.ServiceClient
     public readonly story: story.ServiceClient
@@ -62,7 +62,6 @@ export default class Client {
         this.avatar = new avatar.ServiceClient(base)
         this.doku = new doku.ServiceClient(base)
         this.fairytales = new fairytales.ServiceClient(base)
-        this.frontend = new frontend.ServiceClient(base)
         this.health = new health.ServiceClient(base)
         this.log = new log.ServiceClient(base)
         this.story = new story.ServiceClient(base)
@@ -84,6 +83,11 @@ export default class Client {
 }
 
 /**
+ * Import the auth handler to be able to derive the auth type
+ */
+import type { auth as auth_auth } from "~backend/auth/auth";
+
+/**
  * ClientOptions allows you to override any default behaviour within the generated Encore client.
  */
 export interface ClientOptions {
@@ -102,113 +106,21 @@ export interface ClientOptions {
      * request either by passing in a static object or by passing in
      * a function which returns a new object for each request.
      */
-    auth?: auth.AuthParams | AuthDataGenerator
+    auth?: RequestType<typeof auth_auth> | AuthDataGenerator
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { listAvatarsAdmin as api_admin_avatars_list_listAvatarsAdmin } from "~backend/admin/avatars_list";
+import { updateAvatarAdmin as api_admin_avatars_update_updateAvatarAdmin } from "~backend/admin/avatars_update";
+import { promoteToAdmin as api_admin_promote_promoteToAdmin } from "~backend/admin/promote";
+import { getStats as api_admin_stats_getStats } from "~backend/admin/stats";
+import { deleteUser as api_admin_users_delete_deleteUser } from "~backend/admin/users_delete";
+import { listUsers as api_admin_users_list_listUsers } from "~backend/admin/users_list";
+import { updateUser as api_admin_users_update_updateUser } from "~backend/admin/users_update";
+
 export namespace admin {
-    export interface AdminStats {
-        totals: {
-            users: number
-            avatars: number
-            stories: number
-        }
-        subscriptions: {
-            starter: number
-            familie: number
-            premium: number
-        }
-        storiesByStatus: {
-            generating: number
-            complete: number
-            error: number
-        }
-        recentActivity: {
-            latestUser?: {
-                id: string
-                name: string
-                createdAt: string
-            } | null
-            latestAvatar?: {
-                id: string
-                name: string
-                createdAt: string
-            } | null
-            latestStory?: {
-                id: string
-                title: string
-                createdAt: string
-            } | null
-        }
-    }
-
-    export interface AdminUpdateAvatarRequest {
-        name?: string
-        description?: string
-        physicalTraits?: avatar.PhysicalTraits
-        personalityTraits?: avatar.PersonalityTraits
-        imageUrl?: string
-        visualProfile?: avatar.AvatarVisualProfile
-        isPublic?: boolean
-        originalAvatarId?: string | null
-    }
-
-    export interface AdminUser {
-        id: string
-        email: string
-        name: string
-        subscription: "starter" | "familie" | "premium"
-        role: "admin" | "user"
-        createdAt: string
-        updatedAt: string
-    }
-
-    export interface DeleteUserResponse {
-        success: boolean
-        removed: {
-            avatars: number
-            stories: number
-            user: boolean
-        }
-    }
-
-    export interface ListAvatarsParams {
-        limit?: number
-        cursor?: string
-        userId?: string
-        q?: string
-    }
-
-    export interface ListAvatarsResponse {
-        avatars: avatar.Avatar[]
-        nextCursor?: string | null
-    }
-
-    export interface ListUsersParams {
-        limit?: number
-        cursor?: string
-        q?: string
-    }
-
-    export interface ListUsersResponse {
-        users: AdminUser[]
-        nextCursor?: string | null
-    }
-
-    export interface PromoteResponse {
-        success: boolean
-        message: string
-    }
-
-    export interface UpdateUserRequest {
-        name?: string
-        email?: string
-        subscription?: "starter" | "familie" | "premium"
-        role?: "admin" | "user"
-    }
-
-    export interface UpdateUserResponse {
-        success: boolean
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -227,25 +139,25 @@ export namespace admin {
         /**
          * Deletes a user and their related content (avatars and stories).
          */
-        public async deleteUser(id: string): Promise<DeleteUserResponse> {
+        public async deleteUser(params: { id: string }): Promise<ResponseType<typeof api_admin_users_delete_deleteUser>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("DELETE", `/admin/users/${encodeURIComponent(id)}`)
-            return await resp.json() as DeleteUserResponse
+            const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_delete_deleteUser>
         }
 
         /**
          * Returns aggregate admin statistics for users, avatars, and stories.
          */
-        public async getStats(): Promise<AdminStats> {
+        public async getStats(): Promise<ResponseType<typeof api_admin_stats_getStats>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/admin/stats`)
-            return await resp.json() as AdminStats
+            const resp = await this.baseClient.callTypedAPI(`/admin/stats`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_stats_getStats>
         }
 
         /**
          * Lists avatars across all users (admin only).
          */
-        public async listAvatarsAdmin(params: ListAvatarsParams): Promise<ListAvatarsResponse> {
+        public async listAvatarsAdmin(params: RequestType<typeof api_admin_avatars_list_listAvatarsAdmin>): Promise<ResponseType<typeof api_admin_avatars_list_listAvatarsAdmin>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 cursor: params.cursor,
@@ -255,14 +167,14 @@ export namespace admin {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/admin/avatars`, undefined, {query})
-            return await resp.json() as ListAvatarsResponse
+            const resp = await this.baseClient.callTypedAPI(`/admin/avatars`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_avatars_list_listAvatarsAdmin>
         }
 
         /**
          * Lists users with optional search and pagination for the admin panel.
          */
-        public async listUsers(params: ListUsersParams): Promise<ListUsersResponse> {
+        public async listUsers(params: RequestType<typeof api_admin_users_list_listUsers>): Promise<ResponseType<typeof api_admin_users_list_listUsers>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 cursor: params.cursor,
@@ -271,228 +183,77 @@ export namespace admin {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/admin/users`, undefined, {query})
-            return await resp.json() as ListUsersResponse
+            const resp = await this.baseClient.callTypedAPI(`/admin/users`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_list_listUsers>
         }
 
         /**
          * Allows the first-ever user to promote themselves to an admin.
          * This endpoint is a one-time-use mechanism for bootstrapping the first admin account.
          */
-        public async promoteToAdmin(): Promise<PromoteResponse> {
+        public async promoteToAdmin(): Promise<ResponseType<typeof api_admin_promote_promoteToAdmin>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/admin/promote-first-admin`)
-            return await resp.json() as PromoteResponse
+            const resp = await this.baseClient.callTypedAPI(`/admin/promote-first-admin`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_promote_promoteToAdmin>
         }
 
         /**
          * Updates any avatar fields (admin only).
          */
-        public async updateAvatarAdmin(id: string, params: AdminUpdateAvatarRequest): Promise<avatar.Avatar> {
+        public async updateAvatarAdmin(params: RequestType<typeof api_admin_avatars_update_updateAvatarAdmin>): Promise<ResponseType<typeof api_admin_avatars_update_updateAvatarAdmin>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                description:       params.description,
+                imageUrl:          params.imageUrl,
+                isPublic:          params.isPublic,
+                name:              params.name,
+                originalAvatarId:  params.originalAvatarId,
+                personalityTraits: params.personalityTraits,
+                physicalTraits:    params.physicalTraits,
+                visualProfile:     params.visualProfile,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("PUT", `/admin/avatars/${encodeURIComponent(id)}`, JSON.stringify(params))
-            return await resp.json() as avatar.Avatar
+            const resp = await this.baseClient.callTypedAPI(`/admin/avatars/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_avatars_update_updateAvatarAdmin>
         }
 
         /**
          * Updates basic fields for a user (admin only).
          */
-        public async updateUser(id: string, params: UpdateUserRequest): Promise<UpdateUserResponse> {
+        public async updateUser(params: RequestType<typeof api_admin_users_update_updateUser>): Promise<ResponseType<typeof api_admin_users_update_updateUser>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                email:        params.email,
+                name:         params.name,
+                role:         params.role,
+                subscription: params.subscription,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("PUT", `/admin/users/${encodeURIComponent(id)}`, JSON.stringify(params))
-            return await resp.json() as UpdateUserResponse
+            const resp = await this.baseClient.callTypedAPI(`/admin/users/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_update_updateUser>
         }
     }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { analyzeAvatarImage as api_ai_analyze_avatar_analyzeAvatarImage } from "~backend/ai/analyze-avatar";
+import { analyzePersonalityDevelopment as api_ai_analyze_personality_analyzePersonalityDevelopment } from "~backend/ai/analyze-personality";
+import { generateAvatarImage as api_ai_avatar_generation_generateAvatarImage } from "~backend/ai/avatar-generation";
+import {
+    generateImage as api_ai_image_generation_generateImage,
+    generateImagesBatch as api_ai_image_generation_generateImagesBatch
+} from "~backend/ai/image-generation";
+import {
+    checkPersonalityUpdate as api_ai_personality_tracker_checkPersonalityUpdate,
+    getPersonalityHistory as api_ai_personality_tracker_getPersonalityHistory,
+    trackPersonalityUpdate as api_ai_personality_tracker_trackPersonalityUpdate
+} from "~backend/ai/personality-tracker";
+
 export namespace ai {
-    export interface AnalyzeAvatarImageRequest {
-        imageUrl: string
-        hints?: {
-            name?: string
-            physicalTraits?: avatar.PhysicalTraits
-            personalityTraits?: avatar.PersonalityTraits
-            expectedType?: "human" | "anthropomorphic" | "animal" | "fantasy"
-            culturalContext?: string
-            stylePreference?: "photorealistic" | "cinematic" | "artistic" | "illustrated"
-        }
-    }
-
-    export interface AnalyzeAvatarImageResponse {
-        success: boolean
-        visualProfile: any
-        tokensUsed?: {
-            prompt: number
-            completion: number
-            total: number
-        }
-        processingTime?: number
-    }
-
-    export interface BatchGenerationRequest {
-        images: BatchImageInput[]
-    }
-
-    export interface BatchGenerationResponse {
-        images: BatchImageOutput[]
-        debug: {
-            processingTime: number
-            ok: boolean
-            status: number
-            errorMessage: string
-        }
-    }
-
-    export interface BatchImageInput {
-        /**
-         * All fields required for Encore schemas; callers should pass defaults where needed.
-         */
-        prompt: string
-
-        negativePrompt?: string
-        model: string
-        width: number
-        height: number
-        steps: number
-        CFGScale?: number
-        seed: number
-        referenceImages: string[]
-        outputFormat: "WEBP" | "PNG" | "JPEG"
-    }
-
-    export interface BatchImageOutput {
-        imageUrl: string
-        seed: number
-        debugInfo: DebugInfo
-    }
-
-    export interface CheckPersonalityUpdateRequest {
-        avatarId: string
-        contentId: string
-        contentType: "story" | "doku" | "quiz"
-    }
-
-    export interface DebugInfo {
-        requestSent: any
-        responseReceived: any
-        processingTime: number
-        success: boolean
-        errorMessage: string
-        contentType: string
-        extractedFromPath: string
-        responseStatus: number
-        referencesCount: number
-    }
-
-    export interface GenerateAvatarImageRequest {
-        characterType: string
-        appearance: string
-        personalityTraits: any
-        style?: "realistic" | "disney" | "anime"
-    }
-
-    export interface GenerateAvatarImageResponse {
-        imageUrl: string
-        prompt: string
-        debugInfo?: any
-    }
-
-    export interface ImageGenerationRequest {
-        prompt: string
-        negativePrompt?: string
-        model?: string
-        width?: number
-        height?: number
-        steps?: number
-        CFGScale?: number
-        seed?: number
-        outputFormat?: "WEBP" | "PNG" | "JPEG"
-    }
-
-    export interface ImageGenerationResponse {
-        imageUrl: string
-        seed: number
-        debugInfo: DebugInfo
-    }
-
-    export interface PersonalityAnalysisRequest {
-        avatarId: string
-        avatarProfile: {
-            name: string
-            description: string
-            currentPersonality: { [key: string]: number }
-        }
-        contentType: "story" | "doku" | "quiz"
-        contentData: {
-            title: string
-            summary?: string
-            learningMode?: {
-                enabled: boolean
-                subjects: string[]
-                difficulty: string
-                objectives: string[]
-            }
-            /**
-             * For stories
-             */
-            storyContent?: string
-
-            /**
-             * For dokus
-             */
-            dokuSections?: {
-                title: string
-                content: string
-                topic: string
-            }[]
-
-            /**
-             * For quizzes
-             */
-            quizData?: {
-                topic: string
-                questions: {
-                    question: string
-                    correctAnswer: string
-                    userAnswer: string
-                    isCorrect: boolean
-                }[]
-                score: number
-            }
-        }
-    }
-
-    export interface PersonalityAnalysisResponse {
-        success: boolean
-        changes: {
-            trait: string
-            oldValue: number
-            newValue: number
-            change: number
-            reason: string
-        }[]
-        summary: string
-        processingTime: number
-        tokensUsed: {
-            prompt: number
-            completion: number
-            total: number
-        }
-    }
-
-    export interface TrackPersonalityUpdateRequest {
-        avatarId: string
-        contentId: string
-        contentType: "story" | "doku" | "quiz"
-        contentTitle: string
-        changes: {
-            trait: string
-            oldValue: number
-            newValue: number
-            change: number
-            reason: string
-        }[]
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -512,32 +273,22 @@ export namespace ai {
         /**
          * PRODUCTION-READY SOLUTION: Nur basic analysis, 100% stabil
          */
-        public async analyzeAvatarImage(params: AnalyzeAvatarImageRequest): Promise<AnalyzeAvatarImageResponse> {
+        public async analyzeAvatarImage(params: RequestType<typeof api_ai_analyze_avatar_analyzeAvatarImage>): Promise<ResponseType<typeof api_ai_analyze_avatar_analyzeAvatarImage>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/analyze-avatar-image`, JSON.stringify(params))
-            return await resp.json() as AnalyzeAvatarImageResponse
+            const resp = await this.baseClient.callTypedAPI(`/ai/analyze-avatar-image`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_analyze_avatar_analyzeAvatarImage>
         }
 
-        public async analyzePersonalityDevelopment(params: PersonalityAnalysisRequest): Promise<PersonalityAnalysisResponse> {
+        public async analyzePersonalityDevelopment(params: RequestType<typeof api_ai_analyze_personality_analyzePersonalityDevelopment>): Promise<ResponseType<typeof api_ai_analyze_personality_analyzePersonalityDevelopment>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/analyze-personality`, JSON.stringify(params))
-            return await resp.json() as PersonalityAnalysisResponse
+            const resp = await this.baseClient.callTypedAPI(`/ai/analyze-personality`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_analyze_personality_analyzePersonalityDevelopment>
         }
 
         /**
          * Check if avatar already received updates from this content
          */
-        public async checkPersonalityUpdate(params: CheckPersonalityUpdateRequest): Promise<{
-    /**
-     * Check if avatar already received updates from this content
-     */
-    hasUpdates: boolean
-
-    /**
-     * Check if avatar already received updates from this content
-     */
-    lastUpdate?: string
-}> {
+        public async checkPersonalityUpdate(params: RequestType<typeof api_ai_personality_tracker_checkPersonalityUpdate>): Promise<ResponseType<typeof api_ai_personality_tracker_checkPersonalityUpdate>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 avatarId:    params.avatarId,
@@ -546,390 +297,82 @@ export namespace ai {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/ai/check-personality-update`, undefined, {query})
-            return await resp.json() as {
-    /**
-     * Check if avatar already received updates from this content
-     */
-    hasUpdates: boolean
-
-    /**
-     * Check if avatar already received updates from this content
-     */
-    lastUpdate?: string
-}
+            const resp = await this.baseClient.callTypedAPI(`/ai/check-personality-update`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_checkPersonalityUpdate>
         }
 
         /**
          * Generates an avatar image based on physical and personality traits.
          */
-        public async generateAvatarImage(params: GenerateAvatarImageRequest): Promise<GenerateAvatarImageResponse> {
+        public async generateAvatarImage(params: RequestType<typeof api_ai_avatar_generation_generateAvatarImage>): Promise<ResponseType<typeof api_ai_avatar_generation_generateAvatarImage>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-avatar`, JSON.stringify(params))
-            return await resp.json() as GenerateAvatarImageResponse
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-avatar`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_avatar_generation_generateAvatarImage>
         }
 
         /**
          * Public API endpoint wrapper that calls the internal helper.
          */
-        public async generateImage(params: ImageGenerationRequest): Promise<ImageGenerationResponse> {
+        public async generateImage(params: RequestType<typeof api_ai_image_generation_generateImage>): Promise<ResponseType<typeof api_ai_image_generation_generateImage>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-image`, JSON.stringify(params))
-            return await resp.json() as ImageGenerationResponse
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-image`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_image_generation_generateImage>
         }
 
         /**
          * Public API endpoint for batch generation.
          */
-        public async generateImagesBatch(params: BatchGenerationRequest): Promise<BatchGenerationResponse> {
+        public async generateImagesBatch(params: RequestType<typeof api_ai_image_generation_generateImagesBatch>): Promise<ResponseType<typeof api_ai_image_generation_generateImagesBatch>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-images-batch`, JSON.stringify(params))
-            return await resp.json() as BatchGenerationResponse
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-images-batch`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_image_generation_generateImagesBatch>
         }
 
         /**
          * Get all personality updates for an avatar (for history/debugging)
          */
-        public async getPersonalityHistory(avatarId: string): Promise<{
-    updates: {
-        id: string
-        contentId: string
-        contentType: string
-        contentTitle: string
-        changes: {
-            trait: string
-            oldValue: number
-            newValue: number
-            change: number
-            reason: string
-        }[]
-        createdAt: string
-    }[]
-}> {
+        public async getPersonalityHistory(params: { avatarId: string }): Promise<ResponseType<typeof api_ai_personality_tracker_getPersonalityHistory>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/ai/personality-history/${encodeURIComponent(avatarId)}`)
-            return await resp.json() as {
-    updates: {
-        id: string
-        contentId: string
-        contentType: string
-        contentTitle: string
-        changes: {
-            trait: string
-            oldValue: number
-            newValue: number
-            change: number
-            reason: string
-        }[]
-        createdAt: string
-    }[]
-}
+            const resp = await this.baseClient.callTypedAPI(`/ai/personality-history/${encodeURIComponent(params.avatarId)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_getPersonalityHistory>
         }
 
         /**
          * Track that an avatar received personality updates from content
          */
-        public async trackPersonalityUpdate(params: TrackPersonalityUpdateRequest): Promise<{
-    /**
-     * Track that an avatar received personality updates from content
-     */
-    success: boolean
-}> {
+        public async trackPersonalityUpdate(params: RequestType<typeof api_ai_personality_tracker_trackPersonalityUpdate>): Promise<ResponseType<typeof api_ai_personality_tracker_trackPersonalityUpdate>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/track-personality-update`, JSON.stringify(params))
-            return await resp.json() as {
-    /**
-     * Track that an avatar received personality updates from content
-     */
-    success: boolean
-}
+            const resp = await this.baseClient.callTypedAPI(`/ai/track-personality-update`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_trackPersonalityUpdate>
         }
     }
 }
+
 
 export namespace auth {
-    export interface AuthParams {
-        /**
-         * Bearer token (recommended).
-         */
-        authorization?: string
-    }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { addMemory as api_avatar_addMemory_addMemory } from "~backend/avatar/addMemory";
+import { create as api_avatar_create_create } from "~backend/avatar/create";
+import { debugPersonality as api_avatar_debugPersonality_debugPersonality } from "~backend/avatar/debugPersonality";
+import { deleteAvatar as api_avatar_delete_deleteAvatar } from "~backend/avatar/delete";
+import { deleteMemory as api_avatar_deleteMemory_deleteMemory } from "~backend/avatar/deleteMemory";
+import { get as api_avatar_get_get } from "~backend/avatar/get";
+import { getMemories as api_avatar_getMemories_getMemories } from "~backend/avatar/getMemories";
+import { list as api_avatar_list_list } from "~backend/avatar/list";
+import { migrateToEnglish as api_avatar_migrateToEnglish_migrateToEnglish } from "~backend/avatar/migrateToEnglish";
+import { generatePortrait as api_avatar_portrait_api_generatePortrait } from "~backend/avatar/portrait-api";
+import { reducePersonalityTrait as api_avatar_reducePersonalityTrait_reducePersonalityTrait } from "~backend/avatar/reducePersonalityTrait";
+import { resetDokuHistory as api_avatar_resetDokuHistory_resetDokuHistory } from "~backend/avatar/resetDokuHistory";
+import { resetPersonalityTraits as api_avatar_resetPersonalityTraits_resetPersonalityTraits } from "~backend/avatar/resetPersonalityTraits";
+import { update as api_avatar_update_update } from "~backend/avatar/update";
+import { updatePersonality as api_avatar_updatePersonality_updatePersonality } from "~backend/avatar/updatePersonality";
+import { upgradeAllPersonalityTraits as api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits } from "~backend/avatar/upgradePersonalityTraits";
+
 export namespace avatar {
-    export interface AddMemoryRequest {
-        id: string
-        storyId: string
-        storyTitle: string
-        experience: string
-        emotionalImpact: "positive" | "negative" | "neutral"
-        personalityChanges: PersonalityChange[]
-        developmentDescription?: string
-        contentType?: "story" | "doku"
-    }
-
-    export interface AddMemoryResponse {
-        success: boolean
-        memoryId: string
-    }
-
-    export interface Avatar {
-        id: string
-        userId: string
-        name: string
-        description?: string
-        physicalTraits: PhysicalTraits
-        personalityTraits: PersonalityTraits
-        imageUrl?: string
-        visualProfile?: AvatarVisualProfile
-        creationType: "ai-generated" | "photo-upload"
-        isPublic: boolean
-        originalAvatarId?: string
-        createdAt: string
-        updatedAt: string
-    }
-
-    export interface AvatarMemory {
-        id: string
-        storyId: string
-        storyTitle: string
-        experience: string
-        emotionalImpact: "positive" | "negative" | "neutral"
-        personalityChanges: {
-            trait: string
-            change: number
-        }[]
-        createdAt: string
-    }
-
-    export interface AvatarVisualProfile {
-        ageApprox: string
-        gender: string
-        skin: {
-            tone: string
-            undertone?: string | null
-            distinctiveFeatures?: string[]
-        }
-        hair: {
-            color: string
-            type: string
-            length: string
-            style: string
-        }
-        eyes: {
-            color: string
-            shape?: string | null
-            size?: string | null
-        }
-        face: {
-            shape?: string | null
-            nose?: string | null
-            mouth?: string | null
-            eyebrows?: string | null
-            freckles?: boolean
-            otherFeatures?: string[]
-        }
-        accessories: string[]
-        clothingCanonical?: {
-            top?: string | null
-            bottom?: string | null
-            outfit?: string | null
-            footwear?: string | null
-            colors?: string[]
-            patterns?: string[]
-        }
-        palette?: {
-            primary: string[]
-            secondary?: string[]
-        }
-        consistentDescriptors: string[]
-    }
-
-    export interface CreateAvatarRequest {
-        name: string
-        description?: string
-        physicalTraits: PhysicalTraits
-        personalityTraits: PersonalityTraits
-        imageUrl?: string
-        visualProfile?: AvatarVisualProfile
-        creationType: "ai-generated" | "photo-upload"
-    }
-
-    export interface DebugPersonalityResponse {
-        avatarId: string
-        storedTraits: any
-        expectedTraitsFromMemories: any
-        memorySummary: {
-            memoryId: string
-            storyTitle: string
-            changes: {
-                trait: string
-                change: number
-            }[]
-            createdAt: string
-        }[]
-        discrepancies: {
-            trait: string
-            stored: number
-            expected: number
-            difference: number
-        }[]
-    }
-
-    export interface DeleteMemoryResponse {
-        success: boolean
-        deletedMemoryId: string
-        recalculatedTraits?: any
-    }
-
-    export interface GetMemoriesResponse {
-        memories: AvatarMemory[]
-    }
-
-    export interface ListAvatarsResponse {
-        avatars: Avatar[]
-    }
-
-    export interface MigrationResult {
-        totalAvatars: number
-        avatarsWithNonEnglish: number
-        avatarsTranslated: number
-        avatarsFailed: number
-        errors: {
-            avatarId: string
-            error: string
-        }[]
-    }
-
-    export interface PersonalityChange {
-        trait: string
-        change: number
-        description?: string
-    }
-
-    export interface PersonalityTraits {
-        /**
-         * Base traits - each starts at 0 and can have subcategories
-         */
-        knowledge: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-
-        creativity: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        vocabulary: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        courage: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        curiosity: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        teamwork: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        empathy: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        persistence: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-        logic: number | {
-            value: number
-            subcategories?: { [key: string]: number }
-        }
-    }
-
-    export interface PhysicalTraits {
-        characterType: string
-        appearance: string
-    }
-
-    export interface PortraitRequest {
-        avatar: string
-        emotion: "happy" | "sad" | "surprised" | "neutral" | "thinking"
-        pose: "standing" | "sitting" | "jumping" | "waving"
-    }
-
-    export interface PortraitResponse {
-        prompt: string
-        avatar: string
-        emotion: string
-        pose: string
-    }
-
-    export interface ReducePersonalityTraitRequest {
-        trait: string
-        amount: number
-        reason?: string
-    }
-
-    export interface ReducePersonalityTraitResponse {
-        success: boolean
-        updatedTraits: any
-        reduction: {
-            trait: string
-            oldValue: number
-            newValue: number
-            amountReduced: number
-        }
-    }
-
-    export interface ResetDokuHistoryRequest {
-        dokuId?: string
-    }
-
-    export interface ResetDokuHistoryResponse {
-        success: boolean
-        removedEntries: number
-        message: string
-    }
-
-    export interface ResetPersonalityTraitsResponse {
-        success: boolean
-        updatedAvatars: number
-        message: string
-    }
-
-    export interface TraitChange {
-        trait: string
-        change: number
-        description?: string
-    }
-
-    export interface UpdateAvatarRequest {
-        name?: string
-        description?: string
-        physicalTraits?: PhysicalTraits
-        personalityTraits?: PersonalityTraits
-        imageUrl?: string
-        visualProfile?: AvatarVisualProfile
-        isPublic?: boolean
-    }
-
-    export interface UpdatePersonalityRequest {
-        id: string
-        changes: TraitChange[]
-        storyId?: string
-        contentTitle?: string
-        contentType?: "story" | "doku"
-    }
-
-    export interface UpdatePersonalityResponse {
-        success: boolean
-        updatedTraits: PersonalityTraits
-        appliedChanges: TraitChange[]
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -957,289 +400,175 @@ export namespace avatar {
         /**
          * Adds a new memory entry for an avatar
          */
-        public async addMemory(params: AddMemoryRequest): Promise<AddMemoryResponse> {
+        public async addMemory(params: RequestType<typeof api_avatar_addMemory_addMemory>): Promise<ResponseType<typeof api_avatar_addMemory_addMemory>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/memory`, JSON.stringify(params))
-            return await resp.json() as AddMemoryResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/memory`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_addMemory_addMemory>
         }
 
-        public async create(params: CreateAvatarRequest): Promise<Avatar> {
+        public async create(params: RequestType<typeof api_avatar_create_create>): Promise<ResponseType<typeof api_avatar_create_create>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar`, JSON.stringify(params))
-            return await resp.json() as Avatar
+            const resp = await this.baseClient.callTypedAPI(`/avatar`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_create_create>
         }
 
         /**
          * Debug endpoint to compare stored personality traits vs what they should be based on memories
          */
-        public async debugPersonality(id: string): Promise<DebugPersonalityResponse> {
+        public async debugPersonality(params: { id: string }): Promise<ResponseType<typeof api_avatar_debugPersonality_debugPersonality>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}/debug-personality`)
-            return await resp.json() as DebugPersonalityResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/debug-personality`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_debugPersonality_debugPersonality>
         }
 
         /**
          * Deletes an avatar.
          */
-        public async deleteAvatar(id: string): Promise<void> {
-            await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(id)}`)
+        public async deleteAvatar(params: { id: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
         }
 
         /**
          * Deletes a specific memory and recalculates personality traits
          */
-        public async deleteMemory(avatarId: string, memoryId: string): Promise<DeleteMemoryResponse> {
+        public async deleteMemory(params: { avatarId: string, memoryId: string }): Promise<ResponseType<typeof api_avatar_deleteMemory_deleteMemory>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("DELETE", `/avatar/${encodeURIComponent(avatarId)}/memory/${encodeURIComponent(memoryId)}`)
-            return await resp.json() as DeleteMemoryResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/memory/${encodeURIComponent(params.memoryId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_deleteMemory_deleteMemory>
         }
 
         /**
          * Generate avatar portrait prompt
          */
-        public async generatePortrait(params: PortraitRequest): Promise<PortraitResponse> {
+        public async generatePortrait(params: RequestType<typeof api_avatar_portrait_api_generatePortrait>): Promise<ResponseType<typeof api_avatar_portrait_api_generatePortrait>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/generate-portrait`, JSON.stringify(params))
-            return await resp.json() as PortraitResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/generate-portrait`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_portrait_api_generatePortrait>
         }
 
         /**
          * Retrieves a specific avatar by ID.
          */
-        public async get(id: string): Promise<Avatar> {
+        public async get(params: { id: string }): Promise<ResponseType<typeof api_avatar_get_get>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}`)
-            return await resp.json() as Avatar
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_get_get>
         }
 
         /**
          * Gets all memories for an avatar
          */
-        public async getMemories(id: string): Promise<GetMemoriesResponse> {
+        public async getMemories(params: { id: string }): Promise<ResponseType<typeof api_avatar_getMemories_getMemories>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/avatar/${encodeURIComponent(id)}/memories`)
-            return await resp.json() as GetMemoriesResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/memories`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_getMemories_getMemories>
         }
 
         /**
          * Retrieves all avatars for the authenticated user.
          */
-        public async list(): Promise<ListAvatarsResponse> {
+        public async list(): Promise<ResponseType<typeof api_avatar_list_list>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/avatars`)
-            return await resp.json() as ListAvatarsResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatars`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_list_list>
         }
 
-        public async migrateToEnglish(): Promise<MigrationResult> {
+        public async migrateToEnglish(): Promise<ResponseType<typeof api_avatar_migrateToEnglish_migrateToEnglish>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/migrate-to-english`)
-            return await resp.json() as MigrationResult
+            const resp = await this.baseClient.callTypedAPI(`/avatar/migrate-to-english`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_migrateToEnglish_migrateToEnglish>
         }
 
         /**
          * Manually reduce personality trait points (for corrections/deletions)
          */
-        public async reducePersonalityTrait(avatarId: string, params: ReducePersonalityTraitRequest): Promise<ReducePersonalityTraitResponse> {
+        public async reducePersonalityTrait(params: RequestType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>): Promise<ResponseType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                amount: params.amount,
+                reason: params.reason,
+                trait:  params.trait,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(avatarId)}/reduce-trait`, JSON.stringify(params))
-            return await resp.json() as ReducePersonalityTraitResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reduce-trait`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>
         }
 
         /**
          * Reset doku reading history for an avatar (allows re-reading dokus)
          */
-        public async resetDokuHistory(avatarId: string, params: ResetDokuHistoryRequest): Promise<ResetDokuHistoryResponse> {
+        public async resetDokuHistory(params: RequestType<typeof api_avatar_resetDokuHistory_resetDokuHistory>): Promise<ResponseType<typeof api_avatar_resetDokuHistory_resetDokuHistory>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                dokuId: params.dokuId,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/${encodeURIComponent(avatarId)}/reset-doku-history`, JSON.stringify(params))
-            return await resp.json() as ResetDokuHistoryResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/reset-doku-history`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_resetDokuHistory_resetDokuHistory>
         }
 
         /**
          * Resets all personality traits of user's avatars to start at 0 (new system)
          */
-        public async resetPersonalityTraits(): Promise<ResetPersonalityTraitsResponse> {
+        public async resetPersonalityTraits(): Promise<ResponseType<typeof api_avatar_resetPersonalityTraits_resetPersonalityTraits>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/reset-personality-traits`)
-            return await resp.json() as ResetPersonalityTraitsResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/reset-personality-traits`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_resetPersonalityTraits_resetPersonalityTraits>
         }
 
         /**
          * Updates an existing avatar.
          */
-        public async update(id: string, params: UpdateAvatarRequest): Promise<Avatar> {
+        public async update(params: RequestType<typeof api_avatar_update_update>): Promise<ResponseType<typeof api_avatar_update_update>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                description:       params.description,
+                imageUrl:          params.imageUrl,
+                isPublic:          params.isPublic,
+                name:              params.name,
+                personalityTraits: params.personalityTraits,
+                physicalTraits:    params.physicalTraits,
+                visualProfile:     params.visualProfile,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("PUT", `/avatar/${encodeURIComponent(id)}`, JSON.stringify(params))
-            return await resp.json() as Avatar
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_update_update>
         }
 
         /**
          * Updates an avatar's personality traits with delta changes
          */
-        public async updatePersonality(params: UpdatePersonalityRequest): Promise<UpdatePersonalityResponse> {
+        public async updatePersonality(params: RequestType<typeof api_avatar_updatePersonality_updatePersonality>): Promise<ResponseType<typeof api_avatar_updatePersonality_updatePersonality>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/personality`, JSON.stringify(params))
-            return await resp.json() as UpdatePersonalityResponse
+            const resp = await this.baseClient.callTypedAPI(`/avatar/personality`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_updatePersonality_updatePersonality>
         }
 
         /**
          * API zum Upgrade aller Avatare (für Migration)
          */
-        public async upgradeAllPersonalityTraits(): Promise<{
-    updated: number
-}> {
+        public async upgradeAllPersonalityTraits(): Promise<ResponseType<typeof api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/avatar/upgrade-traits`)
-            return await resp.json() as {
-    updated: number
-}
+            const resp = await this.baseClient.callTypedAPI(`/avatar/upgrade-traits`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits>
         }
     }
 }
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
+import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
+import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
+import { listDokus as api_doku_list_listDokus } from "~backend/doku/list";
+import { markRead as api_doku_markRead_markRead } from "~backend/doku/markRead";
+import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
 
 export namespace doku {
-    export interface Doku {
-        id: string
-        userId: string
-        title: string
-        topic: string
-        summary: string
-        content: {
-            sections: DokuSection[]
-        }
-        coverImageUrl?: string
-        isPublic: boolean
-        status: "generating" | "complete" | "error"
-        metadata?: {
-            tokensUsed?: {
-                prompt: number
-                completion: number
-                total: number
-            }
-            model?: string
-            processingTime?: number
-            imagesGenerated?: number
-            totalCost?: {
-                text: number
-                images: number
-                total: number
-            }
-        }
-        createdAt: string
-        updatedAt: string
-    }
-
-    export type DokuAgeGroup = "3-5" | "6-8" | "9-12" | "13+"
-
-    export interface DokuConfig {
-        topic: string
-        depth: DokuDepth
-        ageGroup: DokuAgeGroup
-        perspective?: "science" | "history" | "technology" | "nature" | "culture"
-        includeInteractive?: boolean
-        quizQuestions?: number
-        handsOnActivities?: number
-        tone?: "fun" | "neutral" | "curious"
-        length?: "short" | "medium" | "long"
-    }
-
-    export type DokuDepth = "basic" | "standard" | "deep"
-
-    export interface DokuInteractive {
-        quiz?: {
-            enabled: boolean
-            questions: {
-                question: string
-                options: string[]
-                answerIndex: number
-                explanation?: string
-            }[]
-        }
-        activities?: {
-            enabled: boolean
-            items: {
-                title: string
-                description: string
-                materials?: string[]
-                durationMinutes?: number
-            }[]
-        }
-    }
-
-    export interface DokuSection {
-        title: string
-        content: string
-        keyFacts: string[]
-        imageIdea?: string
-        interactive?: DokuInteractive
-    }
-
-    export interface GenerateDokuRequest {
-        userId: string
-        config: DokuConfig
-    }
-
-    export interface ListDokusRequest {
-        limit?: number
-        offset?: number
-    }
-
-    export interface ListDokusResponse {
-        dokus: {
-            id: string
-            userId: string
-            title: string
-            topic: string
-            coverImageUrl?: string
-            isPublic: boolean
-            status: "generating" | "complete" | "error"
-            metadata?: {
-                tokensUsed?: {
-                    prompt: number
-                    completion: number
-                    total: number
-                }
-                model?: string
-                processingTime?: number
-                imagesGenerated?: number
-                totalCost?: {
-                    text: number
-                    images: number
-                    total: number
-                }
-            }
-            createdAt: string
-            updatedAt: string
-            summary?: string
-        }[]
-        total: number
-        hasMore: boolean
-    }
-
-    export interface MarkDokuReadRequest {
-        dokuId: string
-        dokuTitle: string
-        topic: string
-        perspective?: string
-        avatarId?: string
-    }
-
-    export interface MarkDokuReadResponse {
-        success: boolean
-        updatedAvatars: number
-        personalityChanges: {
-            avatarName: string
-            changes: {
-                trait: string
-                change: number
-                description: string
-            }[]
-        }[]
-    }
-
-    export interface UpdateDokuRequest {
-        title?: string
-        isPublic?: boolean
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -1254,29 +583,29 @@ export namespace doku {
             this.updateDoku = this.updateDoku.bind(this)
         }
 
-        public async deleteDoku(id: string): Promise<void> {
-            await this.baseClient.callTypedAPI("DELETE", `/doku/${encodeURIComponent(id)}`)
+        public async deleteDoku(params: { id: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
         }
 
-        public async generateDoku(params: GenerateDokuRequest): Promise<Doku> {
+        public async generateDoku(params: RequestType<typeof api_doku_generate_generateDoku>): Promise<ResponseType<typeof api_doku_generate_generateDoku>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/doku/generate`, JSON.stringify(params))
-            return await resp.json() as Doku
+            const resp = await this.baseClient.callTypedAPI(`/doku/generate`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_generate_generateDoku>
         }
 
         /**
          * Retrieves a specific doku (only owner or admin or if public).
          */
-        public async getDoku(id: string): Promise<Doku> {
+        public async getDoku(params: { id: string }): Promise<ResponseType<typeof api_doku_get_getDoku>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/doku/${encodeURIComponent(id)}`)
-            return await resp.json() as Doku
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_get_getDoku>
         }
 
         /**
          * Lists dokus for the authenticated user with pagination.
          */
-        public async listDokus(params: ListDokusRequest): Promise<ListDokusResponse> {
+        public async listDokus(params: RequestType<typeof api_doku_list_listDokus>): Promise<ResponseType<typeof api_doku_list_listDokus>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 limit:  params.limit === undefined ? undefined : String(params.limit),
@@ -1284,190 +613,56 @@ export namespace doku {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/dokus`, undefined, {query})
-            return await resp.json() as ListDokusResponse
+            const resp = await this.baseClient.callTypedAPI(`/dokus`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_list_listDokus>
         }
 
         /**
          * Marks a doku as read and applies personality development to all user avatars
          */
-        public async markRead(params: MarkDokuReadRequest): Promise<MarkDokuReadResponse> {
+        public async markRead(params: RequestType<typeof api_doku_markRead_markRead>): Promise<ResponseType<typeof api_doku_markRead_markRead>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/doku/mark-read`, JSON.stringify(params))
-            return await resp.json() as MarkDokuReadResponse
+            const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_markRead_markRead>
         }
 
-        public async updateDoku(id: string, params: UpdateDokuRequest): Promise<{
-    success: boolean
-}> {
+        public async updateDoku(params: RequestType<typeof api_doku_update_updateDoku>): Promise<ResponseType<typeof api_doku_update_updateDoku>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                isPublic: params.isPublic,
+                title:    params.title,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("PUT", `/doku/${encodeURIComponent(id)}`, JSON.stringify(params))
-            return await resp.json() as {
-    success: boolean
-}
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_update_updateDoku>
         }
     }
 }
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import {
+    addFairyTaleRole as api_fairytales_catalog_addFairyTaleRole,
+    addFairyTaleScene as api_fairytales_catalog_addFairyTaleScene,
+    createFairyTale as api_fairytales_catalog_createFairyTale,
+    getFairyTale as api_fairytales_catalog_getFairyTale,
+    listFairyTales as api_fairytales_catalog_listFairyTales
+} from "~backend/fairytales/catalog";
+import {
+    generateStory as api_fairytales_generator_generateStory,
+    getGeneratedStory as api_fairytales_generator_getGeneratedStory,
+    validateCharacterMapping as api_fairytales_generator_validateCharacterMapping
+} from "~backend/fairytales/generator";
+import {
+    deleteFairyTale as api_fairytales_management_deleteFairyTale,
+    exportFairyTales as api_fairytales_management_exportFairyTales,
+    importFairyTales as api_fairytales_management_importFairyTales,
+    updateFairyTale as api_fairytales_management_updateFairyTale
+} from "~backend/fairytales/management";
 
 export namespace fairytales {
-    export interface FairyTale {
-        id: string
-        title: string
-        source: string
-        originalLanguage?: string
-        englishTranslation?: string
-        cultureRegion: string
-        ageRecommendation: number
-        durationMinutes: number
-        genreTags: string[]
-        moralLesson?: string
-        summary?: string
-        isActive: boolean
-        createdAt: string
-        updatedAt: string
-    }
-
-    export interface FairyTaleRole {
-        id: number
-        taleId: string
-        roleType: RoleType
-        roleName?: string
-        roleCount: number
-        description?: string
-        required: boolean
-        archetypePreference?: string
-        ageRangeMin?: number
-        ageRangeMax?: number
-        professionPreference: string[]
-        createdAt: string
-    }
-
-    export interface FairyTaleScene {
-        id: number
-        taleId: string
-        sceneNumber: number
-        sceneTitle?: string
-        sceneDescription: string
-        dialogueTemplate?: string
-        characterVariables: { [key: string]: string }
-        setting?: string
-        mood?: string
-        illustrationPromptTemplate?: string
-        durationSeconds: number
-        createdAt: string
-        updatedAt: string
-    }
-
-    export interface GenerateStoryRequest {
-        characterMappings: { [key: string]: string }
-        params?: GenerationParams
-    }
-
-    export interface GenerateStoryResponse {
-        storyId: string
-        title: string
-        status: StoryStatus
-        estimatedTimeSeconds: number
-    }
-
-    export interface GeneratedStory {
-        id: string
-        userId: string
-        taleId: string
-        title: string
-        storyText?: string
-        characterMappings: { [key: string]: string }
-        generationParams?: GenerationParams
-        status: StoryStatus
-        errorMessage?: string
-        createdAt: string
-        updatedAt: string
-    }
-
-    export interface GeneratedStoryScene {
-        id: number
-        storyId: string
-        sceneNumber: number
-        sceneText: string
-        imageUrl?: string
-        imagePrompt?: string
-        imageGenerationStatus: ImageGenerationStatus
-        consistencyScore?: number
-        createdAt: string
-        updatedAt: string
-    }
-
-    export interface GenerationParams {
-        length?: "short" | "medium" | "long"
-        style?: "classic" | "modern" | "humorous"
-        targetAge?: number
-        includeImages?: boolean
-    }
-
-    export interface GetFairyTaleRequest {
-        includeRoles?: boolean
-        includeScenes?: boolean
-    }
-
-    export interface GetFairyTaleResponse {
-        tale: FairyTale
-        roles?: FairyTaleRole[]
-        scenes?: FairyTaleScene[]
-    }
-
-    export interface GetGeneratedStoryRequest {
-        includeScenes?: boolean
-    }
-
-    export interface GetGeneratedStoryResponse {
-        story: GeneratedStory
-        scenes?: GeneratedStoryScene[]
-        tale?: FairyTale
-    }
-
-    export type ImageGenerationStatus = "pending" | "generating" | "ready" | "failed"
-
-    export interface ListFairyTalesRequest {
-        source?: string
-        minAge?: number
-        maxAge?: number
-        genres?: string[]
-        limit?: number
-        offset?: number
-    }
-
-    export interface ListFairyTalesResponse {
-        tales: FairyTale[]
-        total: number
-    }
-
-    export type RoleType = "protagonist" | "antagonist" | "helper" | "love_interest" | "supporting"
-
-    export type StoryStatus = "generating" | "ready" | "failed"
-
-    export interface ValidateCharacterMappingRequest {
-        characterMappings: { [key: string]: string }
-    }
-
-    export interface ValidateCharacterMappingResponse {
-        isValid: boolean
-        errors: ValidationError[]
-        warnings: ValidationWarning[]
-    }
-
-    export interface ValidationError {
-        roleType: string
-        avatarId?: string
-        message: string
-        severity: "error" | "warning"
-    }
-
-    export interface ValidationWarning {
-        roleType: string
-        avatarId: string
-        message: string
-        recommendation?: string
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -1477,101 +672,91 @@ export namespace fairytales {
             this.addFairyTaleRole = this.addFairyTaleRole.bind(this)
             this.addFairyTaleScene = this.addFairyTaleScene.bind(this)
             this.createFairyTale = this.createFairyTale.bind(this)
+            this.deleteFairyTale = this.deleteFairyTale.bind(this)
+            this.exportFairyTales = this.exportFairyTales.bind(this)
             this.generateStory = this.generateStory.bind(this)
             this.getFairyTale = this.getFairyTale.bind(this)
             this.getGeneratedStory = this.getGeneratedStory.bind(this)
+            this.importFairyTales = this.importFairyTales.bind(this)
             this.listFairyTales = this.listFairyTales.bind(this)
+            this.updateFairyTale = this.updateFairyTale.bind(this)
             this.validateCharacterMapping = this.validateCharacterMapping.bind(this)
         }
 
         /**
          * Add a role to a fairy tale (admin only)
          */
-        public async addFairyTaleRole(taleId: string, params: {
-    /**
-     * Add a role to a fairy tale (admin only)
-     */
-    role: {
-        roleType: RoleType
-        roleName?: string
-        roleCount: number
-        description?: string
-        required: boolean
-        archetypePreference?: string
-        ageRangeMin?: number
-        ageRangeMax?: number
-        professionPreference: string[]
-    }
-}): Promise<FairyTaleRole> {
+        public async addFairyTaleRole(params: RequestType<typeof api_fairytales_catalog_addFairyTaleRole>): Promise<ResponseType<typeof api_fairytales_catalog_addFairyTaleRole>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                role: params.role,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/roles`, JSON.stringify(params))
-            return await resp.json() as FairyTaleRole
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/roles`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_addFairyTaleRole>
         }
 
         /**
          * Add a scene to a fairy tale (admin only)
          */
-        public async addFairyTaleScene(taleId: string, params: {
-    /**
-     * Add a scene to a fairy tale (admin only)
-     */
-    scene: {
-        sceneNumber: number
-        sceneTitle?: string
-        sceneDescription: string
-        dialogueTemplate?: string
-        characterVariables: { [key: string]: string }
-        setting?: string
-        mood?: string
-        illustrationPromptTemplate?: string
-        durationSeconds: number
-    }
-}): Promise<FairyTaleScene> {
+        public async addFairyTaleScene(params: RequestType<typeof api_fairytales_catalog_addFairyTaleScene>): Promise<ResponseType<typeof api_fairytales_catalog_addFairyTaleScene>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                scene: params.scene,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/scenes`, JSON.stringify(params))
-            return await resp.json() as FairyTaleScene
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/scenes`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_addFairyTaleScene>
         }
 
         /**
          * Create a new fairy tale (admin only)
          */
-        public async createFairyTale(params: {
-    /**
-     * Create a new fairy tale (admin only)
-     */
-    tale: {
-        id: string
-        title: string
-        source: string
-        originalLanguage?: string
-        englishTranslation?: string
-        cultureRegion: string
-        ageRecommendation: number
-        durationMinutes: number
-        genreTags: string[]
-        moralLesson?: string
-        summary?: string
-        isActive: boolean
-    }
-}): Promise<FairyTale> {
+        public async createFairyTale(params: RequestType<typeof api_fairytales_catalog_createFairyTale>): Promise<ResponseType<typeof api_fairytales_catalog_createFairyTale>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fairytales`, JSON.stringify(params))
-            return await resp.json() as FairyTale
+            const resp = await this.baseClient.callTypedAPI(`/fairytales`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_createFairyTale>
+        }
+
+        /**
+         * Delete a fairy tale (soft delete - sets is_active to false)
+         */
+        public async deleteFairyTale(params: { id: string }): Promise<ResponseType<typeof api_fairytales_management_deleteFairyTale>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_deleteFairyTale>
+        }
+
+        /**
+         * Export fairy tales with all their roles and scenes in JSON format
+         */
+        public async exportFairyTales(params: RequestType<typeof api_fairytales_management_exportFairyTales>): Promise<ResponseType<typeof api_fairytales_management_exportFairyTales>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/export`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_exportFairyTales>
         }
 
         /**
          * Generate a personalized story from a fairy tale template
          */
-        public async generateStory(taleId: string, params: GenerateStoryRequest): Promise<GenerateStoryResponse> {
+        public async generateStory(params: RequestType<typeof api_fairytales_generator_generateStory>): Promise<ResponseType<typeof api_fairytales_generator_generateStory>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                characterMappings: params.characterMappings,
+                params:            params.params,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/generate`, JSON.stringify(params))
-            return await resp.json() as GenerateStoryResponse
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/generate`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_generator_generateStory>
         }
 
         /**
          * Get detailed information about a specific fairy tale
          */
-        public async getFairyTale(id: string, params: GetFairyTaleRequest): Promise<GetFairyTaleResponse> {
+        public async getFairyTale(params: RequestType<typeof api_fairytales_catalog_getFairyTale>): Promise<ResponseType<typeof api_fairytales_catalog_getFairyTale>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 includeRoles:  params.includeRoles === undefined ? undefined : String(params.includeRoles),
@@ -1579,28 +764,37 @@ export namespace fairytales {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/fairytales/${encodeURIComponent(id)}`, undefined, {query})
-            return await resp.json() as GetFairyTaleResponse
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.id)}`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_getFairyTale>
         }
 
         /**
          * Get a generated story with all scenes
          */
-        public async getGeneratedStory(storyId: string, params: GetGeneratedStoryRequest): Promise<GetGeneratedStoryResponse> {
+        public async getGeneratedStory(params: RequestType<typeof api_fairytales_generator_getGeneratedStory>): Promise<ResponseType<typeof api_fairytales_generator_getGeneratedStory>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 includeScenes: params.includeScenes === undefined ? undefined : String(params.includeScenes),
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/stories/${encodeURIComponent(storyId)}`, undefined, {query})
-            return await resp.json() as GetGeneratedStoryResponse
+            const resp = await this.baseClient.callTypedAPI(`/stories/${encodeURIComponent(params.storyId)}`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_generator_getGeneratedStory>
+        }
+
+        /**
+         * Import fairy tales from JSON export
+         */
+        public async importFairyTales(params: RequestType<typeof api_fairytales_management_importFairyTales>): Promise<ResponseType<typeof api_fairytales_management_importFairyTales>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/import`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_importFairyTales>
         }
 
         /**
          * List all available fairy tales with optional filtering
          */
-        public async listFairyTales(params: ListFairyTalesRequest): Promise<ListFairyTalesResponse> {
+        public async listFairyTales(params: RequestType<typeof api_fairytales_catalog_listFairyTales>): Promise<ResponseType<typeof api_fairytales_catalog_listFairyTales>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 genres: params.genres?.map((v) => v),
@@ -1612,93 +806,56 @@ export namespace fairytales {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/fairytales`, undefined, {query})
-            return await resp.json() as ListFairyTalesResponse
+            const resp = await this.baseClient.callTypedAPI(`/fairytales`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_listFairyTales>
+        }
+
+        /**
+         * Update a fairy tale
+         */
+        public async updateFairyTale(params: RequestType<typeof api_fairytales_management_updateFairyTale>): Promise<ResponseType<typeof api_fairytales_management_updateFairyTale>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                updates: params.updates,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.id)}`, {method: "PATCH", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_updateFairyTale>
         }
 
         /**
          * Validate that character mappings are compatible with tale roles
          */
-        public async validateCharacterMapping(taleId: string, params: ValidateCharacterMappingRequest): Promise<ValidateCharacterMappingResponse> {
+        public async validateCharacterMapping(params: RequestType<typeof api_fairytales_generator_validateCharacterMapping>): Promise<ResponseType<typeof api_fairytales_generator_validateCharacterMapping>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                characterMappings: params.characterMappings,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fairytales/${encodeURIComponent(taleId)}/validate-mapping`, JSON.stringify(params))
-            return await resp.json() as ValidateCharacterMappingResponse
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/validate-mapping`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_generator_validateCharacterMapping>
         }
     }
 }
 
-export namespace frontend {
-
-    export class ServiceClient {
-        private baseClient: BaseClient
-
-        constructor(baseClient: BaseClient) {
-            this.baseClient = baseClient
-            this.assets = this.assets.bind(this)
-        }
-
-        public async assets(path: string[]): Promise<void> {
-            await this.baseClient.callTypedAPI("HEAD", `/frontend/${path.map(encodeURIComponent).join("/")}`)
-        }
-    }
-}
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { checkFairyTaleStats as api_health_check_fairy_tale_stats_checkFairyTaleStats } from "~backend/health/check-fairy-tale-stats";
+import { completeFairyTalesSetup as api_health_complete_fairy_tales_setup_completeFairyTalesSetup } from "~backend/health/complete-fairy-tales-setup";
+import { createFairyTalesTable as api_health_create_fairy_tales_table_createFairyTalesTable } from "~backend/health/create-fairy-tales-table";
+import { dbStatus as api_health_db_status_dbStatus } from "~backend/health/db-status";
+import { fixUsageCount as api_health_fix_usage_count_fixUsageCount } from "~backend/health/fix-usage-count";
+import { fixUsageCountColumn as api_health_fix_usage_count_column_fixUsageCountColumn } from "~backend/health/fix-usage-count-column";
+import { health as api_health_health_health } from "~backend/health/health";
+import { import150FairyTales as api_health_import_150_fairy_tales_import150FairyTales } from "~backend/health/import-150-fairy-tales";
+import { initializeDatabaseMigrations as api_health_init_migrations_initializeDatabaseMigrations } from "~backend/health/init-migrations";
+import { runMigrations as api_health_run_migrations_runMigrations } from "~backend/health/run-migrations";
+import { testClerk as api_health_test_clerk_testClerk } from "~backend/health/test-clerk";
 
 export namespace health {
-    export interface ClerkHealthResponse {
-        status: "healthy" | "unhealthy"
-        clerkSecretConfigured: boolean
-        clerkSecretLength: number
-        clerkApiReachable: boolean
-        error?: string
-        details?: string
-    }
-
-    export interface DatabaseStatusResponse {
-        status: string
-        timestamp: string
-        tables: {
-            stories: boolean
-            avatars: boolean
-            fairyTales: boolean
-            fairyTaleRoles: boolean
-            fairyTaleScenes: boolean
-        }
-        counts: {
-            stories?: number
-            avatars?: number
-            fairyTales?: number
-        }
-        error?: string
-    }
-
-    export interface DirectSQLResponse {
-        success: boolean
-        message: string
-        error?: string
-    }
-
-    export interface FixResponse {
-        success: boolean
-        message: string
-        error?: string
-    }
-
-    export interface HealthResponse {
-        status: string
-        message: string
-        timestamp: string
-        migrations?: {
-            run: boolean
-            message: string
-        }
-    }
-
-    export interface MigrationResponse {
-        success: boolean
-        message: string
-        migrationsRun: string[]
-        errors: string[]
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -1718,130 +875,80 @@ export namespace health {
             this.testClerk = this.testClerk.bind(this)
         }
 
-        public async checkFairyTaleStats(): Promise<{
-    tableExists: boolean
-    columnNames: string[]
-    sampleRows: any[]
-    error?: string
-}> {
+        public async checkFairyTaleStats(): Promise<ResponseType<typeof api_health_check_fairy_tale_stats_checkFairyTaleStats>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/health/check-fairy-tale-stats`)
-            return await resp.json() as {
-    tableExists: boolean
-    columnNames: string[]
-    sampleRows: any[]
-    error?: string
-}
+            const resp = await this.baseClient.callTypedAPI(`/health/check-fairy-tale-stats`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_check_fairy_tale_stats_checkFairyTaleStats>
         }
 
-        public async completeFairyTalesSetup(): Promise<{
-    success: boolean
-    message: string
-    details?: any
-}> {
+        public async completeFairyTalesSetup(): Promise<ResponseType<typeof api_health_complete_fairy_tales_setup_completeFairyTalesSetup>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/health/complete-fairy-tales-setup`)
-            return await resp.json() as {
-    success: boolean
-    message: string
-    details?: any
-}
+            const resp = await this.baseClient.callTypedAPI(`/health/complete-fairy-tales-setup`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_complete_fairy_tales_setup_completeFairyTalesSetup>
         }
 
         /**
          * Direct SQL test endpoint to create fairy_tales table
          */
-        public async createFairyTalesTable(): Promise<DirectSQLResponse> {
+        public async createFairyTalesTable(): Promise<ResponseType<typeof api_health_create_fairy_tales_table_createFairyTalesTable>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/health/create-fairy-tales-table`)
-            return await resp.json() as DirectSQLResponse
+            const resp = await this.baseClient.callTypedAPI(`/health/create-fairy-tales-table`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_create_fairy_tales_table_createFairyTalesTable>
         }
 
         /**
          * Database status check endpoint
          * Shows which tables exist and basic counts
          */
-        public async dbStatus(): Promise<DatabaseStatusResponse> {
+        public async dbStatus(): Promise<ResponseType<typeof api_health_db_status_dbStatus>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/health/db-status`)
-            return await resp.json() as DatabaseStatusResponse
+            const resp = await this.baseClient.callTypedAPI(`/health/db-status`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_db_status_dbStatus>
         }
 
         /**
          * GET endpoint (easier to call from browser for quick testing)
          */
-        public async fixUsageCount(): Promise<FixResponse> {
+        public async fixUsageCount(): Promise<ResponseType<typeof api_health_fix_usage_count_fixUsageCount>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/health/fix-usage-count`)
-            return await resp.json() as FixResponse
+            const resp = await this.baseClient.callTypedAPI(`/health/fix-usage-count`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_fix_usage_count_fixUsageCount>
         }
 
-        public async fixUsageCountColumn(): Promise<{
-    success: boolean
-    steps: {
-        step: string
-        success: boolean
-        error?: string
-    }[]
-}> {
+        public async fixUsageCountColumn(): Promise<ResponseType<typeof api_health_fix_usage_count_column_fixUsageCountColumn>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/health/fix-usage-count-column`)
-            return await resp.json() as {
-    success: boolean
-    steps: {
-        step: string
-        success: boolean
-        error?: string
-    }[]
-}
+            const resp = await this.baseClient.callTypedAPI(`/health/fix-usage-count-column`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_fix_usage_count_column_fixUsageCountColumn>
         }
 
         /**
          * Health check endpoint for Railway
          * Automatically triggers database migrations on first call
          */
-        public async health(): Promise<HealthResponse> {
+        public async health(): Promise<ResponseType<typeof api_health_health_health>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/health`)
-            return await resp.json() as HealthResponse
+            const resp = await this.baseClient.callTypedAPI(`/health`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_health_health>
         }
 
         /**
          * Imports 150 curated fairy tales from MÄRCHEN_DATENBANK.md
          * Returns number of tales imported successfully
          */
-        public async import150FairyTales(): Promise<{
-    success: boolean
-    imported: number
-    skipped: number
-    details: string[]
-}> {
+        public async import150FairyTales(): Promise<ResponseType<typeof api_health_import_150_fairy_tales_import150FairyTales>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/health/import-150-fairy-tales`)
-            return await resp.json() as {
-    success: boolean
-    imported: number
-    skipped: number
-    details: string[]
-}
+            const resp = await this.baseClient.callTypedAPI(`/health/import-150-fairy-tales`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_import_150_fairy_tales_import150FairyTales>
         }
 
         /**
          * Initialize database - runs migrations on first call
          * This is automatically triggered by Railway's health check
          */
-        public async initializeDatabaseMigrations(): Promise<{
-    success: boolean
-    message: string
-    tablesCreated?: number
-}> {
+        public async initializeDatabaseMigrations(): Promise<ResponseType<typeof api_health_init_migrations_initializeDatabaseMigrations>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/init`)
-            return await resp.json() as {
-    success: boolean
-    message: string
-    tablesCreated?: number
-}
+            const resp = await this.baseClient.callTypedAPI(`/init`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_init_migrations_initializeDatabaseMigrations>
         }
 
         /**
@@ -1849,70 +956,34 @@ export namespace health {
          * Call this URL to create all database tables
          * URL: POST /health/run-migrations
          */
-        public async runMigrations(): Promise<MigrationResponse> {
+        public async runMigrations(): Promise<ResponseType<typeof api_health_run_migrations_runMigrations>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/health/run-migrations`)
-            return await resp.json() as MigrationResponse
+            const resp = await this.baseClient.callTypedAPI(`/health/run-migrations`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_run_migrations_runMigrations>
         }
 
         /**
          * Test Clerk API connectivity and configuration
          * Use this endpoint to diagnose authentication issues
          */
-        public async testClerk(): Promise<ClerkHealthResponse> {
+        public async testClerk(): Promise<ResponseType<typeof api_health_test_clerk_testClerk>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/health/test-clerk`)
-            return await resp.json() as ClerkHealthResponse
+            const resp = await this.baseClient.callTypedAPI(`/health/test-clerk`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_test_clerk_testClerk>
         }
     }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { debug as api_log_debug_debug } from "~backend/log/debug";
+import { get as api_log_get_get } from "~backend/log/get";
+import { list as api_log_list_list } from "~backend/log/list";
+import { runMigration as api_log_setup_migration_runMigration } from "~backend/log/setup-migration";
+import { getSources as api_log_sources_getSources } from "~backend/log/sources";
+
 export namespace log {
-    export interface DebugResponse {
-        tableExists: boolean
-        rowCount: number
-        sampleRows: any[]
-        error?: string
-        databaseName?: string
-        availableSchemas?: string[]
-        resolvedTable?: string
-    }
-
-    export interface GetLogSourcesResponse {
-        sources: LogSource[]
-    }
-
-    export interface ListLogsRequest {
-        source?: string
-        limit?: number
-        date?: string
-    }
-
-    export interface ListLogsResponse {
-        logs: LogEntry[]
-        totalCount: number
-    }
-
-    export interface LogEntry {
-        id: string
-        source: "openai-story-generation" | "runware-single-image" | "runware-batch-image" | "openai-avatar-analysis" | "openai-avatar-analysis-stable" | "openai-doku-generation" | "openai-tavi-chat" | "openai-story-generation-mcp"
-        timestamp: string
-        request: any
-        response: any
-        metadata?: any
-    }
-
-    export interface LogSource {
-        name: string
-        count: number
-        lastActivity: string | null
-    }
-
-    export interface MigrationResponse {
-        success: boolean
-        message: string
-        details?: string
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -1929,34 +1000,34 @@ export namespace log {
         /**
          * Debug endpoint to check database state
          */
-        public async debug(): Promise<DebugResponse> {
+        public async debug(): Promise<ResponseType<typeof api_log_debug_debug>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/log/debug`)
-            return await resp.json() as DebugResponse
+            const resp = await this.baseClient.callTypedAPI(`/log/debug`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_debug_debug>
         }
 
         /**
          * Retrieves a specific log entry by ID from the database.
          */
-        public async get(id: string): Promise<LogEntry> {
+        public async get(params: { id: string }): Promise<ResponseType<typeof api_log_get_get>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/log/get/${encodeURIComponent(id)}`)
-            return await resp.json() as LogEntry
+            const resp = await this.baseClient.callTypedAPI(`/log/get/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_get_get>
         }
 
         /**
          * Gets available log sources with statistics from PostgreSQL.
          */
-        public async getSources(): Promise<GetLogSourcesResponse> {
+        public async getSources(): Promise<ResponseType<typeof api_log_sources_getSources>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/log/getSources`)
-            return await resp.json() as GetLogSourcesResponse
+            const resp = await this.baseClient.callTypedAPI(`/log/getSources`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_sources_getSources>
         }
 
         /**
          * Lists log entries from the database.
          */
-        public async list(params: ListLogsRequest): Promise<ListLogsResponse> {
+        public async list(params: RequestType<typeof api_log_list_list>): Promise<ResponseType<typeof api_log_list_list>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 date:   params.date,
@@ -1965,541 +1036,50 @@ export namespace log {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/log/list`, undefined, {query})
-            return await resp.json() as ListLogsResponse
+            const resp = await this.baseClient.callTypedAPI(`/log/list`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_list_list>
         }
 
         /**
          * Endpoint to manually run the logs table migration
          */
-        public async runMigration(): Promise<MigrationResponse> {
+        public async runMigration(): Promise<ResponseType<typeof api_log_setup_migration_runMigration>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/log/run-migration`)
-            return await resp.json() as MigrationResponse
+            const resp = await this.baseClient.callTypedAPI(`/log/run-migration`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_log_setup_migration_runMigration>
         }
     }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { generateStoryContent as api_story_ai_generation_generateStoryContent } from "~backend/story/ai-generation";
+import {
+    addCharacter as api_story_character_pool_api_addCharacter,
+    deleteCharacter as api_story_character_pool_api_deleteCharacter,
+    exportCharacters as api_story_character_pool_api_exportCharacters,
+    generateCharacterImage as api_story_character_pool_api_generateCharacterImage,
+    getCharacter as api_story_character_pool_api_getCharacter,
+    getCharacterStats as api_story_character_pool_api_getCharacterStats,
+    importCharacters as api_story_character_pool_api_importCharacters,
+    listCharacters as api_story_character_pool_api_listCharacters,
+    resetRecentUsage as api_story_character_pool_api_resetRecentUsage,
+    seedPool as api_story_character_pool_api_seedPool,
+    updateCharacter as api_story_character_pool_api_updateCharacter
+} from "~backend/story/character-pool-api";
+import { deleteStory as api_story_delete_deleteStory } from "~backend/story/delete";
+import { generate as api_story_generate_generate } from "~backend/story/generate";
+import {
+    generateFromFairyTale as api_story_generate_from_fairytale_generateFromFairyTale,
+    getFairyTaleDetails as api_story_generate_from_fairytale_getFairyTaleDetails
+} from "~backend/story/generate-from-fairytale";
+import { get as api_story_get_get } from "~backend/story/get";
+import { list as api_story_list_list } from "~backend/story/list";
+import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
+import { update as api_story_update_update } from "~backend/story/update";
+
 export namespace story {
-    export type AIModel = "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "gpt-5-pro" | "gpt-4.1-nano" | "gpt-4.1-mini" | "gpt-4.1" | "o4-mini"
-
-    export interface AddCharacterRequest {
-        character: {
-            name: string
-            role: string
-            archetype: string
-            emotionalNature: {
-                dominant: string
-                secondary: string[]
-                triggers?: string[]
-            }
-            visualProfile: {
-                description: string
-                imagePrompt: string
-                species: string
-                colorPalette: string[]
-            }
-            imageUrl?: string
-            maxScreenTime: number
-            availableChapters: number[]
-            canonSettings?: string[]
-            isActive?: boolean
-        }
-    }
-
-    export interface AvatarDevelopment {
-        name: string
-        changedTraits: {
-            trait: string
-            change: number
-        }[]
-    }
-
-    export interface Chapter {
-        id: string
-        title: string
-        content: string
-        imageUrl?: string
-        order: number
-    }
-
-    export interface ChapterBeatSummary {
-        order: number
-        focus: string
-        conflict: string
-        surprise: string
-        supportingCast: string[]
-        environmentHighlights: string[]
-        cliffhanger: string
-        sensoryDetails: string[]
-    }
-
-    export interface ChapterImageDescription {
-        scene: string
-        characters: {
-            protagonists: ImageCharacterBeat[]
-            supporting: ImageCharacterBeat[]
-        }
-        environment: ImageEnvironmentLayers
-        props: string[]
-        atmosphere: ImageAtmosphere
-        composition: ImageComposition
-        storytellingDetails?: string[]
-        recurringElement?: string
-    }
-
-    export interface CharacterStats {
-        character: CharacterTemplate
-        usageStats: {
-            totalUsages: number
-            recentUsages: number
-            lastUsed?: string
-            storiesUsedIn: {
-                storyId: string
-                storyTitle: string
-                placeholder: string
-                createdAt: string
-            }[]
-        }
-    }
-
-    export interface CharacterTemplate {
-        id: string
-        name: string
-        role: string
-        archetype: string
-        /**
-         * Emotional Profile
-         */
-        emotionalNature: {
-            dominant: string
-            secondary: string[]
-            triggers?: string[]
-        }
-
-        /**
-         * Visual Profile
-         */
-        visualProfile: {
-            description: string
-            imagePrompt: string
-            species: string
-            colorPalette: string[]
-        }
-
-        imageUrl?: string
-        /**
-         * Screen Time & Availability
-         */
-        maxScreenTime: number
-
-        availableChapters: number[]
-        canonSettings?: string[]
-        /**
-         * Tracking
-         */
-        recentUsageCount?: number
-
-        totalUsageCount?: number
-        lastUsedAt?: string
-        /**
-         * Metadata
-         */
-        createdAt?: string
-
-        updatedAt?: string
-        isActive?: boolean
-    }
-
-    export interface CoverImageDescription {
-        scene: string
-        characters: {
-            protagonists: ImageCharacterBeat[]
-            supporting: ImageCharacterBeat[]
-        }
-        environment: ImageEnvironmentLayers
-        props: string[]
-        atmosphere: ImageAtmosphere
-        composition: {
-            camera: string
-            perspective: string
-            focalPoints: string[]
-            movement?: string
-            depth?: string
-            titleSpace?: string
-            layout?: string
-        }
-        storytellingDetails?: string[]
-    }
-
-    export type EmotionalFlavorKey = "warmherzigkeit" | "lachfreude" | "prickeln" | "geborgenheit" | "uebermut" | "staunen" | "zusammenhalt"
-
-    export interface ExtendedAvatarDetails {
-        id: string
-        name: string
-        description?: string
-        physicalTraits: avatar.PhysicalTraits
-        personalityTraits: avatar.PersonalityTraits
-        imageUrl?: string
-        visualProfile?: avatar.AvatarVisualProfile
-        creationType: "ai-generated" | "photo-upload"
-        isPublic: boolean
-        memories?: McpAvatarMemory[]
-    }
-
-    export interface GenerateCharacterImageRequest {
-        style?: "storybook" | "watercolor" | "concept"
-    }
-
-    export interface GenerateCharacterImageResponse {
-        characterId: string
-        imageUrl: string
-        prompt: string
-        debugInfo?: { [key: string]: any }
-    }
-
-    export interface GenerateFromFairyTaleRequest {
-        userId: string
-        taleId: string
-        characterMappings: { [key: string]: string }
-        length?: "short" | "medium" | "long"
-        style?: "classic" | "modern" | "humorous"
-    }
-
-    export interface GenerateStoryContentRequest {
-        config: StoryConfig
-        avatarDetails: ExtendedAvatarDetails[]
-        clerkToken: string
-    }
-
-    export interface GenerateStoryContentResponse {
-        title: string
-        description: string
-        coverImageUrl: string
-        coverImageDescription: CoverImageDescription
-        supportingCharacters: SupportingCharacterSummary[]
-        recurringElement: StoryRecurringElement
-        plotBeats: ChapterBeatSummary[]
-        chapters: {
-            title: string
-            content: string
-            imageUrl?: string
-            order: number
-            imageDescription: ChapterImageDescription
-            beatSummary?: ChapterBeatSummary
-        }[]
-        avatarDevelopments: AvatarDevelopment[]
-        learningOutcomes: LearningOutcome[]
-        metadata: {
-            tokensUsed: {
-                prompt: number
-                completion: number
-                total: number
-            }
-            model: string
-            processingTime: number
-            imagesGenerated: number
-            totalCost: {
-                text: number
-                images: number
-                total: number
-            }
-        }
-    }
-
-    export interface GenerateStoryRequest {
-        userId: string
-        config: StoryConfig
-    }
-
-    export interface ImageAtmosphere {
-        weather: string
-        lighting: string
-        season: string
-        mood: string
-        sensoryDetails?: string[]
-    }
-
-    export interface ImageCharacterBeat {
-        name: string
-        action: string
-        expression?: string
-        position?: string
-        pose?: string
-        clothingHint?: string
-        ageGuard?: string
-    }
-
-    export interface ImageComposition {
-        camera: string
-        perspective: string
-        focalPoints: string[]
-        movement?: string
-        depth?: string
-    }
-
-    export interface ImageEnvironmentLayers {
-        foreground: string[]
-        midground: string[]
-        background: string[]
-    }
-
-    export interface ImportCharactersRequest {
-        characters: CharacterTemplate[]
-    }
-
-    export interface LearningMode {
-        enabled: boolean
-        subjects: string[]
-        difficulty: "beginner" | "intermediate" | "advanced"
-        learningObjectives: string[]
-        assessmentType: "quiz" | "interactive" | "discussion"
-    }
-
-    export interface LearningOutcome {
-        subject: string
-        newConcepts: string[]
-        reinforcedSkills: string[]
-        "difficulty_mastered": string
-        "practical_applications": string[]
-    }
-
-    export interface ListStoriesRequest {
-        limit?: number
-        offset?: number
-    }
-
-    export interface ListStoriesResponse {
-        stories: StorySummary[]
-        total: number
-        hasMore: boolean
-    }
-
-    export interface MarkStoryReadRequest {
-        storyId: string
-        storyTitle: string
-        genre?: string
-        avatarId?: string
-    }
-
-    export interface MarkStoryReadResponse {
-        success: boolean
-        updatedAvatars: number
-        personalityChanges: {
-            avatarName: string
-            changes: {
-                trait: string
-                change: number
-                description: string
-            }[]
-        }[]
-    }
-
-    export interface McpAvatarMemory {
-        id: string
-        avatarId: string
-        storyId: string
-        storyTitle: string
-        experience: string
-        emotionalImpact: "positive" | "negative" | "neutral"
-        personalityChanges: {
-            trait: string
-            change: number
-        }[]
-        createdAt: string
-    }
-
-    export type PlotHookKey = "secret_door" | "riddle_puzzle" | "lost_map" | "mysterious_guide" | "time_glitch" | "friend_turns_foe" | "foe_turns_friend" | "moral_choice"
-
-    export type SpecialIngredientKey = "surprise" | "mystery" | "transformation" | "magic" | "trial" | "aha"
-
-    export interface Story {
-        id: string
-        userId: string
-        title: string
-        description: string
-        coverImageUrl?: string
-        config: StoryConfig
-        chapters: Chapter[]
-        status: "generating" | "complete" | "error"
-        avatarDevelopments?: any[]
-        metadata?: {
-            tokensUsed?: {
-                prompt: number
-                completion: number
-                total: number
-            }
-            model?: string
-            processingTime?: number
-            imagesGenerated?: number
-            totalCost?: {
-                text: number
-                images: number
-                total: number
-            }
-        }
-        /**
-         * Cost tracking properties
-         */
-        tokensInput?: number
-
-        tokensOutput?: number
-        tokensTotal?: number
-        costInputUSD?: number
-        costOutputUSD?: number
-        costTotalUSD?: number
-        costMcpUSD?: number
-        modelUsed?: string
-        /**
-         * Cost tracking is now logged to files instead of DB
-         */
-        createdAt: string
-
-        updatedAt: string
-    }
-
-    export interface StoryConfig {
-        avatarIds: string[]
-        genre: string
-        setting: string
-        length: "short" | "medium" | "long"
-        complexity: "simple" | "medium" | "complex"
-        learningMode?: LearningMode
-        ageGroup: "3-5" | "6-8" | "9-12" | "13+"
-        /**
-         * Optional advanced styling parameters from StoryWizard
-         */
-        stylePreset?: StylePresetKey
-
-        allowRhymes?: boolean
-        tone?: StoryTone
-        language?: StoryLanguage
-        suspenseLevel?: 0 | 1 | 2 | 3
-        humorLevel?: 0 | 1 | 2 | 3
-        pacing?: StoryPacing
-        pov?: StoryPOV
-        hooks?: PlotHookKey[]
-        hasTwist?: boolean
-        customPrompt?: string
-        storySoul?: StorySoulKey
-        emotionalFlavors?: EmotionalFlavorKey[]
-        storyTempo?: StoryTempoKey
-        specialIngredients?: SpecialIngredientKey[]
-        /**
-         * AI Model selection for story generation
-         */
-        aiModel?: AIModel
-
-        /**
-         * 4-Phase System: Enable character pool system
-         */
-        useCharacterPool?: boolean
-
-        /**
-         * Fairy Tale System: Enable fairy tale template mode
-         */
-        preferences?: {
-            useFairyTaleTemplate?: boolean
-        }
-    }
-
-    export type StoryLanguage = "de" | "en"
-
-    export type StoryPOV = "ich" | "personale"
-
-    export type StoryPacing = "slow" | "balanced" | "fast"
-
-    export interface StoryRecurringElement {
-        name: string
-        description: string
-        payoffChapter: number
-    }
-
-    export type StorySoulKey = "maerchenzauber" | "lieder_reime" | "wilder_ritt" | "traeumerei" | "heldenmut" | "entdeckergeist"
-
-    export interface StorySummary {
-        id: string
-        userId: string
-        title: string
-        description: string
-        coverImageUrl?: string
-        config: StoryConfig
-        status: "generating" | "complete" | "error"
-        avatarDevelopments?: any[]
-        metadata?: {
-            tokensUsed?: {
-                prompt: number
-                completion: number
-                total: number
-            }
-            model?: string
-            processingTime?: number
-            imagesGenerated?: number
-            totalCost?: {
-                text: number
-                images: number
-                total: number
-            }
-        }
-        tokensInput?: number
-        tokensOutput?: number
-        tokensTotal?: number
-        costInputUSD?: number
-        costOutputUSD?: number
-        costTotalUSD?: number
-        costMcpUSD?: number
-        modelUsed?: string
-        createdAt: string
-        updatedAt: string
-    }
-
-    export type StoryTempoKey = "cozy" | "balanced" | "fast"
-
-    export type StoryTone = "warm" | "witty" | "epic" | "soothing" | "mischievous" | "wonder"
-
-    export type StylePresetKey = "rhymed_playful" | "gentle_minimal" | "wild_imaginative" | "philosophical_warm" | "mischief_empowering" | "adventure_epic" | "quirky_dark_sweet" | "cozy_friendly" | "classic_fantasy" | "whimsical_logic" | "mythic_allegory" | "road_fantasy" | "imaginative_meta" | "pastoral_heart" | "bedtime_soothing"
-
-    export interface SupportingCharacterSummary {
-        name: string
-        role: string
-        personality: string
-        appearance: string
-        motivation?: string
-        recurringElementUsage?: string
-    }
-
-    export interface UpdateCharacterRequest {
-        updates: {
-            name?: string
-            role?: string
-            archetype?: string
-            emotionalNature?: {
-                dominant: string
-                secondary: string[]
-                triggers?: string[]
-            }
-            visualProfile?: {
-                description: string
-                imagePrompt: string
-                species: string
-                colorPalette: string[]
-            }
-            imageUrl?: string
-            maxScreenTime?: number
-            availableChapters?: number[]
-            canonSettings?: string[]
-            recentUsageCount?: number
-            totalUsageCount?: number
-            lastUsedAt?: string
-            isActive?: boolean
-        }
-    }
-
-    export interface UpdateStoryRequest {
-        title?: string
-        description?: string
-        isPublic?: boolean
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -2529,117 +1109,108 @@ export namespace story {
             this.updateCharacter = this.updateCharacter.bind(this)
         }
 
-        public async addCharacter(params: AddCharacterRequest): Promise<CharacterTemplate> {
+        public async addCharacter(params: RequestType<typeof api_story_character_pool_api_addCharacter>): Promise<ResponseType<typeof api_story_character_pool_api_addCharacter>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool`, JSON.stringify(params))
-            return await resp.json() as CharacterTemplate
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_addCharacter>
         }
 
-        public async deleteCharacter(id: string): Promise<{
-    success: boolean
-}> {
+        public async deleteCharacter(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_deleteCharacter>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("DELETE", `/story/character-pool/${encodeURIComponent(id)}`)
-            return await resp.json() as {
-    success: boolean
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_deleteCharacter>
         }
 
         /**
          * Deletes a story and all its chapters.
          */
-        public async deleteStory(id: string): Promise<void> {
-            await this.baseClient.callTypedAPI("DELETE", `/story/${encodeURIComponent(id)}`)
+        public async deleteStory(params: { id: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
         }
 
         /**
          * ===== EXPORT CHARACTERS =====
          */
-        public async exportCharacters(): Promise<{
-    characters: CharacterTemplate[]
-}> {
+        public async exportCharacters(): Promise<ResponseType<typeof api_story_character_pool_api_exportCharacters>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool/export`)
-            return await resp.json() as {
-    characters: CharacterTemplate[]
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_exportCharacters>
         }
 
         /**
          * Generates a new story based on the provided configuration.
          */
-        public async generate(params: GenerateStoryRequest): Promise<Story> {
+        public async generate(params: RequestType<typeof api_story_generate_generate>): Promise<ResponseType<typeof api_story_generate_generate>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/generate`, JSON.stringify(params))
-            return await resp.json() as Story
+            const resp = await this.baseClient.callTypedAPI(`/story/generate`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_generate_generate>
         }
 
-        public async generateCharacterImage(id: string, params: GenerateCharacterImageRequest): Promise<GenerateCharacterImageResponse> {
+        public async generateCharacterImage(params: RequestType<typeof api_story_character_pool_api_generateCharacterImage>): Promise<ResponseType<typeof api_story_character_pool_api_generateCharacterImage>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                style: params.style,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/${encodeURIComponent(id)}/generate-image`, JSON.stringify(params))
-            return await resp.json() as GenerateCharacterImageResponse
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_generateCharacterImage>
         }
 
         /**
          * Generate a personalized story from a fairy tale template
          * This replaces the old 4-phase generation system
          */
-        public async generateFromFairyTale(params: GenerateFromFairyTaleRequest): Promise<Story> {
+        public async generateFromFairyTale(params: RequestType<typeof api_story_generate_from_fairytale_generateFromFairyTale>): Promise<ResponseType<typeof api_story_generate_from_fairytale_generateFromFairyTale>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/generate-from-fairytale`, JSON.stringify(params))
-            return await resp.json() as Story
+            const resp = await this.baseClient.callTypedAPI(`/story/generate-from-fairytale`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_generate_from_fairytale_generateFromFairyTale>
         }
 
-        public async generateStoryContent(params: GenerateStoryContentRequest): Promise<GenerateStoryContentResponse> {
+        public async generateStoryContent(params: RequestType<typeof api_story_ai_generation_generateStoryContent>): Promise<ResponseType<typeof api_story_ai_generation_generateStoryContent>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/ai/generate-story`, JSON.stringify(params))
-            return await resp.json() as GenerateStoryContentResponse
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-story`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_ai_generation_generateStoryContent>
         }
 
         /**
          * Retrieves a specific story by ID with all chapters.
          */
-        public async get(id: string): Promise<Story> {
+        public async get(params: { id: string }): Promise<ResponseType<typeof api_story_get_get>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/story/${encodeURIComponent(id)}`)
-            return await resp.json() as Story
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_get_get>
         }
 
-        public async getCharacter(id: string): Promise<CharacterTemplate> {
+        public async getCharacter(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_getCharacter>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool/${encodeURIComponent(id)}`)
-            return await resp.json() as CharacterTemplate
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_getCharacter>
         }
 
-        public async getCharacterStats(id: string): Promise<CharacterStats> {
+        public async getCharacterStats(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_getCharacterStats>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool/${encodeURIComponent(id)}/stats`)
-            return await resp.json() as CharacterStats
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/stats`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_getCharacterStats>
         }
 
         /**
          * Get details of a specific fairy tale including roles
          */
-        public async getFairyTaleDetails(taleId: string): Promise<void> {
-            await this.baseClient.callTypedAPI("GET", `/story/fairytale/${encodeURIComponent(taleId)}`)
+        public async getFairyTaleDetails(params: { taleId: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/story/fairytale/${encodeURIComponent(params.taleId)}`, {method: "GET", body: undefined})
         }
 
-        public async importCharacters(params: ImportCharactersRequest): Promise<{
-    success: boolean
-    imported: number
-}> {
+        public async importCharacters(params: RequestType<typeof api_story_character_pool_api_importCharacters>): Promise<ResponseType<typeof api_story_character_pool_api_importCharacters>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/import`, JSON.stringify(params))
-            return await resp.json() as {
-    success: boolean
-    imported: number
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/import`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_importCharacters>
         }
 
         /**
          * Retrieves stories for the authenticated user with pagination.
          */
-        public async list(params: ListStoriesRequest): Promise<ListStoriesResponse> {
+        public async list(params: RequestType<typeof api_story_list_list>): Promise<ResponseType<typeof api_story_list_list>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 limit:  params.limit === undefined ? undefined : String(params.limit),
@@ -2647,111 +1218,90 @@ export namespace story {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/stories`, undefined, {query})
-            return await resp.json() as ListStoriesResponse
+            const resp = await this.baseClient.callTypedAPI(`/stories`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_list_list>
         }
 
         /**
          * Get list of available fairy tales for story selection
          */
         public async listAvailableFairyTales(): Promise<void> {
-            await this.baseClient.callTypedAPI("GET", `/story/available-fairytales`)
+            await this.baseClient.callTypedAPI(`/story/available-fairytales`, {method: "GET", body: undefined})
         }
 
         /**
          * ===== GET ALL CHARACTERS =====
          */
-        public async listCharacters(): Promise<{
-    characters: CharacterTemplate[]
-}> {
+        public async listCharacters(): Promise<ResponseType<typeof api_story_character_pool_api_listCharacters>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/story/character-pool`)
-            return await resp.json() as {
-    characters: CharacterTemplate[]
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_listCharacters>
         }
 
         /**
          * Marks a story as read and applies personality development to all user avatars
          */
-        public async markRead(params: MarkStoryReadRequest): Promise<MarkStoryReadResponse> {
+        public async markRead(params: RequestType<typeof api_story_markRead_markRead>): Promise<ResponseType<typeof api_story_markRead_markRead>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/mark-read`, JSON.stringify(params))
-            return await resp.json() as MarkStoryReadResponse
+            const resp = await this.baseClient.callTypedAPI(`/story/mark-read`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_markRead_markRead>
         }
 
         /**
          * ===== RESET RECENT USAGE COUNTS =====
          * This should be run periodically (e.g., monthly) to give all characters fresh chances
          */
-        public async resetRecentUsage(): Promise<{
-    success: boolean
-    resetCount: number
-}> {
+        public async resetRecentUsage(): Promise<ResponseType<typeof api_story_character_pool_api_resetRecentUsage>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/reset-usage`)
-            return await resp.json() as {
-    success: boolean
-    resetCount: number
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/reset-usage`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_resetRecentUsage>
         }
 
         /**
          * ===== SEED CHARACTER POOL =====
          * Seeds the character pool with 18 pre-built characters
          */
-        public async seedPool(): Promise<{
-    success: boolean
-    count: number
-}> {
+        public async seedPool(): Promise<ResponseType<typeof api_story_character_pool_api_seedPool>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/story/character-pool/seed`)
-            return await resp.json() as {
-    success: boolean
-    count: number
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/seed`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_seedPool>
         }
 
         /**
          * Updates an existing story's metadata.
          */
-        public async update(id: string, params: UpdateStoryRequest): Promise<{
-    /**
-     * Updates an existing story's metadata.
-     */
-    success: boolean
-}> {
+        public async update(params: RequestType<typeof api_story_update_update>): Promise<ResponseType<typeof api_story_update_update>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                description: params.description,
+                isPublic:    params.isPublic,
+                title:       params.title,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("PUT", `/story/${encodeURIComponent(id)}`, JSON.stringify(params))
-            return await resp.json() as {
-    /**
-     * Updates an existing story's metadata.
-     */
-    success: boolean
-}
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_update_update>
         }
 
-        public async updateCharacter(id: string, params: UpdateCharacterRequest): Promise<CharacterTemplate> {
+        public async updateCharacter(params: RequestType<typeof api_story_character_pool_api_updateCharacter>): Promise<ResponseType<typeof api_story_character_pool_api_updateCharacter>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                updates: params.updates,
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("PUT", `/story/character-pool/${encodeURIComponent(id)}`, JSON.stringify(params))
-            return await resp.json() as CharacterTemplate
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_updateCharacter>
         }
     }
 }
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { taviChat as api_tavi_chat_taviChat } from "~backend/tavi/chat";
 
 export namespace tavi {
-    export interface TaviChatRequest {
-        message: string
-    }
-
-    export interface TaviChatResponse {
-        response: string
-        tokensUsed: {
-            prompt: number
-            completion: number
-            total: number
-        }
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -2761,31 +1311,24 @@ export namespace tavi {
             this.taviChat = this.taviChat.bind(this)
         }
 
-        public async taviChat(params: TaviChatRequest): Promise<TaviChatResponse> {
+        public async taviChat(params: RequestType<typeof api_tavi_chat_taviChat>): Promise<ResponseType<typeof api_tavi_chat_taviChat>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/tavi/chat`, JSON.stringify(params))
-            return await resp.json() as TaviChatResponse
+            const resp = await this.baseClient.callTypedAPI(`/tavi/chat`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tavi_chat_taviChat>
         }
     }
 }
 
-export namespace user {
-    export interface CreateUserRequest {
-        email: string
-        name: string
-        subscription?: "starter" | "familie" | "premium"
-        role?: "admin" | "user"
-    }
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import {
+    create as api_user_profile_create,
+    get as api_user_profile_get,
+    me as api_user_profile_me
+} from "~backend/user/profile";
 
-    export interface UserProfile {
-        id: string
-        email: string
-        name: string
-        subscription: "starter" | "familie" | "premium"
-        role: "admin" | "user"
-        createdAt: string
-        updatedAt: string
-    }
+export namespace user {
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -2800,33 +1343,62 @@ export namespace user {
         /**
          * Creates a new user profile.
          */
-        public async create(params: CreateUserRequest): Promise<UserProfile> {
+        public async create(params: RequestType<typeof api_user_profile_create>): Promise<ResponseType<typeof api_user_profile_create>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/user`, JSON.stringify(params))
-            return await resp.json() as UserProfile
+            const resp = await this.baseClient.callTypedAPI(`/user`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_create>
         }
 
         /**
          * Retrieves a user profile by ID.
          */
-        public async get(id: string): Promise<UserProfile> {
+        public async get(params: { id: string }): Promise<ResponseType<typeof api_user_profile_get>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/user/${encodeURIComponent(id)}`)
-            return await resp.json() as UserProfile
+            const resp = await this.baseClient.callTypedAPI(`/user/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_get>
         }
 
         /**
          * Returns the authenticated user's profile.
          * The auth handler ensures the user exists in the database.
          */
-        public async me(): Promise<UserProfile> {
+        public async me(): Promise<ResponseType<typeof api_user_profile_me>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/user/me`)
-            return await resp.json() as UserProfile
+            const resp = await this.baseClient.callTypedAPI(`/user/me`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_me>
         }
     }
 }
 
+
+type PickMethods<Type> = Omit<CallParameters, "method"> & { method?: Type };
+
+// Helper type to omit all fields that are cookies.
+type OmitCookie<T> = {
+  [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
+};
+
+type RequestType<Type extends (...args: any[]) => any> =
+  Parameters<Type> extends [infer H, ...any[]]
+    ? OmitCookie<H>
+    : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
+
+function dateReviver(key: string, value: any): any {
+  if (
+    typeof value === "string" &&
+    value.length >= 10 &&
+    value.charCodeAt(0) >= 48 && // '0'
+    value.charCodeAt(0) <= 57 // '9'
+  ) {
+    const parsedDate = new Date(value);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return value;
+}
 
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
@@ -2851,6 +1423,27 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     }
     return record as Record<K, V>
 }
+
+import {
+  StreamInOutHandlerFn,
+  StreamInHandlerFn,
+  StreamOutHandlerFn,
+} from "encore.dev/api";
+
+type StreamRequest<Type> = Type extends
+  | StreamInOutHandlerFn<any, infer Req, any>
+  | StreamInHandlerFn<any, infer Req, any>
+  | StreamOutHandlerFn<any, any>
+  ? Req
+  : never;
+
+type StreamResponse<Type> = Type extends
+  | StreamInOutHandlerFn<any, any, infer Resp>
+  | StreamInHandlerFn<any, any, infer Resp>
+  | StreamOutHandlerFn<any, infer Resp>
+  ? Resp
+  : never;
+
 
 function encodeWebSocketHeaders(headers: Record<string, string>) {
     // url safe, no pad
@@ -2919,7 +1512,7 @@ export class StreamInOut<Request, Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(JSON.parse(event.data, dateReviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -2963,7 +1556,7 @@ export class StreamIn<Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(JSON.parse(event.data, dateReviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -2999,7 +1592,7 @@ export class StreamOut<Request, Response> {
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data))
+            responseResolver(JSON.parse(event.data, dateReviver))
         });
     }
 
@@ -3023,7 +1616,7 @@ export class StreamOut<Request, Response> {
     }
 }
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+type CallParameters = Omit<RequestInit, "headers"> & {
     /** Headers to be sent with the request */
     headers?: Record<string, string>
 
@@ -3033,8 +1626,8 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
 export type AuthDataGenerator = () =>
-  | auth.AuthParams
-  | Promise<auth.AuthParams | undefined>
+  | RequestType<typeof auth_auth>
+  | Promise<RequestType<typeof auth_auth> | undefined>
   | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
@@ -3080,7 +1673,7 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        let authData: auth.AuthParams | undefined;
+        let authData: RequestType<typeof auth_auth> | undefined;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
@@ -3169,21 +1762,19 @@ class BaseClient {
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
-        return this.callAPI(method, path, body, {
+    public async callTypedAPI(path: string, params?: CallParameters): Promise<Response> {
+        return this.callAPI(path, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
         });
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
+    public async callAPI(path: string, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
-            method,
-            body: body ?? null,
         }
 
         // Merge our headers with any predefined headers
@@ -3509,3 +2100,5 @@ export enum ErrCode {
      */
     Unauthenticated = "unauthenticated",
 }
+
+export default new Client(import.meta.env.VITE_CLIENT_TARGET, { requestInit: { credentials: "include" } });

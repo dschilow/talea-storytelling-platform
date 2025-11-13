@@ -29,6 +29,7 @@ import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
 import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
 import DokusScreen from './screens/Doku/DokusScreen';
 import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
+import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 
 const AppContent = () => (
   <Router>
@@ -50,6 +51,7 @@ const AppContent = () => (
         <Route path="/logs" element={<LogViewerScreen />} />
         <Route path="/doku" element={<DokusScreen />} />
         <Route path="/characters" element={<CharacterPoolScreen />} />
+        <Route path="/fairytales" element={<FairyTalesScreen />} />
         <Route path="/doku/create" element={<DokuWizardScreen />} />
         <Route path="/doku-reader/:dokuId" element={<DokuScrollReaderScreen />} />
         <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />

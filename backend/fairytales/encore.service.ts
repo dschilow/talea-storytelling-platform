@@ -8,3 +8,4 @@ export default new Service("fairytales");
 // Import all API endpoints
 import "./catalog";      // List/get fairy tales catalog
 import "./generator";    // Generate personalized stories
+import "./management";   // Admin management (export/import/update/delete)
