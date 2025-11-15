@@ -1,8 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Download, Upload, BookOpen, Users, Clock, Tag, ChevronDown, ChevronRight, Eye, Lock, AlertCircle } from 'lucide-react';
+import {
+  Download,
+  Upload,
+  BookOpen,
+  Users,
+  Clock,
+  Tag,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Lock,
+  AlertCircle,
+  Edit2,
+  Save,
+  X,
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
 import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
-import { colors, gradients } from '../../utils/constants/colors';
+import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,9 +86,19 @@ const FairyTalesScreen: React.FC = () => {
   const [tales, setTales] = useState<FairyTale[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTale, setSelectedTale] = useState<string | null>(null);
-  const [taleDetails, setTaleDetails] = useState<Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[] }>>({});
+  const [taleDetails, setTaleDetails] = useState<
+    Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[] }>
+  >({});
   const [expandedTales, setExpandedTales] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Editing states
+  const [editingTale, setEditingTale] = useState<string | null>(null);
+  const [editingRole, setEditingRole] = useState<number | null>(null);
+  const [editingScene, setEditingScene] = useState<number | null>(null);
+  const [editedTaleData, setEditedTaleData] = useState<Partial<FairyTale>>({});
+  const [editedRoleData, setEditedRoleData] = useState<Partial<FairyTaleRole>>({});
+  const [editedSceneData, setEditedSceneData] = useState<Partial<FairyTaleScene>>({});
 
   const loadTales = useCallback(async () => {
     try {
@@ -83,7 +112,7 @@ const FairyTalesScreen: React.FC = () => {
       if (message.includes('auth')) {
         setErrorMessage('Authentifizierung fehlgeschlagen. Bitte melde dich erneut an.');
       } else {
-        setErrorMessage('Fehler beim Laden der Maerchen. Bitte versuche es erneut.');
+        setErrorMessage('Fehler beim Laden der Märchen. Bitte versuche es erneut.');
       }
     } finally {
       setLoading(false);
@@ -101,7 +130,7 @@ const FairyTalesScreen: React.FC = () => {
       setSelectedTale(null);
       setTaleDetails({});
       setExpandedTales(new Set());
-      setErrorMessage('Bitte melde dich an, um die Maerchenverwaltung zu nutzen.');
+      setErrorMessage('Bitte melde dich an, um die Märchenverwaltung zu nutzen.');
       return;
     }
 
@@ -115,14 +144,14 @@ const FairyTalesScreen: React.FC = () => {
       const response = await backend.fairytales.getFairyTale({
         id: taleId,
         includeRoles: true,
-        includeScenes: true
+        includeScenes: true,
       });
-      setTaleDetails(prev => ({
+      setTaleDetails((prev) => ({
         ...prev,
         [taleId]: {
           roles: response.roles || [],
-          scenes: response.scenes || []
-        }
+          scenes: response.scenes || [],
+        },
       }));
     } catch (error) {
       console.error('Error loading tale details:', error);
@@ -146,23 +175,23 @@ const FairyTalesScreen: React.FC = () => {
       downloadJSON(response.tales, 'fairytales-export-all.json');
     } catch (error) {
       console.error('Error exporting fairy tales:', error);
-      alert('Fehler beim Exportieren der M뿯½뿯½rchen');
+      alert('Fehler beim Exportieren der Märchen');
     }
   };
 
   const handleExportSelected = async () => {
     if (!selectedTale) {
-      alert('Bitte w뿯½뿯½hle zuerst ein M뿯½뿯½rchen aus');
+      alert('Bitte wähle zuerst ein Märchen aus');
       return;
     }
     try {
       const response = await backend.fairytales.exportFairyTales({ taleIds: [selectedTale] });
-      const tale = tales.find(t => t.id === selectedTale);
+      const tale = tales.find((t) => t.id === selectedTale);
       const fileName = `fairytale-${tale?.title.replace(/\s+/g, '-').toLowerCase()}.json`;
       downloadJSON(response.tales, fileName);
     } catch (error) {
       console.error('Error exporting fairy tale:', error);
-      alert('Fehler beim Exportieren des M뿯½뿯½rchens');
+      alert('Fehler beim Exportieren des Märchens');
     }
   };
 
@@ -191,19 +220,20 @@ const FairyTalesScreen: React.FC = () => {
         const data: CompleteFairyTaleExport[] = JSON.parse(text);
 
         const overwrite = window.confirm(
-          'Vorhandene M뿯½뿯½rchen mit gleicher ID 뿯½뿯½berschreiben?\n\nJa = 뿯½œberschreiben\nNein = Nur neue hinzuf뿯½뿯½gen'
+          'Vorhandene Märchen mit gleicher ID überschreiben?\n\nJa = Überschreiben\nNein = Nur neue hinzufügen'
         );
 
         const response = await backend.fairytales.importFairyTales({
           tales: data,
-          overwriteExisting: overwrite
+          overwriteExisting: overwrite,
         });
 
-        const message = `Import abgeschlossen:\n\n` +
-          `뿯½œ“ ${response.imported} neu importiert\n` +
-          `뿯½†뿯½ ${response.updated} aktualisiert\n` +
-          `뿯½Š뿯ʽ ${response.skipped} 뿯½뿯½bersprungen\n` +
-          (response.errors.length > 0 ? `뿯½œ— ${response.errors.length} Fehler` : '');
+        const message =
+          `Import abgeschlossen:\n\n` +
+          `✓ ${response.imported} neu importiert\n` +
+          `↻ ${response.updated} aktualisiert\n` +
+          `⊘ ${response.skipped} übersprungen\n` +
+          (response.errors.length > 0 ? `✗ ${response.errors.length} Fehler` : '');
 
         alert(message);
 
@@ -211,23 +241,280 @@ const FairyTalesScreen: React.FC = () => {
           console.error('Import errors:', response.errors);
         }
 
-        // Reload tales
         loadTales();
       } catch (error) {
         console.error('Error importing fairy tales:', error);
-        alert('Fehler beim Importieren der M뿯½뿯½rchen. Bitte 뿯½뿯½berpr뿯½뿯½fe das JSON-Format.');
+        alert('Fehler beim Importieren der Märchen. Bitte überprüfe das JSON-Format.');
       }
     };
     input.click();
   };
 
+  // Tale editing functions
+  const startEditingTale = (tale: FairyTale) => {
+    setEditingTale(tale.id);
+    setEditedTaleData(tale);
+  };
+
+  const cancelEditingTale = () => {
+    setEditingTale(null);
+    setEditedTaleData({});
+  };
+
+  const saveTale = async () => {
+    if (!editingTale || !editedTaleData) return;
+
+    try {
+      await backend.fairytales.updateFairyTale({
+        id: editingTale,
+        updates: {
+          title: editedTaleData.title,
+          source: editedTaleData.source,
+          originalLanguage: editedTaleData.originalLanguage,
+          englishTranslation: editedTaleData.englishTranslation,
+          cultureRegion: editedTaleData.cultureRegion,
+          ageRecommendation: editedTaleData.ageRecommendation,
+          durationMinutes: editedTaleData.durationMinutes,
+          genreTags: editedTaleData.genreTags,
+          moralLesson: editedTaleData.moralLesson,
+          summary: editedTaleData.summary,
+          isActive: editedTaleData.isActive,
+        },
+      });
+
+      // Refresh tales
+      await loadTales();
+      setEditingTale(null);
+      setEditedTaleData({});
+    } catch (error) {
+      console.error('Error saving tale:', error);
+      alert('Fehler beim Speichern des Märchens');
+    }
+  };
+
+  // Role editing functions
+  const startEditingRole = (role: FairyTaleRole) => {
+    setEditingRole(role.id);
+    setEditedRoleData(role);
+  };
+
+  const cancelEditingRole = () => {
+    setEditingRole(null);
+    setEditedRoleData({});
+  };
+
+  const saveRole = async (taleId: string) => {
+    if (!editingRole || !editedRoleData) return;
+
+    try {
+      await backend.fairytales.updateRole({
+        taleId,
+        roleId: editingRole,
+        updates: {
+          roleType: editedRoleData.roleType,
+          roleName: editedRoleData.roleName,
+          roleCount: editedRoleData.roleCount,
+          description: editedRoleData.description,
+          required: editedRoleData.required,
+          archetypePreference: editedRoleData.archetypePreference,
+          ageRangeMin: editedRoleData.ageRangeMin,
+          ageRangeMax: editedRoleData.ageRangeMax,
+          professionPreference: editedRoleData.professionPreference,
+        },
+      });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+      setEditingRole(null);
+      setEditedRoleData({});
+    } catch (error) {
+      console.error('Error saving role:', error);
+      alert('Fehler beim Speichern der Rolle');
+    }
+  };
+
+  const addRole = async (taleId: string) => {
+    try {
+      await backend.fairytales.addFairyTaleRole({
+        taleId,
+        role: {
+          roleType: 'supporting',
+          roleName: 'Neue Rolle',
+          roleCount: 1,
+          description: '',
+          required: false,
+          professionPreference: [],
+        },
+      });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+    } catch (error) {
+      console.error('Error adding role:', error);
+      alert('Fehler beim Hinzufügen der Rolle');
+    }
+  };
+
+  const deleteRole = async (taleId: string, roleId: number) => {
+    if (!window.confirm('Rolle wirklich löschen?')) return;
+
+    try {
+      await backend.fairytales.deleteRole({ taleId, roleId });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      alert('Fehler beim Löschen der Rolle');
+    }
+  };
+
+  // Scene editing functions
+  const startEditingScene = (scene: FairyTaleScene) => {
+    setEditingScene(scene.id);
+    setEditedSceneData(scene);
+  };
+
+  const cancelEditingScene = () => {
+    setEditingScene(null);
+    setEditedSceneData({});
+  };
+
+  const saveScene = async (taleId: string) => {
+    if (!editingScene || !editedSceneData) return;
+
+    try {
+      await backend.fairytales.updateScene({
+        taleId,
+        sceneId: editingScene,
+        updates: {
+          sceneNumber: editedSceneData.sceneNumber,
+          sceneTitle: editedSceneData.sceneTitle,
+          sceneDescription: editedSceneData.sceneDescription,
+          dialogueTemplate: editedSceneData.dialogueTemplate,
+          characterVariables: editedSceneData.characterVariables,
+          setting: editedSceneData.setting,
+          mood: editedSceneData.mood,
+          illustrationPromptTemplate: editedSceneData.illustrationPromptTemplate,
+          durationSeconds: editedSceneData.durationSeconds,
+        },
+      });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+      setEditingScene(null);
+      setEditedSceneData({});
+    } catch (error) {
+      console.error('Error saving scene:', error);
+      alert('Fehler beim Speichern der Szene');
+    }
+  };
+
+  const addScene = async (taleId: string) => {
+    const details = taleDetails[taleId];
+    const nextSceneNumber = details ? details.scenes.length + 1 : 1;
+
+    try {
+      await backend.fairytales.addFairyTaleScene({
+        taleId,
+        scene: {
+          sceneNumber: nextSceneNumber,
+          sceneTitle: `Szene ${nextSceneNumber}`,
+          sceneDescription: 'Neue Szene',
+          characterVariables: {},
+          durationSeconds: 60,
+        },
+      });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+    } catch (error) {
+      console.error('Error adding scene:', error);
+      alert('Fehler beim Hinzufügen der Szene');
+    }
+  };
+
+  const deleteScene = async (taleId: string, sceneId: number) => {
+    if (!window.confirm('Szene wirklich löschen?')) return;
+
+    try {
+      await backend.fairytales.deleteScene({ taleId, sceneId });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+    } catch (error) {
+      console.error('Error deleting scene:', error);
+      alert('Fehler beim Löschen der Szene');
+    }
+  };
+
+  const moveScene = async (taleId: string, sceneId: number, direction: 'up' | 'down') => {
+    const details = taleDetails[taleId];
+    if (!details) return;
+
+    const sceneIndex = details.scenes.findIndex((s) => s.id === sceneId);
+    if (sceneIndex === -1) return;
+
+    const newIndex = direction === 'up' ? sceneIndex - 1 : sceneIndex + 1;
+    if (newIndex < 0 || newIndex >= details.scenes.length) return;
+
+    try {
+      // Swap scene numbers
+      const scenes = [...details.scenes];
+      const currentScene = scenes[sceneIndex];
+      const otherScene = scenes[newIndex];
+
+      const sceneOrdering = [
+        { sceneId: currentScene.id, newSceneNumber: otherScene.sceneNumber },
+        { sceneId: otherScene.id, newSceneNumber: currentScene.sceneNumber },
+      ];
+
+      await backend.fairytales.reorderScenes({ taleId, sceneOrdering });
+
+      // Refresh tale details
+      delete taleDetails[taleId];
+      await loadTaleDetails(taleId);
+    } catch (error) {
+      console.error('Error reordering scenes:', error);
+      alert('Fehler beim Verschieben der Szene');
+    }
+  };
+
   const getRoleTypeBadgeColor = (roleType: string) => {
     switch (roleType) {
-      case 'protagonist': return '#10b981';
-      case 'antagonist': return '#ef4444';
-      case 'helper': return '#3b82f6';
-      case 'love_interest': return '#ec4899';
-      default: return '#6b7280';
+      case 'protagonist':
+        return '#10b981';
+      case 'antagonist':
+        return '#ef4444';
+      case 'helper':
+        return '#3b82f6';
+      case 'love_interest':
+        return '#ec4899';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const getRoleTypeLabel = (roleType: string) => {
+    switch (roleType) {
+      case 'protagonist':
+        return 'Protagonist';
+      case 'antagonist':
+        return 'Antagonist';
+      case 'helper':
+        return 'Helfer';
+      case 'love_interest':
+        return 'Liebesinteresse';
+      case 'supporting':
+        return 'Nebenrolle';
+      default:
+        return roleType;
     }
   };
 
@@ -350,6 +637,9 @@ const FairyTalesScreen: React.FC = () => {
     ...typography.textStyles.headingSm,
     color: colors.text.primary,
     marginBottom: spacing.md,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   };
 
   const roleCardStyle: React.CSSProperties = {
@@ -366,6 +656,23 @@ const FairyTalesScreen: React.FC = () => {
     background: 'rgba(255, 255, 255, 0.05)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     marginBottom: spacing.sm,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: `${spacing.sm}px`,
+    borderRadius: `${radii.sm}px`,
+    background: 'rgba(0, 0, 0, 0.3)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: colors.text.primary,
+    fontSize: '14px',
+    marginBottom: spacing.xs,
+  };
+
+  const textareaStyle: React.CSSProperties = {
+    ...inputStyle,
+    minHeight: '80px',
+    resize: 'vertical' as const,
   };
 
   const stateCardStyle: React.CSSProperties = {
@@ -386,10 +693,10 @@ const FairyTalesScreen: React.FC = () => {
         <div style={headerCardStyle}>
           <h1 style={titleStyle}>
             <BookOpen size={40} />
-            M뿯½뿯½rchen-Verwaltung
+            Märchen-Verwaltung
           </h1>
           <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
-            Verwalte die 뿯½뿯½ffentlichen M뿯½뿯½rchen-Vorlagen f뿯½뿯½r Story-Generierung
+            Verwalte die öffentlichen Märchen-Vorlagen für Story-Generierung
           </p>
 
           <div style={actionsStyle}>
@@ -420,39 +727,33 @@ const FairyTalesScreen: React.FC = () => {
         {!isLoaded ? (
           <div style={stateCardStyle}>
             <BookOpen size={48} style={{ color: colors.text.tertiary }} />
-            <p style={{ color: colors.text.secondary }}>Pruefe Anmeldung...</p>
+            <p style={{ color: colors.text.secondary }}>Prüfe Anmeldung...</p>
           </div>
         ) : !isSignedIn ? (
           <div style={stateCardStyle}>
             <Lock size={48} style={{ color: colors.text.tertiary }} />
             <h3 style={{ ...typography.textStyles.headingMd, margin: 0 }}>Bitte anmelden</h3>
-            <p style={{ color: colors.text.secondary }}>Du musst angemeldet sein, um die Maerchenverwaltung zu sehen.</p>
-            <Button
-              title="Zur Anmeldung"
-              variant="primary"
-              onPress={() => navigate('/auth')}
-            />
+            <p style={{ color: colors.text.secondary }}>
+              Du musst angemeldet sein, um die Märchenverwaltung zu sehen.
+            </p>
+            <Button title="Zur Anmeldung" variant="primary" onPress={() => navigate('/auth')} />
           </div>
         ) : loading ? (
           <div style={stateCardStyle}>
             <BookOpen size={48} style={{ color: colors.text.tertiary }} />
-            <p style={{ color: colors.text.secondary }}>Lade Maerchen...</p>
+            <p style={{ color: colors.text.secondary }}>Lade Märchen...</p>
           </div>
         ) : errorMessage ? (
           <div style={stateCardStyle}>
             <AlertCircle size={48} style={{ color: colors.semantic.error }} />
             <p style={{ color: colors.text.secondary }}>{errorMessage}</p>
-            <Button
-              title="Erneut versuchen"
-              variant="primary"
-              onPress={loadTales}
-            />
+            <Button title="Erneut versuchen" variant="primary" onPress={loadTales} />
           </div>
         ) : tales.length === 0 ? (
           <div style={stateCardStyle}>
             <BookOpen size={48} style={{ color: colors.text.tertiary }} />
             <p style={{ color: colors.text.secondary, marginTop: spacing.md }}>
-              Keine Maerchen gefunden. Importiere eine JSON-Datei.
+              Keine Märchen gefunden. Importiere eine JSON-Datei.
             </p>
           </div>
         ) : (
@@ -460,6 +761,8 @@ const FairyTalesScreen: React.FC = () => {
             {tales.map((tale) => {
               const isExpanded = expandedTales.has(tale.id);
               const details = taleDetails[tale.id];
+              const isEditing = editingTale === tale.id;
+              const currentTaleData = isEditing ? (editedTaleData as FairyTale) : tale;
 
               return (
                 <motion.div
@@ -473,62 +776,199 @@ const FairyTalesScreen: React.FC = () => {
                 >
                   <div style={taleHeaderStyle}>
                     <div style={taleMainInfoStyle}>
-                      <h3 style={taleTitleStyle}>
-                        {tale.title}
-                        {tale.englishTranslation && (
-                          <span style={{ fontSize: '14px', color: colors.text.tertiary }}>
-                            ({tale.englishTranslation})
-                          </span>
-                        )}
-                      </h3>
-
-                      <div style={taleMetaStyle}>
-                        <div style={metaItemStyle}>
-                          <Users size={16} />
-                          <span>{tale.source}</span>
+                      {/* Tale Title */}
+                      {isEditing ? (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <input
+                            style={inputStyle}
+                            value={currentTaleData.title || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({ ...editedTaleData, title: e.target.value })
+                            }
+                            placeholder="Titel"
+                          />
+                          <input
+                            style={inputStyle}
+                            value={currentTaleData.englishTranslation || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({
+                                ...editedTaleData,
+                                englishTranslation: e.target.value,
+                              })
+                            }
+                            placeholder="Englische Übersetzung"
+                          />
                         </div>
-                        <div style={metaItemStyle}>
-                          <Clock size={16} />
-                          <span>{tale.durationMinutes} Min</span>
-                        </div>
-                        <div style={metaItemStyle}>
-                          <Tag size={16} />
-                          <span>Ab {tale.ageRecommendation} Jahren</span>
-                        </div>
-                      </div>
-
-                      {tale.genreTags && tale.genreTags.length > 0 && (
-                        <div style={tagsStyle}>
-                          {tale.genreTags.map((tag, i) => (
-                            <span key={i} style={tagStyle}>{tag}</span>
-                          ))}
-                        </div>
+                      ) : (
+                        <h3 style={taleTitleStyle}>
+                          {tale.title}
+                          {tale.englishTranslation && (
+                            <span style={{ fontSize: '14px', color: colors.text.tertiary }}>
+                              ({tale.englishTranslation})
+                            </span>
+                          )}
+                        </h3>
                       )}
 
-                      {tale.moralLesson && (
-                        <p style={{
-                          ...typography.textStyles.bodySm,
-                          color: colors.text.secondary,
-                          marginTop: spacing.sm,
-                          fontStyle: 'italic'
-                        }}>
-                          Moral: {tale.moralLesson}
-                        </p>
+                      {/* Tale Metadata */}
+                      {isEditing ? (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <input
+                            style={inputStyle}
+                            value={currentTaleData.source || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({ ...editedTaleData, source: e.target.value })
+                            }
+                            placeholder="Quelle"
+                          />
+                          <input
+                            style={inputStyle}
+                            value={currentTaleData.cultureRegion || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({ ...editedTaleData, cultureRegion: e.target.value })
+                            }
+                            placeholder="Kulturregion"
+                          />
+                          <input
+                            type="number"
+                            style={inputStyle}
+                            value={currentTaleData.ageRecommendation || 0}
+                            onChange={(e) =>
+                              setEditedTaleData({
+                                ...editedTaleData,
+                                ageRecommendation: parseInt(e.target.value),
+                              })
+                            }
+                            placeholder="Altersempfehlung"
+                          />
+                          <input
+                            type="number"
+                            style={inputStyle}
+                            value={currentTaleData.durationMinutes || 0}
+                            onChange={(e) =>
+                              setEditedTaleData({
+                                ...editedTaleData,
+                                durationMinutes: parseInt(e.target.value),
+                              })
+                            }
+                            placeholder="Dauer (Minuten)"
+                          />
+                          <input
+                            style={inputStyle}
+                            value={currentTaleData.genreTags?.join(', ') || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({
+                                ...editedTaleData,
+                                genreTags: e.target.value.split(',').map((t) => t.trim()),
+                              })
+                            }
+                            placeholder="Genre Tags (kommagetrennt)"
+                          />
+                          <textarea
+                            style={textareaStyle}
+                            value={currentTaleData.moralLesson || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({ ...editedTaleData, moralLesson: e.target.value })
+                            }
+                            placeholder="Moral"
+                          />
+                          <textarea
+                            style={textareaStyle}
+                            value={currentTaleData.summary || ''}
+                            onChange={(e) =>
+                              setEditedTaleData({ ...editedTaleData, summary: e.target.value })
+                            }
+                            placeholder="Zusammenfassung"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div style={taleMetaStyle}>
+                            <div style={metaItemStyle}>
+                              <Users size={16} />
+                              <span>{tale.source}</span>
+                            </div>
+                            <div style={metaItemStyle}>
+                              <Clock size={16} />
+                              <span>{tale.durationMinutes} Min</span>
+                            </div>
+                            <div style={metaItemStyle}>
+                              <Tag size={16} />
+                              <span>Ab {tale.ageRecommendation} Jahren</span>
+                            </div>
+                          </div>
+
+                          {tale.genreTags && tale.genreTags.length > 0 && (
+                            <div style={tagsStyle}>
+                              {tale.genreTags.map((tag, i) => (
+                                <span key={i} style={tagStyle}>
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {tale.moralLesson && (
+                            <p
+                              style={{
+                                ...typography.textStyles.bodySm,
+                                color: colors.text.secondary,
+                                marginTop: spacing.sm,
+                                fontStyle: 'italic',
+                              }}
+                            >
+                              Moral: {tale.moralLesson}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
 
-                    <Button
-                      title={isExpanded ? 'Details ausblenden' : 'Details anzeigen'}
-                      variant="ghost"
-                      size="sm"
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        toggleTaleExpansion(tale.id);
-                      }}
-                      icon={isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                    />
+                    {/* Tale Actions */}
+                    <div style={{ display: 'flex', gap: spacing.xs }} onClick={(e) => e.stopPropagation()}>
+                      {isEditing ? (
+                        <>
+                          <Button
+                            title=""
+                            variant="primary"
+                            size="sm"
+                            onPress={saveTale}
+                            icon={<Save size={16} />}
+                          />
+                          <Button
+                            title=""
+                            variant="ghost"
+                            size="sm"
+                            onPress={cancelEditingTale}
+                            icon={<X size={16} />}
+                          />
+                        </>
+                      ) : (
+                        <Button
+                          title=""
+                          variant="ghost"
+                          size="sm"
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            startEditingTale(tale);
+                          }}
+                          icon={<Edit2 size={16} />}
+                        />
+                      )}
+                      <Button
+                        title={isExpanded ? '' : ''}
+                        variant="ghost"
+                        size="sm"
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          toggleTaleExpansion(tale.id);
+                        }}
+                        icon={isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                      />
+                    </div>
                   </div>
 
+                  {/* Expanded Details */}
                   <AnimatePresence>
                     {isExpanded && details && (
                       <motion.div
@@ -537,104 +977,411 @@ const FairyTalesScreen: React.FC = () => {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3 }}
                         style={{ overflow: 'hidden' }}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <div style={detailsSectionStyle}>
                           {/* Roles Section */}
                           <div>
                             <h4 style={sectionTitleStyle}>
-                              Rollen ({details.roles.length})
+                              <span>Rollen ({details.roles.length})</span>
+                              <Button
+                                title="Neue Rolle"
+                                variant="fun"
+                                size="sm"
+                                onPress={() => addRole(tale.id)}
+                                icon={<Plus size={16} />}
+                              />
                             </h4>
-                            {details.roles.map((role) => (
-                              <div key={role.id} style={roleCardStyle}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div>
-                                    <span style={{
-                                      padding: `4px 8px`,
-                                      borderRadius: '4px',
-                                      background: getRoleTypeBadgeColor(role.roleType),
-                                      color: 'white',
-                                      fontSize: '12px',
-                                      marginRight: spacing.sm
-                                    }}>
-                                      {role.roleType}
-                                    </span>
-                                    <strong style={{ color: colors.text.primary }}>
-                                      {role.roleName || 'Unnamed'}
-                                    </strong>
-                                    {role.required && (
-                                      <span style={{
-                                        marginLeft: spacing.xs,
-                                        fontSize: '12px',
-                                        color: '#ef4444'
-                                      }}>*</span>
-                                    )}
-                                  </div>
-                                  <span style={{ fontSize: '14px', color: colors.text.tertiary }}>
-                                    뿯½— {role.roleCount}
-                                  </span>
+                            {details.roles.map((role) => {
+                              const isEditingThisRole = editingRole === role.id;
+                              const currentRoleData = isEditingThisRole
+                                ? (editedRoleData as FairyTaleRole)
+                                : role;
+
+                              return (
+                                <div key={role.id} style={roleCardStyle}>
+                                  {isEditingThisRole ? (
+                                    <div>
+                                      <select
+                                        style={inputStyle}
+                                        value={currentRoleData.roleType}
+                                        onChange={(e) =>
+                                          setEditedRoleData({
+                                            ...editedRoleData,
+                                            roleType: e.target.value as RoleType,
+                                          })
+                                        }
+                                      >
+                                        <option value="protagonist">Protagonist</option>
+                                        <option value="antagonist">Antagonist</option>
+                                        <option value="helper">Helfer</option>
+                                        <option value="love_interest">Liebesinteresse</option>
+                                        <option value="supporting">Nebenrolle</option>
+                                      </select>
+                                      <input
+                                        style={inputStyle}
+                                        value={currentRoleData.roleName || ''}
+                                        onChange={(e) =>
+                                          setEditedRoleData({
+                                            ...editedRoleData,
+                                            roleName: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Rollenname"
+                                      />
+                                      <input
+                                        type="number"
+                                        style={inputStyle}
+                                        value={currentRoleData.roleCount || 1}
+                                        onChange={(e) =>
+                                          setEditedRoleData({
+                                            ...editedRoleData,
+                                            roleCount: parseInt(e.target.value),
+                                          })
+                                        }
+                                        placeholder="Anzahl"
+                                      />
+                                      <textarea
+                                        style={textareaStyle}
+                                        value={currentRoleData.description || ''}
+                                        onChange={(e) =>
+                                          setEditedRoleData({
+                                            ...editedRoleData,
+                                            description: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Beschreibung"
+                                      />
+                                      <input
+                                        style={inputStyle}
+                                        value={currentRoleData.professionPreference?.join(', ') || ''}
+                                        onChange={(e) =>
+                                          setEditedRoleData({
+                                            ...editedRoleData,
+                                            professionPreference: e.target.value
+                                              .split(',')
+                                              .map((t) => t.trim()),
+                                          })
+                                        }
+                                        placeholder="Berufspräferenzen (kommagetrennt)"
+                                      />
+                                      <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.sm }}>
+                                        <Button
+                                          title="Speichern"
+                                          variant="primary"
+                                          size="sm"
+                                          onPress={() => saveRole(tale.id)}
+                                          icon={<Save size={16} />}
+                                        />
+                                        <Button
+                                          title="Abbrechen"
+                                          variant="ghost"
+                                          size="sm"
+                                          onPress={cancelEditingRole}
+                                          icon={<X size={16} />}
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                        }}
+                                      >
+                                        <div>
+                                          <span
+                                            style={{
+                                              padding: `4px 8px`,
+                                              borderRadius: '4px',
+                                              background: getRoleTypeBadgeColor(role.roleType),
+                                              color: 'white',
+                                              fontSize: '12px',
+                                              marginRight: spacing.sm,
+                                            }}
+                                          >
+                                            {getRoleTypeLabel(role.roleType)}
+                                          </span>
+                                          <strong style={{ color: colors.text.primary }}>
+                                            {role.roleName || 'Unbenannt'}
+                                          </strong>
+                                          {role.required && (
+                                            <span
+                                              style={{
+                                                marginLeft: spacing.xs,
+                                                fontSize: '12px',
+                                                color: '#ef4444',
+                                              }}
+                                            >
+                                              *
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center' }}>
+                                          <span style={{ fontSize: '14px', color: colors.text.tertiary }}>
+                                            × {role.roleCount}
+                                          </span>
+                                          <Button
+                                            title=""
+                                            variant="ghost"
+                                            size="sm"
+                                            onPress={() => startEditingRole(role)}
+                                            icon={<Edit2 size={14} />}
+                                          />
+                                          <Button
+                                            title=""
+                                            variant="ghost"
+                                            size="sm"
+                                            onPress={() => deleteRole(tale.id, role.id)}
+                                            icon={<Trash2 size={14} />}
+                                          />
+                                        </div>
+                                      </div>
+                                      {role.description && (
+                                        <p
+                                          style={{
+                                            ...typography.textStyles.bodySm,
+                                            color: colors.text.secondary,
+                                            marginTop: spacing.xs,
+                                          }}
+                                        >
+                                          {role.description}
+                                        </p>
+                                      )}
+                                      {role.professionPreference && role.professionPreference.length > 0 && (
+                                        <p
+                                          style={{
+                                            fontSize: '12px',
+                                            color: colors.text.tertiary,
+                                            marginTop: spacing.xs,
+                                          }}
+                                        >
+                                          Berufe: {role.professionPreference.join(', ')}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
-                                {role.description && (
-                                  <p style={{
-                                    ...typography.textStyles.bodySm,
-                                    color: colors.text.secondary,
-                                    marginTop: spacing.xs
-                                  }}>
-                                    {role.description}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
 
                           {/* Scenes Section */}
                           <div style={{ marginTop: spacing.lg }}>
                             <h4 style={sectionTitleStyle}>
-                              Szenen ({details.scenes.length})
+                              <span>Szenen ({details.scenes.length})</span>
+                              <Button
+                                title="Neue Szene"
+                                variant="fun"
+                                size="sm"
+                                onPress={() => addScene(tale.id)}
+                                icon={<Plus size={16} />}
+                              />
                             </h4>
-                            {details.scenes.map((scene) => (
-                              <div key={scene.id} style={sceneCardStyle}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-                                      <span style={{
-                                        width: '24px',
-                                        height: '24px',
-                                        borderRadius: '50%',
-                                        background: '#8b5cf6',
-                                        color: 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '12px',
-                                        fontWeight: 'bold'
-                                      }}>
-                                        {scene.sceneNumber}
-                                      </span>
-                                      {scene.sceneTitle && (
-                                        <strong style={{ color: colors.text.primary }}>
-                                          {scene.sceneTitle}
-                                        </strong>
-                                      )}
-                                    </div>
-                                    <p style={{
-                                      ...typography.textStyles.bodySm,
-                                      color: colors.text.secondary,
-                                      marginTop: spacing.xs
-                                    }}>
-                                      {scene.sceneDescription}
-                                    </p>
-                                    {scene.setting && (
-                                      <div style={{ marginTop: spacing.xs, fontSize: '12px', color: colors.text.tertiary }}>
-                                        Setting: {scene.setting} | Mood: {scene.mood}
+                            {details.scenes
+                              .sort((a, b) => a.sceneNumber - b.sceneNumber)
+                              .map((scene, idx) => {
+                                const isEditingThisScene = editingScene === scene.id;
+                                const currentSceneData = isEditingThisScene
+                                  ? (editedSceneData as FairyTaleScene)
+                                  : scene;
+
+                                return (
+                                  <div key={scene.id} style={sceneCardStyle}>
+                                    {isEditingThisScene ? (
+                                      <div>
+                                        <input
+                                          style={inputStyle}
+                                          value={currentSceneData.sceneTitle || ''}
+                                          onChange={(e) =>
+                                            setEditedSceneData({
+                                              ...editedSceneData,
+                                              sceneTitle: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Szenen-Titel"
+                                        />
+                                        <textarea
+                                          style={textareaStyle}
+                                          value={currentSceneData.sceneDescription || ''}
+                                          onChange={(e) =>
+                                            setEditedSceneData({
+                                              ...editedSceneData,
+                                              sceneDescription: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Beschreibung"
+                                        />
+                                        <textarea
+                                          style={textareaStyle}
+                                          value={currentSceneData.dialogueTemplate || ''}
+                                          onChange={(e) =>
+                                            setEditedSceneData({
+                                              ...editedSceneData,
+                                              dialogueTemplate: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Dialog-Vorlage"
+                                        />
+                                        <input
+                                          style={inputStyle}
+                                          value={currentSceneData.setting || ''}
+                                          onChange={(e) =>
+                                            setEditedSceneData({
+                                              ...editedSceneData,
+                                              setting: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Schauplatz"
+                                        />
+                                        <input
+                                          style={inputStyle}
+                                          value={currentSceneData.mood || ''}
+                                          onChange={(e) =>
+                                            setEditedSceneData({ ...editedSceneData, mood: e.target.value })
+                                          }
+                                          placeholder="Stimmung"
+                                        />
+                                        <input
+                                          type="number"
+                                          style={inputStyle}
+                                          value={currentSceneData.durationSeconds || 0}
+                                          onChange={(e) =>
+                                            setEditedSceneData({
+                                              ...editedSceneData,
+                                              durationSeconds: parseInt(e.target.value),
+                                            })
+                                          }
+                                          placeholder="Dauer (Sekunden)"
+                                        />
+                                        <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.sm }}>
+                                          <Button
+                                            title="Speichern"
+                                            variant="primary"
+                                            size="sm"
+                                            onPress={() => saveScene(tale.id)}
+                                            icon={<Save size={16} />}
+                                          />
+                                          <Button
+                                            title="Abbrechen"
+                                            variant="ghost"
+                                            size="sm"
+                                            onPress={cancelEditingScene}
+                                            icon={<X size={16} />}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <div
+                                          style={{ display: 'flex', justifyContent: 'space-between' }}
+                                        >
+                                          <div style={{ flex: 1 }}>
+                                            <div
+                                              style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: spacing.sm,
+                                                marginBottom: spacing.xs,
+                                              }}
+                                            >
+                                              <span
+                                                style={{
+                                                  width: '24px',
+                                                  height: '24px',
+                                                  borderRadius: '50%',
+                                                  background: '#8b5cf6',
+                                                  color: 'white',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center',
+                                                  fontSize: '12px',
+                                                  fontWeight: 'bold',
+                                                }}
+                                              >
+                                                {scene.sceneNumber}
+                                              </span>
+                                              {scene.sceneTitle && (
+                                                <strong style={{ color: colors.text.primary }}>
+                                                  {scene.sceneTitle}
+                                                </strong>
+                                              )}
+                                            </div>
+                                            <p
+                                              style={{
+                                                ...typography.textStyles.bodySm,
+                                                color: colors.text.secondary,
+                                                marginTop: spacing.xs,
+                                              }}
+                                            >
+                                              {scene.sceneDescription}
+                                            </p>
+                                            {scene.setting && (
+                                              <div
+                                                style={{
+                                                  marginTop: spacing.xs,
+                                                  fontSize: '12px',
+                                                  color: colors.text.tertiary,
+                                                }}
+                                              >
+                                                Schauplatz: {scene.setting} | Stimmung: {scene.mood}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div
+                                            style={{
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              gap: spacing.xs,
+                                              alignItems: 'flex-end',
+                                            }}
+                                          >
+                                            <span
+                                              style={{ fontSize: '12px', color: colors.text.tertiary }}
+                                            >
+                                              {scene.durationSeconds}s
+                                            </span>
+                                            <div style={{ display: 'flex', gap: spacing.xs }}>
+                                              <Button
+                                                title=""
+                                                variant="ghost"
+                                                size="sm"
+                                                onPress={() => moveScene(tale.id, scene.id, 'up')}
+                                                icon={<ArrowUp size={14} />}
+                                                disabled={idx === 0}
+                                              />
+                                              <Button
+                                                title=""
+                                                variant="ghost"
+                                                size="sm"
+                                                onPress={() => moveScene(tale.id, scene.id, 'down')}
+                                                icon={<ArrowDown size={14} />}
+                                                disabled={idx === details.scenes.length - 1}
+                                              />
+                                              <Button
+                                                title=""
+                                                variant="ghost"
+                                                size="sm"
+                                                onPress={() => startEditingScene(scene)}
+                                                icon={<Edit2 size={14} />}
+                                              />
+                                              <Button
+                                                title=""
+                                                variant="ghost"
+                                                size="sm"
+                                                onPress={() => deleteScene(tale.id, scene.id)}
+                                                icon={<Trash2 size={14} />}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
-                                  <span style={{ fontSize: '12px', color: colors.text.tertiary }}>
-                                    {scene.durationSeconds}s
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                                );
+                              })}
                           </div>
                         </div>
                       </motion.div>
@@ -651,11 +1398,3 @@ const FairyTalesScreen: React.FC = () => {
 };
 
 export default FairyTalesScreen;
-
-
-
-
-
-
-
-

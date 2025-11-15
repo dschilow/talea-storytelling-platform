@@ -466,3 +466,275 @@ export const deleteFairyTale = api<DeleteFairyTaleRequest, { success: boolean }>
   }
 );
 
+// =====================================================
+// ROLE MANAGEMENT APIs
+// =====================================================
+// Note: Create role API is in catalog.ts (addFairyTaleRole)
+
+/**
+ * Update a role
+ */
+export const updateRole = api<UpdateRoleRequest, FairyTaleRole>(
+  { expose: true, method: "PATCH", path: "/fairytales/:taleId/roles/:roleId", auth: true },
+  async (req) => {
+    console.log("[FairyTales] Updating role:", req.roleId);
+
+    const auth = getAuthData()!;
+
+    if (auth.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can update roles");
+    }
+
+    // Get current role
+    const currentRole = await fairytalesDB.queryRow<any>`
+      SELECT
+        id, tale_id, role_type, role_name, role_count, description,
+        required, archetype_preference, age_range_min, age_range_max,
+        profession_preference, created_at
+      FROM fairy_tale_roles
+      WHERE id = ${req.roleId} AND tale_id = ${req.taleId}
+    `;
+
+    if (!currentRole) {
+      throw APIError.notFound(`Role ${req.roleId} not found`);
+    }
+
+    const updates = req.updates;
+
+    // Use current values for fields not being updated
+    const roleType = updates.roleType ?? currentRole.role_type;
+    const roleName = updates.roleName ?? currentRole.role_name;
+    const roleCount = updates.roleCount ?? currentRole.role_count;
+    const description = updates.description ?? currentRole.description;
+    const required = updates.required ?? currentRole.required;
+    const archetypePreference = updates.archetypePreference ?? currentRole.archetype_preference;
+    const ageRangeMin = updates.ageRangeMin ?? currentRole.age_range_min;
+    const ageRangeMax = updates.ageRangeMax ?? currentRole.age_range_max;
+    const professionPreference = updates.professionPreference !== undefined
+      ? JSON.stringify(updates.professionPreference)
+      : currentRole.profession_preference;
+
+    await fairytalesDB.exec`
+      UPDATE fairy_tale_roles
+      SET
+        role_type = ${roleType},
+        role_name = ${roleName},
+        role_count = ${roleCount},
+        description = ${description},
+        required = ${required},
+        archetype_preference = ${archetypePreference},
+        age_range_min = ${ageRangeMin},
+        age_range_max = ${ageRangeMax},
+        profession_preference = ${professionPreference}
+      WHERE id = ${req.roleId}
+    `;
+
+    // Fetch and return updated role
+    const roleRow = await fairytalesDB.queryRow<any>`
+      SELECT
+        id, tale_id, role_type, role_name, role_count, description,
+        required, archetype_preference, age_range_min, age_range_max,
+        profession_preference, created_at
+      FROM fairy_tale_roles
+      WHERE id = ${req.roleId}
+    `;
+
+    console.log(`[FairyTales] Updated role ${req.roleId}`);
+
+    return {
+      id: roleRow!.id,
+      taleId: roleRow!.tale_id,
+      roleType: roleRow!.role_type,
+      roleName: roleRow!.role_name,
+      roleCount: roleRow!.role_count,
+      description: roleRow!.description,
+      required: roleRow!.required,
+      archetypePreference: roleRow!.archetype_preference,
+      ageRangeMin: roleRow!.age_range_min,
+      ageRangeMax: roleRow!.age_range_max,
+      professionPreference: Array.isArray(roleRow!.profession_preference) ? roleRow!.profession_preference : [],
+      createdAt: roleRow!.created_at.toISOString(),
+    };
+  }
+);
+
+/**
+ * Delete a role
+ */
+export const deleteRole = api<DeleteRoleRequest, { success: boolean }>(
+  { expose: true, method: "DELETE", path: "/fairytales/:taleId/roles/:roleId", auth: true },
+  async (req) => {
+    console.log("[FairyTales] Deleting role:", req.roleId);
+
+    const auth = getAuthData()!;
+
+    if (auth.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can delete roles");
+    }
+
+    await fairytalesDB.exec`
+      DELETE FROM fairy_tale_roles
+      WHERE id = ${req.roleId} AND tale_id = ${req.taleId}
+    `;
+
+    console.log(`[FairyTales] Deleted role ${req.roleId}`);
+
+    return { success: true };
+  }
+);
+
+// =====================================================
+// SCENE MANAGEMENT APIs
+// =====================================================
+// Note: Create scene API is in catalog.ts (addFairyTaleScene)
+
+/**
+ * Update a scene
+ */
+export const updateScene = api<UpdateSceneRequest, FairyTaleScene>(
+  { expose: true, method: "PATCH", path: "/fairytales/:taleId/scenes/:sceneId", auth: true },
+  async (req) => {
+    console.log("[FairyTales] Updating scene:", req.sceneId);
+
+    const auth = getAuthData()!;
+
+    if (auth.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can update scenes");
+    }
+
+    // Get current scene
+    const currentScene = await fairytalesDB.queryRow<any>`
+      SELECT
+        id, tale_id, scene_number, scene_title, scene_description,
+        dialogue_template, character_variables, setting, mood,
+        illustration_prompt_template, duration_seconds,
+        created_at, updated_at
+      FROM fairy_tale_scenes
+      WHERE id = ${req.sceneId} AND tale_id = ${req.taleId}
+    `;
+
+    if (!currentScene) {
+      throw APIError.notFound(`Scene ${req.sceneId} not found`);
+    }
+
+    const updates = req.updates;
+
+    // Use current values for fields not being updated
+    const sceneNumber = updates.sceneNumber ?? currentScene.scene_number;
+    const sceneTitle = updates.sceneTitle ?? currentScene.scene_title;
+    const sceneDescription = updates.sceneDescription ?? currentScene.scene_description;
+    const dialogueTemplate = updates.dialogueTemplate ?? currentScene.dialogue_template;
+    const characterVariables = updates.characterVariables !== undefined
+      ? JSON.stringify(updates.characterVariables)
+      : currentScene.character_variables;
+    const setting = updates.setting ?? currentScene.setting;
+    const mood = updates.mood ?? currentScene.mood;
+    const illustrationPromptTemplate = updates.illustrationPromptTemplate ?? currentScene.illustration_prompt_template;
+    const durationSeconds = updates.durationSeconds ?? currentScene.duration_seconds;
+
+    await fairytalesDB.exec`
+      UPDATE fairy_tale_scenes
+      SET
+        scene_number = ${sceneNumber},
+        scene_title = ${sceneTitle},
+        scene_description = ${sceneDescription},
+        dialogue_template = ${dialogueTemplate},
+        character_variables = ${characterVariables},
+        setting = ${setting},
+        mood = ${mood},
+        illustration_prompt_template = ${illustrationPromptTemplate},
+        duration_seconds = ${durationSeconds},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${req.sceneId}
+    `;
+
+    // Fetch and return updated scene
+    const sceneRow = await fairytalesDB.queryRow<any>`
+      SELECT
+        id, tale_id, scene_number, scene_title, scene_description,
+        dialogue_template, character_variables, setting, mood,
+        illustration_prompt_template, duration_seconds,
+        created_at, updated_at
+      FROM fairy_tale_scenes
+      WHERE id = ${req.sceneId}
+    `;
+
+    console.log(`[FairyTales] Updated scene ${req.sceneId}`);
+
+    return {
+      id: sceneRow!.id,
+      taleId: sceneRow!.tale_id,
+      sceneNumber: sceneRow!.scene_number,
+      sceneTitle: sceneRow!.scene_title,
+      sceneDescription: sceneRow!.scene_description,
+      dialogueTemplate: sceneRow!.dialogue_template,
+      characterVariables: sceneRow!.character_variables || {},
+      setting: sceneRow!.setting,
+      mood: sceneRow!.mood,
+      illustrationPromptTemplate: sceneRow!.illustration_prompt_template,
+      durationSeconds: sceneRow!.duration_seconds,
+      createdAt: sceneRow!.created_at.toISOString(),
+      updatedAt: sceneRow!.updated_at.toISOString(),
+    };
+  }
+);
+
+/**
+ * Delete a scene
+ */
+export const deleteScene = api<DeleteSceneRequest, { success: boolean }>(
+  { expose: true, method: "DELETE", path: "/fairytales/:taleId/scenes/:sceneId", auth: true },
+  async (req) => {
+    console.log("[FairyTales] Deleting scene:", req.sceneId);
+
+    const auth = getAuthData()!;
+
+    if (auth.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can delete scenes");
+    }
+
+    await fairytalesDB.exec`
+      DELETE FROM fairy_tale_scenes
+      WHERE id = ${req.sceneId} AND tale_id = ${req.taleId}
+    `;
+
+    console.log(`[FairyTales] Deleted scene ${req.sceneId}`);
+
+    return { success: true };
+  }
+);
+
+/**
+ * Reorder scenes in a tale
+ */
+export interface ReorderScenesRequest {
+  taleId: string;
+  sceneOrdering: { sceneId: number; newSceneNumber: number }[];
+}
+
+export const reorderScenes = api<ReorderScenesRequest, { success: boolean }>(
+  { expose: true, method: "POST", path: "/fairytales/:taleId/scenes/reorder", auth: true },
+  async (req) => {
+    console.log("[FairyTales] Reordering scenes for tale:", req.taleId);
+
+    const auth = getAuthData()!;
+
+    if (auth.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can reorder scenes");
+    }
+
+    // Update scene numbers
+    for (const { sceneId, newSceneNumber } of req.sceneOrdering) {
+      await fairytalesDB.exec`
+        UPDATE fairy_tale_scenes
+        SET scene_number = ${newSceneNumber}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${sceneId} AND tale_id = ${req.taleId}
+      `;
+    }
+
+    console.log(`[FairyTales] Reordered ${req.sceneOrdering.length} scenes for tale ${req.taleId}`);
+
+    return { success: true };
+  }
+);
+

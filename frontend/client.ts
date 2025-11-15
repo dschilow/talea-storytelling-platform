@@ -657,9 +657,14 @@ import {
 } from "~backend/fairytales/generator";
 import {
     deleteFairyTale as api_fairytales_management_deleteFairyTale,
+    deleteRole as api_fairytales_management_deleteRole,
+    deleteScene as api_fairytales_management_deleteScene,
     exportFairyTales as api_fairytales_management_exportFairyTales,
     importFairyTales as api_fairytales_management_importFairyTales,
-    updateFairyTale as api_fairytales_management_updateFairyTale
+    reorderScenes as api_fairytales_management_reorderScenes,
+    updateFairyTale as api_fairytales_management_updateFairyTale,
+    updateRole as api_fairytales_management_updateRole,
+    updateScene as api_fairytales_management_updateScene
 } from "~backend/fairytales/management";
 
 export namespace fairytales {
@@ -673,13 +678,18 @@ export namespace fairytales {
             this.addFairyTaleScene = this.addFairyTaleScene.bind(this)
             this.createFairyTale = this.createFairyTale.bind(this)
             this.deleteFairyTale = this.deleteFairyTale.bind(this)
+            this.deleteRole = this.deleteRole.bind(this)
+            this.deleteScene = this.deleteScene.bind(this)
             this.exportFairyTales = this.exportFairyTales.bind(this)
             this.generateStory = this.generateStory.bind(this)
             this.getFairyTale = this.getFairyTale.bind(this)
             this.getGeneratedStory = this.getGeneratedStory.bind(this)
             this.importFairyTales = this.importFairyTales.bind(this)
             this.listFairyTales = this.listFairyTales.bind(this)
+            this.reorderScenes = this.reorderScenes.bind(this)
             this.updateFairyTale = this.updateFairyTale.bind(this)
+            this.updateRole = this.updateRole.bind(this)
+            this.updateScene = this.updateScene.bind(this)
             this.validateCharacterMapping = this.validateCharacterMapping.bind(this)
         }
 
@@ -727,6 +737,24 @@ export namespace fairytales {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_deleteFairyTale>
+        }
+
+        /**
+         * Delete a role
+         */
+        public async deleteRole(params: { taleId: string, roleId: number }): Promise<ResponseType<typeof api_fairytales_management_deleteRole>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/roles/${encodeURIComponent(params.roleId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_deleteRole>
+        }
+
+        /**
+         * Delete a scene
+         */
+        public async deleteScene(params: { taleId: string, sceneId: number }): Promise<ResponseType<typeof api_fairytales_management_deleteScene>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/scenes/${encodeURIComponent(params.sceneId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_deleteScene>
         }
 
         /**
@@ -810,6 +838,17 @@ export namespace fairytales {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_catalog_listFairyTales>
         }
 
+        public async reorderScenes(params: RequestType<typeof api_fairytales_management_reorderScenes>): Promise<ResponseType<typeof api_fairytales_management_reorderScenes>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                sceneOrdering: params.sceneOrdering,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/scenes/reorder`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_reorderScenes>
+        }
+
         /**
          * Update a fairy tale
          */
@@ -822,6 +861,34 @@ export namespace fairytales {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.id)}`, {method: "PATCH", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_updateFairyTale>
+        }
+
+        /**
+         * Update a role
+         */
+        public async updateRole(params: RequestType<typeof api_fairytales_management_updateRole>): Promise<ResponseType<typeof api_fairytales_management_updateRole>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                updates: params.updates,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/roles/${encodeURIComponent(params.roleId)}`, {method: "PATCH", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_updateRole>
+        }
+
+        /**
+         * Update a scene
+         */
+        public async updateScene(params: RequestType<typeof api_fairytales_management_updateScene>): Promise<ResponseType<typeof api_fairytales_management_updateScene>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                updates: params.updates,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/fairytales/${encodeURIComponent(params.taleId)}/scenes/${encodeURIComponent(params.sceneId)}`, {method: "PATCH", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_management_updateScene>
         }
 
         /**
