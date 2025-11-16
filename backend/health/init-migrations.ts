@@ -343,10 +343,9 @@ export const initializeDatabaseMigrations = api(
         } else {
           console.log(`[Fairy Tales] Need to add ${50 - fairyTalesCount} more tales`);
 
-          // Get current file path in ES modules
-          const currentFile = fileURLToPath(import.meta.url);
-          const currentDir = path.dirname(currentFile);
-          const migrationsDir = path.join(currentDir, "../fairytales/migrations");
+          // Migrations are in the source directory, not the build directory
+          // In Railway/Docker, source is at /app/fairytales/migrations
+          const migrationsDir = "/app/fairytales/migrations";
 
           console.log(`[Fairy Tales] Looking for migrations in: ${migrationsDir}`);
 
