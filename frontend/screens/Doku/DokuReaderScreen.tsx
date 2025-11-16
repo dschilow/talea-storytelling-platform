@@ -104,7 +104,7 @@ const DokuReaderScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const dokuData = await backend.doku.getDoku(dokuId);
+      const dokuData = await backend.doku.getDoku({ id: dokuId });
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
       console.error('Error loading doku:', err);

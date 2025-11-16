@@ -88,7 +88,7 @@ const EditAvatarScreen: React.FC = () => {
       try {
         setLoading(true);
         // The client expects params as path parameter
-        const avatarData = await backend.avatar.get(avatarId);
+        const avatarData = await backend.avatar.get({ id: avatarId });
 
         setAvatar(avatarData as any);
         setName((avatarData as any).name);

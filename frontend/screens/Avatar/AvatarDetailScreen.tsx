@@ -212,7 +212,7 @@ const AvatarDetailScreen: React.FC = () => {
         // Try to load avatar from backend API first
         try {
           console.log('Loading avatar from backend API:', avatarId);
-          const avatarData = await backend.avatar.get(avatarId);
+          const avatarData = await backend.avatar.get({ id: avatarId });
           console.log('Backend avatar data:', avatarData);
 
           if (avatarData && avatarData.id) {

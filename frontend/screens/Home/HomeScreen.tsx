@@ -117,8 +117,8 @@ const HomeScreen: React.FC = () => {
 
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
         backend.avatar.list(),
-        backend.story.list(),
-        backend.doku.listDokus()
+        backend.story.list({ limit: 10, offset: 0 }),
+        backend.doku.listDokus({ limit: 10, offset: 0 })
       ]);
 
       setAvatars(avatarsResponse.avatars as any[]);

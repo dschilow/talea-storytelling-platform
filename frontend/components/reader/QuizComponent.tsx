@@ -67,7 +67,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
       console.log('🧠 Starting KI quiz analysis...');
 
       // Load avatar data
-      const avatar = await backend.avatar.get(avatarId);
+      const avatar = await backend.avatar.get({ id: avatarId });
       if (!avatar) {
         console.error('❌ Avatar not found for quiz analysis');
         return;
