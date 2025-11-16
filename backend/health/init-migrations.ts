@@ -328,6 +328,7 @@ export const initializeDatabaseMigrations = api(
         const { fairytalesDB } = await import("../fairytales/db");
         const fs = await import("fs/promises");
         const path = await import("path");
+        const { fileURLToPath } = await import("url");
 
         // Check current count
         const countResult = await fairytalesDB.queryRow<{ count: number }>`
@@ -342,8 +343,13 @@ export const initializeDatabaseMigrations = api(
         } else {
           console.log(`[Fairy Tales] Need to add ${50 - fairyTalesCount} more tales`);
 
-          // Define migrations to run
-          const migrationsDir = path.join(__dirname, "../fairytales/migrations");
+          // Get current file path in ES modules
+          const currentFile = fileURLToPath(import.meta.url);
+          const currentDir = path.dirname(currentFile);
+          const migrationsDir = path.join(currentDir, "../fairytales/migrations");
+
+          console.log(`[Fairy Tales] Looking for migrations in: ${migrationsDir}`);
+
           const migrations = [
             "10_add_47_classic_fairy_tales.up.sql",
             "11_add_andersen_fairy_tales.up.sql",
