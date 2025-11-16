@@ -321,11 +321,13 @@ export const initializeDatabaseMigrations = api(
         console.log(`[Init] Base table migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
       }
 
-      // Now trigger fairy tales migrations by accessing the fairytales database
-      console.log("\n=== Triggering Fairy Tales Migrations ===");
+      // Now run fairy tales migrations using the fairy tales database directly
+      console.log("\n=== Running Fairy Tales Migrations ===");
       let fairyTalesCount = 0;
       try {
         const { fairytalesDB } = await import("../fairytales/db");
+        const fs = await import("fs/promises");
+        const path = await import("path");
 
         // Check current count
         const countResult = await fairytalesDB.queryRow<{ count: number }>`
@@ -338,13 +340,46 @@ export const initializeDatabaseMigrations = api(
         if (fairyTalesCount >= 50) {
           console.log("[Fairy Tales] Already have 50+ tales. Migrations complete.");
         } else {
-          console.log("[Fairy Tales] Accessing database to trigger Encore migrations...");
-          // The act of querying the database will trigger Encore to run pending migrations
-          // Migrations 10-13 will be executed automatically
-          console.log("[Fairy Tales] Encore migration system will now run pending migrations");
+          console.log(`[Fairy Tales] Need to add ${50 - fairyTalesCount} more tales`);
+
+          // Define migrations to run
+          const migrationsDir = path.join(__dirname, "../fairytales/migrations");
+          const migrations = [
+            "10_add_47_classic_fairy_tales.up.sql",
+            "11_add_andersen_fairy_tales.up.sql",
+            "12_add_russian_arabian_fairy_tales.up.sql",
+            "13_add_classics_legends_fables.up.sql"
+          ];
+
+          // Run each migration
+          for (const migrationFile of migrations) {
+            try {
+              const migrationPath = path.join(migrationsDir, migrationFile);
+              console.log(`[Fairy Tales] Running ${migrationFile}...`);
+
+              const sql = await fs.readFile(migrationPath, "utf-8");
+              await fairytalesDB.exec(sql);
+
+              console.log(`[Fairy Tales] ✓ ${migrationFile} completed`);
+            } catch (migErr: any) {
+              // Check if it's a duplicate key error
+              if (migErr.message && migErr.message.includes("duplicate key")) {
+                console.log(`[Fairy Tales] ⚠ ${migrationFile} - some tales already exist (skipping)`);
+              } else {
+                console.error(`[Fairy Tales] ✗ ${migrationFile} failed:`, migErr.message);
+              }
+            }
+          }
+
+          // Check final count
+          const finalResult = await fairytalesDB.queryRow<{ count: number }>`
+            SELECT COUNT(*) as count FROM fairy_tales
+          `;
+          fairyTalesCount = finalResult?.count || 0;
+          console.log(`[Fairy Tales] Final count: ${fairyTalesCount} tales`);
         }
       } catch (fairyError: any) {
-        console.error("[Fairy Tales] Error accessing fairy tales database:", fairyError.message);
+        console.error("[Fairy Tales] Error running migrations:", fairyError.message);
         // Don't fail the whole init if fairy tales fails
       }
 
