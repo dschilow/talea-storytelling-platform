@@ -343,9 +343,8 @@ export const initializeDatabaseMigrations = api(
         } else {
           console.log(`[Fairy Tales] Need to add ${50 - fairyTalesCount} more tales`);
 
-          // Migrations are in the source directory, not the build directory
-          // In Railway/Docker, source is at /app/fairytales/migrations
-          const migrationsDir = "/app/fairytales/migrations";
+          // Migrations are in the source directory at /app/fairytales/migrations
+          const migrationsDir = path.join("/app", "fairytales", "migrations");
 
           console.log(`[Fairy Tales] Looking for migrations in: ${migrationsDir}`);
 
@@ -361,8 +360,21 @@ export const initializeDatabaseMigrations = api(
             try {
               const migrationPath = path.join(migrationsDir, migrationFile);
               console.log(`[Fairy Tales] Running ${migrationFile}...`);
+              console.log(`[Fairy Tales] Full path: ${migrationPath}`);
+
+              // Check if file exists
+              try {
+                await fs.access(migrationPath);
+                console.log(`[Fairy Tales] File exists, reading...`);
+              } catch (accessErr: any) {
+                console.error(`[Fairy Tales] ✗ File not found: ${migrationPath}`);
+                console.error(`[Fairy Tales] Access error:`, accessErr.message);
+                continue;
+              }
 
               const sql = await fs.readFile(migrationPath, "utf-8");
+              console.log(`[Fairy Tales] SQL length: ${sql.length} characters`);
+
               await fairytalesDB.exec(sql);
 
               console.log(`[Fairy Tales] ✓ ${migrationFile} completed`);
@@ -372,6 +384,7 @@ export const initializeDatabaseMigrations = api(
                 console.log(`[Fairy Tales] ⚠ ${migrationFile} - some tales already exist (skipping)`);
               } else {
                 console.error(`[Fairy Tales] ✗ ${migrationFile} failed:`, migErr.message);
+                console.error(`[Fairy Tales] Full error:`, migErr);
               }
             }
           }
