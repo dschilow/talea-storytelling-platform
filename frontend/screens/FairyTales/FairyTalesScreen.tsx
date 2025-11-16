@@ -18,6 +18,19 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
+  Globe,
+  MapPin,
+  Baby,
+  Timer,
+  Hash,
+  Lightbulb,
+  FileText,
+  Briefcase,
+  MessageSquare,
+  Map,
+  Smile,
+  Info,
+  ShieldAlert,
 } from 'lucide-react';
 import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
@@ -25,7 +38,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import type { CompleteFairyTaleExport } from '~backend/fairytales/management';
 
@@ -82,6 +95,7 @@ interface FairyTaleScene {
 const FairyTalesScreen: React.FC = () => {
   const backend = useBackend();
   const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   const navigate = useNavigate();
   const [tales, setTales] = useState<FairyTale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +113,9 @@ const FairyTalesScreen: React.FC = () => {
   const [editedTaleData, setEditedTaleData] = useState<Partial<FairyTale>>({});
   const [editedRoleData, setEditedRoleData] = useState<Partial<FairyTaleRole>>({});
   const [editedSceneData, setEditedSceneData] = useState<Partial<FairyTaleScene>>({});
+
+  // Check if user is admin
+  const isAdmin = user?.publicMetadata?.role === 'admin';
 
   const loadTales = useCallback(async () => {
     try {
@@ -173,9 +190,14 @@ const FairyTalesScreen: React.FC = () => {
     try {
       const response = await backend.fairytales.exportFairyTales({});
       downloadJSON(response.tales, 'fairytales-export-all.json');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting fairy tales:', error);
-      alert('Fehler beim Exportieren der Märchen');
+      const statusCode = error?.status || error?.response?.status;
+      if (statusCode === 403) {
+        alert('Du benötigst Admin-Rechte für diese Funktion');
+      } else {
+        alert('Fehler beim Exportieren der Märchen');
+      }
     }
   };
 
@@ -189,9 +211,14 @@ const FairyTalesScreen: React.FC = () => {
       const tale = tales.find((t) => t.id === selectedTale);
       const fileName = `fairytale-${tale?.title.replace(/\s+/g, '-').toLowerCase()}.json`;
       downloadJSON(response.tales, fileName);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting fairy tale:', error);
-      alert('Fehler beim Exportieren des Märchens');
+      const statusCode = error?.status || error?.response?.status;
+      if (statusCode === 403) {
+        alert('Du benötigst Admin-Rechte für diese Funktion');
+      } else {
+        alert('Fehler beim Exportieren des Märchens');
+      }
     }
   };
 
@@ -242,9 +269,14 @@ const FairyTalesScreen: React.FC = () => {
         }
 
         loadTales();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error importing fairy tales:', error);
-        alert('Fehler beim Importieren der Märchen. Bitte überprüfe das JSON-Format.');
+        const statusCode = error?.status || error?.response?.status;
+        if (statusCode === 403) {
+          alert('Du benötigst Admin-Rechte für diese Funktion');
+        } else {
+          alert('Fehler beim Importieren der Märchen. Bitte überprüfe das JSON-Format.');
+        }
       }
     };
     input.click();
@@ -666,13 +698,71 @@ const FairyTalesScreen: React.FC = () => {
     border: '1px solid rgba(255, 255, 255, 0.2)',
     color: colors.text.primary,
     fontSize: '14px',
-    marginBottom: spacing.xs,
   };
 
   const textareaStyle: React.CSSProperties = {
     ...inputStyle,
     minHeight: '80px',
     resize: 'vertical' as const,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    fontSize: '13px',
+    fontWeight: 600,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+  };
+
+  const editSectionStyle: React.CSSProperties = {
+    background: 'rgba(139, 92, 246, 0.05)',
+    padding: spacing.md,
+    borderRadius: radii.md,
+    border: '1px solid rgba(139, 92, 246, 0.2)',
+  };
+
+  const formGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: spacing.md,
+  };
+
+  const formFullWidthStyle: React.CSSProperties = {
+    gridColumn: '1 / -1',
+  };
+
+  const sectionHeaderStyle: React.CSSProperties = {
+    ...typography.textStyles.headingXs,
+    color: colors.text.primary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.xs,
+    borderBottom: `1px solid ${colors.glass.border}`,
+  };
+
+  const infoBannerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    background: 'rgba(59, 130, 246, 0.1)',
+    border: '1px solid rgba(59, 130, 246, 0.3)',
+    marginBottom: spacing.lg,
+  };
+
+  const warningBannerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    background: 'rgba(234, 179, 8, 0.1)',
+    border: '1px solid rgba(234, 179, 8, 0.3)',
+    marginBottom: spacing.lg,
   };
 
   const stateCardStyle: React.CSSProperties = {
@@ -749,14 +839,30 @@ const FairyTalesScreen: React.FC = () => {
             <p style={{ color: colors.text.secondary }}>{errorMessage}</p>
             <Button title="Erneut versuchen" variant="primary" onPress={loadTales} />
           </div>
-        ) : tales.length === 0 ? (
-          <div style={stateCardStyle}>
-            <BookOpen size={48} style={{ color: colors.text.tertiary }} />
-            <p style={{ color: colors.text.secondary, marginTop: spacing.md }}>
-              Keine Märchen gefunden. Importiere eine JSON-Datei.
-            </p>
-          </div>
         ) : (
+          <>
+            {!isAdmin && (
+              <div style={warningBannerStyle}>
+                <ShieldAlert size={24} style={{ color: '#eab308', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, color: colors.text.primary, marginBottom: 4 }}>
+                    Hinweis: Export/Import und Bearbeitung erfordern Admin-Rechte
+                  </div>
+                  <div style={{ fontSize: '13px', color: colors.text.secondary }}>
+                    Du kannst alle Märchen ansehen, aber nur Administratoren können sie bearbeiten
+                    oder exportieren/importieren.
+                  </div>
+                </div>
+              </div>
+            )}
+            {tales.length === 0 ? (
+              <div style={stateCardStyle}>
+                <BookOpen size={48} style={{ color: colors.text.tertiary }} />
+                <p style={{ color: colors.text.secondary, marginTop: spacing.md }}>
+                  Keine Märchen gefunden. Importiere eine JSON-Datei.
+                </p>
+              </div>
+            ) : (
           <div style={talesGridStyle}>
             {tales.map((tale) => {
               const isExpanded = expandedTales.has(tale.id);
@@ -778,26 +884,41 @@ const FairyTalesScreen: React.FC = () => {
                     <div style={taleMainInfoStyle}>
                       {/* Tale Title */}
                       {isEditing ? (
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <input
-                            style={inputStyle}
-                            value={currentTaleData.title || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({ ...editedTaleData, title: e.target.value })
-                            }
-                            placeholder="Titel"
-                          />
-                          <input
-                            style={inputStyle}
-                            value={currentTaleData.englishTranslation || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({
-                                ...editedTaleData,
-                                englishTranslation: e.target.value,
-                              })
-                            }
-                            placeholder="Englische Übersetzung"
-                          />
+                        <div onClick={(e) => e.stopPropagation()} style={editSectionStyle}>
+                          <h4 style={sectionHeaderStyle}>Grundinformationen</h4>
+                          <div style={formGridStyle}>
+                            <div>
+                              <label style={labelStyle}>
+                                <BookOpen size={14} />
+                                Titel
+                              </label>
+                              <input
+                                style={inputStyle}
+                                value={currentTaleData.title || ''}
+                                onChange={(e) =>
+                                  setEditedTaleData({ ...editedTaleData, title: e.target.value })
+                                }
+                                placeholder="z.B. Rotkäppchen"
+                              />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>
+                                <Globe size={14} />
+                                Englische Übersetzung
+                              </label>
+                              <input
+                                style={inputStyle}
+                                value={currentTaleData.englishTranslation || ''}
+                                onChange={(e) =>
+                                  setEditedTaleData({
+                                    ...editedTaleData,
+                                    englishTranslation: e.target.value,
+                                  })
+                                }
+                                placeholder="z.B. Little Red Riding Hood"
+                              />
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <h3 style={taleTitleStyle}>
@@ -813,73 +934,136 @@ const FairyTalesScreen: React.FC = () => {
                       {/* Tale Metadata */}
                       {isEditing ? (
                         <div onClick={(e) => e.stopPropagation()}>
-                          <input
-                            style={inputStyle}
-                            value={currentTaleData.source || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({ ...editedTaleData, source: e.target.value })
-                            }
-                            placeholder="Quelle"
-                          />
-                          <input
-                            style={inputStyle}
-                            value={currentTaleData.cultureRegion || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({ ...editedTaleData, cultureRegion: e.target.value })
-                            }
-                            placeholder="Kulturregion"
-                          />
-                          <input
-                            type="number"
-                            style={inputStyle}
-                            value={currentTaleData.ageRecommendation || 0}
-                            onChange={(e) =>
-                              setEditedTaleData({
-                                ...editedTaleData,
-                                ageRecommendation: parseInt(e.target.value),
-                              })
-                            }
-                            placeholder="Altersempfehlung"
-                          />
-                          <input
-                            type="number"
-                            style={inputStyle}
-                            value={currentTaleData.durationMinutes || 0}
-                            onChange={(e) =>
-                              setEditedTaleData({
-                                ...editedTaleData,
-                                durationMinutes: parseInt(e.target.value),
-                              })
-                            }
-                            placeholder="Dauer (Minuten)"
-                          />
-                          <input
-                            style={inputStyle}
-                            value={currentTaleData.genreTags?.join(', ') || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({
-                                ...editedTaleData,
-                                genreTags: e.target.value.split(',').map((t) => t.trim()),
-                              })
-                            }
-                            placeholder="Genre Tags (kommagetrennt)"
-                          />
-                          <textarea
-                            style={textareaStyle}
-                            value={currentTaleData.moralLesson || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({ ...editedTaleData, moralLesson: e.target.value })
-                            }
-                            placeholder="Moral"
-                          />
-                          <textarea
-                            style={textareaStyle}
-                            value={currentTaleData.summary || ''}
-                            onChange={(e) =>
-                              setEditedTaleData({ ...editedTaleData, summary: e.target.value })
-                            }
-                            placeholder="Zusammenfassung"
-                          />
+                          <div style={formGridStyle}>
+                            <div>
+                              <label style={labelStyle}>
+                                <Users size={14} />
+                                Quelle
+                              </label>
+                              <input
+                                style={inputStyle}
+                                value={currentTaleData.source || ''}
+                                onChange={(e) =>
+                                  setEditedTaleData({ ...editedTaleData, source: e.target.value })
+                                }
+                                placeholder="z.B. Gebrüder Grimm"
+                              />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>
+                                <MapPin size={14} />
+                                Kulturregion
+                              </label>
+                              <input
+                                style={inputStyle}
+                                value={currentTaleData.cultureRegion || ''}
+                                onChange={(e) =>
+                                  setEditedTaleData({ ...editedTaleData, cultureRegion: e.target.value })
+                                }
+                                placeholder="z.B. Deutschland"
+                              />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>
+                                <Baby size={14} />
+                                Altersempfehlung
+                              </label>
+                              <input
+                                type="number"
+                                style={inputStyle}
+                                value={currentTaleData.ageRecommendation || 0}
+                                onChange={(e) =>
+                                  setEditedTaleData({
+                                    ...editedTaleData,
+                                    ageRecommendation: parseInt(e.target.value),
+                                  })
+                                }
+                                placeholder="z.B. 6"
+                              />
+                            </div>
+                            <div>
+                              <label style={labelStyle}>
+                                <Timer size={14} />
+                                Dauer (Minuten)
+                              </label>
+                              <input
+                                type="number"
+                                style={inputStyle}
+                                value={currentTaleData.durationMinutes || 0}
+                                onChange={(e) =>
+                                  setEditedTaleData({
+                                    ...editedTaleData,
+                                    durationMinutes: parseInt(e.target.value),
+                                  })
+                                }
+                                placeholder="z.B. 15"
+                              />
+                            </div>
+                            <div style={formFullWidthStyle}>
+                              <label style={labelStyle}>
+                                <Hash size={14} />
+                                Genre-Tags (komma-getrennt)
+                              </label>
+                              <input
+                                style={inputStyle}
+                                value={currentTaleData.genreTags?.join(', ') || ''}
+                                onChange={(e) =>
+                                  setEditedTaleData({
+                                    ...editedTaleData,
+                                    genreTags: e.target.value.split(',').map((t) => t.trim()),
+                                  })
+                                }
+                                placeholder="z.B. Abenteuer, Fantasie, Magie"
+                              />
+                            </div>
+                          </div>
+
+                          <h4 style={sectionHeaderStyle}>Details</h4>
+                          <div>
+                            <label style={labelStyle}>
+                              <Lightbulb size={14} />
+                              Moralische Lektion
+                            </label>
+                            <textarea
+                              style={textareaStyle}
+                              value={currentTaleData.moralLesson || ''}
+                              onChange={(e) =>
+                                setEditedTaleData({ ...editedTaleData, moralLesson: e.target.value })
+                              }
+                              placeholder="z.B. Vertraue nicht zu schnell fremden Menschen"
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>
+                              <FileText size={14} />
+                              Zusammenfassung
+                            </label>
+                            <textarea
+                              style={textareaStyle}
+                              value={currentTaleData.summary || ''}
+                              onChange={(e) =>
+                                setEditedTaleData({ ...editedTaleData, summary: e.target.value })
+                              }
+                              placeholder="Kurze Zusammenfassung der Geschichte..."
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.lg }}>
+                            <Button
+                              title="Speichern"
+                              variant="primary"
+                              size="sm"
+                              onPress={saveTale}
+                              icon={<Save size={16} />}
+                            />
+                            <Button
+                              title="Abbrechen"
+                              variant="ghost"
+                              size="sm"
+                              onPress={cancelEditingTale}
+                              icon={<X size={16} />}
+                            />
+                          </div>
                         </div>
                       ) : (
                         <>
@@ -925,47 +1109,32 @@ const FairyTalesScreen: React.FC = () => {
                     </div>
 
                     {/* Tale Actions */}
-                    <div style={{ display: 'flex', gap: spacing.xs }} onClick={(e) => e.stopPropagation()}>
-                      {isEditing ? (
-                        <>
-                          <Button
-                            title=""
-                            variant="primary"
-                            size="sm"
-                            onPress={saveTale}
-                            icon={<Save size={16} />}
-                          />
+                    {!isEditing && (
+                      <div style={{ display: 'flex', gap: spacing.xs }} onClick={(e) => e.stopPropagation()}>
+                        {isAdmin && (
                           <Button
                             title=""
                             variant="ghost"
                             size="sm"
-                            onPress={cancelEditingTale}
-                            icon={<X size={16} />}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              startEditingTale(tale);
+                            }}
+                            icon={<Edit2 size={16} />}
                           />
-                        </>
-                      ) : (
+                        )}
                         <Button
-                          title=""
+                          title={isExpanded ? '' : ''}
                           variant="ghost"
                           size="sm"
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            startEditingTale(tale);
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            toggleTaleExpansion(tale.id);
                           }}
-                          icon={<Edit2 size={16} />}
+                          icon={isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                         />
-                      )}
-                      <Button
-                        title={isExpanded ? '' : ''}
-                        variant="ghost"
-                        size="sm"
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          toggleTaleExpansion(tale.id);
-                        }}
-                        icon={isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                      />
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Expanded Details */}
@@ -984,13 +1153,15 @@ const FairyTalesScreen: React.FC = () => {
                           <div>
                             <h4 style={sectionTitleStyle}>
                               <span>Rollen ({details.roles.length})</span>
-                              <Button
-                                title="Neue Rolle"
-                                variant="fun"
-                                size="sm"
-                                onPress={() => addRole(tale.id)}
-                                icon={<Plus size={16} />}
-                              />
+                              {isAdmin && (
+                                <Button
+                                  title="Neue Rolle"
+                                  variant="fun"
+                                  size="sm"
+                                  onPress={() => addRole(tale.id)}
+                                  icon={<Plus size={16} />}
+                                />
+                              )}
                             </h4>
                             {details.roles.map((role) => {
                               const isEditingThisRole = editingRole === role.id;
@@ -1001,71 +1172,103 @@ const FairyTalesScreen: React.FC = () => {
                               return (
                                 <div key={role.id} style={roleCardStyle}>
                                   {isEditingThisRole ? (
-                                    <div>
-                                      <select
-                                        style={inputStyle}
-                                        value={currentRoleData.roleType}
-                                        onChange={(e) =>
-                                          setEditedRoleData({
-                                            ...editedRoleData,
-                                            roleType: e.target.value as RoleType,
-                                          })
-                                        }
-                                      >
-                                        <option value="protagonist">Protagonist</option>
-                                        <option value="antagonist">Antagonist</option>
-                                        <option value="helper">Helfer</option>
-                                        <option value="love_interest">Liebesinteresse</option>
-                                        <option value="supporting">Nebenrolle</option>
-                                      </select>
-                                      <input
-                                        style={inputStyle}
-                                        value={currentRoleData.roleName || ''}
-                                        onChange={(e) =>
-                                          setEditedRoleData({
-                                            ...editedRoleData,
-                                            roleName: e.target.value,
-                                          })
-                                        }
-                                        placeholder="Rollenname"
-                                      />
-                                      <input
-                                        type="number"
-                                        style={inputStyle}
-                                        value={currentRoleData.roleCount || 1}
-                                        onChange={(e) =>
-                                          setEditedRoleData({
-                                            ...editedRoleData,
-                                            roleCount: parseInt(e.target.value),
-                                          })
-                                        }
-                                        placeholder="Anzahl"
-                                      />
-                                      <textarea
-                                        style={textareaStyle}
-                                        value={currentRoleData.description || ''}
-                                        onChange={(e) =>
-                                          setEditedRoleData({
-                                            ...editedRoleData,
-                                            description: e.target.value,
-                                          })
-                                        }
-                                        placeholder="Beschreibung"
-                                      />
-                                      <input
-                                        style={inputStyle}
-                                        value={currentRoleData.professionPreference?.join(', ') || ''}
-                                        onChange={(e) =>
-                                          setEditedRoleData({
-                                            ...editedRoleData,
-                                            professionPreference: e.target.value
-                                              .split(',')
-                                              .map((t) => t.trim()),
-                                          })
-                                        }
-                                        placeholder="Berufspräferenzen (kommagetrennt)"
-                                      />
-                                      <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.sm }}>
+                                    <div style={editSectionStyle}>
+                                      <div style={formGridStyle}>
+                                        <div>
+                                          <label style={labelStyle}>
+                                            <Users size={14} />
+                                            Rollentyp
+                                          </label>
+                                          <select
+                                            style={inputStyle}
+                                            value={currentRoleData.roleType}
+                                            onChange={(e) =>
+                                              setEditedRoleData({
+                                                ...editedRoleData,
+                                                roleType: e.target.value as RoleType,
+                                              })
+                                            }
+                                          >
+                                            <option value="protagonist">Protagonist</option>
+                                            <option value="antagonist">Antagonist</option>
+                                            <option value="helper">Helfer</option>
+                                            <option value="love_interest">Liebesinteresse</option>
+                                            <option value="supporting">Nebenrolle</option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label style={labelStyle}>
+                                            <Tag size={14} />
+                                            Rollenname
+                                          </label>
+                                          <input
+                                            style={inputStyle}
+                                            value={currentRoleData.roleName || ''}
+                                            onChange={(e) =>
+                                              setEditedRoleData({
+                                                ...editedRoleData,
+                                                roleName: e.target.value,
+                                              })
+                                            }
+                                            placeholder="z.B. Rotkäppchen"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label style={labelStyle}>
+                                            <Hash size={14} />
+                                            Anzahl
+                                          </label>
+                                          <input
+                                            type="number"
+                                            style={inputStyle}
+                                            value={currentRoleData.roleCount || 1}
+                                            onChange={(e) =>
+                                              setEditedRoleData({
+                                                ...editedRoleData,
+                                                roleCount: parseInt(e.target.value),
+                                              })
+                                            }
+                                            placeholder="1"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label style={labelStyle}>
+                                            <Briefcase size={14} />
+                                            Berufe (komma-getrennt)
+                                          </label>
+                                          <input
+                                            style={inputStyle}
+                                            value={currentRoleData.professionPreference?.join(', ') || ''}
+                                            onChange={(e) =>
+                                              setEditedRoleData({
+                                                ...editedRoleData,
+                                                professionPreference: e.target.value
+                                                  .split(',')
+                                                  .map((t) => t.trim()),
+                                              })
+                                            }
+                                            placeholder="z.B. Jäger, Förster"
+                                          />
+                                        </div>
+                                        <div style={formFullWidthStyle}>
+                                          <label style={labelStyle}>
+                                            <FileText size={14} />
+                                            Beschreibung
+                                          </label>
+                                          <textarea
+                                            style={textareaStyle}
+                                            value={currentRoleData.description || ''}
+                                            onChange={(e) =>
+                                              setEditedRoleData({
+                                                ...editedRoleData,
+                                                description: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Beschreibe die Rolle und ihre Funktion in der Geschichte..."
+                                          />
+                                        </div>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
                                         <Button
                                           title="Speichern"
                                           variant="primary"
@@ -1123,20 +1326,24 @@ const FairyTalesScreen: React.FC = () => {
                                           <span style={{ fontSize: '14px', color: colors.text.tertiary }}>
                                             × {role.roleCount}
                                           </span>
-                                          <Button
-                                            title=""
-                                            variant="ghost"
-                                            size="sm"
-                                            onPress={() => startEditingRole(role)}
-                                            icon={<Edit2 size={14} />}
-                                          />
-                                          <Button
-                                            title=""
-                                            variant="ghost"
-                                            size="sm"
-                                            onPress={() => deleteRole(tale.id, role.id)}
-                                            icon={<Trash2 size={14} />}
-                                          />
+                                          {isAdmin && (
+                                            <>
+                                              <Button
+                                                title=""
+                                                variant="ghost"
+                                                size="sm"
+                                                onPress={() => startEditingRole(role)}
+                                                icon={<Edit2 size={14} />}
+                                              />
+                                              <Button
+                                                title=""
+                                                variant="ghost"
+                                                size="sm"
+                                                onPress={() => deleteRole(tale.id, role.id)}
+                                                icon={<Trash2 size={14} />}
+                                              />
+                                            </>
+                                          )}
                                         </div>
                                       </div>
                                       {role.description && (
@@ -1172,13 +1379,15 @@ const FairyTalesScreen: React.FC = () => {
                           <div style={{ marginTop: spacing.lg }}>
                             <h4 style={sectionTitleStyle}>
                               <span>Szenen ({details.scenes.length})</span>
-                              <Button
-                                title="Neue Szene"
-                                variant="fun"
-                                size="sm"
-                                onPress={() => addScene(tale.id)}
-                                icon={<Plus size={16} />}
-                              />
+                              {isAdmin && (
+                                <Button
+                                  title="Neue Szene"
+                                  variant="fun"
+                                  size="sm"
+                                  onPress={() => addScene(tale.id)}
+                                  icon={<Plus size={16} />}
+                                />
+                              )}
                             </h4>
                             {details.scenes
                               .sort((a, b) => a.sceneNumber - b.sceneNumber)
@@ -1191,72 +1400,110 @@ const FairyTalesScreen: React.FC = () => {
                                 return (
                                   <div key={scene.id} style={sceneCardStyle}>
                                     {isEditingThisScene ? (
-                                      <div>
-                                        <input
-                                          style={inputStyle}
-                                          value={currentSceneData.sceneTitle || ''}
-                                          onChange={(e) =>
-                                            setEditedSceneData({
-                                              ...editedSceneData,
-                                              sceneTitle: e.target.value,
-                                            })
-                                          }
-                                          placeholder="Szenen-Titel"
-                                        />
-                                        <textarea
-                                          style={textareaStyle}
-                                          value={currentSceneData.sceneDescription || ''}
-                                          onChange={(e) =>
-                                            setEditedSceneData({
-                                              ...editedSceneData,
-                                              sceneDescription: e.target.value,
-                                            })
-                                          }
-                                          placeholder="Beschreibung"
-                                        />
-                                        <textarea
-                                          style={textareaStyle}
-                                          value={currentSceneData.dialogueTemplate || ''}
-                                          onChange={(e) =>
-                                            setEditedSceneData({
-                                              ...editedSceneData,
-                                              dialogueTemplate: e.target.value,
-                                            })
-                                          }
-                                          placeholder="Dialog-Vorlage"
-                                        />
-                                        <input
-                                          style={inputStyle}
-                                          value={currentSceneData.setting || ''}
-                                          onChange={(e) =>
-                                            setEditedSceneData({
-                                              ...editedSceneData,
-                                              setting: e.target.value,
-                                            })
-                                          }
-                                          placeholder="Schauplatz"
-                                        />
-                                        <input
-                                          style={inputStyle}
-                                          value={currentSceneData.mood || ''}
-                                          onChange={(e) =>
-                                            setEditedSceneData({ ...editedSceneData, mood: e.target.value })
-                                          }
-                                          placeholder="Stimmung"
-                                        />
-                                        <input
-                                          type="number"
-                                          style={inputStyle}
-                                          value={currentSceneData.durationSeconds || 0}
-                                          onChange={(e) =>
-                                            setEditedSceneData({
-                                              ...editedSceneData,
-                                              durationSeconds: parseInt(e.target.value),
-                                            })
-                                          }
-                                          placeholder="Dauer (Sekunden)"
-                                        />
-                                        <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.sm }}>
+                                      <div style={editSectionStyle}>
+                                        <div style={formGridStyle}>
+                                          <div>
+                                            <label style={labelStyle}>
+                                              <BookOpen size={14} />
+                                              Szenen-Titel
+                                            </label>
+                                            <input
+                                              style={inputStyle}
+                                              value={currentSceneData.sceneTitle || ''}
+                                              onChange={(e) =>
+                                                setEditedSceneData({
+                                                  ...editedSceneData,
+                                                  sceneTitle: e.target.value,
+                                                })
+                                              }
+                                              placeholder="z.B. Im dunklen Wald"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label style={labelStyle}>
+                                              <Timer size={14} />
+                                              Dauer (Sekunden)
+                                            </label>
+                                            <input
+                                              type="number"
+                                              style={inputStyle}
+                                              value={currentSceneData.durationSeconds || 0}
+                                              onChange={(e) =>
+                                                setEditedSceneData({
+                                                  ...editedSceneData,
+                                                  durationSeconds: parseInt(e.target.value),
+                                                })
+                                              }
+                                              placeholder="z.B. 60"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label style={labelStyle}>
+                                              <Map size={14} />
+                                              Schauplatz
+                                            </label>
+                                            <input
+                                              style={inputStyle}
+                                              value={currentSceneData.setting || ''}
+                                              onChange={(e) =>
+                                                setEditedSceneData({
+                                                  ...editedSceneData,
+                                                  setting: e.target.value,
+                                                })
+                                              }
+                                              placeholder="z.B. Im Wald"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label style={labelStyle}>
+                                              <Smile size={14} />
+                                              Stimmung
+                                            </label>
+                                            <input
+                                              style={inputStyle}
+                                              value={currentSceneData.mood || ''}
+                                              onChange={(e) =>
+                                                setEditedSceneData({ ...editedSceneData, mood: e.target.value })
+                                              }
+                                              placeholder="z.B. Spannend, düster"
+                                            />
+                                          </div>
+                                          <div style={formFullWidthStyle}>
+                                            <label style={labelStyle}>
+                                              <FileText size={14} />
+                                              Szenen-Beschreibung
+                                            </label>
+                                            <textarea
+                                              style={textareaStyle}
+                                              value={currentSceneData.sceneDescription || ''}
+                                              onChange={(e) =>
+                                                setEditedSceneData({
+                                                  ...editedSceneData,
+                                                  sceneDescription: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Beschreibe was in dieser Szene passiert..."
+                                            />
+                                          </div>
+                                          <div style={formFullWidthStyle}>
+                                            <label style={labelStyle}>
+                                              <MessageSquare size={14} />
+                                              Dialog-Vorlage
+                                            </label>
+                                            <textarea
+                                              style={textareaStyle}
+                                              value={currentSceneData.dialogueTemplate || ''}
+                                              onChange={(e) =>
+                                                setEditedSceneData({
+                                                  ...editedSceneData,
+                                                  dialogueTemplate: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Vorlage für Dialoge in dieser Szene..."
+                                            />
+                                          </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
                                           <Button
                                             title="Speichern"
                                             variant="primary"
@@ -1343,38 +1590,40 @@ const FairyTalesScreen: React.FC = () => {
                                             >
                                               {scene.durationSeconds}s
                                             </span>
-                                            <div style={{ display: 'flex', gap: spacing.xs }}>
-                                              <Button
-                                                title=""
-                                                variant="ghost"
-                                                size="sm"
-                                                onPress={() => moveScene(tale.id, scene.id, 'up')}
-                                                icon={<ArrowUp size={14} />}
-                                                disabled={idx === 0}
-                                              />
-                                              <Button
-                                                title=""
-                                                variant="ghost"
-                                                size="sm"
-                                                onPress={() => moveScene(tale.id, scene.id, 'down')}
-                                                icon={<ArrowDown size={14} />}
-                                                disabled={idx === details.scenes.length - 1}
-                                              />
-                                              <Button
-                                                title=""
-                                                variant="ghost"
-                                                size="sm"
-                                                onPress={() => startEditingScene(scene)}
-                                                icon={<Edit2 size={14} />}
-                                              />
-                                              <Button
-                                                title=""
-                                                variant="ghost"
-                                                size="sm"
-                                                onPress={() => deleteScene(tale.id, scene.id)}
-                                                icon={<Trash2 size={14} />}
-                                              />
-                                            </div>
+                                            {isAdmin && (
+                                              <div style={{ display: 'flex', gap: spacing.xs }}>
+                                                <Button
+                                                  title=""
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onPress={() => moveScene(tale.id, scene.id, 'up')}
+                                                  icon={<ArrowUp size={14} />}
+                                                  disabled={idx === 0}
+                                                />
+                                                <Button
+                                                  title=""
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onPress={() => moveScene(tale.id, scene.id, 'down')}
+                                                  icon={<ArrowDown size={14} />}
+                                                  disabled={idx === details.scenes.length - 1}
+                                                />
+                                                <Button
+                                                  title=""
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onPress={() => startEditingScene(scene)}
+                                                  icon={<Edit2 size={14} />}
+                                                />
+                                                <Button
+                                                  title=""
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onPress={() => deleteScene(tale.id, scene.id)}
+                                                  icon={<Trash2 size={14} />}
+                                                />
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
@@ -1391,6 +1640,8 @@ const FairyTalesScreen: React.FC = () => {
               );
             })}
           </div>
+            )}
+          </>
         )}
       </div>
     </div>
