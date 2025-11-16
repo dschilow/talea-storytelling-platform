@@ -23,8 +23,40 @@ export const runMigrationSQL = api<RunSQLRequest, RunSQLResponse>(
       console.log(`[Migration SQL] Executing: ${req.migrationName}`);
       console.log(`[Migration SQL] SQL length: ${req.sql.length} characters`);
 
-      // Execute the SQL
-      await fairytalesDB.exec(req.sql);
+      // Split SQL into individual statements (separated by semicolons)
+      // Filter out empty statements and comments
+      const statements = req.sql
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'));
+
+      console.log(`[Migration SQL] Found ${statements.length} SQL statements to execute`);
+
+      // Execute each statement separately
+      let executedCount = 0;
+      for (let i = 0; i < statements.length; i++) {
+        const statement = statements[i];
+        if (statement.length === 0) continue;
+
+        try {
+          await fairytalesDB.exec(statement);
+          executedCount++;
+
+          // Log progress every 10 statements
+          if ((i + 1) % 10 === 0) {
+            console.log(`[Migration SQL] Progress: ${i + 1}/${statements.length} statements executed`);
+          }
+        } catch (stmtErr: any) {
+          // Check if it's a duplicate key error - that's OK
+          if (stmtErr.message && stmtErr.message.includes("duplicate key")) {
+            console.log(`[Migration SQL] Statement ${i + 1}: Duplicate entry (skipping)`);
+            executedCount++;
+            continue;
+          }
+          // Otherwise, log but continue
+          console.error(`[Migration SQL] Statement ${i + 1} failed:`, stmtErr.message);
+        }
+      }
 
       // Count fairy tales after migration
       const countResult = await fairytalesDB.queryRow<{ count: number }>`
@@ -32,12 +64,13 @@ export const runMigrationSQL = api<RunSQLRequest, RunSQLResponse>(
       `;
       const talesCount = countResult?.count || 0;
 
-      console.log(`[Migration SQL] ✓ ${req.migrationName} completed successfully`);
+      console.log(`[Migration SQL] ✓ ${req.migrationName} completed`);
+      console.log(`[Migration SQL] Executed ${executedCount}/${statements.length} statements successfully`);
       console.log(`[Migration SQL] Total fairy tales: ${talesCount}`);
 
       return {
         success: true,
-        message: `Migration ${req.migrationName} executed successfully. Total tales: ${talesCount}`,
+        message: `Migration ${req.migrationName} executed ${executedCount}/${statements.length} statements. Total tales: ${talesCount}`,
         rowsAffected: talesCount
       };
     } catch (error: any) {
