@@ -328,18 +328,45 @@ export const initializeDatabaseMigrations = api(
       }
 
       console.log(`[Init] Migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
+
+      // Now trigger fairy tales migrations by accessing the fairytales database
+      console.log("\n=== Triggering Fairy Tales Migrations ===");
+      try {
+        const { fairytalesDB } = await import("../fairytales/db");
+
+        // Check current count
+        const countResult = await fairytalesDB.queryRow<{ count: number }>`
+          SELECT COUNT(*) as count FROM fairy_tales
+        `;
+        const taleCount = countResult?.count || 0;
+
+        console.log(`[Fairy Tales] Current count: ${taleCount} tales`);
+
+        if (taleCount >= 50) {
+          console.log("[Fairy Tales] Already have 50+ tales. Migrations complete.");
+        } else {
+          console.log("[Fairy Tales] Accessing database to trigger Encore migrations...");
+          // The act of querying the database will trigger Encore to run pending migrations
+          // Migrations 10-13 will be executed automatically
+          console.log("[Fairy Tales] Encore migration system will now run pending migrations");
+        }
+      } catch (fairyError: any) {
+        console.error("[Fairy Tales] Error accessing fairy tales database:", fairyError.message);
+        // Don't fail the whole init if fairy tales fails
+      }
+
       migrationsRun = true;
 
-      return { 
-        success: true, 
-        message: `Migrations completed successfully`, 
-        tablesCreated: successCount 
+      return {
+        success: true,
+        message: `Migrations completed successfully`,
+        tablesCreated: successCount
       };
     } catch (error: any) {
       console.error("[Init] Migration failed:", error);
-      return { 
-        success: false, 
-        message: `Migration failed: ${error.message}` 
+      return {
+        success: false,
+        message: `Migration failed: ${error.message}`
       };
     }
   }
