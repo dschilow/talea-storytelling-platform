@@ -256,13 +256,8 @@ const MIGRATION_STATEMENTS = [
  */
 export const initializeDatabaseMigrations = api(
   { expose: true, method: "GET", path: "/init", auth: false },
-  async (): Promise<{ success: boolean; message: string; tablesCreated?: number }> => {
-    if (migrationsRun) {
-      return { 
-        success: true, 
-        message: "Migrations already completed in this instance" 
-      };
-    }
+  async (): Promise<{ success: boolean; message: string; tablesCreated?: number; fairyTalesCount?: number }> => {
+    // Don't check migrationsRun flag - always check fairy tales migrations
 
     try {
       console.log("=== Running Talea Database Migrations ===");
@@ -279,58 +274,56 @@ export const initializeDatabaseMigrations = api(
         );
       `;
 
-      if (result && result.exists) {
-        console.log("[Init] Character pool and all tables already exist");
-        migrationsRun = true;
-        return {
-          success: true,
-          message: "Character pool and all database tables already exist"
-        };
-      }
+      const tablesExist = result && result.exists;
 
-      // Also check if users table exists (for backward compatibility)
-      const usersExist = await storyDB.queryRow<{ exists: boolean }>`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables
-          WHERE table_schema = 'public'
-          AND table_name = 'users'
-        );
-      `;
+      if (tablesExist) {
+        console.log("[Init] Character pool and all tables already exist - skipping table migrations");
+      } else {
+        // Also check if users table exists (for backward compatibility)
+        const usersExist = await storyDB.queryRow<{ exists: boolean }>`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'users'
+          );
+        `;
 
-      if (usersExist && usersExist.exists) {
-        console.log("[Init] Base tables exist, but character pool missing - running remaining migrations");
-      }
-
-      console.log(`Executing ${MIGRATION_STATEMENTS.length} SQL statements...`);
-
-      let successCount = 0;
-      for (let i = 0; i < MIGRATION_STATEMENTS.length; i++) {
-        const statement = MIGRATION_STATEMENTS[i];
-        const preview = statement.substring(0, 80).replace(/\s+/g, ' ');
-
-        try {
-          console.log(`  [${i + 1}/${MIGRATION_STATEMENTS.length}] ${preview}...`);
-          await storyDB.exec(statement);
-          successCount++;
-        } catch (err: any) {
-          // If error is "already exists", that's OK - continue
-          if (err.message && (
-            err.message.includes('already exists') ||
-            err.message.includes('duplicate')
-          )) {
-            console.log("    [skip] Already exists (skipping)");
-            successCount++;
-            continue;
-          }
-          // Otherwise, log error but continue with next statement
-          console.error("    [error] Failed:", err.message);
+        if (usersExist && usersExist.exists) {
+          console.log("[Init] Base tables exist, but character pool missing - running remaining migrations");
         }
-      }
 
-      console.log(`[Init] Migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
+        console.log(`Executing ${MIGRATION_STATEMENTS.length} SQL statements...`);
+
+        let successCount = 0;
+        for (let i = 0; i < MIGRATION_STATEMENTS.length; i++) {
+          const statement = MIGRATION_STATEMENTS[i];
+          const preview = statement.substring(0, 80).replace(/\s+/g, ' ');
+
+          try {
+            console.log(`  [${i + 1}/${MIGRATION_STATEMENTS.length}] ${preview}...`);
+            await storyDB.exec(statement);
+            successCount++;
+          } catch (err: any) {
+            // If error is "already exists", that's OK - continue
+            if (err.message && (
+              err.message.includes('already exists') ||
+              err.message.includes('duplicate')
+            )) {
+              console.log("    [skip] Already exists (skipping)");
+              successCount++;
+              continue;
+            }
+            // Otherwise, log error but continue with next statement
+            console.error("    [error] Failed:", err.message);
+          }
+        }
+
+        console.log(`[Init] Base table migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
+      }
 
       // Now trigger fairy tales migrations by accessing the fairytales database
       console.log("\n=== Triggering Fairy Tales Migrations ===");
+      let fairyTalesCount = 0;
       try {
         const { fairytalesDB } = await import("../fairytales/db");
 
@@ -338,11 +331,11 @@ export const initializeDatabaseMigrations = api(
         const countResult = await fairytalesDB.queryRow<{ count: number }>`
           SELECT COUNT(*) as count FROM fairy_tales
         `;
-        const taleCount = countResult?.count || 0;
+        fairyTalesCount = countResult?.count || 0;
 
-        console.log(`[Fairy Tales] Current count: ${taleCount} tales`);
+        console.log(`[Fairy Tales] Current count: ${fairyTalesCount} tales`);
 
-        if (taleCount >= 50) {
+        if (fairyTalesCount >= 50) {
           console.log("[Fairy Tales] Already have 50+ tales. Migrations complete.");
         } else {
           console.log("[Fairy Tales] Accessing database to trigger Encore migrations...");
@@ -359,8 +352,8 @@ export const initializeDatabaseMigrations = api(
 
       return {
         success: true,
-        message: `Migrations completed successfully`,
-        tablesCreated: successCount
+        message: `All migrations completed successfully`,
+        fairyTalesCount
       };
     } catch (error: any) {
       console.error("[Init] Migration failed:", error);
