@@ -38,7 +38,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import type { CompleteFairyTaleExport } from '~backend/fairytales/management';
 
@@ -95,7 +95,6 @@ interface FairyTaleScene {
 const FairyTalesScreen: React.FC = () => {
   const backend = useBackend();
   const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
   const navigate = useNavigate();
   const [tales, setTales] = useState<FairyTale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +104,7 @@ const FairyTalesScreen: React.FC = () => {
   >({});
   const [expandedTales, setExpandedTales] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Editing states
   const [editingTale, setEditingTale] = useState<string | null>(null);
@@ -114,8 +114,16 @@ const FairyTalesScreen: React.FC = () => {
   const [editedRoleData, setEditedRoleData] = useState<Partial<FairyTaleRole>>({});
   const [editedSceneData, setEditedSceneData] = useState<Partial<FairyTaleScene>>({});
 
-  // Check if user is admin
-  const isAdmin = user?.publicMetadata?.role === 'admin';
+  // Load user role from backend database
+  const loadUserRole = useCallback(async () => {
+    try {
+      const userProfile = await backend.user.me();
+      setIsAdmin(userProfile.role === 'admin');
+    } catch (error) {
+      console.error('Error loading user role:', error);
+      setIsAdmin(false);
+    }
+  }, [backend]);
 
   const loadTales = useCallback(async () => {
     try {
@@ -147,12 +155,14 @@ const FairyTalesScreen: React.FC = () => {
       setSelectedTale(null);
       setTaleDetails({});
       setExpandedTales(new Set());
+      setIsAdmin(false);
       setErrorMessage('Bitte melde dich an, um die Märchenverwaltung zu nutzen.');
       return;
     }
 
+    loadUserRole();
     loadTales();
-  }, [isLoaded, isSignedIn, loadTales]);
+  }, [isLoaded, isSignedIn, loadTales, loadUserRole]);
 
   const loadTaleDetails = async (taleId: string) => {
     if (taleDetails[taleId]) return;
