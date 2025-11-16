@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Drawer, DrawerContent, DrawerTrigger } from '../ui/drawer';
 import { ShadcnButton } from '../ui/shadcn-button';
-import StoryWizardScreen from '../../screens/Story/StoryWizardScreen';
+import ModernStoryWizard from '../../screens/Story/ModernStoryWizard';
 
 interface StoryWizardDrawerProps {
   trigger?: React.ReactNode;
@@ -21,7 +21,7 @@ export function StoryWizardDrawer({ trigger }: StoryWizardDrawerProps) {
       </DrawerTrigger>
       <DrawerContent>
         <div className="h-full overflow-y-auto">
-          <StoryWizardScreen />
+          <ModernStoryWizard />
         </div>
       </DrawerContent>
     </Drawer>
