@@ -23,12 +23,17 @@ export const runMigrationSQL = api<RunSQLRequest, RunSQLResponse>(
       console.log(`[Migration SQL] Executing: ${req.migrationName}`);
       console.log(`[Migration SQL] SQL length: ${req.sql.length} characters`);
 
-      // Split SQL into individual statements (separated by semicolons)
-      // Filter out empty statements and comments
-      const statements = req.sql
+      // Split SQL into individual statements
+      // Remove comments first, then split by semicolons
+      const sqlWithoutComments = req.sql
+        .split('\n')
+        .filter(line => !line.trim().startsWith('--'))
+        .join('\n');
+
+      const statements = sqlWithoutComments
         .split(';')
         .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'));
+        .filter(s => s.length > 0);
 
       console.log(`[Migration SQL] Found ${statements.length} SQL statements to execute`);
 
