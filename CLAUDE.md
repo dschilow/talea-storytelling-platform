@@ -225,6 +225,63 @@ When updating avatar personality traits, you MUST:
 3. Restart backend - migrations run automatically via health service
 4. Never modify existing migrations that have been deployed
 
+### Running Database Migrations Manually (Emergency)
+
+**Problem:** Sometimes SQL migration files aren't copied into the Railway Docker container, causing automatic migrations to fail.
+
+**Solution:** Use the manual migration script to execute SQL files via API.
+
+**Steps:**
+
+1. **Verify the issue:**
+   ```bash
+   # Check current fairy tales count (should be 50)
+   curl https://backend-2-production-3de1.up.railway.app/fairytales/trigger-migrations
+   ```
+
+2. **Run the migration script:**
+   ```bash
+   bun run run-migrations-via-api.ts
+   ```
+
+3. **What it does:**
+   - Reads SQL migration files from `backend/fairytales/migrations/`
+   - Sends them to `/fairytales/run-migration-sql` API endpoint
+   - API splits SQL by semicolon and executes each statement separately
+   - Handles duplicate key errors gracefully
+   - Reports success/failure for each migration
+
+4. **How it works:**
+   - [run-migrations-via-api.ts](run-migrations-via-api.ts:1) - Local script that reads SQL files
+   - [backend/fairytales/run-migration-sql.ts](backend/fairytales/run-migration-sql.ts:1) - API endpoint that executes raw SQL
+   - SQL is split into individual statements (by `;`) and executed one by one
+   - Progress logged every 10 statements
+
+5. **Expected output:**
+   ```
+   🚀 Talea Fairy Tales Migration Runner (API Mode)
+   📊 Checking current fairy tale count...
+     Current count: 15 tales
+
+   🔄 Running 10_add_47_classic_fairy_tales...
+     ✅ completed successfully
+
+   📊 Final Results:
+     Migrations executed: 4/4
+     Final fairy tale count: 50
+
+   🎉 SUCCESS! Database now has exactly 50 fairy tales!
+   ```
+
+6. **Verify on website:**
+   - https://www.talea.website/fairytales should show all 50 fairy tales
+
+**Important Notes:**
+- The script is idempotent - duplicate entries are skipped automatically
+- Each migration file is executed as a transaction
+- Progress is logged to Railway console for debugging
+- The API endpoint has no authentication (marked `auth: false`) for emergency access
+
 ### Working with Images
 
 - Avatar images generated via AI ([backend/ai/avatar-generation.ts](backend/ai/avatar-generation.ts:1))
