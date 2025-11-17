@@ -67,6 +67,26 @@ export class Phase2CharacterMatcher {
       );
     }
 
+    // Normalize placeholders/traits and enforce conflict presence
+    characterRequirements = characterRequirements
+      .map(req => this.normalizeRequirement(req))
+      .filter((req): req is CharacterRequirement => Boolean(req));
+
+    const hasAntagonistRequirement = characterRequirements.some(req => this.isAntagonistRole(req.role, req.archetype));
+    if (!hasAntagonistRequirement) {
+      console.log("[Phase2] Adding synthetic antagonist requirement to guarantee conflict/twist");
+      characterRequirements.push({
+        placeholder: "{{ANTAGONIST}}",
+        role: "antagonist",
+        archetype: "trickster_villain",
+        emotionalNature: "cunning",
+        requiredTraits: ["cunning", "oppositional"],
+        visualHints: "Memorable obstacle or villain silhouette",
+        importance: "high",
+        inChapters: [1, 2, 3, 4, 5],
+      });
+    }
+
     // Match each requirement to best character
     for (const req of characterRequirements) {
       if (!req.placeholder || typeof req.placeholder !== "string" || req.placeholder.trim().length === 0) {
@@ -194,6 +214,49 @@ export class Phase2CharacterMatcher {
     }
 
     return usageMap;
+  }
+
+  /**
+   * Normalize a raw requirement into a consistent structure
+   */
+  private normalizeRequirement(req: any): CharacterRequirement | null {
+    const placeholderRaw = typeof req.placeholder === "string" ? req.placeholder : (req.name ?? "");
+    const placeholder = this.normalizePlaceholder(placeholderRaw);
+    if (!placeholder) {
+      return null;
+    }
+
+    const inChapters = Array.isArray(req.inChapters) && req.inChapters.length > 0 ? req.inChapters : [1, 2, 3, 4, 5];
+    const requiredTraits = Array.isArray(req.requiredTraits) ? req.requiredTraits : [];
+
+    return {
+      ...req,
+      placeholder,
+      role: req.role || "support",
+      archetype: req.archetype || "neutral",
+      emotionalNature: req.emotionalNature || "neutral",
+      visualHints: req.visualHints || "",
+      requiredTraits,
+      importance: (req.importance as any) || "medium",
+      inChapters,
+    };
+  }
+
+  /**
+   * Normalize placeholder to ASCII-safe {{NAME}}
+   */
+  private normalizePlaceholder(raw: string): string {
+    if (!raw) return "";
+    const stripped = raw.replace(/^{+|}+$/g, "");
+    const ascii = stripped
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toUpperCase();
+    if (!ascii) return "";
+    return `{{${ascii}}}`;
   }
 
   /**
@@ -469,6 +532,13 @@ export class Phase2CharacterMatcher {
     return mapping[importance] || 50;
   }
 
+  private isAntagonistRole(role: string, archetype: string): boolean {
+    const roleLc = (role || "").toLowerCase();
+    const archetypeLc = (archetype || "").toLowerCase();
+    const antagonisticKeywords = ["antagonist", "villain", "enemy", "obstacle", "opponent", "witch", "wizard", "monster", "ogre"];
+    return antagonisticKeywords.some(keyword => roleLc.includes(keyword) || archetypeLc.includes(keyword));
+  }
+
   private isCompatibleRole(candidateRole: string, requiredRole: string): boolean {
     const compatibilityMap: Record<string, string[]> = {
       guide: ["support", "special"],
@@ -477,6 +547,8 @@ export class Phase2CharacterMatcher {
       support: ["guide", "companion"],
       discovery: ["companion", "special"],
       special: ["guide", "discovery"],
+      helper: ["support", "guide", "companion"],
+      antagonist: ["obstacle", "villain", "special"],
     };
 
     return compatibilityMap[candidateRole]?.includes(requiredRole) || false;

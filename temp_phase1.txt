@@ -60,7 +60,38 @@ export interface Phase1GenerationResult {
 
 export class Phase1SkeletonGenerator {
   async generate(input: Phase1Input): Promise<Phase1GenerationResult> {
-    if (input.selectedFairyTale) {\n      console.log(`[Phase1] FAIRY TALE MODE: ${input.selectedFairyTale.tale.title} used as loose inspiration (no copy-paste).`);\n    }\n\n    // Always generate skeleton (also in fairy-tale mode)\n    console.log("[Phase1] Generating story skeleton...");\n\n    const prompt = this.buildSkeletonPrompt(input, input.selectedFairyTale);
+    // ===== NEW: Check if fairy tale is pre-selected (Phase 0) =====
+    if (input.selectedFairyTale) {
+      console.log(`[Phase1] 🚀 FAIRY TALE MODE DETECTED: ${input.selectedFairyTale.tale.title}`);
+      console.log("[Phase1] Skipping expensive skeleton generation - will use fairy tale structure");
+      
+      // Return minimal skeleton with only title - saves ~47 seconds + 3757 tokens + $0.0003
+      const minimalSkeleton: StorySkeleton = {
+        title: input.selectedFairyTale.tale.title, // Use fairy tale title
+        chapters: [], // Empty - will be filled by fairy tale scenes in Phase 3
+        supportingCharacterRequirements: [], // Empty - roles loaded from fairy_tale_roles in Phase 3
+      };
+
+      console.log("[Phase1] ✅ Minimal skeleton created (no OpenAI call)");
+      console.log("[Phase1] Savings: ~47 seconds latency + ~3757 tokens + ~$0.0003 per story");
+
+      return {
+        skeleton: minimalSkeleton,
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          reasoningTokens: 0,
+        },
+        openAIRequest: { skipped: true, reason: "Fairy tale pre-selected in Phase 0" },
+        openAIResponse: { choices: [], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } } as OpenAIResponse,
+      };
+    }
+
+    // ===== STANDARD MODE: Generate skeleton with OpenAI =====
+    console.log("[Phase1] Generating story skeleton...");
+
+    const prompt = this.buildSkeletonPrompt(input);
     const modelName = input.config.aiModel || "gpt-5-mini";
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
@@ -170,7 +201,7 @@ export class Phase1SkeletonGenerator {
     }
   }
 
-  private buildSkeletonPrompt(input: Phase1Input, selectedFairyTale?: SelectedFairyTale | null): string {
+  private buildSkeletonPrompt(input: Phase1Input): string {
     const { config, avatarDetails, experience } = input;
 
     const avatarLine =
@@ -221,17 +252,6 @@ export class Phase1SkeletonGenerator {
           .join("\n")
       : "- Keine Spezialzutaten - klassischer Verlauf moeglich.";
 
-    const fairyTaleLine = selectedFairyTale
-      ? `MAERCHEN-INSPIRATION (nur als Richtung, kein Remake!): ${selectedFairyTale.tale.title}. Nutze Motive und Moral, aber erfinde neue Konflikte, neue Reihenfolge und einen eigenen Twist. Keine 1:1 Kopie.`
-      : "Keine Maerchen-Vorlage - komplett originelle Struktur.";
-
-    const fairyTaleScenes = selectedFairyTale
-      ? selectedFairyTale.scenes
-          .slice(0, 6)
-          .map((scene) => `- Szene ${scene.sceneNumber}: ${scene.sceneTitle} | Stimmung: ${scene.mood} | Setting: ${scene.setting}`)
-          .join("\n")
-      : "";
-
     const hooksLine =
       config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "keine speziellen Hooks";
 
@@ -268,10 +288,6 @@ ${flavorSummary}
 - Hooks: ${hooksLine}
 - Besondere Zutaten:
 ${ingredientSummary}
-
-FAIRY-TALE-GUIDE: ${fairyTaleLine}
-FAIRY-TALE-SCENES (nur als loses Richtungsraster, Reihenfolge darf variieren):
-${fairyTaleScenes || "- keine Vorlagen"}
 
 DETAILLIERTE WUERZE:
 ${flavorDetails}

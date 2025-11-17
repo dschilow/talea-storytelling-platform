@@ -433,12 +433,13 @@ export class FourPhaseOrchestrator {
     // Generate cover image
     console.log("[4-Phase] Generating cover image...");
     const coverStart = Date.now();
-    const coverImageUrl = await this.generateCoverImage(
+    const coverImage = await this.generateCoverImage(
       finalizedStory,
       input.avatarDetails,
       characterAssignments
     );
     const coverDuration = Date.now() - coverStart;
+    const coverImageUrl = coverImage?.url;
 
     const totalDuration = Date.now() - startTime;
     console.log(`[4-Phase] Total orchestration completed in ${totalDuration}ms`);
@@ -465,11 +466,15 @@ export class FourPhaseOrchestrator {
         chapterTitle: ch.title,
         hasImage: !!ch.imageUrl,
         imageUrl: ch.imageUrl,
+        promptPreview: ch.imagePrompt ? `${ch.imagePrompt.substring(0, 180)}...` : undefined,
+        seed: (ch as any).imageSeed,
+        model: (ch as any).imageModel,
       })),
       coverImage: {
-        url: coverImageUrl,
+        url: coverImage?.url,
+        promptPreview: coverImage?.prompt ? `${coverImage.prompt.substring(0, 180)}...` : undefined,
         durationMs: coverDuration,
-        success: !!coverImageUrl,
+        success: !!coverImage?.url,
       },
       totalDurationMs: totalDuration,
     };
@@ -606,6 +611,8 @@ export class FourPhaseOrchestrator {
           avatarDetails,
           characterAssignments
         );
+        const imageSeed = Math.floor(Math.random() * 1_000_000_000);
+        const imageModel = "ai.generateImage-default";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
         const imageUrl = await this.generateImage(enhancedPrompt);
@@ -616,6 +623,9 @@ export class FourPhaseOrchestrator {
           content: chapter.content,
           imageUrl,
           order: chapter.order,
+          imagePrompt: enhancedPrompt,
+          imageSeed,
+          imageModel,
         };
       } catch (error) {
         console.error(`[4-Phase] Failed to generate image for chapter ${chapter.order}:`, error);
@@ -625,6 +635,9 @@ export class FourPhaseOrchestrator {
           content: chapter.content,
           imageUrl: undefined,
           order: chapter.order,
+          imagePrompt: undefined,
+          imageSeed: undefined,
+          imageModel: undefined,
         };
       }
     });
@@ -807,7 +820,7 @@ Art style: watercolor illustration, Axel Scheffler style, warm colours, child-fr
     story: FinalizedStory,
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
-  ): Promise<string | undefined> {
+  ): Promise<{ url?: string; prompt: string } | undefined> {
     console.log("[4-Phase] Generating cover image...");
 
     try {
@@ -833,7 +846,7 @@ ${story.description}
       const imageUrl = await this.generateImage(enhancedPrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
-      return imageUrl;
+      return { url: imageUrl, prompt: enhancedPrompt };
     } catch (error) {
       console.error("[4-Phase] Failed to generate cover image:", error);
       return undefined;

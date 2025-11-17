@@ -134,6 +134,9 @@ export interface Chapter {
   content: string;
   imageUrl?: string;
   order: number;
+  imagePrompt?: string;
+  imageSeed?: number;
+  imageModel?: string;
 }
 
 export interface Story {
