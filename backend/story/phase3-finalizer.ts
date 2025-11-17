@@ -1,4 +1,4 @@
-// Phase 3: Story Finalizer with Character Injection
+﻿// Phase 3: Story Finalizer with Character Injection
 // Writes complete story with matched characters
 // Token Budget: ~2,000 tokens
 
@@ -739,18 +739,15 @@ ${chapterStructure}
 
 ${styleInstructions}
 
-🎬 PROFESSIONAL STORYTELLING RULES:
+?? PROFESSIONAL STORYTELLING RULES:
 
-1️⃣ **PFLICHT-PLOT**: Die Kapitel-Struktur oben ist ZWINGEND!
-   - Kapitel 1 = Szenen ${sceneChapterMapping[0].scenes.map((s: any) => s.sceneNumber).join('+')}
-   - Kapitel 2 = Szenen ${sceneChapterMapping[1].scenes.map((s: any) => s.sceneNumber).join('+')}
-   - Kapitel 3 = Szenen ${sceneChapterMapping[2].scenes.map((s: any) => s.sceneNumber).join('+')}
-   - Kapitel 4 = Szenen ${sceneChapterMapping[3].scenes.map((s: any) => s.sceneNumber).join('+')}
-   - Kapitel 5 = Szenen ${sceneChapterMapping[4].scenes.map((s: any) => s.sceneNumber).join('+')}
+1?? **FLEXIBLES PLOT-GERUEST**: Nutze die Szenen-Zuordnung als Vorschlag. Du DARFST Szenen mischen, streichen oder zusammenlegen, solange Tempo und Konflikt pro Kapitel klar sind.
+   - Kapitel 1-2: Ausgangslage + Problem aufbauen (passende Szenen mischen)
+   - Kapitel 3: Eskalation/Finte (eigener Dreh erlaubt)
+   - Kapitel 4: Twist oder Wendepunkt (darf vom Original abweichen)
+   - Kapitel 5: Aufloesung mit frischem Ende (kein Copy-Paste aus Vorlage)
 
-2️⃣ **IKONISCHE MOMENTE**: Behalte die berühmten Szenen aus "${fairyTale.tale.title}"
-   - Leser müssen das Original-Märchen wiedererkennen!
-   - Aber mit den Namen und Details der User-Avatare
+2?? **IKONISCHE MOMENTE**: Hebe 2-3 erkennbare Motive aus "${fairyTale.tale.title}" hervor, aber erfinde neue Setpieces und Outcomes. Wiedererkennung ja, Kopie nein.
 
 3️⃣ **FILMISCHE SPRACHE** (Altersgruppe: ${config.ageGroup}):
    - 40% kurze Sätze (3-7 Wörter): "Der Wald war dunkel."

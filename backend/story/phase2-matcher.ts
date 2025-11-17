@@ -41,10 +41,10 @@ export class Phase2CharacterMatcher {
         .filter((name): name is string => Boolean(name))
     );
 
-    // CRITICAL FIX: For fairy tales, use roles from fairy_tale_roles table instead of empty skeleton
+    // Prefer skeleton requirements; only fall back to fairy tale roles if skeleton is empty
     let characterRequirements: any[] = skeleton.supportingCharacterRequirements;
 
-    if (selectedFairyTale && selectedFairyTale.roles) {
+    if ((!characterRequirements || characterRequirements.length === 0) && selectedFairyTale && selectedFairyTale.roles) {
       console.log(`[Phase2] 🎭 Fairy Tale Mode: Loading ${selectedFairyTale.roles.length} roles from "${selectedFairyTale.tale.title}"`);
 
       // Convert fairy tale roles to character requirements format
@@ -71,6 +71,12 @@ export class Phase2CharacterMatcher {
     characterRequirements = characterRequirements
       .map(req => this.normalizeRequirement(req))
       .filter((req): req is CharacterRequirement => Boolean(req));
+
+    // Guardrail: if requirements drifted (e.g. overwritten placeholders), warn/adjust
+    const expectedReqCount = skeleton.supportingCharacterRequirements?.length || 0;
+    if (expectedReqCount > 0 && characterRequirements.length !== expectedReqCount) {
+      console.warn(`[Phase2] Requirement count drift: expected ${expectedReqCount}, got ${characterRequirements.length}`);
+    }
 
     const hasAntagonistRequirement = characterRequirements.some(req => this.isAntagonistRole(req.role, req.archetype));
     if (!hasAntagonistRequirement) {
@@ -663,3 +669,4 @@ export class Phase2CharacterMatcher {
     console.log("[Phase2] Usage statistics updated");
   }
 }
+
