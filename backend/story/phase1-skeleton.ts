@@ -60,7 +60,16 @@ export interface Phase1GenerationResult {
 
 export class Phase1SkeletonGenerator {
   async generate(input: Phase1Input): Promise<Phase1GenerationResult> {
-    if (input.selectedFairyTale) {\n      console.log(`[Phase1] FAIRY TALE MODE: ${input.selectedFairyTale.tale.title} used as loose inspiration (no copy-paste).`);\n    }\n\n    // Always generate skeleton (also in fairy-tale mode)\n    console.log("[Phase1] Generating story skeleton...");\n\n    const prompt = this.buildSkeletonPrompt(input, input.selectedFairyTale);
+    if (input.selectedFairyTale) {
+      console.log(
+        `[Phase1] FAIRY TALE MODE: ${input.selectedFairyTale.tale.title} used as loose inspiration (no copy-paste).`
+      );
+    }
+
+    // Always generate skeleton (also in fairy-tale mode)
+    console.log("[Phase1] Generating story skeleton...");
+
+    const prompt = this.buildSkeletonPrompt(input, input.selectedFairyTale);
     const modelName = input.config.aiModel || "gpt-5-mini";
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
