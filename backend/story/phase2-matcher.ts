@@ -98,13 +98,42 @@ export class Phase2CharacterMatcher {
     }
 
     if (characterRequirements.length !== skeletonPlaceholders.size) {
-      throw new Error(`[Phase2] Placeholder mismatch: skeleton=${skeletonPlaceholders.size} reqs=${characterRequirements.length}`);
+      console.warn(`[Phase2] Placeholder mismatch detected (skeleton=${skeletonPlaceholders.size} reqs=${characterRequirements.length}) - regenerating requirements from skeleton to keep run alive`);
+      characterRequirements = (skeleton.supportingCharacterRequirements || [])
+        .map(req => this.normalizeRequirement(req))
+        .filter((req): req is CharacterRequirement => Boolean(req));
     }
 
     // Guardrail: if requirements drifted (e.g. overwritten placeholders), warn/adjust
     const expectedReqCount = skeleton.supportingCharacterRequirements?.length || 0;
     if (expectedReqCount > 0 && characterRequirements.length !== expectedReqCount) {
       console.warn(`[Phase2] Requirement count drift: expected ${expectedReqCount}, got ${characterRequirements.length}`);
+    }
+
+    // Ensure protagonist/antagonist slots exist so avatars can be mapped deterministically
+    if (avatarQueue.length > 0 && !characterRequirements.some(req => req.role === "protagonist")) {
+      characterRequirements.unshift({
+        placeholder: "{{PROTAGONIST_AVATAR}}",
+        role: "protagonist",
+        archetype: "hero",
+        emotionalNature: "brave",
+        visualHints: "Avatar-Hauptfigur",
+        requiredTraits: [],
+        importance: "high",
+        inChapters: [1, 2, 3, 4, 5],
+      } as any);
+    }
+    if (avatarQueue.length > 1 && !characterRequirements.some(req => this.isAntagonistRole(req.role, req.archetype))) {
+      characterRequirements.unshift({
+        placeholder: "{{ANTAGONIST_AVATAR}}",
+        role: "antagonist",
+        archetype: "villain",
+        emotionalNature: "cunning",
+        visualHints: "Avatar-Gegenspieler",
+        requiredTraits: ["cunning"],
+        importance: "high",
+        inChapters: [1, 2, 3, 4, 5],
+      } as any);
     }
 
     const hasAntagonistRequirement = characterRequirements.some(req => this.isAntagonistRole(req.role, req.archetype));

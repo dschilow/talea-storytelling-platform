@@ -111,6 +111,7 @@ export class Phase3StoryFinalizer {
           input.avatarDetails,
           input.experience
         );
+    const normalizedPrompt = this.normalizeText(prompt);
     const modelName = input.config.aiModel || "gpt-5-mini";
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
@@ -121,15 +122,15 @@ export class Phase3StoryFinalizer {
       messages: [
         {
           role: "system",
-          content: "Du bist eine professionelle Kinderbuch-Autorin, die vollständige, lebendige Geschichten mit etablierten Charakteren schreibt."
+          content: this.normalizeText("Du bist eine professionelle Kinderbuch-Autorin. Schreibe vollständige, neue Geschichten mit etablierten Charakteren. Nutze Vorlagen nur als Inspiration, niemals als Copy/Paste.")
         },
         {
           role: "user",
-          content: prompt
+          content: normalizedPrompt
         }
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: isReasoningModel ? 16000 : 5000,
+      max_completion_tokens: isReasoningModel ? 6500 : 2800,
     };
 
     // Add reasoning_effort for reasoning models (they don't support temperature/top_p)
@@ -151,6 +152,10 @@ export class Phase3StoryFinalizer {
 
     console.log(`[Phase3] Using variance seed: ${varianceSeed} to prevent duplicate stories`);
 
+    const requestTimeoutMs = isReasoningModel ? 60000 : 45000;
+    const abortController = new AbortController();
+    const timeoutHandle = setTimeout(() => abortController.abort(), requestTimeoutMs);
+
     try {
       const openAIRequest = { ...payload };
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -160,6 +165,7 @@ export class Phase3StoryFinalizer {
           "Authorization": `Bearer ${openAIKey()}`,
         },
         body: JSON.stringify(payload),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -215,8 +221,14 @@ export class Phase3StoryFinalizer {
 
       return result;
     } catch (error) {
+      if ((error as any)?.name === "AbortError") {
+        console.error(`[Phase3] Timeout after ${requestTimeoutMs}ms while waiting for OpenAI`);
+        throw new Error(`[Phase3] Timeout after ${requestTimeoutMs}ms waiting for OpenAI response`);
+      }
       console.error("[Phase3] Error finalizing story:", error);
       throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
     }
   }
 
@@ -243,7 +255,7 @@ export class Phase3StoryFinalizer {
     text: string,
     assignments: Map<string, CharacterTemplate>
   ): string {
-    let result = text;
+    let result = this.normalizeText(text);
 
     for (const [placeholder, character] of assignments) {
       if (!placeholder || typeof placeholder !== "string") {
@@ -259,6 +271,32 @@ export class Phase3StoryFinalizer {
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
+  /**
+   * Normalize text to safe UTF-8 (NFC) and fix common mojibake for German umlauts.
+   */
+  private normalizeText(text: string): string {
+    if (!text) return "";
+    const replacements: Record<string, string> = {
+      "Ã¤": "ä",
+      "Ã¶": "ö",
+      "Ã¼": "ü",
+      "ÃŸ": "ß",
+      "�": ""
+    };
+    let normalized = text;
+    for (const [bad, good] of Object.entries(replacements)) {
+      normalized = normalized.replace(new RegExp(bad, "g"), good);
+    }
+    return normalized.normalize("NFC");
+  }
+
+    let normalized = text;
+    for (const [bad, good] of Object.entries(replacements)) {
+      normalized = normalized.replace(new RegExp(bad, "g"), good);
+    }
+    return normalized.normalize("NFC");
+  }
+
 
   /**
    * Convert structured visual profile to text description
@@ -421,7 +459,7 @@ ${ingredientDetails}
 
 ${styleInstructions}
 
-🎯 KONFLIKT-PFLICHT (CRITICAL FOR 10/10 QUALITY):
+?? KONFLIKT-PFLICHT (CRITICAL FOR 10/10 QUALITY):
 Jede Geschichte braucht ein konkretes Problem das gelöst wird!
 - VERBOTEN: Rein emotionale Reisen ohne äußere Handlung
 - PFLICHT: 
@@ -429,19 +467,19 @@ Jede Geschichte braucht ein konkretes Problem das gelöst wird!
   * Kapitel 3-4: Konflikt eskaliert (Gefahr steigt, Hindernis wird größer, Spannung wächst)
   * Kapitel 5: Konkrete Lösung (Problem wird überwunden, Gefahr gebannt, Ziel erreicht)
 
-📝 STORY-MUSTER (wähle passend zum Skelett):
+?? STORY-MUSTER (wähle passend zum Skelett):
 - QUEST: Charakter sucht etwas (Weg nach Hause, verlorener Schatz, Freund finden)
 - KONFLIKT: Charakter vs Antagonist (Wolf, Hexe, Monster, Bully, Natur)
 - HERAUSFORDERUNG: Charakter überwindet Hindernis (Angst, Rätsel, Prüfung, Aufgabe)
 - RETTUNG: Charakter rettet jemanden (Freund gefangen, Gefahr droht, Hilfe nötig)
 
-❌ VERMEIDE (führt zu niedrigen Qualitäts-Scores):
+? VERMEIDE (führt zu niedrigen Qualitäts-Scores):
 - Abstrakte Konzepte als Hauptplot ("vergessene Lieder", "verlorene Träume")
 - Nur emotionale Entwicklung ohne externe Handlung
 - Probleme die sich von selbst lösen (Deus ex machina)
 - Zu philosophisch für Zielgruppe
 
-✅ NUTZE (führt zu hohen Qualitäts-Scores):
+? NUTZE (führt zu hohen Qualitäts-Scores):
 - Konkrete Action-Verben: jagen, fangen, retten, entkommen, finden, besiegen, klettern, laufen
 - Physische Herausforderungen: verstecken, kämpfen, suchen, bauen, überqueren
 - Klare Stakes: Was passiert wenn sie verlieren? (Wolf fängt sie, Hexe sperrt ein, Freund bleibt verloren)
@@ -449,7 +487,7 @@ Jede Geschichte braucht ein konkretes Problem das gelöst wird!
 QUALITAETSREGELN:
 - Dialog-Anteil: 40-50 % lebendige Dialoge (Kinderstimmen authentisch, Erwachsene freundlich).
 - Sinneseindruecke: mind. drei Sinne pro Kapitel (sehen, hoeren, fuehlen, riechen, schmecken).
-  WICHTIG: Vermeide Klischees! Statt "riecht nach Brot und Zimt" → verwende spezifische, unerwartete Details.
+  WICHTIG: Vermeide Klischees! Statt "riecht nach Brot und Zimt" ? verwende spezifische, unerwartete Details.
   Beispiele: "riecht nach feuchter Erde und Honig", "schmeckt nach sauren Aepfeln", "klingt wie raschelndes Papier".
 - Show, dont tell: Emotionen ueber Aktionen, Koerpersprache, Details vermitteln.
 - Wiederkehrende Motive: Baue 2-3 Leitmotive (z. B. Licht, Symbol, Klang) an mehreren Stellen ein.
@@ -458,11 +496,11 @@ QUALITAETSREGELN:
 - Twist-Regel: ${twistGuidance}
 
 KRITISCHE VERBOTE (QUALITY GATES):
-❌ NIEMALS aeussere Merkmale im Story-Text beschreiben!
+? NIEMALS aeussere Merkmale im Story-Text beschreiben!
    - VERBOTEN: "kurze braune Haare", "gruene Augen", "helle Haut", "rote Jacke"
    - ERLAUBT: Nur Aktionen, Emotionen, Dialoge, Gedanken
    - Visuelle Details gehoeren AUSSCHLIESSLICH in imageDescription!
-❌ KEINE generischen Sinneseindruecke!
+? KEINE generischen Sinneseindruecke!
    - VERBOTEN: "riecht nach Brot und Zimt", "schmeckt suess", "fuehlt sich weich an"
    - PFLICHT: Spezifische, ueberraschende Details die zur Szene passen
 
@@ -677,14 +715,14 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
           
           let visualDescription = this.visualProfileToText(avatar.visualProfile);
           
-          // Transform avatar appearance for fairy tale role (e.g., human → mermaid)
+          // Transform avatar appearance for fairy tale role (e.g., human ? mermaid)
           if (protagonistTransformation && idx === 0) { // First avatar = protagonist
             visualDescription = applyRoleTransformation(
               visualDescription,
               avatarGender,
               protagonistTransformation
             );
-            console.log(`[Phase3] 🎨 Transformed avatar ${avatar.name} visual profile:`);
+            console.log(`[Phase3] ?? Transformed avatar ${avatar.name} visual profile:`);
             console.log(`[Phase3] Original: ${this.visualProfileToText(avatar.visualProfile)}`);
             console.log(`[Phase3] Transformed: ${visualDescription}`);
           }
@@ -703,7 +741,7 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     );
 
     const roleMappingText = roleMapping
-      .map((mapping) => `- ${mapping.fairyTaleRole} → ${mapping.avatarName} (${mapping.roleType})`)
+      .map((mapping) => `- ${mapping.fairyTaleRole} ? ${mapping.avatarName} (${mapping.roleType})`)
       .join("\n");
 
     // Build scene structure from fairy tale
@@ -730,8 +768,8 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
       ? getAdaptedRoleTitle(roleTransformations.roles['{protagonist}'], protagonistGender)
       : fairyTale.tale.title;
     
-    console.log(`[Phase3] 🔄 Gender adaptation for ${protagonistAvatar.name} (${protagonistGender}):`);
-    console.log(`[Phase3] Role title: ${fairyTale.tale.title} → ${adaptedRoleTitle}`);
+    console.log(`[Phase3] ?? Gender adaptation for ${protagonistAvatar.name} (${protagonistGender}):`);
+    console.log(`[Phase3] Role title: ${fairyTale.tale.title} ? ${adaptedRoleTitle}`);
     console.log(`[Phase3] Pronouns: ${JSON.stringify(adaptedPronouns)}`);
     
     const chapterStructure = sceneChapterMapping
@@ -762,22 +800,22 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     return `
 Du bist ein preisgekrönter Kinderbuch-Autor. Deine Aufgabe: Schreibe eine EIGENE, neue Geschichte, inspiriert von "${fairyTale.tale.title}" - personalisiert mit den Avataren des Benutzers. KEINE 1:1-Nacherzaehlung; Motive duerfen erkannt werden, aber Plot/Twist/Setpieces sind neu.
 
-🎭 ROLLEN-BESETZUNG (Märchen → Benutzer-Avatare):
+?? ROLLEN-BESETZUNG (Märchen ? Benutzer-Avatare):
 ${roleMappingText}
 
-👤 CHARAKTER-DETAILS:
+?? CHARAKTER-DETAILS:
 Hauptcharaktere (User-Avatare):
 ${avatarDetailsText}
 
 Nebencharaktere (Character Pool):
 ${characterDetails}
 
-📖 HANDLUNG: INSPIRATIONS-PLOT AUS "${fairyTale.tale.title}"
-⚠️ KRITISCH: Nutze die Szenen nur als Richtungsgeber. Du darfst umordnen, mischen, streichen und neue Konflikte/Twists einbauen. Leser sollen Motive erkennen, aber die Handlung muss frisch sein.
+?? HANDLUNG: INSPIRATIONS-PLOT AUS "${fairyTale.tale.title}"
+?? KRITISCH: Nutze die Szenen nur als Richtungsgeber. Du darfst umordnen, mischen, streichen und neue Konflikte/Twists einbauen. Leser sollen Motive erkennen, aber die Handlung muss frisch sein.
 
 ${chapterStructure}
 
-🎯 MORALISCHE LEKTION: ${fairyTale.tale.moralLesson}
+?? MORALISCHE LEKTION: ${fairyTale.tale.moralLesson}
 
 ${styleInstructions}
 
@@ -791,28 +829,28 @@ ${styleInstructions}
 
 2?? **IKONISCHE MOMENTE**: Hebe 2-3 erkennbare Motive aus "${fairyTale.tale.title}" hervor, aber erfinde neue Setpieces und Outcomes. Wiedererkennung ja, Kopie nein.
 
-3️⃣ **FILMISCHE SPRACHE** (Altersgruppe: ${config.ageGroup}):
+3?? **FILMISCHE SPRACHE** (Altersgruppe: ${config.ageGroup}):
    - 40% kurze Sätze (3-7 Wörter): "Der Wald war dunkel."
    - 40% mittlere Sätze (8-15 Wörter): "Alexander hörte ein Knacken zwischen den Bäumen."
    - 20% lange Sätze (16-25 Wörter): "Mit klopfendem Herzen schlich er näher, die Augen weit aufgerissen vor Angst und Neugier."
    
-4️⃣ **SENSORISCHE DETAILS** (3+ pro Kapitel):
+4?? **SENSORISCHE DETAILS** (3+ pro Kapitel):
    - Sehen: Farben, Bewegungen, Licht/Schatten
    - Hören: Geräusche, Stimmen, Stille
    - Fühlen: Texturen, Temperatur, körperliche Empfindungen
    - Riechen/Schmecken: Düfte, Geschmack
    
-5️⃣ **EMOTIONALE TIEFE**:
+5?? **EMOTIONALE TIEFE**:
    - Zeige Gefühle durch Körpersprache: "Ihre Hände zitterten", "Sein Atem stockte"
    - Nutze konkrete Details statt abstrakter Konzepte
-   - Vermeide: "Sie fühlte Angst" ❌
-   - Nutze: "Ihr Herz raste wie ein gehetztes Kaninchen" ✅
+   - Vermeide: "Sie fühlte Angst" ?
+   - Nutze: "Ihr Herz raste wie ein gehetztes Kaninchen" ?
 
-6️⃣ **DIALOGE** (2-3 pro Kapitel):
+6?? **DIALOGE** (2-3 pro Kapitel):
    - Kurz, natürlich, charakterspezifisch
    - Mit Begleitsätzen: "flüsterte", "rief", "fragte atemlos"
    
-7️⃣ **CINEMATIC IMAGE DESCRIPTIONS** (English, 80-120 words):
+7?? **CINEMATIC IMAGE DESCRIPTIONS** (English, 80-120 words):
    - Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
    - Character details: Insert avatar names and physical features
    - LIGHTING: "golden hour", "dramatic shadows", "soft moonlight"
@@ -821,18 +859,18 @@ ${styleInstructions}
    - Style reference: "Watercolor illustration style, Axel Scheffler inspired"
    - Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset backlighting creates silhouette. FOREGROUND: Dark twisted tree roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest fading into darkness. MOOD: Brave but cautious. Watercolor style, rich shadows, warm-cool contrast."
 
-8️⃣ **STORY SOUL**: ${(experience as any).storySoul || 'magische_entdeckung'}
+8?? **STORY SOUL**: ${(experience as any).storySoul || 'magische_entdeckung'}
    ${(experience as any).storySoul === 'wilder_ritt' ? '- Temporeiche Action! Verfolgungsjagden, Rätsel, physische Herausforderungen' : ''}
    ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotionale Momente, Freundschaft, Zusammenhalt, warme Gefühle' : ''}
    ${(experience as any).storySoul === 'magische_entdeckung' ? '- Staunen, Wunder, magische Entdeckungen, fantastische Elemente' : ''}
 
-9️⃣ **KAPITEL-LÄNGE**: 380-450 Wörter pro Kapitel
+9?? **KAPITEL-LÄNGE**: 380-450 Wörter pro Kapitel
    - Genug Details für immersive Erfahrung
    - Nicht zu lang für junge Leser
 
 ?? PLOT-KOMBINATION: Verwende Story-Skelett + Maerchen-Szenen als Ideenkatalog. Original dient nur als Leitstern; neu erfundene Konflikte/Twists sind erwuenscht. Erhalte Tempo (5 Kapitel) und Genre, aber schreibe eine neue Abfolge.
 
-📝 AUSGABE-FORMAT (JSON):
+?? AUSGABE-FORMAT (JSON):
 {
   "title": "[Avatar-Namen] und das [Märchen-Thema]",
   "description": "Eine personalisierte Version von ${fairyTale.tale.title}",
@@ -847,7 +885,7 @@ ${styleInstructions}
   ]
 }
 
-✨ SCHREIBE JETZT: Die vollständige personalisierte ${fairyTale.tale.title}-Geschichte mit allen 5 Kapiteln!
+? SCHREIBE JETZT: Die vollständige personalisierte ${fairyTale.tale.title}-Geschichte mit allen 5 Kapiteln!
 `;
   }
 
@@ -994,5 +1032,11 @@ ${styleInstructions}
     return mapping;
   }
 }
+
+
+
+
+
+
 
 
