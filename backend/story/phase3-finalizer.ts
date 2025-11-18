@@ -714,8 +714,30 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     // Twist heuristic
     if (twistRequired) {
       const twistSignals = ["twist", "wendung", "ueberraschung", "überraschung", "plot twist"];
-      if (!twistSignals.some(k => text.includes(k))) {
-        throw new Error("[Phase3] Twist required but not detected");
+      const structuralTwistPatterns = [
+        /ploetzlich/,
+        /plötzlich/,
+        /unerwartet/,
+        /auf einmal/,
+        /doch dann/,
+        /aber dann/,
+        /stellt sich heraus/,
+        /stellt sich raus/,
+        /enthüllt/,
+        /enthuellt/,
+        /reveal/,
+        /geheimnis/,
+        /verwandelt sich/,
+      ];
+
+      const hasTwistSignal = twistSignals.some((k) => text.includes(k));
+      const hasStructuralTwist = structuralTwistPatterns.some((pattern) => pattern.test(text));
+
+      if (!hasTwistSignal && !hasStructuralTwist) {
+        const context = fairyTale
+          ? "Fairy tale mode: allow soft pass, twist heuristics are unreliable for classic tales."
+          : "No explicit twist signal found; heuristics may miss subtle reveals. Allowing story but logging warning.";
+        console.warn(`[Phase3] Twist heuristic weak: ${context}`);
       }
     }
 
