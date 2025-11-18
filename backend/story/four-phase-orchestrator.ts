@@ -621,7 +621,7 @@ export class FourPhaseOrchestrator {
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(enhancedPrompt, imageSeed, stylePreset, negativePrompt);
+        const imageUrl = await this.generateImage(enhancedPrompt, imageSeed, negativePrompt);
 
         return {
           id: crypto.randomUUID(),
@@ -814,15 +814,13 @@ IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent
   private async generateImage(
     prompt: string,
     seed?: number,
-    style?: string,
     negativePrompt?: string
   ): Promise<string | undefined> {
     try {
       const response = await ai.generateImage({
         prompt,
         seed,
-        style,
-        negative_prompt: negativePrompt,
+        negativePrompt: negativePrompt,
       });
 
       return response.imageUrl;
@@ -865,7 +863,7 @@ ${story.description}
       const seed = Math.floor(Math.random() * 1_000_000_000);
       const stylePreset = "watercolor_storybook";
       const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text";
-      const imageUrl = await this.generateImage(enhancedPrompt, seed, stylePreset, negativePrompt);
+      const imageUrl = await this.generateImage(enhancedPrompt, seed, negativePrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
       return { url: imageUrl, prompt: enhancedPrompt };
