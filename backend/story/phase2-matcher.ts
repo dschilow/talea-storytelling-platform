@@ -72,6 +72,34 @@ export class Phase2CharacterMatcher {
       .map(req => this.normalizeRequirement(req))
       .filter((req): req is CharacterRequirement => Boolean(req));
 
+    // Validate placeholder set matches skeleton expectations (prevent drift)
+    const skeletonPlaceholders = new Set(
+      (skeleton.supportingCharacterRequirements || []).map(req => this.normalizePlaceholder(req.placeholder))
+    );
+    const requirementPlaceholders = new Set(characterRequirements.map(req => req.placeholder));
+
+    for (const ph of requirementPlaceholders) {
+      if (ph && !skeletonPlaceholders.has(ph)) {
+        console.warn(`[Phase2] Placeholder drift detected (ignored): ${ph}`);
+        characterRequirements = characterRequirements.filter(req => req.placeholder === ph ? false : true);
+      }
+    }
+    for (const ph of skeletonPlaceholders) {
+      if (ph && !requirementPlaceholders.has(ph)) {
+        console.warn(`[Phase2] Missing requirement for placeholder ${ph} - will add fallback.`);
+        characterRequirements.push({
+          placeholder: ph,
+          role: "support",
+          archetype: "neutral",
+          emotionalNature: "neutral",
+          requiredTraits: [],
+          visualHints: "",
+          importance: "medium",
+          inChapters: [1, 2, 3, 4, 5],
+        });
+      }
+    }
+
     // Guardrail: if requirements drifted (e.g. overwritten placeholders), warn/adjust
     const expectedReqCount = skeleton.supportingCharacterRequirements?.length || 0;
     if (expectedReqCount > 0 && characterRequirements.length !== expectedReqCount) {

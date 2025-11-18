@@ -718,7 +718,7 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     const styleInstructions = this.buildStyleInstructions(config, experience);
 
     return `
-Du bist ein preisgekrönter Kinderbuch-Autor. Deine Aufgabe: Schreibe die klassische Geschichte "${fairyTale.tale.title}" NEU - personalisiert mit den Avataren des Benutzers!
+Du bist ein preisgekrönter Kinderbuch-Autor. Deine Aufgabe: Schreibe eine EIGENE, neue Geschichte, inspiriert von "${fairyTale.tale.title}" - personalisiert mit den Avataren des Benutzers. KEINE 1:1-Nacherzaehlung; Motive duerfen erkannt werden, aber Plot/Twist/Setpieces sind neu.
 
 🎭 ROLLEN-BESETZUNG (Märchen → Benutzer-Avatare):
 ${roleMappingText}
@@ -730,8 +730,8 @@ ${avatarDetailsText}
 Nebencharaktere (Character Pool):
 ${characterDetails}
 
-📖 HANDLUNG: PFLICHT-PLOT AUS "${fairyTale.tale.title}"
-⚠️ KRITISCH: Folge EXAKT dieser Szenen-Struktur! Dies ist die bewährte Handlung des Märchens:
+📖 HANDLUNG: INSPIRATIONS-PLOT AUS "${fairyTale.tale.title}"
+⚠️ KRITISCH: Nutze die Szenen nur als Richtungsgeber. Du darfst umordnen, mischen, streichen und neue Konflikte/Twists einbauen. Leser sollen Motive erkennen, aber die Handlung muss frisch sein.
 
 ${chapterStructure}
 
@@ -788,10 +788,7 @@ ${styleInstructions}
    - Genug Details für immersive Erfahrung
    - Nicht zu lang für junge Leser
 
-🔟 **NO SKELETON**: Das Story-Skelett ist IRRELEVANT!
-   - Nutze NUR die Märchen-Szenen als Plot-Basis
-   - Das Skelett war nur für die Charakter-Auswahl
-   - Die Handlung kommt 100% aus "${fairyTale.tale.title}"
+?? PLOT-KOMBINATION: Verwende Story-Skelett + Maerchen-Szenen als Ideenkatalog. Original dient nur als Leitstern; neu erfundene Konflikte/Twists sind erwuenscht. Erhalte Tempo (5 Kapitel) und Genre, aber schreibe eine neue Abfolge.
 
 📝 AUSGABE-FORMAT (JSON):
 {
@@ -801,7 +798,7 @@ ${styleInstructions}
     {
       "order": 1,
       "title": "[Basierend auf Szenen-Titel]",
-      "content": "380-450 Wörter. Filmische Erzählung mit kurzen Sätzen, sensorischen Details, Emotionen. Folgt den Märchen-Szenen EXAKT.",
+      "content": "380-450 Woerter. Filmische Erzaehlung mit kurzen Saetzen, sensorischen Details, Emotionen. Eigenstaendige Handlung (inspiriert, nicht kopiert).",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 weitere Kapitel
