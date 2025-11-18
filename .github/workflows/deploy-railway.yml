@@ -56,12 +56,24 @@ jobs:
 
       - name: Install Encore CLI
         run: |
-          # Download and install Encore CLI binary directly
-          ENCORE_VERSION="v1.46.5"
-          curl -L "https://d2f391esomvqpi.cloudfront.net/encore-${ENCORE_VERSION}-linux_x86-64.tar.gz" -o encore.tar.gz
-          tar -xzf encore.tar.gz
-          sudo mv encore /usr/local/bin/encore
-          sudo chmod +x /usr/local/bin/encore
+          # Install Encore CLI using official script with retry logic
+          set +e
+          for i in 1 2 3; do
+            echo "Attempt $i to install Encore CLI..."
+            if curl -L https://encore.dev/install.sh | bash; then
+              echo "Installation successful!"
+              break
+            fi
+            echo "Installation failed, retrying in 5 seconds..."
+            sleep 5
+          done
+          set -e
+
+          # Add Encore to PATH for subsequent steps
+          echo "$HOME/.encore/bin" >> $GITHUB_PATH
+
+          # Verify installation (in current shell)
+          export PATH="$HOME/.encore/bin:$PATH"
           encore version
 
       - name: Use infra.config.railway.json for build
