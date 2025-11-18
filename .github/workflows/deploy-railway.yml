@@ -56,8 +56,9 @@ jobs:
 
       - name: Install Encore CLI
         run: |
-          curl -L https://encore.dev/install.sh | bash
-          echo "$HOME/.encore/bin" >> $GITHUB_PATH
+          # Use npm to install Encore CLI globally (more reliable than install.sh)
+          npm install -g encore@latest
+          which encore || echo "Encore not found in PATH"
 
       - name: Use infra.config.railway.json for build
         run: |
