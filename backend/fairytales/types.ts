@@ -30,6 +30,12 @@ export interface FairyTaleRole {
   ageRangeMin?: number;
   ageRangeMax?: number;
   professionPreference: string[]; // ["child", "wizard", "animal"]
+  // NEW: Enhanced matching requirements (Migration 14)
+  speciesRequirement?: string; // human, animal, magical_creature, etc.
+  genderRequirement?: string; // male, female, neutral, any
+  ageRequirement?: string; // child, teenager, young_adult, adult, elder, ageless, any
+  sizeRequirement?: string; // tiny, small, medium, large, giant, any
+  socialClassRequirement?: string; // royalty, nobility, merchant, craftsman, commoner, outcast, any
   createdAt: string;
 }
 

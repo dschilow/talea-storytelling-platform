@@ -31,6 +31,12 @@ export interface FairyTaleRole {
   ageRangeMin: number;
   ageRangeMax: number;
   professionPreference: string[];
+  // NEW: Enhanced matching requirements (Migration 14)
+  speciesRequirement?: string;
+  genderRequirement?: string;
+  ageRequirement?: string;
+  sizeRequirement?: string;
+  socialClassRequirement?: string;
 }
 
 export interface FairyTaleScene {
@@ -248,13 +254,15 @@ export class FairyTaleSelector {
    */
   private async loadRoles(taleId: string): Promise<FairyTaleRole[]> {
     const rows = await fairytalesDB.queryAll<any>`
-      SELECT 
+      SELECT
         id, tale_id, role_type, role_name, role_count,
         description, required, archetype_preference,
-        age_range_min, age_range_max, profession_preference
+        age_range_min, age_range_max, profession_preference,
+        species_requirement, gender_requirement, age_requirement,
+        size_requirement, social_class_requirement
       FROM fairy_tale_roles
       WHERE tale_id = ${taleId}
-      ORDER BY 
+      ORDER BY
         CASE role_type
           WHEN 'protagonist' THEN 1
           WHEN 'antagonist' THEN 2
@@ -277,6 +285,12 @@ export class FairyTaleSelector {
       ageRangeMin: row.age_range_min,
       ageRangeMax: row.age_range_max,
       professionPreference: this.parseJsonArray(row.profession_preference),
+      // NEW: Enhanced matching requirements (Migration 14)
+      speciesRequirement: row.species_requirement || 'any',
+      genderRequirement: row.gender_requirement || 'any',
+      ageRequirement: row.age_requirement || 'any',
+      sizeRequirement: row.size_requirement || 'any',
+      socialClassRequirement: row.social_class_requirement || 'any',
     }));
   }
 

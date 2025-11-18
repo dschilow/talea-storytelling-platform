@@ -138,13 +138,15 @@ export const getFairyTale = api<GetFairyTaleRequest, GetFairyTaleResponse>(
     // Optionally include roles
     if (req.includeRoles) {
       const roleRows = await fairytalesDB.queryAll<any>`
-        SELECT 
+        SELECT
           id, tale_id, role_type, role_name, role_count, description,
           required, archetype_preference, age_range_min, age_range_max,
-          profession_preference, created_at
+          profession_preference, created_at,
+          species_requirement, gender_requirement, age_requirement,
+          size_requirement, social_class_requirement
         FROM fairy_tale_roles
         WHERE tale_id = ${req.id}
-        ORDER BY 
+        ORDER BY
           CASE role_type
             WHEN 'protagonist' THEN 1
             WHEN 'antagonist' THEN 2
@@ -166,6 +168,12 @@ export const getFairyTale = api<GetFairyTaleRequest, GetFairyTaleResponse>(
         ageRangeMin: row.age_range_min,
         ageRangeMax: row.age_range_max,
         professionPreference: Array.isArray(row.profession_preference) ? row.profession_preference : [],
+        // NEW: Enhanced matching requirements (Migration 14)
+        speciesRequirement: row.species_requirement || 'any',
+        genderRequirement: row.gender_requirement || 'any',
+        ageRequirement: row.age_requirement || 'any',
+        sizeRequirement: row.size_requirement || 'any',
+        socialClassRequirement: row.social_class_requirement || 'any',
         createdAt: row.created_at.toISOString(),
       }));
     }
