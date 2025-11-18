@@ -1,0 +1,95 @@
+{
+  "id": "1b302b0d-8d15-4bf8-aa8c-247ca7cdb529",
+  "metadata": null,
+  "request": {
+    "avatars": [
+      {
+        "description": "Alexander ist ein Mensch aus Stadt.  Einfach \"normales\" Kind. Besucht die 2 klasse, ist super schnell und schlau. sehr gutes Gedächtnis.",
+        "id": "4826ab1e-f4da-4f6c-b559-4445c2a00e99",
+        "name": "Alexander"
+      },
+      {
+        "description": "adrian ist ein Mensch aus der Stadt. Hat eine geheimnisvolle Vergangenheit.",
+        "id": "ac50a461-47b0-47e6-9342-81e77ab78eba",
+        "name": "Adrian"
+      }
+    ],
+    "config": {
+      "ageGroup": "6-8",
+      "aiModel": "gpt-5-mini",
+      "complexity": "medium",
+      "genre": "fantasy",
+      "hasTwist": false,
+      "humorLevel": 2,
+      "length": "medium",
+      "pacing": "fast",
+      "preferences": {
+        "useFairyTaleTemplate": true
+      },
+      "setting": "fantasy",
+      "suspenseLevel": 2,
+      "tone": "witty"
+    },
+    "label": "PHASE 1: Story-Skeleton (Struktur)",
+    "openAIRequest": {
+      "reason": "fairy-tale-mode",
+      "skipped": true
+    },
+    "phase": 1,
+    "storyExperience": {
+      "descriptions": {
+        "emotionalFlavors": "Keine besondere emotionale Würze ausgewählt – nutze natürliche Herzensmomente.",
+        "specialIngredients": "Keine extra Zutaten – klassischer Verlauf ohne Spezialelemente."
+      },
+      "emotionalFlavors": [],
+      "soul": null,
+      "specialIngredients": [],
+      "tempo": null
+    },
+    "useFairyTaleTemplateRequested": true
+  },
+  "response": {
+    "durationMs": 1,
+    "skeleton": {
+      "chapters": [
+        {
+          "contentPreview": "Ein armer Müller prahlt beim König: 'Meine Tochter kann Stroh zu Gold spinnen!' Der König ist gierig: 'Beweis es - oder sie stirbt!'",
+          "order": 1,
+          "words": 23
+        },
+        {
+          "contentPreview": "Die Müllerstochter sitzt weinend vor Spinnrad und Stroh. Ein kleines Männlein erscheint: 'Was gibst du mir, wenn ich spinne?' - 'Meine Kette!' Gold bi...",
+          "order": 2,
+          "words": 26
+        },
+        {
+          "contentPreview": "Der König will mehr! Zweite Nacht: Bezahlung mit Ring. Dritte Nacht - noch mehr Stroh! 'Ich habe nichts mehr!' - 'Dann dein erstes Kind!' Sie verspric...",
+          "order": 3,
+          "words": 27
+        },
+        {
+          "contentPreview": "Sie heiratet den König, wird Königin. Ein Jahr später: Ein Baby! Sie vergisst das Versprechen - bis Rumpelstilzchen erscheint und das Kind fordert!",
+          "order": 4,
+          "words": 23
+        },
+        {
+          "contentPreview": "'Wenn du in 3 Tagen meinen Namen errätst, darfst du es behalten!' Die Königin schickt Boten aus. Sie rät: Klaus? Heinrich? Fritz? Alles falsch!",
+          "order": 5,
+          "words": 24
+        }
+      ],
+      "chaptersCount": 5,
+      "requirementsCount": 0,
+      "supportingCharacters": [],
+      "title": "Alexander und Adrian und das Rumpelstilzchen-Abenteuer"
+    },
+    "status": "completed",
+    "usage": {
+      "completionTokens": 0,
+      "promptTokens": 0,
+      "totalTokens": 0
+    }
+  },
+  "source": "phase1-skeleton-generation",
+  "timestamp": "2025-11-18T10:02:32.952Z"
+}

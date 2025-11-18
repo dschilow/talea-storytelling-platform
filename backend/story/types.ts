@@ -16,11 +16,22 @@ export interface CharacterTemplate {
   // Visual Profile
   visualProfile: {
     description: string;
-    imagePrompt: string;
+    imagePrompt?: string;
     species: string;
     colorPalette: string[];
   };
   imageUrl?: string;
+
+  // NEW: Enhanced Matching Attributes (Migration 7)
+  gender?: string; // male, female, neutral, any
+  age_category?: string; // child, teenager, young_adult, adult, elder, ageless, any
+  species_category?: string; // human, humanoid, animal, magical_creature, mythical, elemental, any
+  profession_tags?: string[]; // ['royalty', 'craftsman', 'warrior', etc.]
+  size_category?: string; // tiny, small, medium, large, giant, any
+  social_class?: string; // royalty, nobility, merchant, craftsman, commoner, outcast, any
+  personality_keywords?: string[]; // ['brave', 'cunning', 'kind', etc.]
+  physical_description?: string;
+  backstory?: string;
 
   // Screen Time & Availability
   maxScreenTime: number; // 0-100 percentage

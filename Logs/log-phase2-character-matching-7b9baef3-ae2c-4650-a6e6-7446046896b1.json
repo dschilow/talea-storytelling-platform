@@ -1,0 +1,145 @@
+{
+  "id": "7b9baef3-ae2c-4650-a6e6-7446046896b1",
+  "metadata": null,
+  "request": {
+    "label": "PHASE 2: Beste Charaktere matchen",
+    "phase": 2,
+    "recentStoryCount": 5,
+    "requirements": [],
+    "setting": "fantasy"
+  },
+  "response": {
+    "assignments": [
+      {
+        "character": {
+          "archetype": "hero",
+          "emotionalNature": {
+            "dominant": "brave",
+            "secondary": []
+          },
+          "id": "avatar_alexander",
+          "name": "alexander",
+          "role": "protagonist",
+          "usageStats": {},
+          "visualProfile": {
+            "colorPalette": [],
+            "description": "alexander",
+            "species": "human"
+          }
+        },
+        "placeholder": "{{PROTAGONIST_AVATAR}}"
+      },
+      {
+        "character": {
+          "archetype": "guardian_challenge",
+          "emotionalNature": {
+            "dominant": "protective",
+            "secondary": [
+              "strong",
+              "slow",
+              "honorable"
+            ],
+            "triggers": [
+              "intruders",
+              "rule-breakers"
+            ]
+          },
+          "id": "dba5ef51-b906-4d99-993b-ed2481e8089a",
+          "name": "Brumm der Steinwächter",
+          "role": "obstacle",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "gray",
+              "green",
+              "brown"
+            ],
+            "description": "Brumm der Steinwächter • ['Brumm stone golem', ' 240cm']",
+            "species": "magical_creature"
+          }
+        },
+        "placeholder": "{{RUMPELSTILZCHEN}}"
+      },
+      {
+        "character": {
+          "archetype": "helper",
+          "emotionalNature": {
+            "dominant": "helper",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "c574b893-5141-4130-8b55-73cad892a2e1",
+          "name": "Ente Emma",
+          "role": "sidekick",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "yellow",
+              "white",
+              "orange"
+            ],
+            "description": "Ente Emma • ['Ente Emma duck', ' medium-sized']",
+            "species": "duck"
+          }
+        },
+        "placeholder": "{{KONIG}}"
+      },
+      {
+        "character": {
+          "archetype": "helper",
+          "emotionalNature": {
+            "dominant": "helper",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "0f8ad343-3bf9-41fe-bb15-9b3ad1311a3e",
+          "name": "Eichhörnchen Emma",
+          "role": "sidekick",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "red-brown",
+              "cream",
+              "black"
+            ],
+            "description": "Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small']",
+            "species": "squirrel"
+          }
+        },
+        "placeholder": "{{MULLER}}"
+      }
+    ],
+    "durationMs": 36,
+    "matchedCount": 4,
+    "status": "completed"
+  },
+  "source": "phase2-character-matching",
+  "timestamp": "2025-11-18T10:02:33.007Z"
+}

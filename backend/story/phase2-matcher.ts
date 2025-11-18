@@ -4,6 +4,7 @@
 
 import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, CharacterRequirement, CharacterAssignment } from "./types";
+import { EnhancedCharacterMatcher, type FairyTaleRoleRequirement } from "./enhanced-character-matcher";
 
 export class Phase2CharacterMatcher {
   /**
@@ -209,6 +210,11 @@ export class Phase2CharacterMatcher {
         archetype: req.archetype,
       });
 
+      // Extract fairy tale role if available for enhanced matching
+      const fairyTaleRole: FairyTaleRoleRequirement | undefined = selectedFairyTale?.roles?.find(
+        (r: any) => `{{${r.roleName.toUpperCase().replace(/\s+/g, '_')}}}` === req.placeholder
+      );
+
       const bestMatch = this.findBestMatch(
         req,
         pool,
@@ -216,7 +222,8 @@ export class Phase2CharacterMatcher {
         usedCharacters,
         recentUsage,
         usedSpecies,
-        useFairyTaleTemplate
+        useFairyTaleTemplate,
+        fairyTaleRole
       );
 
       if (!bestMatch) {
@@ -264,6 +271,16 @@ export class Phase2CharacterMatcher {
       created_at: Date;
       updated_at: Date;
       is_active: boolean;
+      // NEW: Enhanced matching attributes (Migration 7)
+      gender: string | null;
+      age_category: string | null;
+      species_category: string | null;
+      profession_tags: string[] | null;
+      size_category: string | null;
+      social_class: string | null;
+      personality_keywords: string[] | null;
+      physical_description: string | null;
+      backstory: string | null;
     }>`
       SELECT * FROM character_pool WHERE is_active = TRUE
     `;
@@ -284,6 +301,16 @@ export class Phase2CharacterMatcher {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isActive: row.is_active,
+      // NEW: Enhanced matching attributes
+      gender: row.gender || undefined,
+      age_category: row.age_category || undefined,
+      species_category: row.species_category || undefined,
+      profession_tags: row.profession_tags || undefined,
+      size_category: row.size_category || undefined,
+      social_class: row.social_class || undefined,
+      personality_keywords: row.personality_keywords || undefined,
+      physical_description: row.physical_description || undefined,
+      backstory: row.backstory || undefined,
     }));
   }
 
@@ -357,8 +384,8 @@ export class Phase2CharacterMatcher {
   }
 
   /**
-   * INTELLIGENT MATCHING SCORE V2 - Enhanced with Visual Hints
-   * Evaluates each character with a comprehensive scoring system
+   * INTELLIGENT MATCHING SCORE V3 - Enhanced with Species/Gender/Age/Profession
+   * Uses EnhancedCharacterMatcher for comprehensive role-based matching
    */
   private findBestMatch(
     requirement: CharacterRequirement,
@@ -367,14 +394,11 @@ export class Phase2CharacterMatcher {
     alreadyUsed: Set<string>,
     recentUsage: Map<string, number>,
     usedSpecies: Set<string>,
-    useFairyTaleTemplate: boolean = false
+    useFairyTaleTemplate: boolean = false,
+    fairyTaleRole?: FairyTaleRoleRequirement
   ): CharacterTemplate | null {
     let bestMatch: CharacterTemplate | null = null;
     let bestScore = 0;
-
-    // Extract visual hints from requirement for better matching
-    const visualHints = (requirement as any).visualHints || "";
-    const visualKeywords = this.extractVisualKeywords(visualHints);
 
     for (const candidate of pool) {
       // Skip already used characters
@@ -408,56 +432,17 @@ export class Phase2CharacterMatcher {
         continue;
       }
 
-      let score = 0;
       const debugScores: Record<string, number> = {};
 
-      // ===== SCORING MATRIX V2 (Total: 600 points) =====
-
-      // 1. ROLE MATCH (100 points) - CRITICAL
-      if (candidate.role === requirement.role) {
-        score += 100;
-        debugScores.roleExact = 100;
-      } else if (this.isCompatibleRole(candidate.role, requirement.role)) {
-        score += 50;
-        debugScores.roleCompatible = 50;
-      }
-
-      // 2. ARCHETYPE MATCH (80 points)
-      if (candidate.archetype === requirement.archetype) {
-        score += 80;
-        debugScores.archetypeExact = 80;
-      } else if (this.isCompatibleArchetype(candidate.archetype, requirement.archetype)) {
-        score += 40;
-        debugScores.archetypeCompatible = 40;
-      }
-
-      // 3. EMOTIONAL NATURE (60 points)
-      if (candidate.emotionalNature.dominant === requirement.emotionalNature) {
-        score += 60;
-        debugScores.emotionalDominant = 60;
-      } else if (candidate.emotionalNature.secondary?.includes(requirement.emotionalNature)) {
-        score += 30;
-        debugScores.emotionalSecondary = 30;
-      }
-
-      // 4. REQUIRED TRAITS (50 points total, 10 per trait)
-      const matchingTraits = requirement.requiredTraits.filter(trait =>
-        candidate.emotionalNature.dominant === trait ||
-        candidate.emotionalNature.secondary?.includes(trait)
-      ).length;
-      const traitsScore = Math.min(matchingTraits * 10, 50);
-      score += traitsScore;
-      debugScores.traits = traitsScore;
-
-      // 5. VISUAL HINTS MATCHING (100 points) - NEW & CRITICAL!
-      const visualScore = this.scoreVisualMatch(candidate, visualKeywords);
-      score += visualScore;
-      debugScores.visual = visualScore;
-
-      // 5b. AGE/GENDER PREFERENCES (40 points total)
-      const ageGenderScore = this.scoreAgeGenderMatch(candidate, requirement);
-      score += ageGenderScore;
-      debugScores.ageGender = ageGenderScore;
+      // ===== SCORING MATRIX V3 (Enhanced Character Matcher) =====
+      // Use EnhancedCharacterMatcher for comprehensive species/gender/age/profession matching (0-100 base score)
+      const enhancedScore = EnhancedCharacterMatcher.calculateEnhancedMatchScore(
+        candidate,
+        requirement,
+        fairyTaleRole
+      );
+      let score = enhancedScore;
+      debugScores.enhancedMatchScore = enhancedScore;
 
       // 6. IMPORTANCE ALIGNMENT (40 points)
       const screenTimeNeeded = this.importanceToScreenTime(requirement.importance);
@@ -548,10 +533,9 @@ export class Phase2CharacterMatcher {
       }
     }
 
-    // QUALITY GATE - Lowered threshold for more flexibility
-    if (bestScore < 100) {
+    // QUALITY GATE - Require minimum score for match quality
+    if (bestScore < 40) {
       console.warn(`[Phase2] Best match score too low: ${bestScore} for ${requirement.placeholder}`);
-      console.warn(`[Phase2] Visual hints: ${visualHints}`);
       return null;
     }
 
@@ -560,7 +544,6 @@ export class Phase2CharacterMatcher {
         character: bestMatch.name,
         totalScore: bestScore,
         breakdown: (bestMatch as any)._debugScores,
-        visualHints,
       });
     }
 
