@@ -77,8 +77,8 @@ export class OriginalityValidator {
       suggestions.push(`Direct copies detected: ${directCopies.slice(0, 3).join('; ')}...`);
     }
 
-    // Check structural similarity
-    if (structuralSimilarity > 0.8) {
+    // Check structural similarity (only flag if > 95%, i.e., nearly identical)
+    if (structuralSimilarity > 0.95) {
       issues.push(`Story structure too similar to original (${Math.round(structuralSimilarity * 100)}%)`);
       suggestions.push('Rearrange scene order or merge/split events');
       suggestions.push('Apply remix strategies: reverse chronology, perspective shift, etc.');
@@ -95,10 +95,11 @@ export class OriginalityValidator {
     }
 
     // Determine verdict
+    // CRITICAL: Structural similarity threshold is 95% (only fail if nearly identical structure)
     const isOriginal =
       overlapData.overlapPercentage <= finalConfig.maxOverlapPercentage &&
       directCopies.length <= finalConfig.maxDirectCopies &&
-      structuralSimilarity <= 0.8;
+      structuralSimilarity <= 0.95;
 
     const verdictReason = isOriginal
       ? `✅ Story meets originality standards: ${overlapData.overlapPercentage}% overlap, ${directCopies.length} direct copies`

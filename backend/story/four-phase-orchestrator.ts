@@ -355,6 +355,8 @@ export class FourPhaseOrchestrator {
       experience: experienceContext,
       avatarDetails: input.avatarDetails,
       useFairyTaleTemplate: input.config.preferences?.useFairyTaleTemplate ?? false,
+      remixInstructions: phase1Result.remixInstructions, // NEW: Pass remix instructions from Phase1
+      selectedFairyTale: selectedFairyTale ?? undefined, // NEW: Pass fairy tale for originality validation
     });
     const finalizedStory = phase3Result.story;
     phaseDurations.phase3Duration = Date.now() - phase3Start;

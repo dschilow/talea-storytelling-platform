@@ -89,6 +89,7 @@ export class Phase1SkeletonGenerator {
         chapters: input.selectedFairyTale.scenes.slice(0, 5).map((scene: any, idx: number) => ({
           order: idx + 1,
           content: scene.sceneDescription || `Kapitel ${idx + 1}: ${scene.sceneTitle}`,
+          characterRolesNeeded: [], // Will be filled from fairy_tale_roles in Phase2
         })),
         supportingCharacterRequirements: [], // Will be filled from fairy_tale_roles in Phase2
       };
