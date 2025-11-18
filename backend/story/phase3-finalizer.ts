@@ -271,6 +271,7 @@ export class Phase3StoryFinalizer {
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
+
   /**
    * Normalize text to safe UTF-8 (NFC) and fix common mojibake for German umlauts.
    */
@@ -290,14 +291,6 @@ export class Phase3StoryFinalizer {
     return normalized.normalize("NFC");
   }
 
-    let normalized = text;
-    for (const [bad, good] of Object.entries(replacements)) {
-      normalized = normalized.replace(new RegExp(bad, "g"), good);
-    }
-    return normalized.normalize("NFC");
-  }
-
-
   /**
    * Convert structured visual profile to text description
    */
@@ -310,7 +303,7 @@ export class Phase3StoryFinalizer {
     if (vp.gender) parts.push(vp.gender);
 
     if (vp.hair) {
-      const hairParts = [];
+      const hairParts: string[] = [];
       if (vp.hair.color) hairParts.push(vp.hair.color);
       if (vp.hair.length) hairParts.push(vp.hair.length);
       if (vp.hair.type) hairParts.push(vp.hair.type);
@@ -323,7 +316,7 @@ export class Phase3StoryFinalizer {
     if (vp.skin?.tone) parts.push(`Hautton: ${vp.skin.tone}`);
 
     if (vp.clothingCanonical) {
-      const clothingParts = [];
+      const clothingParts: string[] = [];
       if (vp.clothingCanonical.outfit) clothingParts.push(vp.clothingCanonical.outfit);
       else {
         if (vp.clothingCanonical.top) clothingParts.push(vp.clothingCanonical.top);
@@ -343,10 +336,6 @@ export class Phase3StoryFinalizer {
 
     return parts.join('; ');
   }
-
-  /**
-   * Build comprehensive finalization prompt
-   */
   private buildFinalizationPrompt(
     skeletonWithNames: StorySkeleton,
     assignments: Map<string, CharacterTemplate>,
