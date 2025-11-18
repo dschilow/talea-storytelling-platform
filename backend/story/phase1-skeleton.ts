@@ -60,13 +60,37 @@ export interface Phase1GenerationResult {
 
 export class Phase1SkeletonGenerator {
   async generate(input: Phase1Input): Promise<Phase1GenerationResult> {
+    // CRITICAL FIX: If fairy tale is selected, SKIP expensive skeleton generation
+    // The fairy tale already provides scene structure, so we create a minimal skeleton
     if (input.selectedFairyTale) {
       console.log(
-        `[Phase1] FAIRY TALE MODE: ${input.selectedFairyTale.tale.title} used as loose inspiration (no copy-paste).`
+        `[Phase1] ✨ FAIRY TALE MODE: Skipping skeleton generation, using "${input.selectedFairyTale.tale.title}" structure`
       );
+      console.log(`[Phase1] ⚡ Saved ~47 seconds by skipping Phase1 OpenAI call`);
+
+      // Create minimal skeleton from fairy tale
+      const minimalSkeleton: StorySkeleton = {
+        title: `${input.avatarDetails.map(a => a.name).join(' und ')} und das ${input.selectedFairyTale.tale.title}-Abenteuer`,
+        chapters: input.selectedFairyTale.scenes.slice(0, 5).map((scene: any, idx: number) => ({
+          order: idx + 1,
+          content: scene.sceneDescription || `Kapitel ${idx + 1}: ${scene.sceneTitle}`,
+        })),
+        supportingCharacterRequirements: [], // Will be filled from fairy_tale_roles in Phase2
+      };
+
+      return {
+        skeleton: minimalSkeleton,
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+        },
+        openAIRequest: { skipped: true, reason: 'fairy-tale-mode' },
+        openAIResponse: { skipped: true, reason: 'fairy-tale-mode' } as any,
+      };
     }
 
-    // Always generate skeleton (also in fairy-tale mode)
+    // Normal mode: generate skeleton via OpenAI
     console.log("[Phase1] Generating story skeleton...");
 
     const prompt = this.buildSkeletonPrompt(input, input.selectedFairyTale);

@@ -74,30 +74,38 @@ export class Phase2CharacterMatcher {
       .filter((req): req is CharacterRequirement => Boolean(req));
 
     // Validate placeholder set matches skeleton expectations (prevent drift)
+    // CRITICAL FIX: When using fairy tale mode, skeleton.supportingCharacterRequirements is empty
+    // so we MUST skip this validation to prevent all requirements from being filtered out
     const skeletonPlaceholders = new Set(
       (skeleton.supportingCharacterRequirements || []).map(req => this.normalizePlaceholder(req.placeholder))
     );
     const requirementPlaceholders = new Set(characterRequirements.map(req => req.placeholder));
 
-    // Remove placeholders not present in skeleton
-    characterRequirements = characterRequirements.filter(req => skeletonPlaceholders.has(req.placeholder));
-    // Add missing placeholders as neutral fallback requirements
-    for (const ph of skeletonPlaceholders) {
-      if (ph && !requirementPlaceholders.has(ph)) {
-        characterRequirements.push({
-          placeholder: ph,
-          role: "support",
-          archetype: "neutral",
-          emotionalNature: "neutral",
-          requiredTraits: [],
-          visualHints: "",
-          importance: "medium",
-          inChapters: [1, 2, 3, 4, 5],
-        });
+    // ONLY validate when NOT in fairy tale mode (skeleton has actual requirements)
+    if (!useFairyTaleTemplate || skeleton.supportingCharacterRequirements.length > 0) {
+      // Remove placeholders not present in skeleton
+      characterRequirements = characterRequirements.filter(req => skeletonPlaceholders.has(req.placeholder));
+      // Add missing placeholders as neutral fallback requirements
+      for (const ph of skeletonPlaceholders) {
+        if (ph && !requirementPlaceholders.has(ph)) {
+          characterRequirements.push({
+            placeholder: ph,
+            role: "support",
+            archetype: "neutral",
+            emotionalNature: "neutral",
+            requiredTraits: [],
+            visualHints: "",
+            importance: "medium",
+            inChapters: [1, 2, 3, 4, 5],
+          });
+        }
       }
+    } else {
+      console.log("[Phase2] Skipping skeleton placeholder validation in fairy tale mode");
     }
 
-    if (characterRequirements.length !== skeletonPlaceholders.size) {
+    // CRITICAL FIX: Skip validation in fairy tale mode (skeleton is empty by design)
+    if (!useFairyTaleTemplate && characterRequirements.length !== skeletonPlaceholders.size) {
       console.warn(`[Phase2] Placeholder mismatch detected (skeleton=${skeletonPlaceholders.size} reqs=${characterRequirements.length}) - regenerating requirements from skeleton to keep run alive`);
       characterRequirements = (skeleton.supportingCharacterRequirements || [])
         .map(req => this.normalizeRequirement(req))
@@ -105,8 +113,9 @@ export class Phase2CharacterMatcher {
     }
 
     // Guardrail: if requirements drifted (e.g. overwritten placeholders), warn/adjust
+    // CRITICAL FIX: Skip in fairy tale mode
     const expectedReqCount = skeleton.supportingCharacterRequirements?.length || 0;
-    if (expectedReqCount > 0 && characterRequirements.length !== expectedReqCount) {
+    if (!useFairyTaleTemplate && expectedReqCount > 0 && characterRequirements.length !== expectedReqCount) {
       console.warn(`[Phase2] Requirement count drift: expected ${expectedReqCount}, got ${characterRequirements.length}`);
     }
 

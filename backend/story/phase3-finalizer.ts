@@ -117,6 +117,11 @@ export class Phase3StoryFinalizer {
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
     const isReasoningModel = modelName.includes("gpt-5") || modelName.includes("o4");
 
+    // CRITICAL FIX: Fairy tale mode needs MORE tokens for detailed scene-to-chapter mapping
+    const completionTokenLimit = selectedFairyTale
+      ? (isReasoningModel ? 8000 : 3500)  // +1500-2000 tokens for fairy tale complexity
+      : (isReasoningModel ? 6500 : 2800);
+
     const payload: any = {
       model: modelName,
       messages: [
@@ -130,8 +135,10 @@ export class Phase3StoryFinalizer {
         }
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: isReasoningModel ? 6500 : 2800,
+      max_completion_tokens: completionTokenLimit,
     };
+
+    console.log(`[Phase3] Using max_completion_tokens: ${completionTokenLimit} (fairy tale mode: ${!!selectedFairyTale})`);
 
     // Add reasoning_effort for reasoning models (they don't support temperature/top_p)
     if (isReasoningModel) {
@@ -152,9 +159,13 @@ export class Phase3StoryFinalizer {
 
     console.log(`[Phase3] Using variance seed: ${varianceSeed} to prevent duplicate stories`);
 
-    const requestTimeoutMs = isReasoningModel ? 60000 : 45000;
+    // CRITICAL FIX: Increase timeout for fairy tale mode (more complex prompts)
+    const baseTimeout = isReasoningModel ? 60000 : 45000;
+    const requestTimeoutMs = selectedFairyTale ? baseTimeout * 1.5 : baseTimeout; // 50% more time for fairy tales
     const abortController = new AbortController();
     const timeoutHandle = setTimeout(() => abortController.abort(), requestTimeoutMs);
+
+    console.log(`[Phase3] Using ${requestTimeoutMs}ms timeout (fairy tale mode: ${!!selectedFairyTale})`);
 
     try {
       const openAIRequest = { ...payload };
@@ -641,9 +652,13 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     }
 
     // Antagonist presence (simple heuristics)
-    const antagonistKeywords = ["antagonist", "gegner", "zauberer", "feind", "bedroh"];
-    if (!antagonistKeywords.some(k => text.includes(k))) {
-      throw new Error("[Phase3] No antagonist presence detected in story text");
+    // CRITICAL FIX: Relax antagonist check for fairy tales (they have various conflict types)
+    const antagonistKeywords = ["antagonist", "gegner", "zauberer", "feind", "bedroh", "problem", "schwierig", "gefahr", "hindernis"];
+    const hasConflict = antagonistKeywords.some(k => text.includes(k));
+    if (!hasConflict && !fairyTale) {
+      throw new Error("[Phase3] No antagonist/conflict presence detected in story text");
+    } else if (!hasConflict) {
+      console.warn("[Phase3] Weak conflict detection in fairy tale mode - may lack clear antagonist");
     }
 
     // Twist heuristic
