@@ -56,9 +56,13 @@ jobs:
 
       - name: Install Encore CLI
         run: |
-          # Use npm to install Encore CLI globally (more reliable than install.sh)
-          npm install -g encore@latest
-          which encore || echo "Encore not found in PATH"
+          # Download and install Encore CLI binary directly
+          ENCORE_VERSION="v1.46.5"
+          curl -L "https://d2f391esomvqpi.cloudfront.net/encore-${ENCORE_VERSION}-linux_x86-64.tar.gz" -o encore.tar.gz
+          tar -xzf encore.tar.gz
+          sudo mv encore /usr/local/bin/encore
+          sudo chmod +x /usr/local/bin/encore
+          encore version
 
       - name: Use infra.config.railway.json for build
         run: |
