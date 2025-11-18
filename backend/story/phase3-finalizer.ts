@@ -17,6 +17,7 @@ import {
   getAdaptedRoleTitle,
   getAdaptedPronouns,
 } from "../fairytales/role-transformations";
+import { OriginalityValidator } from "./originality-validator";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -31,6 +32,8 @@ interface Phase3Input {
   }>;
   experience: StoryExperienceContext;
   useFairyTaleTemplate?: boolean; // NEW: Enable fairy tale mode
+  remixInstructions?: string; // NEW: Remix transformation summary from Phase1
+  selectedFairyTale?: SelectedFairyTale; // NEW: For originality validation
 }
 
 interface OpenAIResponse {
@@ -102,7 +105,8 @@ export class Phase3StoryFinalizer {
           input.config,
           input.avatarDetails,
           input.experience,
-          selectedFairyTale
+          input.selectedFairyTale || selectedFairyTale,
+          input.remixInstructions // NEW: Pass remix instructions
         )
       : this.buildFinalizationPrompt(
           skeletonWithNames,
@@ -199,6 +203,52 @@ export class Phase3StoryFinalizer {
       // Validate structure
       this.validateFinalStory(finalStory);
       this.validateStoryQuality(finalStory, input.avatarDetails, selectedFairyTale, input.config.hasTwist ?? false);
+
+      // NEW: Validate originality if fairy tale was used
+      if (selectedFairyTale || input.selectedFairyTale) {
+        const fairyTale = input.selectedFairyTale || selectedFairyTale;
+        if (fairyTale) {
+          console.log("[Phase3] 🎨 Running originality validation...");
+
+          // Combine all chapter content for validation
+          const generatedStoryText = finalStory.chapters
+            .map(ch => ch.content)
+            .join('\n\n');
+
+          // Combine all fairy tale scenes as source template
+          const sourceTemplateText = fairyTale.scenes
+            .map(scene => scene.sceneDescription)
+            .join('\n\n');
+
+          // Run validation
+          const originalityReport = OriginalityValidator.validate(
+            generatedStoryText,
+            sourceTemplateText,
+            {
+              maxOverlapPercentage: 40,
+              minPhraseLength: 4,
+              maxDirectCopies: 3,
+              strictMode: false,
+            }
+          );
+
+          console.log(`[Phase3] 📊 Originality: ${originalityReport.overlapPercentage.toFixed(1)}% overlap (threshold: ${originalityReport.threshold}%)`);
+          console.log(`[Phase3] ✅ Verdict: ${originalityReport.verdictReason}`);
+
+          if (!originalityReport.isOriginal) {
+            console.error("[Phase3] ❌ ORIGINALITY VALIDATION FAILED!");
+            console.error(`[Phase3] Issues: ${originalityReport.issues.join(', ')}`);
+            console.error(`[Phase3] Suggestions: ${originalityReport.suggestions.join(', ')}`);
+
+            throw new Error(
+              `Story failed originality validation: ${originalityReport.overlapPercentage.toFixed(1)}% overlap ` +
+              `(max ${originalityReport.threshold}%). Issues: ${originalityReport.issues.join(', ')}`
+            );
+          }
+
+          console.log("[Phase3] ✅ Originality validation passed!");
+        }
+      }
 
       console.log("[Phase3] Story finalized successfully:", {
         title: finalStory.title,
@@ -688,7 +738,8 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     config: StoryConfig,
     avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>,
     experience: StoryExperienceContext,
-    fairyTale: SelectedFairyTale
+    fairyTale: SelectedFairyTale,
+    remixInstructions?: string // NEW: Remix transformation summary from Phase1
   ): string {
     const characterDetails = Array.from(assignments.entries())
       .map(([placeholder, char]) => [
@@ -874,7 +925,22 @@ ${styleInstructions}
 
 ?? PLOT-KOMBINATION: Verwende Story-Skelett + Maerchen-Szenen als Ideenkatalog. Original dient nur als Leitstern; neu erfundene Konflikte/Twists sind erwuenscht. Erhalte Tempo (5 Kapitel) und Genre, aber schreibe eine neue Abfolge.
 
-?? AUSGABE-FORMAT (JSON):
+${remixInstructions ? `
+?? ═══════════════════════════════════════════════════════════════
+   ORIGINALITY ENFORCEMENT - KRITISCH WICHTIG!
+═══════════════════════════════════════════════════════════════
+
+${remixInstructions}
+
+?? VALIDATION: Die Geschichte wird auf Originalität geprüft!
+- Maximale erlaubte Überlappung mit "${fairyTale.tale.title}": 40%
+- Vermeide direkte Phrasen-Kopien aus dem Original
+- Strukturelle Ähnlichkeit muss unter 80% bleiben
+
+WICHTIG: Wenn du die Remix-Strategien ignorierst, wird die Geschichte abgelehnt!
+Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
+
+` : ''}?? AUSGABE-FORMAT (JSON):
 {
   "title": "[Avatar-Namen] und das [Märchen-Thema]",
   "description": "Eine personalisierte Version von ${fairyTale.tale.title}",

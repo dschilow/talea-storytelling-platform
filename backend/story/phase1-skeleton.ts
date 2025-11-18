@@ -10,6 +10,7 @@ import {
   describeSpecialIngredients,
   type StoryExperienceContext,
 } from "./story-experience";
+import { StoryRemixer } from "./story-remixer";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -56,6 +57,7 @@ export interface Phase1GenerationResult {
   };
   openAIRequest: any;
   openAIResponse: OpenAIResponse;
+  remixInstructions?: string; // NEW: Remix transformation summary for Phase3
 }
 
 export class Phase1SkeletonGenerator {
@@ -67,6 +69,19 @@ export class Phase1SkeletonGenerator {
         `[Phase1] ✨ FAIRY TALE MODE: Skipping skeleton generation, using "${input.selectedFairyTale.tale.title}" structure`
       );
       console.log(`[Phase1] ⚡ Saved ~47 seconds by skipping Phase1 OpenAI call`);
+
+      // NEW: Apply Story Remixer to ensure originality
+      const avatarNames = input.avatarDetails.map(a => a.name);
+      const targetOriginality = 65; // Target 65% originality (35% overlap allowed, below 40% threshold)
+
+      const remixResult = StoryRemixer.remixScenes(
+        input.selectedFairyTale.scenes,
+        avatarNames,
+        targetOriginality
+      );
+
+      console.log(`[Phase1] 🎨 Remix applied: ${remixResult.appliedStrategies.join(', ')}`);
+      console.log(`[Phase1] 📊 Target originality score: ${remixResult.originalityScore}/100`);
 
       // Create minimal skeleton from fairy tale
       const minimalSkeleton: StorySkeleton = {
@@ -87,6 +102,7 @@ export class Phase1SkeletonGenerator {
         },
         openAIRequest: { skipped: true, reason: 'fairy-tale-mode' },
         openAIResponse: { skipped: true, reason: 'fairy-tale-mode' } as any,
+        remixInstructions: remixResult.transformationSummary, // Pass to Phase3
       };
     }
 
