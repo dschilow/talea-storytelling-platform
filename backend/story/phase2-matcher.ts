@@ -40,12 +40,13 @@ export class Phase2CharacterMatcher {
         .map(name => name?.trim().toLowerCase())
         .filter((name): name is string => Boolean(name))
     );
+    const avatarQueue = [...reservedPlaceholders];
 
     // Prefer skeleton requirements; only fall back to fairy tale roles if skeleton is empty
     let characterRequirements: any[] = skeleton.supportingCharacterRequirements;
 
     if ((!characterRequirements || characterRequirements.length === 0) && selectedFairyTale && selectedFairyTale.roles) {
-      console.log(`[Phase2] 🎭 Fairy Tale Mode: Loading ${selectedFairyTale.roles.length} roles from "${selectedFairyTale.tale.title}"`);
+      console.log(`[Phase2] ðŸŽ­ Fairy Tale Mode: Loading ${selectedFairyTale.roles.length} roles from "${selectedFairyTale.tale.title}"`);
 
       // Convert fairy tale roles to character requirements format
       // Skip protagonist roles (those are for user avatars)
@@ -78,15 +79,11 @@ export class Phase2CharacterMatcher {
     );
     const requirementPlaceholders = new Set(characterRequirements.map(req => req.placeholder));
 
-    for (const ph of requirementPlaceholders) {
-      if (ph && !skeletonPlaceholders.has(ph)) {
-        console.warn(`[Phase2] Placeholder drift detected (ignored): ${ph}`);
-        characterRequirements = characterRequirements.filter(req => req.placeholder === ph ? false : true);
-      }
-    }
+    // Remove placeholders not present in skeleton
+    characterRequirements = characterRequirements.filter(req => skeletonPlaceholders.has(req.placeholder));
+    // Add missing placeholders as neutral fallback requirements
     for (const ph of skeletonPlaceholders) {
       if (ph && !requirementPlaceholders.has(ph)) {
-        console.warn(`[Phase2] Missing requirement for placeholder ${ph} - will add fallback.`);
         characterRequirements.push({
           placeholder: ph,
           role: "support",
@@ -98,6 +95,10 @@ export class Phase2CharacterMatcher {
           inChapters: [1, 2, 3, 4, 5],
         });
       }
+    }
+
+    if (characterRequirements.length !== skeletonPlaceholders.size) {
+      throw new Error(`[Phase2] Placeholder mismatch: skeleton=${skeletonPlaceholders.size} reqs=${characterRequirements.length}`);
     }
 
     // Guardrail: if requirements drifted (e.g. overwritten placeholders), warn/adjust
@@ -132,12 +133,36 @@ export class Phase2CharacterMatcher {
       }
 
       const normalizedPlaceholder = req.placeholder.trim().toLowerCase();
-      if (reservedPlaceholders.has(normalizedPlaceholder)) {
-        console.log("[Phase2] Skipping avatar placeholder; character already defined by user", {
-          placeholder: req.placeholder,
-          role: req.role,
-        });
-        continue;
+      // Assign user avatars first when a protagonist/antagonist slot is available
+      if ((req.role === "protagonist" || req.role === "antagonist") && avatarQueue.length > 0) {
+        const avatarName = avatarQueue.shift();
+        if (avatarName) {
+          console.log("[Phase2] Assigning avatar to main slot", { placeholder: req.placeholder, avatarName });
+          // Build a synthetic character template for avatar assignment
+          const avatarChar: CharacterTemplate = {
+            id: `avatar_${avatarName}`,
+            name: avatarName,
+            role: req.role,
+            archetype: req.archetype,
+            emotionalNature: {
+              dominant: req.emotionalNature,
+              secondary: req.requiredTraits || [],
+            },
+            visualProfile: {
+              description: avatarName,
+              imagePrompt: avatarName,
+              species: "human",
+              colorPalette: [],
+            },
+            maxScreenTime: this.importanceToScreenTime(req.importance),
+            availableChapters: req.inChapters,
+            canonSettings: [],
+          };
+          assignments.set(req.placeholder, avatarChar);
+          usedCharacters.add(avatarChar.id);
+          usedSpecies.add(avatarChar.visualProfile.species || "human");
+          continue;
+        }
       }
 
       console.log("[Phase2] Matching requirement:", {
@@ -319,6 +344,32 @@ export class Phase2CharacterMatcher {
         continue;
       }
 
+      // Hard filters to prevent mismatch drift
+      const requirementIsAntagonist = this.isAntagonistRole(requirement.role, requirement.archetype);
+      const candidateIsAntagonist = this.isAntagonistRole(candidate.role, candidate.archetype);
+      if (requirementIsAntagonist && !candidateIsAntagonist) {
+        continue;
+      }
+      if (!requirementIsAntagonist && candidateIsAntagonist && requirement.role !== "obstacle") {
+        continue; // avoid villains in helper slots
+      }
+
+      if (this.isAnimalRequirement(requirement)) {
+        const species = (candidate.visualProfile.species || "").toLowerCase();
+        if (species.startsWith("human")) {
+          continue; // animal required, skip humans
+        }
+      }
+      if (requirement.role === "guide" && !(candidate.role === "guide" || candidate.role === "support")) {
+        continue;
+      }
+      if (requirement.role === "helper" && !(candidate.role === "helper" || candidate.role === "support" || candidate.role === "companion")) {
+        continue;
+      }
+      if (requirement.role === "antagonist" && !(candidate.role === "antagonist" || candidate.role === "obstacle" || candidate.role === "villain" || candidate.role === "trickster")) {
+        continue;
+      }
+
       let score = 0;
       const debugScores: Record<string, number> = {};
 
@@ -364,6 +415,11 @@ export class Phase2CharacterMatcher {
       const visualScore = this.scoreVisualMatch(candidate, visualKeywords);
       score += visualScore;
       debugScores.visual = visualScore;
+
+      // 5b. AGE/GENDER PREFERENCES (40 points total)
+      const ageGenderScore = this.scoreAgeGenderMatch(candidate, requirement);
+      score += ageGenderScore;
+      debugScores.ageGender = ageGenderScore;
 
       // 6. IMPORTANCE ALIGNMENT (40 points)
       const screenTimeNeeded = this.importanceToScreenTime(requirement.importance);
@@ -423,7 +479,7 @@ export class Phase2CharacterMatcher {
         debugScores.usagePenalty = -usagePenalty;
       }
 
-      // 12. FAIRY TALE BONUS/PENALTY (CRITICAL for Märchen stories)
+      // 12. FAIRY TALE BONUS/PENALTY (CRITICAL for MÃ¤rchen stories)
       if (useFairyTaleTemplate) {
         // MASSIVE BONUS for fairy-tale archetypes
         const fairyTaleArchetypes = ['witch', 'wolf', 'fairy', 'magical_being', 'helper', 'wise_elder', 'trickster'];
@@ -594,6 +650,46 @@ export class Phase2CharacterMatcher {
            requiredArchetype.includes(candidateArchetype.split("_")[0]);
   }
 
+  private isHumanSpecies(species: string | undefined): boolean {
+    return typeof species === "string" && species.toLowerCase().startsWith("human");
+  }
+
+  private isAnimalRequirement(req: CharacterRequirement): boolean {
+    const ph = (req.placeholder || "").toLowerCase();
+    const hints = (req.visualHints || "").toLowerCase();
+    return ph.includes("animal") || /cat|dog|fox|bird|duck|horse|squirrel|mouse|bunny|rabbit|owl/i.test(hints);
+  }
+
+  /**
+   * Age/Gender scoring based on visual hints in requirement vs candidate description/species
+   */
+  private scoreAgeGenderMatch(candidate: CharacterTemplate, requirement: CharacterRequirement): number {
+    const hints = (requirement.visualHints || "").toLowerCase();
+    if (!hints) return 0;
+
+    const desc = (candidate.visualProfile.description || "").toLowerCase();
+    let score = 0;
+
+    // Simple age buckets
+    const wantsElder = hints.includes("alt") || hints.includes("älter") || hints.includes("aelter") || hints.includes("weise");
+    const wantsYoung = hints.includes("jung") || hints.includes("kind") || hints.includes("klein");
+    if (wantsElder && (desc.includes("old") || desc.includes("elder") || desc.includes("grosseltern") || desc.includes("oma") || desc.includes("opa") || desc.includes("years"))) {
+      score += 20;
+    }
+    if (wantsYoung && (desc.includes("young") || desc.includes("child") || desc.includes("kid") || desc.includes("teen"))) {
+      score += 20;
+    }
+
+    // Gender cues
+    const wantsFemale = hints.includes("frau") || hints.includes("weib");
+    const wantsMale = hints.includes("mann") || hints.includes("herr") || hints.includes("male");
+
+    if (wantsFemale && (desc.includes("frau") || desc.includes("female") || desc.includes("she"))) score += 20;
+    if (wantsMale && (desc.includes("herr") || desc.includes("male") || desc.includes("he"))) score += 20;
+
+    return Math.min(score, 40);
+  }
+
   private isCompatibleSetting(candidateSetting: string, requiredSetting: string): boolean {
     const compatibilityMap: Record<string, string[]> = {
       forest: ["mountain", "village"],
@@ -616,6 +712,8 @@ export class Phase2CharacterMatcher {
 
     console.log(`[Phase2] Generating fallback character: ${name}`);
 
+    const species = this.inferSpecies(req);
+
     return {
       id,
       name,
@@ -628,7 +726,7 @@ export class Phase2CharacterMatcher {
       visualProfile: {
         description: `${name} - ${req.role} character with ${req.emotionalNature} nature`,
         imagePrompt: `${name}, ${req.archetype} character, ${req.emotionalNature} expression, child-friendly, watercolor illustration`,
-        species: this.inferSpecies(req.archetype),
+        species,
         colorPalette: ["brown", "beige", "green"], // Generic
       },
       maxScreenTime: this.importanceToScreenTime(req.importance),
@@ -641,10 +739,10 @@ export class Phase2CharacterMatcher {
   private generateName(req: CharacterRequirement): string {
     const namesByRole: Record<string, string[]> = {
       guide: ["Herr Schmidt", "Frau Wagner", "Der Weise", "Die Lehrerin", "Der Ratgeber"],
-      companion: ["Freund Max", "Luna", "Der treue Begleiter", "Gefährte Sam", "Buddy"],
-      obstacle: ["Der Fremde", "Die Herausforderung", "Das Hindernis", "Der Wächter"],
+      companion: ["Freund Max", "Luna", "Der treue Begleiter", "GefÃ¤hrte Sam", "Buddy"],
+      obstacle: ["Der Fremde", "Die Herausforderung", "Das Hindernis", "Der WÃ¤chter"],
       discovery: ["Das Geheimnis", "Der Schatz", "Die Entdeckung", "Das Wunder"],
-      support: ["Der Helfer", "Die Helferin", "Unterstützer", "Nachbar"],
+      support: ["Der Helfer", "Die Helferin", "UnterstÃ¼tzer", "Nachbar"],
       special: ["Das besondere Wesen", "Der Magische", "Die Besondere"],
     };
 
@@ -652,8 +750,17 @@ export class Phase2CharacterMatcher {
     return options[Math.floor(Math.random() * options.length)];
   }
 
-  private inferSpecies(archetype: string): string {
-    if (archetype.includes("animal")) return "animal";
+  private inferSpecies(req: CharacterRequirement): string {
+    const ph = (req.placeholder || "").toLowerCase();
+    const hints = (req.visualHints || "").toLowerCase();
+    const archetype = (req.archetype || "").toLowerCase();
+
+    if (ph.includes("duck")) return "duck";
+    if (ph.includes("fox") || hints.includes("fuchs")) return "fox";
+    if (ph.includes("animal")) return "animal";
+    if (/katze|cat/.test(hints)) return "cat";
+    if (/vogel|bird|ente/.test(hints)) return "bird";
+    if (/eichhoernchen|squirrel/.test(hints)) return "squirrel";
     if (archetype.includes("magical") || archetype.includes("sprite") || archetype.includes("dragon")) return "magical_creature";
     if (archetype.includes("elder") || archetype.includes("villager")) return "human";
     return "human";

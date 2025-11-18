@@ -63,7 +63,7 @@ export class FairyTaleSelector {
   async selectBestMatch(
     config: StoryConfig,
     availableAvatarCount: number,
-    excludeRecentlyUsed: number = 3
+    excludeRecentlyUsed: number = 5
   ): Promise<SelectedFairyTale | null> {
     console.log("[FairyTaleSelector] Selecting fairy tale for:", {
       ageGroup: config.ageGroup,
@@ -201,7 +201,12 @@ export class FairyTaleSelector {
         return new Date(usageA.last).getTime() - new Date(usageB.last).getTime();
       });
 
-      const selectedMatch = topMatches[0];
+      // Pick from top 3 (or all within 10pts of best) to add diversity and avoid repeats
+      const bestScore = topMatches[0].score.total;
+      const diversePool = topMatches
+        .filter((m, idx) => idx < 3 || (bestScore - m.score.total) <= 10);
+      const pickIndex = Math.floor(Math.random() * diversePool.length);
+      const selectedMatch = diversePool[pickIndex];
 
       console.log(`[FairyTaleSelector] Selected: ${selectedMatch.tale.title} (score: ${selectedMatch.score.total})`);
       console.log(`[FairyTaleSelector] Match reason: ${selectedMatch.score.reason}`);

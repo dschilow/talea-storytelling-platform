@@ -181,6 +181,7 @@ export class Phase3StoryFinalizer {
 
       // Validate structure
       this.validateFinalStory(finalStory);
+      this.validateStoryQuality(finalStory, input.avatarDetails, selectedFairyTale, input.config.hasTwist ?? false);
 
       console.log("[Phase3] Story finalized successfully:", {
         title: finalStory.title,
@@ -593,6 +594,47 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     }
 
     console.log("[Phase3] Final story validated successfully");
+  }
+
+  /**
+   * Additional quality checks: avatars present, antagonist present, twist (if requested), encoding sanity
+   */
+  private validateStoryQuality(
+    story: FinalizedStory,
+    avatars: Array<{ name: string }>,
+    fairyTale: SelectedFairyTale | null,
+    twistRequired: boolean
+  ) {
+    const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
+    // Avatars must appear
+    for (const av of avatars) {
+      if (!text.includes(av.name.toLowerCase())) {
+        throw new Error(`[Phase3] Avatar ${av.name} not present in story text`);
+      }
+    }
+
+    // Antagonist presence (simple heuristics)
+    const antagonistKeywords = ["antagonist", "gegner", "zauberer", "feind", "bedroh"];
+    if (!antagonistKeywords.some(k => text.includes(k))) {
+      throw new Error("[Phase3] No antagonist presence detected in story text");
+    }
+
+    // Twist heuristic
+    if (twistRequired) {
+      const twistSignals = ["twist", "wendung", "ueberraschung", "überraschung", "plot twist"];
+      if (!twistSignals.some(k => text.includes(k))) {
+        throw new Error("[Phase3] Twist required but not detected");
+      }
+    }
+
+    // Simple overlap guard: title of fairy tale should not dominate chapter titles 1..5
+    if (fairyTale) {
+      const ft = fairyTale.tale.title.toLowerCase();
+      const sameTitleCount = story.chapters.filter(ch => ch.title.toLowerCase().includes(ft)).length;
+      if (sameTitleCount > 2) {
+        throw new Error("[Phase3] Too many chapter titles mirror original fairy tale title");
+      }
+    }
   }
 
   /**

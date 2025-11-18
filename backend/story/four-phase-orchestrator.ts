@@ -466,13 +466,17 @@ export class FourPhaseOrchestrator {
         chapterTitle: ch.title,
         hasImage: !!ch.imageUrl,
         imageUrl: ch.imageUrl,
+        prompt: (ch as any).imagePrompt,
         promptPreview: ch.imagePrompt ? `${ch.imagePrompt.substring(0, 180)}...` : undefined,
         seed: (ch as any).imageSeed,
         model: (ch as any).imageModel,
+        style: (ch as any).imageStyle,
+        negativePrompt: (ch as any).imageNegativePrompt,
       })),
       coverImage: {
         url: coverImage?.url,
         promptPreview: coverImage?.prompt ? `${coverImage.prompt.substring(0, 180)}...` : undefined,
+        prompt: coverImage?.prompt,
         durationMs: coverDuration,
         success: !!coverImage?.url,
       },
@@ -613,9 +617,11 @@ export class FourPhaseOrchestrator {
         );
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
+        const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text";
+        const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(enhancedPrompt);
+        const imageUrl = await this.generateImage(enhancedPrompt, imageSeed, stylePreset, negativePrompt);
 
         return {
           id: crypto.randomUUID(),
@@ -626,6 +632,8 @@ export class FourPhaseOrchestrator {
           imagePrompt: enhancedPrompt,
           imageSeed,
           imageModel,
+          imageStyle: stylePreset,
+          imageNegativePrompt: negativePrompt,
         };
       } catch (error) {
         console.error(`[4-Phase] Failed to generate image for chapter ${chapter.order}:`, error);
@@ -638,6 +646,8 @@ export class FourPhaseOrchestrator {
           imagePrompt: undefined,
           imageSeed: undefined,
           imageModel: undefined,
+          imageStyle: undefined,
+          imageNegativePrompt: undefined,
         };
       }
     });
@@ -788,10 +798,11 @@ export class FourPhaseOrchestrator {
     return `
 ${baseDescription}
 
-CHARACTERS IN THIS SCENE:
+CHARACTERS IN THIS SCENE (lock face/outfit/age):
 ${characterBlock}${ageOrder}
 
 Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
+IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent across all images. Do not add text or watermarks.
     `.trim();
   }
 
@@ -800,10 +811,18 @@ Art style: watercolor illustration, Axel Scheffler style, warm colours, child-fr
   /**
    * Generate a single image using AI service
    */
-  private async generateImage(prompt: string): Promise<string | undefined> {
+  private async generateImage(
+    prompt: string,
+    seed?: number,
+    style?: string,
+    negativePrompt?: string
+  ): Promise<string | undefined> {
     try {
       const response = await ai.generateImage({
         prompt,
+        seed,
+        style,
+        negative_prompt: negativePrompt,
       });
 
       return response.imageUrl;
@@ -843,7 +862,10 @@ ${story.description}
         characterAssignments
       );
 
-      const imageUrl = await this.generateImage(enhancedPrompt);
+      const seed = Math.floor(Math.random() * 1_000_000_000);
+      const stylePreset = "watercolor_storybook";
+      const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text";
+      const imageUrl = await this.generateImage(enhancedPrompt, seed, stylePreset, negativePrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
       return { url: imageUrl, prompt: enhancedPrompt };
