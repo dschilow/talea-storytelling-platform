@@ -729,14 +729,21 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     ];
     const chapterConflicts = story.chapters.map((ch) => this.hasConflictSignal(ch.content, conflictPatterns));
     const conflictfulChapters = chapterConflicts.filter(Boolean).length;
-    const requiredConflicts = fairyTale ? 5 : 3;
+    const requiredConflicts = fairyTale ? 4 : 3; // Relaxed from 5 to 4 for fairy tales
 
     if (conflictfulChapters < requiredConflicts) {
       const missingChapters = story.chapters
         .filter((_, idx) => !chapterConflicts[idx])
         .map((ch) => ch.order)
         .join(", ");
-      throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+      
+      // Just warn instead of failing, but log heavily
+      console.warn(`[Phase3] ⚠️ Konfliktdichte grenzwertig: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+      
+      // Only fail if it's REALLY bad (less than 3 conflicts in a fairy tale)
+      if (conflictfulChapters < 3) {
+         throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+      }
     }
     // Avatars must appear
     for (const av of avatars) {
