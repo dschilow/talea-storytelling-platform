@@ -1,30 +1,37 @@
 // Simple API Key Authentication for Automated Testing
 // Allows Claude to access test endpoints with a secret key
-
-import { secret } from "encore.dev/config";
-
-const automationApiKey = secret("AutomationAPIKey");
+// Note: This helper does NOT load secrets - they must be passed as parameters
 
 /**
- * Validates the automation API key from request header
+ * Validates the automation API key against the configured key
+ * @param providedKey - The API key from the request
+ * @param validKey - The actual secret key from Encore config
  */
-export function validateAutomationKey(key: string | undefined): boolean {
-  if (!key) return false;
-
-  const validKey = automationApiKey();
-  if (!validKey) {
-    console.warn("[Auth] AutomationAPIKey not configured - automation endpoints disabled");
+export function validateAutomationKey(
+  providedKey: string | undefined,
+  validKey: string | undefined
+): boolean {
+  if (!providedKey || !validKey) {
     return false;
   }
 
-  return key === validKey;
+  return providedKey === validKey;
 }
 
 /**
- * Middleware to check automation API key
+ * Throws an error if the API key is invalid
+ * @param providedKey - The API key from the request
+ * @param validKey - The actual secret key from Encore config
  */
-export function requireAutomationKey(providedKey: string | undefined): void {
-  if (!validateAutomationKey(providedKey)) {
+export function requireAutomationKey(
+  providedKey: string | undefined,
+  validKey: string | undefined
+): void {
+  if (!validKey) {
+    throw new Error("AutomationAPIKey not configured - automation endpoints disabled");
+  }
+
+  if (!validateAutomationKey(providedKey, validKey)) {
     throw new Error("Invalid or missing automation API key");
   }
 }

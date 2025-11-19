@@ -2,9 +2,12 @@
 // Requires automation API key for security
 
 import { api } from "encore.dev/api";
+import { secret } from "encore.dev/config";
 import { storyDB } from "./db";
 import { generateOverallReport } from "./phase-scorer";
 import { requireAutomationKey } from "../helpers/automationAuth";
+
+const automationApiKey = secret("AutomationAPIKey");
 
 interface AnalysisRequest {
   apiKey?: string; // Automation API key
@@ -46,7 +49,7 @@ export const analyzeRecentStories = api<AnalysisRequest, AnalysisResponse>(
   { expose: true, method: "GET", path: "/story/analyze-recent", auth: false },
   async (req): Promise<AnalysisResponse> => {
     // Validate automation API key
-    requireAutomationKey(req.apiKey);
+    requireAutomationKey(req.apiKey, automationApiKey());
 
     const limit = Math.min(req.limit || 5, 20);
 
