@@ -5,3 +5,4 @@ encore.gen.cue
 node_modules
 /encore.gen
 backend/frontend/dist
+Logs
