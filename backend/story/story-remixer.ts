@@ -60,6 +60,16 @@ export class StoryRemixer {
       description: 'Replace standard solutions with unexpected problem-solving',
       weight: 30,
     },
+    {
+      name: 'genre_mashup',
+      description: 'Combine the fairy tale with a RANDOM genre (Sci-Fi, Western, Noir, Steampunk). This creates a unique setting and tone.',
+      weight: 25,
+    },
+    {
+      name: 'unreliable_narrator',
+      description: 'The narrator is hiding something or telling a biased version. Reveal the truth slowly.',
+      weight: 20,
+    },
   ];
 
   /**
@@ -74,6 +84,7 @@ export class StoryRemixer {
     console.log(`[StoryRemixer] Remixing ${scenes.length} scenes, target originality: ${targetOriginality}%`);
 
     // Select strategies based on target originality
+    // ALWAYS include at least one "high impact" strategy (genre_mashup, solution_creativity, obstacle_swap)
     const selectedStrategies = this.selectStrategies(targetOriginality);
     console.log(`[StoryRemixer] Selected strategies: ${selectedStrategies.join(', ')}`);
 
@@ -180,6 +191,16 @@ export class StoryRemixer {
         transformationNotes = `Scene ${sceneIndex + 1}: The protagonist must solve this problem in an UNEXPECTED, CREATIVE way. NO standard fairy tale solutions (magic wands, wishes, traditional tricks). Think outside the box - use the avatar's unique personality traits and skills. Be inventive and surprising!`;
         break;
 
+      case 'genre_mashup':
+        const genres = ['Sci-Fi', 'Western', 'Detective Noir', 'Steampunk', 'Cyberpunk', 'Prehistoric'];
+        const genre = genres[Math.floor(Math.random() * genres.length)];
+        transformationNotes = `Scene ${sceneIndex + 1}: MASHUP with ${genre} genre! Reimagine the scene elements (props, dialogue, setting) to fit a ${genre} aesthetic while keeping the fairy tale plot. Example: A carriage becomes a spaceship or steam-engine.`;
+        break;
+        
+      case 'unreliable_narrator':
+        transformationNotes = `Scene ${sceneIndex + 1}: The narrator doubts what they are seeing. Is it magic or a trick? Add ambiguity and mystery. Maybe the characters perceive things differently.`;
+        break;
+
       default:
         transformationNotes = `Scene ${sceneIndex + 1}: Keep the emotional core but tell it in a fresh, original way.`;
     }
@@ -202,7 +223,7 @@ export class StoryRemixer {
     let score = strategies.length * 15;
 
     // Bonus for high-impact strategies
-    const highImpactStrategies = ['solution_creativity', 'perspective_shift', 'obstacle_swap'];
+    const highImpactStrategies = ['solution_creativity', 'perspective_shift', 'obstacle_swap', 'genre_mashup'];
     const highImpactCount = strategies.filter(s => highImpactStrategies.includes(s)).length;
     score += highImpactCount * 10;
 

@@ -616,6 +616,14 @@ interface GenerateStoryContentResponse {
   })[];
   avatarDevelopments: AvatarDevelopment[];
   learningOutcomes: LearningOutcome[];
+  // OPTIMIZATION v1.1: New field to notify frontend about auto-generated characters
+  newlyGeneratedCharacters?: Array<{
+    id: string;
+    name: string;
+    role: string;
+    species: string;
+    gender: string;
+  }>;
   metadata: {
     tokensUsed: {
       prompt: number;
@@ -1075,6 +1083,13 @@ interface StoryToolOutcome {
     coverImageDescription: CoverImageDescription;
     avatarDevelopments: AvatarDevelopment[];
     learningOutcomes: LearningOutcome[];
+    newlyGeneratedCharacters?: Array<{
+      id: string;
+      name: string;
+      role: string;
+      species: string;
+      gender: string;
+    }>;
   };
   usage: UsageTotals;
   state: StoryToolState;

@@ -304,6 +304,20 @@ export class FourPhaseOrchestrator {
     console.log(`[4-Phase] Phase 2 completed in ${phaseDurations.phase2Duration}ms`);
     console.log(`[4-Phase] Matched ${characterAssignments.size} characters from pool`);
 
+    // COLLECT NEWLY GENERATED CHARACTERS
+    const newlyGeneratedCharacters: any[] = [];
+    characterAssignments.forEach((char: any) => {
+      if (char.isNew) {
+        newlyGeneratedCharacters.push({
+          id: char.id,
+          name: char.name,
+          role: char.role,
+          species: char.visualProfile?.species || 'unknown',
+          gender: char.gender || 'unknown'
+        });
+      }
+    });
+
     const phase2RequestPayload = {
       phase: 2,
       label: "PHASE 2: Beste Charaktere matchen",
@@ -532,6 +546,7 @@ export class FourPhaseOrchestrator {
           },
         },
       },
+      newlyGeneratedCharacters: newlyGeneratedCharacters.length > 0 ? newlyGeneratedCharacters : undefined, // Pass to frontend
     };
   }
 

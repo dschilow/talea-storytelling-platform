@@ -11,6 +11,7 @@ import {
   type StoryExperienceContext,
 } from "./story-experience";
 import { StoryRemixer } from "./story-remixer";
+import { deterministicSeedFrom } from "./seed-utils";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -71,8 +72,13 @@ export class Phase1SkeletonGenerator {
       console.log(`[Phase1] ⚡ Saved ~47 seconds by skipping Phase1 OpenAI call`);
 
       // NEW: Apply Story Remixer to ensure originality
+      // Use higher variance for originality score to avoid stale remixes
       const avatarNames = input.avatarDetails.map(a => a.name);
-      const targetOriginality = 65; // Target 65% originality (35% overlap allowed, below 40% threshold)
+      // Random target originality between 65% and 85% for variety
+      const randomTarget = 65 + Math.floor(Math.random() * 20); 
+      const targetOriginality = randomTarget; 
+      
+      console.log(`[Phase1] 🎲 Random remix target: ${targetOriginality}%`);
 
       const remixResult = StoryRemixer.remixScenes(
         input.selectedFairyTale.scenes,
@@ -84,14 +90,18 @@ export class Phase1SkeletonGenerator {
       console.log(`[Phase1] 📊 Target originality score: ${remixResult.originalityScore}/100`);
 
       // Create minimal skeleton from fairy tale
+      // Apply REMIXED content to skeleton chapters
       const minimalSkeleton: StorySkeleton = {
-        title: `${input.avatarDetails.map(a => a.name).join(' und ')} und das ${input.selectedFairyTale.tale.title}-Abenteuer`,
-        chapters: input.selectedFairyTale.scenes.slice(0, 5).map((scene: any, idx: number) => ({
-          order: idx + 1,
-          content: scene.sceneDescription || `Kapitel ${idx + 1}: ${scene.sceneTitle}`,
+        title: `${input.selectedFairyTale.tale.title} - ${remixResult.appliedStrategies[0].replace(/_/g, ' ').toUpperCase()} Version`,
+        chapters: remixResult.remixedScenes.map(scene => ({
+          order: scene.remixedSceneNumber,
+          content: `${scene.sceneTitle}: ${scene.sceneDescription}`, // Use REMIXED description
           characterRolesNeeded: [], // Will be filled from fairy_tale_roles in Phase2
         })),
+        chaptersCount: remixResult.remixedScenes.length, // Use remixed length
         supportingCharacterRequirements: [], // Will be filled from fairy_tale_roles in Phase2
+        requirementsCount: 0,
+        supportingCharacters: [] // Required by type
       };
 
       return {
@@ -102,7 +112,7 @@ export class Phase1SkeletonGenerator {
           totalTokens: 0,
         },
         openAIRequest: { skipped: true, reason: 'fairy-tale-mode' },
-        openAIResponse: { skipped: true, reason: 'fairy-tale-mode' } as any,
+        openAIResponse: { choices: [], skipped: true, reason: 'fairy-tale-mode' } as any,
         remixInstructions: remixResult.transformationSummary, // Pass to Phase3
       };
     }
@@ -138,18 +148,18 @@ export class Phase1SkeletonGenerator {
       payload.reasoning_effort = "low";
     } else {
       // Only add creativity parameters for non-reasoning models
-      payload.temperature = 0.9;           // High creativity (0.0-1.0)
-      payload.top_p = 0.95;                // Nucleus sampling for variety
-      payload.frequency_penalty = 0.3;     // Reduce repetition
-      payload.presence_penalty = 0.2;      // Encourage new topics
+      payload.temperature = 1.0;           // MAX creativity (0.0-1.0)
+      payload.top_p = 0.98;                // Wider sampling for variety
+      payload.frequency_penalty = 0.5;     // Strongly reduce repetition
+      payload.presence_penalty = 0.4;      // Strongly encourage new topics
     }
 
     // CRITICAL FIX: Add time-based seed for variance even with identical parameters
-    // This prevents generating the exact same story skeleton multiple times
-    // The seed changes based on current time (minute precision), ensuring variance
-    const varianceSeed = Math.floor(Date.now() / 60000); // Changes every minute
+    // The seed changes based on current SECOND, ensuring variance every request
+    // OPTIMIZATION v2.2: Include user ID in seed to prevent cross-user collisions
+    const varianceSeed = Math.floor(Date.now() / 1000) + deterministicSeedFrom(input.config.setting + input.config.genre);
     payload.seed = varianceSeed;
-
+    
     console.log(`[Phase1] Using variance seed: ${varianceSeed} to prevent duplicate skeletons`);
 
     try {
@@ -272,7 +282,12 @@ export class Phase1SkeletonGenerator {
       : "- Keine Spezialzutaten - klassischer Verlauf moeglich.";
 
     const fairyTaleLine = selectedFairyTale
-      ? `MAERCHEN-INSPIRATION (nur als Richtung, kein Remake!): ${selectedFairyTale.tale.title}. Nutze Motive und Moral, aber erfinde neue Konflikte, neue Reihenfolge und einen eigenen Twist. Keine 1:1 Kopie.`
+      ? `MAERCHEN-INSPIRATION (NUR als roher Startpunkt!): ${selectedFairyTale.tale.title}.
+         WICHTIG: Du MUSST die Geschichte neu erfinden!
+         - Ändere das Setting oder die Zeit (z.B. Weltraum, Unterwasser, Großstadt, Zukunft).
+         - Ändere die Motivation der Figuren.
+         - Erfinde einen VÖLLIG NEUEN Twist, den niemand erwartet.
+         - Nutze Motive, aber kopiere niemals den Plot 1:1.`
       : "Keine Maerchen-Vorlage - komplett originelle Struktur.";
 
     const fairyTaleScenes = selectedFairyTale

@@ -5,6 +5,8 @@
 import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, CharacterRequirement, CharacterAssignment } from "./types";
 import { EnhancedCharacterMatcher, type FairyTaleRoleRequirement } from "./enhanced-character-matcher";
+import { saveGeneratedCharacterToPool } from "./save-generated-character";
+import crypto from "crypto";
 
 export class Phase2CharacterMatcher {
   /**
@@ -270,8 +272,20 @@ export class Phase2CharacterMatcher {
       );
 
       if (!bestMatch) {
-        console.warn(`[Phase2] No match found for ${req.placeholder}, generating fallback`);
-        const generated = this.generateFallbackCharacter(req);
+        console.warn(`[Phase2] No match found for ${req.placeholder}, generating SMART fallback`);
+        
+        // SMART CHARACTER GENERATION
+        // Instead of generic fallback, we create a tailored character that fits the role perfectly
+        const generated = this.generateSmartCharacter(req, fairyTaleRole);
+        
+        // Mark as newly generated so we can notify the user later
+        (generated as any).isNew = true;
+        
+        // Save to pool for future use!
+        // We do this asynchronously to not block the request flow too much, 
+        // but we await it here to ensure ID integrity if needed immediately.
+        await saveGeneratedCharacterToPool(generated);
+
         assignments.set(req.placeholder, generated);
         usedCharacters.add(generated.id);
         if (generated.visualProfile.species) {
@@ -521,8 +535,9 @@ export class Phase2CharacterMatcher {
       }
 
       // 9. FRESHNESS BONUS (50 points) - Increased weight
+      // OPTIMIZATION v2.1: Aggressively prefer unused characters
       const usageCount = recentUsage.get(candidate.id) || 0;
-      const freshness = Math.max(0, 50 - (usageCount * 20));
+      const freshness = Math.max(0, 80 - (usageCount * 30)); // Increased from 50 base, sharper dropoff
       score += freshness;
       debugScores.freshness = freshness;
 
@@ -765,6 +780,154 @@ export class Phase2CharacterMatcher {
     };
 
     return compatibilityMap[candidateSetting]?.includes(requiredSetting) || false;
+  }
+
+  /**
+   * Generate a SMART character when no good match exists
+   * Creates a high-quality character that fits the specific role requirements
+   */
+  private generateSmartCharacter(req: CharacterRequirement, ftRole?: FairyTaleRoleRequirement): CharacterTemplate {
+    const id = `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    
+    // 1. Determine Species
+    let species = ftRole?.speciesRequirement || this.inferSpecies(req);
+    if (species === 'any') species = 'human'; // Default to human if ambiguous
+    
+    // 2. Determine Gender
+    let gender = ftRole?.genderRequirement || 'neutral';
+    if (gender === 'any') gender = Math.random() > 0.5 ? 'male' : 'female';
+    
+    // 3. Generate Name based on role/species
+    const name = this.generateSmartName(req, species, gender, ftRole?.roleName);
+    
+    console.log(`[Phase2] ✨ Generating SMART character: ${name} (${species}, ${gender})`);
+
+    // 4. Build Visual Profile
+    const visualProfile = this.generateSmartVisualProfile(name, req, species, gender, ftRole);
+
+    // 5. Determine Enhanced Attributes
+    const ageCategory = ftRole?.ageRequirement || (req.visualHints?.includes('kind') ? 'child' : 'adult');
+    const profession = ftRole?.professionPreference?.[0] || (req.role === 'guide' ? 'mentor' : undefined);
+    const socialClass = ftRole?.socialClassRequirement || 'commoner';
+    const sizeCategory = ftRole?.sizeRequirement || (species === 'animal' ? 'small' : 'medium');
+
+    return {
+      id,
+      name,
+      role: req.role,
+      archetype: ftRole?.archetypePreference || req.archetype,
+      emotionalNature: {
+        dominant: typeof req.emotionalNature === 'string' ? req.emotionalNature : req.emotionalNature.dominant,
+        secondary: req.requiredTraits || [],
+      },
+      visualProfile,
+      maxScreenTime: this.importanceToScreenTime(req.importance),
+      availableChapters: req.inChapters,
+      canonSettings: [],
+      isActive: true,
+      recentUsageCount: 0,
+      totalUsageCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      
+      // Enhanced attributes for future matching
+      gender,
+      species_category: species,
+      age_category: ageCategory,
+      profession_tags: profession ? [profession] : [],
+      social_class: socialClass,
+      size_category: sizeCategory,
+      personality_keywords: req.requiredTraits,
+      physical_description: visualProfile.description
+    };
+  }
+
+  private generateSmartName(req: CharacterRequirement, species: string, gender: string, roleNameHint?: string): string {
+    // If we have a specific role name from the fairy tale (e.g. "The Frog Prince"), use a variation of it
+    if (roleNameHint && roleNameHint.length > 3 && !roleNameHint.includes('{')) {
+      // Clean up the role name
+      return roleNameHint;
+    }
+
+    const prefixes = {
+      human: {
+        male: ['Hans', 'Fritz', 'Klaus', 'Wilhelm', 'Karl', 'Heinrich', 'Friedrich', 'Jakob'],
+        female: ['Greta', 'Marie', 'Anna', 'Sophie', 'Clara', 'Marta', 'Lotte', 'Elsa'],
+        neutral: ['Alex', 'Sam', 'Kim', 'Mika']
+      },
+      animal: {
+        male: ['Bello', 'Rex', 'Hoppel', 'Meister', 'Brummbär'],
+        female: ['Mimi', 'Luna', 'Susi', 'Mausi', 'Goldie'],
+        neutral: ['Flauschi', 'Knopf', 'Schnuffel', 'Pieps']
+      },
+      magical_creature: {
+        male: ['Groll', 'Zottel', 'Funkel', 'Knarz'],
+        female: ['Glitzer', 'Schimmer', 'Funkel', 'Nebel'],
+        neutral: ['Wusel', 'Lichtlein', 'Schatten', 'Echo']
+      }
+    };
+
+    const roles = {
+      king: ['König', 'King', 'Herrscher'],
+      queen: ['Königin', 'Queen', 'Herrscherin'],
+      prince: ['Prinz'],
+      princess: ['Prinzessin'],
+      witch: ['Hexe', 'Zauberin'],
+      wizard: ['Zauberer', 'Magier'],
+      knight: ['Ritter'],
+    };
+
+    // Try to use a title if the placeholder suggests it
+    const ph = req.placeholder.toLowerCase();
+    if (ph.includes('king') || ph.includes('könig')) return `König ${this.pickRandom(prefixes.human.male)}`;
+    if (ph.includes('queen') || ph.includes('königin')) return `Königin ${this.pickRandom(prefixes.human.female)}`;
+    if (ph.includes('prince') && !ph.includes('princess')) return `Prinz ${this.pickRandom(prefixes.human.male)}`;
+    if (ph.includes('princess')) return `Prinzessin ${this.pickRandom(prefixes.human.female)}`;
+    if (ph.includes('witch') || ph.includes('hexe')) return `Hexe ${this.pickRandom(prefixes.human.female)}`;
+    if (ph.includes('wolf')) return `Wolf ${this.pickRandom(prefixes.animal.male)}`;
+    if (ph.includes('frosch') || ph.includes('frog')) return `Frosch ${this.pickRandom(prefixes.animal.male)}`;
+
+    // Default random name based on species/gender
+    const speciesKey = (species === 'human' || species === 'animal' || species === 'magical_creature') ? species : 'human';
+    const genderKey = (gender === 'male' || gender === 'female') ? gender : 'neutral';
+    
+    return this.pickRandom((prefixes as any)[speciesKey][genderKey] || prefixes.human.neutral);
+  }
+
+  private generateSmartVisualProfile(name: string, req: CharacterRequirement, species: string, gender: string, ftRole?: FairyTaleRoleRequirement): any {
+    const adjectives = req.emotionalNature || 'friendly';
+    const archetype = req.archetype || 'helper';
+    
+    let description = `${name} is a ${adjectives} ${species} (${gender}) who acts as a ${archetype}. `;
+    
+    if (ftRole?.professionPreference) {
+      description += `Profession: ${ftRole.professionPreference.join(', ')}. `;
+    }
+    
+    if (species === 'human') {
+       description += gender === 'female' ? 'She wears a dress suited for her role.' : 'He wears clothes suited for his role.';
+    } else if (species === 'animal') {
+       description += 'Has soft fur and bright eyes.';
+    }
+
+    // Determine color palette
+    const colors = ['brown', 'green', 'blue'];
+    if (archetype === 'villain') colors[2] = 'black';
+    if (archetype === 'hero') colors[2] = 'gold';
+    if (species === 'magical_creature') colors[0] = 'purple';
+
+    return {
+      description,
+      imagePrompt: `Portrait of ${name}, a ${species} character, ${archetype}, ${adjectives} expression, storybook illustration style`,
+      species,
+      colorPalette: colors,
+      gender,
+      ageApprox: ftRole?.ageRequirement === 'child' ? 8 : 30
+    };
+  }
+
+  private pickRandom<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
   }
 
   /**

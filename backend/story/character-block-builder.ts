@@ -567,8 +567,43 @@ export function buildCharacterBlock(
     action,
     detailedDescription: buildDetailedDescription(normalizedProfile, species),
   };
+  
+  // OPTIMIZATION v2.0: GENRE-AWARE COSTUME OVERRIDES
+  // If the scene suggests a strong genre shift (e.g. medieval/fantasy), we override modern clothing
+  if (sceneDetails?.action && (sceneDetails.action.includes('medieval') || sceneDetails.action.includes('fantasy'))) {
+     console.log(`[character-block-builder] 🎭 Applying GENRE COSTUME override for ${name}`);
+     block.detailedDescription = overrideClothingForGenre(block.detailedDescription, 'fantasy');
+     
+     // Remove modern clothing items from mustInclude
+     block.mustInclude = block.mustInclude.filter(item => 
+       !item.includes('hoodie') && 
+       !item.includes('jeans') && 
+       !item.includes('t-shirt') &&
+       !item.includes('sneakers')
+     );
+     
+     // Add genre-appropriate clothing
+     block.mustInclude.push('period-appropriate tunic');
+     block.mustInclude.push('medieval attire');
+  }
 
   return block;
+}
+
+/**
+ * Helper to replace modern clothing terms with genre-appropriate ones
+ */
+function overrideClothingForGenre(description: string, genre: 'fantasy' | 'sci-fi'): string {
+  if (genre === 'fantasy') {
+    return description
+      .replace(/hoodie/gi, "hooded tunic")
+      .replace(/jeans/gi, "breeches")
+      .replace(/t-shirt/gi, "linen shirt")
+      .replace(/sneakers/gi, "leather boots")
+      .replace(/baseball cap/gi, "cap")
+      .replace(/modern/gi, "timeless");
+  }
+  return description;
 }
 
 function limitSentences(text: string | undefined, maxCount: number): string {

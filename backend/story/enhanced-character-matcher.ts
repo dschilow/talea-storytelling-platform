@@ -36,7 +36,7 @@ export class EnhancedCharacterMatcher {
       archetype: 15,      // MEDIUM: Personality archetype
       emotionalNature: 10, // LOW: Emotional fit
       sizeCategory: 5,    // LOW: Physical size
-      freshness: 10,      // BONUS: Usage diversity
+      freshness: 20,      // BONUS: Usage diversity (Increased from 10)
     };
 
     // 1. SPECIES MATCHING (CRITICAL!)
@@ -176,11 +176,13 @@ export class EnhancedCharacterMatcher {
     const recentUsageCount = character.recentUsageCount || 0;
 
     if (usageCount === 0) {
-      score += weights.freshness; // Bonus for unused characters
+      score += weights.freshness * 2.0; // Huge Bonus for unused characters
     } else if (recentUsageCount === 0) {
-      score += weights.freshness * 0.7; // Good: Not used recently
+      score += weights.freshness * 1.0; // Standard Bonus: Not used recently
     } else if (recentUsageCount < 2) {
-      score += weights.freshness * 0.3; // Okay: Used once recently
+      score += weights.freshness * 0.2; // Small Bonus: Used once recently
+    } else {
+      score -= weights.freshness * 0.5; // Penalty: Used frequently recently
     }
 
     return Math.max(0, Math.min(100, score));
