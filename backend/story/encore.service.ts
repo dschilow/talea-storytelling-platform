@@ -6,3 +6,5 @@ export default new Service("story");
 import "./generate";
 import "./generate-from-fairytale";
 import "./character-pool-api";
+import "./test-story-generation";
+import "./analyze-phase-logs";

@@ -177,7 +177,20 @@ export class FourPhaseOrchestrator {
 
     // ===== PHASE 0: Fairy Tale Pre-Selection (NEW) =====
     let selectedFairyTale: SelectedFairyTale | null = null;
-    const useFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? false;
+
+    // 🔧 OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres
+    const isFairyTaleGenre =
+      input.config.genre === "Klassische Märchen" ||
+      input.config.genre === "Märchenwelten und Magie" ||
+      input.config.genre?.toLowerCase().includes('märchen') ||
+      input.config.genre?.toLowerCase().includes('fairy') ||
+      input.config.genre?.toLowerCase().includes('magic');
+
+    const useFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? isFairyTaleGenre;
+
+    if (isFairyTaleGenre && !input.config.preferences?.useFairyTaleTemplate) {
+      console.log(`[4-Phase] 🎭 AUTO-ACTIVATED Fairy Tale Template for genre: "${input.config.genre}"`);
+    }
 
     if (useFairyTaleTemplate) {
       console.log("[4-Phase] ===== PHASE 0: FAIRY TALE SELECTION =====");
