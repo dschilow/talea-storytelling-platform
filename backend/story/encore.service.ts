@@ -9,3 +9,4 @@ import "./character-pool-api";
 import "./test-story-generation";
 import "./analyze-phase-logs";
 import "./analyze-recent-stories";
+import "./auto-test-endpoint";
