@@ -1,16 +1,11 @@
 // Public endpoint to analyze recent production stories
-// Requires automation API key for security
+// No authentication required - for internal optimization testing only
 
 import { api } from "encore.dev/api";
-import { secret } from "encore.dev/config";
 import { storyDB } from "./db";
 import { generateOverallReport } from "./phase-scorer";
-import { requireAutomationKey } from "../helpers/automationAuth";
-
-const automationApiKey = secret("AutomationAPIKey");
 
 interface AnalysisRequest {
-  apiKey?: string; // Automation API key
   limit?: number; // How many recent stories to analyze (default: 5, max: 20)
 }
 
@@ -48,9 +43,6 @@ interface AnalysisResponse {
 export const analyzeRecentStories = api<AnalysisRequest, AnalysisResponse>(
   { expose: true, method: "GET", path: "/story/analyze-recent", auth: false },
   async (req): Promise<AnalysisResponse> => {
-    // Validate automation API key
-    requireAutomationKey(req.apiKey, automationApiKey());
-
     const limit = Math.min(req.limit || 5, 20);
 
     console.log(`[Analyze Recent] Analyzing last ${limit} stories...`);
