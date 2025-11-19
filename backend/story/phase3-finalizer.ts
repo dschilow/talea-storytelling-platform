@@ -79,13 +79,17 @@ export class Phase3StoryFinalizer {
 
     // NEW: Check if we should use fairy tale template
     let selectedFairyTale: SelectedFairyTale | null = null;
-    if (input.useFairyTaleTemplate) {
-      console.log("[Phase3] Fairy tale mode enabled - selecting best match...");
+
+    if (input.selectedFairyTale) {
+      selectedFairyTale = input.selectedFairyTale;
+      console.log(`[Phase3] Using provided fairy tale from Phase 1: ${selectedFairyTale.tale.title}`);
+    } else if (input.useFairyTaleTemplate) {
+      console.log("[Phase3] Fairy tale mode enabled but no tale provided - selecting best match...");
       selectedFairyTale = await this.fairyTaleSelector.selectBestMatch(
         input.config,
         input.avatarDetails.length
       );
-      
+
       if (selectedFairyTale) {
         console.log(`[Phase3] Using fairy tale: ${selectedFairyTale.tale.title}`);
         console.log(`[Phase3] Match score: ${selectedFairyTale.matchScore}, Reason: ${selectedFairyTale.matchReason}`);
@@ -100,21 +104,21 @@ export class Phase3StoryFinalizer {
     // Step 2: Build finalization prompt with character details (and optional fairy tale)
     const prompt = selectedFairyTale
       ? this.buildFairyTalePrompt(
-          skeletonWithNames,
-          input.assignments,
-          input.config,
-          input.avatarDetails,
-          input.experience,
-          input.selectedFairyTale || selectedFairyTale,
-          input.remixInstructions // NEW: Pass remix instructions
-        )
+        skeletonWithNames,
+        input.assignments,
+        input.config,
+        input.avatarDetails,
+        input.experience,
+        input.selectedFairyTale || selectedFairyTale,
+        input.remixInstructions // NEW: Pass remix instructions
+      )
       : this.buildFinalizationPrompt(
-          skeletonWithNames,
-          input.assignments,
-          input.config,
-          input.avatarDetails,
-          input.experience
-        );
+        skeletonWithNames,
+        input.assignments,
+        input.config,
+        input.avatarDetails,
+        input.experience
+      );
     const normalizedPrompt = this.normalizeText(prompt);
     const modelName = input.config.aiModel || "gpt-5-mini";
 
@@ -260,10 +264,10 @@ export class Phase3StoryFinalizer {
 
       const usage = data.usage
         ? {
-            promptTokens: data.usage.prompt_tokens ?? 0,
-            completionTokens: data.usage.completion_tokens ?? 0,
-            totalTokens: data.usage.total_tokens ?? 0,
-          }
+          promptTokens: data.usage.prompt_tokens ?? 0,
+          completionTokens: data.usage.completion_tokens ?? 0,
+          totalTokens: data.usage.total_tokens ?? 0,
+        }
         : undefined;
 
       const result: Phase3FinalizationResult = {
@@ -447,21 +451,21 @@ export class Phase3StoryFinalizer {
 
     const ingredientSummary = experience.specialIngredients.length
       ? experience.specialIngredients
-          .map((ingredient) => {
-            const extras: string[] = [];
-            if (ingredient.forcesTwist) {
-              extras.push("Wende in Kapitel 4 vorbereiten und in Kapitel 5 aufloesen.");
-            }
-            if (ingredient.hookHint) {
-              extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
-            }
-            if (ingredient.emphasis) {
-              extras.push(ingredient.emphasis);
-            }
-            const extraText = extras.length ? ` (${extras.join(" ")})` : "";
-            return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
-          })
-          .join("\n")
+        .map((ingredient) => {
+          const extras: string[] = [];
+          if (ingredient.forcesTwist) {
+            extras.push("Wende in Kapitel 4 vorbereiten und in Kapitel 5 aufloesen.");
+          }
+          if (ingredient.hookHint) {
+            extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
+          }
+          if (ingredient.emphasis) {
+            extras.push(ingredient.emphasis);
+          }
+          const extraText = extras.length ? ` (${extras.join(" ")})` : "";
+          return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
+        })
+        .join("\n")
       : "- Kein Spezial-Element - konzentriere dich auf Charakterentwicklung.";
 
     const flavorDetails = describeEmotionalFlavors(experience);
@@ -729,20 +733,20 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     ];
     const chapterConflicts = story.chapters.map((ch) => this.hasConflictSignal(ch.content, conflictPatterns));
     const conflictfulChapters = chapterConflicts.filter(Boolean).length;
-    const requiredConflicts = fairyTale ? 4 : 3; // Relaxed from 5 to 4 for fairy tales
+    const requiredConflicts = fairyTale ? 2 : 3; // Relaxed from 5 to 2 for fairy tales
 
     if (conflictfulChapters < requiredConflicts) {
       const missingChapters = story.chapters
         .filter((_, idx) => !chapterConflicts[idx])
         .map((ch) => ch.order)
         .join(", ");
-      
+
       // Just warn instead of failing, but log heavily
       console.warn(`[Phase3] ⚠️ Konfliktdichte grenzwertig: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
-      
-      // Only fail if it's REALLY bad (less than 3 conflicts in a fairy tale)
-      if (conflictfulChapters < 3) {
-         throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+
+      // Only fail if it's REALLY bad (less than 2 conflicts in a fairy tale)
+      if (conflictfulChapters < 2) {
+        throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
       }
     }
     // Avatars must appear
@@ -834,7 +838,7 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
 
     // ===== NEW: Apply role transformations to avatar visual profiles =====
     const roleTransformations = FAIRY_TALE_ROLE_MAPPINGS[fairyTale.tale.id];
-    
+
     const avatarDetailsText = avatarDetails
       .map((avatar, idx) => {
         let line = `- ${avatar.name}`;
@@ -845,9 +849,9 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
           // Apply transformation if role mapping exists for this avatar
           const avatarGender = avatar.visualProfile.gender || 'neutral';
           const protagonistTransformation = roleTransformations?.roles['{protagonist}']?.transformation;
-          
+
           let visualDescription = this.visualProfileToText(avatar.visualProfile);
-          
+
           // Transform avatar appearance for fairy tale role (e.g., human ? mermaid)
           if (protagonistTransformation && idx === 0) { // First avatar = protagonist
             visualDescription = applyRoleTransformation(
@@ -859,7 +863,7 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
             console.log(`[Phase3] Original: ${this.visualProfileToText(avatar.visualProfile)}`);
             console.log(`[Phase3] Transformed: ${visualDescription}`);
           }
-          
+
           line += `, Aussehen: ${visualDescription}`;
         }
         return line;
@@ -890,21 +894,21 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     // ==================== SCENE-TO-CHAPTER MAPPING ====================
     // Map fairy tale scenes (6-9 scenes) to exactly 5 chapters
     const sceneChapterMapping = this.mapScenesToChapters(fairyTale.scenes);
-    
+
     // ===== NEW: Get gender-adapted pronouns and role titles =====
     const protagonistAvatar = avatarDetails[0]; // First avatar is protagonist
     const protagonistGender = protagonistAvatar?.visualProfile?.gender || 'neutral';
-    const adaptedPronouns = roleTransformations 
+    const adaptedPronouns = roleTransformations
       ? getAdaptedPronouns(roleTransformations.roles['{protagonist}'], protagonistGender)
       : {};
     const adaptedRoleTitle = roleTransformations
       ? getAdaptedRoleTitle(roleTransformations.roles['{protagonist}'], protagonistGender)
       : fairyTale.tale.title;
-    
+
     console.log(`[Phase3] ?? Gender adaptation for ${protagonistAvatar.name} (${protagonistGender}):`);
     console.log(`[Phase3] Role title: ${fairyTale.tale.title} ? ${adaptedRoleTitle}`);
     console.log(`[Phase3] Pronouns: ${JSON.stringify(adaptedPronouns)}`);
-    
+
     const chapterStructure = sceneChapterMapping
       .map((mapping: any, idx: number) => {
         const sceneDetails = mapping.scenes.map((s: any) => {
@@ -916,14 +920,14 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
           sceneDescription = sceneDescription.replace(/{protagonist_ihr}/g, adaptedPronouns.ihr || 'ihr');
           sceneDescription = sceneDescription.replace(/{protagonist_ihre}/g, adaptedPronouns.ihre || 'ihre');
           sceneDescription = sceneDescription.replace(/{protagonist_name}/g, protagonistAvatar.name);
-          
+
           return `  - Szene ${s.sceneNumber}: ${s.sceneTitle}\n` +
             `    Setting: ${s.setting}\n` +
             `    Stimmung: ${s.mood}\n` +
             `    Handlung: ${sceneDescription}\n` +
             `    Bild-Template: ${s.illustrationPromptTemplate}`;
         }).join('\n');
-        
+
         return `KAPITEL ${idx + 1}: ${mapping.chapterTitle}\n${sceneDetails}`;
       })
       .join('\n\n');
@@ -1126,11 +1130,11 @@ Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
   }> {
     const totalScenes = scenes.length;
     const chapters = 5;
-    
+
     // Calculate base scenes per chapter and remainder
     const baseScenesPerChapter = Math.floor(totalScenes / chapters);
     const remainder = totalScenes % chapters;
-    
+
     const mapping: Array<{
       chapterNumber: number;
       chapterTitle: string;
@@ -1143,26 +1147,26 @@ Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
         illustrationPromptTemplate: string;
       }>;
     }> = [];
-    
+
     let sceneIndex = 0;
-    
+
     for (let chapterNum = 1; chapterNum <= chapters; chapterNum++) {
       // First chapters get +1 scene if there's remainder
       const scenesInThisChapter = baseScenesPerChapter + (chapterNum <= remainder ? 1 : 0);
       const chapterScenes = scenes.slice(sceneIndex, sceneIndex + scenesInThisChapter);
-      
+
       // Chapter title from first scene
       const chapterTitle = chapterScenes[0]?.sceneTitle || `Kapitel ${chapterNum}`;
-      
+
       mapping.push({
         chapterNumber: chapterNum,
         chapterTitle,
         scenes: chapterScenes,
       });
-      
+
       sceneIndex += scenesInThisChapter;
     }
-    
+
     return mapping;
   }
 
@@ -1200,13 +1204,13 @@ Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
     // Antagonisten kommen IMMER aus dem Character Pool
     for (const role of antagonistRoles) {
       // IMMER Character Pool für Antagonisten verwenden
-      const poolCharacter = Array.from(assignments.values()).find((c) => 
-        c.role === "antagonist" || 
-        c.role === "obstacle" || 
+      const poolCharacter = Array.from(assignments.values()).find((c) =>
+        c.role === "antagonist" ||
+        c.role === "obstacle" ||
         c.archetype?.includes("villain") ||
         c.archetype?.includes("trickster")
       );
-      
+
       if (poolCharacter) {
         mapping.push({
           fairyTaleRole: role.roleName,
