@@ -121,10 +121,12 @@ export class Phase3StoryFinalizer {
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
     const isReasoningModel = modelName.includes("gpt-5") || modelName.includes("o4");
 
-    // CRITICAL FIX: Fairy tale mode needs MORE tokens for detailed scene-to-chapter mapping
+    // 🔧 CRITICAL FIX: GPT-5-mini reasoning tokens are SEPARATE from completion tokens
+    // When reasoning_effort="medium", the model uses ~8000 reasoning tokens
+    // We need to increase max_completion_tokens to allow for BOTH reasoning + actual content
     const completionTokenLimit = selectedFairyTale
-      ? (isReasoningModel ? 8000 : 3500)  // +1500-2000 tokens for fairy tale complexity
-      : (isReasoningModel ? 6500 : 2800);
+      ? (isReasoningModel ? 16000 : 3500)  // 16K for reasoning models (reasoning tokens are separate!)
+      : (isReasoningModel ? 12000 : 2800); // 12K for non-fairy-tale stories
 
     const payload: any = {
       model: modelName,
