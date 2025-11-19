@@ -1,12 +1,14 @@
-// AUTOMATED TEST ENDPOINT - No Auth Required
-// This endpoint allows automated testing without authentication
+// AUTOMATED TEST ENDPOINT - Requires Automation API Key
+// This endpoint allows automated testing with API key authentication
 
 import { api } from "encore.dev/api";
 import { generate } from "./generate";
 import { avatarDB } from "../avatar/db";
+import { requireAutomationKey } from "../helpers/automationAuth";
 import crypto from "crypto";
 
 interface AutoTestRequest {
+  apiKey?: string; // Automation API key for security
   testId?: string;
   genre: string;
   setting: string;
@@ -26,7 +28,7 @@ interface AutoTestResponse {
 }
 
 /**
- * AUTO-TEST ENDPOINT (Public, No Auth)
+ * AUTO-TEST ENDPOINT (Requires Automation API Key)
  *
  * Generates a complete story with automatic avatar creation
  * For automated optimization testing only
@@ -34,6 +36,9 @@ interface AutoTestResponse {
 export const autoTest = api<AutoTestRequest, AutoTestResponse>(
   { expose: true, method: "POST", path: "/story/auto-test", auth: false },
   async (req): Promise<AutoTestResponse> => {
+    // Validate automation API key
+    requireAutomationKey(req.apiKey);
+
     const testId = req.testId || `autotest-${Date.now()}`;
     const userId = `test-user-${testId}`;
 
