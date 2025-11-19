@@ -583,14 +583,24 @@ export class Phase2CharacterMatcher {
           debugScores.fairyTaleBonus = 150;
         }
 
-        // PENALTY for modern professions in fairy tales
-        const modernKeywords = ['police', 'polizist', 'doctor', 'arzt', 'mechanic', 'mechaniker', 'teacher', 'lehrer'];
+        // OPTIMIZATION v2.4: Aggressive Penalty for modern professions in fairy tales
+        // Erweiterte Liste: Busfahrer, Mechaniker, Polizist, etc.
+        const modernKeywords = [
+          'police', 'polizist', 'doctor', 'arzt', 'mechanic', 'mechaniker', 
+          'teacher', 'lehrer', 'busfahrer', 'bus driver', 'driver', 'fahrer',
+          'engineer', 'ingenieur', 'nurse', 'krankenschwester', 'pilot', 'pilot',
+          'chef', 'koch', 'waiter', 'kellner', 'cashier', 'kassierer'
+        ];
         const candidateDescLower = (candidate.visualProfile.description || '').toLowerCase();
-        const hasModernProfession = modernKeywords.some(keyword => candidateDescLower.includes(keyword));
+        const candidateNameLower = (candidate.name || '').toLowerCase();
+        const hasModernProfession = modernKeywords.some(keyword => 
+          candidateDescLower.includes(keyword) || candidateNameLower.includes(keyword)
+        );
         
         if (hasModernProfession) {
-          score -= 100;
-          debugScores.modernPenalty = -100;
+          score -= 150; // Erhöht von -100 auf -150 für stärkere Abneigung
+          debugScores.modernPenalty = -150;
+          console.log(`[Phase2] 🚫 Modern profession penalty applied to ${candidate.name} in fantasy setting`);
         }
       }
 
@@ -598,10 +608,9 @@ export class Phase2CharacterMatcher {
       (candidate as any)._matchScore = score;
       (candidate as any)._debugScores = debugScores;
 
-      // FINAL DECISION
+      // Track best score
       if (score > bestScore) {
         bestScore = score;
-        bestMatch = candidate;
       }
     }
 
@@ -613,10 +622,37 @@ export class Phase2CharacterMatcher {
       return null;
     }
 
+    // OPTIMIZATION v2.4: Random Selection bei gleichen Scores
+    // Sammle alle Kandidaten mit ähnlichen Scores (innerhalb von 3 Punkten)
+    // und wähle dann zufällig aus dieser Gruppe
+    const scoreThreshold = 3; // Alle innerhalb von 3 Punkten gelten als "gleich gut"
+    const candidatesWithEqualScore = pool.filter(c => {
+      const score = (c as any)._matchScore || 0;
+      return score >= 60 && Math.abs(bestScore - score) <= scoreThreshold;
+    });
+
+    if (candidatesWithEqualScore.length > 1) {
+      // Zufällige Auswahl aus gleichwertigen Kandidaten
+      const randomIndex = Math.floor(Math.random() * candidatesWithEqualScore.length);
+      bestMatch = candidatesWithEqualScore[randomIndex];
+      console.log(`[Phase2] 🎲 Random selection from ${candidatesWithEqualScore.length} equal-score candidates (score: ${bestScore}±${scoreThreshold})`);
+    } else if (candidatesWithEqualScore.length === 1) {
+      bestMatch = candidatesWithEqualScore[0];
+    } else {
+      // Fallback: Finde den besten Match (sollte nicht passieren, aber sicherheitshalber)
+      for (const candidate of pool) {
+        const score = (candidate as any)._matchScore || 0;
+        if (score === bestScore) {
+          bestMatch = candidate;
+          break;
+        }
+      }
+    }
+
     if (bestMatch) {
       console.log(`[Phase2] Match details for ${requirement.placeholder}:`, {
         character: bestMatch.name,
-        totalScore: bestScore,
+        totalScore: (bestMatch as any)._matchScore,
         breakdown: (bestMatch as any)._debugScores,
       });
     }

@@ -207,17 +207,27 @@ export class FairyTaleSelector {
         return scoreB - scoreA; // Descending
       });
 
-      // 4. Pick from top 3 candidates (Weighted Random)
-      // Even after sorting, we pick randomly from the top 3 to ensure variety
-      // if scores are close.
+      // 4. OPTIMIZATION v2.4: Random Selection bei gleichen Scores
+      // Finde alle Kandidaten mit ähnlichen Scores (innerhalb von 5 Punkten)
+      // und wähle dann zufällig aus dieser Gruppe
       const bestEffectiveScore = topMatches[0].score.total;
-      const candidates = topMatches.slice(0, 3);
+      const scoreThreshold = 5; // Alle innerhalb von 5 Punkten gelten als "gleich gut"
+      
+      // Finde alle Kandidaten mit Score innerhalb des Thresholds
+      const equalScoreCandidates = topMatches.filter(m => 
+        Math.abs(bestEffectiveScore - m.score.total) <= scoreThreshold
+      );
+      
+      // Wenn mehrere gleich gut sind, wähle zufällig
+      const candidates = equalScoreCandidates.length > 1 
+        ? equalScoreCandidates 
+        : topMatches.slice(0, 3); // Fallback: Top 3 wenn keine gleich sind
       
       const pickIndex = Math.floor(Math.random() * candidates.length);
       const selectedMatch = candidates[pickIndex];
 
-      console.log(`[FairyTaleSelector] 🎲 Selected from top ${candidates.length}: ${selectedMatch.tale.title}`);
-      console.log(`[FairyTaleSelector] Base Score: ${selectedMatch.score.total}`);
+      console.log(`[FairyTaleSelector] 🎲 Random selection from ${candidates.length} candidates (score range: ${bestEffectiveScore - scoreThreshold} - ${bestEffectiveScore})`);
+      console.log(`[FairyTaleSelector] Selected: ${selectedMatch.tale.title} (score: ${selectedMatch.score.total})`);
       console.log(`[FairyTaleSelector] Usage Stats: ${usageMap.get(selectedMatch.tale.id)?.count || 0}x uses`);
 
       // Update usage stats

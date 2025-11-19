@@ -743,12 +743,19 @@ export class FourPhaseOrchestrator {
   /**
    * Build enhanced image prompt with character consistency
    * CRITICAL: Maintains age/size order to prevent mix-ups
+   * OPTIMIZATION v2.4: Genre-Aware Costume Override based on imageDescription
    */
   private buildEnhancedImagePrompt(
     baseDescription: string,
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
+    // OPTIMIZATION v2.4: Check imageDescription for genre keywords
+    const genreKeywords = ['medieval', 'fantasy', 'magic', 'castle', 'knight', 'princess', 'dragon', 'fairy', 'wizard', 'witch', 'kingdom', 'ancient', 'steampunk', 'victorian', 'retro', 'historical', 'old world', 'village', 'steam', 'gear', 'clockwork', 'brass'];
+    const descriptionLower = baseDescription.toLowerCase();
+    const isGenreScene = genreKeywords.some(keyword => descriptionLower.includes(keyword));
+    const isSteampunk = descriptionLower.includes('steampunk') || descriptionLower.includes('steam') || descriptionLower.includes('gear') || descriptionLower.includes('clockwork');
+    
     // Build character lookup with AGE for sorting
     interface CharacterInfo {
       name: string;
@@ -760,9 +767,30 @@ export class FourPhaseOrchestrator {
 
     // Add avatars with FULL descriptions + age
     for (const avatar of avatarDetails) {
-      const visualContext = avatar.visualProfile
+      let visualContext = avatar.visualProfile
         ? this.visualProfileToImagePrompt(avatar.visualProfile)
         : (avatar.description || 'default appearance');
+      
+      // OPTIMIZATION v2.4: Apply genre-aware costume override
+      if (isGenreScene && visualContext.includes('hoodie')) {
+        if (isSteampunk) {
+          visualContext = visualContext
+            .replace(/hoodie/gi, "vest with brass buttons")
+            .replace(/jeans/gi, "striped trousers")
+            .replace(/t-shirt/gi, "ruffled shirt")
+            .replace(/sneakers/gi, "heavy boots")
+            .replace(/casual jacket/gi, "victorian coat");
+          console.log(`[Image Prompt] 🎭 Applied Steampunk costume override for ${avatar.name}`);
+        } else {
+          visualContext = visualContext
+            .replace(/hoodie/gi, "hooded tunic")
+            .replace(/jeans/gi, "breeches")
+            .replace(/t-shirt/gi, "linen shirt")
+            .replace(/sneakers/gi, "leather boots")
+            .replace(/casual jacket/gi, "medieval tunic");
+          console.log(`[Image Prompt] 🎭 Applied Fantasy costume override for ${avatar.name}`);
+        }
+      }
       
       const age = avatar.visualProfile?.ageApprox || 8; // fallback
       
@@ -775,7 +803,27 @@ export class FourPhaseOrchestrator {
 
     // Add supporting characters with FULL descriptions
     for (const char of characterAssignments.values()) {
-      const fullDesc = char.visualProfile.description || 'default character';
+      let fullDesc = char.visualProfile.description || 'default character';
+      
+      // OPTIMIZATION v2.4: Apply genre-aware costume override for pool characters too
+      if (isGenreScene && fullDesc.includes('hoodie')) {
+        if (isSteampunk) {
+          fullDesc = fullDesc
+            .replace(/hoodie/gi, "vest with brass buttons")
+            .replace(/jeans/gi, "striped trousers")
+            .replace(/t-shirt/gi, "ruffled shirt")
+            .replace(/sneakers/gi, "heavy boots");
+          console.log(`[Image Prompt] 🎭 Applied Steampunk costume override for pool character: ${char.name}`);
+        } else {
+          fullDesc = fullDesc
+            .replace(/hoodie/gi, "hooded tunic")
+            .replace(/jeans/gi, "breeches")
+            .replace(/t-shirt/gi, "linen shirt")
+            .replace(/sneakers/gi, "leather boots");
+          console.log(`[Image Prompt] 🎭 Applied Fantasy costume override for pool character: ${char.name}`);
+        }
+      }
+      
       const age = 30; // Adults default to 30
       
       allCharacters.set(char.name.toLowerCase(), {

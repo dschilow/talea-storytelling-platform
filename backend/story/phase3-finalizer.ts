@@ -1157,26 +1157,29 @@ Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
       }
     }
 
-    // Map antagonists
+    // OPTIMIZATION v2.4: Avatar-Rollen-Schutz
+    // KRITISCH: User-Avatare dürfen NIE Antagonisten werden!
+    // Antagonisten kommen IMMER aus dem Character Pool
     for (const role of antagonistRoles) {
-      if (avatarIndex < avatars.length) {
+      // IMMER Character Pool für Antagonisten verwenden
+      const poolCharacter = Array.from(assignments.values()).find((c) => 
+        c.role === "antagonist" || 
+        c.role === "obstacle" || 
+        c.archetype?.includes("villain") ||
+        c.archetype?.includes("trickster")
+      );
+      
+      if (poolCharacter) {
         mapping.push({
           fairyTaleRole: role.roleName,
-          avatarName: avatars[avatarIndex].name,
+          avatarName: poolCharacter.name,
           roleType: role.roleType,
         });
-        avatarIndex++;
+        console.log(`[Phase3] ✅ Antagonist "${role.roleName}" mapped to pool character: ${poolCharacter.name} (NOT a user avatar)`);
       } else {
-        // Use character pool for antagonist
-        const poolCharacter = Array.from(assignments.values()).find((c) => c.role === "antagonist" || c.role === "obstacle");
-        if (poolCharacter) {
-          mapping.push({
-            fairyTaleRole: role.roleName,
-            avatarName: poolCharacter.name,
-            roleType: role.roleType,
-          });
-        }
+        console.warn(`[Phase3] ⚠️ No antagonist found in pool for role: ${role.roleName}`);
       }
+      // WICHTIG: avatarIndex wird NICHT erhöht - Avatare werden übersprungen!
     }
 
     // Map supporting roles
