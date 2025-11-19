@@ -89,6 +89,30 @@ export class Phase1SkeletonGenerator {
       console.log(`[Phase1] 🎨 Remix applied: ${remixResult.appliedStrategies.join(', ')}`);
       console.log(`[Phase1] 📊 Target originality score: ${remixResult.originalityScore}/100`);
 
+      // Build supporting character requirements directly from fairy tale roles
+      const supportingRoleRequirements = (input.selectedFairyTale.roles || [])
+        .filter(role => role.roleType !== "protagonist")
+        .map(role => {
+          const placeholder = `{{${role.roleName.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}}}`;
+          const importance: "high" | "medium" | "low" = role.required ? "high" : "medium";
+          return {
+            placeholder,
+            role: role.roleType || "support",
+            archetype: role.archetypePreference || "neutral",
+            emotionalNature: role.description || "neutral",
+            requiredTraits: [],
+            visualHints: role.professionPreference?.join(", ") || role.description || "",
+            importance,
+            inChapters: [1, 2, 3, 4, 5],
+          };
+        });
+
+      const supportingCharactersMeta = supportingRoleRequirements.map(req => ({
+        placeholder: req.placeholder,
+        role: req.role,
+        description: req.visualHints || req.emotionalNature,
+      }));
+
       // Create minimal skeleton from fairy tale
       // Apply REMIXED content to skeleton chapters
       const minimalSkeleton: StorySkeleton = {
@@ -96,12 +120,18 @@ export class Phase1SkeletonGenerator {
         chapters: remixResult.remixedScenes.map(scene => ({
           order: scene.remixedSceneNumber,
           content: `${scene.sceneTitle}: ${scene.sceneDescription}`, // Use REMIXED description
-          characterRolesNeeded: [], // Will be filled from fairy_tale_roles in Phase2
+          characterRolesNeeded: supportingRoleRequirements.map(req => ({
+            placeholder: req.placeholder,
+            role: req.role,
+            archetype: req.archetype,
+            emotionalNature: req.emotionalNature,
+            visualHints: req.visualHints,
+            importance: req.importance,
+            inChapters: req.inChapters,
+          })),
         })),
-        chaptersCount: remixResult.remixedScenes.length, // Use remixed length
-        supportingCharacterRequirements: [], // Will be filled from fairy_tale_roles in Phase2
-        requirementsCount: 0,
-        supportingCharacters: [] // Required by type
+        supportingCharacterRequirements: supportingRoleRequirements,
+        supportingCharacters: supportingCharactersMeta,
       };
 
       return {

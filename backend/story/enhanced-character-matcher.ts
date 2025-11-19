@@ -12,6 +12,7 @@ export interface FairyTaleRoleRequirement {
   professionPreference?: string[];
   sizeRequirement?: string;
   socialClassRequirement?: string;
+  archetypePreference?: string;
 }
 
 export class EnhancedCharacterMatcher {
@@ -148,9 +149,13 @@ export class EnhancedCharacterMatcher {
 
     // 7. EMOTIONAL NATURE MATCHING (existing logic)
     if (requirement.emotionalNature && character.emotionalNature) {
-      const reqEmotions = typeof requirement.emotionalNature === 'string'
+      const reqEmotionsRaw = typeof requirement.emotionalNature === 'string'
         ? [requirement.emotionalNature]
-        : [requirement.emotionalNature.dominant, ...(requirement.emotionalNature.secondary || [])];
+        : [
+            (requirement.emotionalNature as any)?.dominant,
+            ...(((requirement.emotionalNature as any)?.secondary) || []),
+          ];
+      const reqEmotions = reqEmotionsRaw.filter(Boolean) as string[];
 
       const charEmotions = typeof character.emotionalNature === 'string'
         ? [character.emotionalNature]

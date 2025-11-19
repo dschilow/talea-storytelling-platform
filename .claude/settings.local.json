@@ -14,7 +14,11 @@
       "Bash(bun run:*)",
       "Bash(bun fix-character-ids.js:*)",
       "Bash(bun run-fairy-tale-migration.js:*)",
-      "Bash(bun run-migration-simple.js:*)"
+      "Bash(bun run-migration-simple.js:*)",
+      "Bash(dir \"C:\\MyProjects\\Talea\\talea-storytelling-platform\\Logs\\*.json\" /O-D /B)",
+      "Bash(findstr:*)",
+      "Bash(cmd /c \"dir /B /O-D C:\\MyProjects\\Talea\\talea-storytelling-platform\\Logs\\log-phase*.json 2>nul | findstr /V talea-characters | findstr /V fairytales\")",
+      "Bash(bun:*)"
     ],
     "deny": [],
     "ask": []

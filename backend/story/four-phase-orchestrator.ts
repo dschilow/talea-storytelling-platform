@@ -82,6 +82,13 @@ interface FourPhaseOutput {
   coverImageUrl?: string;
   chapters: Chapter[];
   avatarDevelopments?: any[];
+  newlyGeneratedCharacters?: Array<{
+    id: string;
+    name: string;
+    role: string;
+    species?: string;
+    gender?: string;
+  }>;
   metadata?: {
     tokensUsed?: {
       prompt: number;
@@ -179,16 +186,33 @@ export class FourPhaseOrchestrator {
     let selectedFairyTale: SelectedFairyTale | null = null;
 
     // 🔧 OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres
+    const normalizedGenre = input.config.genre?.toLowerCase() ?? "";
     const isFairyTaleGenre =
       input.config.genre === "Klassische Märchen" ||
       input.config.genre === "Märchenwelten und Magie" ||
-      input.config.genre?.toLowerCase().includes('märchen') ||
-      input.config.genre?.toLowerCase().includes('fairy') ||
-      input.config.genre?.toLowerCase().includes('magic');
+      normalizedGenre.includes("märchen") ||
+      normalizedGenre.includes("fairy") ||
+      normalizedGenre.includes("magic");
 
-    const useFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? isFairyTaleGenre;
+    const userRequestedFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? false;
+    const experienceRequestedFairyTaleTemplate = configWithExperience.preferences?.useFairyTaleTemplate ?? false;
 
-    if (isFairyTaleGenre && !input.config.preferences?.useFairyTaleTemplate) {
+    const useFairyTaleTemplate =
+      userRequestedFairyTaleTemplate ||
+      experienceRequestedFairyTaleTemplate ||
+      isFairyTaleGenre;
+
+    // Propagate the resolved preference so every phase sees the same flag
+    configWithExperience.preferences = {
+      ...(configWithExperience.preferences ?? {}),
+      useFairyTaleTemplate,
+    };
+    input.config.preferences = {
+      ...(input.config.preferences ?? {}),
+      useFairyTaleTemplate,
+    };
+
+    if (isFairyTaleGenre && !userRequestedFairyTaleTemplate) {
       console.log(`[4-Phase] 🎭 AUTO-ACTIVATED Fairy Tale Template for genre: "${input.config.genre}"`);
     }
 
@@ -260,7 +284,8 @@ export class FourPhaseOrchestrator {
         name: a.name,
         description: a.description,
       })),
-      useFairyTaleTemplateRequested: input.config.preferences?.useFairyTaleTemplate ?? false, // Show user intent
+  useFairyTaleTemplateRequested: userRequestedFairyTaleTemplate,
+  useFairyTaleTemplateResolved: useFairyTaleTemplate,
       openAIRequest: phase1Result.openAIRequest,
     };
 
@@ -383,7 +408,7 @@ export class FourPhaseOrchestrator {
       config: configWithExperience,
       experience: experienceContext,
       avatarDetails: input.avatarDetails,
-      useFairyTaleTemplate: input.config.preferences?.useFairyTaleTemplate ?? false,
+  useFairyTaleTemplate,
       remixInstructions: phase1Result.remixInstructions, // NEW: Pass remix instructions from Phase1
       selectedFairyTale: selectedFairyTale ?? undefined, // NEW: Pass fairy tale for originality validation
     });
@@ -422,7 +447,8 @@ export class FourPhaseOrchestrator {
       charactersAssigned: characterAssignments.size,
       avatarsCount: input.avatarDetails.length,
       fairyTaleUsed: phase3Result.fairyTaleUsed || null,
-      useFairyTaleTemplateRequested: input.config.preferences?.useFairyTaleTemplate ?? false, // Show user intent
+  useFairyTaleTemplateRequested: userRequestedFairyTaleTemplate,
+  useFairyTaleTemplateResolved: useFairyTaleTemplate,
       openAIRequest: phase3Result.openAIRequest,
     };
 

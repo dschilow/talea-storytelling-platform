@@ -78,6 +78,11 @@ export interface StorySkeleton {
   title: string;
   chapters: ChapterSkeleton[];
   supportingCharacterRequirements: CharacterRequirement[];
+  supportingCharacters?: Array<{
+    placeholder: string;
+    role: string;
+    description?: string;
+  }>;
 }
 
 export interface FinalChapter {

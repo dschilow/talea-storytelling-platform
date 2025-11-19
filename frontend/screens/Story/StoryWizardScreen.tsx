@@ -48,6 +48,9 @@ interface StoryConfig {
     learningObjectives: string[];
     assessmentType: 'quiz' | 'interactive' | 'discussion';
   };
+  preferences?: {
+    useFairyTaleTemplate?: boolean;
+  };
 }
 const StoryWizardScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
@@ -69,6 +72,9 @@ const StoryWizardScreen: React.FC = () => {
   length: 'medium',
   complexity: 'medium',
   ageGroup: '6-8',
+  preferences: {
+    useFairyTaleTemplate: false,
+  },
 });
 
   const backend = useBackend();
@@ -88,7 +94,25 @@ const StoryWizardScreen: React.FC = () => {
   const currentStepIndex = steps.findIndex(step => step.key === currentStep);
 
   const updateStoryConfig = (updates: Partial<StoryConfig>) => {
-    setStoryConfig(prev => ({ ...prev, ...updates }));
+    setStoryConfig(prev => {
+      const next: StoryConfig = { ...prev, ...updates } as StoryConfig;
+      if (updates.preferences) {
+        next.preferences = {
+          ...prev.preferences,
+          ...updates.preferences,
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleGenreChange = (genre: string) => {
+    const isFairyTaleGenre =
+      genre === 'Klassische Märchen' || genre === 'Märchenwelten und Magie';
+    updateStoryConfig({
+      genre,
+      preferences: { useFairyTaleTemplate: isFairyTaleGenre },
+    });
   };
 
   const goToNextStep = () => {
@@ -197,7 +221,7 @@ const StoryWizardScreen: React.FC = () => {
           <GenreSettingStep
             genre={storyConfig.genre}
             setting={storyConfig.setting}
-            onGenreChange={(genre) => updateStoryConfig({ genre })}
+            onGenreChange={handleGenreChange}
             onSettingChange={(setting) => updateStoryConfig({ setting })}
           />
         );

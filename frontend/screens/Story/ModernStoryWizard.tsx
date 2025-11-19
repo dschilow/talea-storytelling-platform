@@ -314,9 +314,9 @@ function mapWizardStateToAPI(state: WizardState) {
   };
 
   const genreMap: Record<string, string> = {
-    'fairy-tales': 'fantasy',
+    'fairy-tales': 'Klassische Märchen',
     'adventure': 'adventure',
-    'magic': 'fantasy',
+    'magic': 'Märchenwelten und Magie',
     'animals': 'animals',
     'scifi': 'scifi',
     'modern': 'realistic'
@@ -346,7 +346,7 @@ function mapWizardStateToAPI(state: WizardState) {
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     preferences: {
-      useFairyTaleTemplate: state.mainCategory === 'fairy-tales'
+      useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic'
     }
   } as any; // Type assertion to bypass strict type checking
 }

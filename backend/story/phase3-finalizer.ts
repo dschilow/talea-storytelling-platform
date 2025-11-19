@@ -721,6 +721,23 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
     twistRequired: boolean
   ) {
     const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
+    const conflictPatterns = [
+      /gefahr/, /bedroh/, /verfolg/, /flucht/, /kampf/, /duell/,
+      /retten/, /rettung/, /falle/, /zauber/, /fluch/,
+      /gefängnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
+      /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/
+    ];
+    const chapterConflicts = story.chapters.map((ch) => this.hasConflictSignal(ch.content, conflictPatterns));
+    const conflictfulChapters = chapterConflicts.filter(Boolean).length;
+    const requiredConflicts = fairyTale ? 5 : 3;
+
+    if (conflictfulChapters < requiredConflicts) {
+      const missingChapters = story.chapters
+        .filter((_, idx) => !chapterConflicts[idx])
+        .map((ch) => ch.order)
+        .join(", ");
+      throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+    }
     // Avatars must appear
     for (const av of avatars) {
       if (!text.includes(av.name.toLowerCase())) {
@@ -776,6 +793,11 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
         throw new Error("[Phase3] Too many chapter titles mirror original fairy tale title");
       }
     }
+  }
+
+  private hasConflictSignal(text: string, patterns: RegExp[]): boolean {
+    const normalized = text.toLowerCase();
+    return patterns.some((pattern) => pattern.test(normalized));
   }
 
   /**
@@ -927,6 +949,15 @@ ${characterDetails}
 ?? KRITISCH: Nutze die Szenen nur als Richtungsgeber. Du darfst umordnen, mischen, streichen und neue Konflikte/Twists einbauen. Leser sollen Motive erkennen, aber die Handlung muss frisch sein.
 
 ${chapterStructure}
+
+?? KONFLIKT-PFLICHT & HINDERNISSE:
+- Jedes Kapitel braucht ein konkretes Hindernis (Antagonist, Falle, Rätsel, moralisches Dilemma oder physische Gefahr).
+- Kapitel 1-2: Gefahr nur anteasern, aber spürbar machen (Wolf beobachtet, Hexe wirft Fluch, Natur droht).
+- Kapitel 3: Eskalation mit echtem Risiko (Gefangenschaft, Verlust, drohende Niederlage).
+- Kapitel 4: Aktiver Gegenschlag der Avatare, klarer Konflikt mit Konsequenzen.
+- Kapitel 5: Finale Konfrontation + Lösung, Hindernis wird überwunden (nicht übersprungen!).
+- Benenne Antagonist*innen oder Hindernisse klar und lasse sie handeln ("Die Hexe sperrt sie ein", "Der Nebel verschlingt den Pfad").
+- Keine rein inneren Konflikte ohne äußeres Ereignis.
 
 ?? MORALISCHE LEKTION: ${fairyTale.tale.moralLesson}
 

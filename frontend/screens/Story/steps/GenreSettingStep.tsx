@@ -17,6 +17,18 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
   onSettingChange,
 }) => {
   const genres = [
+    {
+      key: 'Klassische Märchen',
+      label: 'Klassische Märchen',
+      icon: '🏰',
+      description: 'Nutze originale Märchen als Inspirationsquelle',
+    },
+    {
+      key: 'Märchenwelten und Magie',
+      label: 'Märchenwelten & Magie',
+      icon: '✨',
+      description: 'Freie Märchenwelten mit magischem Remix',
+    },
     { key: 'adventure', label: 'Abenteuer', icon: '🗺️', description: 'Spannende Reisen und Entdeckungen' },
     { key: 'fantasy', label: 'Fantasy', icon: '🧙‍♂️', description: 'Magische Welten und Zauberei' },
     { key: 'mystery', label: 'Geheimnis', icon: '🔍', description: 'Rätsel und geheimnisvolle Ereignisse' },

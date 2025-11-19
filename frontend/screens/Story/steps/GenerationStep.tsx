@@ -52,6 +52,8 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
 }) => {
   const getGenreLabel = (genre: string) => {
     const genres: Record<string, string> = {
+      'Klassische Märchen': 'Klassische Märchen',
+      'Märchenwelten und Magie': 'Märchenwelten & Magie',
       adventure: 'Abenteuer',
       fantasy: 'Fantasy',
       mystery: 'Geheimnis',
@@ -283,7 +285,6 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
           size="lg"
           className="w-full"
           disabled={generating}
-          loading={generating}
         />
       </FadeInView>
     </div>

@@ -82,6 +82,7 @@ export class Phase2CharacterMatcher {
             fairyTaleRoleRequirement: {
               roleName: role.roleName,
               roleType: role.roleType,
+              archetypePreference: role.archetypePreference || 'neutral',
               speciesRequirement: role.speciesRequirement || 'any',
               genderRequirement: role.genderRequirement || 'any',
               ageRequirement: role.ageRequirement || 'any',
@@ -518,6 +519,10 @@ export class Phase2CharacterMatcher {
         continue;
       }
 
+      if (!this.satisfiesFairyTaleHardRequirements(candidate, fairyTaleRole)) {
+        continue;
+      }
+
       const debugScores: Record<string, number> = {};
 
       // ===== SCORING MATRIX V3 (Enhanced Character Matcher) =====
@@ -820,6 +825,54 @@ export class Phase2CharacterMatcher {
     return ph.includes("animal") || /cat|dog|fox|bird|duck|horse|squirrel|mouse|bunny|rabbit|owl/i.test(hints);
   }
 
+  private satisfiesFairyTaleHardRequirements(candidate: CharacterTemplate, role?: FairyTaleRoleRequirement): boolean {
+    if (!role) return true;
+
+    const species = (candidate.species_category || candidate.visualProfile.species || "any").toLowerCase();
+    const gender = (candidate.gender || "any").toLowerCase();
+    const ageCategory = (candidate.age_category || "adult").toLowerCase();
+
+    if (role.speciesRequirement && role.speciesRequirement !== 'any') {
+      const expected = role.speciesRequirement.toLowerCase();
+      const speciesMatches = species === expected || species.includes(expected) || expected.includes(species);
+      if (!speciesMatches) {
+        return false;
+      }
+    }
+
+    if (role.genderRequirement && role.genderRequirement !== 'any') {
+      const expectedGender = role.genderRequirement.toLowerCase();
+      if (gender !== expectedGender) {
+        return false;
+      }
+    }
+
+    if (role.ageRequirement && role.ageRequirement !== 'any') {
+      const expectedAge = role.ageRequirement.toLowerCase();
+      if (!this.areAgeCategoriesCompatible(expectedAge, ageCategory)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private areAgeCategoriesCompatible(expected: string, actual: string): boolean {
+    if (expected === actual) {
+      return true;
+    }
+
+    const order = ['child', 'teenager', 'young_adult', 'adult', 'elder'];
+    const expectedIdx = order.indexOf(expected);
+    const actualIdx = order.indexOf(actual);
+
+    if (expectedIdx === -1 || actualIdx === -1) {
+      return false;
+    }
+
+    return Math.abs(expectedIdx - actualIdx) <= 1;
+  }
+
   /**
    * Age/Gender scoring based on visual hints in requirement vs candidate description/species
    */
@@ -891,6 +944,7 @@ export class Phase2CharacterMatcher {
     const profession = ftRole?.professionPreference?.[0] || (req.role === 'guide' ? 'mentor' : undefined);
     const socialClass = ftRole?.socialClassRequirement || 'commoner';
     const sizeCategory = ftRole?.sizeRequirement || (species === 'animal' ? 'small' : 'medium');
+    const dominantEmotion = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'balanced';
 
     return {
       id,
@@ -898,7 +952,7 @@ export class Phase2CharacterMatcher {
       role: req.role,
       archetype: ftRole?.archetypePreference || req.archetype,
       emotionalNature: {
-        dominant: typeof req.emotionalNature === 'string' ? req.emotionalNature : req.emotionalNature.dominant,
+        dominant: dominantEmotion,
         secondary: req.requiredTraits || [],
       },
       visualProfile,
@@ -976,10 +1030,13 @@ export class Phase2CharacterMatcher {
   }
 
   private generateSmartVisualProfile(name: string, req: CharacterRequirement, species: string, gender: string, ftRole?: FairyTaleRoleRequirement): any {
-    const adjectives = req.emotionalNature || 'friendly';
+    const adjectives = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'friendly';
     const archetype = req.archetype || 'helper';
     
     let description = `${name} is a ${adjectives} ${species} (${gender}) who acts as a ${archetype}. `;
+    if (ftRole?.roleName) {
+      description += `Role inspiration: ${ftRole.roleName}. `;
+    }
     
     if (ftRole?.professionPreference) {
       description += `Profession: ${ftRole.professionPreference.join(', ')}. `;
@@ -997,9 +1054,13 @@ export class Phase2CharacterMatcher {
     if (archetype === 'hero') colors[2] = 'gold';
     if (species === 'magical_creature') colors[0] = 'purple';
 
+    const fairyTaleAccents = ftRole
+      ? `ornate fairy-tale costume, glowing particles, ${ftRole.roleType} symbolism`
+      : 'storybook outfit';
+
     return {
       description,
-      imagePrompt: `Portrait of ${name}, a ${species} character, ${archetype}, ${adjectives} expression, storybook illustration style`,
+      imagePrompt: `Portrait of ${name}, a ${species} ${archetype}, ${adjectives} expression, ${fairyTaleAccents}, watercolor illustration, German fairy tale style`,
       species,
       colorPalette: colors,
       gender,
@@ -1021,6 +1082,7 @@ export class Phase2CharacterMatcher {
     console.log(`[Phase2] Generating fallback character: ${name}`);
 
     const species = this.inferSpecies(req);
+    const dominantEmotion = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'balanced';
 
     return {
       id,
@@ -1028,12 +1090,12 @@ export class Phase2CharacterMatcher {
       role: req.role,
       archetype: req.archetype,
       emotionalNature: {
-        dominant: req.emotionalNature,
+        dominant: dominantEmotion,
         secondary: req.requiredTraits || [],
       },
       visualProfile: {
-        description: `${name} - ${req.role} character with ${req.emotionalNature} nature`,
-        imagePrompt: `${name}, ${req.archetype} character, ${req.emotionalNature} expression, child-friendly, watercolor illustration`,
+        description: `${name} - ${req.role} character with ${dominantEmotion} nature`,
+        imagePrompt: `${name}, ${req.archetype} character, ${dominantEmotion} expression, child-friendly, watercolor illustration`,
         species,
         colorPalette: ["brown", "beige", "green"], // Generic
       },
