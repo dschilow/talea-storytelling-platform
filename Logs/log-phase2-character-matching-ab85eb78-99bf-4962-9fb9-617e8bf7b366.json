@@ -1,0 +1,212 @@
+{
+  "id": "ab85eb78-99bf-4962-9fb9-617e8bf7b366",
+  "metadata": null,
+  "request": {
+    "label": "PHASE 2: Beste Charaktere matchen",
+    "phase": 2,
+    "recentStoryCount": 5,
+    "requirements": [],
+    "setting": "fantasy"
+  },
+  "response": {
+    "assignments": [
+      {
+        "character": {
+          "archetype": "hero",
+          "emotionalNature": {
+            "dominant": "brave",
+            "secondary": []
+          },
+          "id": "4826ab1e-f4da-4f6c-b559-4445c2a00e99",
+          "name": "alexander",
+          "role": "protagonist",
+          "usageStats": {},
+          "visualProfile": {
+            "colorPalette": [
+              "medium brown with auburn highlights",
+              "green",
+              "fair warm peach",
+              "red"
+            ],
+            "description": "8-12 years old, male, medium brown with auburn highlights medium wavy tousled, slightly windswept hair, green eyes, fair warm peach skin, wearing casual hoodie layered over light tee, upright on two legs, round child face, large green eyes, tousled brown hair, rosy cheeks blush, small button nose, soft arched brows, gentle curved smile, youthful proportions",
+            "species": "human"
+          }
+        },
+        "placeholder": "{{PROTAGONIST_AVATAR}}"
+      },
+      {
+        "character": {
+          "archetype": "loyal_friend",
+          "emotionalNature": {
+            "dominant": "supportive",
+            "secondary": [
+              "loyal",
+              "helpful"
+            ]
+          },
+          "id": "ac50a461-47b0-47e6-9342-81e77ab78eba",
+          "name": "adrian",
+          "role": "sidekick",
+          "usageStats": {},
+          "visualProfile": {
+            "colorPalette": [
+              "ginger / strawberry blonde",
+              "bright sky blue with darker rim",
+              "fair, warm peach",
+              "brown"
+            ],
+            "description": "7-9 years old, male, ginger / strawberry blonde short curly messy, tousled curls hair, bright sky blue with darker rim eyes, fair, warm peach skin, wearing casual jacket with t-shirt, curly ginger tousled hair, large bright sky-blue eyes, rosy warm cheek blush, round youthful child face, short tousled curls silhouette, long slender graceful neck, small rounded button nose, gentle slight closed smile, fair warm peachy skin",
+            "species": "human"
+          }
+        },
+        "placeholder": "{{SIDEKICK_AVATAR}}"
+      },
+      {
+        "character": {
+          "archetype": "trickster_witch",
+          "emotionalNature": {
+            "dominant": "mischievous",
+            "secondary": [
+              "clever",
+              "playful",
+              "mysterious"
+            ],
+            "triggers": [
+              "boredom",
+              "challenges",
+              "clever opponents"
+            ]
+          },
+          "id": "89446ad4-810b-43f5-ab27-3e21e16a0eaf",
+          "name": "Die Nebelhexe",
+          "role": "obstacle",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "purple",
+              "green",
+              "orange"
+            ],
+            "description": "Die Nebelhexe • ['Nebelhexe mist witch', ' 170cm']",
+            "species": "magical_human"
+          }
+        },
+        "placeholder": "{{ZAUBERER}}"
+      },
+      {
+        "character": {
+          "archetype": "loyal_animal",
+          "emotionalNature": {
+            "dominant": "protective",
+            "secondary": [
+              "noble",
+              "wise",
+              "brave"
+            ],
+            "triggers": [
+              "friends in danger",
+              "injustice"
+            ]
+          },
+          "id": "c6f643c8-2f52-4f3e-aaab-89ea1dde7e5e",
+          "name": "Silberhorn der Hirsch",
+          "role": "companion",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "brown",
+              "silver",
+              "green"
+            ],
+            "description": "Silberhorn der Hirsch • ['Silberhorn majestic stag', ' 8 years']",
+            "species": "animal"
+          }
+        },
+        "placeholder": "{{GESTIEFELTER_KATER}}"
+      },
+      {
+        "character": {
+          "archetype": "helper",
+          "emotionalNature": {
+            "dominant": "helper",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "0f939818-13c8-41ba-9224-8dd86e0e3d64",
+          "name": "Busfahrer Bernd",
+          "role": "helper",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "blue",
+              "grey",
+              "yellow"
+            ],
+            "description": "Busfahrer Bernd • ['Busfahrer Bernd bus driver', ' 52 years']",
+            "species": "human_busdriver"
+          }
+        },
+        "placeholder": "{{KONIG}}"
+      },
+      {
+        "character": {
+          "archetype": "helper",
+          "emotionalNature": {
+            "dominant": "helper",
+            "secondary": [
+              "kind",
+              "helpful",
+              "cheerful"
+            ],
+            "triggers": [
+              "children",
+              "friends",
+              "adventure",
+              "help"
+            ]
+          },
+          "id": "ed08685a-bc06-42ea-82fb-0551dc96b5fd",
+          "name": "Gärtnerin Rosa",
+          "role": "helper",
+          "usageStats": {
+            "recentUsageCount": 0,
+            "totalUsageCount": 0
+          },
+          "visualProfile": {
+            "colorPalette": [
+              "green",
+              "yellow",
+              "brown"
+            ],
+            "description": "Gärtnerin Rosa • ['Gärtnerin Rosa gardener', ' 40 years']",
+            "species": "human_gardener"
+          }
+        },
+        "placeholder": "{{PRINZESSIN}}"
+      }
+    ],
+    "durationMs": 39,
+    "matchedCount": 6,
+    "status": "completed"
+  },
+  "source": "phase2-character-matching",
+  "timestamp": "2025-11-19T09:49:20.852Z"
+}
