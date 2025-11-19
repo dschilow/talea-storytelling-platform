@@ -574,8 +574,32 @@ OUTPUT (JSON):
       "content": "320-420 Woerter, reich an Dialogen, Sinneseindruecken und Emotionen.",
       "imageDescription": "Detailed English scene description with action verbs, consistent character traits, lighting, mood, camera perspective, environment specifics, recurring motifs. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly."
     }
+  ],
+  "avatarDevelopments": [
+    {
+      "avatarName": "Name des Avatars",
+      "updates": [
+        {
+          "trait": "knowledge" oder "knowledge.subcategory" (z.B. "knowledge.science", "knowledge.history"),
+          "change": +2 bis +10 (positive Zahl),
+          "description": "Konkreter Grund basierend auf Story-Ereignissen"
+        },
+        {
+          "trait": "creativity" oder "courage" oder "empathy" etc.,
+          "change": +1 bis +5,
+          "description": "Was hat der Avatar gelernt oder erlebt?"
+        }
+      ]
+    }
   ]
 }
+
+🎯 KRITISCH: avatarDevelopments ist MANDATORY!
+- Jeder Avatar MUSS mindestens 2-4 Trait-Updates bekommen
+- Verfügbare Traits: knowledge (+ subcategories), creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic
+- Base traits max 100, knowledge subcategories max 1000
+- Changes basieren auf KONKRETEN Story-Ereignissen
+- Description erklärt präzise, was gelernt wurde
 
 IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Use expressive action verbs and clear subject placement.
@@ -888,6 +912,15 @@ ${avatarDetailsText}
 Nebencharaktere (Character Pool):
 ${characterDetails}
 
+🎯 KRITISCH - CHARAKTER-INTEGRATION:
+- ALLE Hauptcharaktere (User-Avatare) müssen AKTIVE Rollen spielen
+- Jeder Avatar muss in MINDESTENS 3 von 5 Kapiteln aktiv handeln (nicht nur beobachten!)
+- Avatare müssen EIGENE Entscheidungen treffen und Probleme lösen
+- Zeige INTERAKTIONEN zwischen den Avataren (Dialoge, Zusammenarbeit, Konflikte)
+- Nebencharaktere unterstützen, aber Avatare sind die HAUPTAKTEURE
+- Vermeide: "Adrian stand dabei und schaute zu" ❌
+- Besser: "Adrian griff ein und half mit seiner Idee" ✅
+
 ?? HANDLUNG: INSPIRATIONS-PLOT AUS "${fairyTale.tale.title}"
 ?? KRITISCH: Nutze die Szenen nur als Richtungsgeber. Du darfst umordnen, mischen, streichen und neue Konflikte/Twists einbauen. Leser sollen Motive erkennen, aber die Handlung muss frisch sein.
 
@@ -895,9 +928,22 @@ ${chapterStructure}
 
 ?? MORALISCHE LEKTION: ${fairyTale.tale.moralLesson}
 
+🎯 KRITISCH - MORAL UMSETZEN:
+- Die Moral MUSS durch HANDLUNGEN demonstriert werden, nicht nur erwähnt
+- Zeige KONSEQUENZEN wenn Charaktere falsch handeln
+- Der Protagonist muss die Lektion LERNEN und ANWENDEN
+- KEINE Abkürzungen oder Umgehungen der moralischen Herausforderung
+- Beispiel: Wenn Moral = "Halte Versprechen", dann MUSS der Protagonist ein Versprechen halten (nicht umhandeln!)
+
 ${styleInstructions}
 
 ?? PROFESSIONAL STORYTELLING RULES:
+
+0?? **MORALISCHE INTEGRITÄT**: Die moralische Lektion muss klar und konsequent umgesetzt werden.
+   - Protagonist muss die Lektion durch eigene Erfahrung lernen
+   - Zeige negative Folgen bei Fehlverhalten
+   - Zeige positive Folgen bei richtigem Verhalten
+   - KEINE moralischen Abkürzungen oder "Schlupflöcher"
 
 1?? **FLEXIBLES PLOT-GERUEST**: Nutze die Szenen-Zuordnung als Vorschlag. Du DARFST Szenen mischen, streichen oder zusammenlegen, solange Tempo und Konflikt pro Kapitel klar sind.
    - Kapitel 1-2: Ausgangslage + Problem aufbauen (passende Szenen mischen)
@@ -960,6 +1006,14 @@ ${remixInstructions}
 - Vermeide direkte Phrasen-Kopien aus dem Original
 - Strukturelle Ähnlichkeit muss unter 80% bleiben
 
+🚨 KRITISCH: ORIGINALITÄTS-ANFORDERUNGEN
+- KEINE wörtlichen Zitate oder Phrasen aus dem Original-Märchen
+- EIGENE Dialoge erfinden - nicht aus Vorlage kopieren
+- Lösungen und Wendepunkte MÜSSEN anders sein als im Original
+- Setting-Details variieren (nicht exakt gleicher Ort/Zeit)
+- Charakternamen aus dem Original dürfen NICHT verwendet werden (außer User-Avatare)
+- Die Geschichte muss in 3 Sätzen zusammenfassbar sein, OHNE das Original-Märchen zu nennen
+
 WICHTIG: Wenn du die Remix-Strategien ignorierst, wird die Geschichte abgelehnt!
 Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
 
@@ -975,10 +1029,35 @@ Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 weitere Kapitel
+  ],
+  "avatarDevelopments": [
+    {
+      "avatarName": "${avatarDetails.map(a => a.name).join(' oder ')}",
+      "updates": [
+        {
+          "trait": "knowledge" oder "knowledge.subcategory" (z.B. "knowledge.fairytales", "knowledge.history"),
+          "change": +2 bis +10 (positive Zahl für Wachstum),
+          "description": "Warum hat der Avatar dieses Trait entwickelt? Was hat er gelernt oder erlebt?"
+        },
+        {
+          "trait": "creativity" oder "courage" oder "empathy" etc.,
+          "change": +1 bis +5,
+          "description": "Konkrete Begründung basierend auf der Handlung"
+        }
+      ]
+    }
   ]
 }
 
-? SCHREIBE JETZT: Die vollständige personalisierte ${fairyTale.tale.title}-Geschichte mit allen 5 Kapiteln!
+🎯 KRITISCH: avatarDevelopments ist MANDATORY!
+- Jeder Avatar MUSS mindestens 2-4 Trait-Updates bekommen
+- Traits: knowledge (+ subcategories like .fairytales, .history), creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic
+- Base traits (creativity, courage, etc.) max 100, knowledge subcategories max 1000
+- Changes basieren auf KONKRETEN Story-Ereignissen
+- Description erklärt WAS der Avatar gelernt/erlebt hat
+- Beispiel: Avatar löst Rätsel → logic +3, "Hat durch das Lösen des Frosch-Rätsels logisches Denken trainiert"
+
+? SCHREIBE JETZT: Die vollständige personalisierte ${fairyTale.tale.title}-Geschichte mit allen 5 Kapiteln UND avatarDevelopments!
 `;
   }
 

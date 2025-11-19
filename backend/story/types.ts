@@ -87,10 +87,20 @@ export interface FinalChapter {
   imageDescription: string; // English description for image generation
 }
 
+export interface AvatarDevelopment {
+  avatarName: string;
+  updates: Array<{
+    trait: string; // e.g., "knowledge", "knowledge.history", "creativity", "courage"
+    change: number; // Positive number for growth
+    description: string; // Why this trait developed
+  }>;
+}
+
 export interface FinalizedStory {
   title: string;
   description: string;
   chapters: FinalChapter[];
+  avatarDevelopments?: AvatarDevelopment[]; // 🔧 NEW: Personality trait updates
 }
 
 export interface CharacterAssignment {

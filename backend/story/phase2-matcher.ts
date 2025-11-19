@@ -17,7 +17,8 @@ export class Phase2CharacterMatcher {
     recentStoryIds: string[] = [],
     avatarNames: string[] = [],
     useFairyTaleTemplate: boolean = false,
-    selectedFairyTale?: any  // NEW: If provided, load roles from fairy_tale_roles instead of skeleton
+    selectedFairyTale?: any,  // NEW: If provided, load roles from fairy_tale_roles instead of skeleton
+    avatarDetails?: any[]  // NEW: Full avatar details with visualProfile
   ): Promise<Map<string, CharacterTemplate>> {
     console.log("[Phase2] Starting character matching...", {
       requirementsCount: skeleton.supportingCharacterRequirements.length,
@@ -120,7 +121,10 @@ export class Phase2CharacterMatcher {
       console.warn(`[Phase2] Requirement count drift: expected ${expectedReqCount}, got ${characterRequirements.length}`);
     }
 
-    // Ensure protagonist/antagonist slots exist so avatars can be mapped deterministically
+    // 🔧 CRITICAL FIX: User avatars should ALWAYS be protagonists/sidekicks, NEVER villains
+    // Ensure protagonist/sidekick slots exist so avatars can be mapped deterministically
+    // The FIRST avatar is always the main protagonist (hero)
+    // The SECOND avatar is always the sidekick/companion (not antagonist!)
     if (avatarQueue.length > 0 && !characterRequirements.some(req => req.role === "protagonist")) {
       characterRequirements.unshift({
         placeholder: "{{PROTAGONIST_AVATAR}}",
@@ -132,18 +136,22 @@ export class Phase2CharacterMatcher {
         importance: "high",
         inChapters: [1, 2, 3, 4, 5],
       } as any);
+      console.log("[Phase2] Added protagonist slot for first user avatar");
     }
-    if (avatarQueue.length > 1 && !characterRequirements.some(req => this.isAntagonistRole(req.role, req.archetype))) {
-      characterRequirements.unshift({
-        placeholder: "{{ANTAGONIST_AVATAR}}",
-        role: "antagonist",
-        archetype: "villain",
-        emotionalNature: "cunning",
-        visualHints: "Avatar-Gegenspieler",
-        requiredTraits: ["cunning"],
+
+    // 🔧 CRITICAL FIX: Second avatar should be sidekick, NOT antagonist
+    if (avatarQueue.length > 1 && !characterRequirements.some(req => req.role === "sidekick" || req.role === "companion")) {
+      characterRequirements.splice(1, 0, {  // Insert at position 1 (after protagonist)
+        placeholder: "{{SIDEKICK_AVATAR}}",
+        role: "sidekick",
+        archetype: "loyal_friend",
+        emotionalNature: "supportive",
+        visualHints: "Avatar-Begleiter",
+        requiredTraits: ["loyal", "helpful"],
         importance: "high",
         inChapters: [1, 2, 3, 4, 5],
       } as any);
+      console.log("[Phase2] Added sidekick slot for second user avatar");
     }
 
     const hasAntagonistRequirement = characterRequirements.some(req => this.isAntagonistRole(req.role, req.archetype));
@@ -172,27 +180,62 @@ export class Phase2CharacterMatcher {
       }
 
       const normalizedPlaceholder = req.placeholder.trim().toLowerCase();
-      // Assign user avatars first when a protagonist/antagonist slot is available
-      if ((req.role === "protagonist" || req.role === "antagonist") && avatarQueue.length > 0) {
+
+      // 🔧 CRITICAL FIX: Assign user avatars to protagonist/sidekick roles ONLY
+      // Never assign avatars to antagonist roles - those should be filled by character pool
+      const isAvatarRole = req.role === "protagonist" || req.role === "sidekick" || req.role === "companion";
+
+      if (isAvatarRole && avatarQueue.length > 0) {
         const avatarName = avatarQueue.shift();
         if (avatarName) {
-          console.log("[Phase2] Assigning avatar to main slot", { placeholder: req.placeholder, avatarName });
-          // Build a synthetic character template for avatar assignment
-          const avatarChar: CharacterTemplate = {
-            id: `avatar_${avatarName}`,
-            name: avatarName,
+          console.log("[Phase2] ✅ Assigning user avatar to hero role", {
+            placeholder: req.placeholder,
+            avatarName,
             role: req.role,
-            archetype: req.archetype,
+            archetype: req.archetype
+          });
+
+          // 🔧 CRITICAL FIX: Load full visual profile from avatarDetails
+          const fullAvatarData = avatarDetails?.find(
+            a => a.name?.toLowerCase() === avatarName.toLowerCase()
+          );
+
+          // Build enriched visual profile with full data
+          let visualProfile: any = {
+            description: avatarName,
+            imagePrompt: avatarName,
+            species: "human",
+            colorPalette: [],
+          };
+
+          if (fullAvatarData?.visualProfile) {
+            // Use the full visual profile from the database
+            visualProfile = {
+              description: this.visualProfileToEnglishDescription(fullAvatarData.visualProfile),
+              imagePrompt: this.visualProfileToEnglishDescription(fullAvatarData.visualProfile),
+              species: fullAvatarData.visualProfile.species || "human",
+              colorPalette: this.extractColorPalette(fullAvatarData.visualProfile),
+            };
+            console.log("[Phase2] ✅ Loaded full visual profile for", avatarName, {
+              age: fullAvatarData.visualProfile.ageApprox,
+              gender: fullAvatarData.visualProfile.gender,
+              species: visualProfile.species
+            });
+          } else {
+            console.warn("[Phase2] ⚠️ No visual profile found for avatar:", avatarName);
+          }
+
+          // Build character template with enriched data
+          const avatarChar: CharacterTemplate = {
+            id: fullAvatarData?.id || `avatar_${avatarName}`,
+            name: avatarName,
+            role: req.role,  // Will be protagonist or sidekick, NEVER antagonist
+            archetype: req.archetype,  // Will be hero or loyal_friend, NEVER villain
             emotionalNature: {
               dominant: req.emotionalNature,
               secondary: req.requiredTraits || [],
             },
-            visualProfile: {
-              description: avatarName,
-              imagePrompt: avatarName,
-              species: "human",
-              colorPalette: [],
-            },
+            visualProfile,
             maxScreenTime: this.importanceToScreenTime(req.importance),
             availableChapters: req.inChapters,
             canonSettings: [],
@@ -823,6 +866,91 @@ export class Phase2CharacterMatcher {
     }
 
     console.log("[Phase2] Usage statistics updated");
+  }
+
+  /**
+   * Convert structured visual profile to English description for image generation
+   * Reuses logic from orchestrator to maintain consistency
+   */
+  private visualProfileToEnglishDescription(vp: any): string {
+    if (!vp) return 'no visual details available';
+
+    const parts: string[] = [];
+
+    // AGE FIRST (critical for size relationships)
+    if (vp.ageApprox) {
+      parts.push(`${vp.ageApprox} years old`);
+
+      // Add explicit size constraints based on age
+      if (vp.ageApprox <= 7) {
+        parts.push('small child size');
+      } else if (vp.ageApprox <= 10) {
+        parts.push('child-sized');
+      }
+    }
+
+    if (vp.gender) parts.push(vp.gender);
+
+    if (vp.hair) {
+      const hairParts = [];
+      if (vp.hair.color) hairParts.push(vp.hair.color);
+      if (vp.hair.length) hairParts.push(vp.hair.length);
+      if (vp.hair.type) hairParts.push(vp.hair.type);
+      if (vp.hair.style) hairParts.push(vp.hair.style);
+      if (hairParts.length > 0) parts.push(`${hairParts.join(' ')} hair`);
+    }
+
+    if (vp.eyes?.color) parts.push(`${vp.eyes.color} eyes`);
+
+    if (vp.skin?.tone) parts.push(`${vp.skin.tone} skin`);
+
+    if (vp.clothingCanonical) {
+      const clothingParts = [];
+      if (vp.clothingCanonical.outfit) clothingParts.push(vp.clothingCanonical.outfit);
+      else {
+        if (vp.clothingCanonical.top) clothingParts.push(vp.clothingCanonical.top);
+        if (vp.clothingCanonical.bottom) clothingParts.push(vp.clothingCanonical.bottom);
+      }
+      if (vp.clothingCanonical.footwear) clothingParts.push(vp.clothingCanonical.footwear);
+      if (clothingParts.length > 0) parts.push(`wearing ${clothingParts.join(', ')}`);
+    }
+
+    if (vp.accessories && vp.accessories.length > 0) {
+      parts.push(`with ${vp.accessories.join(', ')}`);
+    }
+
+    if (vp.consistentDescriptors && vp.consistentDescriptors.length > 0) {
+      parts.push(vp.consistentDescriptors.join(', '));
+    }
+
+    return parts.join(', ');
+  }
+
+  /**
+   * Extract color palette from visual profile for character consistency
+   */
+  private extractColorPalette(vp: any): string[] {
+    const colors: string[] = [];
+
+    if (vp.hair?.color) colors.push(vp.hair.color);
+    if (vp.eyes?.color) colors.push(vp.eyes.color);
+    if (vp.skin?.tone) colors.push(vp.skin.tone);
+
+    // Extract clothing colors if available
+    if (vp.clothingCanonical) {
+      const clothing = vp.clothingCanonical;
+      // Try to extract color keywords from outfit/top/bottom
+      const colorKeywords = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'black', 'white', 'brown', 'grey', 'gray'];
+      const clothingText = [clothing.outfit, clothing.top, clothing.bottom].filter(Boolean).join(' ').toLowerCase();
+
+      colorKeywords.forEach(color => {
+        if (clothingText.includes(color) && !colors.includes(color)) {
+          colors.push(color);
+        }
+      });
+    }
+
+    return colors.slice(0, 5); // Limit to 5 main colors
   }
 }
 
