@@ -119,6 +119,26 @@ export const showAvatarCreatedToast = (avatarName: string) => {
   );
 };
 
+// Show new character discovery notification (for auto-generated characters)
+export const showNewCharacterToast = (characterNames: string) => {
+  toast.custom(
+    (t) => (
+      <Alert variant="success" onClose={() => toast.dismiss(t)}>
+        <AlertIcon>
+          <Sparkles className="w-5 h-5 text-purple-600" />
+        </AlertIcon>
+        <div>
+          <AlertTitle>Neue Freunde gefunden! 🌟</AlertTitle>
+          <p className="text-sm text-gray-600 mt-1">
+            Passend zur Geschichte wurden neue Charaktere erstellt: <strong>{characterNames}</strong>
+          </p>
+        </div>
+      </Alert>
+    ),
+    { duration: 6000 }
+  );
+};
+
 // Show general success notification
 export const showSuccessToast = (message: string) => {
   toast.custom(

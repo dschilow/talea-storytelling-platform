@@ -29,60 +29,87 @@ export class EnhancedCharacterMatcher {
 
     // WEIGHTS (total = 100)
     const weights = {
-      species: 30,        // CRITICAL: Must match species
-      gender: 20,         // HIGH: Gender appropriateness
-      ageCategory: 15,    // HIGH: Age appropriateness
-      profession: 15,     // MEDIUM: Profession fit
-      socialClass: 10,    // MEDIUM: Social appropriateness
-      archetype: 15,      // MEDIUM: Personality archetype
-      emotionalNature: 10, // LOW: Emotional fit
-      sizeCategory: 5,    // LOW: Physical size
-      freshness: 20,      // BONUS: Usage diversity (Increased from 10)
+      species: 30,        // CRITICAL
+      gender: 20,         // HIGH
+      ageCategory: 15,    // HIGH
+      profession: 15,     // MEDIUM
+      socialClass: 10,    // MEDIUM
+      archetype: 15,      // MEDIUM
+      emotionalNature: 10, // LOW
+      sizeCategory: 5,    // LOW
+      freshness: 20,      // BONUS
     };
 
-    // 1. SPECIES MATCHING (CRITICAL!)
-    if (fairyTaleRole?.speciesRequirement) {
-      const required = fairyTaleRole.speciesRequirement;
-      const actual = character.species_category || this.inferSpeciesFromVisualProfile(character);
+    // ---------------------------------------------------------
+    // 🛑 REVOLUTIONARY: HARD VETO GATES (The "Gatekeeper")
+    // If these critical requirements are missing, score is ZERO.
+    // ---------------------------------------------------------
 
-      if (required === 'any' || actual === 'any') {
-        score += weights.species * 0.5; // Partial credit for 'any'
-      } else if (required === actual) {
-        score += weights.species; // Full points!
-      } else {
-        // PENALTY for wrong species (e.g., duck instead of human)
-        score -= weights.species * 0.5;
-      }
-    } else {
-      // Infer from role name if not explicitly specified
-      const inferredSpecies = this.inferSpeciesFromRoleName(requirement.role, requirement.placeholder);
-      const actualSpecies = character.species_category || 'any';
-
-      if (inferredSpecies === actualSpecies || actualSpecies === 'any') {
-        score += weights.species * 0.7; // Good match
+    // 1. STRICT SPECIES GATE
+    if (fairyTaleRole?.speciesRequirement && fairyTaleRole.speciesRequirement !== 'any') {
+      const required = fairyTaleRole.speciesRequirement.toLowerCase();
+      const actual = (character.species_category || this.inferSpeciesFromVisualProfile(character)).toLowerCase();
+      
+      // Allow 'any' in character to pass (ambiguous), but specific mismatch is fatal
+      if (actual !== 'any' && required !== actual) {
+        // Check for compatible overlap (e.g. "frog" is an "animal")
+        const isCompatible = this.areCompatibleSpecies(required, actual);
+        
+        if (!isCompatible) {
+          console.log(`[Matcher] ⛔ VETO: Species mismatch. Req: ${required}, Got: ${actual}`);
+          return 0; // HARD FAIL - Force Generation
+        }
       }
     }
 
-    // 2. GENDER MATCHING
+    // 2. STRICT GENDER GATE (Only for named roles like "Prince", "Queen")
+    if (fairyTaleRole?.genderRequirement && fairyTaleRole.genderRequirement !== 'any') {
+      const required = fairyTaleRole.genderRequirement.toLowerCase();
+      const actual = (character.gender || this.inferGenderFromName(character.name)).toLowerCase();
+
+      // Only veto if we are 100% sure it's wrong (e.g. Male vs Female). Ignore 'neutral'.
+      if (actual !== 'neutral' && actual !== 'any' && required !== actual) {
+         console.log(`[Matcher] ⛔ VETO: Gender mismatch. Req: ${required}, Got: ${actual}`);
+         return 0; // HARD FAIL
+      }
+    }
+
+    // 3. MODERNITY VETO (For Fantasy Settings)
+    // If we are in a fairy tale, we do NOT want a "Bus Driver" or "Programmer"
+    if (fairyTaleRole) {
+       if (this.hasModernProfession(character)) {
+         console.log(`[Matcher] ⛔ VETO: Modern profession in Fairy Tale.`);
+         return 0;
+       }
+    }
+
+    // ---------------------------------------------------------
+    // ✅ SCORING (Only if Veto passed)
+    // ---------------------------------------------------------
+
+    // 1. SPECIES SCORING (Reward exact matches)
+    if (fairyTaleRole?.speciesRequirement) {
+      const required = fairyTaleRole.speciesRequirement;
+      const actual = character.species_category || this.inferSpeciesFromVisualProfile(character);
+      if (required === actual) score += weights.species;
+      else if (actual === 'any') score += weights.species * 0.5;
+    } else {
+      // Infer from role
+      const inferred = this.inferSpeciesFromRoleName(requirement.role, requirement.placeholder);
+      const actual = character.species_category || 'any';
+      if (inferred === actual || actual === 'any') score += weights.species * 0.7;
+    }
+
+    // 2. GENDER SCORING
     if (fairyTaleRole?.genderRequirement) {
       const required = fairyTaleRole.genderRequirement;
       const actual = character.gender || this.inferGenderFromName(character.name);
-
-      if (required === 'any' || actual === 'any') {
-        score += weights.gender * 0.5;
-      } else if (required === actual) {
-        score += weights.gender;
-      } else {
-        score -= weights.gender * 0.3; // Penalty for mismatch
-      }
+      if (required === actual) score += weights.gender;
+      else if (actual === 'any') score += weights.gender * 0.5;
     } else {
-      // Infer gender from role name
-      const inferredGender = this.inferGenderFromRoleName(requirement.placeholder || '');
-      const actualGender = character.gender || 'any';
-
-      if (inferredGender === actualGender || actualGender === 'any' || inferredGender === 'any') {
-        score += weights.gender * 0.6;
-      }
+      const inferred = this.inferGenderFromRoleName(requirement.placeholder || '');
+      const actual = character.gender || 'any';
+      if (inferred === actual) score += weights.gender * 0.6;
     }
 
     // 3. AGE CATEGORY MATCHING
@@ -90,15 +117,12 @@ export class EnhancedCharacterMatcher {
       const required = fairyTaleRole.ageRequirement;
       const actual = character.age_category || 'adult';
 
-      if (required === 'any' || actual === 'any') {
-        score += weights.ageCategory * 0.5;
-      } else if (required === actual) {
+      if (required === actual) {
         score += weights.ageCategory;
+      } else if (this.areAdjacentAgeCategories(required, actual)) {
+        score += weights.ageCategory * 0.5;
       } else {
-        // Partial credit for adjacent ages
-        if (this.areAdjacentAgeCategories(required, actual)) {
-          score += weights.ageCategory * 0.3;
-        }
+        score -= weights.ageCategory; // Penalty for bad age match (Child vs Elder)
       }
     }
 
@@ -106,91 +130,58 @@ export class EnhancedCharacterMatcher {
     if (fairyTaleRole?.professionPreference && character.profession_tags) {
       const requiredTags = fairyTaleRole.professionPreference;
       const actualTags = character.profession_tags;
-
       const matchCount = requiredTags.filter(req =>
         actualTags.some(actual => actual.toLowerCase().includes(req.toLowerCase()))
       ).length;
-
       const matchRatio = requiredTags.length > 0 ? matchCount / requiredTags.length : 0;
       score += weights.profession * matchRatio;
-    } else {
-      // Infer profession from role
-      const inferredProfession = this.inferProfessionFromRoleName(requirement.placeholder || '');
-      if (inferredProfession && character.profession_tags?.includes(inferredProfession)) {
-        score += weights.profession;
-      }
     }
 
-    // 5. SOCIAL CLASS MATCHING
-    if (fairyTaleRole?.socialClassRequirement && character.social_class) {
-      const required = fairyTaleRole.socialClassRequirement;
-      const actual = character.social_class;
-
-      if (required === 'any' || actual === 'any') {
-        score += weights.socialClass * 0.5;
-      } else if (required === actual) {
-        score += weights.socialClass;
-      } else {
-        // Partial credit for compatible classes
-        if (this.areCompatibleSocialClasses(required, actual)) {
-          score += weights.socialClass * 0.4;
-        }
-      }
-    }
-
-    // 6. ARCHETYPE MATCHING (existing logic)
+    // 5. ARCHETYPE & EMOTIONAL (Contextual fit)
     if (requirement.archetype) {
-      if (character.archetype === requirement.archetype) {
-        score += weights.archetype;
-      } else if (this.areCompatibleArchetypes(character.archetype, requirement.archetype)) {
-        score += weights.archetype * 0.5;
-      }
+      if (character.archetype === requirement.archetype) score += weights.archetype;
+      else if (this.areCompatibleArchetypes(character.archetype, requirement.archetype)) score += weights.archetype * 0.5;
     }
 
-    // 7. EMOTIONAL NATURE MATCHING (existing logic)
-    if (requirement.emotionalNature && character.emotionalNature) {
-      const reqEmotionsRaw = typeof requirement.emotionalNature === 'string'
-        ? [requirement.emotionalNature]
-        : [
-            (requirement.emotionalNature as any)?.dominant,
-            ...(((requirement.emotionalNature as any)?.secondary) || []),
-          ];
-      const reqEmotions = reqEmotionsRaw.filter(Boolean) as string[];
-
-      const charEmotions = typeof character.emotionalNature === 'string'
-        ? [character.emotionalNature]
-        : [character.emotionalNature.dominant, ...(character.emotionalNature.secondary || [])];
-
-      const matchCount = reqEmotions.filter(req =>
-        charEmotions.some(char => char.toLowerCase().includes(req.toLowerCase()))
-      ).length;
-
-      const matchRatio = reqEmotions.length > 0 ? matchCount / reqEmotions.length : 0;
-      score += weights.emotionalNature * matchRatio;
-    }
-
-    // 8. SIZE CATEGORY MATCHING
-    if (fairyTaleRole?.sizeRequirement && character.size_category) {
-      if (fairyTaleRole.sizeRequirement === character.size_category) {
-        score += weights.sizeCategory;
-      }
-    }
-
-    // 9. FRESHNESS BONUS (usage diversity)
+    // 6. FRESHNESS (Tie-Breaker)
     const usageCount = character.totalUsageCount || 0;
-    const recentUsageCount = character.recentUsageCount || 0;
-
-    if (usageCount === 0) {
-      score += weights.freshness * 2.0; // Huge Bonus for unused characters
-    } else if (recentUsageCount === 0) {
-      score += weights.freshness * 1.0; // Standard Bonus: Not used recently
-    } else if (recentUsageCount < 2) {
-      score += weights.freshness * 0.2; // Small Bonus: Used once recently
-    } else {
-      score -= weights.freshness * 0.5; // Penalty: Used frequently recently
-    }
+    if (usageCount === 0) score += weights.freshness; // Boost new characters
 
     return Math.max(0, Math.min(100, score));
+  }
+
+  /**
+   * Check if species are compatible (e.g. frog is an animal)
+   */
+  private static areCompatibleSpecies(req: string, actual: string): boolean {
+    const reqL = req.toLowerCase();
+    const actL = actual.toLowerCase();
+    
+    if (reqL === actL) return true;
+    if (reqL === 'animal' && ['frog', 'fox', 'cat', 'dog', 'bird', 'wolf', 'bear'].includes(actL)) return true;
+    if (actL === 'animal' && ['frog', 'fox', 'cat', 'dog', 'bird', 'wolf', 'bear'].includes(reqL)) return true;
+    
+    // Magical creatures overlap often
+    if (reqL === 'magical_creature' && ['dragon', 'fairy', 'goblin', 'troll', 'witch'].includes(actL)) return true;
+    
+    return false;
+  }
+
+  /**
+   * Check for modern professions that break immersion
+   */
+  private static hasModernProfession(char: CharacterTemplate): boolean {
+    const modernKeywords = [
+      'police', 'polizist', 'programmer', 'developer', 'mechanic', 'mechaniker',
+      'driver', 'busfahrer', 'pilot', 'doctor', 'arzt', 'engineer', 'ingenieur',
+      'scientist', 'wissenschaftler'
+    ];
+    
+    const desc = (char.visualProfile?.description || '').toLowerCase();
+    const name = (char.name || '').toLowerCase();
+    const tags = (char.profession_tags || []).map(t => t.toLowerCase()).join(' ');
+    
+    return modernKeywords.some(k => desc.includes(k) || name.includes(k) || tags.includes(k));
   }
 
   /**

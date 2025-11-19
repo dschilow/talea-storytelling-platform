@@ -649,10 +649,18 @@ export class Phase2CharacterMatcher {
     }
 
     // QUALITY GATE - Require minimum score for match quality
-    // OPTIMIZATION v2.3: Increased threshold (40 -> 60) to force more Smart Generation
-    // If no existing character is a "Great Match" (60+), we generate a new one.
-    if (bestScore < 60) {
-      console.warn(`[Phase2] Best match score too low: ${bestScore} (<60) for ${requirement.placeholder} -> Triggering Smart Gen`);
+    // OPTIMIZATION v3.0: Revolutionary Thresholds
+    // If we are in Fairy Tale mode, we DEMAND excellence. Mediocre matches are rejected.
+    // This forces the system to generate new characters that fit perfectly.
+    
+    let qualityThreshold = 60; // Standard mode
+    if (useFairyTaleTemplate) {
+      qualityThreshold = 85; // Strict Fairy Tale Mode
+      console.log(`[Phase2] 🏰 Fairy Tale Mode Active: Strict Quality Threshold (85)`);
+    }
+
+    if (bestScore < qualityThreshold) {
+      console.warn(`[Phase2] 📉 Best match score too low: ${bestScore} (<${qualityThreshold}) for ${requirement.placeholder} -> Triggering Smart Gen`);
       return null;
     }
 
@@ -923,27 +931,51 @@ export class Phase2CharacterMatcher {
   private generateSmartCharacter(req: CharacterRequirement, ftRole?: FairyTaleRoleRequirement): CharacterTemplate {
     const id = `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     
-    // 1. Determine Species
-    let species = ftRole?.speciesRequirement || this.inferSpecies(req);
-    if (species === 'any') species = 'human'; // Default to human if ambiguous
+    console.log(`[Phase2] 🧠 Starting Smart Generation for ${req.placeholder}...`);
+    if (ftRole) console.log(`[Phase2] 📜 Using Fairy Tale Template requirements:`, ftRole);
+
+    // 1. Determine Species (Strict adherence to Fairy Tale Role)
+    let species = 'human';
+    if (ftRole?.speciesRequirement && ftRole.speciesRequirement !== 'any') {
+      species = ftRole.speciesRequirement;
+    } else {
+      species = this.inferSpecies(req);
+    }
+    if (species === 'any') species = 'human'; 
     
     // 2. Determine Gender
-    let gender = ftRole?.genderRequirement || 'neutral';
-    if (gender === 'any') gender = Math.random() > 0.5 ? 'male' : 'female';
+    let gender = 'neutral';
+    if (ftRole?.genderRequirement && ftRole.genderRequirement !== 'any') {
+      gender = ftRole.genderRequirement;
+    } else {
+       gender = Math.random() > 0.5 ? 'male' : 'female';
+    }
     
     // 3. Generate Name based on role/species
     const name = this.generateSmartName(req, species, gender, ftRole?.roleName);
     
-    console.log(`[Phase2] ✨ Generating SMART character: ${name} (${species}, ${gender})`);
+    console.log(`[Phase2] ✨ Generated SMART character: ${name} (${species}, ${gender})`);
 
     // 4. Build Visual Profile
     const visualProfile = this.generateSmartVisualProfile(name, req, species, gender, ftRole);
 
     // 5. Determine Enhanced Attributes
-    const ageCategory = ftRole?.ageRequirement || (req.visualHints?.includes('kind') ? 'child' : 'adult');
-    const profession = ftRole?.professionPreference?.[0] || (req.role === 'guide' ? 'mentor' : undefined);
+    const ageCategory = ftRole?.ageRequirement && ftRole.ageRequirement !== 'any' 
+      ? ftRole.ageRequirement 
+      : (req.visualHints?.includes('kind') ? 'child' : 'adult');
+
+    const profession = ftRole?.professionPreference?.[0] 
+      || (ftRole?.roleName ? ftRole.roleName.toLowerCase() : undefined)
+      || (req.role === 'guide' ? 'mentor' : undefined);
+      
     const socialClass = ftRole?.socialClassRequirement || 'commoner';
-    const sizeCategory = ftRole?.sizeRequirement || (species === 'animal' ? 'small' : 'medium');
+    
+    // Size logic: Animals usually small, unless "Giant" is in name
+    let sizeCategory = ftRole?.sizeRequirement || 'medium';
+    if (species === 'animal' && !name.includes('Giant') && !name.includes('Riese')) {
+       sizeCategory = 'small';
+    }
+
     const dominantEmotion = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'balanced';
 
     return {

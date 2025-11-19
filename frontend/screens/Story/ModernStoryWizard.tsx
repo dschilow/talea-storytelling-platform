@@ -51,6 +51,8 @@ const STEPS = [
   'Zusammenfassung'
 ];
 
+import { showNewCharacterToast } from '../../utils/toastUtils';
+
 export default function ModernStoryWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
@@ -131,6 +133,13 @@ export default function ModernStoryWizard() {
       await new Promise(r => setTimeout(r, 800));
 
       // Success - navigate to story
+      
+      // CHECK FOR NEWLY GENERATED CHARACTERS
+      if (story.newlyGeneratedCharacters && story.newlyGeneratedCharacters.length > 0) {
+        const names = story.newlyGeneratedCharacters.map((c: any) => c.name).join(', ');
+        showNewCharacterToast(names);
+      }
+
       alert(`Geschichte "${story.title}" wurde erfolgreich erstellt! 🎉`);
       navigate(`/story-reader/${story.id}`);
       
