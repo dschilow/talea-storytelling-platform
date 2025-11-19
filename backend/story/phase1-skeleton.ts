@@ -63,88 +63,13 @@ export interface Phase1GenerationResult {
 
 export class Phase1SkeletonGenerator {
   async generate(input: Phase1Input): Promise<Phase1GenerationResult> {
-    // CRITICAL FIX: If fairy tale is selected, SKIP expensive skeleton generation
-    // The fairy tale already provides scene structure, so we create a minimal skeleton
+    // CRITICAL CHANGE: We NO LONGER skip skeleton generation for fairy tales.
+    // Instead, we use the fairy tale as a "guide" for the LLM to create a unique remix.
     if (input.selectedFairyTale) {
       console.log(
-        `[Phase1] ✨ FAIRY TALE MODE: Skipping skeleton generation, using "${input.selectedFairyTale.tale.title}" structure`
+        `[Phase1] ✨ FAIRY TALE MODE: Using "${input.selectedFairyTale.tale.title}" as creative inspiration (REMIX MODE)`
       );
-      console.log(`[Phase1] ⚡ Saved ~47 seconds by skipping Phase1 OpenAI call`);
-
-      // NEW: Apply Story Remixer to ensure originality
-      // Use higher variance for originality score to avoid stale remixes
-      const avatarNames = input.avatarDetails.map(a => a.name);
-      // Random target originality between 65% and 85% for variety
-      const randomTarget = 65 + Math.floor(Math.random() * 20); 
-      const targetOriginality = randomTarget; 
-      
-      console.log(`[Phase1] 🎲 Random remix target: ${targetOriginality}%`);
-
-      const remixResult = StoryRemixer.remixScenes(
-        input.selectedFairyTale.scenes,
-        avatarNames,
-        targetOriginality
-      );
-
-      console.log(`[Phase1] 🎨 Remix applied: ${remixResult.appliedStrategies.join(', ')}`);
-      console.log(`[Phase1] 📊 Target originality score: ${remixResult.originalityScore}/100`);
-
-      // Build supporting character requirements directly from fairy tale roles
-      const supportingRoleRequirements = (input.selectedFairyTale.roles || [])
-        .filter(role => role.roleType !== "protagonist")
-        .map(role => {
-          const placeholder = `{{${role.roleName.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}}}`;
-          const importance: "high" | "medium" | "low" = role.required ? "high" : "medium";
-          return {
-            placeholder,
-            role: role.roleType || "support",
-            archetype: role.archetypePreference || "neutral",
-            emotionalNature: role.description || "neutral",
-            requiredTraits: [],
-            visualHints: role.professionPreference?.join(", ") || role.description || "",
-            importance,
-            inChapters: [1, 2, 3, 4, 5],
-          };
-        });
-
-      const supportingCharactersMeta = supportingRoleRequirements.map(req => ({
-        placeholder: req.placeholder,
-        role: req.role,
-        description: req.visualHints || req.emotionalNature,
-      }));
-
-      // Create minimal skeleton from fairy tale
-      // Apply REMIXED content to skeleton chapters
-      const minimalSkeleton: StorySkeleton = {
-        title: `${input.selectedFairyTale.tale.title} - ${remixResult.appliedStrategies[0].replace(/_/g, ' ').toUpperCase()} Version`,
-        chapters: remixResult.remixedScenes.map(scene => ({
-          order: scene.remixedSceneNumber,
-          content: `${scene.sceneTitle}: ${scene.sceneDescription}`, // Use REMIXED description
-          characterRolesNeeded: supportingRoleRequirements.map(req => ({
-            placeholder: req.placeholder,
-            role: req.role,
-            archetype: req.archetype,
-            emotionalNature: req.emotionalNature,
-            visualHints: req.visualHints,
-            importance: req.importance,
-            inChapters: req.inChapters,
-          })),
-        })),
-        supportingCharacterRequirements: supportingRoleRequirements,
-        supportingCharacters: supportingCharactersMeta,
-      };
-
-      return {
-        skeleton: minimalSkeleton,
-        usage: {
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-        },
-        openAIRequest: { skipped: true, reason: 'fairy-tale-mode' },
-        openAIResponse: { choices: [], skipped: true, reason: 'fairy-tale-mode' } as any,
-        remixInstructions: remixResult.transformationSummary, // Pass to Phase3
-      };
+      // We intentionally do NOT return early here. We want the LLM to generate the skeleton.
     }
 
     // Normal mode: generate skeleton via OpenAI
@@ -189,14 +114,14 @@ export class Phase1SkeletonGenerator {
     // 2. This seed ensures standard OpenAI calls vary even with identical inputs
     const randomComponent = Math.floor(Math.random() * 1000000);
     const inputHash = deterministicSeedFrom(
-      input.config.setting + 
-      input.config.genre + 
+      input.config.setting +
+      input.config.genre +
       JSON.stringify(input.avatarDetails.map(a => a.name))
     );
-    
+
     const varianceSeed = (Date.now() % 1000000) + inputHash + randomComponent;
     payload.seed = varianceSeed;
-    
+
     console.log(`[Phase1] 🎲 Using HIGH-ENTROPY variance seed: ${varianceSeed}`);
 
     try {
@@ -238,11 +163,11 @@ export class Phase1SkeletonGenerator {
 
       const usage = data.usage
         ? {
-            promptTokens: data.usage.prompt_tokens ?? 0,
-            completionTokens: data.usage.completion_tokens ?? 0,
-            totalTokens: data.usage.total_tokens ?? 0,
-            reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
-          }
+          promptTokens: data.usage.prompt_tokens ?? 0,
+          completionTokens: data.usage.completion_tokens ?? 0,
+          totalTokens: data.usage.total_tokens ?? 0,
+          reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+        }
         : undefined;
 
       // Log reasoning token breakdown if available
@@ -273,10 +198,10 @@ export class Phase1SkeletonGenerator {
     const avatarLine =
       avatarDetails.length > 0
         ? avatarDetails
-            .map((avatar) =>
-              avatar.description ? `${avatar.name} (${avatar.description})` : avatar.name
-            )
-            .join(", ")
+          .map((avatar) =>
+            avatar.description ? `${avatar.name} (${avatar.description})` : avatar.name
+          )
+          .join(", ")
         : "Keine spezifischen Avatare angegeben - nutze neutrale Heldinnen und Helden.";
 
     const suspenseLabels = ["sehr ruhig", "leicht prickelnd", "spannend", "hochspannend"];
@@ -291,8 +216,8 @@ export class Phase1SkeletonGenerator {
 
     const flavorSummary = experience.emotionalFlavors.length
       ? experience.emotionalFlavors
-          .map((flavor) => `- ${flavor.label}: ${flavor.description}`)
-          .join("\n")
+        .map((flavor) => `- ${flavor.label}: ${flavor.description}`)
+        .join("\n")
       : "- Natuerliche Herzensmomente ohne zusaetzliche Wuerze.";
 
     const tempoSummary = experience.tempo
@@ -301,21 +226,21 @@ export class Phase1SkeletonGenerator {
 
     const ingredientSummary = experience.specialIngredients.length
       ? experience.specialIngredients
-          .map((ingredient) => {
-            const extras: string[] = [];
-            if (ingredient.forcesTwist) {
-              extras.push("Plane Ueberraschung oder Twist in Kapitel 4.");
-            }
-            if (ingredient.hookHint) {
-              extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
-            }
-            if (ingredient.emphasis) {
-              extras.push(ingredient.emphasis);
-            }
-            const extraText = extras.length ? ` (${extras.join(" ")})` : "";
-            return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
-          })
-          .join("\n")
+        .map((ingredient) => {
+          const extras: string[] = [];
+          if (ingredient.forcesTwist) {
+            extras.push("Plane Ueberraschung oder Twist in Kapitel 4.");
+          }
+          if (ingredient.hookHint) {
+            extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
+          }
+          if (ingredient.emphasis) {
+            extras.push(ingredient.emphasis);
+          }
+          const extraText = extras.length ? ` (${extras.join(" ")})` : "";
+          return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
+        })
+        .join("\n")
       : "- Keine Spezialzutaten - klassischer Verlauf moeglich.";
 
     const fairyTaleLine = selectedFairyTale
@@ -329,9 +254,9 @@ export class Phase1SkeletonGenerator {
 
     const fairyTaleScenes = selectedFairyTale
       ? selectedFairyTale.scenes
-          .slice(0, 6)
-          .map((scene) => `- Szene ${scene.sceneNumber}: ${scene.sceneTitle} | Stimmung: ${scene.mood} | Setting: ${scene.setting}`)
-          .join("\n")
+        .slice(0, 6)
+        .map((scene) => `- Szene ${scene.sceneNumber}: ${scene.sceneTitle} | Stimmung: ${scene.mood} | Setting: ${scene.setting}`)
+        .join("\n")
       : "";
 
     const hooksLine =

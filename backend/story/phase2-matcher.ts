@@ -303,14 +303,14 @@ export class Phase2CharacterMatcher {
 
       if (!bestMatch) {
         console.warn(`[Phase2] No match found for ${req.placeholder}, generating SMART fallback`);
-        
+
         // SMART CHARACTER GENERATION
         // Instead of generic fallback, we create a tailored character that fits the role perfectly
         const generated = this.generateSmartCharacter(req, fairyTaleRole);
-        
+
         // Mark as newly generated so we can notify the user later
         (generated as any).isNew = true;
-        
+
         // Save to pool for future use!
         // We do this asynchronously to not block the request flow too much, 
         // but we await it here to ensure ID integrity if needed immediately.
@@ -523,6 +523,29 @@ export class Phase2CharacterMatcher {
         continue;
       }
 
+      // 🔧 CRITICAL OPTIMIZATION: Strict Species Matching for Fairy Tales
+      // If the role requires a specific species (e.g. "Wolf"), we MUST NOT match a human.
+      // This forces the system to generate a new character (Smart Gen) which is exactly what we want.
+      if (useFairyTaleTemplate && fairyTaleRole?.speciesRequirement && fairyTaleRole.speciesRequirement !== 'any') {
+        const candidateSpecies = (candidate.visualProfile.species || 'human').toLowerCase();
+        const requiredSpecies = fairyTaleRole.speciesRequirement.toLowerCase();
+
+        // If requirement is NOT human, but candidate IS human -> REJECT
+        if (requiredSpecies !== 'human' && candidateSpecies.includes('human')) {
+          // console.log(`[Phase2] 🚫 Strict Species Mismatch: Needed ${requiredSpecies}, got Human (${candidate.name})`);
+          continue;
+        }
+
+        // If requirement is specific animal (e.g. "wolf"), candidate must match
+        if (requiredSpecies !== 'human' && !candidateSpecies.includes(requiredSpecies)) {
+          // Allow some fuzzy matching (e.g. "canine" for "wolf")
+          const isRelated = this.isRelatedVisual(requiredSpecies, candidateSpecies);
+          if (!isRelated) {
+            continue;
+          }
+        }
+      }
+
       const debugScores: Record<string, number> = {};
 
       // ===== SCORING MATRIX V3 (Enhanced Character Matcher) =====
@@ -573,11 +596,11 @@ export class Phase2CharacterMatcher {
       // Characters used in the last 5 stories get a MASSIVE penalty (-50)
       // Characters used > 10 times total get a usage penalty (-30 max)
       const usageCount = recentUsage.get(candidate.id) || 0;
-      
+
       let freshness = 0;
       if (usageCount > 0) {
         // HEAVY PENALTY for recently used characters
-        freshness = -50 * usageCount; 
+        freshness = -50 * usageCount;
         debugScores.freshnessPenalty = freshness;
       } else {
         // BONUS for unused characters
@@ -595,8 +618,8 @@ export class Phase2CharacterMatcher {
       } else {
         // Penalty for same species (except humans)
         if (species !== 'human') {
-           score -= 20;
-           debugScores.diversityPenalty = -20;
+          score -= 20;
+          debugScores.diversityPenalty = -20;
         }
       }
 
@@ -620,17 +643,17 @@ export class Phase2CharacterMatcher {
         // OPTIMIZATION v2.4: Aggressive Penalty for modern professions in fairy tales
         // Erweiterte Liste: Busfahrer, Mechaniker, Polizist, etc.
         const modernKeywords = [
-          'police', 'polizist', 'doctor', 'arzt', 'mechanic', 'mechaniker', 
+          'police', 'polizist', 'doctor', 'arzt', 'mechanic', 'mechaniker',
           'teacher', 'lehrer', 'busfahrer', 'bus driver', 'driver', 'fahrer',
           'engineer', 'ingenieur', 'nurse', 'krankenschwester', 'pilot', 'pilot',
           'chef', 'koch', 'waiter', 'kellner', 'cashier', 'kassierer'
         ];
         const candidateDescLower = (candidate.visualProfile.description || '').toLowerCase();
         const candidateNameLower = (candidate.name || '').toLowerCase();
-        const hasModernProfession = modernKeywords.some(keyword => 
+        const hasModernProfession = modernKeywords.some(keyword =>
           candidateDescLower.includes(keyword) || candidateNameLower.includes(keyword)
         );
-        
+
         if (hasModernProfession) {
           score -= 150; // Erhöht von -100 auf -150 für stärkere Abneigung
           debugScores.modernPenalty = -150;
@@ -652,11 +675,14 @@ export class Phase2CharacterMatcher {
     // OPTIMIZATION v3.0: Revolutionary Thresholds
     // If we are in Fairy Tale mode, we DEMAND excellence. Mediocre matches are rejected.
     // This forces the system to generate new characters that fit perfectly.
-    
+
     let qualityThreshold = 60; // Standard mode
     if (useFairyTaleTemplate) {
-      qualityThreshold = 85; // Strict Fairy Tale Mode
-      console.log(`[Phase2] 🏰 Fairy Tale Mode Active: Strict Quality Threshold (85)`);
+      qualityThreshold = 180; // 🔥 ULTRA STRICT THRESHOLD for Fairy Tales (needs bonus to pass)
+      // Explanation: Base (~80) + Setting (40) + Freshness (50) = 170. 
+      // So without the Fairy Tale Bonus (150), it's almost impossible to pass.
+      // This ensures only TRULY fitting characters (archetype match) are selected.
+      console.log(`[Phase2] 🏰 Fairy Tale Mode Active: Ultra Strict Quality Threshold (180)`);
     }
 
     if (bestScore < qualityThreshold) {
@@ -707,7 +733,7 @@ export class Phase2CharacterMatcher {
    */
   private extractVisualKeywords(hints: string): string[] {
     if (!hints || typeof hints !== "string") return [];
-    
+
     const normalized = hints.toLowerCase();
     const keywords: string[] = [];
 
@@ -820,7 +846,7 @@ export class Phase2CharacterMatcher {
   private isCompatibleArchetype(candidateArchetype: string, requiredArchetype: string): boolean {
     // Simple string similarity - can be enhanced
     return candidateArchetype.includes(requiredArchetype.split("_")[0]) ||
-           requiredArchetype.includes(candidateArchetype.split("_")[0]);
+      requiredArchetype.includes(candidateArchetype.split("_")[0]);
   }
 
   private isHumanSpecies(species: string | undefined): boolean {
@@ -930,7 +956,7 @@ export class Phase2CharacterMatcher {
    */
   private generateSmartCharacter(req: CharacterRequirement, ftRole?: FairyTaleRoleRequirement): CharacterTemplate {
     const id = `auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    
+
     console.log(`[Phase2] 🧠 Starting Smart Generation for ${req.placeholder}...`);
     if (ftRole) console.log(`[Phase2] 📜 Using Fairy Tale Template requirements:`, ftRole);
 
@@ -941,39 +967,39 @@ export class Phase2CharacterMatcher {
     } else {
       species = this.inferSpecies(req);
     }
-    if (species === 'any') species = 'human'; 
-    
+    if (species === 'any') species = 'human';
+
     // 2. Determine Gender
     let gender = 'neutral';
     if (ftRole?.genderRequirement && ftRole.genderRequirement !== 'any') {
       gender = ftRole.genderRequirement;
     } else {
-       gender = Math.random() > 0.5 ? 'male' : 'female';
+      gender = Math.random() > 0.5 ? 'male' : 'female';
     }
-    
+
     // 3. Generate Name based on role/species
     const name = this.generateSmartName(req, species, gender, ftRole?.roleName);
-    
+
     console.log(`[Phase2] ✨ Generated SMART character: ${name} (${species}, ${gender})`);
 
     // 4. Build Visual Profile
     const visualProfile = this.generateSmartVisualProfile(name, req, species, gender, ftRole);
 
     // 5. Determine Enhanced Attributes
-    const ageCategory = ftRole?.ageRequirement && ftRole.ageRequirement !== 'any' 
-      ? ftRole.ageRequirement 
+    const ageCategory = ftRole?.ageRequirement && ftRole.ageRequirement !== 'any'
+      ? ftRole.ageRequirement
       : (req.visualHints?.includes('kind') ? 'child' : 'adult');
 
-    const profession = ftRole?.professionPreference?.[0] 
+    const profession = ftRole?.professionPreference?.[0]
       || (ftRole?.roleName ? ftRole.roleName.toLowerCase() : undefined)
       || (req.role === 'guide' ? 'mentor' : undefined);
-      
+
     const socialClass = ftRole?.socialClassRequirement || 'commoner';
-    
+
     // Size logic: Animals usually small, unless "Giant" is in name
     let sizeCategory = ftRole?.sizeRequirement || 'medium';
     if (species === 'animal' && !name.includes('Giant') && !name.includes('Riese')) {
-       sizeCategory = 'small';
+      sizeCategory = 'small';
     }
 
     const dominantEmotion = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'balanced';
@@ -996,7 +1022,7 @@ export class Phase2CharacterMatcher {
       totalUsageCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
-      
+
       // Enhanced attributes for future matching
       gender,
       species_category: species,
@@ -1057,27 +1083,27 @@ export class Phase2CharacterMatcher {
     // Default random name based on species/gender
     const speciesKey = (species === 'human' || species === 'animal' || species === 'magical_creature') ? species : 'human';
     const genderKey = (gender === 'male' || gender === 'female') ? gender : 'neutral';
-    
+
     return this.pickRandom((prefixes as any)[speciesKey][genderKey] || prefixes.human.neutral);
   }
 
   private generateSmartVisualProfile(name: string, req: CharacterRequirement, species: string, gender: string, ftRole?: FairyTaleRoleRequirement): any {
     const adjectives = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'friendly';
     const archetype = req.archetype || 'helper';
-    
+
     let description = `${name} is a ${adjectives} ${species} (${gender}) who acts as a ${archetype}. `;
     if (ftRole?.roleName) {
       description += `Role inspiration: ${ftRole.roleName}. `;
     }
-    
+
     if (ftRole?.professionPreference) {
       description += `Profession: ${ftRole.professionPreference.join(', ')}. `;
     }
-    
+
     if (species === 'human') {
-       description += gender === 'female' ? 'She wears a dress suited for her role.' : 'He wears clothes suited for his role.';
+      description += gender === 'female' ? 'She wears a dress suited for her role.' : 'He wears clothes suited for his role.';
     } else if (species === 'animal') {
-       description += 'Has soft fur and bright eyes.';
+      description += 'Has soft fur and bright eyes.';
     }
 
     // Determine color palette
