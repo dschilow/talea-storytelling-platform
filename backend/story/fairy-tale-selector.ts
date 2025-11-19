@@ -155,12 +155,12 @@ export class FairyTaleSelector {
         }))
       );
 
-      // ==================== VARIANCE SYSTEM ====================
-      // Instead of always picking #1, rotate through top matches based on usage
-      // This prevents same fairy tale for same parameters!
-      
-      // LOWERED THRESHOLD: 50pt was too high (required all 3 categories to match)
-      // 25pt allows for 1 perfect category (age=40pt or genre=30pt + role=15pt)
+      // ==================== VARIANCE SYSTEM v2.0 ====================
+      // OPTIMIZATION: Aggressive Deduplication
+      // Instead of just sorting by score, we now strictly penalize recently used tales
+      // and enforce rotation among the top candidates.
+
+      // 1. Filter good matches (Score >= 25)
       const topMatches = scoredTales.filter(st => st.score.total >= 25);
       
       if (topMatches.length === 0) {
@@ -174,49 +174,51 @@ export class FairyTaleSelector {
 
       console.log(`[FairyTaleSelector] Found ${topMatches.length} good matches (score >= 25pt)`);
 
-      // Get usage stats for top matches
+      // 2. Get precise usage stats
       const topIds = topMatches.map(t => t.tale.id);
       const usageStats = await fairytalesDB.queryAll<any>`
         SELECT tale_id, usage_count, last_used_at
         FROM fairy_tale_usage_stats
         WHERE tale_id = ANY(${topIds})
-        ORDER BY usage_count ASC, last_used_at ASC NULLS FIRST
       `;
-
-      // Map usage to tales
+      
       const usageMap = new Map(usageStats.map(u => [u.tale_id, { count: u.usage_count, last: u.last_used_at }]));
 
-      // Sort top matches by: 1) score, 2) usage count (least used first), 3) last used (oldest first)
+      // 3. Sort with heavy penalty for recent usage (Freshness Logic)
       topMatches.sort((a, b) => {
         const usageA = usageMap.get(a.tale.id) || { count: 0, last: null };
         const usageB = usageMap.get(b.tale.id) || { count: 0, last: null };
 
-        // First: prefer high scores
-        const scoreDiff = b.score.total - a.score.total;
-        if (Math.abs(scoreDiff) > 10) return scoreDiff; // Significant score difference
+        // PENALTY: If used in last 24h, artificially reduce score by 50 points
+        const now = new Date().getTime();
+        const lastA = usageA.last ? new Date(usageA.last).getTime() : 0;
+        const lastB = usageB.last ? new Date(usageB.last).getTime() : 0;
+        
+        const isRecentA = (now - lastA) < (24 * 60 * 60 * 1000); // 24h
+        const isRecentB = (now - lastB) < (24 * 60 * 60 * 1000); // 24h
 
-        // Second: prefer least used
-        if (usageA.count !== usageB.count) {
-          return usageA.count - usageB.count;
-        }
+        let scoreA = a.score.total - (isRecentA ? 50 : 0);
+        let scoreB = b.score.total - (isRecentB ? 50 : 0);
+        
+        // Secondary Penalty: Total usage count (minor)
+        scoreA -= (usageA.count * 2);
+        scoreB -= (usageB.count * 2);
 
-        // Third: prefer oldest last_used (or never used)
-        if (!usageA.last && !usageB.last) return 0;
-        if (!usageA.last) return -1; // Never used comes first
-        if (!usageB.last) return 1;
-        return new Date(usageA.last).getTime() - new Date(usageB.last).getTime();
+        return scoreB - scoreA; // Descending
       });
 
-      // Pick from top 3 (or all within 10pts of best) to add diversity and avoid repeats
-      const bestScore = topMatches[0].score.total;
-      const diversePool = topMatches
-        .filter((m, idx) => idx < 3 || (bestScore - m.score.total) <= 10);
-      const pickIndex = Math.floor(Math.random() * diversePool.length);
-      const selectedMatch = diversePool[pickIndex];
+      // 4. Pick from top 3 candidates (Weighted Random)
+      // Even after sorting, we pick randomly from the top 3 to ensure variety
+      // if scores are close.
+      const bestEffectiveScore = topMatches[0].score.total;
+      const candidates = topMatches.slice(0, 3);
+      
+      const pickIndex = Math.floor(Math.random() * candidates.length);
+      const selectedMatch = candidates[pickIndex];
 
-      console.log(`[FairyTaleSelector] Selected: ${selectedMatch.tale.title} (score: ${selectedMatch.score.total})`);
-      console.log(`[FairyTaleSelector] Match reason: ${selectedMatch.score.reason}`);
-      console.log(`[FairyTaleSelector] Usage count: ${usageMap.get(selectedMatch.tale.id)?.count || 0}`);
+      console.log(`[FairyTaleSelector] 🎲 Selected from top ${candidates.length}: ${selectedMatch.tale.title}`);
+      console.log(`[FairyTaleSelector] Base Score: ${selectedMatch.score.total}`);
+      console.log(`[FairyTaleSelector] Usage Stats: ${usageMap.get(selectedMatch.tale.id)?.count || 0}x uses`);
 
       // Update usage stats
       await fairytalesDB.exec`

@@ -535,11 +535,22 @@ export class Phase2CharacterMatcher {
       }
 
       // 9. FRESHNESS BONUS (50 points) - Increased weight
-      // OPTIMIZATION v2.1: Aggressively prefer unused characters
+      // OPTIMIZATION v2.3: Strict Freshness Policy
+      // Characters used in the last 5 stories get a MASSIVE penalty (-50)
+      // Characters used > 10 times total get a usage penalty (-30 max)
       const usageCount = recentUsage.get(candidate.id) || 0;
-      const freshness = Math.max(0, 80 - (usageCount * 30)); // Increased from 50 base, sharper dropoff
+      
+      let freshness = 0;
+      if (usageCount > 0) {
+        // HEAVY PENALTY for recently used characters
+        freshness = -50 * usageCount; 
+        debugScores.freshnessPenalty = freshness;
+      } else {
+        // BONUS for unused characters
+        freshness = 50;
+        debugScores.freshnessBonus = 50;
+      }
       score += freshness;
-      debugScores.freshness = freshness;
 
       // 10. SPECIES DIVERSITY BONUS (30 points)
       // Encourage variety in species/types
@@ -548,8 +559,11 @@ export class Phase2CharacterMatcher {
         score += 30; // New species - bonus!
         debugScores.diversity = 30;
       } else {
-        score += 10; // Already used species - small bonus
-        debugScores.diversity = 10;
+        // Penalty for same species (except humans)
+        if (species !== 'human') {
+           score -= 20;
+           debugScores.diversityPenalty = -20;
+        }
       }
 
       // 11. TOTAL USAGE PENALTY (reduce score for overused characters)
@@ -592,8 +606,10 @@ export class Phase2CharacterMatcher {
     }
 
     // QUALITY GATE - Require minimum score for match quality
-    if (bestScore < 40) {
-      console.warn(`[Phase2] Best match score too low: ${bestScore} for ${requirement.placeholder}`);
+    // OPTIMIZATION v2.3: Increased threshold (40 -> 60) to force more Smart Generation
+    // If no existing character is a "Great Match" (60+), we generate a new one.
+    if (bestScore < 60) {
+      console.warn(`[Phase2] Best match score too low: ${bestScore} (<60) for ${requirement.placeholder} -> Triggering Smart Gen`);
       return null;
     }
 

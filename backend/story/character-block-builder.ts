@@ -570,21 +570,44 @@ export function buildCharacterBlock(
   
   // OPTIMIZATION v2.0: GENRE-AWARE COSTUME OVERRIDES
   // If the scene suggests a strong genre shift (e.g. medieval/fantasy), we override modern clothing
-  if (sceneDetails?.action && (sceneDetails.action.includes('medieval') || sceneDetails.action.includes('fantasy'))) {
-     console.log(`[character-block-builder] 🎭 Applying GENRE COSTUME override for ${name}`);
-     block.detailedDescription = overrideClothingForGenre(block.detailedDescription, 'fantasy');
+  const genreKeywords = ['medieval', 'fantasy', 'magic', 'castle', 'knight', 'princess', 'dragon', 'fairy', 'wizard', 'witch', 'kingdom', 'ancient', 'steampunk', 'victorian', 'retro', 'historical', 'old world', 'village'];
+  const sceneActionLower = (sceneDetails?.action || '').toLowerCase();
+  const scenePoseLower = (sceneDetails?.pose || '').toLowerCase();
+  const scenePositionLower = (sceneDetails?.position || '').toLowerCase();
+  
+  // Check if ANY genre keyword appears in action, pose, or position
+  const isGenreScene = genreKeywords.some(keyword => 
+    sceneActionLower.includes(keyword) || 
+    scenePoseLower.includes(keyword) || 
+    scenePositionLower.includes(keyword)
+  );
+
+  if (isGenreScene) {
+     console.log(`[character-block-builder] 🎭 Applying GENRE COSTUME override for ${name} (Triggered by keywords)`);
+     // Detect specific sub-genre if possible
+     const isSteampunk = sceneActionLower.includes('steampunk') || sceneActionLower.includes('gear') || sceneActionLower.includes('clockwork');
+     const genreType = isSteampunk ? 'steampunk' : 'fantasy';
+
+     block.detailedDescription = overrideClothingForGenre(block.detailedDescription, genreType);
      
      // Remove modern clothing items from mustInclude
      block.mustInclude = block.mustInclude.filter(item => 
        !item.includes('hoodie') && 
        !item.includes('jeans') && 
        !item.includes('t-shirt') &&
-       !item.includes('sneakers')
+       !item.includes('sneakers') &&
+       !item.includes('baseball cap') &&
+       !item.includes('modern')
      );
      
-     // Add genre-appropriate clothing
-     block.mustInclude.push('period-appropriate tunic');
-     block.mustInclude.push('medieval attire');
+     // Add genre-appropriate clothing based on type
+     if (genreType === 'steampunk') {
+       block.mustInclude.push('victorian clothing');
+       block.mustInclude.push('brass accessories');
+     } else {
+       block.mustInclude.push('period-appropriate tunic');
+       block.mustInclude.push('medieval attire');
+     }
   }
 
   return block;
@@ -593,7 +616,7 @@ export function buildCharacterBlock(
 /**
  * Helper to replace modern clothing terms with genre-appropriate ones
  */
-function overrideClothingForGenre(description: string, genre: 'fantasy' | 'sci-fi'): string {
+function overrideClothingForGenre(description: string, genre: 'fantasy' | 'sci-fi' | 'steampunk'): string {
   if (genre === 'fantasy') {
     return description
       .replace(/hoodie/gi, "hooded tunic")
@@ -602,6 +625,15 @@ function overrideClothingForGenre(description: string, genre: 'fantasy' | 'sci-f
       .replace(/sneakers/gi, "leather boots")
       .replace(/baseball cap/gi, "cap")
       .replace(/modern/gi, "timeless");
+  }
+  if (genre === 'steampunk') {
+    return description
+      .replace(/hoodie/gi, "vest with brass buttons")
+      .replace(/jeans/gi, "striped trousers")
+      .replace(/t-shirt/gi, "ruffled shirt")
+      .replace(/sneakers/gi, "heavy boots")
+      .replace(/baseball cap/gi, "aviator cap")
+      .replace(/modern/gi, "victorian");
   }
   return description;
 }

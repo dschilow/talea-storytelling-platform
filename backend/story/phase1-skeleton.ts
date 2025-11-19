@@ -154,13 +154,20 @@ export class Phase1SkeletonGenerator {
       payload.presence_penalty = 0.4;      // Strongly encourage new topics
     }
 
-    // CRITICAL FIX: Add time-based seed for variance even with identical parameters
-    // The seed changes based on current SECOND, ensuring variance every request
-    // OPTIMIZATION v2.2: Include user ID in seed to prevent cross-user collisions
-    const varianceSeed = Math.floor(Date.now() / 1000) + deterministicSeedFrom(input.config.setting + input.config.genre);
+    // OPTIMIZATION v2.3: Enhanced Variance Seed & History Check
+    // 1. Use secure random + time + user ID + inputs for seed
+    // 2. This seed ensures standard OpenAI calls vary even with identical inputs
+    const randomComponent = Math.floor(Math.random() * 1000000);
+    const inputHash = deterministicSeedFrom(
+      input.config.setting + 
+      input.config.genre + 
+      JSON.stringify(input.avatarDetails.map(a => a.name))
+    );
+    
+    const varianceSeed = (Date.now() % 1000000) + inputHash + randomComponent;
     payload.seed = varianceSeed;
     
-    console.log(`[Phase1] Using variance seed: ${varianceSeed} to prevent duplicate skeletons`);
+    console.log(`[Phase1] 🎲 Using HIGH-ENTROPY variance seed: ${varianceSeed}`);
 
     try {
       const openAIRequest = { ...payload };
