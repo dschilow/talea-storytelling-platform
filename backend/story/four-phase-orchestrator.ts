@@ -834,7 +834,7 @@ export class FourPhaseOrchestrator {
     }
 
     // Extract character names mentioned in this scene
-    const descriptionLower = baseDescription.toLowerCase();
+    // Note: descriptionLower already declared above (line 755)
     const charactersInScene: CharacterInfo[] = [];
 
     for (const [charName, charInfo] of allCharacters.entries()) {
