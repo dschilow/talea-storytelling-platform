@@ -8,3 +8,4 @@ import "./generate-from-fairytale";
 import "./character-pool-api";
 import "./test-story-generation";
 import "./analyze-phase-logs";
+import "./analyze-recent-stories";
