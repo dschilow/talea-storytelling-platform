@@ -56,16 +56,41 @@ export class Phase2CharacterMatcher {
       // Skip protagonist roles (those are for user avatars)
       characterRequirements = selectedFairyTale.roles
         .filter((role: any) => role.roleType !== 'protagonist')  // Only supporting characters
-        .map((role: any) => ({
-          placeholder: `{{${role.roleName.toUpperCase().replace(/\s+/g, '_')}}}`,
-          role: role.roleType,
-          archetype: role.archetypePreference || 'neutral',
-          emotionalNature: role.description || 'neutral',
-          visualHints: role.professionPreference?.join(', ') || '',
-          requiredTraits: [],  // CRITICAL FIX: Add empty array for requiredTraits
-          importance: role.required ? 'high' : 'medium',
-          inChapters: [1, 2, 3, 4, 5]  // Available in all chapters by default
-        }));
+        .map((role: any) => {
+          // 🔧 CRITICAL: Log what requirements we're getting from DB
+          if (role.speciesRequirement || role.genderRequirement || role.ageRequirement) {
+            console.log(`[Phase2] ✅ Role "${role.roleName}" has requirements:`, {
+              species: role.speciesRequirement,
+              gender: role.genderRequirement,
+              age: role.ageRequirement,
+              social: role.socialClassRequirement
+            });
+          } else {
+            console.warn(`[Phase2] ⚠️ Role "${role.roleName}" has NO requirements - will infer from name`);
+          }
+
+          return {
+            placeholder: `{{${role.roleName.toUpperCase().replace(/\s+/g, '_')}}}`,
+            role: role.roleType,
+            archetype: role.archetypePreference || 'neutral',
+            emotionalNature: role.description || 'neutral',
+            visualHints: role.professionPreference?.join(', ') || '',
+            requiredTraits: [],
+            importance: role.required ? 'high' : 'medium',
+            inChapters: [1, 2, 3, 4, 5],
+            // 🔧 CRITICAL: Pass through requirements for EnhancedCharacterMatcher
+            fairyTaleRoleRequirement: {
+              roleName: role.roleName,
+              roleType: role.roleType,
+              speciesRequirement: role.speciesRequirement || 'any',
+              genderRequirement: role.genderRequirement || 'any',
+              ageRequirement: role.ageRequirement || 'any',
+              sizeRequirement: role.sizeRequirement || 'any',
+              socialClassRequirement: role.socialClassRequirement || 'any',
+              professionPreference: role.professionPreference || []
+            }
+          };
+        });
 
       console.log(`[Phase2] Converted ${characterRequirements.length} fairy tale roles to requirements:`,
         characterRequirements.map((r: any) => `${r.placeholder} (${r.role})`)
@@ -253,12 +278,16 @@ export class Phase2CharacterMatcher {
         placeholder: req.placeholder,
         role: req.role,
         archetype: req.archetype,
+        requirements: (req as any).fairyTaleRoleRequirement ? {
+          species: (req as any).fairyTaleRoleRequirement.speciesRequirement,
+          gender: (req as any).fairyTaleRoleRequirement.genderRequirement,
+          age: (req as any).fairyTaleRoleRequirement.ageRequirement
+        } : 'none'
       });
 
-      // Extract fairy tale role if available for enhanced matching
-      const fairyTaleRole: FairyTaleRoleRequirement | undefined = selectedFairyTale?.roles?.find(
-        (r: any) => `{{${r.roleName.toUpperCase().replace(/\s+/g, '_')}}}` === req.placeholder
-      );
+      // 🔧 CRITICAL FIX: Use fairy tale role requirements from req (already loaded above)
+      // instead of searching again in selectedFairyTale.roles
+      const fairyTaleRole: FairyTaleRoleRequirement | undefined = (req as any).fairyTaleRoleRequirement;
 
       const bestMatch = this.findBestMatch(
         req,

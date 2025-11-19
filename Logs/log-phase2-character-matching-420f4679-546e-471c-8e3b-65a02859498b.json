@@ -1,5 +1,5 @@
 {
-  "id": "ab85eb78-99bf-4962-9fb9-617e8bf7b366",
+  "id": "420f4679-546e-471c-8e3b-65a02859498b",
   "metadata": null,
   "request": {
     "label": "PHASE 2: Beste Charaktere matchen",
@@ -94,41 +94,7 @@
             "species": "magical_human"
           }
         },
-        "placeholder": "{{ZAUBERER}}"
-      },
-      {
-        "character": {
-          "archetype": "loyal_animal",
-          "emotionalNature": {
-            "dominant": "protective",
-            "secondary": [
-              "noble",
-              "wise",
-              "brave"
-            ],
-            "triggers": [
-              "friends in danger",
-              "injustice"
-            ]
-          },
-          "id": "c6f643c8-2f52-4f3e-aaab-89ea1dde7e5e",
-          "name": "Silberhorn der Hirsch",
-          "role": "companion",
-          "usageStats": {
-            "recentUsageCount": 0,
-            "totalUsageCount": 0
-          },
-          "visualProfile": {
-            "colorPalette": [
-              "brown",
-              "silver",
-              "green"
-            ],
-            "description": "Silberhorn der Hirsch • ['Silberhorn majestic stag', ' 8 years']",
-            "species": "animal"
-          }
-        },
-        "placeholder": "{{GESTIEFELTER_KATER}}"
+        "placeholder": "{{RUMPELSTILZCHEN}}"
       },
       {
         "character": {
@@ -147,21 +113,21 @@
               "help"
             ]
           },
-          "id": "0f939818-13c8-41ba-9224-8dd86e0e3d64",
-          "name": "Busfahrer Bernd",
-          "role": "helper",
+          "id": "0f8ad343-3bf9-41fe-bb15-9b3ad1311a3e",
+          "name": "Eichhörnchen Emma",
+          "role": "sidekick",
           "usageStats": {
             "recentUsageCount": 0,
             "totalUsageCount": 0
           },
           "visualProfile": {
             "colorPalette": [
-              "blue",
-              "grey",
-              "yellow"
+              "red-brown",
+              "cream",
+              "black"
             ],
-            "description": "Busfahrer Bernd • ['Busfahrer Bernd bus driver', ' 52 years']",
-            "species": "human_busdriver"
+            "description": "Eichhörnchen Emma • ['Eichhörnchen Emma squirrel', ' small']",
+            "species": "squirrel"
           }
         },
         "placeholder": "{{KONIG}}"
@@ -183,30 +149,30 @@
               "help"
             ]
           },
-          "id": "ed08685a-bc06-42ea-82fb-0551dc96b5fd",
-          "name": "Gärtnerin Rosa",
-          "role": "helper",
+          "id": "a2b3bdd3-30c7-46d1-a7b9-08480459ed77",
+          "name": "Schwein Susi",
+          "role": "sidekick",
           "usageStats": {
             "recentUsageCount": 0,
             "totalUsageCount": 0
           },
           "visualProfile": {
             "colorPalette": [
-              "green",
-              "yellow",
-              "brown"
+              "pink",
+              "cream",
+              "grey"
             ],
-            "description": "Gärtnerin Rosa • ['Gärtnerin Rosa gardener', ' 40 years']",
-            "species": "human_gardener"
+            "description": "Schwein Susi • ['Schwein Susi pig', ' round']",
+            "species": "pig"
           }
         },
-        "placeholder": "{{PRINZESSIN}}"
+        "placeholder": "{{MULLER}}"
       }
     ],
-    "durationMs": 39,
-    "matchedCount": 6,
+    "durationMs": 77,
+    "matchedCount": 5,
     "status": "completed"
   },
   "source": "phase2-character-matching",
-  "timestamp": "2025-11-19T09:49:20.852Z"
+  "timestamp": "2025-11-19T11:49:37.384Z"
 }

@@ -4,7 +4,17 @@
       "Bash(git reset:*)",
       "Bash(git push:*)",
       "Bash(encore test:*)",
-      "Bash(bun run build:*)"
+      "Bash(bun run build:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(python:*)",
+      "Bash(bun run:*)",
+      "Bash(bun fix-character-ids.js:*)",
+      "Bash(bun run-fairy-tale-migration.js:*)",
+      "Bash(bun run-migration-simple.js:*)"
     ],
     "deny": [],
     "ask": []
