@@ -235,7 +235,7 @@ const ChapterSection: React.FC<{
                     alt={chapter.title}
                     className="w-full h-full object-cover"
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:px-16 md:pb-12 z-20">
+                <div className="absolute bottom-0 left-0 right-0 p-4 pb-2 md:px-16 md:pb-4 z-20">
                     <motion.div
                         initial={{ opacity: 0, y: 40 }}
                         whileInView={{ opacity: 1, y: 0 }}
