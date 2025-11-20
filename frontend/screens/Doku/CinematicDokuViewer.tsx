@@ -191,6 +191,7 @@ const CinematicDokuViewer: React.FC = () => {
                         total={doku.content?.sections?.length || 0}
                         dokuTitle={doku.title}
                         dokuId={dokuId || ''}
+                        coverImageUrl={doku.coverImageUrl}
                         onComplete={index === (doku.content?.sections?.length || 0) - 1 ? handleDokuCompletion : undefined}
                         isCompleted={dokuCompleted}
                     />
@@ -220,9 +221,10 @@ const SectionView: React.FC<{
     total: number;
     dokuTitle: string;
     dokuId: string;
+    coverImageUrl?: string;
     onComplete?: () => void;
     isCompleted?: boolean;
-}> = ({ section, index, total, dokuTitle, dokuId, onComplete, isCompleted }) => {
+}> = ({ section, index, total, dokuTitle, dokuId, coverImageUrl, onComplete, isCompleted }) => {
     const [headerInView, setHeaderInView] = useState(false);
 
     return (
@@ -237,7 +239,7 @@ const SectionView: React.FC<{
                     transition={{ duration: 1.5 }}
                     // Use section image idea to generate a placeholder or use a generic one if no image available
                     // Fallback to doku cover image if no specific section image is available
-                    src={section.imageIdea ? `https://picsum.photos/seed/${section.title}/1920/1080` : (doku.coverImageUrl || '/placeholder-doku.jpg')}
+                    src={section.imageIdea ? `https://picsum.photos/seed/${section.title}/1920/1080` : (coverImageUrl || '/placeholder-doku.jpg')}
                     alt={section.title}
                     className="w-full h-full object-cover"
                 />
@@ -343,7 +345,7 @@ const SectionView: React.FC<{
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
