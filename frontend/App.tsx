@@ -14,11 +14,9 @@ import StoryWizardScreen from './screens/Story/StoryWizardScreen';
 import ModernStoryWizard from './screens/Story/ModernStoryWizard';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
 import StoryScrollReaderScreen from './screens/Story/StoryScrollReaderScreen';
+import CinematicStoryViewer from './screens/Story/CinematicStoryViewer';
 import CinematicDokuViewer from './screens/Doku/CinematicDokuViewer';
 
-// ... imports ...
-
-<Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
 import StoriesScreen from './screens/Story/StoriesScreen';
 import FairyTaleSelectionScreen from './screens/Story/FairyTaleSelectionScreen';
 import CharacterMappingScreen from './screens/Story/CharacterMappingScreen';
