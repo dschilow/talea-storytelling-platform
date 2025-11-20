@@ -18,7 +18,10 @@
       "Bash(dir \"C:\\MyProjects\\Talea\\talea-storytelling-platform\\Logs\\*.json\" /O-D /B)",
       "Bash(findstr:*)",
       "Bash(cmd /c \"dir /B /O-D C:\\MyProjects\\Talea\\talea-storytelling-platform\\Logs\\log-phase*.json 2>nul | findstr /V talea-characters | findstr /V fairytales\")",
-      "Bash(bun:*)"
+      "Bash(bun:*)",
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

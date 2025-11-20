@@ -18,7 +18,7 @@ import StoriesScreen from './screens/Story/StoriesScreen';
 import FairyTaleSelectionScreen from './screens/Story/FairyTaleSelectionScreen';
 import CharacterMappingScreen from './screens/Story/CharacterMappingScreen';
 import LogViewerScreen from './screens/Logs/LogViewerScreen';
-import Navigation from './components/navigation/Navigation';
+import AppLayout from './components/layout/AppLayout';
 import TaviButton from './components/common/TaviButton';
 import { colors } from './utils/constants/colors';
 import AuthScreen from './screens/Auth/AuthScreen';
@@ -35,34 +35,35 @@ const AppContent = () => (
   <Router>
     <div style={{ minHeight: '100vh', background: colors.gradients.background }}>
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/avatar" element={<AvatarsScreen />} />
-        <Route path="/avatar/create" element={<AvatarWizardScreen />} />
-        <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
-        <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
-        <Route path="/story" element={<ModernStoryWizard />} />
-        <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
-        <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
-        <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
-        <Route path="/story-reader/:storyId" element={<StoryScrollReaderScreen />} />
-        <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-        <Route path="/stories" element={<StoriesScreen />} />
-        <Route path="/community" element={<HomeScreen />} />
-        <Route path="/logs" element={<LogViewerScreen />} />
-        <Route path="/doku" element={<DokusScreen />} />
-        <Route path="/characters" element={<CharacterPoolScreen />} />
-        <Route path="/fairytales" element={<FairyTalesScreen />} />
-        <Route path="/doku/create" element={<DokuWizardScreen />} />
-        <Route path="/doku-reader/:dokuId" element={<DokuScrollReaderScreen />} />
-        <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
-        <Route path="/auth" element={<AuthScreen />} />
-        <Route path="/_admin" element={<AdminDashboard />} />
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/avatar" element={<AvatarsScreen />} />
+          <Route path="/avatar/create" element={<AvatarWizardScreen />} />
+          <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
+          <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
+          <Route path="/story" element={<ModernStoryWizard />} />
+          <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
+          <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
+          <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
+          <Route path="/story-reader/:storyId" element={<StoryScrollReaderScreen />} />
+          <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+          <Route path="/stories" element={<StoriesScreen />} />
+          <Route path="/community" element={<HomeScreen />} />
+          <Route path="/logs" element={<LogViewerScreen />} />
+          <Route path="/doku" element={<DokusScreen />} />
+          <Route path="/characters" element={<CharacterPoolScreen />} />
+          <Route path="/fairytales" element={<FairyTalesScreen />} />
+          <Route path="/doku/create" element={<DokuWizardScreen />} />
+          <Route path="/doku-reader/:dokuId" element={<DokuScrollReaderScreen />} />
+          <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+          <Route path="/auth" element={<AuthScreen />} />
+          <Route path="/_admin" element={<AdminDashboard />} />
+        </Route>
       </Routes>
-      <Navigation />
       <TaviButton />
-      <Toaster 
-        position="top-right" 
-        richColors 
+      <Toaster
+        position="top-right"
+        richColors
         closeButton
         toastOptions={{
           style: {
@@ -98,10 +99,10 @@ const MissingKeyScreen = () => (
       boxShadow: '0 20px 60px rgba(169, 137, 242, 0.2)',
     }}>
       <div style={{ fontSize: '64px', marginBottom: '1.5rem' }}>🔐</div>
-      <h1 style={{ 
-        fontSize: '28px', 
-        fontWeight: '700', 
-        color: colors.text.primary, 
+      <h1 style={{
+        fontSize: '28px',
+        fontWeight: '700',
+        color: colors.text.primary,
         marginBottom: '1rem',
         fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
       }}>
@@ -111,27 +112,27 @@ const MissingKeyScreen = () => (
         Um die Authentifizierung zu nutzen, benötigst du einen Clerk Publishable Key.
       </p>
       <p style={{ color: colors.text.secondary, fontSize: '15px' }}>
-        Bitte öffne die Datei <code style={{ 
-          background: colors.lavender[100], 
-          padding: '0.3rem 0.6rem', 
-          borderRadius: '8px', 
+        Bitte öffne die Datei <code style={{
+          background: colors.lavender[100],
+          padding: '0.3rem 0.6rem',
+          borderRadius: '8px',
           color: colors.lavender[700],
           fontFamily: 'monospace',
-        }}>frontend/config.ts</code> und setze den Wert von <code style={{ 
-          background: colors.lavender[100], 
-          padding: '0.3rem 0.6rem', 
-          borderRadius: '8px', 
+        }}>frontend/config.ts</code> und setze den Wert von <code style={{
+          background: colors.lavender[100],
+          padding: '0.3rem 0.6rem',
+          borderRadius: '8px',
           color: colors.lavender[700],
           fontFamily: 'monospace',
         }}>clerkPublishableKey</code>.
       </p>
       <p style={{ color: colors.text.secondary, marginTop: '1.5rem', fontSize: '14px' }}>
-        Du erhältst deinen Key im <a 
-          href="https://dashboard.clerk.com" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          style={{ 
-            color: colors.lavender[600], 
+        Du erhältst deinen Key im <a
+          href="https://dashboard.clerk.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: colors.lavender[600],
             textDecoration: 'none',
             fontWeight: '600',
           }}
