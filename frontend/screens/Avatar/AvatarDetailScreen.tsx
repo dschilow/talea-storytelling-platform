@@ -707,7 +707,7 @@ const AvatarDetailScreen: React.FC = () => {
 
                               // Refresh avatar data directly instead of full page reload
                               if (avatarId) {
-                                const avatarData = await backend.avatar.get(avatarId);
+                                const avatarData = await backend.avatar.get({ id: avatarId });
                                 if (avatarData && avatarData.id) {
                                   setAvatar(avatarData as any);
                                   if (avatarData.personalityTraits) {
