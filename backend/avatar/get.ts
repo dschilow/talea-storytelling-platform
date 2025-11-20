@@ -29,6 +29,8 @@ export const get = api<GetAvatarParams, Avatar>(
         original_avatar_id: string | null;
         created_at: Date;
         updated_at: Date;
+        inventory: string;
+        skills: string;
       }>`
         SELECT * FROM avatars WHERE id = ${id}
       `;
@@ -114,6 +116,8 @@ export const get = api<GetAvatarParams, Avatar>(
         originalAvatarId: row.original_avatar_id || undefined,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
+        inventory: row.inventory ? JSON.parse(row.inventory) : [],
+        skills: row.skills ? JSON.parse(row.skills) : [],
       };
     } catch (error) {
       console.error(`[avatar.get] ERROR loading avatar ${id}:`, error);

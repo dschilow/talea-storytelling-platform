@@ -35,6 +35,26 @@ export interface AvatarMemory {
   timestamp?: string; // deprecated, use createdAt
 }
 
+export interface InventoryItem {
+  id: string;
+  name: string;
+  type: 'TOOL' | 'WEAPON' | 'KNOWLEDGE' | 'COMPANION';
+  level: number;
+  sourceStoryId: string;
+  description: string;
+  visualPrompt: string;
+  tags: string[];
+  acquiredAt: string;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  level: number;
+  progress: number;
+  description?: string;
+}
+
 export interface Avatar {
   id: string;
   userId: string;
@@ -45,16 +65,18 @@ export interface Avatar {
   creationType?: 'ai-generated' | 'photo-upload';
   status?: 'generating' | 'complete' | 'error';
   personalityTraits?: any; // Backend hierarchical personality traits
-  
+
   // Personality development system
   personality?: {
     traits: PersonalityTrait[];
     lastUpdated: string;
   };
-  
+
   // Memory system
   memories?: AvatarMemory[];
-  
+  inventory?: InventoryItem[];
+  skills?: Skill[];
+
   metadata?: {
     tokensUsed?: {
       prompt: number;

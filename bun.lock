@@ -12,6 +12,7 @@
         "encore.dev": "^1.50.4",
       },
       "devDependencies": {
+        "@types/node": "^24.10.1",
         "typescript": "^5.8.3",
       },
     },
@@ -26,6 +27,8 @@
         "@react-spring/web": "^10.0.1",
         "@reduxjs/toolkit": "^2.8.2",
         "@tailwindcss/vite": "^4.1.3",
+        "@types/canvas-confetti": "^1.9.0",
+        "canvas-confetti": "^1.9.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "framer-motion": "^12.23.24",
@@ -189,9 +192,11 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, ""],
 
+    "@types/canvas-confetti": ["@types/canvas-confetti@1.9.0", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@types/canvas-confetti/-/canvas-confetti-1.9.0.tgz", {}, "sha1-0Qd3UuBGQTyYgfuyujSnDr48F3M="],
+
     "@types/estree": ["@types/estree@1.0.8", "", {}, ""],
 
-    "@types/node": ["@types/node@24.3.1", "", { "dependencies": { "undici-types": "~7.10.0" } }, "sha512-3vXmQDXy+woz+gnrTvuvNrPzekOi+Ds0ReMxw0LzBiK3a+1k0kQn9f2NWk+lgD4rJehFUmYy2gMhJ2ZI+7YP9g=="],
+    "@types/node": ["@types/node@24.10.1", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/@types/node/-/node-24.10.1.tgz", { "dependencies": { "undici-types": "~7.16.0" } }, "sha1-kekhgsk9uL1iJPygMeI3DO+ajwE="],
 
     "@types/react": ["@types/react@19.1.12", "", { "dependencies": { "csstype": "^3.0.2" } }, ""],
 
@@ -208,6 +213,8 @@
     "browserslist": ["browserslist@4.25.4", "", { "dependencies": { "caniuse-lite": "^1.0.30001737", "electron-to-chromium": "^1.5.211", "node-releases": "^2.0.19", "update-browserslist-db": "^1.1.3" }, "bin": "cli.js" }, ""],
 
     "caniuse-lite": ["caniuse-lite@1.0.30001741", "", {}, ""],
+
+    "canvas-confetti": ["canvas-confetti@1.9.4", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/canvas-confetti/-/canvas-confetti-1.9.4.tgz", {}, "sha1-RBKl2qlq/QtNcOzWa2XOjbMCKys="],
 
     "chownr": ["chownr@3.0.0", "", {}, ""],
 
@@ -367,7 +374,7 @@
 
     "typescript": ["typescript@5.9.2", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, ""],
 
-    "undici-types": ["undici-types@7.10.0", "", {}, "sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag=="],
+    "undici-types": ["undici-types@7.16.0", "https://azdevops01.beckhoff.com/GSW01/_packaging/Common/npm/registry/undici-types/-/undici-types-7.16.0.tgz", {}, "sha1-/8zf82rqSITL/OmnUKBYAiT1ikY="],
 
     "update-browserslist-db": ["update-browserslist-db@1.1.3", "", { "dependencies": { "escalade": "^3.2.0", "picocolors": "^1.1.1" }, "peerDependencies": { "browserslist": ">= 4.21.0" }, "bin": "cli.js" }, ""],
 

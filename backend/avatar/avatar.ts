@@ -74,6 +74,28 @@ export interface Avatar {
   originalAvatarId?: string;
   createdAt: string;
   updatedAt: string;
+  inventory: InventoryItem[];
+  skills: Skill[];
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  type: 'TOOL' | 'WEAPON' | 'KNOWLEDGE' | 'COMPANION';
+  level: number;
+  sourceStoryId: string;
+  description: string;
+  visualPrompt: string;
+  tags: string[];
+  acquiredAt: string;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  level: number;
+  progress: number;
+  description?: string;
 }
 
 export interface CreateAvatarRequest {

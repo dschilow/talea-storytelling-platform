@@ -63,6 +63,8 @@ export const create = api(
       originalAvatarId: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      inventory: [],
+      skills: []
     };
 
     const physicalTraitsJson = JSON.stringify(normalizedPhysicalTraits || req.physicalTraits);
@@ -88,7 +90,8 @@ export const create = api(
           physical_traits, personality_traits, image_url,
           visual_profile,
           creation_type, is_public, original_avatar_id,
-          created_at, updated_at
+          created_at, updated_at,
+          inventory, skills
         ) VALUES (
           ${avatarId},
           ${userId},
@@ -102,7 +105,9 @@ export const create = api(
           false,
           null,
           CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
+          CURRENT_TIMESTAMP,
+          '[]',
+          '[]'
         )
       `;
       console.log("Avatar created successfully in DB");

@@ -3,7 +3,8 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { storyDB } from "./db";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
-
+import { evaluateStoryRewards } from "../gamification/item-system";
+import { InventoryItem, Skill } from "../avatar/avatar";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -20,6 +21,11 @@ interface MarkStoryReadResponse {
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
+    rewards?: {
+      newItems: InventoryItem[];
+      upgradedItems: InventoryItem[];
+      newSkills: Skill[];
+    };
   }>;
 }
 
@@ -137,9 +143,30 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             VALUES (${userAvatar.id}, ${req.storyId}, ${req.storyTitle})
           `;
 
+          // --- GAMIFICATION: Evaluate Rewards ---
+          let rewards = undefined;
+          try {
+            const rewardResult = await evaluateStoryRewards({
+              avatarId: userAvatar.id,
+              storyId: req.storyId,
+              storyTitle: req.storyTitle,
+              storyTags: req.genre ? [req.genre.toLowerCase()] : ['adventure']
+            });
+
+            rewards = {
+              newItems: rewardResult.newItems,
+              upgradedItems: rewardResult.upgradedItems,
+              newSkills: rewardResult.newSkills
+            };
+            console.log(`🎁 Rewards for ${userAvatar.name}:`, rewards);
+          } catch (rewardError) {
+            console.error(`⚠️ Failed to evaluate rewards for ${userAvatar.name}:`, rewardError);
+          }
+
           personalityChanges.push({
             avatarName: userAvatar.name,
-            changes: changes
+            changes: changes,
+            rewards: rewards
           });
 
           updatedCount++;

@@ -1,0 +1,2 @@
+ALTER TABLE avatars ADD COLUMN inventory TEXT DEFAULT '[]';
+ALTER TABLE avatars ADD COLUMN skills TEXT DEFAULT '[]';

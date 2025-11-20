@@ -9,6 +9,8 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { HierarchicalTraitDisplay } from '../../components/common/HierarchicalTraitDisplay';
+import TreasureRoom from '../../components/gamification/TreasureRoom';
+import { PackageOpen } from 'lucide-react';
 import { convertBackendTraitsToFrontend } from '../../constants/traits';
 import { colors } from '../../utils/constants/colors';
 
@@ -32,7 +34,7 @@ const MemoryTimeline: React.FC<{
     }
   };
 
-  const sortedMemories = [...memories].sort((a, b) => 
+  const sortedMemories = [...memories].sort((a, b) =>
     new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime()
   );
 
@@ -43,24 +45,24 @@ const MemoryTimeline: React.FC<{
           <div className="relative">
             {/* Timeline line */}
             {index < sortedMemories.length - 1 && (
-              <div 
+              <div
                 className="absolute left-6 top-12 w-0.5 h-16 bg-gray-200"
                 style={{ zIndex: 0 }}
               />
             )}
-            
+
             <div className="flex space-x-4">
               {/* Timeline dot */}
-              <div 
+              <div
                 className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg relative z-10"
-                style={{ 
+                style={{
                   backgroundColor: getImpactColor(memory.emotionalImpact),
                   boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                 }}
               >
                 {getImpactIcon(memory.emotionalImpact)}
               </div>
-              
+
               {/* Memory content */}
               <div className="flex-1">
                 <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
@@ -83,9 +85,9 @@ const MemoryTimeline: React.FC<{
                       🗑️
                     </button>
                   </div>
-                  
+
                   <p className="text-gray-600 text-sm mb-3">{memory.experience}</p>
-                  
+
                   {memory.personalityChanges && memory.personalityChanges.length > 0 && (
                     <div className="border-t border-gray-100 pt-3">
                       <div className="text-xs text-gray-500 mb-2 flex items-center">
@@ -114,7 +116,7 @@ const MemoryTimeline: React.FC<{
           </div>
         </FadeInView>
       ))}
-      
+
       {memories.length === 0 && (
         <FadeInView delay={0}>
           <div className="text-center py-12">
@@ -179,13 +181,13 @@ const AvatarDetailScreen: React.FC = () => {
   const { isSignedIn, getToken } = useAuth();
   const backend = useBackend();
   const { getMemories } = useAvatarMemory();
-  
+
   const [avatar, setAvatar] = useState<Avatar | null>(null);
   const [memories, setMemories] = useState<AvatarMemory[]>([]);
   const [loading, setLoading] = useState(true);
   const [memoryLoading, setMemoryLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'personality' | 'memories'>('personality');
-  
+  const [activeTab, setActiveTab] = useState<'personality' | 'memories' | 'inventory'>('personality');
+
   // Default personality traits
   const defaultTraits: PersonalityTrait[] = [
     { trait: 'Mut', value: 50, history: [] },
@@ -195,7 +197,7 @@ const AvatarDetailScreen: React.FC = () => {
     { trait: 'Sozialität', value: 50, history: [] },
     { trait: 'Energie', value: 50, history: [] },
   ];
-  
+
   const [personalityTraits, setPersonalityTraits] = useState<PersonalityTrait[]>(defaultTraits);
   const [rawPersonalityTraits, setRawPersonalityTraits] = useState<any>(null);
 
@@ -205,7 +207,7 @@ const AvatarDetailScreen: React.FC = () => {
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
 
@@ -236,11 +238,11 @@ const AvatarDetailScreen: React.FC = () => {
           }
         } catch (backendError) {
           console.log('Backend failed, trying localStorage fallback:', backendError);
-          
+
           // Fallback to localStorage
           const avatarKey = `avatar_${avatarId}`;
           const avatarData = JSON.parse(localStorage.getItem(avatarKey) || '{}');
-          
+
           if (avatarData.id) {
             // Use real avatar data from localStorage
             setAvatar(avatarData);
@@ -262,7 +264,7 @@ const AvatarDetailScreen: React.FC = () => {
             localStorage.setItem(avatarKey, JSON.stringify(fallbackAvatar));
           }
         }
-        
+
         // Use backend personality data only (no localStorage)
         console.log('Using only backend personality data - no localStorage lookup');
       } catch (error) {
@@ -303,10 +305,10 @@ const AvatarDetailScreen: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    
+
     const loadMemories = async () => {
       if (!avatarId) return;
-      
+
       try {
         setMemoryLoading(true);
         console.log('Loading memories for avatar:', avatarId);
@@ -326,7 +328,7 @@ const AvatarDetailScreen: React.FC = () => {
     };
 
     loadMemories();
-    
+
     return () => {
       mounted = false;
     };
@@ -339,7 +341,7 @@ const AvatarDetailScreen: React.FC = () => {
 
     const handleStorageChange = (e: StorageEvent) => {
       if (!avatarId) return;
-      
+
       if (e.key === `avatar_personality_${avatarId}`) {
         console.log('Personality data changed for avatar:', avatarId);
         const personalityData = JSON.parse(e.newValue || '{}');
@@ -348,7 +350,7 @@ const AvatarDetailScreen: React.FC = () => {
           console.log('Updated personality traits from storage event:', personalityData.traits);
         }
       }
-      
+
       if (e.key === `avatar_memories_${avatarId}`) {
         console.log('Memory data changed for avatar:', avatarId);
         // Reload memories - with guard
@@ -363,7 +365,7 @@ const AvatarDetailScreen: React.FC = () => {
 
     // Listen for storage events (changes from other tabs/windows)
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Listen for custom personality update events (same-tab updates)
     const handlePersonalityUpdate = (e: CustomEvent) => {
       if (e.detail.avatarId === avatarId) {
@@ -372,24 +374,24 @@ const AvatarDetailScreen: React.FC = () => {
       }
     };
     window.addEventListener('personalityUpdated', handlePersonalityUpdate as EventListener);
-    
+
     // Also check for changes every 2 seconds (backup mechanism)
     const interval = setInterval(() => {
       // Guard against avatarId becoming undefined
       if (!avatarId) return;
-      
+
       const personalityKey = `avatar_personality_${avatarId}`;
       const currentData = JSON.parse(localStorage.getItem(personalityKey) || '{}');
-      
+
       if (currentData.lastUpdated) {
         const lastUpdate = new Date(currentData.lastUpdated).getTime();
         const now = Date.now();
-        
+
         // If updated within last 5 seconds, reload
         if (now - lastUpdate < 5000 && currentData.traits) {
           console.log('Detected recent personality update, refreshing...');
           setPersonalityTraits(currentData.traits);
-          
+
           // Also reload memories - with guard
           if (avatarId) {
             getMemories(avatarId).then(memories => {
@@ -641,25 +643,33 @@ const AvatarDetailScreen: React.FC = () => {
           <div className="flex bg-white rounded-xl p-1 mb-6 border border-gray-100 shadow-sm">
             <button
               onClick={() => setActiveTab('personality')}
-              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-lg transition-all ${
-                activeTab === 'personality'
-                  ? 'bg-purple-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-lg transition-all ${activeTab === 'personality'
+                ? 'bg-purple-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <Brain className="w-5 h-5 mr-2" />
               Persönlichkeit
             </button>
             <button
               onClick={() => setActiveTab('memories')}
-              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-lg transition-all ${
-                activeTab === 'memories'
-                  ? 'bg-purple-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-lg transition-all ${activeTab === 'memories'
+                ? 'bg-purple-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <BookOpen className="w-5 h-5 mr-2" />
               Erinnerungen ({displayMemories.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-lg transition-all ${activeTab === 'inventory'
+                ? 'bg-purple-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
+            >
+              <PackageOpen className="w-5 h-5 mr-2" />
+              Schatzkammer
             </button>
           </div>
         </FadeInView>
@@ -689,7 +699,6 @@ const AvatarDetailScreen: React.FC = () => {
                           try {
                             const { getBackendUrl } = await import('../../config');
                             const target = getBackendUrl();
-                            // Use the backend hook properly (getToken is already available from component level)
                             const token = await getToken();
 
                             const response = await fetch(`${target}/avatar/reset-personality-traits`, {
@@ -705,7 +714,6 @@ const AvatarDetailScreen: React.FC = () => {
                               const result = await response.json();
                               alert(`✅ ${result.message}`);
 
-                              // Refresh avatar data directly instead of full page reload
                               if (avatarId) {
                                 const avatarData = await backend.avatar.get({ id: avatarId });
                                 if (avatarData && avatarData.id) {
@@ -781,6 +789,23 @@ const AvatarDetailScreen: React.FC = () => {
                       onDeleteMemory={handleDeleteMemory}
                     />
                   )}
+                </div>
+              </Card>
+            </FadeInView>
+          )}
+
+          {activeTab === 'inventory' && (
+            <FadeInView delay={300}>
+              <Card variant="elevated" className="mb-6">
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <PackageOpen className="w-6 h-6 mr-2 text-purple-500" />
+                    Schatzkammer
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Sammle magische Gegenstände und Wissen aus deinen Abenteuern.
+                  </p>
+                  <TreasureRoom items={avatar.inventory || []} />
                 </div>
               </Card>
             </FadeInView>

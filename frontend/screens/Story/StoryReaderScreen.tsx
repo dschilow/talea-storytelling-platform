@@ -7,8 +7,9 @@ import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
+import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { Story, Chapter } from '../../types/story';
-import type { Avatar } from '../../types/avatar';
+import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 
 
 const StoryReaderScreen: React.FC = () => {
@@ -21,14 +22,19 @@ const StoryReaderScreen: React.FC = () => {
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [isReading, setIsReading] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [showNav, setShowNav] = useState(false);
   const [animationDirection, setAnimationDirection] = useState(1);
-  
+
   // Lese-Status
   const [storyCompleted, setStoryCompleted] = useState(false);
+
+  // Gamification / Rewards
+  const [rewardQueue, setRewardQueue] = useState<Array<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' }>>([]);
+  const [currentReward, setCurrentReward] = useState<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' } | null>(null);
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +42,7 @@ const StoryReaderScreen: React.FC = () => {
     if (storyId) {
       loadStory();
     }
-    
+
     // Keine Avatar-Auswahl mehr nötig – Updates erfolgen serverseitig bei Generierung
   }, [storyId, location.state]);
 
@@ -54,6 +60,16 @@ const StoryReaderScreen: React.FC = () => {
 
     return () => contentEl.removeEventListener('scroll', handleScroll);
   }, [currentChapterIndex, isReading]);
+
+  // Reward Queue Processing
+  useEffect(() => {
+    if (!showLevelUpModal && rewardQueue.length > 0) {
+      const nextReward = rewardQueue[0];
+      setCurrentReward(nextReward);
+      setShowLevelUpModal(true);
+      setRewardQueue(prev => prev.slice(1));
+    }
+  }, [showLevelUpModal, rewardQueue]);
 
   const loadStory = async () => {
     if (!storyId) return;
@@ -79,11 +95,11 @@ const StoryReaderScreen: React.FC = () => {
 
   const goToChapter = async (index: number) => {
     if (!story || index < 0 || index >= story.chapters!.length) return;
-    
+
     setAnimationDirection(index > currentChapterIndex ? 1 : -1);
     setCurrentChapterIndex(index);
     setShowNav(false);
-    
+
     // Check if story is completed (reached last chapter)
     if (index === story.chapters!.length - 1 && !storyCompleted) {
       await handleStoryCompletion();
@@ -122,6 +138,39 @@ const StoryReaderScreen: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
+
+        // Process Rewards
+        const newRewards: typeof rewardQueue = [];
+
+        if (result.personalityChanges) {
+          result.personalityChanges.forEach((pc: any) => {
+            if (pc.rewards) {
+              // New Items
+              if (pc.rewards.newItems) {
+                pc.rewards.newItems.forEach((item: InventoryItem) => {
+                  newRewards.push({ item, type: 'new_item' });
+                });
+              }
+              // Upgraded Items
+              if (pc.rewards.upgradedItems) {
+                pc.rewards.upgradedItems.forEach((item: InventoryItem) => {
+                  newRewards.push({ item, type: 'item_upgrade' });
+                });
+              }
+              // New Skills
+              if (pc.rewards.newSkills) {
+                pc.rewards.newSkills.forEach((skill: Skill) => {
+                  newRewards.push({ skill, type: 'new_skill' });
+                });
+              }
+            }
+          });
+        }
+
+        if (newRewards.length > 0) {
+          console.log('🎁 Queuing rewards:', newRewards);
+          setRewardQueue(prev => [...prev, ...newRewards]);
+        }
 
         // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
@@ -267,9 +316,9 @@ const StoryReaderScreen: React.FC = () => {
             exit={{ opacity: 0 }}
             className="w-full h-full flex flex-col items-center justify-center p-8 text-center"
           >
-            <motion.img 
-              src={story.coverImageUrl || '/placeholder-story.jpg'} 
-              alt={story.title} 
+            <motion.img
+              src={story.coverImageUrl || '/placeholder-story.jpg'}
+              alt={story.title}
               className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover"
               layoutId={`story-cover-${story.id}`}
             />
@@ -292,8 +341,8 @@ const StoryReaderScreen: React.FC = () => {
                 className="w-full h-full flex flex-col pt-20 pb-32 absolute inset-0"
               >
                 <div className="text-center px-4">
-                  <img 
-                    src={currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`} 
+                  <img
+                    src={currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`}
                     alt={currentChapter?.title || ''}
                     className="w-full max-w-4xl max-h-[40vh] object-cover rounded-lg shadow-lg mx-auto mb-4"
                   />
@@ -310,8 +359,8 @@ const StoryReaderScreen: React.FC = () => {
             {/* Navigation & Progress */}
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
               <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-                <motion.button 
-                  onClick={() => goToChapter(currentChapterIndex - 1)} 
+                <motion.button
+                  onClick={() => goToChapter(currentChapterIndex - 1)}
                   disabled={currentChapterIndex === 0}
                   className="p-3 rounded-full disabled:opacity-30 transition-opacity"
                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
@@ -319,10 +368,10 @@ const StoryReaderScreen: React.FC = () => {
                 >
                   <ChevronLeft className="w-8 h-8" />
                 </motion.button>
-                
+
                 <div className="flex-1 flex flex-col items-center">
                   <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
-                    <motion.div 
+                    <motion.div
                       className="bg-blue-600 h-2.5 rounded-full"
                       initial={{ width: '0%' }}
                       animate={{ width: `${((currentChapterIndex + 1) / (story.chapters?.length || 1)) * 100}%` }}
@@ -332,22 +381,21 @@ const StoryReaderScreen: React.FC = () => {
                   <span className="text-xs mt-1.5">Kapitel {currentChapterIndex + 1} / {story.chapters?.length || 1}</span>
                 </div>
 
-{/* Next Chapter / Complete Story Button */}
+                {/* Next Chapter / Complete Story Button */}
                 {story.chapters && currentChapterIndex === story.chapters.length - 1 ? (
                   // Last chapter - show "Complete Story" button
-                  <motion.button 
+                  <motion.button
                     onClick={() => {
                       if (!storyCompleted) {
                         handleStoryCompletion();
                       }
                     }}
                     disabled={storyCompleted}
-                    className={`px-6 py-3 rounded-full font-bold text-white transition-all ${
-                      storyCompleted 
-                        ? 'bg-green-600 cursor-default' 
+                    className={`px-6 py-3 rounded-full font-bold text-white transition-all ${storyCompleted
+                        ? 'bg-green-600 cursor-default'
                         : 'bg-purple-600 hover:bg-purple-700 hover:scale-105'
-                    }`}
-                    whileHover={!storyCompleted ? { scale: 1.05 } : {}} 
+                      }`}
+                    whileHover={!storyCompleted ? { scale: 1.05 } : {}}
                     whileTap={!storyCompleted ? { scale: 0.95 } : {}}
                     animate={{ opacity: showNav ? 1 : 0.7 }}
                   >
@@ -355,8 +403,8 @@ const StoryReaderScreen: React.FC = () => {
                   </motion.button>
                 ) : (
                   // Regular "Next Chapter" button
-                  <motion.button 
-                    onClick={() => goToChapter(currentChapterIndex + 1)} 
+                  <motion.button
+                    onClick={() => goToChapter(currentChapterIndex + 1)}
                     disabled={!story.chapters || currentChapterIndex === story.chapters.length - 1}
                     className="p-3 rounded-full disabled:opacity-30 transition-opacity"
                     whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
@@ -370,8 +418,17 @@ const StoryReaderScreen: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
-      
-      {/* Keine Avatar-Auswahl mehr notwendig */}
+
+      {/* Level Up Modal */}
+      {currentReward && (
+        <LevelUpModal
+          isOpen={showLevelUpModal}
+          onClose={() => setShowLevelUpModal(false)}
+          item={currentReward.item}
+          skill={currentReward.skill}
+          type={currentReward.type}
+        />
+      )}
 
     </div>
   );
