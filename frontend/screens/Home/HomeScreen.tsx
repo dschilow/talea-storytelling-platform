@@ -255,13 +255,13 @@ const HomeScreen: React.FC = () => {
                 <PastelButton onClick={() => navigate('/story')}>Erste Geschichte schreiben</PastelButton>
               </GlassCard>
             ) : (
-              <div className="flex gap-6 overflow-x-auto pb-8 pt-2 snap-x">
+              <div className="flex gap-6 overflow-x-auto pb-8 pt-2 snap-x px-1">
                 {stories.map((story) => (
                   <div key={story.id} className="snap-center relative group">
                     <StoryCard
                       title={story.title}
                       coverImage={story.coverImageUrl}
-                      genre="Abenteuer" // Placeholder, backend doesn't send genre yet
+                      genre="Abenteuer" // Placeholder
                       onClick={() => navigate(`/story-reader/${story.id}`)}
                     />
                     <button
@@ -269,7 +269,8 @@ const HomeScreen: React.FC = () => {
                         e.stopPropagation();
                         handleDeleteStory(story.id, story.title);
                       }}
-                      className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      aria-label={`Geschichte ${story.title} löschen`}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -301,8 +302,12 @@ const HomeScreen: React.FC = () => {
                 {avatars.map((avatar) => (
                   <div key={avatar.id} className="group relative flex flex-col items-center">
                     <div
-                      className="w-24 h-24 rounded-full p-1 bg-gradient-to-br from-primary to-secondary cursor-pointer hover:scale-105 transition-transform shadow-lg"
+                      role="button"
+                      tabIndex={0}
+                      className="w-24 h-24 rounded-full p-1 bg-gradient-to-br from-primary to-secondary cursor-pointer hover:scale-105 transition-transform shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
                       onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/avatar/edit/${avatar.id}`)}
+                      aria-label={`Avatar ${avatar.name} bearbeiten`}
                     >
                       <div className="w-full h-full rounded-full overflow-hidden border-4 border-white bg-white">
                         {avatar.imageUrl ? (
@@ -321,7 +326,8 @@ const HomeScreen: React.FC = () => {
                     {/* Delete Action */}
                     <button
                       onClick={() => handleDeleteAvatar(avatar.id, avatar.name)}
-                      className="absolute -top-1 -right-1 w-6 h-6 bg-red-100 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-200"
+                      className="absolute -top-1 -right-1 w-6 h-6 bg-red-100 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-200 focus:opacity-100"
+                      aria-label={`Avatar ${avatar.name} löschen`}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -331,7 +337,8 @@ const HomeScreen: React.FC = () => {
                 {/* Add New Avatar Circle */}
                 <button
                   onClick={() => navigate('/avatar')}
-                  className="w-24 h-24 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                  className="w-24 h-24 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary/50 hover:bg-primary/5 transition-all group focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label="Neuen Avatar erstellen"
                 >
                   <Plus className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
@@ -358,6 +365,9 @@ const HomeScreen: React.FC = () => {
                   variant="interactive"
                   className="p-0 overflow-hidden h-[220px] flex flex-col relative group"
                   onClick={() => navigate(`/doku-reader/${doku.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/doku-reader/${doku.id}`)}
                 >
                   <div className="h-32 bg-muted relative">
                     {doku.coverImageUrl ? (
@@ -378,7 +388,8 @@ const HomeScreen: React.FC = () => {
                       e.stopPropagation();
                       handleDeleteDoku(doku.id, doku.title);
                     }}
-                    className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100"
+                    className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    aria-label={`Doku ${doku.title} löschen`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -388,7 +399,8 @@ const HomeScreen: React.FC = () => {
               {/* Create New Doku Card */}
               <button
                 onClick={() => navigate('/doku')}
-                className="h-[220px] rounded-2xl border-2 border-dashed border-muted-foreground/20 flex flex-col items-center justify-center gap-3 hover:border-accent/50 hover:bg-accent/5 transition-all text-muted-foreground hover:text-accent"
+                className="h-[220px] rounded-2xl border-2 border-dashed border-muted-foreground/20 flex flex-col items-center justify-center gap-3 hover:border-accent/50 hover:bg-accent/5 transition-all text-muted-foreground hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent"
+                aria-label="Neue Doku erstellen"
               >
                 <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
                   <Plus size={24} />
