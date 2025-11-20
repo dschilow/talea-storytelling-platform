@@ -250,12 +250,12 @@ const ChapterSection: React.FC<{
             </div>
 
             {/* Chapter Content */}
-            <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-20">
+            <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-20 pb-64"> {/* Added massive padding bottom */}
                 <div className="max-w-3xl mx-auto">
                     <CinematicText text={chapter.content} />
 
                     {onComplete && (
-                        <div className="mt-24 flex justify-center">
+                        <div className="mt-32 flex justify-center">
                             <motion.button
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 whileInView={{ opacity: 1, scale: 1 }}
@@ -263,18 +263,18 @@ const ChapterSection: React.FC<{
                                 onClick={onComplete}
                                 disabled={isCompleted}
                                 className={cn(
-                                    "px-12 py-6 rounded-full text-xl font-bold transition-all shadow-2xl flex items-center gap-3",
+                                    "px-16 py-8 rounded-none text-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)] border-2 border-white",
                                     isCompleted
-                                        ? "bg-green-600 text-white cursor-default"
-                                        : "bg-white text-black hover:scale-105 hover:shadow-white/20"
+                                        ? "bg-green-600 border-green-600 text-white cursor-default"
+                                        : "bg-transparent text-white hover:bg-white hover:text-black hover:scale-105"
                                 )}
                             >
                                 {isCompleted ? (
                                     <>
-                                        <Sparkles className="w-6 h-6" /> Abgeschlossen
+                                        <Sparkles className="w-6 h-6 mr-2" /> ABGESCHLOSSEN
                                     </>
                                 ) : (
-                                    "Geschichte abschließen"
+                                    "GESCHICHTE ABSCHLIESSEN"
                                 )}
                             </motion.button>
                         </div>
