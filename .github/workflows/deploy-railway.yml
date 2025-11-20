@@ -36,7 +36,9 @@ jobs:
       - name: Build frontend assets
         run: |
           cd frontend
-          npm install
+          npm cache clean --force
+          npm config set registry https://registry.npmjs.org/
+          npm install --registry=https://registry.npmjs.org/
           npm run build -- --outDir=../backend/frontend/dist
       - name: Cache Bun dependencies
         uses: actions/cache@v4
