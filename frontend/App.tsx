@@ -58,7 +58,7 @@ const AppContent = () => (
           <Route path="/characters" element={<CharacterPoolScreen />} />
           <Route path="/fairytales" element={<FairyTalesScreen />} />
           <Route path="/doku/create" element={<DokuWizardScreen />} />
-          <Route path="/doku-reader/:dokuId" element={<DokuScrollReaderScreen />} />
+          <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
           <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
           <Route path="/auth" element={<AuthScreen />} />
           <Route path="/_admin" element={<AdminDashboard />} />

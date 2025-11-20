@@ -46,6 +46,9 @@ const CinematicStoryViewer: React.FC = () => {
             setLoading(true);
             setError(null);
             const storyData = await backend.story.get({ id: storyId });
+            console.log('Loaded story:', storyData);
+            console.log('Participants:', storyData.avatarParticipants);
+            console.log('Config Avatars:', storyData.config?.avatars);
             setStory(storyData as unknown as Story);
         } catch (err) {
             console.error('Error loading story:', err);
