@@ -14,6 +14,7 @@ import StoryWizardScreen from './screens/Story/StoryWizardScreen';
 import ModernStoryWizard from './screens/Story/ModernStoryWizard';
 import StoryReaderScreen from './screens/Story/StoryReaderScreen';
 import StoryScrollReaderScreen from './screens/Story/StoryScrollReaderScreen';
+import CinematicStoryViewer from './screens/Story/CinematicStoryViewer';
 import StoriesScreen from './screens/Story/StoriesScreen';
 import FairyTaleSelectionScreen from './screens/Story/FairyTaleSelectionScreen';
 import CharacterMappingScreen from './screens/Story/CharacterMappingScreen';
@@ -45,7 +46,8 @@ const AppContent = () => (
           <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
           <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
           <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
-          <Route path="/story-reader/:storyId" element={<StoryScrollReaderScreen />} />
+          <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+          <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
           <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
           <Route path="/stories" element={<StoriesScreen />} />
           <Route path="/community" element={<HomeScreen />} />
