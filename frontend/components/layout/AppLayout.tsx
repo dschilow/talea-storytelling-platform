@@ -13,8 +13,8 @@ const AppLayout: React.FC = () => {
             </SignedIn>
 
             {/* Main Content Area */}
-            <main className="md:pl-0 transition-all duration-300 has-[aside]:md:pl-64">
-                <div className="pb-24 md:pb-0"> {/* Add padding bottom for mobile nav */}
+            <main className="min-h-screen transition-all duration-300 md:ml-64">
+                <div className="pb-24 md:pb-8 md:pt-8 px-4 md:px-8 max-w-[1000px] mx-auto">
                     <Outlet />
                 </div>
             </main>

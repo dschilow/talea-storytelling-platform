@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, BookOpen, User, FlaskConical, Settings, LogOut } from 'lucide-react';
+import { Home, BookOpen, User, FlaskConical, Settings, LogOut, Sparkles, BookMarked, Code } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
 import { GlassCard } from '../ui/GlassCard';
@@ -11,9 +11,12 @@ const Sidebar: React.FC = () => {
 
     const navItems = [
         { icon: Home, label: 'Home', path: '/' },
-        { icon: BookOpen, label: 'Geschichten', path: '/stories' },
         { icon: User, label: 'Avatare', path: '/avatar' },
-        { icon: FlaskConical, label: 'Wissen', path: '/doku' },
+        { icon: BookOpen, label: 'Stories', path: '/stories' },
+        { icon: FlaskConical, label: 'Doku', path: '/doku' },
+        { icon: Sparkles, label: 'Charaktere', path: '/characters' },
+        { icon: BookMarked, label: 'Märchen', path: '/fairytales' },
+        { icon: Code, label: 'Logs', path: '/logs' },
     ];
 
     const isActive = (path: string) => location.pathname === path;
@@ -32,7 +35,7 @@ const Sidebar: React.FC = () => {
                 </div>
 
                 {/* Navigation Links */}
-                <nav className="flex-1 space-y-2">
+                <nav className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
                     {navItems.map((item) => (
                         <button
                             key={item.path}
