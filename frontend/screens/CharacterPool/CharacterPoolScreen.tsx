@@ -214,7 +214,7 @@ const CharacterPoolScreen: React.FC = () => {
     }
     try {
       setDetailLoading(true);
-      const character = await backend.story.getCharacter(id);
+      const character = await backend.story.getCharacter({ id });
       setEditingCharacter(character);
       setIsNewCharacter(false);
       setFormState(mapCharacterToForm(character));
@@ -310,7 +310,7 @@ const CharacterPoolScreen: React.FC = () => {
         await backend.story.updateCharacter(existingCharacterId, {
           updates,
         });
-        const refreshed = await backend.story.getCharacter(existingCharacterId);
+        const refreshed = await backend.story.getCharacter({ id: existingCharacterId });
         setEditingCharacter(refreshed);
         setFormState(mapCharacterToForm(refreshed));
         toast.success('Charakter erfolgreich aktualisiert.');
