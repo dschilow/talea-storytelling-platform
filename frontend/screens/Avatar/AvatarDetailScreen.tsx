@@ -420,7 +420,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🗑️ Deleting memory ${memoryId} for avatar ${avatarId}`);
 
-      const response = await backend.avatar.deleteMemory(avatarId, memoryId);
+      const response = await backend.avatar.deleteMemory({ avatarId, memoryId });
 
       if (response.success) {
         console.log('✅ Memory deleted successfully, recalculated traits:', response.recalculatedTraits);
@@ -475,7 +475,8 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🔻 Reducing trait ${trait} by ${amount} for avatar ${avatarId}`);
 
-      const response = await backend.avatar.reducePersonalityTrait(avatarId, {
+      const response = await backend.avatar.reducePersonalityTrait({
+        avatarId,
         trait,
         amount,
         reason
@@ -531,7 +532,7 @@ const AvatarDetailScreen: React.FC = () => {
     try {
       console.log(`🗑️ Resetting doku history for avatar ${avatarId}`);
 
-      const response = await backend.avatar.resetDokuHistory(avatarId, { dokuId: undefined });
+      const response = await backend.avatar.resetDokuHistory({ avatarId, dokuId: undefined });
 
       if (response.success) {
         console.log('✅ Doku history reset successfully:', response.message);
