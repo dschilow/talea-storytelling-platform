@@ -284,8 +284,8 @@ export class FourPhaseOrchestrator {
         name: a.name,
         description: a.description,
       })),
-  useFairyTaleTemplateRequested: userRequestedFairyTaleTemplate,
-  useFairyTaleTemplateResolved: useFairyTaleTemplate,
+      useFairyTaleTemplateRequested: userRequestedFairyTaleTemplate,
+      useFairyTaleTemplateResolved: useFairyTaleTemplate,
       openAIRequest: phase1Result.openAIRequest,
     };
 
@@ -408,20 +408,20 @@ export class FourPhaseOrchestrator {
       config: configWithExperience,
       experience: experienceContext,
       avatarDetails: input.avatarDetails,
-  useFairyTaleTemplate,
+      useFairyTaleTemplate,
       remixInstructions: phase1Result.remixInstructions, // NEW: Pass remix instructions from Phase1
       selectedFairyTale: selectedFairyTale ?? undefined, // NEW: Pass fairy tale for originality validation
     });
     const finalizedStory = phase3Result.story;
     phaseDurations.phase3Duration = Date.now() - phase3Start;
-    
+
     if (phase3Result.fairyTaleUsed) {
       console.log(`[4-Phase] ✨ Fairy tale used: ${phase3Result.fairyTaleUsed.title} (score: ${phase3Result.fairyTaleUsed.matchScore})`);
       console.log(`[4-Phase] Match reason: ${phase3Result.fairyTaleUsed.matchReason}`);
     } else {
       console.log("[4-Phase] No fairy tale used - standard story generation");
     }
-    
+
     console.log(`[4-Phase] Phase 3 completed in ${phaseDurations.phase3Duration}ms`);
 
     const totalWords = finalizedStory.chapters?.reduce((sum, ch) => sum + ch.content.split(/\s+/).length, 0) || 0;
@@ -447,8 +447,8 @@ export class FourPhaseOrchestrator {
       charactersAssigned: characterAssignments.size,
       avatarsCount: input.avatarDetails.length,
       fairyTaleUsed: phase3Result.fairyTaleUsed || null,
-  useFairyTaleTemplateRequested: userRequestedFairyTaleTemplate,
-  useFairyTaleTemplateResolved: useFairyTaleTemplate,
+      useFairyTaleTemplateRequested: userRequestedFairyTaleTemplate,
+      useFairyTaleTemplateResolved: useFairyTaleTemplate,
       openAIRequest: phase3Result.openAIRequest,
     };
 
@@ -593,17 +593,17 @@ export class FourPhaseOrchestrator {
     return {
       soul: context.soul
         ? {
-            key: context.soul.key,
-            label: context.soul.label,
-            storyPromise: context.soul.storyPromise,
-            recommendedStylePreset: context.soul.recommendedStylePreset,
-            recommendedTone: context.soul.recommendedTone,
-            defaultSuspense: context.soul.defaultSuspense,
-            defaultHumor: context.soul.defaultHumor,
-            defaultPacing: context.soul.defaultPacing,
-            allowRhymes: context.soul.allowRhymes ?? false,
-            description: context.soul.description,
-          }
+          key: context.soul.key,
+          label: context.soul.label,
+          storyPromise: context.soul.storyPromise,
+          recommendedStylePreset: context.soul.recommendedStylePreset,
+          recommendedTone: context.soul.recommendedTone,
+          defaultSuspense: context.soul.defaultSuspense,
+          defaultHumor: context.soul.defaultHumor,
+          defaultPacing: context.soul.defaultPacing,
+          allowRhymes: context.soul.allowRhymes ?? false,
+          description: context.soul.description,
+        }
         : null,
       emotionalFlavors: context.emotionalFlavors.map(flavor => ({
         key: flavor.key,
@@ -613,11 +613,11 @@ export class FourPhaseOrchestrator {
       })),
       tempo: context.tempo
         ? {
-            key: context.tempo.key,
-            label: context.tempo.label,
-            description: context.tempo.description,
-            pacing: context.tempo.pacing,
-          }
+          key: context.tempo.key,
+          label: context.tempo.label,
+          description: context.tempo.description,
+          pacing: context.tempo.pacing,
+        }
         : null,
       specialIngredients: context.specialIngredients.map(ingredient => ({
         key: ingredient.key,
@@ -675,7 +675,7 @@ export class FourPhaseOrchestrator {
         );
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
-        const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text";
+        const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text, clones, twins, multiple views, split screen, multiple instances of same character";
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
@@ -733,7 +733,7 @@ export class FourPhaseOrchestrator {
     // AGE FIRST (critical for size relationships)
     if (vp.ageApprox) {
       parts.push(`${vp.ageApprox} years old`);
-      
+
       // Add explicit size constraints based on age
       if (vp.ageApprox <= 7) {
         parts.push('small child size');
@@ -741,7 +741,7 @@ export class FourPhaseOrchestrator {
         parts.push('child-sized');
       }
     }
-    
+
     if (vp.gender) parts.push(vp.gender);
 
     if (vp.hair) {
@@ -794,14 +794,14 @@ export class FourPhaseOrchestrator {
     const descriptionLower = baseDescription.toLowerCase();
     const isGenreScene = genreKeywords.some(keyword => descriptionLower.includes(keyword));
     const isSteampunk = descriptionLower.includes('steampunk') || descriptionLower.includes('steam') || descriptionLower.includes('gear') || descriptionLower.includes('clockwork');
-    
+
     // Build character lookup with AGE for sorting
     interface CharacterInfo {
       name: string;
       description: string;
       age: number;
     }
-    
+
     const allCharacters = new Map<string, CharacterInfo>();
 
     // Add avatars with FULL descriptions + age
@@ -809,7 +809,7 @@ export class FourPhaseOrchestrator {
       let visualContext = avatar.visualProfile
         ? this.visualProfileToImagePrompt(avatar.visualProfile)
         : (avatar.description || 'default appearance');
-      
+
       // OPTIMIZATION v2.4: Apply genre-aware costume override
       if (isGenreScene && visualContext.includes('hoodie')) {
         if (isSteampunk) {
@@ -830,9 +830,9 @@ export class FourPhaseOrchestrator {
           console.log(`[Image Prompt] 🎭 Applied Fantasy costume override for ${avatar.name}`);
         }
       }
-      
+
       const age = avatar.visualProfile?.ageApprox || 8; // fallback
-      
+
       allCharacters.set(avatar.name.toLowerCase(), {
         name: avatar.name,
         description: visualContext,
@@ -843,7 +843,7 @@ export class FourPhaseOrchestrator {
     // Add supporting characters with FULL descriptions
     for (const char of characterAssignments.values()) {
       let fullDesc = char.visualProfile.description || 'default character';
-      
+
       // OPTIMIZATION v2.4: Apply genre-aware costume override for pool characters too
       if (isGenreScene && fullDesc.includes('hoodie')) {
         if (isSteampunk) {
@@ -862,9 +862,9 @@ export class FourPhaseOrchestrator {
           console.log(`[Image Prompt] 🎭 Applied Fantasy costume override for pool character: ${char.name}`);
         }
       }
-      
+
       const age = 30; // Adults default to 30
-      
+
       allCharacters.set(char.name.toLowerCase(), {
         name: char.name,
         description: fullDesc,
@@ -909,6 +909,7 @@ ${characterBlock}${ageOrder}
 
 Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
 IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent across all images. Do not add text or watermarks.
+ENSURE SINGLE INSTANCE OF EACH CHARACTER. Do not generate twins or clones.
     `.trim();
   }
 
@@ -968,7 +969,7 @@ ${story.description}
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
       const stylePreset = "watercolor_storybook";
-      const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text";
+      const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text, clones, twins, multiple views, split screen, multiple instances of same character";
       const imageUrl = await this.generateImage(enhancedPrompt, seed, negativePrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);

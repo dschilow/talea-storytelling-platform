@@ -578,7 +578,7 @@ OUTPUT (JSON):
       "order": 1,
       "title": "Kapitel-Titel",
       "content": "320-420 Woerter, reich an Dialogen, Sinneseindruecken und Emotionen.",
-      "imageDescription": "Detailed English scene description with action verbs, consistent character traits, lighting, mood, camera perspective, environment specifics, recurring motifs. Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly."
+      "imageDescription": "STRICTLY ENGLISH: Detailed visual scene description. NO GERMAN! Describe physical actions, lighting, environment, and mood. Use 'wide shot' or 'close up'. Example: 'Wide shot of a magical forest with glowing mushrooms, Adrian (8yo boy) looking at a firefly.'"
     }
   ],
   "avatarDevelopments": [

@@ -1118,7 +1118,7 @@ export class Phase2CharacterMatcher {
 
     return {
       description,
-      imagePrompt: `Portrait of ${name}, a ${species} ${archetype}, ${adjectives} expression, ${fairyTaleAccents}, watercolor illustration, German fairy tale style`,
+      imagePrompt: `Portrait of ${name}, a ${species} ${archetype}, ${adjectives} expression, ${fairyTaleAccents}, watercolor illustration, German fairy tale style. STRICTLY NO TEXT.`,
       species,
       colorPalette: colors,
       gender,
