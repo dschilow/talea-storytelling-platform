@@ -6,6 +6,7 @@ import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
+import { Typewriter } from '../../components/ui/typewriter-text';
 import type { Story, Chapter } from '../../types/story';
 import { cn } from '../../lib/utils';
 
@@ -218,6 +219,8 @@ const ChapterSection: React.FC<{
     onComplete?: () => void;
     isCompleted?: boolean;
 }> = ({ chapter, index, total, onComplete, isCompleted }) => {
+    const [headerInView, setHeaderInView] = useState(false);
+
     return (
         <div id={`chapter-${index}`} className="min-h-screen w-full relative bg-black snap-start flex flex-col">
             {/* Chapter Header / Title Card */}
@@ -232,25 +235,40 @@ const ChapterSection: React.FC<{
                     alt={chapter.title}
                     className="w-full h-full object-cover"
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 z-20">
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:px-16 md:pb-12 z-20">
                     <motion.div
                         initial={{ opacity: 0, y: 40 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8 }}
+                        onViewportEnter={() => setHeaderInView(true)}
                     >
-                        <span className="text-purple-400 font-bold tracking-widest uppercase text-sm mb-2 block">
-                            Kapitel {index + 1} von {total}
+                        <span className="text-purple-400 font-bold tracking-widest uppercase text-sm mb-2 block h-6">
+                            {headerInView && (
+                                <Typewriter
+                                    text={`Kapitel ${index + 1} von ${total}`}
+                                    speed={50}
+                                    cursor=""
+                                />
+                            )}
                         </span>
-                        <h2 className="text-4xl md:text-6xl font-serif font-bold text-white mb-4 leading-tight">
-                            {chapter.title}
+                        <h2 className="text-4xl md:text-6xl font-serif font-bold text-white mb-4 leading-tight min-h-[1.2em]">
+                            {headerInView && (
+                                <Typewriter
+                                    text={chapter.title}
+                                    speed={70}
+                                    delay={1000}
+                                    cursor="|"
+                                    className="font-['Merriweather']"
+                                />
+                            )}
                         </h2>
                     </motion.div>
                 </div>
             </div>
 
             {/* Chapter Content */}
-            <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-20 pb-64"> {/* Added massive padding bottom */}
+            <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-16 pb-64">
                 <div className="max-w-3xl mx-auto">
                     <CinematicText text={chapter.content} />
 

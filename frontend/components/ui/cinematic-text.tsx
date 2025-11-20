@@ -1,7 +1,6 @@
-import React, { useRef, useState } from 'react';
-import { useInView } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { Typewriter } from './typewriter-text';
 
 interface CinematicTextProps {
     text: string;
@@ -20,42 +19,33 @@ export const CinematicText: React.FC<CinematicTextProps> = ({ text, className, d
                     key={index}
                     text={paragraph}
                     index={index}
+                    baseDelay={delay}
                 />
             ))}
         </div>
     );
 };
 
-const Paragraph: React.FC<{ text: string; index: number }> = ({ text, index }) => {
+const Paragraph: React.FC<{ text: string; index: number; baseDelay: number }> = ({ text, index, baseDelay }) => {
     const ref = useRef(null);
     const isInView = useInView(ref, {
         once: true,
-        margin: "0px 0px -100px 0px"
+        margin: "0px 0px -50px 0px" // Trigger slightly before bottom
     });
-    const [isCompleted, setIsCompleted] = useState(false);
 
     return (
-        <div ref={ref} className="relative">
-            {/* Invisible text to reserve layout space and prevent jumping */}
-            <p className="leading-relaxed text-lg md:text-xl lg:text-2xl text-transparent font-serif tracking-wide select-none pointer-events-none" aria-hidden="true">
-                {text}
-            </p>
-
-            {/* Absolute positioned Typewriter overlay */}
-            <div className="absolute inset-0 top-0 left-0">
-                {isInView && (
-                    <p className="leading-relaxed text-lg md:text-xl lg:text-2xl text-gray-100 font-serif tracking-wide drop-shadow-md">
-                        <Typewriter
-                            text={text}
-                            speed={15} // Fast typing speed for reading
-                            cursor={isCompleted ? "" : "|"}
-                            loop={false}
-                            onComplete={() => setIsCompleted(true)}
-                        />
-                    </p>
-                )}
-            </div>
-        </div>
+        <motion.p
+            ref={ref}
+            initial={{ opacity: 0, y: 20, filter: 'blur(5px)' }}
+            animate={isInView ? { opacity: 1, y: 0, filter: 'blur(0px)' } : {}}
+            transition={{
+                duration: 0.8,
+                ease: [0.2, 0.65, 0.3, 0.9], // Elegant easing
+                delay: baseDelay + (index * 0.1)
+            }}
+            className="leading-relaxed text-lg md:text-xl lg:text-2xl text-gray-300 font-['Merriweather'] tracking-wide drop-shadow-sm"
+        >
+            {text}
+        </motion.p>
     );
 };
-
