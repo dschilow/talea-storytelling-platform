@@ -21,42 +21,79 @@ const CinematicStoryViewer: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [started, setStarted] = useState(false);
-    const [storyCompleted, setStoryCompleted] = useState(false);
+    const [participants, setParticipants] = useState<any[]>([]);
 
-    // Scroll Progress for the whole container
-    const { scrollYProgress } = useScroll({
-        container: containerRef,
-    });
+    // ... inside loadStory ...
+    const storyData = await backend.story.get({ id: storyId });
+    setStory(storyData as unknown as Story);
 
-    const scaleX = useSpring(scrollYProgress, {
-        stiffness: 100,
-        damping: 30,
-        restDelta: 0.001
-    });
-
-    useEffect(() => {
-        if (storyId) {
-            loadStory();
-        }
-    }, [storyId]);
-
-    const loadStory = async () => {
-        if (!storyId) return;
+    // Fetch participants if not present but IDs are available
+    if (!storyData.avatarParticipants && storyData.config?.avatarIds?.length > 0) {
         try {
-            setLoading(true);
-            setError(null);
-            const storyData = await backend.story.get({ id: storyId });
-            console.log('Loaded story:', storyData);
-            console.log('Participants:', storyData.avatarParticipants);
-            console.log('Config Avatars:', storyData.config?.avatars);
-            setStory(storyData as unknown as Story);
+            const avatars = await Promise.all(
+                storyData.config.avatarIds.map((id: string) => backend.avatar.get({ id }))
+            );
+            setParticipants(avatars.filter(Boolean));
         } catch (err) {
-            console.error('Error loading story:', err);
-            setError('Geschichte konnte nicht geladen werden.');
-        } finally {
-            setLoading(false);
+            console.error('Error loading participants:', err);
         }
-    };
+    } else if (storyData.avatarParticipants) {
+        setParticipants(storyData.avatarParticipants);
+    } else if (storyData.config?.avatars) {
+        setParticipants(storyData.config.avatars);
+    }
+
+    // ... inside render ...
+    {/* Participants / Cast Section */ }
+    {
+        participants.length > 0 && (
+            <section className="min-h-screen snap-start flex flex-col items-center justify-center bg-black relative overflow-hidden py-20">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-black" />
+
+                <div className="z-10 max-w-6xl mx-auto px-4 w-full">
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="text-center mb-16"
+                    >
+                        <h2 className="text-3xl md:text-5xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 mb-4">
+                            Die Helden der Geschichte
+                        </h2>
+                        <div className="h-1 w-24 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto" />
+                    </motion.div>
+
+                    <div className="flex flex-wrap justify-center gap-12 md:gap-20">
+                        {participants.map((avatar, index) => (
+                            <motion.div
+                                key={avatar.id || index}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                whileInView={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.5, delay: index * 0.2 }}
+                                className="flex flex-col items-center group"
+                            >
+                                <div className="relative w-48 h-48 md:w-64 md:h-64 mb-6 rounded-full p-1 bg-gradient-to-b from-purple-500/50 to-blue-500/50 group-hover:from-purple-400 group-hover:to-blue-400 transition-colors duration-500">
+                                    <div className="absolute inset-0 rounded-full bg-black m-1 overflow-hidden">
+                                        <img
+                                            src={avatar.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar.name}`}
+                                            alt={avatar.name}
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                        />
+                                    </div>
+                                    {/* Glow effect */}
+                                    <div className="absolute inset-0 rounded-full blur-xl bg-purple-500/20 group-hover:bg-purple-500/40 transition-colors duration-500 -z-10" />
+                                </div>
+
+                                <h3 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2 tracking-wide">
+                                    {avatar.name}
+                                </h3>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+        )
+    }
 
     const handleStart = () => {
         setStarted(true);

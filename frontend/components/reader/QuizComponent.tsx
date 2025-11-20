@@ -15,12 +15,12 @@ interface QuizComponentProps {
   onPersonalityChange?: (changes: Array<{ trait: string; change: number }>) => void;
 }
 
-export const QuizComponent: React.FC<QuizComponentProps> = ({ 
-  section, 
-  avatarId, 
-  dokuTitle, 
-  dokuId, 
-  onPersonalityChange 
+export const QuizComponent: React.FC<QuizComponentProps> = ({
+  section,
+  avatarId,
+  dokuTitle,
+  dokuId,
+  onPersonalityChange
 }) => {
   const quiz = section.interactive?.quiz;
   const backend = useBackend();
@@ -79,7 +79,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
       }, 0);
 
       const percentage = Math.round((correctAnswers / quiz.questions.length) * 100);
-      
+
       // Prepare quiz data for KI analysis
       const questions = quiz.questions.map((question, index) => ({
         question: question.question,
@@ -107,7 +107,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
       if (aiResult.success && aiResult.changes.length > 0) {
         console.log('✅ KI quiz analysis successful, applying', aiResult.changes.length, 'personality changes');
-        
+
         // Convert KI changes to our format
         const personalityChanges = aiResult.changes.map(change => ({
           trait: change.trait,
@@ -116,7 +116,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
         // Create memory entry
         const experience = `Ich habe ein Quiz zu "${section.title}" in "${dokuTitle}" absolviert und ${percentage}% der Fragen richtig beantwortet. ${aiResult.summary}`;
-        
+
         await addMemory(avatarId, {
           storyId: dokuId,
           storyTitle: `Quiz: ${dokuTitle}`,
@@ -139,7 +139,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
         }
 
         console.log(`🎉 KI quiz completed: ${percentage}% correct, personality changes:`, personalityChanges);
-        
+
         // Show toast notifications
         import('../../utils/toastUtils').then(({ showQuizCompletionToast, showPersonalityUpdateToast }) => {
           showQuizCompletionToast(percentage);
@@ -161,38 +161,38 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
   const analyzeQuizForPersonality = (topic: string, percentage: number): Array<{ trait: string; change: number }> => {
     const changes: Array<{ trait: string; change: number }> = [];
-    
+
     // Base intelligence boost for learning
     if (percentage >= 50) {
       changes.push({ trait: 'Intelligenz', change: Math.min(5, Math.floor(percentage / 20)) });
     }
-    
+
     // Topic-specific personality development
     const topicLower = topic.toLowerCase();
-    
+
     if (topicLower.includes('wissenschaft') || topicLower.includes('technik') || topicLower.includes('mathematik')) {
       if (percentage >= 60) changes.push({ trait: 'Intelligenz', change: 3 });
     }
-    
+
     if (topicLower.includes('kunst') || topicLower.includes('kreativ') || topicLower.includes('musik')) {
       if (percentage >= 60) changes.push({ trait: 'Kreativität', change: 4 });
     }
-    
+
     if (topicLower.includes('sozial') || topicLower.includes('gesellschaft') || topicLower.includes('gemeinschaft')) {
       if (percentage >= 60) changes.push({ trait: 'Sozialität', change: 3 });
       if (percentage >= 70) changes.push({ trait: 'Empathie', change: 2 });
     }
-    
+
     if (topicLower.includes('abenteuer') || topicLower.includes('sport') || topicLower.includes('reisen')) {
       if (percentage >= 60) changes.push({ trait: 'Mut', change: 3 });
       if (percentage >= 70) changes.push({ trait: 'Energie', change: 2 });
     }
-    
+
     // Performance-based confidence boost
     if (percentage >= 80) {
       changes.push({ trait: 'Mut', change: 1 });
     }
-    
+
     return changes;
   };
 
@@ -218,17 +218,17 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30">
+    <div className="w-full h-full flex flex-col items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-3xl">
         <div className="text-center mb-6">
-            <div className="inline-block p-3 bg-white/50 dark:bg-gray-800/50 rounded-full shadow-md mb-4">
-                <HelpCircle className="w-10 h-10 text-blue-500" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Quiz Time!</h2>
-            <p className="text-gray-600 dark:text-gray-300">Teste dein Wissen</p>
+          <div className="inline-block p-3 bg-white/10 backdrop-blur-md rounded-full shadow-md mb-4 border border-white/20">
+            <HelpCircle className="w-10 h-10 text-blue-500" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Quiz Time!</h2>
+          <p className="text-gray-600 dark:text-gray-300">Teste dein Wissen</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl">
+        <div className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/20">
           <p className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
             Frage {currentQuestionIndex + 1} von {quiz.questions.length}: {currentQuestion.question}
           </p>
@@ -243,11 +243,11 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
               >
                 <div className="w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center mr-4 flex-shrink-0">
                   {submitted && (selectedAnswers[currentQuestionIndex] === index || index === currentQuestion.answerIndex) && (
-                    index === currentQuestion.answerIndex 
-                      ? <Check className="w-5 h-5 text-green-600" /> 
+                    index === currentQuestion.answerIndex
+                      ? <Check className="w-5 h-5 text-green-600" />
                       : <X className="w-5 h-5 text-red-600" />
                   )}
-                  {!submitted && selectedAnswers[currentQuestionIndex] === index && <div className="w-3 h-3 bg-blue-500 rounded-full" />} 
+                  {!submitted && selectedAnswers[currentQuestionIndex] === index && <div className="w-3 h-3 bg-blue-500 rounded-full" />}
                 </div>
                 <span className="flex-1">{option}</span>
               </motion.div>
@@ -255,10 +255,10 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
           </div>
 
           {submitted && currentQuestion.explanation && (
-            <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-4 p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-300"
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-300"
             >
               <strong>Erklärung:</strong> {currentQuestion.explanation}
             </motion.div>
@@ -266,7 +266,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
           <div className="mt-6 text-right">
             {!submitted ? (
-              <button 
+              <button
                 onClick={handleSubmit}
                 disabled={selectedAnswers[currentQuestionIndex] === null}
                 className="px-6 py-2 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
@@ -274,17 +274,16 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
                 Antworten
               </button>
             ) : (
-              <button 
+              <button
                 onClick={handleNext}
                 disabled={quizCompleted}
-                className={`px-6 py-2 text-white font-bold rounded-full shadow-lg transition-all ${
-                  currentQuestionIndex === quiz.questions.length - 1 
-                    ? 'bg-purple-600 hover:bg-purple-700' 
+                className={`px-6 py-2 text-white font-bold rounded-full shadow-lg transition-all ${currentQuestionIndex === quiz.questions.length - 1
+                    ? 'bg-purple-600 hover:bg-purple-700'
                     : 'bg-green-600 hover:bg-green-700'
-                } disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                  } disabled:bg-gray-400 disabled:cursor-not-allowed`}
               >
-                {currentQuestionIndex === quiz.questions.length - 1 
-                  ? (quizCompleted ? 'Quiz abgeschlossen!' : 'Quiz abschließen') 
+                {currentQuestionIndex === quiz.questions.length - 1
+                  ? (quizCompleted ? 'Quiz abgeschlossen!' : 'Quiz abschließen')
                   : 'Nächste Frage'}
               </button>
             )}

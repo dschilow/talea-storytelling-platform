@@ -236,7 +236,8 @@ const SectionView: React.FC<{
                     viewport={{ once: false, amount: 0.3 }}
                     transition={{ duration: 1.5 }}
                     // Use section image idea to generate a placeholder or use a generic one if no image available
-                    src={`https://picsum.photos/seed/doku-${index}/1920/1080`}
+                    // Fallback to doku cover image if no specific section image is available
+                    src={section.imageIdea ? `https://picsum.photos/seed/${section.title}/1920/1080` : (doku.coverImageUrl || '/placeholder-doku.jpg')}
                     alt={section.title}
                     className="w-full h-full object-cover"
                 />
