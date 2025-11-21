@@ -18,6 +18,9 @@ import {
   describeSpecialIngredients,
   type StoryExperienceContext,
 } from "./story-experience";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 
 interface AvatarDetail {
   id: string;
@@ -662,6 +665,10 @@ export class FourPhaseOrchestrator {
   ): Promise<Chapter[]> {
     console.log("[4-Phase] Generating chapter images...");
 
+    // 🔧 OPTIMIZATION: Patch character assignments with updated visual profiles from JSON
+    // This ensures we use the manually corrected/enhanced character data
+    await this.patchCharacterAssignments(characterAssignments);
+
     const chapters: Chapter[] = [];
 
     // Generate all images in parallel for speed
@@ -727,6 +734,17 @@ export class FourPhaseOrchestrator {
    */
   private visualProfileToImagePrompt(vp: any): string {
     if (!vp) return 'no visual details available';
+
+    // OPTIMIZATION: Use the pre-generated, consistent image prompt if available
+    if (vp.imagePrompt && typeof vp.imagePrompt === 'string' && vp.imagePrompt.length > 10) {
+      // Strip "Portrait of [Name], " prefix if present to fit into scene description
+      let prompt = vp.imagePrompt;
+      // Remove common prefixes that might have been generated
+      prompt = prompt.replace(/^Portrait of [^,]+,\s*/i, '');
+      prompt = prompt.replace(/^A portrait of [^,]+,\s*/i, '');
+
+      return prompt;
+    }
 
     const parts: string[] = [];
 
@@ -844,6 +862,14 @@ export class FourPhaseOrchestrator {
     for (const char of characterAssignments.values()) {
       let fullDesc = char.visualProfile.description || 'default character';
 
+      // If we have a pre-built image prompt (from our optimization), use it!
+      // But visualProfileToImagePrompt already handles this.
+      // Wait, `char.visualProfile.description` is the TEXT description.
+      // `visualProfileToImagePrompt` converts the structured data (or uses the imagePrompt field).
+      // We should use `visualProfileToImagePrompt` here too!
+
+      fullDesc = this.visualProfileToImagePrompt(char.visualProfile);
+
       // OPTIMIZATION v2.4: Apply genre-aware costume override for pool characters too
       if (isGenreScene && fullDesc.includes('hoodie')) {
         if (isSteampunk) {
@@ -913,7 +939,57 @@ ENSURE SINGLE INSTANCE OF EACH CHARACTER. Do not generate twins or clones.
     `.trim();
   }
 
+  /**
+   * Helper to patch character assignments with updated data from JSON logs
+   */
+  private async patchCharacterAssignments(characterAssignments: Map<string, CharacterTemplate>) {
+    try {
+      // Find the latest character log file
+      const logDir = path.join(process.cwd(), 'Logs');
+      if (!fs.existsSync(logDir)) return;
 
+      const files = fs.readdirSync(logDir)
+        .filter(f => f.startsWith('talea-characters-') && f.endsWith('.json'))
+        .sort()
+        .reverse(); // Newest first
+
+      if (files.length === 0) return;
+
+      const latestFile = path.join(logDir, files[0]);
+      console.log(`[Orchestrator] Loading updated character data from ${latestFile}`);
+
+      const rawData = fs.readFileSync(latestFile, 'utf-8');
+      const updatedCharacters = JSON.parse(rawData);
+
+      // Create a lookup map by ID and Name
+      const charMap = new Map<string, any>();
+      for (const char of updatedCharacters) {
+        charMap.set(char.id, char);
+        if (char.name) charMap.set(char.name.toLowerCase(), char);
+      }
+
+      // Patch assignments
+      for (const [placeholder, template] of characterAssignments.entries()) {
+        let updated = charMap.get(template.id);
+        if (!updated && template.name) {
+          updated = charMap.get(template.name.toLowerCase());
+        }
+
+        if (updated && updated.visualProfile) {
+          console.log(`[Orchestrator] Patching visual profile for ${template.name}`);
+          template.visualProfile = {
+            ...template.visualProfile,
+            ...updated.visualProfile
+          };
+          // Also update name/role if changed
+          if (updated.name) template.name = updated.name;
+          if (updated.role) template.role = updated.role;
+        }
+      }
+    } catch (error) {
+      console.warn("[Orchestrator] Failed to patch character assignments:", error);
+    }
+  }
 
   /**
    * Generate a single image using AI service

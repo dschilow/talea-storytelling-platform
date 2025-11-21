@@ -17,18 +17,11 @@ export function buildImagePrompt(
 ): string {
 
   // 1. CHARACTERS BLOCK (DAS WICHTIGSTE!)
+  // Format: [Visual Description] (Name: [CharacterName])
+  // This separates the visual tokens from the name tokens to prevent "name bleeding"
   const charactersBlock = avatars.map((avatar, index) => {
-    const position = index === 0 ? "LEFT" : "RIGHT";
-
-    return `
-${avatar.name} (positioned ${position} side of frame):
-- Hair: ${avatar.hair.length}, ${avatar.hair.style}, ${avatar.hair.color}
-- Eyes: ${avatar.eyes.shape} ${avatar.eyes.color}, ${avatar.eyes.size}
-- Skin: ${avatar.skin.tone} with ${avatar.skin.features.join(', ')}
-- Clothing: ${avatar.clothing.primary} ${avatar.clothing.secondary}
-- Distinctive: ${avatar.distinctive.join(', ')}
-- Pose: natural child stance
-    `.trim();
+    const visualDesc = `${avatar.hair.color} hair, ${avatar.eyes.color} eyes, ${avatar.clothing.primary}`;
+    return `${visualDesc} (Name: ${avatar.name})`;
   }).join('\n\n');
 
   // 2. KRITISCHE UNTERSCHEIDUNG
@@ -39,25 +32,17 @@ ${avatar.name} (positioned ${position} side of frame):
   // 3. FINALER PROMPT
   return `
 Axel Scheffler watercolor storybook illustration with gentle gouache textures.
-Traditional pigments on textured paper, delicate brush strokes.
-
-PALETTE: warm rim light, soft pastels, hand-inked outlines, subtle vignette
-MOOD: whimsical hopeful mood with gentle story tension
-
+${environment}
+${composition}
 SCENE: ${scene}
 
 CHARACTERS:
-
 ${charactersBlock}
 
 CRITICAL: ${avatars.map(a => a.name).join(' and ')} must look VISUALLY DIFFERENT!
 - ${distinctions}
-- Different hair colors, eye colors, clothing colors!
-- Do NOT make them look similar or identical!
 
-ENVIRONMENT: ${environment}
-
-COMPOSITION: ${composition}
+Style: warm colors, child-friendly, hand-painted feel.
   `.trim();
 }
 
@@ -69,7 +54,7 @@ export class ImagePromptBuilder {
   constructor(
     private avatarCanons: Map<string, AvatarCanon>,
     private style: string = "Axel Scheffler watercolor"
-  ) {}
+  ) { }
 
   /**
    * Generate chapter prompt
