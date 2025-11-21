@@ -13,6 +13,11 @@
   ```
 - **Betroffene Commits:** Letzter guter Build: `7faad7c` (`feat: add cinematic story and doku viewers…`). Der Fehler kam mit `0734749` (Migration-Endpoint hinzugefügt). Der Fix ist in `5a2be96` (`fix: allow raw avatar migration sql`).
 
+## 2025-11-21: Regression nach Merge
+- **Symptom:** Gleiches `$1`-Problem erneut in GitHub Actions.
+- **Ursache:** Merge-Commit `18f183f`/`e81a22a` hat die alte Version von `migration-api.ts` (mit Template-Tag) wiedergebracht.
+- **Fix:** Erneut `avatarDB.exec(req.migrationSql)` verwenden. Fix-Commit: `1e82f87`.
+
 ## Wie prüfen?
 - Build/Action erneut laufen lassen.
 - Bei Bedarf Endpoint lokal per Encore ausführen und einen einfachen SQL-Befehl testen, z.B. `SELECT 1;`.
