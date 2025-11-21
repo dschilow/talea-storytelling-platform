@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, User, BookOpen, Sparkles, Library } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { useThemedColors } from '@/utils/theme/useThemedColors';
 
 // Import screens
 import HomeScreen from '@/screens/Home/HomeScreen';
@@ -18,6 +19,9 @@ import FairyTalesScreen from '@/screens/FairyTales/FairyTalesScreen';
 import FairyTalesListScreen from '@/screens/FairyTales/FairyTalesListScreen';
 import CharacterMappingScreen from '@/screens/FairyTales/CharacterMappingScreen';
 import ProfileScreen from '@/screens/Profile/ProfileScreen';
+import AchievementsScreen from '@/screens/Profile/AchievementsScreen';
+import DokuScreen from '@/screens/Doku/DokuScreen';
+import DokuReaderScreen from '@/screens/Doku/DokuReaderScreen';
 import SettingsScreen from '@/screens/Settings/SettingsScreen';
 import AuthScreen from '@/screens/Auth/AuthScreen';
 
@@ -28,20 +32,22 @@ const Tab = createBottomTabNavigator<MainTabsParamList>();
 
 // Main Tabs Navigator (after authentication)
 const MainTabsNavigator = () => {
+  const colors = useThemedColors();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#e5e7eb',
+          backgroundColor: colors.background.primary,
+          borderTopColor: colors.border.medium,
           borderTopWidth: 1,
           paddingBottom: 8,
           paddingTop: 8,
           height: 60,
         },
-        tabBarActiveTintColor: '#8b5cf6',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: colors.lavender[500],
+        tabBarInactiveTintColor: colors.text.secondary,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
@@ -120,7 +126,10 @@ export const AppNavigator = () => {
             <Stack.Screen name="StoryReader" component={StoryReaderScreen} />
             <Stack.Screen name="FairyTalesList" component={FairyTalesListScreen} />
             <Stack.Screen name="CharacterMapping" component={CharacterMappingScreen} />
+            <Stack.Screen name="Doku" component={DokuScreen} />
+            <Stack.Screen name="DokuReader" component={DokuReaderScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="Achievements" component={AchievementsScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -10,10 +10,14 @@ export type RootStackParamList = {
   AvatarEdit: { avatarId: string };
   StoryCreate: undefined;
   StoryReader: { storyId: string };
+  FairyTalesList: undefined;
   FairyTaleSelection: undefined;
   CharacterMapping: { taleId: string };
+  Doku: undefined;
   DokuCreate: undefined;
   DokuReader: { dokuId: string };
+  Settings: undefined;
+  Achievements: undefined;
 };
 
 export type MainTabsParamList = {

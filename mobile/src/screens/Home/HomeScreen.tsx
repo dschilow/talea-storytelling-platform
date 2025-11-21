@@ -4,10 +4,14 @@ import { useNavigation } from '@react-navigation/native';
 import { User, BookOpen, Sparkles, Plus } from 'lucide-react-native';
 import { colors } from '@/utils/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
+
+  // Initialize notifications
+  useNotifications();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

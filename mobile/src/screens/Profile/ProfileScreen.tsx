@@ -1,13 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LogOut, User, Settings } from 'lucide-react-native';
+import { LogOut, User, Settings, Trophy, Target, TrendingUp, Award } from 'lucide-react-native';
 import { colors } from '@/utils/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
+import { AchievementsService, UserStats } from '@/utils/gamification/AchievementsService';
+import { Card } from '@/components/ui/Card';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, signOut } = useAuth();
+  const [stats, setStats] = useState<UserStats | null>(null);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    const userStats = await AchievementsService.getUserStats();
+    setStats(userStats);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -37,10 +49,51 @@ const ProfileScreen = () => {
           <Text style={styles.userEmail}>
             {user?.primaryEmailAddress?.emailAddress}
           </Text>
+
+          {/* Level Badge */}
+          {stats && (
+            <View style={styles.levelBadge}>
+              <TrendingUp size={16} color="white" />
+              <Text style={styles.levelText}>Level {stats.level}</Text>
+            </View>
+          )}
         </View>
+
+        {/* Stats Cards */}
+        {stats && (
+          <View style={styles.statsGrid}>
+            <Card variant="elevated" style={styles.statCard}>
+              <Target size={24} color={colors.lavender[500]} />
+              <Text style={styles.statValue}>{stats.totalStories}</Text>
+              <Text style={styles.statLabel}>Geschichten</Text>
+            </Card>
+            <Card variant="elevated" style={styles.statCard}>
+              <User size={24} color={colors.peach[500]} />
+              <Text style={styles.statValue}>{stats.totalAvatars}</Text>
+              <Text style={styles.statLabel}>Avatare</Text>
+            </Card>
+            <Card variant="elevated" style={styles.statCard}>
+              <Trophy size={24} color={colors.mint[500]} />
+              <Text style={styles.statValue}>{stats.achievements.length}</Text>
+              <Text style={styles.statLabel}>Erfolge</Text>
+            </Card>
+            <Card variant="elevated" style={styles.statCard}>
+              <Award size={24} color={colors.coral[500]} />
+              <Text style={styles.statValue}>{stats.totalXP}</Text>
+              <Text style={styles.statLabel}>XP</Text>
+            </Card>
+          </View>
+        )}
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Achievements' as never)}
+          >
+            <Trophy size={24} color={colors.lavender[500]} />
+            <Text style={styles.menuText}>Erfolge & Achievements</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => navigation.navigate('Settings')}
@@ -116,6 +169,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.secondary,
   },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lavender[500],
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 16,
+  },
+  levelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'white',
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    width: '48%',
+    alignItems: 'center',
+    padding: 16,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 4,
+  },
+
   menuSection: {
     backgroundColor: 'white',
     borderRadius: 16,

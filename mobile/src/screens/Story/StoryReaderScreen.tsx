@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Image, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react-native';
+import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, Share2 } from 'lucide-react-native';
 import { colors } from '@/utils/constants/colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/utils/api/client';
+import { ShareService } from '@/utils/sharing/ShareService';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +48,24 @@ const StoryReaderScreen = () => {
     }
   };
 
+  const handleShareStory = async () => {
+    if (!story) return;
+
+    const excerpt = story.chapters?.[0]?.content?.substring(0, 150) + '...';
+    const storyUrl = ShareService.getStoryUrl(story.id);
+
+    const success = await ShareService.shareStory({
+      storyId: story.id,
+      title: story.title,
+      excerpt,
+      url: storyUrl,
+    });
+
+    if (success) {
+      Alert.alert('Erfolg', 'Geschichte erfolgreich geteilt!');
+    }
+  };
+
   if (loading || !story) {
     return (
       <View style={styles.loadingContainer}>
@@ -72,7 +91,9 @@ const StoryReaderScreen = () => {
             Kapitel {currentChapterIndex + 1} von {story.chapters.length}
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity onPress={handleShareStory} style={styles.shareButton}>
+          <Share2 size={24} color={colors.lavender[500]} />
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -176,6 +197,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  shareButton: {
+    padding: 8,
+  },
   headerInfo: {
     flex: 1,
     marginHorizontal: 12,
@@ -189,9 +213,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text.secondary,
     marginTop: 2,
-  },
-  headerSpacer: {
-    width: 40,
   },
 
   // Content

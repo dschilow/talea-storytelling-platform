@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Trash2, Database, Bell, Moon, Info } from 'lucide-react-native';
-import { colors } from '@/utils/constants/colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StorageUtil } from '@/utils/storage/AsyncStorageUtil';
+import { useTheme } from '@/utils/theme/ThemeContext';
+import { useThemedColors } from '@/utils/theme/useThemedColors';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
+  const { isDark, toggleTheme } = useTheme();
+  const colors = useThemedColors();
 
   const [cacheSize, setCacheSize] = useState(0);
   const [settings, setSettings] = useState({
     notifications: true,
-    darkMode: false,
     autoDownload: true,
   });
 
@@ -24,10 +26,9 @@ const SettingsScreen = () => {
 
   const loadSettings = async () => {
     const notifications = await StorageUtil.loadSetting('notifications', true);
-    const darkMode = await StorageUtil.loadSetting('darkMode', false);
     const autoDownload = await StorageUtil.loadSetting('autoDownload', true);
 
-    setSettings({ notifications, darkMode, autoDownload });
+    setSettings({ notifications, autoDownload });
   };
 
   const loadCacheSize = async () => {
@@ -71,13 +72,16 @@ const SettingsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background.secondary }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, {
+        backgroundColor: colors.background.primary,
+        borderBottomColor: colors.border.medium
+      }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Einstellungen</Text>
+        <Text style={[styles.headerTitle, { color: colors.text.primary }]}>Einstellungen</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -85,14 +89,14 @@ const SettingsScreen = () => {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Notifications */}
         <Card variant="elevated" style={styles.section}>
-          <Text style={styles.sectionTitle}>Benachrichtigungen</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Benachrichtigungen</Text>
 
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Bell size={20} color={colors.text.secondary} />
               <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Push-Benachrichtigungen</Text>
-                <Text style={styles.settingDesc}>
+                <Text style={[styles.settingLabel, { color: colors.text.primary }]}>Push-Benachrichtigungen</Text>
+                <Text style={[styles.settingDesc, { color: colors.text.secondary }]}>
                   Erhalte Updates wenn Geschichten fertig sind
                 </Text>
               </View>
@@ -108,35 +112,35 @@ const SettingsScreen = () => {
 
         {/* Appearance */}
         <Card variant="elevated" style={styles.section}>
-          <Text style={styles.sectionTitle}>Darstellung</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Darstellung</Text>
 
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Moon size={20} color={colors.text.secondary} />
               <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Dark Mode</Text>
-                <Text style={styles.settingDesc}>Dunkles Erscheinungsbild aktivieren</Text>
+                <Text style={[styles.settingLabel, { color: colors.text.primary }]}>Dark Mode</Text>
+                <Text style={[styles.settingDesc, { color: colors.text.secondary }]}>Dunkles Erscheinungsbild aktivieren</Text>
               </View>
             </View>
             <Switch
-              value={settings.darkMode}
-              onValueChange={(value) => updateSetting('darkMode', value)}
+              value={isDark}
+              onValueChange={toggleTheme}
               trackColor={{ false: colors.border.medium, true: colors.lavender[300] }}
-              thumbColor={settings.darkMode ? colors.lavender[500] : '#f4f3f4'}
+              thumbColor={isDark ? colors.lavender[500] : '#f4f3f4'}
             />
           </View>
         </Card>
 
         {/* Storage */}
         <Card variant="elevated" style={styles.section}>
-          <Text style={styles.sectionTitle}>Speicher</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Speicher</Text>
 
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Database size={20} color={colors.text.secondary} />
               <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Automatischer Download</Text>
-                <Text style={styles.settingDesc}>
+                <Text style={[styles.settingLabel, { color: colors.text.primary }]}>Automatischer Download</Text>
+                <Text style={[styles.settingDesc, { color: colors.text.secondary }]}>
                   Geschichten automatisch für Offline-Zugriff speichern
                 </Text>
               </View>
@@ -149,12 +153,12 @@ const SettingsScreen = () => {
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border.medium }]} />
 
           <View style={styles.cacheInfo}>
             <View style={styles.cacheRow}>
-              <Text style={styles.cacheLabel}>Gespeicherte Daten:</Text>
-              <Text style={styles.cacheValue}>{formatBytes(cacheSize)}</Text>
+              <Text style={[styles.cacheLabel, { color: colors.text.secondary }]}>Gespeicherte Daten:</Text>
+              <Text style={[styles.cacheValue, { color: colors.text.primary }]}>  {formatBytes(cacheSize)}</Text>
             </View>
             <Button
               title="Cache leeren"
@@ -171,13 +175,13 @@ const SettingsScreen = () => {
         <Card variant="elevated" style={styles.section}>
           <View style={styles.aboutHeader}>
             <Info size={20} color={colors.lavender[500]} />
-            <Text style={styles.sectionTitle}>Über Talea</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Über Talea</Text>
           </View>
 
           <View style={styles.aboutContent}>
-            <Text style={styles.aboutText}>Version 1.0.0</Text>
-            <Text style={styles.aboutText}>Made with ❤️ for Storytellers</Text>
-            <Text style={styles.aboutCopyright}>© 2025 Talea Platform</Text>
+            <Text style={[styles.aboutText, { color: colors.text.secondary }]}>Version 1.0.0</Text>
+            <Text style={[styles.aboutText, { color: colors.text.secondary }]}>Made with ❤️ for Storytellers</Text>
+            <Text style={[styles.aboutCopyright, { color: colors.text.light }]}>© 2025 Talea Platform</Text>
           </View>
         </Card>
       </ScrollView>
