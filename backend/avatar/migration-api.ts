@@ -25,7 +25,7 @@ export const runMigrationSql = api<RunMigrationRequest, RunMigrationResponse>(
 
         try {
             // Execute the SQL
-            await avatarDB.exec`${req.migrationSql}`;
+            await avatarDB.exec(req.migrationSql);
 
             console.log(`✅ Migration ${req.migrationName} completed successfully`);
 
