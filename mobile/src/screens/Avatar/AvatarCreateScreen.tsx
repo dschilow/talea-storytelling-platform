@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Card } from '@/components/ui/Card';
+import { ImagePickerButton } from '@/components/common/ImagePickerButton';
 import { api } from '@/utils/api/client';
 import { useAppDispatch } from '@/hooks/useRedux';
 import { addAvatar } from '@/store/slices/avatarSlice';
@@ -20,6 +21,7 @@ interface AvatarData {
   hairColor: string;
   eyeColor: string;
   specialFeatures: string;
+  imageUri?: string;
 }
 
 const AvatarCreateScreen = () => {
@@ -37,6 +39,7 @@ const AvatarCreateScreen = () => {
     hairColor: 'braun',
     eyeColor: 'braun',
     specialFeatures: '',
+    imageUri: undefined,
   });
 
   const updateData = (updates: Partial<AvatarData>) => {
@@ -202,6 +205,12 @@ const AvatarCreateScreen = () => {
               <Text style={styles.stepTitle}>Aussehen</Text>
               <Text style={styles.stepSubtitle}>Wie sieht dein Avatar aus?</Text>
             </View>
+
+            <ImagePickerButton
+              imageUri={avatarData.imageUri}
+              onImageSelected={(uri) => updateData({ imageUri: uri })}
+              onImageRemoved={() => updateData({ imageUri: undefined })}
+            />
 
             <Select
               label="Geschlecht"

@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { LogOut, User, Settings } from 'lucide-react-native';
 import { colors } from '@/utils/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 
 const ProfileScreen = () => {
+  const navigation = useNavigation();
   const { user, signOut } = useAuth();
 
   const handleSignOut = async () => {
@@ -39,7 +41,10 @@ const ProfileScreen = () => {
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
             <Settings size={24} color={colors.text.secondary} />
             <Text style={styles.menuText}>Einstellungen</Text>
           </TouchableOpacity>

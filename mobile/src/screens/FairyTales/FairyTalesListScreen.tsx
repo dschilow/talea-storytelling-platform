@@ -52,8 +52,7 @@ const FairyTalesListScreen = () => {
             <TouchableOpacity
               key={tale.id}
               onPress={() => {
-                // Navigate to character mapping or direct story creation
-                // navigation.navigate('CharacterMapping', { taleId: tale.id });
+                navigation.navigate('CharacterMapping', { taleId: tale.id });
               }}
             >
               <Card variant="elevated" style={styles.taleCard}>

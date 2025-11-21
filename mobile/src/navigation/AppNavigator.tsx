@@ -9,13 +9,16 @@ import { useAuth } from '@/hooks/useAuth';
 import HomeScreen from '@/screens/Home/HomeScreen';
 import AvatarsScreen from '@/screens/Avatar/AvatarsScreen';
 import AvatarCreateScreen from '@/screens/Avatar/AvatarCreateScreen';
+import AvatarEditScreen from '@/screens/Avatar/AvatarEditScreen';
 import AvatarDetailScreen from '@/screens/Avatar/AvatarDetailScreen';
 import StoriesScreen from '@/screens/Story/StoriesScreen';
 import StoryCreateScreen from '@/screens/Story/StoryCreateScreen';
 import StoryReaderScreen from '@/screens/Story/StoryReaderScreen';
 import FairyTalesScreen from '@/screens/FairyTales/FairyTalesScreen';
 import FairyTalesListScreen from '@/screens/FairyTales/FairyTalesListScreen';
+import CharacterMappingScreen from '@/screens/FairyTales/CharacterMappingScreen';
 import ProfileScreen from '@/screens/Profile/ProfileScreen';
+import SettingsScreen from '@/screens/Settings/SettingsScreen';
 import AuthScreen from '@/screens/Auth/AuthScreen';
 
 import type { RootStackParamList, MainTabsParamList } from './types';
@@ -111,10 +114,13 @@ export const AppNavigator = () => {
           <>
             <Stack.Screen name="MainTabs" component={MainTabsNavigator} />
             <Stack.Screen name="AvatarCreate" component={AvatarCreateScreen} />
+            <Stack.Screen name="AvatarEdit" component={AvatarEditScreen} />
             <Stack.Screen name="AvatarDetail" component={AvatarDetailScreen} />
             <Stack.Screen name="StoryCreate" component={StoryCreateScreen} />
             <Stack.Screen name="StoryReader" component={StoryReaderScreen} />
             <Stack.Screen name="FairyTalesList" component={FairyTalesListScreen} />
+            <Stack.Screen name="CharacterMapping" component={CharacterMappingScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         )}
       </Stack.Navigator>
