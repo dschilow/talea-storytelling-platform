@@ -24,8 +24,21 @@ export const runMigrationSql = api<RunMigrationRequest, RunMigrationResponse>(
         console.log(`🔄 Running migration: ${req.migrationName}`);
 
         try {
-            // Execute raw SQL string; don't parameterize to avoid `$1` placeholder
-            await avatarDB.exec(req.migrationSql);
+            // Split SQL into individual statements and execute them
+            const statements = req.migrationSql
+                .split(';')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            // Execute each statement using Encore's DB client
+            const pool = (avatarDB as any).pool;
+            if (!pool) {
+                throw new Error('Database pool not available');
+            }
+
+            for (const statement of statements) {
+                await pool.query(statement);
+            }
 
             console.log(`✅ Migration ${req.migrationName} completed successfully`);
 
