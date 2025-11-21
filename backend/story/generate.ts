@@ -273,6 +273,8 @@ export const generate = api<GenerateStoryRequest, Story>(
         visualProfile?: any;
         creationType: "ai-generated" | "photo-upload";
         isPublic: boolean;
+        inventory: any[];
+        skills: any[];
       }> = [];
 
       for (const avatarId of req.config.avatarIds) {
@@ -328,6 +330,8 @@ export const generate = api<GenerateStoryRequest, Story>(
           visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
           creationType: row.creation_type,
           isPublic: row.is_public,
+          inventory: [],
+          skills: [],
         });
       }
 
