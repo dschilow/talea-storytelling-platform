@@ -25,7 +25,7 @@ const HomeScreen = () => {
       <View style={styles.actionsGrid}>
         <TouchableOpacity
           style={[styles.actionCard, { backgroundColor: colors.lavender[100] }]}
-          onPress={() => navigation.navigate('Avatars')}
+          onPress={() => navigation.navigate('AvatarCreate')}
         >
           <View style={[styles.iconCircle, { backgroundColor: colors.lavender[500] }]}>
             <User size={24} color="white" />
@@ -36,7 +36,7 @@ const HomeScreen = () => {
 
         <TouchableOpacity
           style={[styles.actionCard, { backgroundColor: colors.peach[100] }]}
-          onPress={() => navigation.navigate('Stories')}
+          onPress={() => navigation.navigate('StoryCreate')}
         >
           <View style={[styles.iconCircle, { backgroundColor: colors.peach[500] }]}>
             <Plus size={24} color="white" />
@@ -47,7 +47,7 @@ const HomeScreen = () => {
 
         <TouchableOpacity
           style={[styles.actionCard, { backgroundColor: colors.mint[100] }]}
-          onPress={() => navigation.navigate('FairyTales')}
+          onPress={() => navigation.navigate('FairyTalesList')}
         >
           <View style={[styles.iconCircle, { backgroundColor: colors.mint[500] }]}>
             <Sparkles size={24} color="white" />

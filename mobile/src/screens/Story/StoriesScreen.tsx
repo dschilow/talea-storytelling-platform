@@ -31,7 +31,10 @@ const StoriesScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Meine Geschichten</Text>
-        <TouchableOpacity style={styles.createButton}>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => navigation.navigate('StoryCreate')}
+        >
           <Plus size={24} color="white" />
         </TouchableOpacity>
       </View>
@@ -47,13 +50,20 @@ const StoriesScreen = () => {
             <Text style={styles.emptyDesc}>
               Erstelle deine erste Geschichte und erlebe magische Abenteuer!
             </Text>
-            <TouchableOpacity style={styles.emptyButton}>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => navigation.navigate('StoryCreate')}
+            >
               <Text style={styles.emptyButtonText}>Geschichte erstellen</Text>
             </TouchableOpacity>
           </View>
         ) : (
           stories.map((story) => (
-            <TouchableOpacity key={story.id} style={styles.storyCard}>
+            <TouchableOpacity
+              key={story.id}
+              style={styles.storyCard}
+              onPress={() => navigation.navigate('StoryReader', { storyId: story.id })}
+            >
               <View style={styles.storyHeader}>
                 <Text style={styles.storyTitle}>{story.title}</Text>
                 <Text style={styles.storyDate}>

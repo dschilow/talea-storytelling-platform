@@ -31,7 +31,10 @@ const AvatarsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Meine Avatare</Text>
-        <TouchableOpacity style={styles.createButton}>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => navigation.navigate('AvatarCreate')}
+        >
           <Plus size={24} color="white" />
         </TouchableOpacity>
       </View>
@@ -47,14 +50,21 @@ const AvatarsScreen = () => {
             <Text style={styles.emptyDesc}>
               Erstelle deinen ersten Avatar, um Geschichten zu erleben!
             </Text>
-            <TouchableOpacity style={styles.emptyButton}>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => navigation.navigate('AvatarCreate')}
+            >
               <Text style={styles.emptyButtonText}>Avatar erstellen</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.grid}>
             {avatars.map((avatar) => (
-              <TouchableOpacity key={avatar.id} style={styles.avatarCard}>
+              <TouchableOpacity
+                key={avatar.id}
+                style={styles.avatarCard}
+                onPress={() => navigation.navigate('AvatarDetail', { avatarId: avatar.id })}
+              >
                 {avatar.imageUrl ? (
                   <Image source={{ uri: avatar.imageUrl }} style={styles.avatarImage} />
                 ) : (

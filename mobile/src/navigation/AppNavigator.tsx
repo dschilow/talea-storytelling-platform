@@ -5,11 +5,16 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, User, BookOpen, Sparkles, Library } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 
-// Import screens (we'll create these next)
+// Import screens
 import HomeScreen from '@/screens/Home/HomeScreen';
 import AvatarsScreen from '@/screens/Avatar/AvatarsScreen';
+import AvatarCreateScreen from '@/screens/Avatar/AvatarCreateScreen';
+import AvatarDetailScreen from '@/screens/Avatar/AvatarDetailScreen';
 import StoriesScreen from '@/screens/Story/StoriesScreen';
+import StoryCreateScreen from '@/screens/Story/StoryCreateScreen';
+import StoryReaderScreen from '@/screens/Story/StoryReaderScreen';
 import FairyTalesScreen from '@/screens/FairyTales/FairyTalesScreen';
+import FairyTalesListScreen from '@/screens/FairyTales/FairyTalesListScreen';
 import ProfileScreen from '@/screens/Profile/ProfileScreen';
 import AuthScreen from '@/screens/Auth/AuthScreen';
 
@@ -105,7 +110,11 @@ export const AppNavigator = () => {
         ) : (
           <>
             <Stack.Screen name="MainTabs" component={MainTabsNavigator} />
-            {/* Add more stack screens here for detail views, creation flows, etc. */}
+            <Stack.Screen name="AvatarCreate" component={AvatarCreateScreen} />
+            <Stack.Screen name="AvatarDetail" component={AvatarDetailScreen} />
+            <Stack.Screen name="StoryCreate" component={StoryCreateScreen} />
+            <Stack.Screen name="StoryReader" component={StoryReaderScreen} />
+            <Stack.Screen name="FairyTalesList" component={FairyTalesListScreen} />
           </>
         )}
       </Stack.Navigator>

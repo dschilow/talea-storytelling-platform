@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Sparkles } from 'lucide-react-native';
 import { colors } from '@/utils/constants/colors';
 
 const FairyTalesScreen = () => {
+  const navigation = useNavigation();
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -14,12 +17,17 @@ const FairyTalesScreen = () => {
       {/* Content */}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <View style={styles.emptyState}>
-          <Sparkles size={64} color={colors.text.light} />
+          <Sparkles size={64} color={colors.lavender[300]} />
           <Text style={styles.emptyTitle}>Klassische Märchen</Text>
           <Text style={styles.emptyDesc}>
             Entdecke zeitlose Geschichten und erlebe sie mit deinen eigenen Avataren neu!
           </Text>
-          <Text style={styles.comingSoon}>Wird bald verfügbar sein</Text>
+          <TouchableOpacity
+            style={styles.exploreButton}
+            onPress={() => navigation.navigate('FairyTalesList')}
+          >
+            <Text style={styles.exploreButtonText}>Märchen durchstöbern</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -66,11 +74,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 40,
   },
-  comingSoon: {
+  exploreButton: {
+    backgroundColor: colors.lavender[500],
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 24,
+  },
+  exploreButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    color: colors.lavender[500],
-    marginTop: 24,
   },
 });
 
