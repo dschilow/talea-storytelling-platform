@@ -32,13 +32,20 @@ export const runMigrationSql = api<RunMigrationRequest, RunMigrationResponse>(
 
             // Execute each statement using Encore's DB client
             // Note: We need to use the underlying connection pool for raw SQL
-            const pool = (avatarDB as any).pool;
-            if (!pool) {
-                throw new Error('Database pool not available');
-            }
+            const db = avatarDB as unknown as { pool?: { query: (sql: string) => Promise<unknown> }; exec?: (sql: string) => Promise<unknown> };
+            const pool = db.pool;
 
-            for (const statement of statements) {
-                await pool.query(statement);
+            if (pool?.query) {
+                for (const statement of statements) {
+                    await pool.query(statement);
+                }
+            } else if (db.exec) {
+                // Fallback for environments without exposed pool; cast avoids TemplateStringsArray typing
+                for (const statement of statements) {
+                    await db.exec(statement as any);
+                }
+            } else {
+                throw new Error('Database execution surface not available');
             }
 
             console.log(`✅ Migration ${req.migrationName} completed successfully`);

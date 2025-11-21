@@ -181,7 +181,10 @@ export interface Story {
 
 export type StorySummary = Omit<Story, 'chapters'>;
 
-type StoryAvatar = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "createdAt" | "updatedAt">;
+type StoryAvatar = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "createdAt" | "updatedAt"> & {
+  // Optional memories field keeps compatibility with ExtendedAvatarDetails in ai-generation
+  memories?: unknown[];
+};
 
 interface GenerateStoryRequest {
   userId: string;
