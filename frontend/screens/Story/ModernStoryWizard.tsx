@@ -2,12 +2,13 @@
 // 6 Schritte statt 20+ Parameter
 // Version 2.0 - November 2025
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationProgress, StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
+import { useTranslation } from 'react-i18next';
 
 // Import Steps
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
@@ -57,11 +58,34 @@ export default function ModernStoryWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
   const { userId } = useAuth();
-  
+  const { i18n } = useTranslation();
+
   const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
-  
+  const [userLanguage, setUserLanguage] = useState<string>('de');
+
+  // Load user's preferred language
+  useEffect(() => {
+    const loadUserLanguage = async () => {
+      try {
+        const profile = await backend.user.me();
+        if (profile.preferredLanguage) {
+          setUserLanguage(profile.preferredLanguage);
+        } else {
+          // Fallback to i18n language or browser language
+          setUserLanguage(i18n.language || 'de');
+        }
+      } catch (err) {
+        console.error('Failed to load user language:', err);
+        setUserLanguage(i18n.language || 'de');
+      }
+    };
+    if (backend && userId) {
+      loadUserLanguage();
+    }
+  }, [backend, userId, i18n.language]);
+
   const [state, setState] = useState<WizardState>({
     selectedAvatars: [],
     mainCategory: null,
@@ -111,11 +135,11 @@ export default function ModernStoryWizard() {
       await new Promise(r => setTimeout(r, 1200));
       
       setGenerationStep('text');
-      
+
       // Map wizard state to API request and generate story
-      const storyConfig = mapWizardStateToAPI(state);
+      const storyConfig = mapWizardStateToAPI(state, userLanguage);
       console.log('[ModernWizard] Generating story with config:', storyConfig);
-      
+
       const story = await backend.story.generate({
         userId,
         config: storyConfig,
@@ -307,7 +331,7 @@ export default function ModernStoryWizard() {
 }
 
 // Helper: Map wizard state to API request format
-function mapWizardStateToAPI(state: WizardState) {
+function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   // Convert wizard-friendly format to existing API format
   const ageGroupMap: Record<string, string> = {
     '3-5': '3-5',
@@ -354,6 +378,7 @@ function mapWizardStateToAPI(state: WizardState) {
     allowRhymes: state.rhymes,
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
+    language: userLanguage as 'de' | 'en',  // Pass user's preferred language
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic'
     }

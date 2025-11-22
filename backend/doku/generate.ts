@@ -49,6 +49,8 @@ export interface DokuSection {
   interactive?: DokuInteractive;
 }
 
+export type DokuLanguage = "de" | "en" | "fr" | "es" | "it" | "nl";
+
 export interface DokuConfig {
   topic: string;
   depth: DokuDepth;
@@ -59,6 +61,7 @@ export interface DokuConfig {
   handsOnActivities?: number; // 0..5
   tone?: "fun" | "neutral" | "curious";
   length?: "short" | "medium" | "long";
+  language?: DokuLanguage;
 }
 
 export interface Doku {
@@ -292,12 +295,35 @@ function buildOpenAIPayload(config: DokuConfig) {
     config.length === "short" ? 3 : config.length === "long" ? 7 : 5;
   const quizCount = Math.max(0, Math.min(config.quizQuestions ?? 3, 10));
   const activitiesCount = Math.max(0, Math.min(config.handsOnActivities ?? 1, 5));
+  const language = config.language ?? "de";
 
-  const system = `Du bist ein erfahrener Kinderwissens-Moderator im Stil von "Checker Tobi" bzw. Galileo Kids.
+  const prompts = getLanguagePrompts(language);
+
+  const system = prompts.system;
+
+  const user = prompts.user(config, sectionsCount, quizCount, activitiesCount);
+
+  return {
+    model: MODEL,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    response_format: { type: "json_object" },
+    max_completion_tokens: 12000,
+  };
+}
+
+function getLanguagePrompts(language: DokuLanguage) {
+  const prompts: Record<DokuLanguage, {
+    system: string;
+    user: (config: DokuConfig, sectionsCount: number, quizCount: number, activitiesCount: number) => string;
+  }> = {
+    de: {
+      system: `Du bist ein erfahrener Kinderwissens-Moderator im Stil von "Checker Tobi" bzw. Galileo Kids.
 Schreibe kindgerecht, spannend, präzise und korrekt. Nutze eine neugierige, positive Tonalität.
-KEINE gefährlichen, beängstigenden oder ungeeigneten Inhalte.`;
-
-  const user = `Erzeuge ein strukturiertes Lern-Dossier (Doku-Modus) zum Thema: "${config.topic}".
+KEINE gefährlichen, beängstigenden oder ungeeigneten Inhalte.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Erzeuge ein strukturiertes Lern-Dossier (Doku-Modus) zum Thema: "${config.topic}".
 
 Zielgruppe: ${config.ageGroup}
 Tiefe: ${config.depth}
@@ -351,17 +377,183 @@ Regeln:
     }
   ],
   "coverImagePrompt": "Kurzer Prompt für eine freundliche Cover-Illustration ohne Text"
-}`;
+}`
+    },
+    en: {
+      system: `You are an experienced children's educational moderator in the style of educational shows.
+Write in a child-friendly, exciting, precise and correct manner. Use a curious, positive tone.
+NO dangerous, frightening or inappropriate content.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Create a structured learning document (Doku mode) on the topic: "${config.topic}".
 
-  return {
-    model: MODEL,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    response_format: { type: "json_object" },
-    max_completion_tokens: 12000,
+Target audience: ${config.ageGroup}
+Depth: ${config.depth}
+Perspective (focus): ${config.perspective ?? "science"}
+Tone: ${config.tone ?? "curious"}
+Sections: ${sectionsCount}
+
+Interaction:
+- Quiz questions: ${config.includeInteractive ? quizCount : 0}
+- Hands-on activities: ${config.includeInteractive ? activitiesCount : 0}
+
+Rules:
+- Explain terms, use examples from children's world.
+- Each section with "keyFacts" in short points.
+- If interactions are active: suggest meaningful questions/answers and activities.
+- Respond EXCLUSIVELY as a JSON object with the following structure:
+
+{
+  "title": "Short, exciting title",
+  "summary": "1-3 sentences child-friendly summary",
+  "sections": [
+    {
+      "title": "Section title",
+      "content": "Flowing text (120-220 words) with examples, vivid, easy to understand.",
+      "keyFacts": ["Point 1", "Point 2", "Point 3"],
+      "imageIdea": "short description for possible illustration",
+      "interactive": {
+        "quiz": {
+          "enabled": true|false,
+          "questions": [
+            {
+              "question": "Question?",
+              "options": ["A", "B", "C", "D"],
+              "answerIndex": 0,
+              "explanation": "Why is this correct?"
+            }
+          ]
+        },
+        "activities": {
+          "enabled": true|false,
+          "items": [
+            {
+              "title": "Activity",
+              "description": "Child-friendly instructions",
+              "materials": ["Paper", "Pens"],
+              "durationMinutes": 10
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "coverImagePrompt": "Short prompt for a friendly cover illustration without text"
+}`
+    },
+    fr: {
+      system: `Tu es un modérateur expérimenté de connaissances pour enfants.
+Écris de manière adaptée aux enfants, passionnante, précise et correcte. Utilise une tonalité curieuse et positive.
+AUCUN contenu dangereux, effrayant ou inapproprié.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Crée un dossier d'apprentissage structuré sur le sujet: "${config.topic}".
+
+Public cible: ${config.ageGroup}
+Profondeur: ${config.depth}
+Perspective: ${config.perspective ?? "science"}
+Ton: ${config.tone ?? "curious"}
+Sections: ${sectionsCount}
+
+Interaction:
+- Questions quiz: ${config.includeInteractive ? quizCount : 0}
+- Activités pratiques: ${config.includeInteractive ? activitiesCount : 0}
+
+Règles:
+- Expliquer les termes, utiliser des exemples du monde des enfants.
+- Chaque section avec "keyFacts" en points courts.
+- Répondre EXCLUSIVEMENT avec un objet JSON de la structure suivante:
+
+{
+  "title": "Titre court et passionnant",
+  "summary": "Résumé adapté aux enfants en 1-3 phrases",
+  "sections": [...],
+  "coverImagePrompt": "Prompt court pour une illustration de couverture amicale sans texte"
+}`
+    },
+    es: {
+      system: `Eres un moderador experimentado de conocimientos para niños.
+Escribe de manera adecuada para niños, emocionante, precisa y correcta. Usa un tono curioso y positivo.
+SIN contenido peligroso, aterrador o inapropiado.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documento de aprendizaje estructurado sobre el tema: "${config.topic}".
+
+Público objetivo: ${config.ageGroup}
+Profundidad: ${config.depth}
+Perspectiva: ${config.perspective ?? "science"}
+Tono: ${config.tone ?? "curious"}
+Secciones: ${sectionsCount}
+
+Interacción:
+- Preguntas de quiz: ${config.includeInteractive ? quizCount : 0}
+- Actividades prácticas: ${config.includeInteractive ? activitiesCount : 0}
+
+Reglas:
+- Explicar términos, usar ejemplos del mundo de los niños.
+- Cada sección con "keyFacts" en puntos cortos.
+- Responder EXCLUSIVAMENTE como un objeto JSON con la siguiente estructura:
+
+{
+  "title": "Título corto y emocionante",
+  "summary": "Resumen adaptado a niños en 1-3 frases",
+  "sections": [...],
+  "coverImagePrompt": "Prompt corto para una ilustración de portada amigable sin texto"
+}`
+    },
+    it: {
+      system: `Sei un moderatore esperto di conoscenze per bambini.
+Scrivi in modo adatto ai bambini, emozionante, preciso e corretto. Usa un tono curioso e positivo.
+NESSUN contenuto pericoloso, spaventoso o inappropriato.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documento di apprendimento strutturato sul tema: "${config.topic}".
+
+Pubblico target: ${config.ageGroup}
+Profondità: ${config.depth}
+Prospettiva: ${config.perspective ?? "science"}
+Tono: ${config.tone ?? "curious"}
+Sezioni: ${sectionsCount}
+
+Interazione:
+- Domande quiz: ${config.includeInteractive ? quizCount : 0}
+- Attività pratiche: ${config.includeInteractive ? activitiesCount : 0}
+
+Regole:
+- Spiegare i termini, usare esempi dal mondo dei bambini.
+- Ogni sezione con "keyFacts" in punti brevi.
+- Rispondere ESCLUSIVAMENTE come un oggetto JSON con la seguente struttura:
+
+{
+  "title": "Titolo breve ed emozionante",
+  "summary": "Riassunto adatto ai bambini in 1-3 frasi",
+  "sections": [...],
+  "coverImagePrompt": "Prompt breve per un'illustrazione di copertina amichevole senza testo"
+}`
+    },
+    nl: {
+      system: `Je bent een ervaren kinderkennis-moderator.
+Schrijf kindvriendelijk, spannend, nauwkeurig en correct. Gebruik een nieuwsgierige, positieve toon.
+GEEN gevaarlijke, angstaanjagende of ongepaste inhoud.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Maak een gestructureerd leerdocument over het onderwerp: "${config.topic}".
+
+Doelgroep: ${config.ageGroup}
+Diepte: ${config.depth}
+Perspectief: ${config.perspective ?? "science"}
+Toon: ${config.tone ?? "curious"}
+Secties: ${sectionsCount}
+
+Interactie:
+- Quiz vragen: ${config.includeInteractive ? quizCount : 0}
+- Praktische activiteiten: ${config.includeInteractive ? activitiesCount : 0}
+
+Regels:
+- Termen uitleggen, voorbeelden uit de kinderwereld gebruiken.
+- Elke sectie met "keyFacts" in korte punten.
+- Reageer UITSLUITEND als een JSON-object met de volgende structuur:
+
+{
+  "title": "Korte, spannende titel",
+  "summary": "Kindvriendelijke samenvatting in 1-3 zinnen",
+  "sections": [...],
+  "coverImagePrompt": "Korte prompt voor een vriendelijke omslag illustratie zonder tekst"
+}`
+    },
   };
+
+  return prompts[language];
 }
 
 // Infer a knowledge subcategory ID from topic/perspective

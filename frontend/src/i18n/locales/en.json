@@ -1,0 +1,275 @@
+{
+  "common": {
+    "appName": "Talea",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "close": "Close",
+    "confirm": "Confirm",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "new": "New",
+    "yes": "Yes",
+    "no": "No"
+  },
+
+  "navigation": {
+    "home": "Home",
+    "avatars": "Avatars",
+    "stories": "Stories",
+    "doku": "Knowledge Docs",
+    "chat": "Tavi Chat",
+    "settings": "Settings",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+
+  "auth": {
+    "welcome": "Welcome to Talea",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "continue": "Continue"
+  },
+
+  "home": {
+    "welcome": "Welcome back!",
+    "subtitle": "What would you like to discover today?",
+    "createStory": "New Story",
+    "createDoku": "New Doc",
+    "myAvatars": "My Avatars",
+    "recentStories": "Recent Stories",
+    "recentDokus": "Recent Docs",
+    "noStories": "No stories created yet",
+    "noDokus": "No docs created yet",
+    "getStarted": "Get started and create your first story!"
+  },
+
+  "avatar": {
+    "title": "Avatars",
+    "subtitle": "Create and manage your characters",
+    "create": "Create Avatar",
+    "createNew": "Create New Avatar",
+    "myAvatars": "My Avatars",
+    "publicAvatars": "Public Avatars",
+    "name": "Name",
+    "description": "Description",
+    "physicalTraits": "Physical Traits",
+    "personality": "Personality",
+    "image": "Image",
+    "generateImage": "Generate Image",
+    "uploadPhoto": "Upload Photo",
+    "makePublic": "Make Public",
+    "deleteConfirm": "Are you sure you want to delete this avatar?",
+    "personalityTraits": {
+      "knowledge": "Knowledge",
+      "creativity": "Creativity",
+      "vocabulary": "Vocabulary",
+      "courage": "Courage",
+      "curiosity": "Curiosity",
+      "teamwork": "Teamwork",
+      "empathy": "Empathy",
+      "persistence": "Persistence",
+      "logic": "Logic"
+    },
+    "stats": {
+      "level": "Level",
+      "stories": "Stories",
+      "dokus": "Docs",
+      "totalTraits": "Total Traits"
+    }
+  },
+
+  "story": {
+    "title": "Stories",
+    "subtitle": "Create personalized AI stories",
+    "create": "Create Story",
+    "myStories": "My Stories",
+    "generating": "Generating story...",
+    "selectAvatars": "Select Avatars",
+    "selectAvatarsSubtitle": "Choose up to 3 avatars for the story",
+    "ageGroup": "Age Group",
+    "genre": "Genre",
+    "length": "Length",
+    "complexity": "Complexity",
+    "tone": "Tone",
+    "settings": "Settings",
+    "advanced": "Advanced",
+    "customPrompt": "Custom Request",
+    "customPromptPlaceholder": "Describe your desired story...",
+    "generateStory": "Generate Story",
+    "ageGroups": {
+      "3-5": "3-5 years",
+      "6-8": "6-8 years",
+      "9-12": "9-12 years",
+      "13+": "13+ years"
+    },
+    "genres": {
+      "adventure": "Adventure",
+      "fantasy": "Fantasy",
+      "mystery": "Mystery",
+      "scifi": "Science Fiction",
+      "friendship": "Friendship",
+      "nature": "Nature",
+      "fairytale": "Fairy Tale",
+      "comedy": "Comedy"
+    },
+    "lengths": {
+      "short": "Short (3-5 min)",
+      "medium": "Medium (8-12 min)",
+      "long": "Long (15-20 min)"
+    },
+    "complexities": {
+      "simple": "Simple",
+      "medium": "Medium",
+      "complex": "Complex"
+    },
+    "tones": {
+      "warm": "Warm",
+      "witty": "Witty",
+      "epic": "Epic",
+      "soothing": "Soothing",
+      "mischievous": "Mischievous",
+      "wonder": "Wonder"
+    },
+    "options": {
+      "rhymes": "With Rhymes",
+      "twist": "Surprise Ending",
+      "fairyTale": "Fairy Tale Template",
+      "suspenseLevel": "Suspense Level",
+      "humorLevel": "Humor Level"
+    },
+    "readStory": "Read Story",
+    "chapters": "Chapters",
+    "noStories": "No stories yet",
+    "generationError": "Generation error"
+  },
+
+  "doku": {
+    "title": "Knowledge Docs",
+    "subtitle": "Learn with AI-generated knowledge content",
+    "create": "Create Doc",
+    "myDokus": "My Docs",
+    "publicDokus": "Public Docs",
+    "generating": "Generating doc...",
+    "topic": "Topic",
+    "topicPlaceholder": "What would you like to learn about?",
+    "depth": "Depth",
+    "ageGroup": "Age Group",
+    "perspective": "Perspective",
+    "tone": "Tone",
+    "length": "Length",
+    "interactive": "Interactive Elements",
+    "quizQuestions": "Quiz Questions",
+    "activities": "Hands-on Activities",
+    "generateDoku": "Generate Doc",
+    "depths": {
+      "basic": "Basic",
+      "standard": "Standard",
+      "deep": "Deep"
+    },
+    "perspectives": {
+      "science": "Science",
+      "history": "History",
+      "technology": "Technology",
+      "nature": "Nature",
+      "culture": "Culture"
+    },
+    "tones": {
+      "fun": "Fun",
+      "neutral": "Neutral",
+      "curious": "Curious"
+    },
+    "readDoku": "Read Doc",
+    "sections": "Sections",
+    "keyFacts": "Key Facts",
+    "noDokus": "No docs yet",
+    "generationError": "Generation error"
+  },
+
+  "chat": {
+    "title": "Tavi Chat",
+    "subtitle": "Chat with your AI assistant",
+    "placeholder": "Write a message...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "newConversation": "New Conversation",
+    "deleteConversation": "Delete Conversation"
+  },
+
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Customize your preferences",
+    "account": "Account",
+    "profile": "Profile",
+    "language": "Language",
+    "languageDescription": "Choose your preferred language for the user interface and generated content",
+    "selectLanguage": "Select Language",
+    "currentLanguage": "Current Language",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "subscription": "Subscription",
+    "billing": "Billing",
+    "support": "Support",
+    "about": "About",
+    "version": "Version",
+    "subscriptionPlans": {
+      "starter": "Starter",
+      "familie": "Family",
+      "premium": "Premium"
+    },
+    "saved": "Settings saved",
+    "saveFailed": "Save failed"
+  },
+
+  "admin": {
+    "title": "Admin Dashboard",
+    "users": "Users",
+    "avatars": "Avatars",
+    "stories": "Stories",
+    "dokus": "Docs",
+    "logs": "Logs",
+    "statistics": "Statistics",
+    "totalUsers": "Total Users",
+    "totalAvatars": "Total Avatars",
+    "totalStories": "Total Stories",
+    "totalDokus": "Total Docs"
+  },
+
+  "errors": {
+    "generic": "An error occurred",
+    "networkError": "Network error. Please check your internet connection.",
+    "unauthorized": "Unauthorized. Please sign in.",
+    "notFound": "Not found",
+    "serverError": "Server error. Please try again later.",
+    "validationError": "Invalid input",
+    "formIncomplete": "Please fill out all required fields",
+    "avatarRequired": "Please select at least one avatar",
+    "topicRequired": "Please enter a topic"
+  },
+
+  "validation": {
+    "required": "Required",
+    "email": "Invalid email address",
+    "minLength": "At least {{count}} characters",
+    "maxLength": "Maximum {{count}} characters",
+    "nameRequired": "Name is required",
+    "descriptionRequired": "Description is required"
+  }
+}
