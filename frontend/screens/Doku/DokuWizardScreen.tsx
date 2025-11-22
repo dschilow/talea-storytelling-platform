@@ -8,6 +8,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
+import { useTranslation } from 'react-i18next';
 import type { doku } from '../../client';
 
 type DokuConfig = doku.DokuConfig;
@@ -28,6 +29,7 @@ interface DokuListItem {
 const DokuWizardScreen: React.FC = () => {
   const { user, isSignedIn } = useUser();
   const backend = useBackend();
+  const { i18n } = useTranslation();
 
   const [topic, setTopic] = useState('');
   const [ageGroup, setAgeGroup] = useState<'3-5' | '6-8' | '9-12' | '13+'>('6-8');
@@ -39,9 +41,30 @@ const DokuWizardScreen: React.FC = () => {
   const [quizQuestions, setQuizQuestions] = useState(3);
   const [handsOnActivities, setHandsOnActivities] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [userLanguage, setUserLanguage] = useState<string>('de');
 
   const [dokus, setDokus] = useState<DokuListItem[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+
+  // Load user's preferred language
+  useEffect(() => {
+    const loadUserLanguage = async () => {
+      try {
+        const profile = await backend.user.me();
+        if (profile.preferredLanguage) {
+          setUserLanguage(profile.preferredLanguage);
+        } else {
+          setUserLanguage(i18n.language || 'de');
+        }
+      } catch (err) {
+        console.error('Failed to load user language:', err);
+        setUserLanguage(i18n.language || 'de');
+      }
+    };
+    if (backend && user) {
+      loadUserLanguage();
+    }
+  }, [backend, user, i18n.language]);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -79,6 +102,7 @@ const DokuWizardScreen: React.FC = () => {
         handsOnActivities: includeInteractive ? handsOnActivities : 0,
         tone,
         length,
+        language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl',  // Pass user's preferred language
       };
       const created = await backend.doku.generateDoku({
         userId: user.id,
