@@ -34,6 +34,7 @@ import DokusScreen from './screens/Doku/DokusScreen';
 import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const AppContent = () => (
   <Router>
@@ -156,7 +157,9 @@ export default function App() {
   return (
     <Provider store={store}>
       <ClerkProvider publishableKey={clerkPublishableKey}>
-        <AppContent />
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
       </ClerkProvider>
     </Provider>
   );
