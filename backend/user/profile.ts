@@ -7,7 +7,7 @@ const userDB = new SQLDatabase("user", {
   migrations: "./migrations",
 });
 
-export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl";
+export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type Theme = "light" | "dark" | "system";
 
 export interface UserProfile {

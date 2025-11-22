@@ -88,18 +88,18 @@ export default function SettingsScreen() {
           <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
             <div className="mb-4">
               <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-                Darstellung
+                {t('settings.themeTitle')}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Wähle zwischen hellem, dunklem oder automatischem Modus
+                {t('settings.themeDescription')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { value: 'light' as ThemeOption, icon: Sun, label: 'Hell', description: 'Helles Theme' },
-                { value: 'dark' as ThemeOption, icon: Moon, label: 'Dunkel', description: 'Dunkles Theme' },
-                { value: 'system' as ThemeOption, icon: Monitor, label: 'System', description: 'Automatisch' },
+                { value: 'light' as ThemeOption, icon: Sun, label: t('settings.light'), description: t('settings.lightDescription') },
+                { value: 'dark' as ThemeOption, icon: Moon, label: t('settings.dark'), description: t('settings.darkDescription') },
+                { value: 'system' as ThemeOption, icon: Monitor, label: t('settings.system'), description: t('settings.systemDescription') },
               ].map((themeOption) => {
                 const Icon = themeOption.icon;
                 return (

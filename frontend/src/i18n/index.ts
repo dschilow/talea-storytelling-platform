@@ -8,6 +8,7 @@ import fr from './locales/fr.json';
 import es from './locales/es.json';
 import it from './locales/it.json';
 import nl from './locales/nl.json';
+import ru from './locales/ru.json';
 
 // Supported languages configuration
 export const SUPPORTED_LANGUAGES = [
@@ -17,6 +18,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
   { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
   { code: 'nl', name: 'Dutch', nativeName: 'Nederlands', flag: '🇳🇱' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' },
 ] as const;
 
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number]['code'];
@@ -29,6 +31,7 @@ const resources = {
   es: { translation: es },
   it: { translation: it },
   nl: { translation: nl },
+  ru: { translation: ru },
 };
 
 i18n

@@ -49,7 +49,7 @@ export interface DokuSection {
   interactive?: DokuInteractive;
 }
 
-export type DokuLanguage = "de" | "en" | "fr" | "es" | "it" | "nl";
+export type DokuLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 
 export interface DokuConfig {
   topic: string;
@@ -549,6 +549,34 @@ Regels:
   "summary": "Kindvriendelijke samenvatting in 1-3 zinnen",
   "sections": [...],
   "coverImagePrompt": "Korte prompt voor een vriendelijke omslag illustratie zonder tekst"
+}`
+    },
+    ru: {
+      system: `Вы опытный модератор детских образовательных программ.
+Пишите доступно для детей, увлекательно, точно и правильно. Используйте любознательный, позитивный тон.
+НИКАКОГО опасного, пугающего или неподходящего контента.`,
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Создайте структурированный обучающий документ на тему: "${config.topic}".
+
+Целевая аудитория: ${config.ageGroup}
+Глубина: ${config.depth}
+Перспектива: ${config.perspective ?? "science"}
+Тон: ${config.tone ?? "curious"}
+Разделы: ${sectionsCount}
+
+Интерактивность:
+- Вопросы викторины: ${config.includeInteractive ? quizCount : 0}
+- Практические активности: ${config.includeInteractive ? activitiesCount : 0}
+
+Правила:
+- Объясняйте термины, используйте примеры из детского мира.
+- Каждый раздел с "keyFacts" в коротких пунктах.
+- Отвечайте ИСКЛЮЧИТЕЛЬНО в виде JSON-объекта следующей структуры:
+
+{
+  "title": "Короткий, увлекательный заголовок",
+  "summary": "Резюме для детей в 1-3 предложениях",
+  "sections": [...],
+  "coverImagePrompt": "Короткий промпт для дружелюбной обложки без текста"
 }`
     },
   };
