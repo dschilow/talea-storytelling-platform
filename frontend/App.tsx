@@ -33,6 +33,7 @@ import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
 import DokusScreen from './screens/Doku/DokusScreen';
 import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
+import SettingsScreen from './screens/Settings/SettingsScreen';
 
 const AppContent = () => (
   <Router>
@@ -61,6 +62,7 @@ const AppContent = () => (
           <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
           <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
           <Route path="/auth" element={<AuthScreen />} />
+          <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/_admin" element={<AdminDashboard />} />
         </Route>
       </Routes>

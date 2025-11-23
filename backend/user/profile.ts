@@ -13,6 +13,7 @@ export interface UserProfile {
   name: string;
   subscription: "starter" | "familie" | "premium";
   role: "admin" | "user";
+  preferredLanguage: "de" | "en" | "fr" | "es" | "it";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,7 @@ interface CreateUserRequest {
   name: string;
   subscription?: "starter" | "familie" | "premium";
   role?: "admin" | "user";
+  preferredLanguage?: "de" | "en" | "fr" | "es" | "it";
 }
 
 interface GetUserParams {
@@ -36,8 +38,8 @@ export const create = api<CreateUserRequest, UserProfile>(
     const now = new Date();
     
     await userDB.exec`
-      INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-      VALUES (${id}, ${req.email}, ${req.name}, ${req.subscription || "starter"}, ${req.role || "user"}, ${now}, ${now})
+      INSERT INTO users (id, email, name, subscription, role, preferred_language, created_at, updated_at)
+      VALUES (${id}, ${req.email}, ${req.name}, ${req.subscription || "starter"}, ${req.role || "user"}, ${req.preferredLanguage || "de"}, ${now}, ${now})
     `;
 
     return {
@@ -46,6 +48,7 @@ export const create = api<CreateUserRequest, UserProfile>(
       name: req.name,
       subscription: (req.subscription || "starter") as UserProfile["subscription"],
       role: (req.role || "user") as UserProfile["role"],
+      preferredLanguage: (req.preferredLanguage || "de") as UserProfile["preferredLanguage"],
       createdAt: now,
       updatedAt: now,
     };
@@ -62,10 +65,11 @@ export const get = api<GetUserParams, UserProfile>(
       name: string;
       subscription: "starter" | "familie" | "premium";
       role: "admin" | "user";
+      preferredLanguage: "de" | "en" | "fr" | "es" | "it";
       createdAt: Date;
       updatedAt: Date;
     }>`
-      SELECT id, email, name, subscription, role, created_at as "createdAt", updated_at as "updatedAt"
+      SELECT id, email, name, subscription, role, preferred_language as "preferredLanguage", created_at as "createdAt", updated_at as "updatedAt"
       FROM users WHERE id = ${id}
     `;
 
@@ -84,8 +88,8 @@ export const me = api<void, UserProfile>(
   async () => {
     const auth = getAuthData()!;
     
-    const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date }>`
-      SELECT id, email, name, subscription, role, created_at, updated_at
+    const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date; preferred_language: string }>`
+      SELECT id, email, name, subscription, role, preferred_language, created_at, updated_at
       FROM users WHERE id = ${auth.userID}
     `;
 
@@ -101,6 +105,7 @@ export const me = api<void, UserProfile>(
       name: user.name,
       subscription: user.subscription,
       role: user.role,
+      preferredLanguage: user.preferred_language as UserProfile["preferredLanguage"],
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };

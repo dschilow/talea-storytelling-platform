@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Clock,
   Award,
+  Settings,
 } from 'lucide-react';
 
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardDescription, ModernCardContent } from '../../components/ui/modern-card';
@@ -399,6 +400,14 @@ const ModernHomeScreen: React.FC = () => {
               </motion.p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <ModernButton
+                variant="outline"
+                size="sm"
+                icon={<Settings size={18} />}
+                onClick={() => navigate('/settings')}
+              >
+                Einstellungen
+              </ModernButton>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <UserButton afterSignOutUrl="/" />
               </motion.div>
