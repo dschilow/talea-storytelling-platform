@@ -34,6 +34,9 @@ import DokusScreen from './screens/Doku/DokusScreen';
 import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
+import SearchResultsScreen from './screens/Search/SearchResultsScreen';
+import PublicGalleryScreen from './screens/Community/PublicGalleryScreen';
+import ParentDashboardScreen from './screens/Parent/ParentDashboardScreen';
 
 const AppContent = () => (
   <Router>
@@ -53,7 +56,7 @@ const AppContent = () => (
           <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
           <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
           <Route path="/stories" element={<StoriesScreen />} />
-          <Route path="/community" element={<HomeScreen />} />
+          <Route path="/community" element={<PublicGalleryScreen />} />
           <Route path="/logs" element={<LogViewerScreen />} />
           <Route path="/doku" element={<DokusScreen />} />
           <Route path="/characters" element={<CharacterPoolScreen />} />
@@ -62,6 +65,8 @@ const AppContent = () => (
           <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
           <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/search" element={<SearchResultsScreen />} />
+          <Route path="/parent" element={<ParentDashboardScreen />} />
           <Route path="/auth" element={<AuthScreen />} />
           <Route path="/_admin" element={<AdminDashboard />} />
         </Route>
