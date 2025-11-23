@@ -21,7 +21,13 @@
       "Bash(bun:*)",
       "Bash(git add:*)",
       "Bash(git restore:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(dir:*)",
+      "Bash(encore db shell:*)",
+      "Bash(encore gen client:*)",
+      "Bash(encore run:*)",
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []
