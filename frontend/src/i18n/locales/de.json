@@ -1,0 +1,283 @@
+{
+  "common": {
+    "appName": "Talea",
+    "loading": "Lädt...",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "finish": "Fertig",
+    "close": "Schließen",
+    "confirm": "Bestätigen",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "sort": "Sortieren",
+    "new": "Neu",
+    "yes": "Ja",
+    "no": "Nein"
+  },
+
+  "navigation": {
+    "home": "Start",
+    "avatars": "Avatare",
+    "stories": "Geschichten",
+    "doku": "Wissens-Dokus",
+    "chat": "Tavi Chat",
+    "settings": "Einstellungen",
+    "admin": "Admin",
+    "logout": "Abmelden"
+  },
+
+  "auth": {
+    "welcome": "Willkommen bei Talea",
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "signOut": "Abmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "noAccount": "Noch kein Konto?",
+    "hasAccount": "Bereits ein Konto?",
+    "continue": "Weiter"
+  },
+
+  "home": {
+    "welcome": "Willkommen zurück!",
+    "subtitle": "Was möchtest du heute entdecken?",
+    "createStory": "Neue Geschichte",
+    "createDoku": "Neue Doku",
+    "myAvatars": "Meine Avatare",
+    "recentStories": "Letzte Geschichten",
+    "recentDokus": "Letzte Dokus",
+    "noStories": "Noch keine Geschichten erstellt",
+    "noDokus": "Noch keine Dokus erstellt",
+    "getStarted": "Leg los und erstelle deine erste Geschichte!"
+  },
+
+  "avatar": {
+    "title": "Avatare",
+    "subtitle": "Erstelle und verwalte deine Charaktere",
+    "create": "Avatar erstellen",
+    "createNew": "Neuen Avatar erstellen",
+    "myAvatars": "Meine Avatare",
+    "publicAvatars": "Öffentliche Avatare",
+    "name": "Name",
+    "description": "Beschreibung",
+    "physicalTraits": "Äußere Merkmale",
+    "personality": "Persönlichkeit",
+    "image": "Bild",
+    "generateImage": "Bild generieren",
+    "uploadPhoto": "Foto hochladen",
+    "makePublic": "Öffentlich machen",
+    "deleteConfirm": "Bist du sicher, dass du diesen Avatar löschen möchtest?",
+    "personalityTraits": {
+      "knowledge": "Wissen",
+      "creativity": "Kreativität",
+      "vocabulary": "Wortschatz",
+      "courage": "Mut",
+      "curiosity": "Neugier",
+      "teamwork": "Teamwork",
+      "empathy": "Empathie",
+      "persistence": "Ausdauer",
+      "logic": "Logik"
+    },
+    "stats": {
+      "level": "Level",
+      "stories": "Geschichten",
+      "dokus": "Dokus",
+      "totalTraits": "Gesamt-Traits"
+    }
+  },
+
+  "story": {
+    "title": "Geschichten",
+    "subtitle": "Erstelle personalisierte KI-Geschichten",
+    "create": "Geschichte erstellen",
+    "myStories": "Meine Geschichten",
+    "generating": "Geschichte wird generiert...",
+    "selectAvatars": "Avatare auswählen",
+    "selectAvatarsSubtitle": "Wähle bis zu 3 Avatare für die Geschichte",
+    "ageGroup": "Altersgruppe",
+    "genre": "Genre",
+    "length": "Länge",
+    "complexity": "Komplexität",
+    "tone": "Ton",
+    "settings": "Einstellungen",
+    "advanced": "Erweitert",
+    "customPrompt": "Eigener Wunsch",
+    "customPromptPlaceholder": "Beschreibe deine Wunsch-Geschichte...",
+    "generateStory": "Geschichte generieren",
+    "ageGroups": {
+      "3-5": "3-5 Jahre",
+      "6-8": "6-8 Jahre",
+      "9-12": "9-12 Jahre",
+      "13+": "13+ Jahre"
+    },
+    "genres": {
+      "adventure": "Abenteuer",
+      "fantasy": "Fantasy",
+      "mystery": "Krimi/Rätsel",
+      "scifi": "Science Fiction",
+      "friendship": "Freundschaft",
+      "nature": "Natur",
+      "fairytale": "Märchen",
+      "comedy": "Komödie"
+    },
+    "lengths": {
+      "short": "Kurz (3-5 Min.)",
+      "medium": "Mittel (8-12 Min.)",
+      "long": "Lang (15-20 Min.)"
+    },
+    "complexities": {
+      "simple": "Einfach",
+      "medium": "Mittel",
+      "complex": "Komplex"
+    },
+    "tones": {
+      "warm": "Warm",
+      "witty": "Witzig",
+      "epic": "Episch",
+      "soothing": "Beruhigend",
+      "mischievous": "Schelmisch",
+      "wonder": "Staunend"
+    },
+    "options": {
+      "rhymes": "Mit Reimen",
+      "twist": "Überraschungsende",
+      "fairyTale": "Märchen-Vorlage",
+      "suspenseLevel": "Spannungslevel",
+      "humorLevel": "Humor-Level"
+    },
+    "readStory": "Geschichte lesen",
+    "chapters": "Kapitel",
+    "noStories": "Noch keine Geschichten",
+    "generationError": "Fehler bei der Generierung"
+  },
+
+  "doku": {
+    "title": "Wissens-Dokus",
+    "subtitle": "Lerne mit KI-generierten Wissensinhalten",
+    "create": "Doku erstellen",
+    "myDokus": "Meine Dokus",
+    "publicDokus": "Öffentliche Dokus",
+    "generating": "Doku wird generiert...",
+    "topic": "Thema",
+    "topicPlaceholder": "Worüber möchtest du lernen?",
+    "depth": "Tiefe",
+    "ageGroup": "Altersgruppe",
+    "perspective": "Perspektive",
+    "tone": "Ton",
+    "length": "Länge",
+    "interactive": "Interaktive Elemente",
+    "quizQuestions": "Quiz-Fragen",
+    "activities": "Praktische Aktivitäten",
+    "generateDoku": "Doku generieren",
+    "depths": {
+      "basic": "Grundlagen",
+      "standard": "Standard",
+      "deep": "Vertieft"
+    },
+    "perspectives": {
+      "science": "Wissenschaft",
+      "history": "Geschichte",
+      "technology": "Technologie",
+      "nature": "Natur",
+      "culture": "Kultur"
+    },
+    "tones": {
+      "fun": "Spaßig",
+      "neutral": "Neutral",
+      "curious": "Neugierig"
+    },
+    "readDoku": "Doku lesen",
+    "sections": "Abschnitte",
+    "keyFacts": "Wichtige Fakten",
+    "noDokus": "Noch keine Dokus",
+    "generationError": "Fehler bei der Generierung"
+  },
+
+  "chat": {
+    "title": "Tavi Chat",
+    "subtitle": "Chatte mit deinem KI-Assistenten",
+    "placeholder": "Schreib eine Nachricht...",
+    "send": "Senden",
+    "thinking": "Denkt nach...",
+    "newConversation": "Neue Unterhaltung",
+    "deleteConversation": "Unterhaltung löschen"
+  },
+
+  "settings": {
+    "title": "Einstellungen",
+    "subtitle": "Passe deine Präferenzen an",
+    "account": "Konto",
+    "profile": "Profil",
+    "language": "Sprache",
+    "languageDescription": "Wähle deine bevorzugte Sprache für die Benutzeroberfläche und generierte Inhalte",
+    "selectLanguage": "Sprache auswählen",
+    "currentLanguage": "Aktuelle Sprache",
+    "appearance": "Erscheinungsbild",
+    "theme": "Theme",
+    "themeTitle": "Darstellung",
+    "themeDescription": "Wähle zwischen hellem, dunklem oder automatischem Modus",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System",
+    "lightDescription": "Helles Theme",
+    "darkDescription": "Dunkles Theme",
+    "systemDescription": "Automatisch",
+    "notifications": "Benachrichtigungen",
+    "privacy": "Datenschutz",
+    "subscription": "Abonnement",
+    "billing": "Abrechnung",
+    "support": "Support",
+    "about": "Über",
+    "version": "Version",
+    "subscriptionPlans": {
+      "starter": "Starter",
+      "familie": "Familie",
+      "premium": "Premium"
+    },
+    "saved": "Einstellungen gespeichert",
+    "saveFailed": "Speichern fehlgeschlagen"
+  },
+
+  "admin": {
+    "title": "Admin-Dashboard",
+    "users": "Benutzer",
+    "avatars": "Avatare",
+    "stories": "Geschichten",
+    "dokus": "Dokus",
+    "logs": "Logs",
+    "statistics": "Statistiken",
+    "totalUsers": "Gesamt-Benutzer",
+    "totalAvatars": "Gesamt-Avatare",
+    "totalStories": "Gesamt-Geschichten",
+    "totalDokus": "Gesamt-Dokus"
+  },
+
+  "errors": {
+    "generic": "Ein Fehler ist aufgetreten",
+    "networkError": "Netzwerkfehler. Bitte überprüfe deine Internetverbindung.",
+    "unauthorized": "Nicht autorisiert. Bitte melde dich an.",
+    "notFound": "Nicht gefunden",
+    "serverError": "Server-Fehler. Bitte versuche es später erneut.",
+    "validationError": "Ungültige Eingabe",
+    "formIncomplete": "Bitte fülle alle erforderlichen Felder aus",
+    "avatarRequired": "Bitte wähle mindestens einen Avatar",
+    "topicRequired": "Bitte gib ein Thema ein"
+  },
+
+  "validation": {
+    "required": "Erforderlich",
+    "email": "Ungültige E-Mail-Adresse",
+    "minLength": "Mindestens {{count}} Zeichen",
+    "maxLength": "Maximal {{count}} Zeichen",
+    "nameRequired": "Name ist erforderlich",
+    "descriptionRequired": "Beschreibung ist erforderlich"
+  }
+}

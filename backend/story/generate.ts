@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
+import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
 import { logTopic } from "../log/logger";
@@ -180,6 +181,11 @@ export interface Story {
 
 export type StorySummary = Omit<Story, 'chapters'>;
 
+type StoryAvatar = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "createdAt" | "updatedAt"> & {
+  // Optional memories field keeps compatibility with ExtendedAvatarDetails in ai-generation
+  memories?: unknown[];
+};
+
 interface GenerateStoryRequest {
   userId: string;
   config: StoryConfig;
@@ -263,19 +269,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     try {
       console.log("[story.generate] Loading avatar details...", { count: req.config.avatarIds.length });
       // Fetch avatar details directly from the avatar database to avoid cross-service auth issues
-      const avatarDetails: Array<{
-        id: string;
-        name: string;
-        description?: string;
-        physicalTraits: any;
-        personalityTraits: any;
-        imageUrl?: string;
-        visualProfile?: any;
-        creationType: "ai-generated" | "photo-upload";
-        isPublic: boolean;
-        inventory: any[];
-        skills: any[];
-      }> = [];
+      const avatarDetails: StoryAvatar[] = [];
 
       for (const avatarId of req.config.avatarIds) {
         const row = await avatarDB.queryRow<{
@@ -289,8 +283,10 @@ export const generate = api<GenerateStoryRequest, Story>(
           visual_profile: string | null;
           creation_type: "ai-generated" | "photo-upload";
           is_public: boolean;
+          inventory: string | null;
+          skills: string | null;
         }>`
-          SELECT id, user_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public
+          SELECT id, user_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public, inventory, skills
           FROM avatars
           WHERE id = ${avatarId}
         `;
@@ -320,6 +316,21 @@ export const generate = api<GenerateStoryRequest, Story>(
           }
         }
 
+        let inventory: InventoryItem[] = [];
+        let skills: Skill[] = [];
+
+        try {
+          inventory = row.inventory ? (JSON.parse(row.inventory) as InventoryItem[]) : [];
+        } catch (parseInvErr) {
+          console.warn("[story.generate] Failed to parse inventory JSON; defaulting to []", { avatarId, parseInvErr });
+        }
+
+        try {
+          skills = row.skills ? (JSON.parse(row.skills) as Skill[]) : [];
+        } catch (parseSkillsErr) {
+          console.warn("[story.generate] Failed to parse skills JSON; defaulting to []", { avatarId, parseSkillsErr });
+        }
+
         avatarDetails.push({
           id: row.id,
           name: row.name,
@@ -330,8 +341,8 @@ export const generate = api<GenerateStoryRequest, Story>(
           visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
           creationType: row.creation_type,
           isPublic: row.is_public,
-          inventory: [],
-          skills: [],
+          inventory,
+          skills,
         });
       }
 

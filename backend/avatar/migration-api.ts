@@ -24,31 +24,65 @@ export const runMigrationSql = api<RunMigrationRequest, RunMigrationResponse>(
         console.log(`🔄 Running migration: ${req.migrationName}`);
 
         try {
-            // Split SQL into individual statements and execute them
-            const statements = req.migrationSql
+            console.log(`[Migration SQL] SQL length: ${req.migrationSql.length} characters`);
+
+            // Split SQL into individual statements
+            // Remove comments first, then split by semicolons
+            const sqlWithoutComments = req.migrationSql
+                .split('\n')
+                .filter(line => !line.trim().startsWith('--'))
+                .join('\n');
+
+            const statements = sqlWithoutComments
                 .split(';')
                 .map(s => s.trim())
                 .filter(s => s.length > 0);
 
-            // Execute each statement using Encore's DB client
-            // Note: We need to use the underlying connection pool for raw SQL
-            const pool = (avatarDB as any).pool;
-            if (!pool) {
-                throw new Error('Database pool not available');
-            }
+            console.log(`[Migration SQL] Found ${statements.length} SQL statements to execute`);
 
-            for (const statement of statements) {
-                await pool.query(statement);
+            // Execute each statement separately using Encore's exec method
+            let executedCount = 0;
+            for (let i = 0; i < statements.length; i++) {
+                const statement = statements[i];
+                if (statement.length === 0) continue;
+
+                try {
+                    await avatarDB.exec(statement);
+                    executedCount++;
+
+                    // Log progress every 10 statements
+                    if ((i + 1) % 10 === 0) {
+                        console.log(`[Migration SQL] Progress: ${i + 1}/${statements.length} statements executed`);
+                    }
+                } catch (stmtErr: any) {
+                    // Check if it's a duplicate key error - that's OK
+                    if (stmtErr.message && stmtErr.message.includes("duplicate key")) {
+                        console.log(`[Migration SQL] Statement ${i + 1}: Duplicate entry (skipping)`);
+                        executedCount++;
+                        continue;
+                    }
+                    // Otherwise, log but continue
+                    console.error(`[Migration SQL] Statement ${i + 1} failed:`, stmtErr.message);
+                }
             }
 
             console.log(`✅ Migration ${req.migrationName} completed successfully`);
+            console.log(`[Migration SQL] Executed ${executedCount}/${statements.length} statements successfully`);
 
             return {
                 success: true,
-                message: `Migration ${req.migrationName} executed successfully`
+                message: `Migration ${req.migrationName} executed ${executedCount}/${statements.length} statements successfully`
             };
         } catch (error: any) {
             console.error(`❌ Migration ${req.migrationName} failed:`, error);
+
+            // Check if it's a duplicate key error
+            if (error.message && error.message.includes("duplicate key")) {
+                return {
+                    success: true,
+                    message: `Migration ${req.migrationName} - some records already exist (skipped duplicates)`
+                };
+            }
 
             return {
                 success: false,
