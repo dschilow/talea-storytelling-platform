@@ -60,7 +60,7 @@ export type StoryTone =
   | "mischievous"
   | "wonder";
 
-export type StoryLanguage = "de" | "en";
+export type StoryLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type StoryPacing = "slow" | "balanced" | "fast";
 export type StoryPOV = "ich" | "personale";
 export type PlotHookKey =
@@ -114,7 +114,7 @@ export interface StoryConfig {
 
   // 4-Phase System: Enable character pool system
   useCharacterPool?: boolean;
-  
+
   // Fairy Tale System: Enable fairy tale template mode
   preferences?: {
     useFairyTaleTemplate?: boolean;
@@ -553,10 +553,10 @@ export const generate = api<GenerateStoryRequest, Story>(
           } else {
             // Fallback: Genre-based updates when AI doesn't provide specific developments
             const baseTraits = req.config.genre === 'adventure' ? ['courage', 'curiosity'] :
-                              req.config.genre === 'educational' ? ['intelligence', 'curiosity'] :
-                              req.config.genre === 'mystery' ? ['curiosity', 'intelligence'] :
-                              req.config.genre === 'friendship' ? ['empathy', 'teamwork'] :
-                              ['empathy', 'curiosity'];
+              req.config.genre === 'educational' ? ['intelligence', 'curiosity'] :
+                req.config.genre === 'mystery' ? ['curiosity', 'intelligence'] :
+                  req.config.genre === 'friendship' ? ['empathy', 'teamwork'] :
+                    ['empathy', 'curiosity'];
             changes = baseTraits.map(trait => {
               const points = isParticipating ? 2 : 1;
               const modeText = isParticipating ? 'aktive Teilnahme' : 'Lesen';
@@ -588,7 +588,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               // TODO: Fetch last personality shifts from database for cooldown check
               // For now, we skip cooldown (all changes allowed) - implement in future iteration
               const lastShifts: PersonalityShiftCooldown[] = [];
-              
+
               const { allowedChanges, blockedChanges } = filterPersonalityChangesWithCooldown(
                 structuredMemory.category,
                 changes,
@@ -596,7 +596,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               );
 
               if (blockedChanges.length > 0) {
-                console.warn(`[story.generate] ⏳ ${blockedChanges.length} personality shifts blocked by cooldown:`, 
+                console.warn(`[story.generate] ⏳ ${blockedChanges.length} personality shifts blocked by cooldown:`,
                   blockedChanges.map(b => `${b.trait} (${b.remainingHours}h remaining)`)
                 );
               }

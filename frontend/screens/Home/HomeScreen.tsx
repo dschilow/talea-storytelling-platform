@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, Plus, User, BookOpen, Sparkles, FlaskConical, Edit, Trash2, LogIn, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
@@ -37,6 +38,8 @@ interface Doku {
 // --- Landing Page Component ---
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
       {/* Decorative Background Blobs */}
@@ -46,10 +49,10 @@ const LandingPage: React.FC = () => {
       <div className="relative z-10 max-w-2xl">
         <div className="text-8xl mb-8 animate-bounce-slow">✨</div>
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-          Willkommen bei Talea!
+          {t('auth.welcome')}
         </h1>
         <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
-          Erstelle magische Geschichten und lehrreiche Dokumentationen mit deinen eigenen, einzigartigen Avataren.
+          {t('home.subtitle')}
         </p>
         <PastelButton
           size="lg"
@@ -57,7 +60,7 @@ const LandingPage: React.FC = () => {
           className="text-lg px-10 py-6 shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all"
         >
           <LogIn className="mr-3 w-6 h-6" />
-          Jetzt loslegen
+          {t('home.getStarted')}
         </PastelButton>
       </div>
     </div>
@@ -69,6 +72,7 @@ const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { user, isSignedIn, isLoaded } = useUser();
+  const { t } = useTranslation();
 
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -111,37 +115,37 @@ const HomeScreen: React.FC = () => {
   };
 
   const handleDeleteAvatar = async (avatarId: string, avatarName: string) => {
-    if (window.confirm(`Möchtest du "${avatarName}" wirklich löschen?`)) {
+    if (window.confirm(t('avatar.deleteConfirm'))) {
       try {
         await backend.avatar.deleteAvatar({ id: avatarId });
         setAvatars(avatars.filter(a => a.id !== avatarId));
       } catch (error) {
         console.error('Error deleting avatar:', error);
-        alert('Fehler beim Löschen des Avatars.');
+        alert(t('errors.generic'));
       }
     }
   };
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
-    if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen?`)) {
+    if (window.confirm(`${t('common.delete')} "${storyTitle}"?`)) {
       try {
         await backend.story.deleteStory({ id: storyId });
         setStories(stories.filter(s => s.id !== storyId));
       } catch (error) {
         console.error('Error deleting story:', error);
-        alert('Fehler beim Löschen der Geschichte.');
+        alert(t('errors.generic'));
       }
     }
   };
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
-    if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen?`)) {
+    if (window.confirm(`${t('common.delete')} "${dokuTitle}"?`)) {
       try {
         await backend.doku.deleteDoku({ id: dokuId });
         setDokus(dokus.filter(d => d.id !== dokuId));
       } catch (error) {
         console.error('Error deleting doku:', error);
-        alert('Fehler beim Löschen der Doku.');
+        alert(t('errors.generic'));
       }
     }
   };
@@ -151,7 +155,7 @@ const HomeScreen: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center animate-pulse">
           <div className="text-6xl mb-4">✨</div>
-          <p className="text-xl text-muted-foreground font-medium">Lade deine magische Welt...</p>
+          <p className="text-xl text-muted-foreground font-medium">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -176,10 +180,10 @@ const HomeScreen: React.FC = () => {
           <header className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-                Guten Morgen, {user?.firstName || 'Entdecker'}! ☀️
+                {t('home.welcome')} {user?.firstName || 'Entdecker'}! ☀️
               </h1>
               <p className="text-muted-foreground text-lg">
-                Was möchtest du heute erleben?
+                {t('home.subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -206,8 +210,8 @@ const HomeScreen: React.FC = () => {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-400 flex items-center justify-center mb-4 shadow-lg shadow-primary/30 text-white">
                 <BookOpen size={32} />
               </div>
-              <h3 className="text-xl font-bold mb-1">Neue Geschichte</h3>
-              <p className="text-sm text-muted-foreground">Starte ein neues Abenteuer</p>
+              <h3 className="text-xl font-bold mb-1">{t('home.createStory')}</h3>
+              <p className="text-sm text-muted-foreground">{t('story.subtitle')}</p>
             </GlassCard>
 
             <GlassCard
@@ -218,8 +222,8 @@ const HomeScreen: React.FC = () => {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-secondary to-cyan-400 flex items-center justify-center mb-4 shadow-lg shadow-secondary/30 text-white">
                 <User size={32} />
               </div>
-              <h3 className="text-xl font-bold mb-1">Neuer Avatar</h3>
-              <p className="text-sm text-muted-foreground">Erschaffe einen Charakter</p>
+              <h3 className="text-xl font-bold mb-1">{t('avatar.createNew')}</h3>
+              <p className="text-sm text-muted-foreground">{t('avatar.subtitle')}</p>
             </GlassCard>
 
             <GlassCard
@@ -230,8 +234,8 @@ const HomeScreen: React.FC = () => {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center mb-4 shadow-lg shadow-accent/30 text-white">
                 <FlaskConical size={32} />
               </div>
-              <h3 className="text-xl font-bold mb-1">Wissen & Spaß</h3>
-              <p className="text-sm text-muted-foreground">Lerne etwas Neues</p>
+              <h3 className="text-xl font-bold mb-1">{t('home.createDoku')}</h3>
+              <p className="text-sm text-muted-foreground">{t('doku.subtitle')}</p>
             </GlassCard>
           </section>
 
@@ -240,19 +244,19 @@ const HomeScreen: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <Sparkles className="text-primary w-6 h-6" />
-                Meine Geschichten
+                {t('story.myStories')}
               </h2>
               <PastelButton variant="ghost" size="sm" onClick={() => navigate('/stories')}>
-                Alle anzeigen <ArrowRight className="ml-2 w-4 h-4" />
+                {t('common.next')} <ArrowRight className="ml-2 w-4 h-4" />
               </PastelButton>
             </div>
 
             {stories.length === 0 ? (
               <GlassCard className="text-center py-16">
                 <div className="text-6xl mb-4">📚</div>
-                <h3 className="text-xl font-bold mb-2">Noch keine Geschichten</h3>
-                <p className="text-muted-foreground mb-6">Deine Bibliothek ist noch leer.</p>
-                <PastelButton onClick={() => navigate('/story')}>Erste Geschichte schreiben</PastelButton>
+                <h3 className="text-xl font-bold mb-2">{t('home.noStories')}</h3>
+                <p className="text-muted-foreground mb-6">{t('home.getStarted')}</p>
+                <PastelButton onClick={() => navigate('/story')}>{t('home.createStory')}</PastelButton>
               </GlassCard>
             ) : (
               <div className="flex gap-6 overflow-x-auto pb-8 pt-2 snap-x px-1">
@@ -261,7 +265,7 @@ const HomeScreen: React.FC = () => {
                     <StoryCard
                       title={story.title}
                       coverImage={story.coverImageUrl}
-                      genre="Abenteuer" // Placeholder
+                      genre={t('story.genres.adventure')} // Placeholder
                       onClick={() => navigate(`/story-reader/${story.id}`)}
                     />
                     <button
@@ -270,7 +274,7 @@ const HomeScreen: React.FC = () => {
                         handleDeleteStory(story.id, story.title);
                       }}
                       className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                      aria-label={`Geschichte ${story.title} löschen`}
+                      aria-label={`${t('common.delete')} ${story.title}`}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -285,17 +289,17 @@ const HomeScreen: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <User className="text-secondary w-6 h-6" />
-                Meine Avatare
+                {t('home.myAvatars')}
               </h2>
               <PastelButton variant="ghost" size="sm" onClick={() => navigate('/avatar')}>
-                Verwalten <ArrowRight className="ml-2 w-4 h-4" />
+                {t('avatar.title')} <ArrowRight className="ml-2 w-4 h-4" />
               </PastelButton>
             </div>
 
             {avatars.length === 0 ? (
               <GlassCard className="text-center py-12">
-                <p className="text-muted-foreground mb-4">Du hast noch keine Avatare erstellt.</p>
-                <PastelButton variant="secondary" onClick={() => navigate('/avatar')}>Avatar erstellen</PastelButton>
+                <p className="text-muted-foreground mb-4">{t('home.noStories')}</p>
+                <PastelButton variant="secondary" onClick={() => navigate('/avatar')}>{t('avatar.create')}</PastelButton>
               </GlassCard>
             ) : (
               <div className="flex flex-wrap gap-6">
@@ -307,7 +311,7 @@ const HomeScreen: React.FC = () => {
                       className="w-24 h-24 rounded-full p-1 bg-gradient-to-br from-primary to-secondary cursor-pointer hover:scale-105 transition-transform shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
                       onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
                       onKeyDown={(e) => e.key === 'Enter' && navigate(`/avatar/edit/${avatar.id}`)}
-                      aria-label={`Avatar ${avatar.name} bearbeiten`}
+                      aria-label={`${t('common.edit')} ${avatar.name}`}
                     >
                       <div className="w-full h-full rounded-full overflow-hidden border-4 border-white bg-white">
                         {avatar.imageUrl ? (
@@ -327,7 +331,7 @@ const HomeScreen: React.FC = () => {
                     <button
                       onClick={() => handleDeleteAvatar(avatar.id, avatar.name)}
                       className="absolute -top-1 -right-1 w-6 h-6 bg-red-100 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-200 focus:opacity-100"
-                      aria-label={`Avatar ${avatar.name} löschen`}
+                      aria-label={`${t('common.delete')} ${avatar.name}`}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -338,7 +342,7 @@ const HomeScreen: React.FC = () => {
                 <button
                   onClick={() => navigate('/avatar')}
                   className="w-24 h-24 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary/50 hover:bg-primary/5 transition-all group focus:outline-none focus:ring-2 focus:ring-primary"
-                  aria-label="Neuen Avatar erstellen"
+                  aria-label={t('avatar.createNew')}
                 >
                   <Plus className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
@@ -351,10 +355,10 @@ const HomeScreen: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <FlaskConical className="text-accent w-6 h-6" />
-                Wissen & Entdecken
+                {t('doku.title')}
               </h2>
               <PastelButton variant="ghost" size="sm" onClick={() => navigate('/doku')}>
-                Alle Dokus <ArrowRight className="ml-2 w-4 h-4" />
+                {t('doku.title')} <ArrowRight className="ml-2 w-4 h-4" />
               </PastelButton>
             </div>
 
@@ -389,7 +393,7 @@ const HomeScreen: React.FC = () => {
                       handleDeleteDoku(doku.id, doku.title);
                     }}
                     className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    aria-label={`Doku ${doku.title} löschen`}
+                    aria-label={`${t('common.delete')} ${doku.title}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -400,12 +404,12 @@ const HomeScreen: React.FC = () => {
               <button
                 onClick={() => navigate('/doku')}
                 className="h-[220px] rounded-2xl border-2 border-dashed border-muted-foreground/20 flex flex-col items-center justify-center gap-3 hover:border-accent/50 hover:bg-accent/5 transition-all text-muted-foreground hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent"
-                aria-label="Neue Doku erstellen"
+                aria-label={t('doku.create')}
               >
                 <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
                   <Plus size={24} />
                 </div>
-                <span className="font-medium">Neue Doku</span>
+                <span className="font-medium">{t('doku.create')}</span>
               </button>
             </div>
           </section>

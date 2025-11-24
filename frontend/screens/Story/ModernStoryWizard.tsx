@@ -21,18 +21,18 @@ import Step6Summary from './wizard-steps/Step6Summary';
 interface WizardState {
   // Step 1: Avatar Selection
   selectedAvatars: string[]; // Avatar IDs
-  
+
   // Step 2: Category
   mainCategory: 'fairy-tales' | 'adventure' | 'magic' | 'animals' | 'scifi' | 'modern' | null;
   subCategory: string | null;
-  
+
   // Step 3: Age & Length
   ageGroup: '3-5' | '6-8' | '9-12' | '13+' | null;
   length: 'short' | 'medium' | 'long' | null;
-  
+
   // Step 4: Feeling
   feelings: ('funny' | 'warm' | 'exciting' | 'crazy' | 'meaningful')[];
-  
+
   // Step 5: Special Wishes
   rhymes: boolean;
   moral: boolean;
@@ -65,26 +65,12 @@ export default function ModernStoryWizard() {
   const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
   const [userLanguage, setUserLanguage] = useState<string>('de');
 
-  // Load user's preferred language
+  // Sync userLanguage with i18n.language
   useEffect(() => {
-    const loadUserLanguage = async () => {
-      try {
-        const profile = await backend.user.me();
-        if (profile.preferredLanguage) {
-          setUserLanguage(profile.preferredLanguage);
-        } else {
-          // Fallback to i18n language or browser language
-          setUserLanguage(i18n.language || 'de');
-        }
-      } catch (err) {
-        console.error('Failed to load user language:', err);
-        setUserLanguage(i18n.language || 'de');
-      }
-    };
-    if (backend && userId) {
-      loadUserLanguage();
+    if (i18n.language) {
+      setUserLanguage(i18n.language);
     }
-  }, [backend, userId, i18n.language]);
+  }, [i18n.language]);
 
   const [state, setState] = useState<WizardState>({
     selectedAvatars: [],
@@ -126,14 +112,14 @@ export default function ModernStoryWizard() {
 
     try {
       setGenerating(true);
-      
+
       // Simulate step progression
       setGenerationStep('profiles');
       await new Promise(r => setTimeout(r, 1200));
-      
+
       setGenerationStep('memories');
       await new Promise(r => setTimeout(r, 1200));
-      
+
       setGenerationStep('text');
 
       // Map wizard state to API request and generate story
@@ -144,33 +130,33 @@ export default function ModernStoryWizard() {
         userId,
         config: storyConfig,
       });
-      
+
       console.log('[ModernWizard] Story generated:', story);
-      
+
       setGenerationStep('validation');
       await new Promise(r => setTimeout(r, 900));
-      
+
       setGenerationStep('images');
       await new Promise(r => setTimeout(r, 1200));
-      
+
       setGenerationStep('complete');
       await new Promise(r => setTimeout(r, 800));
 
       // Success - navigate to story
-      
+
       // CHECK FOR NEWLY GENERATED CHARACTERS
-      if (story.newlyGeneratedCharacters && story.newlyGeneratedCharacters.length > 0) {
-        const names = story.newlyGeneratedCharacters.map((c: any) => c.name).join(', ');
-        showNewCharacterToast(names);
-      }
+      // if ((story as any).newlyGeneratedCharacters && (story as any).newlyGeneratedCharacters.length > 0) {
+      //   const names = (story as any).newlyGeneratedCharacters.map((c: any) => c.name).join(', ');
+      //   showNewCharacterToast(names);
+      // }
 
       alert(`Geschichte "${story.title}" wurde erfolgreich erstellt! 🎉`);
       navigate(`/story-reader/${story.id}`);
-      
+
     } catch (error) {
       console.error('[ModernWizard] Error generating story:', error);
       let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) {
           errorMessage = 'Die Anfrage ist zu groß. Bitte versuche es erneut.';
@@ -178,7 +164,7 @@ export default function ModernStoryWizard() {
           errorMessage = 'Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.';
         }
       }
-      
+
       alert(errorMessage);
     } finally {
       setGenerating(false);
@@ -232,7 +218,7 @@ export default function ModernStoryWizard() {
               Das kann 2-3 Minuten dauern. Bitte nicht schließen!
             </p>
           </div>
-          
+
           {/* Generation Progress */}
           <StoryGenerationProgress currentStep={generationStep} />
         </div>
@@ -250,7 +236,7 @@ export default function ModernStoryWizard() {
           </h1>
           <p className="text-gray-600">Schritt {activeStep + 1} von {STEPS.length}</p>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="flex items-center justify-between mb-8">
           {STEPS.map((label, index) => (
@@ -287,15 +273,15 @@ export default function ModernStoryWizard() {
             disabled={activeStep === 0}
             className={`
               flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
-              ${activeStep === 0 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+              ${activeStep === 0
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95'}
             `}
           >
             <ArrowLeft size={20} />
             Zurück
           </button>
-          
+
           {activeStep < STEPS.length - 1 ? (
             <button
               onClick={handleNext}

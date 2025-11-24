@@ -613,6 +613,10 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Highlight lighting, mood, camera angle or perspective, and environment specifics.
 - Include recurring motifs or signature items from the story.
 - Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly.
+
+IMPORTANT LANGUAGE INSTRUCTION:
+- Write the story content (title, description, chapters content) in the requested language: ${config.language || 'de'}.
+- Write the imageDescription STRICTLY in ENGLISH.
     `.trim();
   }
 
