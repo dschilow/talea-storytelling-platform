@@ -21,7 +21,6 @@
     "yes": "Yes",
     "no": "No"
   },
-
   "navigation": {
     "home": "Home",
     "avatars": "Avatars",
@@ -64,7 +63,6 @@
     "badgeAi": "AI",
     "badgePhoto": "Photo"
   },
-
   "auth": {
     "welcome": "Welcome to Talea",
     "signIn": "Sign In",
@@ -77,7 +75,6 @@
     "hasAccount": "Already have an account?",
     "continue": "Continue"
   },
-
   "home": {
     "welcome": "Welcome back!",
     "subtitle": "What would you like to discover today?",
@@ -90,7 +87,6 @@
     "noDokus": "No docs created yet",
     "getStarted": "Get started and create your first story!"
   },
-
   "avatar": {
     "title": "Avatars",
     "subtitle": "Create and manage your characters",
@@ -125,7 +121,6 @@
       "totalTraits": "Total Traits"
     }
   },
-
   "story": {
     "title": "Stories",
     "subtitle": "Create personalized AI stories",
@@ -190,7 +185,6 @@
     "noStories": "No stories yet",
     "generationError": "Generation error"
   },
-
   "doku": {
     "title": "Knowledge Docs",
     "subtitle": "Learn with AI-generated knowledge content",
@@ -232,17 +226,18 @@
     "noDokus": "No docs yet",
     "generationError": "Generation error"
   },
-
   "chat": {
-    "title": "Tavi Chat",
-    "subtitle": "Chat with your AI assistant",
-    "placeholder": "Write a message...",
+    "title": "Tavi - Your Genie",
+    "subtitle": "✨ Always ready to help",
+    "placeholder": "Ask Tavi something... 🌟",
     "send": "Send",
-    "thinking": "Thinking...",
+    "thinking": "Tavi is thinking... ✨",
+    "words": "Words",
+    "welcome": "✨ Hello! I'm Tavi, your magical story genius! How can I help you today? 🧞‍♂️",
+    "error": "Sorry, my magical powers are currently disrupted! ⚡ Try again in a moment.",
     "newConversation": "New Conversation",
     "deleteConversation": "Delete Conversation"
   },
-
   "settings": {
     "title": "Settings",
     "subtitle": "Customize your preferences",
@@ -277,7 +272,6 @@
     "saved": "Settings saved",
     "saveFailed": "Save failed"
   },
-
   "admin": {
     "title": "Admin Dashboard",
     "users": "Users",
@@ -291,7 +285,6 @@
     "totalStories": "Total Stories",
     "totalDokus": "Total Docs"
   },
-
   "errors": {
     "generic": "An error occurred",
     "networkError": "Network error. Please check your internet connection.",
@@ -303,7 +296,6 @@
     "avatarRequired": "Please select at least one avatar",
     "topicRequired": "Please enter a topic"
   },
-
   "validation": {
     "required": "Required",
     "email": "Invalid email address",

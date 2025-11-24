@@ -21,7 +21,6 @@
     "yes": "Ja",
     "no": "Nein"
   },
-
   "navigation": {
     "home": "Start",
     "avatars": "Avatare",
@@ -64,7 +63,6 @@
     "badgeAi": "KI",
     "badgePhoto": "Foto"
   },
-
   "auth": {
     "welcome": "Willkommen bei Talea",
     "signIn": "Anmelden",
@@ -77,7 +75,6 @@
     "hasAccount": "Bereits ein Konto?",
     "continue": "Weiter"
   },
-
   "home": {
     "welcome": "Willkommen zurück!",
     "subtitle": "Was möchtest du heute entdecken?",
@@ -90,7 +87,6 @@
     "noDokus": "Noch keine Dokus erstellt",
     "getStarted": "Leg los und erstelle deine erste Geschichte!"
   },
-
   "avatar": {
     "title": "Avatare",
     "subtitle": "Erstelle und verwalte deine Charaktere",
@@ -125,7 +121,6 @@
       "totalTraits": "Gesamt-Traits"
     }
   },
-
   "story": {
     "title": "Geschichten",
     "subtitle": "Erstelle personalisierte KI-Geschichten",
@@ -190,7 +185,6 @@
     "noStories": "Noch keine Geschichten",
     "generationError": "Fehler bei der Generierung"
   },
-
   "doku": {
     "title": "Wissens-Dokus",
     "subtitle": "Lerne mit KI-generierten Wissensinhalten",
@@ -232,17 +226,18 @@
     "noDokus": "Noch keine Dokus",
     "generationError": "Fehler bei der Generierung"
   },
-
   "chat": {
-    "title": "Tavi Chat",
-    "subtitle": "Chatte mit deinem KI-Assistenten",
-    "placeholder": "Schreib eine Nachricht...",
+    "title": "Tavi - Dein Genie",
+    "subtitle": "✨ Immer bereit zu helfen",
+    "placeholder": "Frage Tavi etwas... 🌟",
     "send": "Senden",
-    "thinking": "Denkt nach...",
+    "thinking": "Tavi denkt nach... ✨",
+    "words": "Wörter",
+    "welcome": "✨ Hallo! Ich bin Tavi, dein magisches Geschichten-Genie! Wie kann ich dir heute helfen? 🧞‍♂️",
+    "error": "Entschuldige, meine magischen Kräfte sind momentan gestört! ⚡ Versuche es gleich nochmal.",
     "newConversation": "Neue Unterhaltung",
     "deleteConversation": "Unterhaltung löschen"
   },
-
   "settings": {
     "title": "Einstellungen",
     "subtitle": "Passe deine Präferenzen an",
@@ -277,7 +272,6 @@
     "saved": "Einstellungen gespeichert",
     "saveFailed": "Speichern fehlgeschlagen"
   },
-
   "admin": {
     "title": "Admin-Dashboard",
     "users": "Benutzer",
@@ -291,7 +285,6 @@
     "totalStories": "Gesamt-Geschichten",
     "totalDokus": "Gesamt-Dokus"
   },
-
   "errors": {
     "generic": "Ein Fehler ist aufgetreten",
     "networkError": "Netzwerkfehler. Bitte überprüfe deine Internetverbindung.",
@@ -303,7 +296,6 @@
     "avatarRequired": "Bitte wähle mindestens einen Avatar",
     "topicRequired": "Bitte gib ein Thema ein"
   },
-
   "validation": {
     "required": "Erforderlich",
     "email": "Ungültige E-Mail-Adresse",

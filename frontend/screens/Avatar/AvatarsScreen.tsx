@@ -10,7 +10,7 @@ import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { useBackend } from '../../hooks/useBackend';
 import type { Avatar } from '../../types/avatar';
-import AvatarCard from '../../components/avatar/AvatarCard';
+import { AvatarCard } from '../../components/cards/AvatarCard';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing } from '../../utils/constants/spacing';
@@ -32,8 +32,8 @@ const AvatarsScreen: React.FC = () => {
     try {
       setIsLoading(true);
       const loadedAvatars = await backend.avatar.list();
-      console.log('Loaded avatars from backend:', loadedAvatars.length);
-      setAvatars(loadedAvatars as unknown as Avatar[]);
+      console.log('Loaded avatars from backend:', Array.isArray(loadedAvatars) ? loadedAvatars.length : 0);
+      setAvatars(Array.isArray(loadedAvatars) ? loadedAvatars as unknown as Avatar[] : []);
     } catch (error) {
       console.error('Failed to load avatars:', error);
       if ((error as any)?.code === 'unauthenticated') {
@@ -81,7 +81,7 @@ const AvatarsScreen: React.FC = () => {
   };
 
   const titleStyle: React.CSSProperties = {
-    ...typography.textStyles.headingXl,
+    ...typography.textStyles.displayXl,
     color: colors.text.primary,
     marginBottom: `${spacing.sm}px`,
   };
