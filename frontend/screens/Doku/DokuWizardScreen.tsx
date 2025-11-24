@@ -9,9 +9,18 @@ import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
-import type { doku } from '../../client';
-
-type DokuConfig = doku.DokuConfig;
+interface DokuConfig {
+  topic: string;
+  ageGroup: '3-5' | '6-8' | '9-12' | '13+';
+  depth: 'basic' | 'standard' | 'deep';
+  perspective: 'science' | 'history' | 'technology' | 'nature' | 'culture';
+  length: 'short' | 'medium' | 'long';
+  tone: 'fun' | 'neutral' | 'curious';
+  includeInteractive: boolean;
+  quizQuestions: number;
+  handsOnActivities: number;
+  language: 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
+}
 
 interface DokuListItem {
   id: string;
@@ -29,7 +38,7 @@ interface DokuListItem {
 const DokuWizardScreen: React.FC = () => {
   const { user, isSignedIn } = useUser();
   const backend = useBackend();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [topic, setTopic] = useState('');
   const [ageGroup, setAgeGroup] = useState<'3-5' | '6-8' | '9-12' | '13+'>('6-8');
@@ -75,7 +84,7 @@ const DokuWizardScreen: React.FC = () => {
   const loadDokus = async () => {
     try {
       setLoadingList(true);
-      const resp = await backend.doku.listDokus();
+      const resp = await backend.doku.listDokus({ limit: 20, offset: 0 });
       setDokus(resp.dokus as any);
     } catch (e) {
       console.error('Failed to load dokus', e);
@@ -87,7 +96,7 @@ const DokuWizardScreen: React.FC = () => {
   const onGenerate = async () => {
     if (!user) return;
     if (!topic.trim()) {
-      alert('Bitte gib ein Thema ein.');
+      alert(t('doku.wizard.errors.missingTopic'));
       return;
     }
     try {
@@ -113,38 +122,38 @@ const DokuWizardScreen: React.FC = () => {
       window.location.href = `/doku-reader/${created.id}`;
     } catch (e) {
       console.error('Fehler bei Doku-Generierung', e);
-      alert('Die Doku konnte nicht erstellt werden. Bitte versuche es erneut.');
+      alert(t('doku.wizard.errors.generationFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   const onDelete = async (id: string) => {
-    if (!window.confirm('Doku wirklich löschen?')) return;
+    if (!window.confirm(t('common.confirm'))) return;
     try {
       await backend.doku.deleteDoku({ id });
       setDokus(dokus.filter(d => d.id !== id));
     } catch (e) {
       console.error('Failed to delete doku', e);
-      alert('Löschen fehlgeschlagen.');
+      alert(t('errors.generic'));
     }
   };
 
   const cardTitle: React.CSSProperties = {
     ...typography.textStyles.headingMd,
-    color: colors.textPrimary,
+    color: colors.text.primary,
     marginBottom: spacing.sm,
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: colors.appBackground, paddingBottom: '120px' }}>
+    <div style={{ minHeight: '100vh', background: colors.background.primary, paddingBottom: '120px' }}>
       <div style={{ padding: spacing.xl }}>
         <SignedOut>
           <Card variant="glass" style={{ maxWidth: 720, margin: '0 auto', padding: spacing.xl, textAlign: 'center' }}>
-            <FlaskConical size={32} style={{ color: colors.primary, marginBottom: spacing.md }} />
-            <div style={cardTitle}>Doku Modus (Anmeldung erforderlich)</div>
-            <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
-              Bitte melde dich an, um den Doku-Modus zu verwenden.
+            <FlaskConical size={32} style={{ color: colors.primary[500], marginBottom: spacing.md }} />
+            <div style={cardTitle}>{t('doku.wizard.title')}</div>
+            <div style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
+              {t('doku.wizard.loginRequired')}
             </div>
           </Card>
         </SignedOut>
@@ -153,70 +162,70 @@ const DokuWizardScreen: React.FC = () => {
           <FadeInView delay={50}>
             <Card variant="glass" style={{ maxWidth: 960, margin: '0 auto', padding: spacing.xl, marginBottom: spacing.xl }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
-                <FlaskConical size={22} style={{ color: colors.primary }} />
-                <div style={cardTitle}>Neues Lern-Dossier erstellen</div>
+                <FlaskConical size={22} style={{ color: colors.primary[500] }} />
+                <div style={cardTitle}>{t('doku.wizard.createTitle')}</div>
               </div>
 
               {/* Topic */}
               <div style={{ marginBottom: spacing.lg }}>
-                <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: spacing.sm }}>
-                  Thema
+                <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: spacing.sm }}>
+                  {t('doku.wizard.topicLabel')}
                 </label>
                 <input
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder='z.B. "Vulkane", "Nils Fluss", "Bienen", "Regenbogen"'
+                  placeholder={t('doku.wizard.topicPlaceholder')}
                   style={{
                     width: '100%',
                     padding: spacing.lg,
                     borderRadius: radii.lg,
                     border: `1px solid ${colors.glass.border}`,
-                    background: colors.surface,
+                    background: colors.background.card,
                   }}
                 />
               </div>
 
               {/* Parameters grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: spacing.md }}>
-                <Selector label="Altersgruppe" value={ageGroup} onChange={setAgeGroup} options={[
-                  { value: '3-5', label: '3-5 Jahre' },
-                  { value: '6-8', label: '6-8 Jahre' },
-                  { value: '9-12', label: '9-12 Jahre' },
-                  { value: '13+', label: '13+ Jahre' },
+                <Selector label={t('doku.wizard.ageGroup')} value={ageGroup} onChange={setAgeGroup} options={[
+                  { value: '3-5', label: t('doku.wizard.age.3_5') },
+                  { value: '6-8', label: t('doku.wizard.age.6_8') },
+                  { value: '9-12', label: t('doku.wizard.age.9_12') },
+                  { value: '13+', label: t('doku.wizard.age.13_plus') },
                 ]} />
-                <Selector label="Tiefe" value={depth} onChange={setDepth} options={[
-                  { value: 'basic', label: 'Einfach' },
-                  { value: 'standard', label: 'Standard' },
-                  { value: 'deep', label: 'Tief' },
+                <Selector label={t('doku.wizard.depth')} value={depth} onChange={setDepth} options={[
+                  { value: 'basic', label: t('doku.wizard.depth.basic') },
+                  { value: 'standard', label: t('doku.wizard.depth.standard') },
+                  { value: 'deep', label: t('doku.wizard.depth.deep') },
                 ]} />
-                <Selector label="Perspektive" value={perspective} onChange={setPerspective} options={[
-                  { value: 'science', label: 'Wissenschaft' },
-                  { value: 'history', label: 'Geschichte' },
-                  { value: 'technology', label: 'Technologie' },
-                  { value: 'nature', label: 'Natur' },
-                  { value: 'culture', label: 'Kultur' },
+                <Selector label={t('doku.wizard.perspective')} value={perspective} onChange={setPerspective} options={[
+                  { value: 'science', label: t('doku.wizard.perspective.science') },
+                  { value: 'history', label: t('doku.wizard.perspective.history') },
+                  { value: 'technology', label: t('doku.wizard.perspective.technology') },
+                  { value: 'nature', label: t('doku.wizard.perspective.nature') },
+                  { value: 'culture', label: t('doku.wizard.perspective.culture') },
                 ]} />
-                <Selector label="Länge" value={length} onChange={setLength} options={[
-                  { value: 'short', label: 'Kurz' },
-                  { value: 'medium', label: 'Mittel' },
-                  { value: 'long', label: 'Lang' },
+                <Selector label={t('doku.wizard.length')} value={length} onChange={setLength} options={[
+                  { value: 'short', label: t('doku.wizard.length.short') },
+                  { value: 'medium', label: t('doku.wizard.length.medium') },
+                  { value: 'long', label: t('doku.wizard.length.long') },
                 ]} />
-                <Selector label="Ton" value={tone} onChange={setTone} options={[
-                  { value: 'fun', label: 'Spaßig' },
-                  { value: 'neutral', label: 'Neutral' },
-                  { value: 'curious', label: 'Neugierig' },
+                <Selector label={t('doku.wizard.tone')} value={tone} onChange={setTone} options={[
+                  { value: 'fun', label: t('doku.wizard.tone.fun') },
+                  { value: 'neutral', label: t('doku.wizard.tone.neutral') },
+                  { value: 'curious', label: t('doku.wizard.tone.curious') },
                 ]} />
               </div>
 
               {/* Interactive */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing.md, marginTop: spacing.lg }}>
                 <Toggle
-                  label="Interaktive Elemente"
+                  label={t('doku.wizard.interactive')}
                   enabled={includeInteractive}
                   onToggle={() => setIncludeInteractive(!includeInteractive)}
                 />
                 <NumberInput
-                  label="Quizfragen"
+                  label={t('doku.wizard.quizQuestions')}
                   value={quizQuestions}
                   onChange={setQuizQuestions}
                   min={0}
@@ -224,7 +233,7 @@ const DokuWizardScreen: React.FC = () => {
                   disabled={!includeInteractive}
                 />
                 <NumberInput
-                  label="Aktivitäten"
+                  label={t('doku.wizard.activities')}
                   value={handsOnActivities}
                   onChange={setHandsOnActivities}
                   min={0}
@@ -235,10 +244,10 @@ const DokuWizardScreen: React.FC = () => {
 
               <div style={{ marginTop: spacing.xl }}>
                 <Button
-                  title={loading ? 'Erstelle...' : '✨ Doku erzeugen'}
+                  title={loading ? t('common.loading') : `✨ ${t('doku.wizard.generate')}`}
                   onPress={onGenerate}
-                  loading={loading}
-                  icon={<Sparkles size={16} />}
+                  disabled={loading}
+                  icon={loading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
                   variant="fun"
                   fullWidth
                 />
@@ -250,8 +259,8 @@ const DokuWizardScreen: React.FC = () => {
           <FadeInView delay={150}>
             <Card variant="glass" style={{ maxWidth: 1100, margin: '0 auto', padding: spacing.xl }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
-                <BookOpen size={22} style={{ color: colors.primary }} />
-                <div style={cardTitle}>Deine Dokus</div>
+                <BookOpen size={22} style={{ color: colors.primary[500] }} />
+                <div style={cardTitle}>{t('doku.myDokus')}</div>
               </div>
 
               {loadingList ? (
@@ -261,8 +270,8 @@ const DokuWizardScreen: React.FC = () => {
               ) : dokus.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: spacing.xl }}>
                   <div style={{ fontSize: 48, marginBottom: spacing.sm }}>📘</div>
-                  <div style={{ ...typography.textStyles.body, color: colors.textSecondary }}>
-                    Noch keine Dokus. Erstelle deine erste Lern-Doku!
+                  <div style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
+                    {t('doku.noDokus')}
                   </div>
                 </div>
               ) : (
@@ -277,7 +286,7 @@ const DokuWizardScreen: React.FC = () => {
                         width: '100%',
                         height: 140,
                         borderRadius: radii.lg,
-                        background: colors.glass.cardBackground,
+                        background: colors.glass.background,
                         border: `1px solid ${colors.glass.border}`,
                         overflow: 'hidden',
                         marginBottom: spacing.sm,
@@ -289,8 +298,8 @@ const DokuWizardScreen: React.FC = () => {
                           <img src={d.coverImageUrl} alt={d.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : <span style={{ fontSize: 28 }}>📘</span>}
                       </div>
-                      <div style={{ ...typography.textStyles.label, color: colors.textPrimary }}>{d.title}</div>
-                      <div style={{ ...typography.textStyles.caption, color: colors.textSecondary, minHeight: 32 }}>
+                      <div style={{ ...typography.textStyles.label, color: colors.text.primary }}>{d.title}</div>
+                      <div style={{ ...typography.textStyles.caption, color: colors.text.secondary, minHeight: 32 }}>
                         {d.summary || d.topic}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: spacing.sm }}>
@@ -299,11 +308,11 @@ const DokuWizardScreen: React.FC = () => {
                           style={{
                             padding: spacing.sm,
                             borderRadius: radii.lg,
-                            background: colors.glass.buttonBackground,
+                            background: colors.glass.backgroundAlt,
                             border: `1px solid ${colors.glass.border}`,
                           }}
                         >
-                          Öffnen
+                          {t('common.open')}
                         </button>
                         <button
                           onClick={() => onDelete(d.id)}
@@ -311,7 +320,7 @@ const DokuWizardScreen: React.FC = () => {
                             padding: spacing.sm,
                             borderRadius: radii.lg,
                             background: 'rgba(245, 101, 101, 0.9)',
-                            color: colors.textInverse,
+                            color: colors.text.inverse,
                             border: 'none'
                           }}
                         >
@@ -340,7 +349,7 @@ const Selector = <T extends string>({
 }) => {
   return (
     <div>
-      <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: spacing.sm }}>
+      <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: spacing.sm }}>
         {label}
       </label>
       <select
@@ -351,7 +360,7 @@ const Selector = <T extends string>({
           padding: spacing.md,
           borderRadius: radii.lg,
           border: `1px solid ${colors.glass.border}`,
-          background: colors.surface
+          background: colors.background.card
         }}
       >
         {options.map(opt => (
@@ -365,7 +374,7 @@ const Selector = <T extends string>({
 const Toggle = ({ label, enabled, onToggle }: { label: string; enabled: boolean; onToggle: () => void }) => {
   return (
     <div>
-      <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: spacing.sm }}>
+      <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: spacing.sm }}>
         {label}
       </label>
       <button
@@ -374,7 +383,7 @@ const Toggle = ({ label, enabled, onToggle }: { label: string; enabled: boolean;
           width: 60,
           height: 32,
           borderRadius: 20,
-          background: enabled ? colors.primary : colors.border,
+          background: enabled ? colors.primary[500] : colors.border.normal,
           border: 'none',
           position: 'relative',
           transition: 'all .2s',
@@ -410,7 +419,7 @@ const NumberInput = ({
 }) => {
   return (
     <div>
-      <label style={{ ...typography.textStyles.label, color: colors.textPrimary, display: 'block', marginBottom: spacing.sm }}>
+      <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: spacing.sm }}>
         {label}
       </label>
       <input
@@ -425,7 +434,7 @@ const NumberInput = ({
           padding: spacing.md,
           borderRadius: radii.lg,
           border: `1px solid ${colors.glass.border}`,
-          background: disabled ? '#f3f4f6' : colors.surface
+          background: disabled ? '#f3f4f6' : colors.background.card
         }}
       />
     </div>

@@ -166,82 +166,47 @@
       "complex": "Complex"
     },
     "tones": {
-      "warm": "Warm",
-      "witty": "Witty",
-      "epic": "Epic",
-      "soothing": "Soothing",
-      "mischievous": "Mischievous",
-      "wonder": "Wonder"
-    },
-    "options": {
-      "rhymes": "With Rhymes",
-      "twist": "Surprise Ending",
-      "fairyTale": "Fairy Tale Template",
-      "suspenseLevel": "Suspense Level",
-      "humorLevel": "Humor Level"
-    },
-    "readStory": "Read Story",
-    "chapters": "Chapters",
-    "noStories": "No stories yet",
-    "generationError": "Generation error"
-  },
-  "wizard": {
-    "steps": {
-      "avatars": "Who's playing?",
-      "category": "What kind of story?",
-      "ageLength": "How old & how long?",
-      "feeling": "Which feeling?",
-      "wishes": "Special wishes",
-      "summary": "Summary"
-    }
-  },
-  "doku": {
-    "title": "Knowledge Docs",
-    "subtitle": "Learn with AI-generated knowledge content",
-    "create": "Create Doc",
-    "myDokus": "My Docs",
-    "publicDokus": "Public Docs",
-    "generating": "Generating doc...",
-    "topic": "Topic",
-    "topicPlaceholder": "What would you like to learn about?",
-    "depth": "Depth",
-    "ageGroup": "Age Group",
-    "perspective": "Perspective",
-    "tone": "Tone",
-    "length": "Length",
-    "interactive": "Interactive Elements",
-    "quizQuestions": "Quiz Questions",
-    "activities": "Hands-on Activities",
-    "generateDoku": "Generate Doc",
-    "depths": {
-      "basic": "Basic",
-      "standard": "Standard",
-      "deep": "Deep"
-    },
-    "perspectives": {
-      "science": "Science",
-      "history": "History",
-      "technology": "Technology",
-      "nature": "Nature",
-      "culture": "Culture"
-    },
-    "tones": {
       "fun": "Fun",
       "neutral": "Neutral",
       "curious": "Curious"
-    },
-    "readDoku": "Read Doc",
-    "sections": "Sections",
-    "keyFacts": "Key Facts",
-    "noDokus": "No docs yet",
-    "generationError": "Generation error"
+    }
+  },
+  "doku": {
+    "wizard": {
+      "title": "New Knowledge Doc",
+      "subtitle": "Create an exciting doc with Tavi",
+      "steps": {
+        "topic": "Topic",
+        "ageGroup": "Age Group",
+        "depth": "Depth",
+        "perspective": "Perspective",
+        "review": "Review"
+      },
+      "placeholders": {
+        "topic": "What do you want to learn about? (e.g. Volcanoes, Romans, Whales...)"
+      },
+      "depths": {
+        "basic": "Basic",
+        "standard": "Standard",
+        "deep": "Expert"
+      },
+      "perspectives": {
+        "science": "Scientific",
+        "history": "Historical",
+        "technology": "Technological",
+        "nature": "Nature",
+        "culture": "Cultural"
+      },
+      "tones": {
+        "fun": "Fun",
+        "neutral": "Neutral",
+        "curious": "Curious"
+      },
+      "generate": "Generate Doc",
+      "generating": "Generating doc..."
+    }
   },
   "chat": {
-    "title": "Tavi - Your Genie",
-    "subtitle": "✨ Always ready to help",
-    "placeholder": "Ask Tavi something... 🌟",
-    "send": "Send",
-    "thinking": "Tavi is thinking... ✨",
     "words": "Words",
     "welcome": "✨ Hello! I'm Tavi, your magical story genius! How can I help you today? 🧞‍♂️",
     "error": "Sorry, my magical powers are currently disrupted! ⚡ Try again in a moment.",

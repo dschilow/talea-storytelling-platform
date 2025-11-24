@@ -166,82 +166,47 @@
       "complex": "Komplex"
     },
     "tones": {
-      "warm": "Warm",
-      "witty": "Witzig",
-      "epic": "Episch",
-      "soothing": "Beruhigend",
-      "mischievous": "Schelmisch",
-      "wonder": "Staunend"
-    },
-    "options": {
-      "rhymes": "Mit Reimen",
-      "twist": "Überraschungsende",
-      "fairyTale": "Märchen-Vorlage",
-      "suspenseLevel": "Spannungslevel",
-      "humorLevel": "Humor-Level"
-    },
-    "readStory": "Geschichte lesen",
-    "chapters": "Kapitel",
-    "noStories": "Noch keine Geschichten",
-    "generationError": "Fehler bei der Generierung"
-  },
-  "wizard": {
-    "steps": {
-      "avatars": "Wer spielt mit?",
-      "category": "Was für eine Geschichte?",
-      "ageLength": "Wie alt & wie lang?",
-      "feeling": "Welches Gefühl?",
-      "wishes": "Besondere Wünsche",
-      "summary": "Zusammenfassung"
-    }
-  },
-  "doku": {
-    "title": "Wissens-Dokus",
-    "subtitle": "Lerne mit KI-generierten Wissensinhalten",
-    "create": "Doku erstellen",
-    "myDokus": "Meine Dokus",
-    "publicDokus": "Öffentliche Dokus",
-    "generating": "Doku wird generiert...",
-    "topic": "Thema",
-    "topicPlaceholder": "Worüber möchtest du lernen?",
-    "depth": "Tiefe",
-    "ageGroup": "Altersgruppe",
-    "perspective": "Perspektive",
-    "tone": "Ton",
-    "length": "Länge",
-    "interactive": "Interaktive Elemente",
-    "quizQuestions": "Quiz-Fragen",
-    "activities": "Praktische Aktivitäten",
-    "generateDoku": "Doku generieren",
-    "depths": {
-      "basic": "Grundlagen",
-      "standard": "Standard",
-      "deep": "Vertieft"
-    },
-    "perspectives": {
-      "science": "Wissenschaft",
-      "history": "Geschichte",
-      "technology": "Technologie",
-      "nature": "Natur",
-      "culture": "Kultur"
-    },
-    "tones": {
       "fun": "Spaßig",
       "neutral": "Neutral",
       "curious": "Neugierig"
-    },
-    "readDoku": "Doku lesen",
-    "sections": "Abschnitte",
-    "keyFacts": "Wichtige Fakten",
-    "noDokus": "Noch keine Dokus",
-    "generationError": "Fehler bei der Generierung"
+    }
+  },
+  "doku": {
+    "wizard": {
+      "title": "Neue Wissens-Doku",
+      "subtitle": "Erstelle eine spannende Doku mit Tavi",
+      "steps": {
+        "topic": "Thema",
+        "ageGroup": "Altersgruppe",
+        "depth": "Tiefe",
+        "perspective": "Perspektive",
+        "review": "Überprüfung"
+      },
+      "placeholders": {
+        "topic": "Worüber möchtest du etwas lernen? (z.B. Vulkane, Römer, Wale...)"
+      },
+      "depths": {
+        "basic": "Basiswissen",
+        "standard": "Standard",
+        "deep": "Expertenwissen"
+      },
+      "perspectives": {
+        "science": "Wissenschaftlich",
+        "history": "Historisch",
+        "technology": "Technologisch",
+        "nature": "Naturbezogen",
+        "culture": "Kulturell"
+      },
+      "tones": {
+        "fun": "Spaßig",
+        "neutral": "Neutral",
+        "curious": "Neugierig"
+      },
+      "generate": "Doku generieren",
+      "generating": "Doku wird erstellt..."
+    }
   },
   "chat": {
-    "title": "Tavi - Dein Genie",
-    "subtitle": "✨ Immer bereit zu helfen",
-    "placeholder": "Frage Tavi etwas... 🌟",
-    "send": "Senden",
-    "thinking": "Tavi denkt nach... ✨",
     "words": "Wörter",
     "welcome": "✨ Hallo! Ich bin Tavi, dein magisches Geschichten-Genie! Wie kann ich dir heute helfen? 🧞‍♂️",
     "error": "Entschuldige, meine magischen Kräfte sind momentan gestört! ⚡ Versuche es gleich nochmal.",
