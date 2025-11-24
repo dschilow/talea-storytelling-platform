@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 import {
@@ -9,12 +9,9 @@ import {
   FlaskConical,
   Plus,
   TrendingUp,
-  Heart,
-  Star,
   Zap,
   LogIn,
   ArrowRight,
-  Clock,
   Award,
   Settings,
 } from 'lucide-react';
@@ -24,6 +21,7 @@ import { ModernButton } from '../../components/ui/modern-button';
 import { ModernBadge } from '../../components/ui/modern-badge';
 import { colors } from '../../utils/constants/colors';
 import { useBackend } from '../../hooks/useBackend';
+import { useTranslation } from 'react-i18next';
 
 interface Avatar {
   id: string;
@@ -50,10 +48,11 @@ interface Doku {
   createdAt: string;
 }
 
-// 🎨 Landing Page für nicht eingeloggte Benutzer
+// Landing Page for signed-out users
 const LandingPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -65,7 +64,6 @@ const LandingPage: React.FC = () => {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Dekorative Blobs */}
       <motion.div
         style={{
           position: 'absolute',
@@ -78,15 +76,8 @@ const LandingPage: React.FC = () => {
           top: '-10%',
           right: '-5%',
         }}
-        animate={{
-          scale: [1, 1.2, 1],
-          x: [0, 30, 0],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        animate={{ scale: [1, 1.2, 1], x: [0, 30, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
         style={{
@@ -100,15 +91,8 @@ const LandingPage: React.FC = () => {
           bottom: '-5%',
           left: '-5%',
         }}
-        animate={{
-          scale: [1, 1.3, 1],
-          y: [0, -30, 0],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
+        animate={{ scale: [1, 1.3, 1], y: [0, -30, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
 
       <div style={{ maxWidth: '1200px', width: '100%', zIndex: 1 }}>
@@ -118,20 +102,6 @@ const LandingPage: React.FC = () => {
           transition={{ duration: 0.6 }}
           style={{ textAlign: 'center', marginBottom: '60px' }}
         >
-          <motion.div
-            animate={{
-              rotate: [0, 5, -5, 5, 0],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
-            style={{ fontSize: '120px', marginBottom: '24px' }}
-          >
-            🌿
-          </motion.div>
-          
           <h1 style={{
             fontSize: '64px',
             fontWeight: '800',
@@ -142,9 +112,9 @@ const LandingPage: React.FC = () => {
             marginBottom: '24px',
             lineHeight: '1.2',
           }}>
-            Willkommen bei Talea
+            {t('homePage.landingTitle')}
           </h1>
-          
+
           <p style={{
             fontSize: '24px',
             color: colors.text.secondary,
@@ -152,7 +122,7 @@ const LandingPage: React.FC = () => {
             margin: '0 auto 48px',
             lineHeight: '1.6',
           }}>
-            Erschaffe magische Geschichten und lehrreiche Dokus mit deinen eigenen, einzigartigen Avataren
+            {t('homePage.landingSubtitle')}
           </p>
 
           <ModernButton
@@ -161,11 +131,10 @@ const LandingPage: React.FC = () => {
             icon={<LogIn size={24} />}
             onClick={() => navigate('/auth')}
           >
-            Jetzt starten
+            {t('homePage.ctaStart')}
           </ModernButton>
         </motion.div>
 
-        {/* Feature Cards */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -173,9 +142,9 @@ const LandingPage: React.FC = () => {
           marginTop: '60px',
         }}>
           {[
-            { icon: User, title: 'Avatare erstellen', desc: 'Kreiere einzigartige Charaktere', color: colors.sage[400] },
-            { icon: BookOpen, title: 'Geschichten erzählen', desc: 'Magische Abenteuer erleben', color: colors.blush[400] },
-            { icon: FlaskConical, title: 'Lernen & Entdecken', desc: 'Spannende Dokus erkunden', color: colors.ocean[400] },
+            { icon: User, title: t('homePage.featureAvatarTitle'), desc: t('homePage.featureAvatarDesc'), color: colors.sage[400] },
+            { icon: BookOpen, title: t('homePage.featureStoryTitle'), desc: t('homePage.featureStoryDesc'), color: colors.blush[400] },
+            { icon: FlaskConical, title: t('homePage.featureDokuTitle'), desc: t('homePage.featureDokuDesc'), color: colors.ocean[400] },
           ].map((feature, index) => (
             <motion.div
               key={index}
@@ -206,10 +175,7 @@ const LandingPage: React.FC = () => {
                   }}>
                     {feature.title}
                   </h3>
-                  <p style={{
-                    fontSize: '14px',
-                    color: colors.text.secondary,
-                  }}>
+                  <p style={{ fontSize: '14px', color: colors.text.secondary }}>
                     {feature.desc}
                   </p>
                 </div>
@@ -222,7 +188,6 @@ const LandingPage: React.FC = () => {
   );
 };
 
-// 📊 Statistik-Karte
 const StatCard: React.FC<{ icon: any; label: string; value: number; color: string; trend?: string }> = ({
   icon: Icon,
   label,
@@ -260,18 +225,15 @@ const StatCard: React.FC<{ icon: any; label: string; value: number; color: strin
       }}>
         {value}
       </div>
-      <div style={{
-        fontSize: '14px',
-        color: colors.text.secondary,
-      }}>
+      <div style={{ fontSize: '14px', color: colors.text.secondary }}>
         {label}
       </div>
     </div>
   </ModernCard>
 );
 
-// 🏠 Haupt-Dashboard
 const ModernHomeScreen: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const backend = useBackend();
   const { user, isSignedIn, isLoaded } = useUser();
@@ -295,7 +257,7 @@ const ModernHomeScreen: React.FC = () => {
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
         backend.avatar.list(),
         backend.story.list({ limit: 10, offset: 0 }),
-        backend.doku.listDokus({ limit: 10, offset: 0 })
+        backend.doku.listDokus({ limit: 10, offset: 0 }),
       ]);
 
       setAvatars(avatarsResponse.avatars as any[]);
@@ -322,26 +284,8 @@ const ModernHomeScreen: React.FC = () => {
           animate={{ opacity: 1, scale: 1 }}
           style={{ textAlign: 'center' }}
         >
-          <motion.div
-            animate={{
-              rotate: 360,
-              scale: [1, 1.2, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            style={{ fontSize: '80px', marginBottom: '20px' }}
-          >
-            🌿
-          </motion.div>
-          <p style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: colors.text.secondary,
-          }}>
-            Lade deine magische Welt...
+          <p style={{ fontSize: '20px', fontWeight: '600', color: colors.text.secondary }}>
+            {t('homePage.loading')}
           </p>
         </motion.div>
       </div>
@@ -359,7 +303,6 @@ const ModernHomeScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
-        {/* 🎨 Header mit Greeting */}
         <div style={{
           padding: '32px 40px',
           borderBottom: `1px solid ${colors.border.light}`,
@@ -385,18 +328,15 @@ const ModernHomeScreen: React.FC = () => {
                   marginBottom: '8px',
                 }}
               >
-                Hallo! 👋
+                {t('homePage.greeting')}
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
-                style={{
-                  fontSize: '18px',
-                  color: colors.text.secondary,
-                }}
+                style={{ fontSize: '18px', color: colors.text.secondary }}
               >
-                Bereit für neue Abenteuer?
+                {t('homePage.greetingSubtitle')}
               </motion.p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -406,7 +346,7 @@ const ModernHomeScreen: React.FC = () => {
                 icon={<Settings size={18} />}
                 onClick={() => navigate('/settings')}
               >
-                Einstellungen
+                {t('navigation.settings')}
               </ModernButton>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <UserButton afterSignOutUrl="/" />
@@ -415,7 +355,6 @@ const ModernHomeScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* 📊 Statistiken */}
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 40px' }}>
           <div style={{
             display: 'grid',
@@ -423,72 +362,21 @@ const ModernHomeScreen: React.FC = () => {
             gap: '20px',
             marginBottom: '40px',
           }}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <StatCard
-                icon={User}
-                label="Avatare"
-                value={avatars.length}
-                color={colors.sage[500]}
-                trend="+2"
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <StatCard
-                icon={BookOpen}
-                label="Geschichten"
-                value={stories.length}
-                color={colors.blush[500]}
-                trend="+5"
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <StatCard
-                icon={FlaskConical}
-                label="Dokus"
-                value={dokus.length}
-                color={colors.ocean[500]}
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <StatCard
-                icon={Award}
-                label="Abzeichen"
-                value={12}
-                color={colors.honey[500]}
-              />
-            </motion.div>
+            <StatCard icon={User} label={t('homePage.statAvatars')} value={avatars.length} color={colors.sage[500]} trend="+2" />
+            <StatCard icon={BookOpen} label={t('homePage.statStories')} value={stories.length} color={colors.blush[500]} trend="+5" />
+            <StatCard icon={FlaskConical} label={t('homePage.statDokus')} value={dokus.length} color={colors.ocean[500]} />
+            <StatCard icon={Award} label={t('homePage.statBadges')} value={12} color={colors.honey[500]} />
           </div>
 
-          {/* 🚀 Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
             <ModernCard>
               <ModernCardHeader>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Zap size={24} color={colors.sage[500]} />
-                  <ModernCardTitle>Schnellaktionen</ModernCardTitle>
+                  <ModernCardTitle>{t('homePage.quickActionsTitle')}</ModernCardTitle>
                 </div>
                 <ModernCardDescription>
-                  Starte dein nächstes Abenteuer
+                  {t('homePage.quickActionsDesc')}
                 </ModernCardDescription>
               </ModernCardHeader>
               <ModernCardContent>
@@ -497,33 +385,20 @@ const ModernHomeScreen: React.FC = () => {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                   gap: '16px',
                 }}>
-                  <ModernButton
-                    variant="sage"
-                    icon={<Plus size={20} />}
-                    onClick={() => navigate('/avatar/create')}
-                  >
-                    Avatar erstellen
+                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate('/avatar/create')}>
+                    {t('homePage.quickCreateAvatar')}
                   </ModernButton>
-                  <ModernButton
-                    variant="blush"
-                    icon={<BookOpen size={20} />}
-                    onClick={() => navigate('/story')}
-                  >
-                    Geschichte schreiben
+                  <ModernButton variant="blush" icon={<BookOpen size={20} />} onClick={() => navigate('/story')}>
+                    {t('homePage.quickCreateStory')}
                   </ModernButton>
-                  <ModernButton
-                    variant="ocean"
-                    icon={<FlaskConical size={20} />}
-                    onClick={() => navigate('/doku/create')}
-                  >
-                    Doku erstellen
+                  <ModernButton variant="ocean" icon={<FlaskConical size={20} />} onClick={() => navigate('/doku/create')}>
+                    {t('homePage.quickCreateDoku')}
                   </ModernButton>
                 </div>
               </ModernCardContent>
             </ModernCard>
           </motion.div>
 
-          {/* 👥 Deine Avatare */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -543,7 +418,7 @@ const ModernHomeScreen: React.FC = () => {
                   color: colors.text.primary,
                   fontFamily: '"Fredoka", sans-serif',
                 }}>
-                  Deine Avatare
+                  {t('homePage.sectionAvatars')}
                 </h2>
                 <ModernBadge variant="sage">{avatars.length}</ModernBadge>
               </div>
@@ -553,38 +428,26 @@ const ModernHomeScreen: React.FC = () => {
                 icon={<ArrowRight size={16} />}
                 onClick={() => navigate('/avatar')}
               >
-                Alle anzeigen
+                {t('homePage.viewAll')}
               </ModernButton>
             </div>
 
             {avatars.length === 0 ? (
               <ModernCard>
-                <div style={{
-                  padding: '60px 40px',
-                  textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: '80px', marginBottom: '20px' }}>👤</div>
+                <div style={{ padding: '60px 40px', textAlign: 'center' }}>
                   <h3 style={{
                     fontSize: '24px',
                     fontWeight: '700',
                     color: colors.text.primary,
                     marginBottom: '12px',
                   }}>
-                    Noch keine Avatare
+                    {t('homePage.emptyAvatarsTitle')}
                   </h3>
-                  <p style={{
-                    fontSize: '16px',
-                    color: colors.text.secondary,
-                    marginBottom: '24px',
-                  }}>
-                    Erstelle deinen ersten Avatar und starte dein Abenteuer!
+                  <p style={{ fontSize: '16px', color: colors.text.secondary, marginBottom: '24px' }}>
+                    {t('homePage.emptyAvatarsDesc')}
                   </p>
-                  <ModernButton
-                    variant="sage"
-                    icon={<Plus size={20} />}
-                    onClick={() => navigate('/avatar/create')}
-                  >
-                    Avatar erstellen
+                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate('/avatar/create')}>
+                    {t('homePage.quickCreateAvatar')}
                   </ModernButton>
                 </div>
               </ModernCard>
@@ -633,7 +496,9 @@ const ModernHomeScreen: React.FC = () => {
                             {avatar.name}
                           </h3>
                           <ModernBadge variant={avatar.creationType === 'ai-generated' ? 'lilac' : 'ocean'}>
-                            {avatar.creationType === 'ai-generated' ? '🤖 KI' : '📷 Foto'}
+                            {avatar.creationType === 'ai-generated'
+                              ? t('homePage.badgeAi')
+                              : t('homePage.badgePhoto')}
                           </ModernBadge>
                         </div>
                       </div>
@@ -650,4 +515,3 @@ const ModernHomeScreen: React.FC = () => {
 };
 
 export default ModernHomeScreen;
-
