@@ -116,6 +116,45 @@ export const colors = {
     900: '#385540',
   },
 
+  blush: {
+    50: '#FFF5F7',
+    100: '#FFE3E9',
+    200: '#FFC7D3',
+    300: '#FFA5BA',
+    400: '#FF8BA8',
+    500: '#FF6B9D',
+    600: '#E85A8A',
+    700: '#CC4B75',
+    800: '#A83D61',
+    900: '#7A2D47',
+  },
+
+  ocean: {
+    50: '#F0F9FF',
+    100: '#E0F2FE',
+    200: '#B9E3FE',
+    300: '#7CCFFD',
+    400: '#36B8FA',
+    500: '#0EA5E9',
+    600: '#0284C7',
+    700: '#0369A1',
+    800: '#075985',
+    900: '#0C4A6E',
+  },
+
+  honey: {
+    50: '#FFFBEB',
+    100: '#FEF3C7',
+    200: '#FDE68A',
+    300: '#FCD34D',
+    400: '#FBBF24',
+    500: '#F59E0B',
+    600: '#D97706',
+    700: '#B45309',
+    800: '#92400E',
+    900: '#78350F',
+  },
+
   bloom: 'linear-gradient(135deg, #FF6B9D 0%, #FFC7D3 50%, #D1BDF8 100%)',
 
   background: {
@@ -163,6 +202,7 @@ export const colors = {
     ocean: 'linear-gradient(135deg, #0EA5E9 0%, #2DD4BF 100%)',
     lavender: 'linear-gradient(135deg, #D1BDF8 0%, #A989F2 100%)',
     background: 'linear-gradient(135deg, #FFF8F5 0%, #F9F5FF 50%, #F0F9FF 100%)',
+    nature: 'linear-gradient(135deg, #8BBB9B 0%, #2DD4BF 100%)',
   },
 };
 
