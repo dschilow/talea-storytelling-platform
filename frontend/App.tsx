@@ -35,13 +35,14 @@ import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import { ThemeProvider } from './contexts/ThemeContext';
+import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 
 const AppContent = () => (
   <Router>
     <div style={{ minHeight: '100vh', background: colors.gradients.background }}>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<HomeScreen />} />
+          <Route path="/" element={<ModernHomeScreen />} />
           <Route path="/avatar" element={<AvatarsScreen />} />
           <Route path="/avatar/create" element={<AvatarWizardScreen />} />
           <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
@@ -54,7 +55,7 @@ const AppContent = () => (
           <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
           <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
           <Route path="/stories" element={<StoriesScreen />} />
-          <Route path="/community" element={<HomeScreen />} />
+          <Route path="/community" element={<ModernHomeScreen />} />
           <Route path="/logs" element={<LogViewerScreen />} />
           <Route path="/doku" element={<DokusScreen />} />
           <Route path="/characters" element={<CharacterPoolScreen />} />

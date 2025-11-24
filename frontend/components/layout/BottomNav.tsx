@@ -1,19 +1,21 @@
 import React from 'react';
 import { Home, BookOpen, User, FlaskConical, Sparkles, BookMarked, Code } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const BottomNav: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t } = useTranslation();
 
     const navItems = [
-        { icon: Home, label: 'Home', path: '/' },
-        { icon: User, label: 'Avatare', path: '/avatar' },
-        { icon: BookOpen, label: 'Stories', path: '/stories' },
-        { icon: FlaskConical, label: 'Doku', path: '/doku' },
-        { icon: Sparkles, label: 'Chars', path: '/characters' },
-        { icon: BookMarked, label: 'Märchen', path: '/fairytales' },
-        { icon: Code, label: 'Logs', path: '/logs' },
+        { icon: Home, label: t('navigation.home'), path: '/' },
+        { icon: User, label: t('navigation.avatars'), path: '/avatar' },
+        { icon: BookOpen, label: t('navigation.stories'), path: '/stories' },
+        { icon: FlaskConical, label: t('navigation.doku'), path: '/doku' },
+        { icon: Sparkles, label: t('navigation.characters'), path: '/characters' },
+        { icon: BookMarked, label: t('navigation.fairytales'), path: '/fairytales' },
+        { icon: Code, label: t('navigation.logs'), path: '/logs' },
     ];
 
     const isActive = (path: string) => location.pathname === path;

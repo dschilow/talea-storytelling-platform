@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { Home, BookOpen, User, FlaskConical, Settings, LogOut, Sparkles, BookMarked, Code } from 'lucide-react';
 import { useClerk } from '@clerk/clerk-react';
 import { Sidebar as AceternitySidebar, SidebarBody, SidebarLink } from '../ui/sidebar';
+import { useTranslation } from 'react-i18next';
 
 const Sidebar: React.FC = () => {
     const { signOut } = useClerk();
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
 
     const navItems = [
-        { icon: <Home className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Home', href: '/' },
-        { icon: <User className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Avatare', href: '/avatar' },
-        { icon: <BookOpen className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Stories', href: '/stories' },
-        { icon: <FlaskConical className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Doku', href: '/doku' },
-        { icon: <Sparkles className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Charaktere', href: '/characters' },
-        { icon: <BookMarked className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Märchen', href: '/fairytales' },
-        { icon: <Code className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: 'Logs', href: '/logs' },
+        { icon: <Home className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.home'), href: '/' },
+        { icon: <User className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.avatars'), href: '/avatar' },
+        { icon: <BookOpen className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.stories'), href: '/stories' },
+        { icon: <FlaskConical className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.doku'), href: '/doku' },
+        { icon: <Sparkles className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.characters'), href: '/characters' },
+        { icon: <BookMarked className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.fairytales'), href: '/fairytales' },
+        { icon: <Code className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.logs'), href: '/logs' },
     ];
 
     return (
@@ -46,7 +48,7 @@ const Sidebar: React.FC = () => {
                     <div className="flex flex-col gap-2">
                         <SidebarLink
                             link={{
-                                label: "Einstellungen",
+                                label: t('navigation.settings'),
                                 href: "/settings",
                                 icon: <Settings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
                             }}
@@ -54,7 +56,7 @@ const Sidebar: React.FC = () => {
                         <div onClick={() => signOut()} className="cursor-pointer">
                             <SidebarLink
                                 link={{
-                                    label: "Abmelden",
+                                    label: t('navigation.logout'),
                                     href: "#",
                                     icon: <LogOut className="text-red-500 h-5 w-5 flex-shrink-0" />,
                                 }}

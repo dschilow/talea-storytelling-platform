@@ -1,14 +1,50 @@
 import { api, APIError } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
-
-// Railway uses self-signed certificates, so we disable SSL verification
-const userDB = new SQLDatabase("user", {
-  migrations: "./migrations",
-});
+import { userDB } from "./db";
 
 export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type Theme = "light" | "dark" | "system";
+
+async function ensurePreferenceColumns() {
+  // Defensive: make sure DB has the new preference columns before we read/write
+  try {
+    await userDB.exec(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'de';
+    `);
+  } catch (err) {
+    console.warn("[user.ensurePreferenceColumns] preferred_language add skipped", err);
+  }
+
+  try {
+    await userDB.exec(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'system';
+    `);
+  } catch (err) {
+    console.warn("[user.ensurePreferenceColumns] theme add skipped", err);
+  }
+
+  try {
+    await userDB.exec(`
+      UPDATE users
+      SET preferred_language = 'de'
+      WHERE preferred_language IS NULL;
+    `);
+  } catch (err) {
+    console.warn("[user.ensurePreferenceColumns] preferred_language backfill skipped", err);
+  }
+
+  try {
+    await userDB.exec(`
+      UPDATE users
+      SET theme = 'system'
+      WHERE theme IS NULL;
+    `);
+  } catch (err) {
+    console.warn("[user.ensurePreferenceColumns] theme backfill skipped", err);
+  }
+}
 
 export interface UserProfile {
   id: string;
@@ -41,6 +77,8 @@ export const create = api<CreateUserRequest, UserProfile>(
   async (req) => {
     const id = crypto.randomUUID();
     const now = new Date();
+
+    await ensurePreferenceColumns();
     
     await userDB.exec`
       INSERT INTO users (id, email, name, subscription, role, preferred_language, theme, created_at, updated_at)
@@ -65,6 +103,8 @@ export const create = api<CreateUserRequest, UserProfile>(
 export const get = api<GetUserParams, UserProfile>(
   { expose: true, method: "GET", path: "/user/:id" },
   async ({ id }) => {
+    await ensurePreferenceColumns();
+
     const user = await userDB.queryRow<{
       id: string;
       email: string;
@@ -94,6 +134,8 @@ export const me = api<void, UserProfile>(
   { expose: true, method: "GET", path: "/user/me", auth: true },
   async () => {
     const auth = getAuthData()!;
+
+    await ensurePreferenceColumns();
 
     const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date; preferred_language: SupportedLanguage }>`
       SELECT id, email, name, subscription, role, preferred_language, theme, created_at, updated_at
@@ -130,6 +172,8 @@ export const updateLanguage = api<UpdateLanguageRequest, UserProfile>(
   async (req) => {
     const auth = getAuthData()!;
     const now = new Date();
+
+    await ensurePreferenceColumns();
 
     await userDB.exec`
       UPDATE users
@@ -170,6 +214,8 @@ export const updateTheme = api<UpdateThemeRequest, UserProfile>(
   async (req) => {
     const auth = getAuthData()!;
     const now = new Date();
+
+    await ensurePreferenceColumns();
 
     await userDB.exec`
       UPDATE users
