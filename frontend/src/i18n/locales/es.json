@@ -28,6 +28,9 @@
     "doku": "Documentación",
     "chat": "Chat Tavi",
     "settings": "Configuración",
+    "characters": "Personajes",
+    "fairytales": "Cuentos",
+    "logs": "Registros",
     "admin": "Admin",
     "logout": "Cerrar sesión"
   },

@@ -29,6 +29,9 @@
     "doku": "Knowledge Docs",
     "chat": "Tavi Chat",
     "settings": "Settings",
+    "characters": "Characters",
+    "fairytales": "Fairy tales",
+    "logs": "Logs",
     "admin": "Admin",
     "logout": "Logout"
   },
