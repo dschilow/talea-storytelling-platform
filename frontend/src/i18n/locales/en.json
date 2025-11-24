@@ -185,6 +185,16 @@
     "noStories": "No stories yet",
     "generationError": "Generation error"
   },
+  "wizard": {
+    "steps": {
+      "avatars": "Who's playing?",
+      "category": "What kind of story?",
+      "ageLength": "How old & how long?",
+      "feeling": "Which feeling?",
+      "wishes": "Special wishes",
+      "summary": "Summary"
+    }
+  },
   "doku": {
     "title": "Knowledge Docs",
     "subtitle": "Learn with AI-generated knowledge content",

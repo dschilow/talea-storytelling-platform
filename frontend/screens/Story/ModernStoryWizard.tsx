@@ -43,14 +43,7 @@ interface WizardState {
   customWish: string;
 }
 
-const STEPS = [
-  'Wer spielt mit?',
-  'Was für eine Geschichte?',
-  'Wie alt & wie lang?',
-  'Welches Gefühl?',
-  'Besondere Wünsche',
-  'Zusammenfassung'
-];
+
 
 import { showNewCharacterToast } from '../../utils/toastUtils';
 
@@ -58,7 +51,17 @@ export default function ModernStoryWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
   const { userId } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // Dynamic step labels based on current language
+  const STEPS = [
+    t('wizard.steps.avatars'),
+    t('wizard.steps.category'),
+    t('wizard.steps.ageLength'),
+    t('wizard.steps.feeling'),
+    t('wizard.steps.wishes'),
+    t('wizard.steps.summary')
+  ];
 
   const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);

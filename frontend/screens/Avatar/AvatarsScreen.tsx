@@ -31,9 +31,11 @@ const AvatarsScreen: React.FC = () => {
   const loadAvatars = async () => {
     try {
       setIsLoading(true);
-      const loadedAvatars = await backend.avatar.list();
-      console.log('Loaded avatars from backend:', Array.isArray(loadedAvatars) ? loadedAvatars.length : 0);
-      setAvatars(Array.isArray(loadedAvatars) ? loadedAvatars as unknown as Avatar[] : []);
+      const response = await backend.avatar.list();
+      // Backend returns { avatars: Avatar[] }
+      const avatarArray = (response as any)?.avatars || [];
+      console.log('Loaded avatars from backend:', avatarArray.length);
+      setAvatars(avatarArray as Avatar[]);
     } catch (error) {
       console.error('Failed to load avatars:', error);
       if ((error as any)?.code === 'unauthenticated') {

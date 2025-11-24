@@ -185,6 +185,16 @@
     "noStories": "Noch keine Geschichten",
     "generationError": "Fehler bei der Generierung"
   },
+  "wizard": {
+    "steps": {
+      "avatars": "Wer spielt mit?",
+      "category": "Was für eine Geschichte?",
+      "ageLength": "Wie alt & wie lang?",
+      "feeling": "Welches Gefühl?",
+      "wishes": "Besondere Wünsche",
+      "summary": "Zusammenfassung"
+    }
+  },
   "doku": {
     "title": "Wissens-Dokus",
     "subtitle": "Lerne mit KI-generierten Wissensinhalten",
