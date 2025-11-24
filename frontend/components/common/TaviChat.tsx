@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
@@ -21,13 +22,14 @@ interface TaviChatProps {
 }
 
 const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const backend = useBackend();
   const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'tavi',
-      text: '✨ Hallo! Ich bin Tavi, dein magisches Geschichten-Genie! Wie kann ich dir heute helfen? 🧞‍♂️',
+      text: t('chat.welcome'),
       timestamp: new Date(),
     }
   ]);
@@ -54,7 +56,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setInputMessage(text);
-    
+
     const words = text.trim().split(/\s+/).filter(word => word.length > 0);
     setWordCount(words.length);
   };
@@ -77,7 +79,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     try {
       const backendClient = backend as any;
       const baseUrl = backendClient.target || 'http://localhost:4005';
-      
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -92,14 +94,14 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
         headers,
         body: JSON.stringify({ message: userMessage.text }),
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       const data: TaviChatResponse = await response.json();
-      
+
       const taviMessage: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'tavi',
@@ -110,13 +112,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       setMessages(prev => [...prev, taviMessage]);
     } catch (error) {
       console.error('Tavi chat error:', error);
-      
-      let errorText = 'Entschuldige, meine magischen Kräfte sind momentan gestört! ⚡ Versuche es gleich nochmal.';
-      
+
+      let errorText = t('chat.error');
+
       if (error instanceof Error && process.env.NODE_ENV === 'development') {
         errorText = `Debug: ${error.message}`;
       }
-      
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'tavi',
@@ -304,9 +306,9 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
           <div style={titleStyle}>
             <div style={taviIconStyle} />
             <div>
-              <div>Tavi - Dein Genie</div>
+              <div>{t('chat.title')}</div>
               <div style={{ ...typography.textStyles.caption, color: colors.text.tertiary, fontWeight: '500' }}>
-                ✨ Immer bereit zu helfen
+                {t('chat.subtitle')}
               </div>
             </div>
           </div>
@@ -335,22 +337,22 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               {message.text}
             </div>
           ))}
-          
+
           {isLoading && (
             <div style={loadingStyle}>
               <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: colors.lavender[600] }} />
               <span style={{ color: colors.text.secondary, ...typography.textStyles.bodySm }}>
-                Tavi denkt nach... ✨
+                {t('chat.thinking')}
               </span>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
 
         <div style={inputContainerStyle}>
           <div style={wordCountStyle}>
-            {wordCount}/50 Wörter
+            {wordCount}/50 {t('chat.words')}
           </div>
           <div style={inputWrapperStyle}>
             <input
@@ -359,7 +361,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               value={inputMessage}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
-              placeholder="Frage Tavi etwas... 🌟"
+              placeholder={t('chat.placeholder')}
               disabled={isLoading}
               maxLength={300}
               onFocus={(e) => {

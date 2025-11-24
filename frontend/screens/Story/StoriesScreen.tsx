@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -17,6 +18,7 @@ import type { Story } from '../../types/story';
 
 
 const StoriesScreen: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const backend = useBackend();
 
@@ -111,14 +113,13 @@ const StoriesScreen: React.FC = () => {
   };
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
-    if (window.confirm(`Möchtest du die Geschichte "${storyTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+    if (window.confirm(t('common.confirm') + ` "${storyTitle}"?`)) {
       try {
         await backend.story.deleteStory({ id: storyId });
         setStories(stories.filter(s => s.id !== storyId));
-        alert(`Geschichte "${storyTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
         console.error('Error deleting story:', error);
-        alert('Fehler beim Löschen der Geschichte. Bitte versuche es erneut.');
+        alert(t('errors.generic'));
       }
     }
   };
@@ -207,9 +208,9 @@ const StoriesScreen: React.FC = () => {
       <div style={containerStyle}>
         <div style={loadingStyle}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              width: '60px', 
-              height: '60px', 
+            <div style={{
+              width: '60px',
+              height: '60px',
               border: `4px solid rgba(255,255,255,0.6)`,
               borderTop: `4px solid ${colors.primary}`,
               borderRadius: '50%',
@@ -217,7 +218,7 @@ const StoriesScreen: React.FC = () => {
               margin: `0 auto ${spacing.lg}px auto`
             }} />
             <p style={{ ...typography.textStyles.body, color: colors.text.secondary, fontSize: '18px' }}>
-              Lade deine Geschichten... ✨
+              {t('common.loading')} ✨
             </p>
           </div>
         </div>
@@ -242,12 +243,12 @@ const StoriesScreen: React.FC = () => {
         <div style={{ textAlign: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px` }}>
           <FadeInView delay={100}>
             <h1 style={{ ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }}>
-              Melde dich an, um deine Geschichten zu sehen
+              {t('errors.unauthorized')}
             </h1>
           </FadeInView>
           <FadeInView delay={200}>
             <Button
-              title="Anmelden"
+              title={t('auth.signIn')}
               onPress={() => navigate('/auth')}
               variant="primary"
               size="lg"
@@ -263,10 +264,10 @@ const StoriesScreen: React.FC = () => {
             <div style={headerCardStyle}>
               <div style={titleStyle}>
                 <BookOpen size={36} style={{ color: colors.primary[500] }} />
-                Deine Geschichten
+                {t('story.myStories')}
               </div>
               <div style={subtitleStyle}>
-                Entdecke all deine magischen Abenteuer ({total} Geschichten)
+                {t('story.subtitle')} ({total} {t('story.title')})
               </div>
 
               <div style={newStoryButtonStyle}>
@@ -283,10 +284,10 @@ const StoriesScreen: React.FC = () => {
               <Card variant="glass" style={emptyStateStyle}>
                 <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>📚</div>
                 <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
-                  Noch keine Geschichten
+                  {t('story.noStories')}
                 </div>
                 <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
-                  Erschaffe deine erste magische Geschichte!
+                  {t('home.getStarted')}
                 </div>
                 <StoryWizardDrawer />
               </Card>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FlaskConical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -17,6 +18,7 @@ import type { Doku } from '../../types/doku';
 
 
 const DokusScreen: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const backend = useBackend();
 
@@ -101,14 +103,13 @@ const DokusScreen: React.FC = () => {
   };
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
-    if (window.confirm(`Möchtest du die Doku "${dokuTitle}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+    if (window.confirm(t('common.confirm') + ` "${dokuTitle}"?`)) {
       try {
         await backend.doku.deleteDoku({ id: dokuId });
         setDokus(dokus.filter(d => d.id !== dokuId));
-        alert(`Doku "${dokuTitle}" wurde erfolgreich gelöscht.`);
       } catch (error) {
         console.error('Error deleting doku:', error);
-        alert('Fehler beim Löschen der Doku. Bitte versuche es erneut.');
+        alert(t('errors.generic'));
       }
     }
   };
@@ -215,9 +216,9 @@ const DokusScreen: React.FC = () => {
       <div style={containerStyle}>
         <div style={loadingStyle}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              width: '60px', 
-              height: '60px', 
+            <div style={{
+              width: '60px',
+              height: '60px',
               border: `4px solid rgba(255,255,255,0.6)`,
               borderTop: `4px solid ${colors.primary[500]}`,
               borderRadius: '50%',
@@ -225,7 +226,7 @@ const DokusScreen: React.FC = () => {
               margin: `0 auto ${spacing.lg}px auto`
             }} />
             <p style={{ ...typography.textStyles.body, color: colors.text.secondary, fontSize: '18px' }}>
-              Lade deine Dokumentationen... 🧪
+              {t('common.loading')} 🧪
             </p>
           </div>
         </div>
@@ -250,12 +251,12 @@ const DokusScreen: React.FC = () => {
         <div style={{ textAlign: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px` }}>
           <FadeInView delay={100}>
             <h1 style={{ ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }}>
-              Melde dich an, um deine Dokumentationen zu sehen
+              {t('errors.unauthorized')}
             </h1>
           </FadeInView>
           <FadeInView delay={200}>
             <Button
-              title="Anmelden"
+              title={t('auth.signIn')}
               onPress={() => navigate('/auth')}
               variant="primary"
               size="lg"
@@ -271,10 +272,10 @@ const DokusScreen: React.FC = () => {
             <div style={headerCardStyle}>
               <div style={titleStyle}>
                 <FlaskConical size={36} style={{ color: colors.primary[500] }} />
-                Deine Dokumentationen
+                {t('doku.myDokus')}
               </div>
               <div style={subtitleStyle}>
-                Entdecke alle deine lehrreichen Wissensinhalte ({total} Dokus)
+                {t('doku.subtitle')} ({total} {t('doku.title')})
               </div>
 
               <div style={newDokuButtonStyle}>
@@ -291,10 +292,10 @@ const DokusScreen: React.FC = () => {
               <Card variant="glass" style={emptyStateStyle}>
                 <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>🧪</div>
                 <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
-                  Noch keine Dokumentationen
+                  {t('doku.noDokus')}
                 </div>
                 <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
-                  Erstelle deine erste lehrreiche Dokumentation!
+                  {t('home.getStarted')}
                 </div>
                 <DokuWizardDrawer />
               </Card>

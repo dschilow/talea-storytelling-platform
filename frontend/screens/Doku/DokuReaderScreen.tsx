@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
@@ -22,6 +23,7 @@ interface DisplayableSection {
 }
 
 const DokuReaderScreen: React.FC = () => {
+  const { t } = useTranslation();
   const { dokuId } = useParams<{ dokuId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,12 +33,12 @@ const DokuReaderScreen: React.FC = () => {
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [isReading, setIsReading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showNav, setShowNav] = useState(false);
   const [animationDirection, setAnimationDirection] = useState(1);
-  
+
   // Avatar-Integration (nur für UI-Notifications, keine Auswahl mehr nötig)
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
   const [personalityChanges, setPersonalityChanges] = useState<Array<{ trait: string; change: number }>>([]);
@@ -47,7 +49,7 @@ const DokuReaderScreen: React.FC = () => {
   // Memoize the transformation of doku sections into a flat, displayable array
   const displayableSections: DisplayableSection[] = useMemo(() => {
     if (!doku?.content?.sections) return [];
-    
+
     const flatSections: DisplayableSection[] = [];
     doku.content.sections.forEach((section, index) => {
       // 1. Add the main content
@@ -74,7 +76,7 @@ const DokuReaderScreen: React.FC = () => {
     if (dokuId) {
       loadDoku();
     }
-    
+
     // Removed test toast - was showing duplicate notifications
   }, [dokuId]);
 
@@ -83,9 +85,9 @@ const DokuReaderScreen: React.FC = () => {
   useEffect(() => {
     const contentEl = contentRef.current;
     if (!contentEl) {
-        // For non-scrollable components, just show nav
-        setShowNav(true);
-        return;
+      // For non-scrollable components, just show nav
+      setShowNav(true);
+      return;
     }
 
     const handleScroll = () => {
@@ -108,7 +110,7 @@ const DokuReaderScreen: React.FC = () => {
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
       console.error('Error loading doku:', err);
-      setError((err as Error).message || 'Doku konnte nicht geladen werden.');
+      setError((err as Error).message || t('errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -182,7 +184,7 @@ const DokuReaderScreen: React.FC = () => {
         // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           // Build compact message with trait changes
-          let message = `📚 Doku abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
+          let message = `📚 ${t('doku.readDoku')} ${t('common.finish')}! ${result.updatedAvatars} ${t('avatar.title')}.\n\n`;
 
           if (result.personalityChanges && result.personalityChanges.length > 0) {
             result.personalityChanges.forEach((avatarChange: any) => {
@@ -207,27 +209,27 @@ const DokuReaderScreen: React.FC = () => {
 
           const names: Record<string, string> = {
             // Main traits
-            'knowledge': 'Wissen',
-            'creativity': 'Kreativität',
-            'vocabulary': 'Wortschatz',
-            'courage': 'Mut',
-            'curiosity': 'Neugier',
-            'teamwork': 'Teamgeist',
-            'empathy': 'Empathie',
-            'persistence': 'Ausdauer',
-            'logic': 'Logik',
+            'knowledge': t('avatar.personalityTraits.knowledge'),
+            'creativity': t('avatar.personalityTraits.creativity'),
+            'vocabulary': t('avatar.personalityTraits.vocabulary'),
+            'courage': t('avatar.personalityTraits.courage'),
+            'curiosity': t('avatar.personalityTraits.curiosity'),
+            'teamwork': t('avatar.personalityTraits.teamwork'),
+            'empathy': t('avatar.personalityTraits.empathy'),
+            'persistence': t('avatar.personalityTraits.persistence'),
+            'logic': t('avatar.personalityTraits.logic'),
             // Subcategories
-            'history': 'Geschichte',
-            'science': 'Wissenschaft',
-            'geography': 'Geografie',
-            'physics': 'Physik',
-            'biology': 'Biologie',
-            'chemistry': 'Chemie',
-            'mathematics': 'Mathematik',
-            'kindness': 'Freundlichkeit',
-            'humor': 'Humor',
-            'determination': 'Entschlossenheit',
-            'wisdom': 'Weisheit'
+            'history': t('doku.perspectives.history'),
+            'science': t('doku.perspectives.science'),
+            'geography': 'Geografie', // Add to translations if missing
+            'physics': 'Physik', // Add to translations if missing
+            'biology': 'Biologie', // Add to translations if missing
+            'chemistry': 'Chemie', // Add to translations if missing
+            'mathematics': 'Mathematik', // Add to translations if missing
+            'kindness': 'Freundlichkeit', // Add to translations if missing
+            'humor': 'Humor', // Add to translations if missing
+            'determination': 'Entschlossenheit', // Add to translations if missing
+            'wisdom': 'Weisheit' // Add to translations if missing
           };
 
           // If it's a subcategory, return only the subcategory name
@@ -243,7 +245,7 @@ const DokuReaderScreen: React.FC = () => {
 
         // Show error notification
         import('../../utils/toastUtils').then(({ showErrorToast }) => {
-          showErrorToast('❌ Fehler bei der Persönlichkeitsentwicklung');
+          showErrorToast(t('errors.generic'));
         });
       }
     } catch (error) {
@@ -251,7 +253,7 @@ const DokuReaderScreen: React.FC = () => {
 
       // Show error notification
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('❌ Netzwerkfehler bei der Persönlichkeitsentwicklung');
+        showErrorToast(t('errors.networkError'));
       });
     }
   };
@@ -268,8 +270,8 @@ const DokuReaderScreen: React.FC = () => {
         return (
           <div className="w-full h-full flex flex-col pt-20 pb-32">
             <div className="text-center px-4">
-              <img 
-                src={doku?.coverImageUrl || '/placeholder-doku.jpg'} 
+              <img
+                src={doku?.coverImageUrl || '/placeholder-doku.jpg'}
                 alt={section.originalSection.title || ''}
                 className="w-full max-w-4xl max-h-[40vh] object-cover rounded-lg shadow-lg mx-auto mb-4"
               />
@@ -284,8 +286,8 @@ const DokuReaderScreen: React.FC = () => {
         );
       case 'quiz':
         return (
-          <QuizComponent 
-            section={section.originalSection} 
+          <QuizComponent
+            section={section.originalSection}
             avatarId={selectedAvatar?.id}
             dokuTitle={doku?.title}
             dokuId={dokuId}
@@ -308,18 +310,18 @@ const DokuReaderScreen: React.FC = () => {
 
   return (
     <div className="w-screen h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-      <button onClick={() => isReading ? setIsReading(false) : navigate('/dokus')} className="absolute top-4 left-4 z-20 p-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition-transform">
+      <button onClick={() => isReading ? setIsReading(false) : navigate('/doku')} className="absolute top-4 left-4 z-20 p-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition-transform">
         <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-200" />
       </button>
 
       <AnimatePresence initial={false}>
         {!isReading ? (
           <motion.div key="summary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
-            <img src={doku?.coverImageUrl || '/placeholder-doku.jpg'} alt={doku?.title} className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover"/>
+            <img src={doku?.coverImageUrl || '/placeholder-doku.jpg'} alt={doku?.title} className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover" />
             <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{doku?.title}</h1>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{doku?.summary}</p>
             <button onClick={startReading} className="px-8 py-3 bg-teal-600 text-white font-bold rounded-full shadow-lg hover:bg-teal-700 transition-transform hover:scale-105">
-              Lesen
+              {t('doku.readDoku')}
             </button>
           </motion.div>
         ) : (
@@ -345,9 +347,9 @@ const DokuReaderScreen: React.FC = () => {
                 </motion.button>
                 <div className="flex-1 flex flex-col items-center">
                   <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
-                    <motion.div className="bg-teal-600 h-2.5 rounded-full" initial={{ width: '0%' }} animate={{ width: `${((currentIndex + 1) / (displayableSections.length || 1)) * 100}%` }} transition={{ ease: "easeInOut" }}/>
+                    <motion.div className="bg-teal-600 h-2.5 rounded-full" initial={{ width: '0%' }} animate={{ width: `${((currentIndex + 1) / (displayableSections.length || 1)) * 100}%` }} transition={{ ease: "easeInOut" }} />
                   </div>
-                  <span className="text-xs mt-1.5">Abschnitt {currentIndex + 1} / {displayableSections.length || 1}</span>
+                  <span className="text-xs mt-1.5">{t('doku.sections')} {currentIndex + 1} / {displayableSections.length || 1}</span>
                 </div>
                 <motion.button onClick={() => goToIndex(currentIndex + 1)} disabled={currentIndex === displayableSections.length - 1} className="p-3 rounded-full disabled:opacity-30" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav || currentIndex < displayableSections.length - 1 ? 1 : 0 }}>
                   <ChevronRight className="w-8 h-8" />
@@ -377,13 +379,13 @@ const DokuReaderScreen: React.FC = () => {
               <p className="text-gray-600 dark:text-gray-300 mb-6">
                 Die Doku-Teilnahme erfasst Persönlichkeits- und Wissens-Entwicklungen automatisch. Eine manuelle Avatar-Auswahl ist nicht mehr nötig.
               </p>
-              
+
               <div className="space-y-3" />
-              
+
               <div className="mt-6 flex justify-between">
                 <Button
-                  title="Weiter"
-                  onPress={() => {}}
+                  title={t('common.next')}
+                  onPress={() => { }}
                   variant="primary"
                 />
               </div>
