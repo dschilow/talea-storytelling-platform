@@ -50,11 +50,11 @@ const AvatarsScreen: React.FC = () => {
     }
   };
 
-  const handleDeleteAvatar = async (avatarId: string) => {
+  const handleDeleteAvatar = async (avatar: Avatar) => {
     if (!confirm(t('common.confirm'))) return;
 
     try {
-      await backend.avatar.deleteAvatar({ id: avatarId });
+      await backend.avatar.deleteAvatar({ id: avatar.id });
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
         showSuccessToast(`Avatar ${t('common.delete')}!`);
       });
