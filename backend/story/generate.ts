@@ -181,9 +181,20 @@ export interface Story {
 
 export type StorySummary = Omit<Story, 'chapters'>;
 
+interface McpAvatarMemory {
+  id: string;
+  avatarId: string;
+  storyId: string;
+  storyTitle: string;
+  experience: string;
+  emotionalImpact: "positive" | "negative" | "neutral";
+  personalityChanges: Array<{ trait: string; change: number }>;
+  createdAt: string;
+}
+
 type StoryAvatar = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "createdAt" | "updatedAt"> & {
   // Optional memories field keeps compatibility with ExtendedAvatarDetails in ai-generation
-  memories?: unknown[];
+  memories?: McpAvatarMemory[];
 };
 
 interface GenerateStoryRequest {
