@@ -27,7 +27,8 @@
       "Bash(encore gen client:*)",
       "Bash(encore run:*)",
       "Bash(timeout /t 10 /nobreak)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
