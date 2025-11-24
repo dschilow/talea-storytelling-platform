@@ -1,11 +1,6 @@
 import { api, APIError } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
-
-// Railway uses self-signed certificates, so we disable SSL verification
-const userDB = new SQLDatabase("user", {
-  migrations: "./migrations",
-});
+import { userDB } from "./db";
 
 export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type Theme = "light" | "dark" | "system";

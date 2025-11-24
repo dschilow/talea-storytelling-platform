@@ -1,9 +1,5 @@
 import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
-const userDB = new SQLDatabase("user", {
-  migrations: "./migrations",
-});
+import { userDB } from "./db";
 
 interface RunMigrationSqlRequest {
   sql: string;
