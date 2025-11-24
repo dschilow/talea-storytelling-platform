@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -53,43 +54,44 @@ interface StoryConfig {
   };
 }
 const StoryWizardScreen: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
   const [storyConfig, setStoryConfig] = useState<StoryConfig>({
-  avatarIds: [],
-  genre: '',
-  setting: '',
-  stylePreset: undefined,
-  allowRhymes: false,
-  storySoul: undefined,
-  emotionalFlavors: [],
-  storyTempo: 'balanced',
-  specialIngredients: [],
-  customPrompt: '',
-  language: 'de',
-  aiModel: 'gpt-5-mini',
-  length: 'medium',
-  complexity: 'medium',
-  ageGroup: '6-8',
-  preferences: {
-    useFairyTaleTemplate: false,
-  },
-});
+    avatarIds: [],
+    genre: '',
+    setting: '',
+    stylePreset: undefined,
+    allowRhymes: false,
+    storySoul: undefined,
+    emotionalFlavors: [],
+    storyTempo: 'balanced',
+    specialIngredients: [],
+    customPrompt: '',
+    language: i18n.language as 'de' | 'en',
+    aiModel: 'gpt-5-mini',
+    length: 'medium',
+    complexity: 'medium',
+    ageGroup: '6-8',
+    preferences: {
+      useFairyTaleTemplate: false,
+    },
+  });
 
   const backend = useBackend();
   const { user } = useUser();
 
   // UPDATED: Neue Steps eingefügt
   const steps = [
-  { key: 'avatar',      title: 'Avatare',           icon: 'A' },
-  { key: 'genre',       title: 'Genre & Welt',      icon: 'G' },
-  { key: 'soul',        title: 'Story-Seele & Stil',       icon: 'S' },
-  { key: 'experience',  title: 'Emotion & Tempo',   icon: 'E' },
-  { key: 'parameters',  title: 'Parameter',         icon: 'P' },
-  { key: 'learning',    title: 'Lernmodus',         icon: 'L' },
-  { key: 'generation',  title: 'Erstellen',         icon: '!' },
-] as const;
+    { key: 'avatar', title: t('story.wizard.steps.avatar'), icon: 'A' },
+    { key: 'genre', title: t('story.wizard.steps.genre'), icon: 'G' },
+    { key: 'soul', title: t('story.wizard.steps.soul'), icon: 'S' },
+    { key: 'experience', title: t('story.wizard.steps.experience'), icon: 'E' },
+    { key: 'parameters', title: t('story.wizard.steps.parameters'), icon: 'P' },
+    { key: 'learning', title: t('story.wizard.steps.learning'), icon: 'L' },
+    { key: 'generation', title: t('story.wizard.steps.generation'), icon: '!' },
+  ] as const;
 
   const currentStepIndex = steps.findIndex(step => step.key === currentStep);
 
@@ -107,8 +109,12 @@ const StoryWizardScreen: React.FC = () => {
   };
 
   const handleGenreChange = (genre: string) => {
+    // Check if genre is a fairy tale genre (using translation keys or values)
+    // This logic might need adjustment if genre values are translated
     const isFairyTaleGenre =
-      genre === 'Klassische Märchen' || genre === 'Märchenwelten und Magie';
+      genre === 'Klassische Märchen' || genre === 'Märchenwelten und Magie' ||
+      genre === 'Classic Fairy Tales' || genre === 'Fairy Tale Worlds & Magic';
+
     updateStoryConfig({
       genre,
       preferences: { useFairyTaleTemplate: isFairyTaleGenre },
@@ -156,11 +162,11 @@ const StoryWizardScreen: React.FC = () => {
 
   const handleGenerateStory = async () => {
     if (!user) {
-      alert("Bitte melde dich an, um eine Geschichte zu erstellen.");
+      alert(t('story.wizard.alerts.loginRequired'));
       return;
     }
     if (storyConfig.avatarIds.length === 0) {
-      alert("Bitte wähle mindestens einen Avatar für die Geschichte aus.");
+      alert(t('story.wizard.alerts.selectAvatar'));
       return;
     }
 
@@ -186,16 +192,16 @@ const StoryWizardScreen: React.FC = () => {
       setGenerationStep('complete');
       await new Promise(r => setTimeout(r, 800));
 
-      alert(`Geschichte "${story.title}" wurde erfolgreich generiert! 🎉`);
+      alert(t('story.wizard.alerts.success', { title: story.title }));
       window.location.href = '/';
     } catch (error) {
       console.error('❌ Error generating story:', error);
-      let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
+      let errorMessage = t('story.wizard.alerts.error');
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) {
-          errorMessage = 'Die Anfrage ist zu groß. Bitte versuche es erneut.';
+          errorMessage = t('story.wizard.alerts.tooLong');
         } else if (error.message.includes('timeout')) {
-          errorMessage = 'Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.';
+          errorMessage = t('story.wizard.alerts.timeout');
         }
       }
       alert(errorMessage);
@@ -212,8 +218,8 @@ const StoryWizardScreen: React.FC = () => {
           <AvatarSelectionStep
             selectedAvatarIds={storyConfig.avatarIds}
             onSelectionChange={(avatarIds) => updateStoryConfig({ avatarIds })}
-            // Optionales Mini-Facelift (falls Step es unterstützt)
-            // variant="grid-badges"
+          // Optionales Mini-Facelift (falls Step es unterstützt)
+          // variant="grid-badges"
           />
         );
       case 'genre':
@@ -292,8 +298,8 @@ const StoryWizardScreen: React.FC = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="text-center flex-1">
-              <h1 className="text-2xl font-bold text-gray-800">Geschichte erstellen</h1>
-              <p className="text-gray-600">Erschaffe eine magische Geschichte mit deinen Avataren</p>
+              <h1 className="text-2xl font-bold text-gray-800">{t('story.wizard.title')}</h1>
+              <p className="text-gray-600">{t('story.wizard.subtitle')}</p>
             </div>
           </div>
         </div>
@@ -304,7 +310,7 @@ const StoryWizardScreen: React.FC = () => {
           <Card variant="elevated" className="mb-6">
             <div className="text-center mb-4">
               <h2 className="text-lg font-semibold text-gray-700">
-                Schritt {currentStepIndex + 1} von {steps.length}
+                {t('story.wizard.stepCounter', { current: currentStepIndex + 1, total: steps.length })}
               </h2>
               <p className="text-gray-600">{steps[currentStepIndex].title}</p>
             </div>
@@ -318,13 +324,12 @@ const StoryWizardScreen: React.FC = () => {
               {steps.map((step, index) => (
                 <div
                   key={step.key}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    index <= currentStepIndex
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${index <= currentStepIndex
                       ? index === currentStepIndex
                         ? 'bg-purple-600 text-white'
                         : 'bg-purple-100 text-purple-600'
                       : 'bg-gray-200 text-gray-400'
-                  }`}
+                    }`}
                 >
                   <span>{step.icon}</span>
                 </div>
@@ -339,7 +344,7 @@ const StoryWizardScreen: React.FC = () => {
           <div className="flex gap-4">
             {currentStepIndex > 0 && (
               <Button
-                title="Zurück"
+                title={t('story.wizard.back')}
                 onPress={goToPreviousStep}
                 variant="outline"
                 className="flex-1"
@@ -349,7 +354,7 @@ const StoryWizardScreen: React.FC = () => {
             )}
             {currentStep !== 'generation' && (
               <Button
-                title="Weiter"
+                title={t('story.wizard.next')}
                 onPress={goToNextStep}
                 disabled={!canProceed() || generating}
                 className="flex-1"
@@ -364,10 +369,3 @@ const StoryWizardScreen: React.FC = () => {
 };
 
 export default StoryWizardScreen;
-
-
-
-
-
-
-

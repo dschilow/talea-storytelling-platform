@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
@@ -21,6 +22,7 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
   learningMode,
   onLearningModeChange,
 }) => {
+  const { t } = useTranslation();
   const [newObjective, setNewObjective] = useState('');
 
   const subjects = [
@@ -66,17 +68,17 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
 
   const toggleSubject = (subjectKey: string) => {
     if (!learningMode) return;
-    
+
     const subjects = learningMode.subjects.includes(subjectKey)
       ? learningMode.subjects.filter(s => s !== subjectKey)
       : [...learningMode.subjects, subjectKey];
-    
+
     updateLearningMode({ subjects });
   };
 
   const addLearningObjective = () => {
     if (!learningMode || !newObjective.trim()) return;
-    
+
     const objectives = [...learningMode.learningObjectives, newObjective.trim()];
     updateLearningMode({ learningObjectives: objectives });
     setNewObjective('');
@@ -84,7 +86,7 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
 
   const removeLearningObjective = (index: number) => {
     if (!learningMode) return;
-    
+
     const objectives = learningMode.learningObjectives.filter((_, i) => i !== index);
     updateLearningMode({ learningObjectives: objectives });
   };
@@ -103,14 +105,12 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
             </div>
             <button
               onClick={toggleLearningMode}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                learningMode?.enabled ? 'bg-purple-600' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${learningMode?.enabled ? 'bg-purple-600' : 'bg-gray-300'
+                }`}
             >
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                  learningMode?.enabled ? 'translate-x-7' : 'translate-x-1'
-                }`}
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${learningMode?.enabled ? 'translate-x-7' : 'translate-x-1'
+                  }`}
               />
             </button>
           </div>
@@ -126,22 +126,20 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
               <p className="text-gray-600 text-center mb-6">
                 Welche Themen sollen behandelt werden?
               </p>
-              
+
               <div className="grid grid-cols-3 gap-3">
                 {subjects.map((subject, index) => (
                   <FadeInView key={subject.key} delay={250 + index * 50}>
                     <button
                       onClick={() => toggleSubject(subject.key)}
-                      className={`p-3 rounded-lg border-2 transition-colors text-center ${
-                        learningMode.subjects.includes(subject.key)
+                      className={`p-3 rounded-lg border-2 transition-colors text-center ${learningMode.subjects.includes(subject.key)
                           ? 'border-purple-500 bg-purple-50'
                           : 'border-gray-300 hover:border-purple-300'
-                      }`}
+                        }`}
                     >
                       <span className="text-xl mb-2 block">{subject.icon}</span>
-                      <h3 className={`font-medium text-sm ${
-                        learningMode.subjects.includes(subject.key) ? 'text-purple-700' : 'text-gray-800'
-                      }`}>
+                      <h3 className={`font-medium text-sm ${learningMode.subjects.includes(subject.key) ? 'text-purple-700' : 'text-gray-800'
+                        }`}>
                         {subject.label}
                       </h3>
                     </button>
@@ -155,27 +153,24 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
           <FadeInView delay={300}>
             <Card variant="elevated">
               <h2 className="text-xl font-bold text-gray-800 text-center mb-6">Schwierigkeitsgrad</h2>
-              
+
               <div className="grid grid-cols-3 gap-3">
                 {difficultyOptions.map((option, index) => (
                   <FadeInView key={option.key} delay={350 + index * 50}>
                     <button
                       onClick={() => updateLearningMode({ difficulty: option.key as any })}
-                      className={`p-4 rounded-lg border-2 transition-colors text-center ${
-                        learningMode.difficulty === option.key
+                      className={`p-4 rounded-lg border-2 transition-colors text-center ${learningMode.difficulty === option.key
                           ? 'border-purple-500 bg-purple-50'
                           : 'border-gray-300 hover:border-purple-300'
-                      }`}
+                        }`}
                     >
                       <span className="text-2xl mb-2 block">{option.icon}</span>
-                      <h3 className={`font-semibold mb-1 ${
-                        learningMode.difficulty === option.key ? 'text-purple-700' : 'text-gray-800'
-                      }`}>
+                      <h3 className={`font-semibold mb-1 ${learningMode.difficulty === option.key ? 'text-purple-700' : 'text-gray-800'
+                        }`}>
                         {option.label}
                       </h3>
-                      <p className={`text-xs ${
-                        learningMode.difficulty === option.key ? 'text-purple-600' : 'text-gray-600'
-                      }`}>
+                      <p className={`text-xs ${learningMode.difficulty === option.key ? 'text-purple-600' : 'text-gray-600'
+                        }`}>
                         {option.description}
                       </p>
                     </button>
@@ -192,7 +187,7 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
               <p className="text-gray-600 text-center mb-6">
                 Was soll gelernt werden? (optional)
               </p>
-              
+
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
@@ -234,27 +229,24 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
           <FadeInView delay={500}>
             <Card variant="elevated">
               <h2 className="text-xl font-bold text-gray-800 text-center mb-6">Bewertungsart</h2>
-              
+
               <div className="grid grid-cols-3 gap-3">
                 {assessmentOptions.map((option, index) => (
                   <FadeInView key={option.key} delay={550 + index * 50}>
                     <button
                       onClick={() => updateLearningMode({ assessmentType: option.key as any })}
-                      className={`p-4 rounded-lg border-2 transition-colors text-center ${
-                        learningMode.assessmentType === option.key
+                      className={`p-4 rounded-lg border-2 transition-colors text-center ${learningMode.assessmentType === option.key
                           ? 'border-purple-500 bg-purple-50'
                           : 'border-gray-300 hover:border-purple-300'
-                      }`}
+                        }`}
                     >
                       <span className="text-2xl mb-2 block">{option.icon}</span>
-                      <h3 className={`font-semibold mb-1 ${
-                        learningMode.assessmentType === option.key ? 'text-purple-700' : 'text-gray-800'
-                      }`}>
+                      <h3 className={`font-semibold mb-1 ${learningMode.assessmentType === option.key ? 'text-purple-700' : 'text-gray-800'
+                        }`}>
                         {option.label}
                       </h3>
-                      <p className={`text-xs ${
-                        learningMode.assessmentType === option.key ? 'text-purple-600' : 'text-gray-600'
-                      }`}>
+                      <p className={`text-xs ${learningMode.assessmentType === option.key ? 'text-purple-600' : 'text-gray-600'
+                        }`}>
                         {option.description}
                       </p>
                     </button>

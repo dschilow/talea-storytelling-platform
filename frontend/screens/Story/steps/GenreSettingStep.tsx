@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
@@ -16,34 +17,110 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
   onGenreChange,
   onSettingChange,
 }) => {
+  const { t } = useTranslation();
+
   const genres = [
     {
-      key: 'Klassische Märchen',
-      label: 'Klassische Märchen',
+      key: 'fairytale',
+      label: t('story.wizard.genre.options.fairytale'),
       icon: '🏰',
-      description: 'Nutze originale Märchen als Inspirationsquelle',
+      description: t('story.wizard.genre.options.fairytaleDesc'),
+      value: 'Klassische Märchen' // Keep original value for backend compatibility if needed, or switch to key
     },
     {
-      key: 'Märchenwelten und Magie',
-      label: 'Märchenwelten & Magie',
+      key: 'magic',
+      label: t('story.wizard.genre.options.magic'),
       icon: '✨',
-      description: 'Freie Märchenwelten mit magischem Remix',
+      description: t('story.wizard.genre.options.magicDesc'),
+      value: 'Märchenwelten und Magie'
     },
-    { key: 'adventure', label: 'Abenteuer', icon: '🗺️', description: 'Spannende Reisen und Entdeckungen' },
-    { key: 'fantasy', label: 'Fantasy', icon: '🧙‍♂️', description: 'Magische Welten und Zauberei' },
-    { key: 'mystery', label: 'Geheimnis', icon: '🔍', description: 'Rätsel und geheimnisvolle Ereignisse' },
-    { key: 'friendship', label: 'Freundschaft', icon: '👫', description: 'Geschichten über Zusammenhalt' },
-    { key: 'learning', label: 'Lernen', icon: '📚', description: 'Bildende und lehrreiche Inhalte' },
-    { key: 'comedy', label: 'Komödie', icon: '😄', description: 'Lustige und humorvolle Geschichten' },
+    {
+      key: 'adventure',
+      label: t('story.wizard.genre.options.adventure'),
+      icon: '🗺️',
+      description: t('story.wizard.genre.options.adventureDesc'),
+      value: 'adventure'
+    },
+    {
+      key: 'fantasy',
+      label: t('story.wizard.genre.options.fantasy'),
+      icon: '🧙‍♂️',
+      description: t('story.wizard.genre.options.fantasyDesc'),
+      value: 'fantasy'
+    },
+    {
+      key: 'mystery',
+      label: t('story.wizard.genre.options.mystery'),
+      icon: '🔍',
+      description: t('story.wizard.genre.options.mysteryDesc'),
+      value: 'mystery'
+    },
+    {
+      key: 'friendship',
+      label: t('story.wizard.genre.options.friendship'),
+      icon: '👫',
+      description: t('story.wizard.genre.options.friendshipDesc'),
+      value: 'friendship'
+    },
+    {
+      key: 'learning',
+      label: t('story.wizard.genre.options.learning'),
+      icon: '📚',
+      description: t('story.wizard.genre.options.learningDesc'),
+      value: 'learning'
+    },
+    {
+      key: 'comedy',
+      label: t('story.wizard.genre.options.comedy'),
+      icon: '😄',
+      description: t('story.wizard.genre.options.comedyDesc'),
+      value: 'comedy'
+    },
   ];
 
   const settings = [
-    { key: 'forest', label: 'Zauberwald', icon: '🌲', description: 'Mystische Wälder voller Geheimnisse' },
-    { key: 'castle', label: 'Schloss', icon: '🏰', description: 'Königliche Paläste und Burgen' },
-    { key: 'ocean', label: 'Unterwasserwelt', icon: '🌊', description: 'Tiefen des Ozeans erkunden' },
-    { key: 'space', label: 'Weltraum', icon: '🚀', description: 'Abenteuer zwischen den Sternen' },
-    { key: 'city', label: 'Moderne Stadt', icon: '🏙️', description: 'Urbane Abenteuer und Entdeckungen' },
-    { key: 'village', label: 'Märchendorf', icon: '🏘️', description: 'Gemütliche Dorfgemeinschaften' },
+    {
+      key: 'forest',
+      label: t('story.wizard.setting.options.forest'),
+      icon: '🌲',
+      description: t('story.wizard.setting.options.forestDesc'),
+      value: 'forest'
+    },
+    {
+      key: 'castle',
+      label: t('story.wizard.setting.options.castle'),
+      icon: '🏰',
+      description: t('story.wizard.setting.options.castleDesc'),
+      value: 'castle'
+    },
+    {
+      key: 'ocean',
+      label: t('story.wizard.setting.options.ocean'),
+      icon: '🌊',
+      description: t('story.wizard.setting.options.oceanDesc'),
+      value: 'ocean'
+    },
+    {
+      key: 'space',
+      label: t('story.wizard.setting.options.space'),
+      icon: '🚀',
+      description: t('story.wizard.setting.options.spaceDesc'),
+      value: 'space'
+    },
+    {
+      key: 'city',
+      label: t('story.wizard.setting.options.city'),
+      icon: '🏙️',
+      description: t('story.wizard.setting.options.cityDesc'),
+      value: 'city'
+    },
+    {
+      key: 'village',
+      label: t('story.wizard.setting.options.village'),
+      icon: '🏘️',
+      description: t('story.wizard.setting.options.villageDesc'),
+      value: 'village'
+    },
   ];
 
   return (
@@ -51,31 +128,28 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
       {/* Genre Selection */}
       <FadeInView delay={100}>
         <Card variant="elevated">
-          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Genre wählen</h2>
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">{t('story.wizard.genre.title')}</h2>
           <p className="text-gray-600 text-center mb-6">
-            Welche Art von Geschichte soll es werden?
+            {t('story.wizard.genre.subtitle')}
           </p>
-          
+
           <div className="grid grid-cols-2 gap-4">
             {genres.map((genreOption, index) => (
               <FadeInView key={genreOption.key} delay={150 + index * 50}>
                 <button
-                  onClick={() => onGenreChange(genreOption.key)}
-                  className={`p-4 rounded-lg border-2 transition-colors text-center ${
-                    genre === genreOption.key
+                  onClick={() => onGenreChange(genreOption.value)}
+                  className={`p-4 rounded-lg border-2 transition-colors text-center w-full h-full flex flex-col items-center justify-center ${genre === genreOption.value
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-300 hover:border-purple-300'
-                  }`}
+                    }`}
                 >
                   <span className="text-2xl mb-2 block">{genreOption.icon}</span>
-                  <h3 className={`font-semibold mb-1 ${
-                    genre === genreOption.key ? 'text-purple-700' : 'text-gray-800'
-                  }`}>
+                  <h3 className={`font-semibold mb-1 ${genre === genreOption.value ? 'text-purple-700' : 'text-gray-800'
+                    }`}>
                     {genreOption.label}
                   </h3>
-                  <p className={`text-xs ${
-                    genre === genreOption.key ? 'text-purple-600' : 'text-gray-600'
-                  }`}>
+                  <p className={`text-xs ${genre === genreOption.value ? 'text-purple-600' : 'text-gray-600'
+                    }`}>
                     {genreOption.description}
                   </p>
                 </button>
@@ -88,31 +162,28 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
       {/* Setting Selection */}
       <FadeInView delay={200}>
         <Card variant="elevated">
-          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Schauplatz wählen</h2>
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">{t('story.wizard.setting.title')}</h2>
           <p className="text-gray-600 text-center mb-6">
-            Wo soll deine Geschichte stattfinden?
+            {t('story.wizard.setting.subtitle')}
           </p>
-          
+
           <div className="grid grid-cols-2 gap-4">
             {settings.map((settingOption, index) => (
               <FadeInView key={settingOption.key} delay={250 + index * 50}>
                 <button
-                  onClick={() => onSettingChange(settingOption.key)}
-                  className={`p-4 rounded-lg border-2 transition-colors text-center ${
-                    setting === settingOption.key
+                  onClick={() => onSettingChange(settingOption.value)}
+                  className={`p-4 rounded-lg border-2 transition-colors text-center w-full h-full flex flex-col items-center justify-center ${setting === settingOption.value
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-300 hover:border-purple-300'
-                  }`}
+                    }`}
                 >
                   <span className="text-2xl mb-2 block">{settingOption.icon}</span>
-                  <h3 className={`font-semibold mb-1 ${
-                    setting === settingOption.key ? 'text-purple-700' : 'text-gray-800'
-                  }`}>
+                  <h3 className={`font-semibold mb-1 ${setting === settingOption.value ? 'text-purple-700' : 'text-gray-800'
+                    }`}>
                     {settingOption.label}
                   </h3>
-                  <p className={`text-xs ${
-                    setting === settingOption.key ? 'text-purple-600' : 'text-gray-600'
-                  }`}>
+                  <p className={`text-xs ${setting === settingOption.value ? 'text-purple-600' : 'text-gray-600'
+                    }`}>
                     {settingOption.description}
                   </p>
                 </button>

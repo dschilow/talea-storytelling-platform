@@ -119,6 +119,141 @@
       "stories": "Stories",
       "dokus": "Docs",
       "totalTraits": "Total Traits"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Select Mode",
+        "basic": "Basic Info",
+        "appearance": "Appearance",
+        "style": "Style",
+        "background": "Background",
+        "create": "Create"
+      },
+      "mode": {
+        "title": "How do you want to create your avatar?",
+        "simple": {
+          "title": "Simple & Fun",
+          "description": "Click through colorful options. Perfect for kids!"
+        },
+        "advanced": {
+          "title": "Creative & Free",
+          "description": "Describe your avatar in your own words. For creatives!"
+        }
+      },
+      "basic": {
+        "title": "Basic Info",
+        "subtitle": "Tell us about your character",
+        "name": "Name",
+        "namePlaceholder": "What should your avatar be called?",
+        "type": "Type",
+        "age": "Age",
+        "gender": "Gender",
+        "description": "Describe your avatar",
+        "descriptionPlaceholder": "e.g. Luna - A curious girl, 8 years old, with big green eyes and a mischievous smile..."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "subtitle": "What does your avatar look like?",
+        "eyeColor": "Eye Color",
+        "hairColor": "Hair Color",
+        "specialFeatures": "Special Features",
+        "descriptionPlaceholder": "Describe your avatar's appearance in detail..."
+      },
+      "style": {
+        "title": "Style & Expression",
+        "subtitle": "How does your avatar dress?",
+        "clothing": "Clothing Style",
+        "voice": "Voice"
+      },
+      "background": {
+        "title": "Origin & Story",
+        "subtitle": "Where does your avatar come from?",
+        "world": "World",
+        "backstory": "Backstory"
+      },
+      "create": {
+        "title": "Your avatar is ready!",
+        "info": "Personality traits start neutral and develop through your stories!",
+        "generateImage": "Generate Image",
+        "generatingImage": "Generating Image...",
+        "createAvatar": "Create Avatar",
+        "creatingAvatar": "Creating Avatar..."
+      },
+      "options": {
+        "types": {
+          "human": "Human",
+          "animal": "Animal",
+          "fantasy": "Fantasy Creature",
+          "robot": "Robot",
+          "plant": "Plant",
+          "other": "Other"
+        },
+        "ages": {
+          "baby": "Baby",
+          "child": "Child",
+          "teen": "Teenager",
+          "adult": "Adult",
+          "old": "Old"
+        },
+        "genders": {
+          "boy": "Boy",
+          "girl": "Girl",
+          "diverse": "Diverse",
+          "none": "Not specified"
+        },
+        "eyes": {
+          "blue": "blue",
+          "green": "green",
+          "brown": "brown",
+          "gray": "gray",
+          "colorful": "colorful"
+        },
+        "hair": {
+          "blonde": "blonde",
+          "brown": "brown",
+          "black": "black",
+          "red": "red",
+          "bald": "bald"
+        },
+        "features": {
+          "glasses": "Glasses",
+          "wings": "Wings",
+          "horns": "Horns",
+          "tail": "Tail",
+          "scar": "Scar",
+          "tattoo": "Tattoo"
+        },
+        "clothing": {
+          "modern": "Modern",
+          "medieval": "Medieval",
+          "fairytale": "Fairytale",
+          "future": "Future",
+          "armor": "Armor",
+          "magic": "Magical"
+        },
+        "voice": {
+          "high": "High",
+          "normal": "Normal",
+          "deep": "Deep",
+          "funny": "Funny",
+          "mysterious": "Mysterious"
+        },
+        "world": {
+          "forest": "Forest",
+          "city": "City",
+          "castle": "Castle",
+          "future": "Future",
+          "underwater": "Underwater",
+          "space": "Space"
+        },
+        "backstory": {
+          "lost": "Lost child",
+          "adventurer": "Adventurer on a journey",
+          "wizard": "Wizard apprentice",
+          "talent": "Animal with special talent",
+          "normal": "Just a \"normal\" child"
+        }
+      }
     }
   },
   "story": {
@@ -127,6 +262,120 @@
     "create": "Create Story",
     "myStories": "My Stories",
     "generating": "Generating story...",
+    "wizard": {
+      "title": "Create Story",
+      "subtitle": "Create a magical story with your avatars",
+      "steps": {
+        "avatar": "Avatars",
+        "genre": "Genre & World",
+        "soul": "Story Soul & Style",
+        "experience": "Emotion & Tempo",
+        "parameters": "Parameters",
+        "learning": "Learning Mode",
+        "generation": "Create"
+      },
+      "stepCounter": "Step {{current}} of {{total}}",
+      "next": "Next",
+      "back": "Back",
+      "alerts": {
+        "loginRequired": "Please sign in to create a story.",
+        "selectAvatar": "Please select at least one avatar for the story.",
+        "success": "Story \"{{title}}\" was successfully generated! 🎉",
+        "error": "The story could not be created. Please try again.",
+        "tooLong": "The request is too large. Please try again.",
+        "timeout": "Generation is taking too long. Please choose a shorter story."
+      },
+      "genre": {
+        "title": "Select Genre",
+        "subtitle": "What kind of story should it be?",
+        "options": {
+          "fairytale": "Classic Fairy Tales",
+          "fairytaleDesc": "Use original fairy tales as inspiration",
+          "magic": "Fairy Tale Worlds & Magic",
+          "magicDesc": "Free fairy tale worlds with a magical remix",
+          "adventure": "Adventure",
+          "adventureDesc": "Exciting journeys and discoveries",
+          "fantasy": "Fantasy",
+          "fantasyDesc": "Magical worlds and wizardry",
+          "mystery": "Mystery",
+          "mysteryDesc": "Puzzles and mysterious events",
+          "friendship": "Friendship",
+          "friendshipDesc": "Stories about togetherness",
+          "learning": "Learning",
+          "learningDesc": "Educational and instructional content",
+          "comedy": "Comedy",
+          "comedyDesc": "Funny and humorous stories"
+        }
+      },
+      "setting": {
+        "title": "Select Setting",
+        "subtitle": "Where should your story take place?",
+        "options": {
+          "forest": "Magic Forest",
+          "forestDesc": "Mystical forests full of secrets",
+          "castle": "Castle",
+          "castleDesc": "Royal palaces and castles",
+          "ocean": "Underwater World",
+          "oceanDesc": "Explore the depths of the ocean",
+          "space": "Space",
+          "spaceDesc": "Adventures among the stars",
+          "city": "Modern City",
+          "cityDesc": "Urban adventures and discoveries",
+          "village": "Fairy Tale Village",
+          "villageDesc": "Cozy village communities"
+        }
+      },
+      "parameters": {
+        "length": {
+          "title": "Story Length",
+          "subtitle": "How long should your story be?",
+          "options": {
+            "short": "Short",
+            "shortDesc": "3-5 Chapters, ~10 Min.",
+            "medium": "Medium",
+            "mediumDesc": "5-8 Chapters, ~20 Min.",
+            "long": "Long",
+            "longDesc": "8-12 Chapters, ~30 Min."
+          }
+        },
+        "complexity": {
+          "title": "Complexity",
+          "subtitle": "How complex should the plot be?",
+          "options": {
+            "simple": "Simple",
+            "simpleDesc": "Easy language, simple plot",
+            "medium": "Medium",
+            "mediumDesc": "Balanced complexity",
+            "complex": "Complex",
+            "complexDesc": "Multi-layered plot"
+          }
+        },
+        "ageGroup": {
+          "title": "Age Group",
+          "subtitle": "For which age group is the story?",
+          "options": {
+            "3-5": "3-5 years",
+            "3-5Desc": "Preschoolers",
+            "6-8": "6-8 years",
+            "6-8Desc": "Primary school children",
+            "9-12": "9-12 years",
+            "9-12Desc": "School children",
+            "13+": "13+ years",
+            "13+Desc": "Teenagers"
+          }
+        },
+        "aiModel": {
+          "title": "AI Model",
+          "subtitle": "Select the AI model for story generation",
+          "options": {
+            "nano": "Fast & cheap",
+            "mini": "Recommended",
+            "standard": "Best quality",
+            "premium": "Premium"
+          }
+        }
+      }
+    },
     "selectAvatars": "Select Avatars",
     "selectAvatarsSubtitle": "Choose up to 3 avatars for the story",
     "ageGroup": "Age Group",

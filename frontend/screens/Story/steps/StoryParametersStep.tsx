@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
@@ -26,23 +27,75 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   onAgeGroupChange,
   onAiModelChange,
 }) => {
+  const { t } = useTranslation();
+
   const lengthOptions = [
-    { key: 'short', label: 'Kurz', icon: '📄', description: '3-5 Kapitel, ~10 Min.' },
-    { key: 'medium', label: 'Mittel', icon: '📖', description: '5-8 Kapitel, ~20 Min.' },
-    { key: 'long', label: 'Lang', icon: '📚', description: '8-12 Kapitel, ~30 Min.' },
+    {
+      key: 'short',
+      label: t('story.wizard.parameters.length.options.short'),
+      icon: '📄',
+      description: t('story.wizard.parameters.length.options.shortDesc')
+    },
+    {
+      key: 'medium',
+      label: t('story.wizard.parameters.length.options.medium'),
+      icon: '📖',
+      description: t('story.wizard.parameters.length.options.mediumDesc')
+    },
+    {
+      key: 'long',
+      label: t('story.wizard.parameters.length.options.long'),
+      icon: '📚',
+      description: t('story.wizard.parameters.length.options.longDesc')
+    },
   ];
 
   const complexityOptions = [
-    { key: 'simple', label: 'Einfach', icon: '🌟', description: 'Leichte Sprache, einfache Handlung' },
-    { key: 'medium', label: 'Mittel', icon: '⭐', description: 'Ausgewogene Komplexität' },
-    { key: 'complex', label: 'Komplex', icon: '🌠', description: 'Vielschichtige Handlung' },
+    {
+      key: 'simple',
+      label: t('story.wizard.parameters.complexity.options.simple'),
+      icon: '🌟',
+      description: t('story.wizard.parameters.complexity.options.simpleDesc')
+    },
+    {
+      key: 'medium',
+      label: t('story.wizard.parameters.complexity.options.medium'),
+      icon: '⭐',
+      description: t('story.wizard.parameters.complexity.options.mediumDesc')
+    },
+    {
+      key: 'complex',
+      label: t('story.wizard.parameters.complexity.options.complex'),
+      icon: '🌠',
+      description: t('story.wizard.parameters.complexity.options.complexDesc')
+    },
   ];
 
   const ageGroupOptions = [
-    { key: '3-5', label: '3-5 Jahre', icon: '🧸', description: 'Vorschulkinder' },
-    { key: '6-8', label: '6-8 Jahre', icon: '🎒', description: 'Grundschulkinder' },
-    { key: '9-12', label: '9-12 Jahre', icon: '📝', description: 'Schulkinder' },
-    { key: '13+', label: '13+ Jahre', icon: '🎓', description: 'Jugendliche' },
+    {
+      key: '3-5',
+      label: t('story.wizard.parameters.ageGroup.options.3-5'),
+      icon: '🧸',
+      description: t('story.wizard.parameters.ageGroup.options.3-5Desc')
+    },
+    {
+      key: '6-8',
+      label: t('story.wizard.parameters.ageGroup.options.6-8'),
+      icon: '🎒',
+      description: t('story.wizard.parameters.ageGroup.options.6-8Desc')
+    },
+    {
+      key: '9-12',
+      label: t('story.wizard.parameters.ageGroup.options.9-12'),
+      icon: '📝',
+      description: t('story.wizard.parameters.ageGroup.options.9-12Desc')
+    },
+    {
+      key: '13+',
+      label: t('story.wizard.parameters.ageGroup.options.13+'),
+      icon: '🎓',
+      description: t('story.wizard.parameters.ageGroup.options.13+Desc')
+    },
   ];
 
   const aiModelOptions = [
@@ -68,27 +121,24 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       <Card variant="elevated">
         <h2 className="text-xl font-bold text-gray-800 text-center mb-2">{title}</h2>
         <p className="text-gray-600 text-center mb-6">{subtitle}</p>
-        
+
         <div className="grid grid-cols-3 gap-3">
           {options.map((option, index) => (
             <FadeInView key={option.key} delay={delay + 50 + index * 30}>
               <button
                 onClick={() => onSelect(option.key)}
-                className={`p-3 rounded-lg border-2 transition-colors text-center ${
-                  selectedValue === option.key
+                className={`p-3 rounded-lg border-2 transition-colors text-center ${selectedValue === option.key
                     ? 'border-purple-500 bg-purple-50'
                     : 'border-gray-300 hover:border-purple-300'
-                }`}
+                  }`}
               >
                 <span className="text-xl mb-2 block">{option.icon}</span>
-                <h3 className={`font-semibold text-sm mb-1 ${
-                  selectedValue === option.key ? 'text-purple-700' : 'text-gray-800'
-                }`}>
+                <h3 className={`font-semibold text-sm mb-1 ${selectedValue === option.key ? 'text-purple-700' : 'text-gray-800'
+                  }`}>
                   {option.label}
                 </h3>
-                <p className={`text-xs ${
-                  selectedValue === option.key ? 'text-purple-600' : 'text-gray-600'
-                }`}>
+                <p className={`text-xs ${selectedValue === option.key ? 'text-purple-600' : 'text-gray-600'
+                  }`}>
                   {option.description}
                 </p>
               </button>
@@ -102,8 +152,8 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   return (
     <div className="space-y-6">
       {renderParameterSection(
-        'Geschichtenlänge',
-        'Wie lang soll deine Geschichte werden?',
+        t('story.wizard.parameters.length.title'),
+        t('story.wizard.parameters.length.subtitle'),
         lengthOptions,
         length,
         onLengthChange,
@@ -111,8 +161,8 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       )}
 
       {renderParameterSection(
-        'Komplexität',
-        'Wie komplex soll die Handlung sein?',
+        t('story.wizard.parameters.complexity.title'),
+        t('story.wizard.parameters.complexity.subtitle'),
         complexityOptions,
         complexity,
         onComplexityChange,
@@ -120,8 +170,8 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       )}
 
       {renderParameterSection(
-        'Altersgruppe',
-        'Für welche Altersgruppe ist die Geschichte?',
+        t('story.wizard.parameters.ageGroup.title'),
+        t('story.wizard.parameters.ageGroup.subtitle'),
         ageGroupOptions,
         ageGroup,
         onAgeGroupChange,
@@ -131,19 +181,18 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       {/* AI Model Selection */}
       <FadeInView delay={400}>
         <Card variant="elevated">
-          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">🤖 AI Model</h2>
-          <p className="text-gray-600 text-center mb-6">Wähle das KI-Modell für die Story-Generierung</p>
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">🤖 {t('story.wizard.parameters.aiModel.title')}</h2>
+          <p className="text-gray-600 text-center mb-6">{t('story.wizard.parameters.aiModel.subtitle')}</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {aiModelOptions.map((option, index) => (
               <FadeInView key={option.key} delay={450 + index * 30}>
                 <button
                   onClick={() => onAiModelChange(option.key as AIModel)}
-                  className={`p-3 rounded-lg border-2 transition-colors text-center relative ${
-                    aiModel === option.key
+                  className={`p-3 rounded-lg border-2 transition-colors text-center relative ${aiModel === option.key
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-300 hover:border-purple-300'
-                  }`}
+                    }`}
                 >
                   {option.recommended && (
                     <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded">
@@ -151,14 +200,12 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
                     </div>
                   )}
                   <span className="text-2xl mb-1 block">{option.icon}</span>
-                  <h3 className={`font-semibold text-xs mb-1 ${
-                    aiModel === option.key ? 'text-purple-700' : 'text-gray-800'
-                  }`}>
+                  <h3 className={`font-semibold text-xs mb-1 ${aiModel === option.key ? 'text-purple-700' : 'text-gray-800'
+                    }`}>
                     {option.label}
                   </h3>
-                  <p className={`text-xs ${
-                    aiModel === option.key ? 'text-purple-600' : 'text-gray-600'
-                  }`}>
+                  <p className={`text-xs ${aiModel === option.key ? 'text-purple-600' : 'text-gray-600'
+                    }`}>
                     {option.description}
                   </p>
                 </button>

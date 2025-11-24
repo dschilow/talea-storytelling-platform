@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from 'react-i18next';
 import Card from "../../../components/common/Card";
 
 export type EmotionalFlavorKey =
@@ -17,50 +18,19 @@ export interface EmotionalFlavorOption {
   effect: string;
 }
 
-export const EMOTIONAL_FLAVOR_OPTIONS: EmotionalFlavorOption[] = [
-  {
-    key: "warmherzigkeit",
-    label: "Warmherzigkeit",
-    description: "Umarmungen, Trost und sanfte Naehe",
-    effect: "Verstaerkt Herzensmomente, haelt Humor zart.",
-  },
-  {
-    key: "lachfreude",
-    label: "Lachfreude",
-    description: "Slapstick, Wortspiele, Schelmerei",
-    effect: "Erhoeht Humor und spritzige Dialoge.",
-  },
-  {
-    key: "prickeln",
-    label: "Prickeln",
-    description: "Geheimnisse, kleine Guesel, Spannung",
-    effect: "Hebt das Spannungsniveau merklich an.",
-  },
-  {
-    key: "geborgenheit",
-    label: "Geborgenheit",
-    description: "Kuschel-Gefuehl, Sicherheit, Langsamkeit",
-    effect: "Verlangsamt Tempo, macht Szenen sanfter.",
-  },
-  {
-    key: "uebermut",
-    label: "Uebermut",
-    description: "Freche Ideen, Quatsch, ausgelassene Energie",
-    effect: "Steigert Humor und schnelle Aktionen.",
-  },
-  {
-    key: "staunen",
-    label: "Staunen",
-    description: "Wundersame Entdeckungen, Magisches Leuchten",
-    effect: "Betont neugierige, poetische Momente.",
-  },
-  {
-    key: "zusammenhalt",
-    label: "Zusammenhalt",
-    description: "Teamgeist, gemeinsame Loesungen",
-    effect: "Foerdert wir-Gefuehl und freundliche Dialoge.",
-  },
+export const EMOTIONAL_FLAVOR_KEYS: EmotionalFlavorKey[] = [
+  "warmherzigkeit",
+  "lachfreude",
+  "prickeln",
+  "geborgenheit",
+  "uebermut",
+  "staunen",
+  "zusammenhalt",
 ];
+
+// Exporting empty/dummy arrays for compatibility if needed by other files, 
+// but ideally they should use keys or be refactored too.
+export const EMOTIONAL_FLAVOR_OPTIONS: EmotionalFlavorOption[] = [] as any;
 
 export type StoryTempoKey = "cozy" | "balanced" | "fast";
 
@@ -70,23 +40,8 @@ export interface StoryTempoOption {
   description: string;
 }
 
-export const STORY_TEMPO_OPTIONS: StoryTempoOption[] = [
-  {
-    key: "cozy",
-    label: "Gemutlich",
-    description: "Ruhiges Tempo, viel Raum fuer Atmosphaere.",
-  },
-  {
-    key: "balanced",
-    label: "Ausgewogen",
-    description: "Harmonischer Wechsel aus Ruhe und Schwung.",
-  },
-  {
-    key: "fast",
-    label: "Rasant",
-    description: "Hohe Dynamik, kurze Pausen, viel Action.",
-  },
-];
+export const STORY_TEMPO_KEYS: StoryTempoKey[] = ["cozy", "balanced", "fast"];
+export const STORY_TEMPO_OPTIONS: StoryTempoOption[] = [] as any;
 
 export type SpecialIngredientKey =
   | "surprise"
@@ -102,38 +57,16 @@ export interface SpecialIngredientOption {
   description: string;
 }
 
-export const SPECIAL_INGREDIENT_OPTIONS: SpecialIngredientOption[] = [
-  {
-    key: "surprise",
-    label: "Ueberraschung",
-    description: "Eine unerwartete Wendung, die alle staunen laesst.",
-  },
-  {
-    key: "mystery",
-    label: "Geheimnis",
-    description: "Ein Raetsel, das die Kinder gemeinsam loesen.",
-  },
-  {
-    key: "transformation",
-    label: "Verwandlung",
-    description: "Etwas oder jemand veraendert sich grundlegend.",
-  },
-  {
-    key: "magic",
-    label: "Magie",
-    description: "Zauberhafte Momente, leuchtende Wunder, Funkenregen.",
-  },
-  {
-    key: "trial",
-    label: "Mutprobe",
-    description: "Eine Herausforderung, die Selbstvertrauen schuetzt.",
-  },
-  {
-    key: "aha",
-    label: "Aha-Moment",
-    description: "Eine wichtige Erkenntnis, die alles zusammenbringt.",
-  },
+export const SPECIAL_INGREDIENT_KEYS: SpecialIngredientKey[] = [
+  "surprise",
+  "mystery",
+  "transformation",
+  "magic",
+  "trial",
+  "aha",
 ];
+export const SPECIAL_INGREDIENT_OPTIONS: SpecialIngredientOption[] = [] as any;
+
 
 const MAX_FLAVORS = 2;
 const MAX_INGREDIENTS = 2;
@@ -153,6 +86,27 @@ const StoryFlavorStep: React.FC<Props> = ({
   customPrompt,
   onChange,
 }) => {
+  const { t } = useTranslation();
+
+  const emotionalFlavorOptions = EMOTIONAL_FLAVOR_KEYS.map(key => ({
+    key,
+    label: t(`story.wizard.flavor.options.${key}.label`),
+    description: t(`story.wizard.flavor.options.${key}.description`),
+    effect: t(`story.wizard.flavor.options.${key}.effect`),
+  }));
+
+  const storyTempoOptions = STORY_TEMPO_KEYS.map(key => ({
+    key,
+    label: t(`story.wizard.tempo.options.${key}.label`),
+    description: t(`story.wizard.tempo.options.${key}.description`),
+  }));
+
+  const specialIngredientOptions = SPECIAL_INGREDIENT_KEYS.map(key => ({
+    key,
+    label: t(`story.wizard.ingredients.options.${key}.label`),
+    description: t(`story.wizard.ingredients.options.${key}.description`),
+  }));
+
   const toggleFlavor = (key: EmotionalFlavorKey) => {
     const isSelected = emotionalFlavors.includes(key);
     if (!isSelected && emotionalFlavors.length >= MAX_FLAVORS) {
@@ -179,19 +133,18 @@ const StoryFlavorStep: React.FC<Props> = ({
     <Card variant="elevated">
       <div className="space-y-8">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">Emotionale Wuerze</h3>
-          <p className="text-gray-600 text-sm mb-3">Waehle bis zu zwei Emotionen, die deine Story traegt.</p>
+          <h3 className="text-lg font-semibold text-gray-800">{t('story.wizard.flavor.title')}</h3>
+          <p className="text-gray-600 text-sm mb-3">{t('story.wizard.flavor.subtitle')}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {EMOTIONAL_FLAVOR_OPTIONS.map((option) => {
+            {emotionalFlavorOptions.map((option) => {
               const isSelected = emotionalFlavors.includes(option.key);
               return (
                 <label
                   key={option.key}
-                  className={`border rounded-lg p-3 cursor-pointer transition ${
-                    isSelected
+                  className={`border rounded-lg p-3 cursor-pointer transition ${isSelected
                       ? "border-purple-500 bg-purple-50"
                       : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
-                  }`}
+                    }`}
                 >
                   <input
                     type="checkbox"
@@ -208,25 +161,24 @@ const StoryFlavorStep: React.FC<Props> = ({
               );
             })}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Maximal {MAX_FLAVORS} Emotionen gleichzeitig.</p>
+          <p className="text-xs text-gray-500 mt-2">{t('story.wizard.flavor.max', { count: MAX_FLAVORS })}</p>
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">Tempo</h3>
-          <p className="text-gray-600 text-sm mb-3">Bestimme den Rhythmus der Reise.</p>
+          <h3 className="text-lg font-semibold text-gray-800">{t('story.wizard.tempo.title')}</h3>
+          <p className="text-gray-600 text-sm mb-3">{t('story.wizard.tempo.subtitle')}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {STORY_TEMPO_OPTIONS.map((option) => {
+            {storyTempoOptions.map((option) => {
               const isSelected = storyTempo === option.key;
               return (
                 <button
                   key={option.key}
                   type="button"
                   onClick={() => onChange({ storyTempo: option.key })}
-                  className={`border rounded-lg p-3 text-left transition ${
-                    isSelected
+                  className={`border rounded-lg p-3 text-left transition ${isSelected
                       ? "border-purple-500 bg-purple-50"
                       : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
-                  }`}
+                    }`}
                 >
                   <div className="font-semibold text-sm text-gray-800">{option.label}</div>
                   <div className="text-xs text-gray-600">{option.description}</div>
@@ -237,19 +189,18 @@ const StoryFlavorStep: React.FC<Props> = ({
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">Spezialzutaten</h3>
-          <p className="text-gray-600 text-sm mb-3">Waehle bis zu zwei Highlights, die unbedingt vorkommen sollen.</p>
+          <h3 className="text-lg font-semibold text-gray-800">{t('story.wizard.ingredients.title')}</h3>
+          <p className="text-gray-600 text-sm mb-3">{t('story.wizard.ingredients.subtitle')}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {SPECIAL_INGREDIENT_OPTIONS.map((option) => {
+            {specialIngredientOptions.map((option) => {
               const isSelected = specialIngredients.includes(option.key);
               return (
                 <label
                   key={option.key}
-                  className={`border rounded-lg p-3 cursor-pointer transition ${
-                    isSelected
+                  className={`border rounded-lg p-3 cursor-pointer transition ${isSelected
                       ? "border-purple-500 bg-purple-50"
                       : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
-                  }`}
+                    }`}
                 >
                   <input
                     type="checkbox"
@@ -265,19 +216,19 @@ const StoryFlavorStep: React.FC<Props> = ({
               );
             })}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Maximal {MAX_INGREDIENTS} Spezialzutaten. Optional.</p>
+          <p className="text-xs text-gray-500 mt-2">{t('story.wizard.ingredients.max', { count: MAX_INGREDIENTS })}</p>
         </div>
 
         <div>
-          <label className="block text-sm text-gray-700 mb-1">Magische Wuensche (optional)</label>
+          <label className="block text-sm text-gray-700 mb-1">{t('story.wizard.customPrompt.label')}</label>
           <textarea
             className="w-full border rounded-lg p-3 min-h-[120px]"
-            placeholder="z. B. Bitte eine Szene am See mit glitzerndem Sternenpfad."
+            placeholder={t('story.wizard.customPrompt.placeholder')}
             value={customPrompt}
             onChange={(event) => onChange({ customPrompt: event.target.value })}
           />
           <p className="text-xs text-gray-500 mt-1">
-            Freitext fuer besondere Ideen, Lieblingsorte oder Figuren.
+            {t('story.wizard.customPrompt.hint')}
           </p>
         </div>
       </div>

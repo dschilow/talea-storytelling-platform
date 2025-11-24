@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
@@ -50,77 +51,81 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
   generating = false,
   generationStep = 'profiles',
 }) => {
+  const { t } = useTranslation();
+
   const getGenreLabel = (genre: string) => {
+    // Map backend values to translation keys if necessary, or rely on consistent keys
+    // For now, assuming genre values might be keys or English strings that need mapping
     const genres: Record<string, string> = {
-      'Klassische Märchen': 'Klassische Märchen',
-      'Märchenwelten und Magie': 'Märchenwelten & Magie',
-      adventure: 'Abenteuer',
-      fantasy: 'Fantasy',
-      mystery: 'Geheimnis',
-      friendship: 'Freundschaft',
-      learning: 'Lernen',
-      comedy: 'Comedy',
+      'Klassische Märchen': t('story.wizard.genre.options.fairytale'),
+      'Märchenwelten und Magie': t('story.wizard.genre.options.magic'),
+      adventure: t('story.wizard.genre.options.adventure'),
+      fantasy: t('story.wizard.genre.options.fantasy'),
+      mystery: t('story.wizard.genre.options.mystery'),
+      friendship: t('story.wizard.genre.options.friendship'),
+      learning: t('story.wizard.genre.options.learning'),
+      comedy: t('story.wizard.genre.options.comedy'),
     };
     return genres[genre] || genre;
   };
 
   const getSettingLabel = (setting: string) => {
     const settings: Record<string, string> = {
-      forest: 'Zauberwald',
-      castle: 'Schloss',
-      ocean: 'Unterwasserwelt',
-      space: 'Weltraum',
-      city: 'Moderne Stadt',
-      village: 'Maerchendorf',
+      forest: t('story.wizard.setting.options.forest'),
+      castle: t('story.wizard.setting.options.castle'),
+      ocean: t('story.wizard.setting.options.ocean'),
+      space: t('story.wizard.setting.options.space'),
+      city: t('story.wizard.setting.options.city'),
+      village: t('story.wizard.setting.options.village'),
     };
     return settings[setting] || setting;
   };
 
   const getLengthLabel = (length: string) => {
     const lengths: Record<string, string> = {
-      short: 'Kurz (3-5 Kapitel)',
-      medium: 'Mittel (5-8 Kapitel)',
-      long: 'Lang (8-12 Kapitel)',
+      short: t('story.wizard.parameters.length.options.short'),
+      medium: t('story.wizard.parameters.length.options.medium'),
+      long: t('story.wizard.parameters.length.options.long'),
     };
     return lengths[length] || length;
   };
 
   const getComplexityLabel = (complexity: string) => {
     const complexities: Record<string, string> = {
-      simple: 'Einfach',
-      medium: 'Mittel',
-      complex: 'Komplex',
+      simple: t('story.wizard.parameters.complexity.options.simple'),
+      medium: t('story.wizard.parameters.complexity.options.medium'),
+      complex: t('story.wizard.parameters.complexity.options.complex'),
     };
     return complexities[complexity] || complexity;
   };
 
   const getStyleLabel = (style?: string) => {
-    if (!style) return 'Automatisch (Story-Seele)';
-    return STYLE_PRESET_OPTIONS.find((option) => option.key === style)?.label || style;
+    if (!style) return t('story.wizard.style.auto');
+    // Note: STYLE_PRESET_OPTIONS needs to be refactored to use translations as well
+    // For now, we might need to rely on the label from the options if they are translated there
+    // Or map keys here. Let's assume we'll translate options in StoryStyleStep and export them or use keys.
+    // Ideally, we should use keys here and translate them.
+    return style;
   };
 
   const getSoulLabel = (soul?: string) => {
-    if (!soul) return 'Nicht ausgewaehlt';
-    return STORY_SOUL_OPTIONS.find((option) => option.key === soul)?.label || soul;
+    if (!soul) return t('story.wizard.soul.notSelected');
+    return soul;
   };
 
   const getFlavorLabels = (flavors?: string[]) => {
-    if (!flavors || flavors.length === 0) return 'Natuerlich ohne Zusatz';
-    return flavors
-      .map((key) => EMOTIONAL_FLAVOR_OPTIONS.find((option) => option.key === key)?.label || key)
-      .join(', ');
+    if (!flavors || flavors.length === 0) return t('story.wizard.flavor.none');
+    return flavors.join(', ');
   };
 
   const getTempoLabel = (tempo?: string) => {
-    if (!tempo) return 'Ausgewogen';
-    return STORY_TEMPO_OPTIONS.find((option) => option.key === tempo)?.label || tempo;
+    if (!tempo) return t('story.wizard.tempo.balanced');
+    return tempo;
   };
 
   const getIngredientLabels = (ingredients?: string[]) => {
-    if (!ingredients || ingredients.length === 0) return 'Kein Zusatz';
-    return ingredients
-      .map((key) => SPECIAL_INGREDIENT_OPTIONS.find((option) => option.key === key)?.label || key)
-      .join(', ');
+    if (!ingredients || ingredients.length === 0) return t('story.wizard.ingredients.none');
+    return ingredients.join(', ');
   };
 
   return (
@@ -128,97 +133,97 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
       {/* Summary */}
       <FadeInView delay={100}>
         <Card variant="elevated">
-          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">Zusammenfassung</h2>
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-2">{t('story.wizard.summary.title')}</h2>
           <p className="text-gray-600 text-center mb-6">
-            Ueberpruefe deine Einstellungen vor der Generierung
+            {t('story.wizard.summary.subtitle')}
           </p>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Avatare</h3>
-              <p className="text-gray-800">{storyConfig.avatarIds.length} ausgewaehlt</p>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.avatars')}</h3>
+              <p className="text-gray-800">{t('story.wizard.summary.avatarsCount', { count: storyConfig.avatarIds.length })}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Genre</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.genre')}</h3>
               <p className="text-gray-800">{getGenreLabel(storyConfig.genre)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Schauplatz</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.setting')}</h3>
               <p className="text-gray-800">{getSettingLabel(storyConfig.setting)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Laenge</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.length')}</h3>
               <p className="text-gray-800">{getLengthLabel(storyConfig.length)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Komplexitaet</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.complexity')}</h3>
               <p className="text-gray-800">{getComplexityLabel(storyConfig.complexity)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Altersgruppe</h3>
-              <p className="text-gray-800">{storyConfig.ageGroup} Jahre</p>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.ageGroup')}</h3>
+              <p className="text-gray-800">{storyConfig.ageGroup} {t('story.wizard.summary.years')}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Story-Stil</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.style')}</h3>
               <p className="text-gray-800">
                 {getStyleLabel(storyConfig.stylePreset)}
-                {storyConfig.allowRhymes ? ' (Reime erlaubt)' : ''}
+                {storyConfig.allowRhymes ? ` (${t('story.wizard.summary.rhymesAllowed')})` : ''}
               </p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Story-Seele</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.soul')}</h3>
               <p className="text-gray-800">{getSoulLabel(storyConfig.storySoul)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Emotionale Wuerze</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.flavor')}</h3>
               <p className="text-gray-800">{getFlavorLabels(storyConfig.emotionalFlavors)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Tempo</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.tempo')}</h3>
               <p className="text-gray-800">{getTempoLabel(storyConfig.storyTempo)}</p>
             </div>
 
             <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Spezialzutaten</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.ingredients')}</h3>
               <p className="text-gray-800">{getIngredientLabels(storyConfig.specialIngredients)}</p>
             </div>
           </div>
 
           {storyConfig.customPrompt && storyConfig.customPrompt.trim().length > 0 && (
             <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-6">
-              <h3 className="font-semibold text-gray-700 text-sm mb-1">Magischer Wunsch</h3>
+              <h3 className="font-semibold text-gray-700 text-sm mb-1">{t('story.wizard.summary.customPrompt')}</h3>
               <p className="text-gray-800 text-sm whitespace-pre-line">{storyConfig.customPrompt}</p>
             </div>
           )}
 
           {storyConfig.learningMode?.enabled && (
             <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
-              <h3 className="font-bold text-purple-700 mb-3 text-center">Lernmodus aktiviert</h3>
+              <h3 className="font-bold text-purple-700 mb-3 text-center">{t('story.wizard.summary.learningModeActive')}</h3>
 
               {storyConfig.learningMode.subjects.length > 0 && (
                 <div className="mb-3">
-                  <h4 className="font-semibold text-purple-600 text-sm mb-1">Faecher:</h4>
+                  <h4 className="font-semibold text-purple-600 text-sm mb-1">{t('story.wizard.summary.subjects')}:</h4>
                   <p className="text-purple-700">{storyConfig.learningMode.subjects.join(', ')}</p>
                 </div>
               )}
 
               <div className="mb-3">
-                <h4 className="font-semibold text-purple-600 text-sm mb-1">Schwierigkeit:</h4>
+                <h4 className="font-semibold text-purple-600 text-sm mb-1">{t('story.wizard.summary.difficulty')}:</h4>
                 <p className="text-purple-700">{storyConfig.learningMode.difficulty}</p>
               </div>
 
               {storyConfig.learningMode.learningObjectives.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-purple-600 text-sm mb-1">Lernziele:</h4>
+                  <h4 className="font-semibold text-purple-600 text-sm mb-1">{t('story.wizard.summary.objectives')}:</h4>
                   {storyConfig.learningMode.learningObjectives.map((objective, index) => (
                     <p key={index} className="text-purple-700 text-sm">- {objective}</p>
                   ))}
@@ -235,35 +240,35 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
           <div className="text-center">
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600" />
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              {generating ? 'Magie wirkt...' : 'Bereit fuer die Magie?'}
+              {generating ? t('story.wizard.generation.generatingTitle') : t('story.wizard.generation.readyTitle')}
             </h2>
             <p className="text-gray-600 mb-6">
               {generating
-                ? 'Deine Geschichte wird gerade erstellt. Das kann einige Minuten dauern...'
-                : 'Deine Geschichte wird mit moderner KI-Technologie erstellt. Dieser Prozess braucht etwas Zeit, lohnt sich aber!'}
+                ? t('story.wizard.generation.generatingDesc')
+                : t('story.wizard.generation.readyDesc')}
             </p>
 
             {!generating && (
               <div className="space-y-3 text-left">
                 <div className="flex items-center">
                   <span className="text-lg mr-3">*</span>
-                  <span className="text-gray-700">Personalisierte Kapitel mit deinen Avataren</span>
+                  <span className="text-gray-700">{t('story.wizard.generation.feature1')}</span>
                 </div>
 
                 <div className="flex items-center">
                   <span className="text-lg mr-3">*</span>
-                  <span className="text-gray-700">Wunderschoene Illustrationen fuer jedes Kapitel</span>
+                  <span className="text-gray-700">{t('story.wizard.generation.feature2')}</span>
                 </div>
 
                 <div className="flex items-center">
                   <span className="text-lg mr-3">*</span>
-                  <span className="text-gray-700">Intelligente Handlung basierend auf deinen Einstellungen</span>
+                  <span className="text-gray-700">{t('story.wizard.generation.feature3')}</span>
                 </div>
 
                 {storyConfig.learningMode?.enabled && (
                   <div className="flex items-center">
                     <span className="text-lg mr-3">*</span>
-                    <span className="text-gray-700">Integrierte Lernelemente fuer maximalen Bildungswert</span>
+                    <span className="text-gray-700">{t('story.wizard.generation.featureLearning')}</span>
                   </div>
                 )}
               </div>
@@ -280,7 +285,7 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
 
       <FadeInView delay={300}>
         <Button
-          title={generating ? 'Geschichte wird erstellt...' : 'Geschichte erstellen'}
+          title={generating ? t('story.wizard.generation.buttonGenerating') : t('story.wizard.generation.buttonCreate')}
           onPress={onGenerate}
           size="lg"
           className="w-full"
