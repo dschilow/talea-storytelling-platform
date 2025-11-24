@@ -83,75 +83,91 @@ const AppContent = () => {
               background: colors.glass.backgroundAlt,
               backdropFilter: 'blur(20px)',
               border: `2px solid ${colors.border.light}`,
-              padding: '2rem',
-              textAlign: 'center',
-              fontFamily: '"Nunito", system-ui, sans-serif',
-            }
-          } >
-            <div style={{
-              maxWidth: '600px',
-              padding: '2.5rem',
-              borderRadius: '24px',
-              background: colors.glass.backgroundAlt,
-              border: `2px solid ${colors.border.light}`,
-              boxShadow: '0 20px 60px rgba(169, 137, 242, 0.2)',
-            }}>
-              <div style={{ fontSize: '64px', marginBottom: '1.5rem' }}>🔐</div>
-              <h1 style={{
-                fontSize: '28px',
-                fontWeight: '700',
-                color: colors.text.primary,
-                marginBottom: '1rem',
-                fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
-              }}>
-                Clerk Publishable Key fehlt
-              </h1>
-              <p style={{ color: colors.text.secondary, marginBottom: '1.5rem', fontSize: '16px' }}>
-                Um die Authentifizierung zu nutzen, benötigst du einen Clerk Publishable Key.
-              </p>
-              <p style={{ color: colors.text.secondary, fontSize: '15px' }}>
-                Bitte öffne die Datei <code style={{
-                  background: colors.lavender[100],
-                  padding: '0.3rem 0.6rem',
-                  borderRadius: '8px',
-                  color: colors.lavender[700],
-                  fontFamily: 'monospace',
-                }}>frontend/config.ts</code> und setze den Wert von <code style={{
-                  background: colors.lavender[100],
-                  padding: '0.3rem 0.6rem',
-                  borderRadius: '8px',
-                  color: colors.lavender[700],
-                  fontFamily: 'monospace',
-                }}>clerkPublishableKey</code>.
-              </p>
-              <p style={{ color: colors.text.secondary, marginTop: '1.5rem', fontSize: '14px' }}>
-                Du erhältst deinen Key im <a
-                  href="https://dashboard.clerk.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: colors.lavender[600],
-                    textDecoration: 'none',
-                    fontWeight: '600',
-                  }}
-                >Clerk Dashboard</a>.
-              </p>
-            </div>
+              borderRadius: '16px',
+              color: colors.text.primary,
+            },
+          }}
+        />
+      </div>
+    </Router>
+  );
+};
+
+const MissingKeyScreen = () => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh',
+    background: colors.gradients.background,
+    padding: '2rem',
+    textAlign: 'center',
+    fontFamily: '"Nunito", system-ui, sans-serif',
+  }}>
+    <div style={{
+      maxWidth: '600px',
+      padding: '2.5rem',
+      borderRadius: '24px',
+      background: colors.glass.backgroundAlt,
+      border: `2px solid ${colors.border.light}`,
+      boxShadow: '0 20px 60px rgba(169, 137, 242, 0.2)',
+    }}>
+      <div style={{ fontSize: '64px', marginBottom: '1.5rem' }}>🔐</div>
+      <h1 style={{
+        fontSize: '28px',
+        fontWeight: '700',
+        color: colors.text.primary,
+        marginBottom: '1rem',
+        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
+      }}>
+        Clerk Publishable Key fehlt
+      </h1>
+      <p style={{ color: colors.text.secondary, marginBottom: '1.5rem', fontSize: '16px' }}>
+        Um die Authentifizierung zu nutzen, benötigst du einen Clerk Publishable Key.
+      </p>
+      <p style={{ color: colors.text.secondary, fontSize: '15px' }}>
+        Bitte öffne die Datei <code style={{
+          background: colors.lavender[100],
+          padding: '0.3rem 0.6rem',
+          borderRadius: '8px',
+          color: colors.lavender[700],
+          fontFamily: 'monospace',
+        }}>frontend/config.ts</code> und setze den Wert von <code style={{
+          background: colors.lavender[100],
+          padding: '0.3rem 0.6rem',
+          borderRadius: '8px',
+          color: colors.lavender[700],
+          fontFamily: 'monospace',
+        }}>clerkPublishableKey</code>.
+      </p>
+      <p style={{ color: colors.text.secondary, marginTop: '1.5rem', fontSize: '14px' }}>
+        Du erhältst deinen Key im <a
+          href="https://dashboard.clerk.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: colors.lavender[600],
+            textDecoration: 'none',
+            fontWeight: '600',
+          }}
+        >Clerk Dashboard</a>.
+      </p>
     </div>
-      );
+  </div>
+);
 
-      export default function App() {
-    if (!clerkPublishableKey) {
-      return <MissingKeyScreen />;
-    }
-
-      return (
-      <Provider store={store}>
-        <ClerkProvider publishableKey={clerkPublishableKey}>
-          <ThemeProvider>
-            <AppContent />
-          </ThemeProvider>
-        </ClerkProvider>
-      </Provider>
-      );
+export default function App() {
+  if (!clerkPublishableKey) {
+    return <MissingKeyScreen />;
   }
+
+  return (
+    <Provider store={store}>
+      <ClerkProvider publishableKey={clerkPublishableKey}>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </ClerkProvider>
+    </Provider>
+  );
+}
