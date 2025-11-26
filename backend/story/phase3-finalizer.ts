@@ -209,7 +209,7 @@ export class Phase3StoryFinalizer {
 
       // Validate structure
       this.validateFinalStory(finalStory);
-      this.validateStoryQuality(finalStory, input.avatarDetails, selectedFairyTale, input.config.hasTwist ?? false);
+      this.validateStoryQuality(finalStory, input.avatarDetails, selectedFairyTale, input.config.hasTwist ?? false, input.config.language);
 
       // NEW: Validate originality if fairy tale was used
       if (selectedFairyTale || input.selectedFairyTale) {
@@ -726,15 +726,31 @@ IMPORTANT LANGUAGE INSTRUCTION:
     story: FinalizedStory,
     avatars: Array<{ name: string }>,
     fairyTale: SelectedFairyTale | null,
-    twistRequired: boolean
+    twistRequired: boolean,
+    language?: string
   ) {
     const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
-    const conflictPatterns = [
+    
+    // German conflict patterns
+    const germanConflictPatterns = [
       /gefahr/, /bedroh/, /verfolg/, /flucht/, /kampf/, /duell/,
       /retten/, /rettung/, /falle/, /zauber/, /fluch/,
       /gefängnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
       /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/
     ];
+    
+    // English conflict patterns
+    const englishConflictPatterns = [
+      /danger/, /threat/, /chase/, /escape/, /fight/, /duel/,
+      /rescue/, /saving/, /trap/, /magic/, /curse/, /spell/,
+      /prison/, /dungeon/, /dragon/, /wolf/, /witch/, /monster/,
+      /conflict/, /attack/, /storm/, /flood/, /peril/, /menace/,
+      /struggle/, /battle/, /flee/, /hunt/, /capture/, /defend/,
+      /obstacle/, /challenge/, /risk/, /fear/, /trouble/, /problem/
+    ];
+    
+    // Use both patterns for validation (stories might mix languages or use either)
+    const conflictPatterns = [...germanConflictPatterns, ...englishConflictPatterns];
     const chapterConflicts = story.chapters.map((ch) => this.hasConflictSignal(ch.content, conflictPatterns));
     const conflictfulChapters = chapterConflicts.filter(Boolean).length;
     const requiredConflicts = fairyTale ? 2 : 3; // Relaxed from 5 to 2 for fairy tales
@@ -762,7 +778,14 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
     // Antagonist presence (simple heuristics)
     // CRITICAL FIX: Relax antagonist check for fairy tales (they have various conflict types)
-    const antagonistKeywords = ["antagonist", "gegner", "zauberer", "feind", "bedroh", "problem", "schwierig", "gefahr", "hindernis"];
+    // Support both German and English keywords
+    const antagonistKeywords = [
+      // German
+      "antagonist", "gegner", "zauberer", "feind", "bedroh", "problem", "schwierig", "gefahr", "hindernis",
+      // English
+      "enemy", "villain", "foe", "threat", "danger", "obstacle", "problem", "difficult", "challenge",
+      "wizard", "witch", "monster", "dragon", "troll", "giant", "evil", "wicked", "menace"
+    ];
     const hasConflict = antagonistKeywords.some(k => text.includes(k));
     if (!hasConflict && !fairyTale) {
       throw new Error("[Phase3] No antagonist/conflict presence detected in story text");
@@ -770,10 +793,16 @@ IMPORTANT LANGUAGE INSTRUCTION:
       console.warn("[Phase3] Weak conflict detection in fairy tale mode - may lack clear antagonist");
     }
 
-    // Twist heuristic
+    // Twist heuristic - support both German and English
     if (twistRequired) {
-      const twistSignals = ["twist", "wendung", "ueberraschung", "überraschung", "plot twist"];
+      const twistSignals = [
+        // German
+        "twist", "wendung", "ueberraschung", "überraschung", "plot twist",
+        // English
+        "surprise", "unexpected", "revelation", "secret", "discover"
+      ];
       const structuralTwistPatterns = [
+        // German
         /ploetzlich/,
         /plötzlich/,
         /unerwartet/,
@@ -784,9 +813,19 @@ IMPORTANT LANGUAGE INSTRUCTION:
         /stellt sich raus/,
         /enthüllt/,
         /enthuellt/,
-        /reveal/,
         /geheimnis/,
         /verwandelt sich/,
+        // English
+        /suddenly/,
+        /unexpectedly/,
+        /but then/,
+        /however/,
+        /turns out/,
+        /revealed/,
+        /discover/,
+        /transform/,
+        /realize/,
+        /secret/,
       ];
 
       const hasTwistSignal = twistSignals.some((k) => text.includes(k));
