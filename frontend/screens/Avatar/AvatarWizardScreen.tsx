@@ -675,13 +675,13 @@ const AvatarWizardScreen: React.FC = () => {
       // Show success toast notification
       import('../../utils/toastUtils').then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(safeValues.name);
-        showSuccessToast(`Avatar bereit! Persönlichkeitsmerkmale entwickeln sich durch Geschichten.`);
+        showSuccessToast(t('avatar.wizard.create.avatarCreatedSuccess'));
       });
 
       navigate('/avatar');
     } catch (error) {
       console.error('Error creating avatar:', error);
-      alert('Avatar konnte nicht erstellt werden. Bitte versuche es erneut.');
+      alert(t('avatar.wizard.create.avatarCreationError'));
     } finally {
       setLoading(false);
     }
@@ -719,13 +719,13 @@ const AvatarWizardScreen: React.FC = () => {
 
       // Show success notification
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast('🎨 Avatar-Bild wurde erfolgreich generiert!');
+        showSuccessToast(t('avatar.wizard.create.imageGeneratedSuccess'));
       });
 
     } catch (error) {
       console.error('Error generating avatar image:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.');
+        showErrorToast(t('avatar.wizard.create.imageGenerationError'));
       });
     } finally {
       setGeneratingImage(false);
@@ -806,7 +806,7 @@ const AvatarWizardScreen: React.FC = () => {
               </div>
 
               <h3 className="text-2xl font-bold text-gray-800 mb-2">{avatarConfig.basicInfo.name}</h3>
-              <p className="text-gray-600 mb-4">{avatarConfig.basicInfo.type} aus {avatarConfig.background.world}</p>
+              <p className="text-gray-600 mb-4">{t('avatar.wizard.create.typeFrom', { type: avatarConfig.basicInfo.type, world: avatarConfig.background.world })}</p>
 
               <div className="bg-blue-50 rounded-2xl p-4 mb-6">
                 <p className="text-sm text-blue-800">

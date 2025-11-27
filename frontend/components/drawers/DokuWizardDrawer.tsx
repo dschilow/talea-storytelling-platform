@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Drawer, DrawerContent, DrawerTrigger } from '../ui/drawer';
 import { ShadcnButton } from '../ui/shadcn-button';
 import DokuWizardScreen from '../../screens/Doku/DokuWizardScreen';
@@ -9,13 +10,14 @@ interface DokuWizardDrawerProps {
 
 export function DokuWizardDrawer({ trigger }: DokuWizardDrawerProps) {
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
         {trigger || (
           <ShadcnButton>
-            Neue Doku
+            {t('navigation.createDoku')}
           </ShadcnButton>
         )}
       </DrawerTrigger>

@@ -25,14 +25,14 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
       label: t('story.wizard.genre.options.fairytale'),
       icon: '🏰',
       description: t('story.wizard.genre.options.fairytaleDesc'),
-      value: 'Klassische Märchen' // Keep original value for backend compatibility if needed, or switch to key
+      value: 'fairytale' // Use i18n-independent key for backend
     },
     {
       key: 'magic',
       label: t('story.wizard.genre.options.magic'),
       icon: '✨',
       description: t('story.wizard.genre.options.magicDesc'),
-      value: 'Märchenwelten und Magie'
+      value: 'magic' // Use i18n-independent key for backend
     },
     {
       key: 'adventure',

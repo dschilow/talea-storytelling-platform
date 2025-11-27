@@ -3,6 +3,7 @@ import type {
   StoryTone,
   StoryPacing,
   PlotHookKey,
+  StoryLanguage,
 } from "./generate";
 
 export type StorySoulKey =
@@ -286,7 +287,7 @@ export function applyStoryExperienceToConfig<
     stylePreset?: StylePresetKey;
     allowRhymes?: boolean;
     tone?: StoryTone;
-    language?: "de" | "en";
+    language?: StoryLanguage;
     suspenseLevel?: 0 | 1 | 2 | 3;
     humorLevel?: 0 | 1 | 2 | 3;
     pacing?: StoryPacing;

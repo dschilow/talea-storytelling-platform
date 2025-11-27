@@ -109,11 +109,11 @@ const StoryWizardScreen: React.FC = () => {
   };
 
   const handleGenreChange = (genre: string) => {
-    // Check if genre is a fairy tale genre (using translation keys or values)
-    // This logic might need adjustment if genre values are translated
+    // Check if genre is a fairy tale genre using i18n-independent keys
     const isFairyTaleGenre =
-      genre === 'Klassische Märchen' || genre === 'Märchenwelten und Magie' ||
-      genre === 'Classic Fairy Tales' || genre === 'Fairy Tale Worlds & Magic';
+      genre === 'fairytale' || genre === 'magic' ||
+      // Keep backwards compatibility with old German values
+      genre === 'Klassische Märchen' || genre === 'Märchenwelten und Magie';
 
     updateStoryConfig({
       genre,

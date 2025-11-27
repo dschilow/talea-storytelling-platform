@@ -177,7 +177,12 @@
         "generateImage": "Bild generieren",
         "generatingImage": "Generiere Bild...",
         "createAvatar": "Avatar erstellen",
-        "creatingAvatar": "Erstelle Avatar..."
+        "creatingAvatar": "Erstelle Avatar...",
+        "typeFrom": "{{type}} aus {{world}}",
+        "imageGeneratedSuccess": "🎨 Avatar-Bild wurde erfolgreich generiert!",
+        "imageGenerationError": "Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.",
+        "avatarCreatedSuccess": "Avatar bereit! Persönlichkeitsmerkmale entwickeln sich durch Geschichten.",
+        "avatarCreationError": "Avatar konnte nicht erstellt werden. Bitte versuche es erneut."
       },
       "options": {
         "types": {
@@ -374,6 +379,204 @@
             "premium": "Premium"
           }
         }
+      },
+      "soul": {
+        "title": "Story-Seele wählen",
+        "subtitle": "Die Grundstimmung deiner Geschichte",
+        "options": {
+          "maerchenzauber": {
+            "label": "Märchenzauber",
+            "tagline": "Zeitlos-magisch und herzlich",
+            "description": "Es-war-einmal Stimmung, warme Atmosphäre, sanfte Spannung."
+          },
+          "lieder_reime": {
+            "label": "Lieder & Reime",
+            "tagline": "Verspielt und rhythmisch",
+            "description": "Eingängige Verse, singbare Passagen, poetische Sprache."
+          },
+          "wilder_ritt": {
+            "label": "Wilder Ritt",
+            "tagline": "Rasant und aufregend",
+            "description": "Actiongeladen, unerwartete Wendungen, schnelles Tempo."
+          },
+          "traeumerei": {
+            "label": "Träumerei",
+            "tagline": "Sanft und fantasievoll",
+            "description": "Verträumte Bilder, ruhiger Fluss, magische Momente."
+          },
+          "heldenmut": {
+            "label": "Heldenmut",
+            "tagline": "Mutig und inspirierend",
+            "description": "Überwindung von Ängsten, wachsende Stärke, triumphales Ende."
+          },
+          "entdeckergeist": {
+            "label": "Entdeckergeist",
+            "tagline": "Neugierig und lehrreich",
+            "description": "Neue Welten erkunden, Wissen sammeln, Staunen erleben."
+          }
+        }
+      },
+      "style": {
+        "title": "Erzählstil",
+        "subtitle": "Optionaler spezifischer Stil für deine Geschichte",
+        "auto": "Automatisch (basierend auf Story-Seele)",
+        "allowRhymes": "Reime und Verse erlauben",
+        "footer": "Der Erzählstil wird automatisch zur gewählten Story-Seele angepasst, falls nicht anders gewählt.",
+        "options": {
+          "rhymed_playful": {
+            "label": "Gereimt & Verspielt",
+            "description": "Fröhliche Reime wie bei Dr. Seuss"
+          },
+          "gentle_minimal": {
+            "label": "Sanft & Minimal",
+            "description": "Ruhige, einfache Sprache mit Tiefe"
+          },
+          "wild_imaginative": {
+            "label": "Wild & Fantasievoll",
+            "description": "Überbordende Fantasie und verrückte Ideen"
+          },
+          "philosophical_warm": {
+            "label": "Philosophisch & Warm",
+            "description": "Nachdenkliche Geschichten mit Herz"
+          },
+          "mischief_empowering": {
+            "label": "Frech & Stärkend",
+            "description": "Schabernack mit positivem Ausgang"
+          },
+          "adventure_epic": {
+            "label": "Abenteuer & Episch",
+            "description": "Große Questen und heldenhafte Reisen"
+          },
+          "quirky_dark_sweet": {
+            "label": "Skurril & Bitter-Süß",
+            "description": "Ungewöhnlich mit emotionaler Tiefe"
+          },
+          "cozy_friendly": {
+            "label": "Gemütlich & Freundlich",
+            "description": "Warme, behagliche Atmosphäre"
+          },
+          "classic_fantasy": {
+            "label": "Klassische Fantasy",
+            "description": "Zeitlose Märchenelemente"
+          },
+          "whimsical_logic": {
+            "label": "Wunderlich & Logisch",
+            "description": "Verrückte Welten mit eigenen Regeln"
+          },
+          "mythic_allegory": {
+            "label": "Mythisch & Allegorisch",
+            "description": "Tiefgründige Symbolik und Legenden"
+          },
+          "road_fantasy": {
+            "label": "Reise-Fantasy",
+            "description": "Abenteuer unterwegs durch magische Länder"
+          },
+          "imaginative_meta": {
+            "label": "Imaginativ & Meta",
+            "description": "Kreative Erzählweise, die mit Konventionen spielt"
+          },
+          "pastoral_heart": {
+            "label": "Ländlich & Herzlich",
+            "description": "Naturnahe Geschichten voller Wärme"
+          },
+          "bedtime_soothing": {
+            "label": "Einschlaf-Geschichte",
+            "description": "Beruhigend und entspannend für die Nacht"
+          }
+        }
+      },
+      "common": {
+        "selected": "Ausgewählt"
+      },
+      "flavor": {
+        "title": "Emotionale Zutaten",
+        "subtitle": "Welche Gefühle soll die Geschichte vermitteln?",
+        "max": "Maximal {{count}} auswählen",
+        "options": {
+          "warmherzigkeit": {
+            "label": "Warmherzigkeit",
+            "description": "Liebevolle Momente und Fürsorge",
+            "effect": "Erzeugt Geborgenheit und Verbundenheit"
+          },
+          "lachfreude": {
+            "label": "Lachfreude",
+            "description": "Humor und witzige Situationen",
+            "effect": "Lockert auf und macht Spaß"
+          },
+          "prickeln": {
+            "label": "Prickeln",
+            "description": "Spannung und Nervenkitzel",
+            "effect": "Hält die Aufmerksamkeit und erzeugt Aufregung"
+          },
+          "geborgenheit": {
+            "label": "Geborgenheit",
+            "description": "Sicherheit und Behaglichkeit",
+            "effect": "Vermittelt Ruhe und Entspannung"
+          },
+          "uebermut": {
+            "label": "Übermut",
+            "description": "Freche Abenteuer und Schabernack",
+            "effect": "Ermutigt zu Kreativität und Selbstvertrauen"
+          },
+          "staunen": {
+            "label": "Staunen",
+            "description": "Wunder und Magie entdecken",
+            "effect": "Weckt Neugier und Fantasie"
+          },
+          "zusammenhalt": {
+            "label": "Zusammenhalt",
+            "description": "Freundschaft und Teamwork",
+            "effect": "Zeigt den Wert von Gemeinschaft"
+          }
+        }
+      },
+      "tempo": {
+        "title": "Erzähltempo",
+        "subtitle": "Wie schnell soll die Geschichte voranschreiten?",
+        "options": {
+          "cozy": {
+            "label": "Gemütlich",
+            "description": "Langsam und entspannt, viel Atmosphäre"
+          },
+          "balanced": {
+            "label": "Ausgewogen",
+            "description": "Wechsel zwischen ruhigen und spannenden Momenten"
+          },
+          "fast": {
+            "label": "Rasant",
+            "description": "Schnell voranschreitend, viel Action"
+          }
+        }
+      },
+      "ingredients": {
+        "title": "Spezialzutaten",
+        "subtitle": "Optionale besondere Elemente für deine Geschichte",
+        "options": {
+          "surprise": {
+            "label": "Überraschung",
+            "description": "Unerwartete Wendungen und Plot-Twists"
+          },
+          "mystery": {
+            "label": "Geheimnis",
+            "description": "Rätsel und versteckte Hinweise"
+          },
+          "transformation": {
+            "label": "Verwandlung",
+            "description": "Charaktere die sich entwickeln und verändern"
+          },
+          "magic": {
+            "label": "Magie",
+            "description": "Zauberhafte Elemente und übernatürliche Kräfte"
+          },
+          "trial": {
+            "label": "Prüfung",
+            "description": "Herausforderungen die gemeistert werden müssen"
+          },
+          "aha": {
+            "label": "Aha-Moment",
+            "description": "Wichtige Erkenntnisse und Lernmomente"
+          }
+        }
       }
     },
     "selectAvatars": "Avatare auswählen",
@@ -424,6 +627,52 @@
     "wizard": {
       "title": "Neue Wissens-Doku",
       "subtitle": "Erstelle eine spannende Doku mit Tavi",
+      "loginRequired": "Bitte melde dich an, um eine Wissens-Doku zu erstellen.",
+      "createTitle": "Erstelle eine neue Wissens-Doku",
+      "topicLabel": "Thema",
+      "topicPlaceholder": "Worüber möchtest du etwas lernen? (z.B. Vulkane, Römer, Wale...)",
+      "ageGroup": "Altersgruppe",
+      "age": {
+        "3_5": "3-5 Jahre",
+        "6_8": "6-8 Jahre",
+        "9_12": "9-12 Jahre",
+        "13_plus": "13+ Jahre"
+      },
+      "depth": {
+        "title": "Tiefe",
+        "basic": "Basiswissen",
+        "standard": "Standard",
+        "deep": "Expertenwissen"
+      },
+      "perspective": {
+        "title": "Perspektive",
+        "science": "Wissenschaftlich",
+        "history": "Historisch",
+        "technology": "Technologisch",
+        "nature": "Naturbezogen",
+        "culture": "Kulturell"
+      },
+      "length": {
+        "title": "Länge",
+        "short": "Kurz",
+        "medium": "Mittel",
+        "long": "Lang"
+      },
+      "tone": {
+        "title": "Ton",
+        "fun": "Spaßig",
+        "neutral": "Neutral",
+        "curious": "Neugierig"
+      },
+      "interactive": "Interaktive Elemente",
+      "quizQuestions": "Quiz-Fragen",
+      "activities": "Praktische Aktivitäten",
+      "generate": "Doku generieren",
+      "generating": "Doku wird erstellt...",
+      "errors": {
+        "missingTopic": "Bitte gib ein Thema ein.",
+        "generationFailed": "Die Doku konnte nicht erstellt werden. Bitte versuche es erneut."
+      },
       "steps": {
         "topic": "Thema",
         "ageGroup": "Altersgruppe",
@@ -450,9 +699,7 @@
         "fun": "Spaßig",
         "neutral": "Neutral",
         "curious": "Neugierig"
-      },
-      "generate": "Doku generieren",
-      "generating": "Doku wird erstellt..."
+      }
     }
   },
   "chat": {

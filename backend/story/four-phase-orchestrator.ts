@@ -176,7 +176,7 @@ export class FourPhaseOrchestrator {
       phase4Duration: 0,
     };
 
-    const configWithExperience = applyStoryExperienceToConfig({ ...input.config });
+    const configWithExperience: StoryConfig = applyStoryExperienceToConfig({ ...input.config });
     const experienceContext = buildStoryExperienceContext(configWithExperience);
     console.log("[4-Phase] Story experience applied:", {
       soul: experienceContext.soul?.label ?? "none",
@@ -191,8 +191,11 @@ export class FourPhaseOrchestrator {
     // 🔧 OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres
     const normalizedGenre = input.config.genre?.toLowerCase() ?? "";
     const isFairyTaleGenre =
+      // Support both old German values and new i18n keys
       input.config.genre === "Klassische Märchen" ||
       input.config.genre === "Märchenwelten und Magie" ||
+      input.config.genre === "fairytale" ||
+      input.config.genre === "magic" ||
       normalizedGenre.includes("märchen") ||
       normalizedGenre.includes("fairy") ||
       normalizedGenre.includes("magic");

@@ -177,7 +177,12 @@
         "generateImage": "Generate Image",
         "generatingImage": "Generating Image...",
         "createAvatar": "Create Avatar",
-        "creatingAvatar": "Creating Avatar..."
+        "creatingAvatar": "Creating Avatar...",
+        "typeFrom": "{{type}} from {{world}}",
+        "imageGeneratedSuccess": "🎨 Avatar image was successfully generated!",
+        "imageGenerationError": "Error generating avatar image. Please try again.",
+        "avatarCreatedSuccess": "Avatar ready! Personality traits develop through stories.",
+        "avatarCreationError": "Avatar could not be created. Please try again."
       },
       "options": {
         "types": {
@@ -374,6 +379,204 @@
             "premium": "Premium"
           }
         }
+      },
+      "soul": {
+        "title": "Choose Story Soul",
+        "subtitle": "The core mood of your story",
+        "options": {
+          "maerchenzauber": {
+            "label": "Fairy Tale Magic",
+            "tagline": "Timeless and heartwarming",
+            "description": "Once-upon-a-time atmosphere, warm and cozy, gentle tension."
+          },
+          "lieder_reime": {
+            "label": "Songs & Rhymes",
+            "tagline": "Playful and rhythmic",
+            "description": "Catchy verses, singable passages, poetic language."
+          },
+          "wilder_ritt": {
+            "label": "Wild Ride",
+            "tagline": "Fast and exciting",
+            "description": "Action-packed, unexpected twists, quick pace."
+          },
+          "traeumerei": {
+            "label": "Daydreaming",
+            "tagline": "Gentle and imaginative",
+            "description": "Dreamy imagery, calm flow, magical moments."
+          },
+          "heldenmut": {
+            "label": "Heroic Courage",
+            "tagline": "Brave and inspiring",
+            "description": "Overcoming fears, growing strength, triumphant ending."
+          },
+          "entdeckergeist": {
+            "label": "Explorer Spirit",
+            "tagline": "Curious and educational",
+            "description": "Exploring new worlds, gathering knowledge, experiencing wonder."
+          }
+        }
+      },
+      "style": {
+        "title": "Narrative Style",
+        "subtitle": "Optional specific style for your story",
+        "auto": "Automatic (based on Story Soul)",
+        "allowRhymes": "Allow rhymes and verses",
+        "footer": "The narrative style automatically adapts to the chosen Story Soul, unless specified otherwise.",
+        "options": {
+          "rhymed_playful": {
+            "label": "Rhymed & Playful",
+            "description": "Joyful rhymes like Dr. Seuss"
+          },
+          "gentle_minimal": {
+            "label": "Gentle & Minimal",
+            "description": "Calm, simple language with depth"
+          },
+          "wild_imaginative": {
+            "label": "Wild & Imaginative",
+            "description": "Overflowing fantasy and crazy ideas"
+          },
+          "philosophical_warm": {
+            "label": "Philosophical & Warm",
+            "description": "Thoughtful stories with heart"
+          },
+          "mischief_empowering": {
+            "label": "Mischievous & Empowering",
+            "description": "Playful pranks with positive outcomes"
+          },
+          "adventure_epic": {
+            "label": "Adventure & Epic",
+            "description": "Grand quests and heroic journeys"
+          },
+          "quirky_dark_sweet": {
+            "label": "Quirky & Bittersweet",
+            "description": "Unusual with emotional depth"
+          },
+          "cozy_friendly": {
+            "label": "Cozy & Friendly",
+            "description": "Warm, comfortable atmosphere"
+          },
+          "classic_fantasy": {
+            "label": "Classic Fantasy",
+            "description": "Timeless fairy tale elements"
+          },
+          "whimsical_logic": {
+            "label": "Whimsical & Logical",
+            "description": "Crazy worlds with their own rules"
+          },
+          "mythic_allegory": {
+            "label": "Mythic & Allegorical",
+            "description": "Deep symbolism and legends"
+          },
+          "road_fantasy": {
+            "label": "Road Fantasy",
+            "description": "Adventures traveling through magical lands"
+          },
+          "imaginative_meta": {
+            "label": "Imaginative & Meta",
+            "description": "Creative storytelling that plays with conventions"
+          },
+          "pastoral_heart": {
+            "label": "Pastoral & Heartfelt",
+            "description": "Nature-close stories full of warmth"
+          },
+          "bedtime_soothing": {
+            "label": "Bedtime Story",
+            "description": "Calming and relaxing for the night"
+          }
+        }
+      },
+      "common": {
+        "selected": "Selected"
+      },
+      "flavor": {
+        "title": "Emotional Flavors",
+        "subtitle": "What feelings should the story convey?",
+        "max": "Select up to {{count}}",
+        "options": {
+          "warmherzigkeit": {
+            "label": "Warmth",
+            "description": "Loving moments and care",
+            "effect": "Creates comfort and connection"
+          },
+          "lachfreude": {
+            "label": "Joy & Laughter",
+            "description": "Humor and funny situations",
+            "effect": "Lightens up and brings fun"
+          },
+          "prickeln": {
+            "label": "Thrill",
+            "description": "Suspense and excitement",
+            "effect": "Keeps attention and creates excitement"
+          },
+          "geborgenheit": {
+            "label": "Security",
+            "description": "Safety and coziness",
+            "effect": "Provides calm and relaxation"
+          },
+          "uebermut": {
+            "label": "Boldness",
+            "description": "Cheeky adventures and mischief",
+            "effect": "Encourages creativity and confidence"
+          },
+          "staunen": {
+            "label": "Wonder",
+            "description": "Discovering magic and marvels",
+            "effect": "Awakens curiosity and imagination"
+          },
+          "zusammenhalt": {
+            "label": "Togetherness",
+            "description": "Friendship and teamwork",
+            "effect": "Shows the value of community"
+          }
+        }
+      },
+      "tempo": {
+        "title": "Story Pace",
+        "subtitle": "How fast should the story progress?",
+        "options": {
+          "cozy": {
+            "label": "Cozy",
+            "description": "Slow and relaxed, lots of atmosphere"
+          },
+          "balanced": {
+            "label": "Balanced",
+            "description": "Mix of calm and exciting moments"
+          },
+          "fast": {
+            "label": "Fast-Paced",
+            "description": "Quick progression, lots of action"
+          }
+        }
+      },
+      "ingredients": {
+        "title": "Special Ingredients",
+        "subtitle": "Optional special elements for your story",
+        "options": {
+          "surprise": {
+            "label": "Surprise",
+            "description": "Unexpected twists and plot turns"
+          },
+          "mystery": {
+            "label": "Mystery",
+            "description": "Puzzles and hidden clues"
+          },
+          "transformation": {
+            "label": "Transformation",
+            "description": "Characters who develop and change"
+          },
+          "magic": {
+            "label": "Magic",
+            "description": "Magical elements and supernatural powers"
+          },
+          "trial": {
+            "label": "Trial",
+            "description": "Challenges that must be mastered"
+          },
+          "aha": {
+            "label": "Aha Moment",
+            "description": "Important insights and learning moments"
+          }
+        }
       }
     },
     "selectAvatars": "Select Avatars",
@@ -424,6 +627,52 @@
     "wizard": {
       "title": "New Knowledge Doc",
       "subtitle": "Create an exciting doc with Tavi",
+      "loginRequired": "Please sign in to create a knowledge doc.",
+      "createTitle": "Create a new knowledge doc",
+      "topicLabel": "Topic",
+      "topicPlaceholder": "What do you want to learn about? (e.g. Volcanoes, Romans, Whales...)",
+      "ageGroup": "Age Group",
+      "age": {
+        "3_5": "3-5 years",
+        "6_8": "6-8 years",
+        "9_12": "9-12 years",
+        "13_plus": "13+ years"
+      },
+      "depth": {
+        "title": "Depth",
+        "basic": "Basic",
+        "standard": "Standard",
+        "deep": "Expert"
+      },
+      "perspective": {
+        "title": "Perspective",
+        "science": "Scientific",
+        "history": "Historical",
+        "technology": "Technological",
+        "nature": "Nature",
+        "culture": "Cultural"
+      },
+      "length": {
+        "title": "Length",
+        "short": "Short",
+        "medium": "Medium",
+        "long": "Long"
+      },
+      "tone": {
+        "title": "Tone",
+        "fun": "Fun",
+        "neutral": "Neutral",
+        "curious": "Curious"
+      },
+      "interactive": "Interactive Elements",
+      "quizQuestions": "Quiz Questions",
+      "activities": "Hands-on Activities",
+      "generate": "Generate Doc",
+      "generating": "Generating doc...",
+      "errors": {
+        "missingTopic": "Please enter a topic.",
+        "generationFailed": "The doc could not be created. Please try again."
+      },
       "steps": {
         "topic": "Topic",
         "ageGroup": "Age Group",
@@ -450,9 +699,7 @@
         "fun": "Fun",
         "neutral": "Neutral",
         "curious": "Curious"
-      },
-      "generate": "Generate Doc",
-      "generating": "Generating doc..."
+      }
     }
   },
   "chat": {
