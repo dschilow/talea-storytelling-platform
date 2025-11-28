@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Sparkles, ArrowRight } from 'lucide-react';
-import Book3D from './components/Book3D';
+import Book3DScene from './components/Book3DScene';
 import WorldMap from './components/WorldMap';
 import './LandingPage.css';
 
@@ -45,7 +45,7 @@ const LandingPage: React.FC = () => {
     // Opacity of the book scene: Fade out as we zoom into map
     // Starts fading out at 15%, gone by 25%
     const bookOpacity = progress < 0.15 ? 1 : Math.max(0, 1 - (progress - 0.15) * 10);
-    const bookScale = 1 + progress * 2; // Slight zoom in while opening
+    // const bookScale = 1 + progress * 2; // Slight zoom in while opening (Handled in 3D now)
 
     // Map opacity: Fades in as book fades out
     // Starts appearing at 15%, fully visible by 25%
@@ -87,12 +87,12 @@ const LandingPage: React.FC = () => {
                     className="layer-book"
                     style={{
                         opacity: bookOpacity,
-                        transform: `scale(${bookScale})`,
+                        // transform: `scale(${bookScale})`, // 3D scene handles scale
                         pointerEvents: bookOpacity > 0.5 ? 'auto' : 'none'
                     }}
                 >
-                    <div className="book-center-wrapper">
-                        <Book3D progress={bookProgress} />
+                    <div className="book-center-wrapper" style={{ width: '100%', height: '100%' }}>
+                        <Book3DScene progress={bookProgress} />
 
                         <div className="scroll-hint" style={{ opacity: 1 - bookProgress }}>
                             <p>Scroll zum Öffnen</p>
