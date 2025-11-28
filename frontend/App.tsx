@@ -36,6 +36,7 @@ import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
+import LandingPage from './screens/Landing/LandingPage';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
@@ -47,6 +48,7 @@ const AppContent = () => {
       <div style={{ minHeight: '100vh', background: colors.gradients.background }}>
         <Routes>
           <Route element={<AppLayout />}>
+            <Route path="/landing" element={<LandingPage />} />
             <Route path="/" element={<HomeScreen />} />
             <Route path="/avatar" element={<AvatarsScreen />} />
             <Route path="/avatar/create" element={<AvatarWizardScreen />} />
