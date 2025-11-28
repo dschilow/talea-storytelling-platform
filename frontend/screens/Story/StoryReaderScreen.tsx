@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
+import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
@@ -18,6 +19,7 @@ const StoryReaderScreen: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const { t } = useTranslation();
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ const StoryReaderScreen: React.FC = () => {
       setStory(storyData as unknown as Story);
     } catch (err) {
       console.error('Error loading story:', err);
-      setError('Geschichte konnte nicht geladen werden.');
+      setError(t('story.reader.notFound'));
     } finally {
       setLoading(false);
     }
@@ -175,7 +177,7 @@ const StoryReaderScreen: React.FC = () => {
         // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           // Build compact message with trait changes
-          let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
+          let message = t('story.reader.toast.completed', { count: result.updatedAvatars }) + '\n\n';
 
           if (result.personalityChanges && result.personalityChanges.length > 0) {
             result.personalityChanges.forEach((avatarChange: any) => {
@@ -191,44 +193,24 @@ const StoryReaderScreen: React.FC = () => {
           showSuccessToast(message.trim());
         });
 
-        // Helper function to get German trait names
+        // Helper function to get translated trait names
         function getTraitDisplayName(trait: string): string {
           // Handle subcategories like "knowledge.history"
           const parts = trait.split('.');
           const subcategory = parts.length > 1 ? parts[1] : null;
           const mainTrait = parts[0];
 
-          const names: Record<string, string> = {
-            // Main traits
-            'knowledge': 'Wissen',
-            'creativity': 'Kreativität',
-            'vocabulary': 'Wortschatz',
-            'courage': 'Mut',
-            'curiosity': 'Neugier',
-            'teamwork': 'Teamgeist',
-            'empathy': 'Empathie',
-            'persistence': 'Ausdauer',
-            'logic': 'Logik',
-            // Subcategories
-            'history': 'Geschichte',
-            'science': 'Wissenschaft',
-            'geography': 'Geografie',
-            'physics': 'Physik',
-            'biology': 'Biologie',
-            'chemistry': 'Chemie',
-            'mathematics': 'Mathematik',
-            'kindness': 'Freundlichkeit',
-            'humor': 'Humor',
-            'determination': 'Entschlossenheit',
-            'wisdom': 'Weisheit'
-          };
-
-          // If it's a subcategory, return only the subcategory name
+          // If it's a subcategory, try to translate it directly
           if (subcategory) {
-            return names[subcategory.toLowerCase()] || subcategory;
+            const key = `traits.${subcategory.toLowerCase()}`;
+            const translation = t(key);
+            // If translation exists and is different from key, return it. Otherwise fallback.
+            return translation !== key ? translation : subcategory;
           }
 
-          return names[mainTrait.toLowerCase()] || trait;
+          const key = `traits.${mainTrait.toLowerCase()}`;
+          const translation = t(key);
+          return translation !== key ? translation : trait;
         }
       } else {
         const errorText = await response.text();
@@ -236,7 +218,7 @@ const StoryReaderScreen: React.FC = () => {
 
         // Show error notification but still show completion
         import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-          showErrorToast('❌ Fehler bei der Persönlichkeitsentwicklung');
+          showErrorToast(t('story.reader.toast.error'));
           showStoryCompletionToast(story.title);
         });
       }
@@ -246,7 +228,7 @@ const StoryReaderScreen: React.FC = () => {
 
       // Show error notification but still show completion
       import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-        showErrorToast('❌ Netzwerkfehler bei der Persönlichkeitsentwicklung');
+        showErrorToast(t('story.reader.toast.networkError'));
         showStoryCompletionToast(story.title);
       });
     }
@@ -279,7 +261,7 @@ const StoryReaderScreen: React.FC = () => {
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg text-gray-600 dark:text-gray-300">Lade Geschichte...</p>
+          <p className="text-lg text-gray-600 dark:text-gray-300">{t('story.reader.loading')}</p>
         </div>
       </div>
     );
@@ -289,10 +271,10 @@ const StoryReaderScreen: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
         <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">Fehler</h2>
-          <p className="text-gray-700 dark:text-gray-200 mb-6">{error || 'Die Geschichte konnte nicht gefunden werden.'}</p>
+          <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
+          <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('story.reader.notFound')}</p>
           <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center mx-auto">
-            <ArrowLeft size={18} className="mr-2" /> Zurück
+            <ArrowLeft size={18} className="mr-2" /> {t('common.back')}
           </button>
         </div>
       </div>
@@ -325,7 +307,7 @@ const StoryReaderScreen: React.FC = () => {
             <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{story.title}</h1>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{story.summary}</p>
             <button onClick={startReading} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105">
-              Lesen
+              {t('story.reader.read')}
             </button>
           </motion.div>
         ) : (
@@ -349,7 +331,7 @@ const StoryReaderScreen: React.FC = () => {
                   <h2 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6">{currentChapter?.title}</h2>
                 </div>
                 <div ref={contentRef} className="flex-1 overflow-y-auto px-4 md:px-12">
-                  <div className="max-w-3xl mx-auto text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-relaxed space-y-6">
+                  <div className="max-w-4xl mx-auto text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-loose tracking-wide space-y-6 text-justify hyphens-auto">
                     {currentChapter?.content.split('\n').map((p, i) => <p key={i}>{p}</p>)}
                   </div>
                 </div>
@@ -358,7 +340,7 @@ const StoryReaderScreen: React.FC = () => {
 
             {/* Navigation & Progress */}
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
-              <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+              <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
                 <motion.button
                   onClick={() => goToChapter(currentChapterIndex - 1)}
                   disabled={currentChapterIndex === 0}
@@ -378,7 +360,7 @@ const StoryReaderScreen: React.FC = () => {
                       transition={{ ease: "easeInOut" }}
                     />
                   </div>
-                  <span className="text-xs mt-1.5">Kapitel {currentChapterIndex + 1} / {story.chapters?.length || 1}</span>
+                  <span className="text-xs mt-1.5">{t('story.reader.chapter')} {currentChapterIndex + 1} / {story.chapters?.length || 1}</span>
                 </div>
 
                 {/* Next Chapter / Complete Story Button */}
@@ -392,14 +374,14 @@ const StoryReaderScreen: React.FC = () => {
                     }}
                     disabled={storyCompleted}
                     className={`px-6 py-3 rounded-full font-bold text-white transition-all ${storyCompleted
-                        ? 'bg-green-600 cursor-default'
-                        : 'bg-purple-600 hover:bg-purple-700 hover:scale-105'
+                      ? 'bg-green-600 cursor-default'
+                      : 'bg-purple-600 hover:bg-purple-700 hover:scale-105'
                       }`}
                     whileHover={!storyCompleted ? { scale: 1.05 } : {}}
                     whileTap={!storyCompleted ? { scale: 0.95 } : {}}
                     animate={{ opacity: showNav ? 1 : 0.7 }}
                   >
-                    {storyCompleted ? '🎉 Abgeschlossen!' : '🏁 Geschichte abschließen'}
+                    {storyCompleted ? t('story.reader.completed') : t('story.reader.finish')}
                   </motion.button>
                 ) : (
                   // Regular "Next Chapter" button

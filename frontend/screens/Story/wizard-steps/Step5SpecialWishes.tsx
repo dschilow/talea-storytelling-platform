@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { Music, BookHeart, Star, Shuffle, Smile, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   state: {
@@ -17,54 +18,56 @@ interface Props {
   updateState: (updates: any) => void;
 }
 
-const WISHES = [
-  {
-    id: 'rhymes',
-    title: '🎵 Mit Reimen',
-    description: 'Geschichte enthält Verse und Reime',
-    icon: Music,
-    color: 'pink'
-  },
-  {
-    id: 'moral',
-    title: '📖 Mit Moral',
-    description: 'Geschichte hat eine Lehre oder Botschaft',
-    icon: BookHeart,
-    color: 'blue'
-  },
-  {
-    id: 'avatarIsHero',
-    title: '⭐ Avatar ist Held',
-    description: 'Deine Avatare sind die Haupthelden',
-    icon: Star,
-    color: 'yellow',
-    defaultActive: true
-  },
-  {
-    id: 'famousCharacters',
-    title: '👑 Bekannte Figuren',
-    description: 'Berühmte Märchenfiguren einbauen',
-    icon: Shuffle,
-    color: 'purple'
-  },
-  {
-    id: 'happyEnd',
-    title: '😊 Happy End',
-    description: 'Geschichte endet glücklich',
-    icon: Smile,
-    color: 'green',
-    defaultActive: true
-  },
-  {
-    id: 'surpriseEnd',
-    title: '❗ Überraschungs-Ende',
-    description: 'Unerwartete Wendung am Schluss',
-    icon: AlertCircle,
-    color: 'orange'
-  }
-];
-
 export default function Step5SpecialWishes({ state, updateState }: Props) {
+  const { t } = useTranslation();
+
+  const WISHES = [
+    {
+      id: 'rhymes',
+      title: `🎵 ${t('wizard.wishes.rhymes.title')}`,
+      description: t('wizard.wishes.rhymes.description'),
+      icon: Music,
+      color: 'pink'
+    },
+    {
+      id: 'moral',
+      title: `📖 ${t('wizard.wishes.moral.title')}`,
+      description: t('wizard.wishes.moral.description'),
+      icon: BookHeart,
+      color: 'blue'
+    },
+    {
+      id: 'avatarIsHero',
+      title: `⭐ ${t('wizard.wishes.avatarIsHero.title')}`,
+      description: t('wizard.wishes.avatarIsHero.description'),
+      icon: Star,
+      color: 'yellow',
+      defaultActive: true
+    },
+    {
+      id: 'famousCharacters',
+      title: `👑 ${t('wizard.wishes.famousCharacters.title')}`,
+      description: t('wizard.wishes.famousCharacters.description'),
+      icon: Shuffle,
+      color: 'purple'
+    },
+    {
+      id: 'happyEnd',
+      title: `😊 ${t('wizard.wishes.happyEnd.title')}`,
+      description: t('wizard.wishes.happyEnd.description'),
+      icon: Smile,
+      color: 'green',
+      defaultActive: true
+    },
+    {
+      id: 'surpriseEnd',
+      title: `❗ ${t('wizard.wishes.surpriseEnd.title')}`,
+      description: t('wizard.wishes.surpriseEnd.description'),
+      icon: AlertCircle,
+      color: 'orange'
+    }
+  ];
+
   const handleToggleWish = (wishId: string) => {
     updateState({ [wishId]: !state[wishId as keyof typeof state] });
   };
@@ -78,10 +81,10 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
       {/* Title & Description */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          ✨ Besondere Wünsche? (Optional)
+          ✨ {t('wizard.titles.wishes')}
         </h2>
         <p className="text-gray-600">
-          Füge besondere Features hinzu oder überspringe diesen Schritt.
+          {t('wizard.subtitles.wishes')}
         </p>
       </div>
 
@@ -90,15 +93,15 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
         {WISHES.map((wish) => {
           const isSelected = state[wish.id as keyof typeof state] as boolean;
           const Icon = wish.icon;
-          
+
           return (
             <button
               key={wish.id}
               onClick={() => handleToggleWish(wish.id)}
               className={`
                 relative p-4 rounded-xl border-2 transition-all transform
-                ${isSelected 
-                  ? `border-${wish.color}-500 bg-${wish.color}-50 ring-2 ring-${wish.color}-200 scale-102` 
+                ${isSelected
+                  ? `border-${wish.color}-500 bg-${wish.color}-50 ring-2 ring-${wish.color}-200 scale-102`
                   : 'border-gray-200 bg-white hover:border-gray-400'}
               `}
             >
@@ -108,7 +111,7 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
                   ✓
                 </div>
               )}
-              
+
               {/* Icon & Text */}
               <div className="flex flex-col items-center text-center">
                 <Icon size={28} className={`mb-2 ${isSelected ? `text-${wish.color}-600` : 'text-gray-400'}`} />
@@ -123,12 +126,12 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
       {/* Custom Wish Input */}
       <div>
         <label className="block mb-2">
-          <span className="text-sm font-semibold text-gray-700">💬 Eigener Wunsch (optional):</span>
+          <span className="text-sm font-semibold text-gray-700">{t('wizard.common.customWish')}</span>
         </label>
         <textarea
           value={state.customWish}
           onChange={handleCustomWishChange}
-          placeholder="z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'"
+          placeholder={t('wizard.common.customWishPlaceholder')}
           maxLength={200}
           className="
             w-full p-4 border-2 border-gray-200 rounded-xl
@@ -138,15 +141,14 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
           rows={3}
         />
         <p className="text-xs text-gray-500 mt-1">
-          {state.customWish.length}/200 Zeichen
+          {state.customWish.length}/200 {t('wizard.common.chars')}
         </p>
       </div>
 
       {/* Info Box */}
       <div className="bg-blue-50 border-2 border-blue-400 rounded-xl p-4">
         <p className="text-sm text-blue-800">
-          <strong>💡 Hinweis:</strong> Alle Wünsche sind optional. Die KI wird ihr Bestes tun, 
-          deine Wünsche einzubauen, aber die Geschichte bleibt immer spannend und logisch!
+          <strong>{t('wizard.common.note')}</strong> {t('wizard.common.wishesNote')}
         </p>
       </div>
     </div>

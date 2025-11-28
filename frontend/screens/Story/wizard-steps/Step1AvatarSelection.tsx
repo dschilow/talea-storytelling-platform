@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Plus, Image as ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBackend } from '../../../hooks/useBackend';
+import { useTranslation } from 'react-i18next';
 
 interface Avatar {
   id: string;
@@ -24,6 +25,7 @@ interface Props {
 export default function Step1AvatarSelection({ state, updateState }: Props) {
   const backend = useBackend();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +38,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
       console.log('[Step1] Loading avatars from backend...');
       const response = await backend.avatar.list();
       console.log('[Step1] Backend response:', response);
-      
+
       const loadedAvatars = (response.avatars || []).map((a: any) => ({
         id: a.id,
         name: a.name,
@@ -44,7 +46,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         age: a.age || 0,
         gender: a.gender || 'unknown'
       }));
-      
+
       setAvatars(loadedAvatars);
       console.log('[Step1] Loaded avatars:', loadedAvatars.length);
     } catch (err) {
@@ -58,7 +60,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     const newSelection = state.selectedAvatars.includes(avatarId)
       ? state.selectedAvatars.filter(id => id !== avatarId)
       : [...state.selectedAvatars, avatarId];
-    
+
     updateState({ selectedAvatars: newSelection });
   };
 
@@ -66,7 +68,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="animate-spin w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mb-4" />
-        <p className="text-gray-600">Lade Avatare...</p>
+        <p className="text-gray-600">{t('common.loading')}</p>
       </div>
     );
   }
@@ -76,10 +78,10 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
       {/* Title & Description */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          🧸 Wer spielt in der Geschichte mit?
+          🧸 {t('wizard.titles.avatars')}
         </h2>
         <p className="text-gray-600">
-          Wähle 1-4 Avatare aus, die Teil der Geschichte werden sollen.
+          {t('wizard.subtitles.avatars')}
         </p>
       </div>
 
@@ -87,28 +89,28 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
       {avatars.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
           <User size={48} className="mx-auto text-gray-400 mb-4" />
-          <p className="text-gray-600 mb-4">Du hast noch keine Avatare erstellt.</p>
-          <button 
+          <p className="text-gray-600 mb-4">{t('homePage.emptyAvatarsTitle')}</p>
+          <button
             onClick={() => navigate('/avatar/create')}
             className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all"
           >
             <Plus size={20} />
-            Ersten Avatar erstellen
+            {t('avatar.create')}
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {avatars.map((avatar) => {
             const isSelected = state.selectedAvatars.includes(avatar.id);
-            
+
             return (
               <button
                 key={avatar.id}
                 onClick={() => toggleAvatar(avatar.id)}
                 className={`
                   relative p-4 rounded-xl border-2 transition-all transform
-                  ${isSelected 
-                    ? 'border-purple-600 bg-purple-50 ring-4 ring-purple-200 scale-105' 
+                  ${isSelected
+                    ? 'border-purple-600 bg-purple-50 ring-4 ring-purple-200 scale-105'
                     : 'border-gray-200 bg-white hover:border-purple-300 hover:scale-102'}
                 `}
               >
@@ -118,12 +120,12 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                     ✓
                   </div>
                 )}
-                
+
                 {/* Avatar Image */}
                 <div className="aspect-square rounded-lg bg-gradient-to-br from-purple-200 to-pink-200 mb-3 flex items-center justify-center overflow-hidden">
                   {avatar.imageUrl ? (
-                    <img 
-                      src={avatar.imageUrl} 
+                    <img
+                      src={avatar.imageUrl}
                       alt={avatar.name}
                       className="w-full h-full object-cover"
                     />
@@ -131,11 +133,11 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                     <ImageIcon size={40} className="text-purple-400" />
                   )}
                 </div>
-                
+
                 {/* Avatar Info */}
                 <div className="text-left">
                   <p className="font-semibold text-gray-800 truncate">{avatar.name}</p>
-                  <p className="text-sm text-gray-500">{avatar.age} Jahre, {avatar.gender === 'male' ? '👦' : avatar.gender === 'female' ? '👧' : '🧒'}</p>
+                  <p className="text-sm text-gray-500">{avatar.age} {t('wizard.summary.age')}, {avatar.gender === 'male' ? '👦' : avatar.gender === 'female' ? '👧' : '🧒'}</p>
                 </div>
               </button>
             );
@@ -148,13 +150,10 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         <div className="bg-green-50 border-2 border-green-500 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="font-semibold text-green-800">
-              ✓ {state.selectedAvatars.length} Avatar{state.selectedAvatars.length > 1 ? 'e' : ''} ausgewählt
+              ✓ {state.selectedAvatars.length} {t('wizard.summary.avatars')} {t('common.selected')}
             </p>
             <p className="text-sm text-green-600">
-              {state.selectedAvatars.length === 1 && 'Perfekt für eine fokussierte Geschichte!'}
-              {state.selectedAvatars.length === 2 && 'Ideal für eine Geschichte mit Freundschaft!'}
-              {state.selectedAvatars.length === 3 && 'Spannende Gruppe für Abenteuer!'}
-              {state.selectedAvatars.length >= 4 && 'Große Gruppe - viele Charaktere!'}
+              {state.selectedAvatars.length === 1 && t('wizard.subtitles.avatars')}
             </p>
           </div>
         </div>

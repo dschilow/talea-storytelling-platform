@@ -759,20 +759,132 @@
   "errors": {
     "generic": "An error occurred",
     "networkError": "Network error. Please check your internet connection.",
-    "unauthorized": "Unauthorized. Please sign in.",
-    "notFound": "Not found",
-    "serverError": "Server error. Please try again later.",
-    "validationError": "Invalid input",
-    "formIncomplete": "Please fill out all required fields",
-    "avatarRequired": "Please select at least one avatar",
-    "topicRequired": "Please enter a topic"
+    "wishes": "Wishes",
+    "summary": "Summary"
   },
-  "validation": {
-    "required": "Required",
-    "email": "Invalid email address",
-    "minLength": "At least {{count}} characters",
-    "maxLength": "Maximum {{count}} characters",
-    "nameRequired": "Name is required",
-    "descriptionRequired": "Description is required"
+  "titles": {
+    "avatars": "Who is in the story?",
+    "category": "What kind of story should it be?",
+    "ageLength": "For which age & how long?",
+    "feeling": "What feeling should the story have?",
+    "wishes": "Special wishes? (Optional)",
+    "summary": "All ready!"
+  },
+  "subtitles": {
+    "avatars": "Select 1-4 avatars to be part of the story.",
+    "category": "Choose a category - your avatars will be part of a unique story!",
+    "ageLength": "Adjust the story to the age and available time.",
+    "feeling": "Select 1-3 moods that should shape the story.",
+    "wishes": "Add special features or skip this step.",
+    "summary": "Check your selection and create the story."
+  },
+  "common": {
+    "examples": "EXAMPLES:",
+    "note": "💡 Note:",
+    "categoryNote": "Each category creates a completely new story specifically for your avatars. No pre-written story is told, but an individual story is created!",
+    "wishesNote": "All wishes are optional. The AI will do its best to include your wishes, but the story will always remain exciting and logical!",
+    "summaryNote": "The AI creates a completely new story based on your wishes. This takes about 60-90 seconds. With images a total of 2-3 minutes.",
+    "selected": "selected",
+    "customWish": "💬 Custom wish (optional):",
+    "customWishPlaceholder": "e.g. 'The story should take place in space' or 'With a talking dragon'",
+    "chars": "chars"
+  },
+  "categories": {
+    "fairy_tales": {
+      "title": "Classic Fairy Tales",
+      "description": "Enchanted worlds, kings & princesses, magical creatures",
+      "examples": "Hansel & Gretel, Little Red Riding Hood, Bremen Town Musicians"
+    },
+    "adventure": {
+      "title": "Adventure & Treasures",
+      "description": "Exciting journeys, hidden treasures, brave heroes",
+      "examples": "Treasure Hunt, Secret Caves, Wild Expeditions"
+    },
+    "magic": {
+      "title": "Fairy Tale Worlds & Magic",
+      "description": "Spells, flying carpets, magical powers",
+      "examples": "Wizards, Fairies, Magical Objects"
+    },
+    "animals": {
+      "title": "Animal Worlds",
+      "description": "Talking animals, forest adventures, animal friendships",
+      "examples": "In the Forest, On the Farm, In the Wild"
+    },
+    "scifi": {
+      "title": "Sci-Fi & Future",
+      "description": "Spaceships, alien planets, futuristic worlds",
+      "examples": "Space Adventures, Robots, Time Travel"
+    },
+    "modern": {
+      "title": "Modern & Reality",
+      "description": "Daily life, school, family, real experiences",
+      "examples": "Here & Now, Realistic Stories"
+    }
+  },
+  "ageGroups": {
+    "3-5": {
+      "title": "3-5 Years",
+      "description": "Simple words, short sentences, many pictures"
+    },
+    "6-8": {
+      "title": "6-8 Years",
+      "description": "Exciting adventures, easy to follow"
+    },
+    "9-12": {
+      "title": "9-12 Years",
+      "description": "More complex plot, more details"
+    },
+    "13+": {
+      "title": "13+ Years",
+      "description": "Profound themes, demanding"
+    }
+  },
+  "lengths": {
+    "short": {
+      "title": "Short",
+      "duration": "5-10 Min",
+      "chapters": "3-4 Chapters"
+    },
+    "medium": {
+      "title": "Medium",
+      "duration": "10-15 Min",
+      "chapters": "5-6 Chapters"
+    },
+    "long": {
+      "title": "Long",
+      "duration": "15-25 Min",
+      "chapters": "7-9 Chapters"
+    }
+  },
+  "feelings": {
+    "funny": {
+      "title": "Funny",
+      "description": "Laughable, humorous, witty"
+    },
+    "warm": {
+      "title": "Heartwarming",
+      "description": "Warm, cozy, loving"
+    },
+    "exciting": {
+      "title": "Exciting",
+      "description": "Action, adventure, thrilling"
+    },
+    "crazy": {
+      "title": "Crazy",
+      "description": "Whimsical, imaginative, surprising"
+    },
+    "loading": {
+      "title": "Your story is being created!",
+      "subtitle": "This may take 2-3 minutes. Please do not close!"
+    },
+    "summary": {
+      "avatars": "Avatars",
+      "category": "Category",
+      "age": "Age",
+      "length": "Length",
+      "feelings": "Feelings",
+      "extras": "Extras",
+      "ready": "Your unique story is being created now!"
+    }
   }
 }

@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { Sparkles, User, BookOpen, Clock, Heart, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   state: {
@@ -22,44 +23,46 @@ interface Props {
   onGenerate: () => void;
 }
 
-const CATEGORY_NAMES: Record<string, string> = {
-  'fairy-tales': '🏰 Klassische Märchen',
-  'adventure': '🗺️ Abenteuer & Schätze',
-  'magic': '✨ Märchenwelten & Magie',
-  'animals': '🦊 Tierwelten',
-  'scifi': '🚀 Sci-Fi & Zukunft',
-  'modern': '🏡 Modern & Realität'
-};
-
-const AGE_LABELS: Record<string, string> = {
-  '3-5': '3-5 Jahre',
-  '6-8': '6-8 Jahre',
-  '9-12': '9-12 Jahre',
-  '13+': '13+ Jahre'
-};
-
-const LENGTH_LABELS: Record<string, string> = {
-  'short': '⚡ Kurz (5-10 Min)',
-  'medium': '📖 Mittel (10-15 Min)',
-  'long': '📚 Lang (15-25 Min)'
-};
-
-const FEELING_EMOJIS: Record<string, string> = {
-  'funny': '😂 Lustig',
-  'warm': '❤️ Herzlich',
-  'exciting': '⚡ Spannend',
-  'crazy': '🤪 Verrückt',
-  'meaningful': '💭 Bedeutungsvoll'
-};
-
 export default function Step6Summary({ state, onGenerate }: Props) {
+  const { t } = useTranslation();
+
+  const CATEGORY_NAMES: Record<string, string> = {
+    'fairy-tales': `🏰 ${t('wizard.categories.fairy_tales.title')}`,
+    'adventure': `🗺️ ${t('wizard.categories.adventure.title')}`,
+    'magic': `✨ ${t('wizard.categories.magic.title')}`,
+    'animals': `🦊 ${t('wizard.categories.animals.title')}`,
+    'scifi': `🚀 ${t('wizard.categories.scifi.title')}`,
+    'modern': `🏡 ${t('wizard.categories.modern.title')}`
+  };
+
+  const AGE_LABELS: Record<string, string> = {
+    '3-5': t('wizard.ageGroups.3-5.title'),
+    '6-8': t('wizard.ageGroups.6-8.title'),
+    '9-12': t('wizard.ageGroups.9-12.title'),
+    '13+': t('wizard.ageGroups.13+.title')
+  };
+
+  const LENGTH_LABELS: Record<string, string> = {
+    'short': `⚡ ${t('wizard.lengths.short.title')} (${t('wizard.lengths.short.duration')})`,
+    'medium': `📖 ${t('wizard.lengths.medium.title')} (${t('wizard.lengths.medium.duration')})`,
+    'long': `📚 ${t('wizard.lengths.long.title')} (${t('wizard.lengths.long.duration')})`
+  };
+
+  const FEELING_EMOJIS: Record<string, string> = {
+    'funny': `😂 ${t('wizard.feelings.funny.title')}`,
+    'warm': `❤️ ${t('wizard.feelings.warm.title')}`,
+    'exciting': `⚡ ${t('wizard.feelings.exciting.title')}`,
+    'crazy': `🤪 ${t('wizard.feelings.crazy.title')}`,
+    'meaningful': `💭 ${t('wizard.feelings.meaningful.title')}`
+  };
+
   const activeWishes = [
-    state.rhymes && '🎵 Mit Reimen',
-    state.moral && '📖 Mit Moral',
-    state.avatarIsHero && '⭐ Avatar ist Held',
-    state.famousCharacters && '👑 Bekannte Figuren',
-    state.happyEnd && '😊 Happy End',
-    state.surpriseEnd && '❗ Überraschungs-Ende'
+    state.rhymes && `🎵 ${t('wizard.wishes.rhymes.title')}`,
+    state.moral && `📖 ${t('wizard.wishes.moral.title')}`,
+    state.avatarIsHero && `⭐ ${t('wizard.wishes.avatarIsHero.title')}`,
+    state.famousCharacters && `👑 ${t('wizard.wishes.famousCharacters.title')}`,
+    state.happyEnd && `😊 ${t('wizard.wishes.happyEnd.title')}`,
+    state.surpriseEnd && `❗ ${t('wizard.wishes.surpriseEnd.title')}`
   ].filter(Boolean);
 
   return (
@@ -67,10 +70,10 @@ export default function Step6Summary({ state, onGenerate }: Props) {
       {/* Title */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          🎉 Alles bereit!
+          🎉 {t('wizard.titles.summary')}
         </h2>
         <p className="text-gray-600">
-          Überprüfe deine Auswahl und erstelle die Geschichte.
+          {t('wizard.subtitles.summary')}
         </p>
       </div>
 
@@ -82,9 +85,9 @@ export default function Step6Summary({ state, onGenerate }: Props) {
             <User size={24} className="text-purple-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">Avatare</p>
+            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.avatars')}</p>
             <p className="text-sm text-gray-600">
-              {state.selectedAvatars.length} Avatar{state.selectedAvatars.length > 1 ? 'e' : ''} ausgewählt
+              {state.selectedAvatars.length} {t('wizard.summary.avatars')} {t('wizard.common.selected')}
             </p>
           </div>
           <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
@@ -96,7 +99,7 @@ export default function Step6Summary({ state, onGenerate }: Props) {
             <BookOpen size={24} className="text-blue-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">Kategorie</p>
+            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.category')}</p>
             <p className="text-sm text-gray-600">
               {state.mainCategory ? CATEGORY_NAMES[state.mainCategory] : 'Nicht gewählt'}
             </p>
@@ -110,7 +113,7 @@ export default function Step6Summary({ state, onGenerate }: Props) {
             <Clock size={24} className="text-green-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">Alter & Länge</p>
+            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.age')} & {t('wizard.summary.length')}</p>
             <p className="text-sm text-gray-600">
               {state.ageGroup && AGE_LABELS[state.ageGroup]}, {state.length && LENGTH_LABELS[state.length]}
             </p>
@@ -124,7 +127,7 @@ export default function Step6Summary({ state, onGenerate }: Props) {
             <Heart size={24} className="text-pink-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">Gefühle</p>
+            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.feelings')}</p>
             <p className="text-sm text-gray-600">
               {state.feelings.map(f => FEELING_EMOJIS[f]).join(', ')}
             </p>
@@ -139,7 +142,7 @@ export default function Step6Summary({ state, onGenerate }: Props) {
               <Sparkles size={24} className="text-yellow-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-gray-800 mb-1">Besondere Wünsche</p>
+              <p className="font-semibold text-gray-800 mb-1">{t('wizard.titles.wishes')}</p>
               {activeWishes.length > 0 && (
                 <p className="text-sm text-gray-600 mb-1">{activeWishes.join(', ')}</p>
               )}
@@ -158,11 +161,10 @@ export default function Step6Summary({ state, onGenerate }: Props) {
           <Sparkles size={32} className="text-purple-600 flex-shrink-0" />
           <div>
             <p className="font-bold text-purple-900 mb-2">
-              ✨ Deine einzigartige Geschichte wird jetzt erstellt!
+              ✨ {t('wizard.summary.ready')}
             </p>
             <p className="text-sm text-purple-800">
-              Die KI erstellt eine komplett neue Geschichte basierend auf deinen Wünschen. 
-              Das dauert ca. <strong>60-90 Sekunden</strong>. Mit Bildern insgesamt <strong>2-3 Minuten</strong>.
+              {t('wizard.common.summaryNote')}
             </p>
           </div>
         </div>
@@ -180,7 +182,7 @@ export default function Step6Summary({ state, onGenerate }: Props) {
         "
       >
         <Sparkles size={32} className="animate-pulse" />
-        GESCHICHTE JETZT ERSTELLEN!
+        {t('wizard.buttons.generate')}
         <Sparkles size={32} className="animate-pulse" />
       </button>
     </div>

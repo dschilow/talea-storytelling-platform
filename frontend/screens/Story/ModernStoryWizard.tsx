@@ -109,7 +109,7 @@ export default function ModernStoryWizard() {
 
   const handleGenerate = async () => {
     if (!userId) {
-      alert('Bitte melde dich an, um eine Geschichte zu erstellen.');
+      alert(t('story.wizard.alerts.loginRequired'));
       return;
     }
 
@@ -153,18 +153,18 @@ export default function ModernStoryWizard() {
       //   showNewCharacterToast(names);
       // }
 
-      alert(`Geschichte "${story.title}" wurde erfolgreich erstellt! 🎉`);
+      alert(t('story.wizard.alerts.success', { title: story.title }));
       navigate(`/story-reader/${story.id}`);
 
     } catch (error) {
       console.error('[ModernWizard] Error generating story:', error);
-      let errorMessage = 'Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.';
+      let errorMessage = t('story.wizard.alerts.error');
 
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) {
-          errorMessage = 'Die Anfrage ist zu groß. Bitte versuche es erneut.';
+          errorMessage = t('story.wizard.alerts.tooLong');
         } else if (error.message.includes('timeout')) {
-          errorMessage = 'Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte.';
+          errorMessage = t('story.wizard.alerts.timeout');
         }
       }
 
@@ -215,10 +215,10 @@ export default function ModernStoryWizard() {
           <div className="text-center mb-8">
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600 animate-pulse" />
             <h1 className="text-4xl font-bold text-purple-600 mb-2">
-              ✨ Deine Geschichte wird erstellt!
+              {t('wizard.loading.title')}
             </h1>
             <p className="text-gray-600">
-              Das kann 2-3 Minuten dauern. Bitte nicht schließen!
+              {t('wizard.loading.subtitle')}
             </p>
           </div>
 
@@ -235,9 +235,9 @@ export default function ModernStoryWizard() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-purple-600 mb-2">
-            ✨ Neue Geschichte erstellen
+            {t('story.wizard.title')}
           </h1>
-          <p className="text-gray-600">Schritt {activeStep + 1} von {STEPS.length}</p>
+          <p className="text-gray-600">{t('story.wizard.stepCounter', { current: activeStep + 1, total: STEPS.length })}</p>
         </div>
 
         {/* Progress Bar */}
@@ -282,7 +282,7 @@ export default function ModernStoryWizard() {
             `}
           >
             <ArrowLeft size={20} />
-            Zurück
+            {t('wizard.buttons.back')}
           </button>
 
           {activeStep < STEPS.length - 1 ? (
@@ -296,7 +296,7 @@ export default function ModernStoryWizard() {
                   : 'bg-purple-600 text-white hover:bg-purple-700 active:scale-95 shadow-lg'}
               `}
             >
-              Weiter
+              {t('wizard.buttons.next')}
               <ArrowRight size={20} />
             </button>
           ) : (
@@ -310,7 +310,7 @@ export default function ModernStoryWizard() {
               "
             >
               <Sparkles size={24} />
-              GESCHICHTE ERSTELLEN!
+              {t('wizard.buttons.generate')}
             </button>
           )}
         </div>
@@ -336,12 +336,12 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   };
 
   const genreMap: Record<string, string> = {
-    'fairy-tales': 'Klassische Märchen',
+    'fairy-tales': 'fairy_tales',
     'adventure': 'adventure',
-    'magic': 'Märchenwelten und Magie',
+    'magic': 'magic',
     'animals': 'animals',
     'scifi': 'scifi',
-    'modern': 'realistic'
+    'modern': 'modern'
   };
 
   // Map feelings to tone (must be one of: warm, witty, epic, soothing, mischievous, wonder)

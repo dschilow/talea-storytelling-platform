@@ -530,15 +530,22 @@ export const generate = api<GenerateStoryRequest, Story>(
             // AI-generated specific trait changes for this avatar with detailed descriptions
             changes = aiDevelopment.changedTraits.map((change: any) => {
               const adjustedChange = isParticipating ? change.change : Math.max(1, Math.floor(change.change / 2));
-              const modeText = isParticipating ? 'aktive Teilnahme' : 'Lesen';
+              const isEnglish = req.config.language === 'en';
+              const modeText = isParticipating
+                ? (isEnglish ? 'active participation' : 'aktive Teilnahme')
+                : (isEnglish ? 'reading' : 'Lesen');
 
               // Create detailed description based on trait type
               let description = '';
               if (change.trait.startsWith('knowledge.')) {
                 const subject = change.trait.split('.')[1];
-                description = `+${adjustedChange} ${subject} durch ${modeText} der ${req.config.genre}-Geschichte "${generatedStory.title}"`;
+                description = isEnglish
+                  ? `+${adjustedChange} ${subject} through ${modeText} of ${req.config.genre} story "${generatedStory.title}"`
+                  : `+${adjustedChange} ${subject} durch ${modeText} der ${req.config.genre}-Geschichte "${generatedStory.title}"`;
               } else {
-                description = `+${adjustedChange} ${change.trait} durch ${modeText} in "${generatedStory.title}" entwickelt`;
+                description = isEnglish
+                  ? `+${adjustedChange} ${change.trait} developed through ${modeText} in "${generatedStory.title}"`
+                  : `+${adjustedChange} ${change.trait} durch ${modeText} in "${generatedStory.title}" entwickelt`;
               }
 
               return {
@@ -547,9 +554,14 @@ export const generate = api<GenerateStoryRequest, Story>(
                 description: description
               };
             });
+            const isEnglish = req.config.language === 'en';
             experienceDescription = isParticipating
-              ? `Ich war aktiver Teilnehmer in der Geschichte "${generatedStory.title}". Genre: ${req.config.genre}.`
-              : `Ich habe die Geschichte "${generatedStory.title}" gelesen. Genre: ${req.config.genre}.`;
+              ? (isEnglish
+                ? `I was an active participant in the story "${generatedStory.title}". Genre: ${req.config.genre}.`
+                : `Ich war aktiver Teilnehmer in der Geschichte "${generatedStory.title}". Genre: ${req.config.genre}.`)
+              : (isEnglish
+                ? `I read the story "${generatedStory.title}". Genre: ${req.config.genre}.`
+                : `Ich habe die Geschichte "${generatedStory.title}" gelesen. Genre: ${req.config.genre}.`);
           } else {
             // Fallback: Genre-based updates when AI doesn't provide specific developments
             const baseTraits = req.config.genre === 'adventure' ? ['courage', 'curiosity'] :
@@ -559,14 +571,23 @@ export const generate = api<GenerateStoryRequest, Story>(
                     ['empathy', 'curiosity'];
             changes = baseTraits.map(trait => {
               const points = isParticipating ? 2 : 1;
-              const modeText = isParticipating ? 'aktive Teilnahme' : 'Lesen';
+              const isEnglish = req.config.language === 'en';
+              const modeText = isParticipating
+                ? (isEnglish ? 'active participation' : 'aktive Teilnahme')
+                : (isEnglish ? 'reading' : 'Lesen');
+
               return {
                 trait,
                 change: points,
-                description: `+${points} ${trait} durch ${modeText} in ${req.config.genre}-Geschichte`
+                description: isEnglish
+                  ? `+${points} ${trait} through ${modeText} in ${req.config.genre} story`
+                  : `+${points} ${trait} durch ${modeText} in ${req.config.genre}-Geschichte`
               };
             });
-            experienceDescription = `Geschichte "${generatedStory.title}" (${req.config.genre}) erlebt.`;
+            const isEnglish = req.config.language === 'en';
+            experienceDescription = isEnglish
+              ? `Experienced story "${generatedStory.title}" (${req.config.genre}).`
+              : `Geschichte "${generatedStory.title}" (${req.config.genre}) erlebt.`;
           }
 
           if (changes.length > 0) {
