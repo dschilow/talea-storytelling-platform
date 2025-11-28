@@ -80,7 +80,7 @@ const LandingPage = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
-                    background: `url(/landing/hero.png) center/cover`,
+                    background: `url(/landing-assets/hero.png) center/cover`,
                 }}
             >
                 <div style={{
@@ -230,7 +230,7 @@ const LandingPage = () => {
                         boxShadow: '0 30px 60px rgba(0, 0, 0, 0.5)',
                     }}>
                         <img
-                            src="/landing/idea.png"
+                            src="/landing-assets/idea.png"
                             alt="Talea Idee"
                             className="landing-image"
                             style={{
@@ -269,7 +269,7 @@ const LandingPage = () => {
                         order: 2,
                     }}>
                         <img
-                            src="/landing/avatars.png"
+                            src="/landing-assets/avatars.png"
                             alt="Talea Avatare"
                             className="landing-image"
                             style={{
@@ -446,7 +446,7 @@ const LandingPage = () => {
                         boxShadow: '0 30px 60px rgba(0, 0, 0, 0.5)',
                     }}>
                         <img
-                            src="/landing/stories.png"
+                            src="/landing-assets/stories.png"
                             alt="Talea Geschichten"
                             className="landing-image"
                             style={{
