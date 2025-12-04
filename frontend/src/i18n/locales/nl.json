@@ -119,6 +119,145 @@
       "stories": "Verhalen",
       "dokus": "Documenten",
       "totalTraits": "Totaal eigenschappen"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Kies Modus",
+        "basic": "Basisinfo",
+        "appearance": "Uiterlijk",
+        "style": "Stijl",
+        "background": "Achtergrond",
+        "create": "Maken"
+      },
+      "mode": {
+        "title": "Hoe wil je je avatar maken?",
+        "simple": {
+          "title": "Simpel en Leuk",
+          "description": "Klik door kleurrijke opties. Perfect voor kinderen!"
+        },
+        "advanced": {
+          "title": "Creatief en Vrij",
+          "description": "Beschrijf je avatar in je eigen woorden."
+        }
+      },
+      "basic": {
+        "title": "Basisinfo",
+        "subtitle": "Vertel ons over je karakter",
+        "name": "Naam",
+        "namePlaceholder": "Hoe zal je avatar heten?",
+        "type": "Type",
+        "age": "Leeftijd",
+        "gender": "Geslacht",
+        "description": "Beschrijf je avatar",
+        "descriptionPlaceholder": "bijv. Luna - Een nieuwsgierig meisje, 8 jaar..."
+      },
+      "appearance": {
+        "title": "Uiterlijk",
+        "subtitle": "Hoe ziet je avatar eruit?",
+        "eyeColor": "Oogkleur",
+        "hairColor": "Haarkleur",
+        "specialFeatures": "Speciale Kenmerken",
+        "descriptionPlaceholder": "Beschrijf het uiterlijk..."
+      },
+      "style": {
+        "title": "Stijl en Expressie",
+        "subtitle": "Hoe kleedt je avatar zich?",
+        "clothing": "Kledingstijl",
+        "voice": "Stem"
+      },
+      "background": {
+        "title": "Oorsprong en Verhaal",
+        "subtitle": "Waar komt je avatar vandaan?",
+        "world": "Wereld",
+        "backstory": "Achtergrondverhaal"
+      },
+      "create": {
+        "title": "Je avatar is klaar!",
+        "info": "Persoonlijkheidskenmerken ontwikkelen zich door verhalen!",
+        "generateImage": "Afbeelding Genereren",
+        "generatingImage": "Afbeelding Genereren...",
+        "createAvatar": "Avatar Maken",
+        "creatingAvatar": "Avatar Maken...",
+        "imageGeneratedSuccess": "🎨 Avatar afbeelding gegenereerd!",
+        "imageGenerationError": "Fout bij genereren afbeelding.",
+        "avatarCreatedSuccess": "Avatar klaar!",
+        "avatarCreationError": "Kon avatar niet maken."
+      },
+      "options": {
+        "types": {
+          "human": "Mens",
+          "animal": "Dier",
+          "fantasy": "Fantasiewezen",
+          "robot": "Robot",
+          "plant": "Plant",
+          "other": "Anders"
+        },
+        "ages": {
+          "baby": "Baby",
+          "child": "Kind",
+          "teen": "Tiener",
+          "adult": "Volwassene",
+          "old": "Oudere"
+        },
+        "genders": {
+          "boy": "Jongen",
+          "girl": "Meisje",
+          "diverse": "Divers",
+          "none": "Niet gespecificeerd"
+        },
+        "eyes": {
+          "blue": "Blauw",
+          "green": "Groen",
+          "brown": "Bruin",
+          "gray": "Grijs",
+          "colorful": "Kleurrijk"
+        },
+        "hair": {
+          "blonde": "Blond",
+          "brown": "Bruin",
+          "black": "Zwart",
+          "red": "Rood",
+          "bald": "Kaal"
+        },
+        "features": {
+          "glasses": "Bril",
+          "wings": "Vleugels",
+          "horns": "Hoorns",
+          "tail": "Staart",
+          "scar": "Litteken",
+          "tattoo": "Tattoo"
+        },
+        "clothing": {
+          "modern": "Modern",
+          "medieval": "Middeleeuws",
+          "fairytale": "Sprookje",
+          "future": "Futuristisch",
+          "armor": "Harnas",
+          "magic": "Magisch"
+        },
+        "voice": {
+          "high": "Hoog",
+          "normal": "Normaal",
+          "deep": "Diep",
+          "funny": "Grappig",
+          "mysterious": "Mysterieus"
+        },
+        "world": {
+          "forest": "Bos",
+          "city": "Stad",
+          "castle": "Kasteel",
+          "future": "Toekomst",
+          "underwater": "Onderwater",
+          "space": "Ruimte"
+        },
+        "backstory": {
+          "lost": "Verdwaald op zoek naar huis",
+          "adventurer": "Een dappere avonturier op reis",
+          "wizard": "Een leerling van magie met groot potentieel",
+          "talent": "Heeft een speciaal talent ontdekt",
+          "normal": "Een normaal kind vol nieuwsgierigheid"
+        }
+      }
     }
   },
   "story": {
@@ -300,5 +439,269 @@
     "maxLength": "Maximaal {{count}} tekens",
     "nameRequired": "Naam is verplicht",
     "descriptionRequired": "Beschrijving is verplicht"
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Wie zit er in het verhaal?",
+      "category": "Wat voor verhaal?",
+      "ageLength": "Voor welke leeftijd en duur?",
+      "feeling": "Welk gevoel?",
+      "wishes": "Speciale wensen? (Optioneel)",
+      "summary": "Alles klaar!"
+    },
+    "subtitles": {
+      "avatars": "Selecteer 1-4 avatars voor het verhaal.",
+      "category": "Kies een categorie - je avatars worden onderdeel van een uniek verhaal!",
+      "ageLength": "Pas het verhaal aan de leeftijd en beschikbare tijd aan.",
+      "feeling": "Selecteer 1-3 stemmingen.",
+      "wishes": "Voeg speciale kenmerken toe of sla deze stap over.",
+      "summary": "Controleer je selectie en maak het verhaal."
+    },
+    "buttons": {
+      "back": "Terug",
+      "next": "Volgende",
+      "create": "Maken",
+      "generate": "✨ Verhaal Maken! ✨"
+    },
+    "common": {
+      "examples": "VOORBEELDEN:",
+      "note": "💡 Opmerking:",
+      "categoryNote": "Elke categorie creëert een compleet nieuw verhaal!",
+      "wishesNote": "Alle wensen zijn optioneel. De AI doet haar best!",
+      "summaryNote": "De AI maakt een verhaal op basis van je wensen. Dit duurt 60-90 seconden.",
+      "selected": "geselecteerd",
+      "notSelected": "Niet geselecteerd",
+      "customWish": "💬 Aangepaste wens (optioneel):",
+      "customWishPlaceholder": "bijv. 'Het verhaal moet in de ruimte spelen'",
+      "chars": "tekens"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Klassieke Sprookjes",
+        "description": "Betoverde werelden, koningen en prinsessen",
+        "examples": "Hans en Grietje, Roodkapje"
+      },
+      "adventure": {
+        "title": "Avontuur en Schatten",
+        "description": "Spannende reizen, verborgen schatten",
+        "examples": "Schattenjacht"
+      },
+      "magic": {
+        "title": "Magische Werelden",
+        "description": "Spreuken, magische krachten",
+        "examples": "Tovenaars, Feeën"
+      },
+      "animals": {
+        "title": "Dierenwereld",
+        "description": "Pratende dieren",
+        "examples": "In het Bos"
+      },
+      "scifi": {
+        "title": "Sciencefiction",
+        "description": "Ruimteschepen, vreemde planeten",
+        "examples": "Ruimteavonturen"
+      },
+      "modern": {
+        "title": "Modern",
+        "description": "Dagelijks leven, school, familie",
+        "examples": "Hier en Nu"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Jaar",
+        "description": "Korte, eenvoudige verhalen"
+      },
+      "6-8": {
+        "title": "6-8 Jaar",
+        "description": "Spannende avonturen"
+      },
+      "9-12": {
+        "title": "9-12 Jaar",
+        "description": "Complexere plots"
+      },
+      "13+": {
+        "title": "13+ Jaar",
+        "description": "Diepgaande verhalen"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Kort",
+        "duration": "3-5 Min",
+        "chapters": "3 hoofdstukken"
+      },
+      "medium": {
+        "title": "Gemiddeld",
+        "duration": "8-12 Min",
+        "chapters": "5 hoofdstukken"
+      },
+      "long": {
+        "title": "Lang",
+        "duration": "15-20 Min",
+        "chapters": "7 hoofdstukken"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Grappig",
+        "description": "Om te lachen"
+      },
+      "warm": {
+        "title": "Warm",
+        "description": "Liefdevolle momenten"
+      },
+      "exciting": {
+        "title": "Spannend",
+        "description": "Opwindende actie"
+      },
+      "crazy": {
+        "title": "Gek",
+        "description": "Wilde verrassingen"
+      },
+      "meaningful": {
+        "title": "Betekenisvol",
+        "description": "Met belangrijke boodschap"
+      }
+    },
+    "summary": {
+      "avatars": "Avatars",
+      "age": "Leeftijd",
+      "category": "Categorie",
+      "length": "Duur",
+      "feelings": "Gevoelens",
+      "wishes": "Wensen",
+      "ready": "Je verhaal wordt nu gemaakt!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Rijmen",
+        "description": "Het verhaal wordt in rijm verteld"
+      },
+      "moral": {
+        "title": "Moraal",
+        "description": "Het verhaal brengt een les over"
+      },
+      "avatarIsHero": {
+        "title": "Avatar is Held",
+        "description": "Je avatar is de hoofdpersoon"
+      },
+      "famousCharacters": {
+        "title": "Beroemde Personages",
+        "description": "Ontmoet personages uit sprookjes"
+      },
+      "happyEnd": {
+        "title": "Happy End",
+        "description": "Het verhaal eindigt goed"
+      },
+      "surpriseEnd": {
+        "title": "Verrassend Einde",
+        "description": "Een onverwacht einde"
+      }
+    },
+    "steps": {
+      "avatars": "Avatars",
+      "category": "Categorie",
+      "ageLength": "Leeftijd en Duur",
+      "feeling": "Gevoelens",
+      "wishes": "Wensen",
+      "summary": "Samenvatting"
+    },
+    "loading": {
+      "title": "Je verhaal wordt geschreven...",
+      "subtitle": "Even geduld"
+    }
+  },
+  "landing": {
+    "nav": {
+      "start": "Begin"
+    },
+    "hero": {
+      "tagline": "Magische verhalen voor je kind",
+      "page1": "Er was eens...",
+      "page2": "...een kind vol dromen.",
+      "page3": "Je reis begint hier.",
+      "coverTitle": "Jouw Verhaal",
+      "scrollHint": "Scroll om te Openen"
+    },
+    "features": {
+      "title": "Ontdek de Wereld van Talea",
+      "stories": {
+        "title": "Gepersonaliseerde Verhalen",
+        "subtitle": "Het Verhalenbos",
+        "description": "Je kind wordt de hoofdpersoon in magische sprookjes."
+      },
+      "avatars": {
+        "title": "Unieke Avatars",
+        "subtitle": "De Avatar Werkplaats",
+        "description": "Maak een digitale tweeling van je kind."
+      },
+      "learning": {
+        "title": "Spelend Leren",
+        "subtitle": "De Bergen van Kennis",
+        "description": "Educatieve inhoud in spannende verhalen."
+      },
+      "memory": {
+        "title": "Groeiend Geheugen",
+        "subtitle": "De Herinneringsboom",
+        "description": "Talea onthoudt alles en bouwt voort op eerdere avonturen."
+      },
+      "values": {
+        "title": "Waarden Overbrengen",
+        "subtitle": "De Waardetuin",
+        "description": "Vriendschap, moed en mededogen – in kindverhalen."
+      },
+      "parents": {
+        "title": "Volledige Controle",
+        "subtitle": "De Ouderlounge",
+        "description": "Jij bepaalt thema's, lengte en inhoud. 100% kindveilig."
+      }
+    },
+    "pricing": {
+      "title": "Kies Je Plan",
+      "popular": "Populair",
+      "starter": {
+        "name": "Starter",
+        "price": "Gratis",
+        "features": [
+          "3 verhalen per maand",
+          "1 Avatar",
+          "Standaard kwaliteit"
+        ],
+        "cta": "Start Gratis"
+      },
+      "family": {
+        "name": "Familie",
+        "price": "€9,99",
+        "period": "/maand",
+        "features": [
+          "Onbeperkte verhalen",
+          "5 Avatars",
+          "HD kwaliteit",
+          "Geheugenfunctie",
+          "Geen advertenties"
+        ],
+        "cta": "Begin"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19,99",
+        "period": "/maand",
+        "features": [
+          "Alles van Familie",
+          "Onbeperkte Avatars",
+          "4K kwaliteit",
+          "Prioriteit support",
+          "Vroege toegang"
+        ],
+        "cta": "Kies Premium"
+      }
+    },
+    "footer": {
+      "copyright": "Magische Verhalen voor Kinderen © 2025",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden",
+      "contact": "Contact"
+    }
   }
 }

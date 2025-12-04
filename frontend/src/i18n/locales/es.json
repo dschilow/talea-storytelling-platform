@@ -119,6 +119,145 @@
       "stories": "Historias",
       "dokus": "Documentos",
       "totalTraits": "Total rasgos"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Elegir Modo",
+        "basic": "Información Básica",
+        "appearance": "Apariencia",
+        "style": "Estilo",
+        "background": "Origen",
+        "create": "Crear"
+      },
+      "mode": {
+        "title": "¿Cómo quieres crear tu avatar?",
+        "simple": {
+          "title": "Simple y Divertido",
+          "description": "Haz clic en opciones coloridas. ¡Perfecto para niños!"
+        },
+        "advanced": {
+          "title": "Creativo y Libre",
+          "description": "Describe tu avatar con tus propias palabras."
+        }
+      },
+      "basic": {
+        "title": "Información Básica",
+        "subtitle": "Cuéntanos sobre tu personaje",
+        "name": "Nombre",
+        "namePlaceholder": "¿Cómo se llamará tu avatar?",
+        "type": "Tipo",
+        "age": "Edad",
+        "gender": "Género",
+        "description": "Describe tu avatar",
+        "descriptionPlaceholder": "ej. Luna - Una niña curiosa, 8 años..."
+      },
+      "appearance": {
+        "title": "Apariencia",
+        "subtitle": "¿Cómo se ve tu avatar?",
+        "eyeColor": "Color de Ojos",
+        "hairColor": "Color de Cabello",
+        "specialFeatures": "Características Especiales",
+        "descriptionPlaceholder": "Describe la apariencia..."
+      },
+      "style": {
+        "title": "Estilo y Expresión",
+        "subtitle": "¿Cómo se viste tu avatar?",
+        "clothing": "Estilo de Ropa",
+        "voice": "Voz"
+      },
+      "background": {
+        "title": "Origen e Historia",
+        "subtitle": "¿De dónde viene tu avatar?",
+        "world": "Mundo",
+        "backstory": "Historia de Fondo"
+      },
+      "create": {
+        "title": "¡Tu avatar está listo!",
+        "info": "¡Los rasgos de personalidad se desarrollan a través de historias!",
+        "generateImage": "Generar Imagen",
+        "generatingImage": "Generando Imagen...",
+        "createAvatar": "Crear Avatar",
+        "creatingAvatar": "Creando Avatar...",
+        "imageGeneratedSuccess": "🎨 ¡Imagen del avatar generada!",
+        "imageGenerationError": "Error al generar imagen.",
+        "avatarCreatedSuccess": "¡Avatar listo!",
+        "avatarCreationError": "No se pudo crear el avatar."
+      },
+      "options": {
+        "types": {
+          "human": "Humano",
+          "animal": "Animal",
+          "fantasy": "Criatura Fantástica",
+          "robot": "Robot",
+          "plant": "Planta",
+          "other": "Otro"
+        },
+        "ages": {
+          "baby": "Bebé",
+          "child": "Niño",
+          "teen": "Adolescente",
+          "adult": "Adulto",
+          "old": "Mayor"
+        },
+        "genders": {
+          "boy": "Niño",
+          "girl": "Niña",
+          "diverse": "Diverso",
+          "none": "No especificado"
+        },
+        "eyes": {
+          "blue": "Azul",
+          "green": "Verde",
+          "brown": "Marrón",
+          "gray": "Gris",
+          "colorful": "Colorido"
+        },
+        "hair": {
+          "blonde": "Rubio",
+          "brown": "Marrón",
+          "black": "Negro",
+          "red": "Rojo",
+          "bald": "Calvo"
+        },
+        "features": {
+          "glasses": "Gafas",
+          "wings": "Alas",
+          "horns": "Cuernos",
+          "tail": "Cola",
+          "scar": "Cicatriz",
+          "tattoo": "Tatuaje"
+        },
+        "clothing": {
+          "modern": "Moderno",
+          "medieval": "Medieval",
+          "fairytale": "Cuento",
+          "future": "Futurista",
+          "armor": "Armadura",
+          "magic": "Mágico"
+        },
+        "voice": {
+          "high": "Aguda",
+          "normal": "Normal",
+          "deep": "Grave",
+          "funny": "Graciosa",
+          "mysterious": "Misteriosa"
+        },
+        "world": {
+          "forest": "Bosque",
+          "city": "Ciudad",
+          "castle": "Castillo",
+          "future": "Futuro",
+          "underwater": "Bajo el agua",
+          "space": "Espacio"
+        },
+        "backstory": {
+          "lost": "Perdido buscando el camino a casa",
+          "adventurer": "Un valiente aventurero en un gran viaje",
+          "wizard": "Un aprendiz de magia con gran potencial",
+          "talent": "Descubrió un talento especial",
+          "normal": "Un niño normal lleno de curiosidad"
+        }
+      }
     }
   },
   "story": {
@@ -300,5 +439,269 @@
     "maxLength": "Máximo {{count}} caracteres",
     "nameRequired": "El nombre es requerido",
     "descriptionRequired": "La descripción es requerida"
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "¿Quién está en la historia?",
+      "category": "¿Qué tipo de historia?",
+      "ageLength": "¿Para qué edad y duración?",
+      "feeling": "¿Qué sensación debe tener?",
+      "wishes": "¿Deseos especiales? (Opcional)",
+      "summary": "¡Todo listo!"
+    },
+    "subtitles": {
+      "avatars": "Selecciona 1-4 avatares para la historia.",
+      "category": "Elige una categoría - ¡tus avatares serán parte de una historia única!",
+      "ageLength": "Ajusta la historia a la edad y el tiempo disponible.",
+      "feeling": "Selecciona 1-3 estados de ánimo.",
+      "wishes": "Añade características especiales o salta este paso.",
+      "summary": "Revisa tu selección y crea la historia."
+    },
+    "buttons": {
+      "back": "Atrás",
+      "next": "Siguiente",
+      "create": "Crear",
+      "generate": "✨ ¡Crear Historia! ✨"
+    },
+    "common": {
+      "examples": "EJEMPLOS:",
+      "note": "💡 Nota:",
+      "categoryNote": "¡Cada categoría crea una historia completamente nueva!",
+      "wishesNote": "Todos los deseos son opcionales. ¡La IA hará su mejor esfuerzo!",
+      "summaryNote": "La IA crea una historia basada en tus deseos. Esto toma 60-90 segundos.",
+      "selected": "seleccionado",
+      "notSelected": "No seleccionado",
+      "customWish": "💬 Deseo personalizado (opcional):",
+      "customWishPlaceholder": "ej. 'La historia debe ocurrir en el espacio'",
+      "chars": "caracteres"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Cuentos Clásicos",
+        "description": "Mundos encantados, reyes y princesas",
+        "examples": "Hansel y Gretel, Caperucita Roja"
+      },
+      "adventure": {
+        "title": "Aventura y Tesoros",
+        "description": "Viajes emocionantes, tesoros ocultos",
+        "examples": "Búsqueda del Tesoro"
+      },
+      "magic": {
+        "title": "Mundos Mágicos",
+        "description": "Hechizos, poderes mágicos",
+        "examples": "Magos, Hadas"
+      },
+      "animals": {
+        "title": "Mundo Animal",
+        "description": "Animales que hablan",
+        "examples": "En el Bosque, En la Granja"
+      },
+      "scifi": {
+        "title": "Ciencia Ficción",
+        "description": "Naves espaciales, planetas alienígenas",
+        "examples": "Aventuras Espaciales"
+      },
+      "modern": {
+        "title": "Moderno",
+        "description": "Vida cotidiana, escuela, familia",
+        "examples": "Aquí y Ahora"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Años",
+        "description": "Historias cortas y simples"
+      },
+      "6-8": {
+        "title": "6-8 Años",
+        "description": "Aventuras emocionantes"
+      },
+      "9-12": {
+        "title": "9-12 Años",
+        "description": "Tramas más complejas"
+      },
+      "13+": {
+        "title": "13+ Años",
+        "description": "Historias profundas"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Corta",
+        "duration": "3-5 Min",
+        "chapters": "3 capítulos"
+      },
+      "medium": {
+        "title": "Media",
+        "duration": "8-12 Min",
+        "chapters": "5 capítulos"
+      },
+      "long": {
+        "title": "Larga",
+        "duration": "15-20 Min",
+        "chapters": "7 capítulos"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Divertida",
+        "description": "Para reír"
+      },
+      "warm": {
+        "title": "Cálida",
+        "description": "Momentos amorosos"
+      },
+      "exciting": {
+        "title": "Emocionante",
+        "description": "Acción emocionante"
+      },
+      "crazy": {
+        "title": "Loca",
+        "description": "Sorpresas salvajes"
+      },
+      "meaningful": {
+        "title": "Significativa",
+        "description": "Con mensaje importante"
+      }
+    },
+    "summary": {
+      "avatars": "Avatares",
+      "age": "Edad",
+      "category": "Categoría",
+      "length": "Duración",
+      "feelings": "Sentimientos",
+      "wishes": "Deseos",
+      "ready": "¡Tu historia se creará ahora!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Rimas",
+        "description": "La historia se cuenta en rimas"
+      },
+      "moral": {
+        "title": "Moral",
+        "description": "La historia transmite una lección"
+      },
+      "avatarIsHero": {
+        "title": "Avatar es Héroe",
+        "description": "Tu avatar es el protagonista"
+      },
+      "famousCharacters": {
+        "title": "Personajes Famosos",
+        "description": "Conoce personajes de cuentos"
+      },
+      "happyEnd": {
+        "title": "Final Feliz",
+        "description": "La historia termina bien"
+      },
+      "surpriseEnd": {
+        "title": "Final Sorpresa",
+        "description": "Un final inesperado"
+      }
+    },
+    "steps": {
+      "avatars": "Avatares",
+      "category": "Categoría",
+      "ageLength": "Edad y Duración",
+      "feeling": "Sentimientos",
+      "wishes": "Deseos",
+      "summary": "Resumen"
+    },
+    "loading": {
+      "title": "Tu historia se está escribiendo...",
+      "subtitle": "Por favor espera un momento"
+    }
+  },
+  "landing": {
+    "nav": {
+      "start": "Empezar"
+    },
+    "hero": {
+      "tagline": "Historias mágicas para tu hijo",
+      "page1": "Érase una vez...",
+      "page2": "...un niño lleno de sueños.",
+      "page3": "Tu viaje comienza aquí.",
+      "coverTitle": "Tu Historia",
+      "scrollHint": "Desliza para Abrir"
+    },
+    "features": {
+      "title": "Descubre el Mundo de Talea",
+      "stories": {
+        "title": "Historias Personalizadas",
+        "subtitle": "El Bosque de Historias",
+        "description": "Tu hijo se convierte en el protagonista de cuentos mágicos."
+      },
+      "avatars": {
+        "title": "Avatares Únicos",
+        "subtitle": "El Taller de Avatares",
+        "description": "Crea un gemelo digital de tu hijo."
+      },
+      "learning": {
+        "title": "Aprender Jugando",
+        "subtitle": "Las Montañas del Conocimiento",
+        "description": "Contenido educativo en historias emocionantes."
+      },
+      "memory": {
+        "title": "Memoria Creciente",
+        "subtitle": "El Árbol de Recuerdos",
+        "description": "Talea recuerda todo y construye sobre aventuras anteriores."
+      },
+      "values": {
+        "title": "Transmitir Valores",
+        "subtitle": "El Jardín de Valores",
+        "description": "Amistad, valentía y compasión – en historias para niños."
+      },
+      "parents": {
+        "title": "Control Total",
+        "subtitle": "El Salón de Padres",
+        "description": "Tú decides temas, duración y contenido. 100% seguro."
+      }
+    },
+    "pricing": {
+      "title": "Elige tu Plan",
+      "popular": "Popular",
+      "starter": {
+        "name": "Inicio",
+        "price": "Gratis",
+        "features": [
+          "3 historias al mes",
+          "1 Avatar",
+          "Calidad estándar"
+        ],
+        "cta": "Empezar Gratis"
+      },
+      "family": {
+        "name": "Familia",
+        "price": "€9,99",
+        "period": "/mes",
+        "features": [
+          "Historias ilimitadas",
+          "5 Avatares",
+          "Calidad HD",
+          "Función de memoria",
+          "Sin anuncios"
+        ],
+        "cta": "Empezar"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19,99",
+        "period": "/mes",
+        "features": [
+          "Todo de Familia",
+          "Avatares ilimitados",
+          "Calidad 4K",
+          "Soporte prioritario",
+          "Acceso anticipado"
+        ],
+        "cta": "Elegir Premium"
+      }
+    },
+    "footer": {
+      "copyright": "Historias Mágicas para Niños © 2025",
+      "privacy": "Privacidad",
+      "terms": "Términos",
+      "contact": "Contacto"
+    }
   }
 }

@@ -158,8 +158,8 @@ const StepBasicInfo = ({
                   whileTap={{ scale: 0.98 }}
                   onClick={() => updateConfig({ type: type.label.split(' ')[1] })}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${config.type === type.label.split(' ')[1]
-                      ? 'border-purple-400 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white hover:border-purple-200'
+                    ? 'border-purple-400 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-200'
                     }`}
                 >
                   <div className="text-xl">{type.label}</div>
@@ -331,8 +331,8 @@ const StepAppearance = ({
                       });
                     }}
                     className={`px-4 py-2 rounded-xl border-2 transition-all ${config.specialFeatures?.includes(t(`avatar.wizard.options.features.${feature.key}`))
-                        ? 'border-purple-400 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 bg-white hover:border-purple-200'
+                      ? 'border-purple-400 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 bg-white hover:border-purple-200'
                       }`}
                   >
                     {label}
@@ -393,8 +393,8 @@ const StepStyle = ({
                   whileTap={{ scale: 0.98 }}
                   onClick={() => updateConfig({ clothing: t(`avatar.wizard.options.clothing.${style.key}`) })}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${config.clothing === t(`avatar.wizard.options.clothing.${style.key}`)
-                      ? 'border-purple-400 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white hover:border-purple-200'
+                    ? 'border-purple-400 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-200'
                     }`}
                 >
                   <div className="text-xl">{label}</div>
@@ -422,8 +422,8 @@ const StepStyle = ({
                   whileTap={{ scale: 0.95 }}
                   onClick={() => updateConfig({ voice: t(`avatar.wizard.options.voice.${voice.key}`) })}
                   className={`px-4 py-2 rounded-xl border-2 transition-all ${config.voice === t(`avatar.wizard.options.voice.${voice.key}`)
-                      ? 'border-purple-400 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white hover:border-purple-200'
+                    ? 'border-purple-400 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-200'
                     }`}
                 >
                   {label}
@@ -477,8 +477,8 @@ const StepBackground = ({
                   whileTap={{ scale: 0.98 }}
                   onClick={() => updateConfig({ world: t(`avatar.wizard.options.world.${world.key}`) })}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${config.world === t(`avatar.wizard.options.world.${world.key}`)
-                      ? 'border-purple-400 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white hover:border-purple-200'
+                    ? 'border-purple-400 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-200'
                     }`}
                 >
                   <div className="text-xl">{label}</div>
@@ -506,8 +506,8 @@ const StepBackground = ({
                   whileTap={{ scale: 0.98 }}
                   onClick={() => updateConfig({ backstory: t(`avatar.wizard.options.backstory.${backstory.key}`) })}
                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${config.backstory === t(`avatar.wizard.options.backstory.${backstory.key}`)
-                      ? 'border-purple-400 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white hover:border-purple-200'
+                    ? 'border-purple-400 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white hover:border-purple-200'
                     }`}
                 >
                   <div className="text-lg">{label}</div>
@@ -658,15 +658,16 @@ const AvatarWizardScreen: React.FC = () => {
       console.log('Avatar created successfully:', avatar);
 
       // Initialize personality data for this avatar in localStorage (for local tracking)
+      // Use English trait keys for API compatibility
       const personalityKey = `avatar_personality_${avatar.id}`;
       const initialPersonality = {
         traits: [
-          { trait: 'Mut', value: 50, history: [] },
-          { trait: 'Kreativität', value: 50, history: [] },
-          { trait: 'Empathie', value: 50, history: [] },
-          { trait: 'Intelligenz', value: 50, history: [] },
-          { trait: 'Sozialität', value: 50, history: [] },
-          { trait: 'Energie', value: 50, history: [] },
+          { trait: 'courage', value: 50, history: [] },
+          { trait: 'creativity', value: 50, history: [] },
+          { trait: 'empathy', value: 50, history: [] },
+          { trait: 'intelligence', value: 50, history: [] },
+          { trait: 'sociability', value: 50, history: [] },
+          { trait: 'energy', value: 50, history: [] },
         ],
         lastUpdated: new Date().toISOString()
       };
@@ -705,8 +706,11 @@ const AvatarWizardScreen: React.FC = () => {
         leadership: 5,
       };
 
-      // Generate Avatar-Beschreibung aus den Einstellungen
-      const appearance = `${avatarConfig.basicInfo.type} mit ${avatarConfig.appearance.eyeColor} Augen und ${avatarConfig.appearance.hairColor} Haaren. ${avatarConfig.appearance.specialFeatures.join(', ')}`;
+      // Generate avatar description from settings (English for AI processing)
+      const specialFeatures = avatarConfig.appearance.specialFeatures.length > 0
+        ? `, with ${avatarConfig.appearance.specialFeatures.join(', ')}`
+        : '';
+      const appearance = `${avatarConfig.basicInfo.type} with ${avatarConfig.appearance.eyeColor} eyes and ${avatarConfig.appearance.hairColor} hair${specialFeatures}`;
 
       const result = await backend.ai.generateAvatarImage({
         characterType: avatarConfig.basicInfo.type,
@@ -899,8 +903,8 @@ const AvatarWizardScreen: React.FC = () => {
             onClick={prevStep}
             disabled={currentStep === 0}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${currentStep === 0
-                ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-600 hover:bg-gray-100'
+              ? 'text-gray-300 cursor-not-allowed'
+              : 'text-gray-600 hover:bg-gray-100'
               }`}
           >
             <ArrowLeft className="w-5 h-5" />
@@ -912,10 +916,10 @@ const AvatarWizardScreen: React.FC = () => {
               <div
                 key={index}
                 className={`w-2.5 h-2.5 rounded-full transition-all ${index === currentStep
-                    ? 'bg-purple-500 scale-125'
-                    : index < currentStep
-                      ? 'bg-purple-200'
-                      : 'bg-gray-200'
+                  ? 'bg-purple-500 scale-125'
+                  : index < currentStep
+                    ? 'bg-purple-200'
+                    : 'bg-gray-200'
                   }`}
               />
             ))}

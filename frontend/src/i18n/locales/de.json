@@ -138,7 +138,7 @@
         "age": "Alter",
         "gender": "Geschlecht",
         "description": "Beschreibe deinen Avatar",
-        "descriptionPlaceholder": "z.B. Luna - Ein neugieriges Mädchen, 8 Jahre alt, mit großen grünen Augen und einem verschmitzten Lächeln..."
+        "descriptionPlaceholder": "z.B. Luna - Ein neugieriges Mädchen, 8 Jahre alt..."
       },
       "appearance": {
         "title": "Aussehen",
@@ -146,7 +146,7 @@
         "eyeColor": "Augenfarbe",
         "hairColor": "Haarfarbe",
         "specialFeatures": "Besonderheiten",
-        "descriptionPlaceholder": "Beschreibe das Aussehen deines Avatars im Detail..."
+        "descriptionPlaceholder": "Beschreibe das Aussehen..."
       },
       "style": {
         "title": "Stil & Ausdruck",
@@ -162,16 +162,15 @@
       },
       "create": {
         "title": "Dein Avatar ist bereit!",
-        "info": "Persönlichkeitsmerkmale starten neutral und entwickeln sich durch deine Geschichten!",
+        "info": "Persönlichkeitsmerkmale entwickeln sich durch Geschichten!",
         "generateImage": "Bild generieren",
         "generatingImage": "Generiere Bild...",
         "createAvatar": "Avatar erstellen",
         "creatingAvatar": "Erstelle Avatar...",
-        "typeFrom": "{{type}} aus {{world}}",
         "imageGeneratedSuccess": "🎨 Avatar-Bild wurde erfolgreich generiert!",
-        "imageGenerationError": "Fehler beim Generieren des Avatar-Bildes. Bitte versuche es erneut.",
-        "avatarCreatedSuccess": "Avatar bereit! Persönlichkeitsmerkmale entwickeln sich durch Geschichten.",
-        "avatarCreationError": "Avatar konnte nicht erstellt werden. Bitte versuche es erneut."
+        "imageGenerationError": "Fehler beim Generieren des Bildes.",
+        "avatarCreatedSuccess": "Avatar bereit!",
+        "avatarCreationError": "Avatar konnte nicht erstellt werden."
       },
       "options": {
         "types": {
@@ -196,18 +195,18 @@
           "none": "Nicht angegeben"
         },
         "eyes": {
-          "blue": "blau",
-          "green": "grün",
-          "brown": "braun",
-          "gray": "grau",
-          "colorful": "bunt"
+          "blue": "Blau",
+          "green": "Grün",
+          "brown": "Braun",
+          "gray": "Grau",
+          "colorful": "Bunt"
         },
         "hair": {
-          "blonde": "blond",
-          "brown": "braun",
-          "black": "schwarz",
-          "red": "rot",
-          "bald": "glatze"
+          "blonde": "Blond",
+          "brown": "Braun",
+          "black": "Schwarz",
+          "red": "Rot",
+          "bald": "Glatze"
         },
         "features": {
           "glasses": "Brille",
@@ -219,8 +218,8 @@
         },
         "clothing": {
           "modern": "Modern",
-          "medieval": "Mittelalterlich",
-          "fairytale": "Märchenhaft",
+          "medieval": "Mittelalter",
+          "fairytale": "Märchen",
           "future": "Zukunft",
           "armor": "Rüstung",
           "magic": "Magisch"
@@ -229,7 +228,7 @@
           "high": "Hoch",
           "normal": "Normal",
           "deep": "Tief",
-          "funny": "Witzig",
+          "funny": "Lustig",
           "mysterious": "Geheimnisvoll"
         },
         "world": {
@@ -241,11 +240,11 @@
           "space": "Weltraum"
         },
         "backstory": {
-          "lost": "Verloren gegangenes Kind",
-          "adventurer": "Abenteurer auf Reise",
-          "wizard": "Zauberschüler",
-          "talent": "Tier mit besonderem Talent",
-          "normal": "Einfach \"normales\" Kind"
+          "lost": "Verloren gegangen und sucht den Weg nach Hause",
+          "adventurer": "Ein mutiger Abenteurer auf großer Reise",
+          "wizard": "Ein Lehrling der Magie mit großem Potenzial",
+          "talent": "Hat ein besonderes Talent entdeckt",
+          "normal": "Ein ganz normales Kind mit viel Neugier"
         }
       }
     }
@@ -903,33 +902,33 @@
     "categories": {
       "fairy_tales": {
         "title": "Klassische Märchen",
-        "description": "Verwunschene Welten, Könige & Prinzessinnen, magische Wesen",
-        "examples": "Hänsel & Gretel, Rotkäppchen, Bremer Stadtmusikanten"
+        "description": "Verwunschene Welten, Könige & Prinzessinnen",
+        "examples": "Hänsel & Gretel, Rotkäppchen"
       },
       "adventure": {
         "title": "Abenteuer & Schätze",
-        "description": "Spannende Reisen, versteckte Schätze, mutige Helden",
-        "examples": "Schatzsuche, Geheime Höhlen, Wilde Expeditionen"
+        "description": "Spannende Reisen, versteckte Schätze",
+        "examples": "Schatzsuche, Geheime Höhlen"
       },
       "magic": {
         "title": "Märchenwelten & Magie",
-        "description": "Zaubersprüche, fliegende Teppiche, magische Kräfte",
-        "examples": "Zauberer, Feen, Magische Gegenstände"
+        "description": "Zaubersprüche, magische Kräfte",
+        "examples": "Zauberer, Feen"
       },
       "animals": {
         "title": "Tierwelten",
-        "description": "Sprechende Tiere, Waldabenteuer, Tierfreundschaften",
-        "examples": "Im Wald, Auf dem Bauernhof, In der Wildnis"
+        "description": "Sprechende Tiere, Tierfreundschaften",
+        "examples": "Im Wald, Auf dem Bauernhof"
       },
       "scifi": {
         "title": "Sci-Fi & Zukunft",
-        "description": "Raumschiffe, fremde Planeten, futuristische Welten",
-        "examples": "Weltraumabenteuer, Roboter, Zeitreisen"
+        "description": "Raumschiffe, fremde Planeten",
+        "examples": "Weltraumabenteuer, Roboter"
       },
       "modern": {
         "title": "Modern & Realität",
-        "description": "Alltag, Schule, Familie, echte Erlebnisse",
-        "examples": "Heute & Hier, Realistische Geschichten"
+        "description": "Alltag, Schule, Familie",
+        "examples": "Heute & Hier"
       }
     },
     "ageGroups": {
@@ -1031,6 +1030,10 @@
       "feeling": "Gefühle",
       "wishes": "Wünsche",
       "summary": "Zusammenfassung"
+    },
+    "loading": {
+      "title": "Deine Geschichte wird geschrieben...",
+      "subtitle": "Bitte warte einen Moment"
     }
   },
   "landing": {
@@ -1055,12 +1058,12 @@
       "avatars": {
         "title": "Einzigartige Avatare",
         "subtitle": "Die Avatar-Werkstatt",
-        "description": "Erstelle einen digitalen Zwilling deines Kindes, der in jeder Geschichte lebendig wird."
+        "description": "Erstelle einen digitalen Zwilling deines Kindes."
       },
       "learning": {
         "title": "Spielend Lernen",
         "subtitle": "Die Wissensberge",
-        "description": "Bildungsinhalte verpackt in spannende Geschichten, die Neugier wecken."
+        "description": "Bildungsinhalte verpackt in spannende Geschichten."
       },
       "memory": {
         "title": "Wachsendes Gedächtnis",

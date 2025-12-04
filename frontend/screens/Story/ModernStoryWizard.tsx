@@ -353,10 +353,14 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   else if (state.feelings.includes('meaningful')) tone = 'soothing';
   else if (state.mainCategory === 'magic') tone = 'wonder';
 
+  // Calculate genre - ensure we always have a valid value
+  const rawGenre = state.mainCategory ? genreMap[state.mainCategory] : null;
+  const genre = rawGenre || 'adventure'; // Fallback to adventure if null/undefined
+
   return {
     avatarIds: state.selectedAvatars,
     ageGroup: (state.ageGroup ? ageGroupMap[state.ageGroup] : '6-8') as '3-5' | '6-8' | '9-12' | '13+',
-    genre: state.mainCategory ? genreMap[state.mainCategory] : 'adventure',
+    genre: genre,
     length: (state.length ? lengthMap[state.length] : 'medium') as 'short' | 'medium' | 'long',
     complexity: 'medium' as 'simple' | 'medium' | 'complex',
     setting: state.mainCategory === 'fairy-tales' ? 'fantasy' : 'varied',
@@ -367,7 +371,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     allowRhymes: state.rhymes,
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
-    language: userLanguage as 'de' | 'en',  // Pass user's preferred language
+    language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',  // All supported languages
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic'
     }
