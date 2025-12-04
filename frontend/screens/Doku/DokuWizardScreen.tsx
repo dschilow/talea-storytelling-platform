@@ -193,24 +193,24 @@ const DokuWizardScreen: React.FC = () => {
                   { value: '9-12', label: t('doku.wizard.age.9_12') },
                   { value: '13+', label: t('doku.wizard.age.13_plus') },
                 ]} />
-                <Selector label={t('doku.wizard.depth')} value={depth} onChange={setDepth} options={[
+                <Selector label={t('doku.wizard.depth.title')} value={depth} onChange={setDepth} options={[
                   { value: 'basic', label: t('doku.wizard.depth.basic') },
                   { value: 'standard', label: t('doku.wizard.depth.standard') },
                   { value: 'deep', label: t('doku.wizard.depth.deep') },
                 ]} />
-                <Selector label={t('doku.wizard.perspective')} value={perspective} onChange={setPerspective} options={[
+                <Selector label={t('doku.wizard.perspective.title')} value={perspective} onChange={setPerspective} options={[
                   { value: 'science', label: t('doku.wizard.perspective.science') },
                   { value: 'history', label: t('doku.wizard.perspective.history') },
                   { value: 'technology', label: t('doku.wizard.perspective.technology') },
                   { value: 'nature', label: t('doku.wizard.perspective.nature') },
                   { value: 'culture', label: t('doku.wizard.perspective.culture') },
                 ]} />
-                <Selector label={t('doku.wizard.length')} value={length} onChange={setLength} options={[
+                <Selector label={t('doku.wizard.length.title')} value={length} onChange={setLength} options={[
                   { value: 'short', label: t('doku.wizard.length.short') },
                   { value: 'medium', label: t('doku.wizard.length.medium') },
                   { value: 'long', label: t('doku.wizard.length.long') },
                 ]} />
-                <Selector label={t('doku.wizard.tone')} value={tone} onChange={setTone} options={[
+                <Selector label={t('doku.wizard.tone.title')} value={tone} onChange={setTone} options={[
                   { value: 'fun', label: t('doku.wizard.tone.fun') },
                   { value: 'neutral', label: t('doku.wizard.tone.neutral') },
                   { value: 'curious', label: t('doku.wizard.tone.curious') },

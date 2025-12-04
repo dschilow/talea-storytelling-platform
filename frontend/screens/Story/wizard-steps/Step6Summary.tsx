@@ -101,7 +101,7 @@ export default function Step6Summary({ state, onGenerate }: Props) {
           <div className="flex-1">
             <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.category')}</p>
             <p className="text-sm text-gray-600">
-              {state.mainCategory ? CATEGORY_NAMES[state.mainCategory] : 'Nicht gewählt'}
+              {state.mainCategory ? CATEGORY_NAMES[state.mainCategory] : t('wizard.common.notSelected')}
             </p>
           </div>
           <CheckCircle size={20} className="text-green-500 flex-shrink-0" />

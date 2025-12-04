@@ -1,25 +1,14 @@
 {
   "common": {
-    "appName": "Talea",
-    "loading": "Lädt...",
-    "error": "Fehler",
-    "success": "Erfolg",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
-    "delete": "Löschen",
-    "edit": "Bearbeiten",
-    "create": "Erstellen",
-    "back": "Zurück",
-    "next": "Weiter",
-    "finish": "Fertig",
-    "close": "Schließen",
-    "confirm": "Bestätigen",
-    "search": "Suchen",
-    "filter": "Filtern",
-    "sort": "Sortieren",
-    "new": "Neu",
-    "yes": "Ja",
-    "no": "Nein"
+    "examples": "BEISPIELE:",
+    "note": "💡 Hinweis:",
+    "categoryNote": "Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine individuelle Geschichte erschaffen!",
+    "wishesNote": "Alle Wünsche sind optional. Die KI wird ihr Bestes tun, deine Wünsche einzubauen, aber die Geschichte bleibt immer spannend und logisch!",
+    "summaryNote": "Die KI erstellt eine komplett neue Geschichte basierend auf deinen Wünschen. Das dauert ca. 60-90 Sekunden. Mit Bildern insgesamt 2-3 Minuten.",
+    "selected": "ausgewählt",
+    "customWish": "💬 Eigener Wunsch (optional):",
+    "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
+    "chars": "Zeichen"
   },
   "navigation": {
     "home": "Start",
@@ -778,17 +767,6 @@
     "wishes": "Füge besondere Features hinzu oder überspringe diesen Schritt.",
     "summary": "Überprüfe deine Auswahl und erstelle die Geschichte."
   },
-  "common": {
-    "examples": "BEISPIELE:",
-    "note": "💡 Hinweis:",
-    "categoryNote": "Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine individuelle Geschichte erschaffen!",
-    "wishesNote": "Alle Wünsche sind optional. Die KI wird ihr Bestes tun, deine Wünsche einzubauen, aber die Geschichte bleibt immer spannend und logisch!",
-    "summaryNote": "Die KI erstellt eine komplett neue Geschichte basierend auf deinen Wünschen. Das dauert ca. 60-90 Sekunden. Mit Bildern insgesamt 2-3 Minuten.",
-    "selected": "ausgewählt",
-    "customWish": "💬 Eigener Wunsch (optional):",
-    "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
-    "chars": "Zeichen"
-  },
   "categories": {
     "fairy_tales": {
       "title": "Klassische Märchen",
@@ -885,6 +863,266 @@
       "feelings": "Gefühle",
       "extras": "Extras",
       "ready": "Deine einzigartige Geschichte wird jetzt erstellt!"
+    }
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Wer spielt in der Geschichte mit?",
+      "category": "Was für eine Geschichte soll es werden?",
+      "ageLength": "Für welches Alter & wie lang?",
+      "feeling": "Welches Gefühl soll die Geschichte haben?",
+      "wishes": "Besondere Wünsche? (Optional)",
+      "summary": "Alles bereit!"
+    },
+    "subtitles": {
+      "avatars": "Wähle 1-4 Avatare aus, die Teil der Geschichte werden sollen.",
+      "category": "Wähle eine Kategorie aus - deine Avatare werden Teil einer einzigartigen Geschichte!",
+      "ageLength": "Passe die Geschichte an das Alter und die verfügbare Zeit an.",
+      "feeling": "Wähle 1-3 Stimmungen aus, die die Geschichte prägen sollen.",
+      "wishes": "Füge besondere Features hinzu oder überspringe diesen Schritt.",
+      "summary": "Überprüfe deine Auswahl und erstelle die Geschichte."
+    },
+    "buttons": {
+      "back": "Zurück",
+      "next": "Weiter",
+      "create": "Erstellen",
+      "generate": "✨ Geschichte erstellen! ✨"
+    },
+    "common": {
+      "examples": "BEISPIELE:",
+      "note": "💡 Hinweis:",
+      "categoryNote": "Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine individuelle Geschichte erschaffen!",
+      "wishesNote": "Alle Wünsche sind optional. Die KI wird ihr Bestes tun, deine Wünsche einzubauen, aber die Geschichte bleibt immer spannend und logisch!",
+      "summaryNote": "Die KI erstellt eine komplett neue Geschichte basierend auf deinen Wünschen. Das dauert ca. 60-90 Sekunden. Mit Bildern insgesamt 2-3 Minuten.",
+      "selected": "ausgewählt",
+      "notSelected": "Nicht gewählt",
+      "customWish": "💬 Eigener Wunsch (optional):",
+      "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
+      "chars": "Zeichen"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Klassische Märchen",
+        "description": "Verwunschene Welten, Könige & Prinzessinnen, magische Wesen",
+        "examples": "Hänsel & Gretel, Rotkäppchen, Bremer Stadtmusikanten"
+      },
+      "adventure": {
+        "title": "Abenteuer & Schätze",
+        "description": "Spannende Reisen, versteckte Schätze, mutige Helden",
+        "examples": "Schatzsuche, Geheime Höhlen, Wilde Expeditionen"
+      },
+      "magic": {
+        "title": "Märchenwelten & Magie",
+        "description": "Zaubersprüche, fliegende Teppiche, magische Kräfte",
+        "examples": "Zauberer, Feen, Magische Gegenstände"
+      },
+      "animals": {
+        "title": "Tierwelten",
+        "description": "Sprechende Tiere, Waldabenteuer, Tierfreundschaften",
+        "examples": "Im Wald, Auf dem Bauernhof, In der Wildnis"
+      },
+      "scifi": {
+        "title": "Sci-Fi & Zukunft",
+        "description": "Raumschiffe, fremde Planeten, futuristische Welten",
+        "examples": "Weltraumabenteuer, Roboter, Zeitreisen"
+      },
+      "modern": {
+        "title": "Modern & Realität",
+        "description": "Alltag, Schule, Familie, echte Erlebnisse",
+        "examples": "Heute & Hier, Realistische Geschichten"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Jahre",
+        "description": "Kurze, einfache Geschichten"
+      },
+      "6-8": {
+        "title": "6-8 Jahre",
+        "description": "Spannende Abenteuer"
+      },
+      "9-12": {
+        "title": "9-12 Jahre",
+        "description": "Komplexere Handlungen"
+      },
+      "13+": {
+        "title": "13+ Jahre",
+        "description": "Tiefgründige Geschichten"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Kurz",
+        "duration": "3-5 Min",
+        "chapters": "3 Kapitel"
+      },
+      "medium": {
+        "title": "Mittel",
+        "duration": "8-12 Min",
+        "chapters": "5 Kapitel"
+      },
+      "long": {
+        "title": "Lang",
+        "duration": "15-20 Min",
+        "chapters": "7 Kapitel"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Lustig",
+        "description": "Zum Lachen & Schmunzeln"
+      },
+      "warm": {
+        "title": "Herzerwärmend",
+        "description": "Liebevolle Momente"
+      },
+      "exciting": {
+        "title": "Aufregend",
+        "description": "Spannende Action"
+      },
+      "crazy": {
+        "title": "Verrückt",
+        "description": "Wilde Überraschungen"
+      },
+      "meaningful": {
+        "title": "Bedeutsam",
+        "description": "Mit wichtiger Botschaft"
+      }
+    },
+    "summary": {
+      "avatars": "Avatare",
+      "age": "Alter",
+      "category": "Kategorie",
+      "length": "Länge",
+      "feelings": "Gefühle",
+      "wishes": "Wünsche",
+      "ready": "Deine Geschichte wird jetzt erstellt!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Reime & Verse",
+        "description": "Die Geschichte wird in Reimen erzählt"
+      },
+      "moral": {
+        "title": "Moral & Werte",
+        "description": "Die Geschichte vermittelt eine wichtige Lektion"
+      },
+      "avatarIsHero": {
+        "title": "Avatar ist Held",
+        "description": "Dein Avatar spielt die Hauptrolle"
+      },
+      "famousCharacters": {
+        "title": "Bekannte Figuren",
+        "description": "Triff Figuren aus bekannten Märchen"
+      },
+      "happyEnd": {
+        "title": "Happy End",
+        "description": "Die Geschichte geht gut aus"
+      },
+      "surpriseEnd": {
+        "title": "Überraschendes Ende",
+        "description": "Ein unerwarteter Schluss"
+      }
+    },
+    "steps": {
+      "avatars": "Avatare",
+      "category": "Kategorie",
+      "ageLength": "Alter & Länge",
+      "feeling": "Gefühle",
+      "wishes": "Wünsche",
+      "summary": "Zusammenfassung"
+    }
+  },
+  "landing": {
+    "nav": {
+      "start": "Jetzt starten"
+    },
+    "hero": {
+      "tagline": "Magische Geschichten für dein Kind",
+      "page1": "Es war einmal...",
+      "page2": "...ein Kind voller Träume.",
+      "page3": "Deine Reise beginnt hier.",
+      "coverTitle": "Deine Geschichte",
+      "scrollHint": "Scroll zum Öffnen"
+    },
+    "features": {
+      "title": "Entdecke die Welt von Talea",
+      "stories": {
+        "title": "Personalisierte Geschichten",
+        "subtitle": "Der Storywald",
+        "description": "Dein Kind wird zur Hauptfigur in magischen Märchen, Abenteuern und Dokumentationen."
+      },
+      "avatars": {
+        "title": "Einzigartige Avatare",
+        "subtitle": "Die Avatar-Werkstatt",
+        "description": "Erstelle einen digitalen Zwilling deines Kindes, der in jeder Geschichte lebendig wird."
+      },
+      "learning": {
+        "title": "Spielend Lernen",
+        "subtitle": "Die Wissensberge",
+        "description": "Bildungsinhalte verpackt in spannende Geschichten, die Neugier wecken."
+      },
+      "memory": {
+        "title": "Wachsendes Gedächtnis",
+        "subtitle": "Der Erinnerungsbaum",
+        "description": "Talea merkt sich alles und baut auf vorherigen Abenteuern auf."
+      },
+      "values": {
+        "title": "Werte vermitteln",
+        "subtitle": "Der Werte-Garten",
+        "description": "Freundschaft, Mut und Mitgefühl – kindgerecht in Geschichten eingebettet."
+      },
+      "parents": {
+        "title": "Volle Kontrolle",
+        "subtitle": "Die Eltern-Lounge",
+        "description": "Du bestimmst Themen, Länge und Inhalte. 100% kindersicher."
+      }
+    },
+    "pricing": {
+      "title": "Wähle deinen Plan",
+      "popular": "Beliebt",
+      "starter": {
+        "name": "Starter",
+        "price": "Kostenlos",
+        "features": [
+          "3 Geschichten pro Monat",
+          "1 Avatar",
+          "Standard-Qualität"
+        ],
+        "cta": "Kostenlos starten"
+      },
+      "family": {
+        "name": "Familie",
+        "price": "€9,99",
+        "period": "/Monat",
+        "features": [
+          "Unbegrenzte Geschichten",
+          "5 Avatare",
+          "HD-Qualität",
+          "Gedächtnis-Funktion",
+          "Keine Werbung"
+        ],
+        "cta": "Jetzt starten"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19,99",
+        "period": "/Monat",
+        "features": [
+          "Alles aus Familie",
+          "Unbegrenzte Avatare",
+          "4K-Qualität",
+          "Prioritäts-Support",
+          "Frühzugang zu Features"
+        ],
+        "cta": "Premium wählen"
+      }
+    },
+    "footer": {
+      "copyright": "Magische Geschichten für Kinder © 2025",
+      "privacy": "Datenschutz",
+      "terms": "AGB",
+      "contact": "Kontakt"
     }
   }
 }

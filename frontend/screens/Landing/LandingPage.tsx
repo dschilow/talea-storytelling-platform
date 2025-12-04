@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Sparkles, Star, BookOpen, Users, Brain, Heart, Shield, TreePine } from 'lucide-react';
@@ -7,96 +8,29 @@ import './LandingPage.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Feature data
-const FEATURES = [
-    {
-        id: 'stories',
-        icon: BookOpen,
-        title: 'Personalisierte Geschichten',
-        subtitle: 'Der Storywald',
-        description: 'Dein Kind wird zur Hauptfigur in magischen Märchen, Abenteuern und Dokumentationen.',
-        color: '#24C5A8',
-        emoji: '📚',
-    },
-    {
-        id: 'avatars',
-        icon: Users,
-        title: 'Einzigartige Avatare',
-        subtitle: 'Die Avatar-Werkstatt',
-        description: 'Erstelle einen digitalen Zwilling deines Kindes, der in jeder Geschichte lebendig wird.',
-        color: '#7C4DFF',
-        emoji: '🎭',
-    },
-    {
-        id: 'learning',
-        icon: Brain,
-        title: 'Spielend Lernen',
-        subtitle: 'Die Wissensberge',
-        description: 'Bildungsinhalte verpackt in spannende Geschichten, die Neugier wecken.',
-        color: '#F093FB',
-        emoji: '🧠',
-    },
-    {
-        id: 'memory',
-        icon: TreePine,
-        title: 'Wachsendes Gedächtnis',
-        subtitle: 'Der Erinnerungsbaum',
-        description: 'Talea merkt sich alles und baut auf vorherigen Abenteuern auf.',
-        color: '#FFCE45',
-        emoji: '🌳',
-    },
-    {
-        id: 'values',
-        icon: Heart,
-        title: 'Werte vermitteln',
-        subtitle: 'Der Werte-Garten',
-        description: 'Freundschaft, Mut und Mitgefühl – kindgerecht in Geschichten eingebettet.',
-        color: '#FF6B6B',
-        emoji: '💝',
-    },
-    {
-        id: 'parents',
-        icon: Shield,
-        title: 'Volle Kontrolle',
-        subtitle: 'Die Eltern-Lounge',
-        description: 'Du bestimmst Themen, Länge und Inhalte. 100% kindersicher.',
-        color: '#4ECDC4',
-        emoji: '🛡️',
-    },
+// Feature configuration (without text - text comes from translations)
+const FEATURE_CONFIG = [
+    { id: 'stories', icon: BookOpen, color: '#24C5A8', emoji: '📚' },
+    { id: 'avatars', icon: Users, color: '#7C4DFF', emoji: '🎭' },
+    { id: 'learning', icon: Brain, color: '#F093FB', emoji: '🧠' },
+    { id: 'memory', icon: TreePine, color: '#FFCE45', emoji: '🌳' },
+    { id: 'values', icon: Heart, color: '#FF6B6B', emoji: '💝' },
+    { id: 'parents', icon: Shield, color: '#4ECDC4', emoji: '🛡️' },
 ];
 
-const PRICING = [
-    {
-        name: 'Starter',
-        price: 'Kostenlos',
-        period: '',
-        features: ['3 Geschichten pro Monat', '1 Avatar', 'Standard-Qualität'],
-        cta: 'Kostenlos starten',
-        popular: false,
-    },
-    {
-        name: 'Familie',
-        price: '€9,99',
-        period: '/Monat',
-        features: ['Unbegrenzte Geschichten', '5 Avatare', 'HD-Qualität', 'Gedächtnis-Funktion', 'Keine Werbung'],
-        cta: 'Jetzt starten',
-        popular: true,
-    },
-    {
-        name: 'Premium',
-        price: '€19,99',
-        period: '/Monat',
-        features: ['Alles aus Familie', 'Unbegrenzte Avatare', '4K-Qualität', 'Prioritäts-Support', 'Frühzugang zu Features'],
-        cta: 'Premium wählen',
-        popular: false,
-    },
+// Pricing configuration (without text - text comes from translations)
+const PRICING_CONFIG = [
+    { id: 'starter', popular: false },
+    { id: 'family', popular: true },
+    { id: 'premium', popular: false },
 ];
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const bookRef = useRef<HTMLDivElement>(null);
-    
+
     const [scrollProgress, setScrollProgress] = useState(0);
 
     // Book animation with ScrollTrigger
@@ -152,7 +86,7 @@ const LandingPage: React.FC = () => {
     const showPricing = scrollProgress > 0.75;
 
     return (
-        <div 
+        <div
             ref={containerRef}
             className="landing-container"
         >
@@ -162,23 +96,23 @@ const LandingPage: React.FC = () => {
                     <Sparkles className="nav-icon" />
                     <span>Talea</span>
                 </div>
-                <button 
+                <button
                     className="nav-cta"
                     onClick={() => navigate('/story')}
                 >
-                    Jetzt starten
+                    {t('landing.nav.start')}
                 </button>
             </nav>
 
             {/* Progress Bar */}
-            <div 
+            <div
                 className="progress-bar"
                 style={{ width: `${scrollProgress * 100}%` }}
             />
 
             {/* Sticky Content Container */}
             <div className="sticky-container">
-                
+
                 {/* Stars Background */}
                 <div className="stars-bg">
                     {[...Array(50)].map((_, i) => (
@@ -197,7 +131,7 @@ const LandingPage: React.FC = () => {
                 </div>
 
                 {/* SECTION 1: Book Animation */}
-                <section 
+                <section
                     className="book-section"
                     style={{
                         opacity: bookProgress < 0.8 ? 1 : 1 - (bookProgress - 0.8) * 5,
@@ -206,12 +140,12 @@ const LandingPage: React.FC = () => {
                     }}
                 >
                     {/* Hero Text above book */}
-                    <div 
+                    <div
                         className="hero-text"
                         style={{ opacity: Math.max(0, 1 - bookProgress * 2) }}
                     >
                         <h1>Talea</h1>
-                        <p>Magische Geschichten für dein Kind</p>
+                        <p>{t('landing.hero.tagline')}</p>
                     </div>
 
                     {/* The 3D Book */}
@@ -231,19 +165,19 @@ const LandingPage: React.FC = () => {
                                                 {pageNum === 1 && (
                                                     <>
                                                         <span className="page-emoji">✨</span>
-                                                        <p className="page-text">Es war einmal...</p>
+                                                        <p className="page-text">{t('landing.hero.page1')}</p>
                                                     </>
                                                 )}
                                                 {pageNum === 2 && (
                                                     <>
                                                         <span className="page-emoji">🏰</span>
-                                                        <p className="page-text">...ein Kind voller Träume.</p>
+                                                        <p className="page-text">{t('landing.hero.page2')}</p>
                                                     </>
                                                 )}
                                                 {pageNum === 3 && (
                                                     <>
                                                         <span className="page-emoji">🌟</span>
-                                                        <p className="page-text">Deine Reise beginnt hier.</p>
+                                                        <p className="page-text">{t('landing.hero.page3')}</p>
                                                     </>
                                                 )}
                                             </div>
@@ -260,7 +194,7 @@ const LandingPage: React.FC = () => {
                                     <div className="cover-title">
                                         <Star className="cover-star" />
                                         <h2>Talea</h2>
-                                        <p>Deine Geschichte</p>
+                                        <p>{t('landing.hero.coverTitle')}</p>
                                         <div className="cover-emojis">
                                             <span>🌟</span>
                                             <span>📖</span>
@@ -279,11 +213,11 @@ const LandingPage: React.FC = () => {
                     </div>
 
                     {/* Scroll Hint */}
-                    <div 
+                    <div
                         className="scroll-hint"
                         style={{ opacity: Math.max(0, 1 - bookProgress * 3) }}
                     >
-                        <span>Scroll zum Öffnen</span>
+                        <span>{t('landing.hero.scrollHint')}</span>
                         <div className="scroll-mouse">
                             <div className="scroll-wheel" />
                         </div>
@@ -292,7 +226,7 @@ const LandingPage: React.FC = () => {
 
                 {/* SECTION 2: Features */}
                 {showFeatures && (
-                    <section 
+                    <section
                         className="features-section"
                         style={{
                             opacity: showPricing ? Math.max(0, 1 - (scrollProgress - 0.75) * 4) : Math.min((scrollProgress - 0.2) * 3, 1),
@@ -300,15 +234,16 @@ const LandingPage: React.FC = () => {
                     >
                         <h2 className="section-title">
                             <span className="title-emoji">🌍</span>
-                            Entdecke die Welt von Talea
+                            {t('landing.features.title')}
                         </h2>
-                        
+
                         <div className="features-grid">
-                            {FEATURES.map((feature, index) => {
+                            {FEATURE_CONFIG.map((feature, index) => {
                                 const isVisible = scrollProgress > 0.2 + index * 0.06;
-                                
+                                const Icon = feature.icon;
+
                                 return (
-                                    <div 
+                                    <div
                                         key={feature.id}
                                         className={`feature-card ${isVisible ? 'visible' : ''}`}
                                         style={{
@@ -319,9 +254,9 @@ const LandingPage: React.FC = () => {
                                         <div className="feature-icon">
                                             <span className="feature-emoji">{feature.emoji}</span>
                                         </div>
-                                        <h3>{feature.title}</h3>
-                                        <p className="feature-subtitle">{feature.subtitle}</p>
-                                        <p className="feature-description">{feature.description}</p>
+                                        <h3>{t(`landing.features.${feature.id}.title`)}</h3>
+                                        <p className="feature-subtitle">{t(`landing.features.${feature.id}.subtitle`)}</p>
+                                        <p className="feature-description">{t(`landing.features.${feature.id}.description`)}</p>
                                     </div>
                                 );
                             })}
@@ -331,7 +266,7 @@ const LandingPage: React.FC = () => {
 
                 {/* SECTION 3: Pricing */}
                 {showPricing && (
-                    <section 
+                    <section
                         className="pricing-section"
                         style={{
                             opacity: Math.min((scrollProgress - 0.75) * 4, 1),
@@ -339,39 +274,42 @@ const LandingPage: React.FC = () => {
                     >
                         <h2 className="section-title">
                             <span className="title-emoji">💎</span>
-                            Wähle deinen Plan
+                            {t('landing.pricing.title')}
                         </h2>
-                        
+
                         <div className="pricing-grid">
-                            {PRICING.map((plan, index) => (
-                                <div 
-                                    key={plan.name}
-                                    className={`pricing-card ${plan.popular ? 'popular' : ''}`}
-                                    style={{ transitionDelay: `${index * 0.15}s` }}
-                                >
-                                    {plan.popular && <div className="popular-badge">Beliebt</div>}
-                                    <h3>{plan.name}</h3>
-                                    <div className="price">
-                                        <span className="amount">{plan.price}</span>
-                                        <span className="period">{plan.period}</span>
-                                    </div>
-                                    <ul className="features-list">
-                                        {plan.features.map((feature) => (
-                                            <li key={feature}>
-                                                <Sparkles size={14} />
-                                                {feature}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <button 
-                                        className={`pricing-cta ${plan.popular ? 'primary' : ''}`}
-                                        onClick={() => navigate('/story')}
+                            {PRICING_CONFIG.map((plan, index) => {
+                                const features = t(`landing.pricing.${plan.id}.features`, { returnObjects: true }) as string[];
+                                return (
+                                    <div
+                                        key={plan.id}
+                                        className={`pricing-card ${plan.popular ? 'popular' : ''}`}
+                                        style={{ transitionDelay: `${index * 0.15}s` }}
                                     >
-                                        {plan.cta}
-                                        <ArrowRight size={18} />
-                                    </button>
-                                </div>
-                            ))}
+                                        {plan.popular && <div className="popular-badge">{t('landing.pricing.popular')}</div>}
+                                        <h3>{t(`landing.pricing.${plan.id}.name`)}</h3>
+                                        <div className="price">
+                                            <span className="amount">{t(`landing.pricing.${plan.id}.price`)}</span>
+                                            <span className="period">{t(`landing.pricing.${plan.id}.period`, { defaultValue: '' })}</span>
+                                        </div>
+                                        <ul className="features-list">
+                                            {Array.isArray(features) && features.map((feature: string) => (
+                                                <li key={feature}>
+                                                    <Sparkles size={14} />
+                                                    {feature}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <button
+                                            className={`pricing-cta ${plan.popular ? 'primary' : ''}`}
+                                            onClick={() => navigate('/story')}
+                                        >
+                                            {t(`landing.pricing.${plan.id}.cta`)}
+                                            <ArrowRight size={18} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </section>
                 )}
@@ -384,11 +322,11 @@ const LandingPage: React.FC = () => {
                         <Sparkles />
                         <span>Talea</span>
                     </div>
-                    <p>Magische Geschichten für Kinder © 2025</p>
+                    <p>{t('landing.footer.copyright')}</p>
                     <div className="footer-links">
-                        <a href="/privacy">Datenschutz</a>
-                        <a href="/terms">AGB</a>
-                        <a href="/contact">Kontakt</a>
+                        <a href="/privacy">{t('landing.footer.privacy')}</a>
+                        <a href="/terms">{t('landing.footer.terms')}</a>
+                        <a href="/contact">{t('landing.footer.contact')}</a>
                     </div>
                 </div>
             </footer>

@@ -1,25 +1,14 @@
 {
   "common": {
-    "appName": "Talea",
-    "loading": "Loading...",
-    "error": "Error",
-    "success": "Success",
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "create": "Create",
-    "back": "Back",
-    "next": "Next",
-    "finish": "Finish",
-    "close": "Close",
-    "confirm": "Confirm",
-    "search": "Search",
-    "filter": "Filter",
-    "sort": "Sort",
-    "new": "New",
-    "yes": "Yes",
-    "no": "No"
+    "examples": "EXAMPLES:",
+    "note": "💡 Note:",
+    "categoryNote": "Each category creates a completely new story specifically for your avatars. No pre-written story is told, but an individual story is created!",
+    "wishesNote": "All wishes are optional. The AI will do its best to include your wishes, but the story will always remain exciting and logical!",
+    "summaryNote": "The AI creates a completely new story based on your wishes. This takes about 60-90 seconds. With images a total of 2-3 minutes.",
+    "selected": "selected",
+    "customWish": "💬 Custom wish (optional):",
+    "customWishPlaceholder": "e.g. 'The story should take place in space' or 'With a talking dragon'",
+    "chars": "chars"
   },
   "navigation": {
     "home": "Home",
@@ -778,17 +767,6 @@
     "wishes": "Add special features or skip this step.",
     "summary": "Check your selection and create the story."
   },
-  "common": {
-    "examples": "EXAMPLES:",
-    "note": "💡 Note:",
-    "categoryNote": "Each category creates a completely new story specifically for your avatars. No pre-written story is told, but an individual story is created!",
-    "wishesNote": "All wishes are optional. The AI will do its best to include your wishes, but the story will always remain exciting and logical!",
-    "summaryNote": "The AI creates a completely new story based on your wishes. This takes about 60-90 seconds. With images a total of 2-3 minutes.",
-    "selected": "selected",
-    "customWish": "💬 Custom wish (optional):",
-    "customWishPlaceholder": "e.g. 'The story should take place in space' or 'With a talking dragon'",
-    "chars": "chars"
-  },
   "categories": {
     "fairy_tales": {
       "title": "Classic Fairy Tales",
@@ -885,6 +863,266 @@
       "feelings": "Feelings",
       "extras": "Extras",
       "ready": "Your unique story is being created now!"
+    }
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Who is in the story?",
+      "category": "What kind of story should it be?",
+      "ageLength": "For which age & how long?",
+      "feeling": "What feeling should the story have?",
+      "wishes": "Special wishes? (Optional)",
+      "summary": "All ready!"
+    },
+    "subtitles": {
+      "avatars": "Select 1-4 avatars to be part of the story.",
+      "category": "Choose a category - your avatars will be part of a unique story!",
+      "ageLength": "Adjust the story to the age and available time.",
+      "feeling": "Select 1-3 moods that should shape the story.",
+      "wishes": "Add special features or skip this step.",
+      "summary": "Check your selection and create the story."
+    },
+    "buttons": {
+      "back": "Back",
+      "next": "Next",
+      "create": "Create",
+      "generate": "✨ Create Story! ✨"
+    },
+    "common": {
+      "examples": "EXAMPLES:",
+      "note": "💡 Note:",
+      "categoryNote": "Each category creates a completely new story specifically for your avatars. No pre-written story is told, but an individual story is created!",
+      "wishesNote": "All wishes are optional. The AI will do its best to include your wishes, but the story will always remain exciting and logical!",
+      "summaryNote": "The AI creates a completely new story based on your wishes. This takes about 60-90 seconds. With images a total of 2-3 minutes.",
+      "selected": "selected",
+      "notSelected": "Not selected",
+      "customWish": "💬 Custom wish (optional):",
+      "customWishPlaceholder": "e.g. 'The story should take place in space' or 'With a talking dragon'",
+      "chars": "chars"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Classic Fairy Tales",
+        "description": "Enchanted worlds, kings & princesses, magical creatures",
+        "examples": "Hansel & Gretel, Little Red Riding Hood, Bremen Town Musicians"
+      },
+      "adventure": {
+        "title": "Adventure & Treasures",
+        "description": "Exciting journeys, hidden treasures, brave heroes",
+        "examples": "Treasure Hunt, Secret Caves, Wild Expeditions"
+      },
+      "magic": {
+        "title": "Fairy Tale Worlds & Magic",
+        "description": "Spells, flying carpets, magical powers",
+        "examples": "Wizards, Fairies, Magical Objects"
+      },
+      "animals": {
+        "title": "Animal Worlds",
+        "description": "Talking animals, forest adventures, animal friendships",
+        "examples": "In the Forest, On the Farm, In the Wild"
+      },
+      "scifi": {
+        "title": "Sci-Fi & Future",
+        "description": "Spaceships, alien planets, futuristic worlds",
+        "examples": "Space Adventures, Robots, Time Travel"
+      },
+      "modern": {
+        "title": "Modern & Reality",
+        "description": "Everyday life, school, family, real experiences",
+        "examples": "Here & Now, Realistic Stories"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Years",
+        "description": "Short, simple stories"
+      },
+      "6-8": {
+        "title": "6-8 Years",
+        "description": "Exciting adventures"
+      },
+      "9-12": {
+        "title": "9-12 Years",
+        "description": "More complex plots"
+      },
+      "13+": {
+        "title": "13+ Years",
+        "description": "Profound stories"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Short",
+        "duration": "3-5 Min",
+        "chapters": "3 chapters"
+      },
+      "medium": {
+        "title": "Medium",
+        "duration": "8-12 Min",
+        "chapters": "5 chapters"
+      },
+      "long": {
+        "title": "Long",
+        "duration": "15-20 Min",
+        "chapters": "7 chapters"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Funny",
+        "description": "Laugh out loud"
+      },
+      "warm": {
+        "title": "Heartwarming",
+        "description": "Loving moments"
+      },
+      "exciting": {
+        "title": "Exciting",
+        "description": "Thrilling action"
+      },
+      "crazy": {
+        "title": "Crazy",
+        "description": "Wild surprises"
+      },
+      "meaningful": {
+        "title": "Meaningful",
+        "description": "With important message"
+      }
+    },
+    "summary": {
+      "avatars": "Avatars",
+      "age": "Age",
+      "category": "Category",
+      "length": "Length",
+      "feelings": "Feelings",
+      "wishes": "Wishes",
+      "ready": "Your story will be created now!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Rhymes & Verses",
+        "description": "The story is told in rhymes"
+      },
+      "moral": {
+        "title": "Moral & Values",
+        "description": "The story conveys an important lesson"
+      },
+      "avatarIsHero": {
+        "title": "Avatar is Hero",
+        "description": "Your avatar plays the main role"
+      },
+      "famousCharacters": {
+        "title": "Famous Characters",
+        "description": "Meet characters from famous fairy tales"
+      },
+      "happyEnd": {
+        "title": "Happy End",
+        "description": "The story ends well"
+      },
+      "surpriseEnd": {
+        "title": "Surprise Ending",
+        "description": "An unexpected ending"
+      }
+    },
+    "steps": {
+      "avatars": "Avatars",
+      "category": "Category",
+      "ageLength": "Age & Length",
+      "feeling": "Feelings",
+      "wishes": "Wishes",
+      "summary": "Summary"
+    }
+  },
+  "landing": {
+    "nav": {
+      "start": "Get Started"
+    },
+    "hero": {
+      "tagline": "Magical stories for your child",
+      "page1": "Once upon a time...",
+      "page2": "...a child full of dreams.",
+      "page3": "Your journey begins here.",
+      "coverTitle": "Your Story",
+      "scrollHint": "Scroll to Open"
+    },
+    "features": {
+      "title": "Discover the World of Talea",
+      "stories": {
+        "title": "Personalized Stories",
+        "subtitle": "The Story Forest",
+        "description": "Your child becomes the main character in magical fairy tales, adventures and documentaries."
+      },
+      "avatars": {
+        "title": "Unique Avatars",
+        "subtitle": "The Avatar Workshop",
+        "description": "Create a digital twin of your child that comes alive in every story."
+      },
+      "learning": {
+        "title": "Learning Through Play",
+        "subtitle": "The Mountains of Knowledge",
+        "description": "Educational content wrapped in exciting stories that spark curiosity."
+      },
+      "memory": {
+        "title": "Growing Memory",
+        "subtitle": "The Memory Tree",
+        "description": "Talea remembers everything and builds on previous adventures."
+      },
+      "values": {
+        "title": "Conveying Values",
+        "subtitle": "The Values Garden",
+        "description": "Friendship, courage and compassion – embedded in stories for children."
+      },
+      "parents": {
+        "title": "Full Control",
+        "subtitle": "The Parents Lounge",
+        "description": "You determine topics, length and content. 100% child-safe."
+      }
+    },
+    "pricing": {
+      "title": "Choose Your Plan",
+      "popular": "Popular",
+      "starter": {
+        "name": "Starter",
+        "price": "Free",
+        "features": [
+          "3 stories per month",
+          "1 Avatar",
+          "Standard quality"
+        ],
+        "cta": "Start Free"
+      },
+      "family": {
+        "name": "Family",
+        "price": "€9.99",
+        "period": "/month",
+        "features": [
+          "Unlimited stories",
+          "5 Avatars",
+          "HD quality",
+          "Memory function",
+          "Ad-free"
+        ],
+        "cta": "Get Started"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19.99",
+        "period": "/month",
+        "features": [
+          "Everything in Family",
+          "Unlimited Avatars",
+          "4K quality",
+          "Priority support",
+          "Early access to features"
+        ],
+        "cta": "Choose Premium"
+      }
+    },
+    "footer": {
+      "copyright": "Magical Stories for Children © 2025",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "contact": "Contact"
     }
   }
 }
