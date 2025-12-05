@@ -40,56 +40,65 @@ import LandingPage from './screens/Landing/LandingPage';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
+// Inner component that uses router hooks
+const RouterContent = () => {
+  return (
+    <>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/avatar" element={<AvatarsScreen />} />
+          <Route path="/avatar/create" element={<AvatarWizardScreen />} />
+          <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
+          <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
+          <Route path="/story" element={<ModernStoryWizard />} />
+          <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
+          <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
+          <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
+          <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+          <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
+          <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+          <Route path="/stories" element={<StoriesScreen />} />
+          <Route path="/community" element={<ModernHomeScreen />} />
+          <Route path="/logs" element={<LogViewerScreen />} />
+          <Route path="/doku" element={<DokusScreen />} />
+          <Route path="/characters" element={<CharacterPoolScreen />} />
+          <Route path="/fairytales" element={<FairyTalesScreen />} />
+          <Route path="/doku/create" element={<DokuWizardScreen />} />
+          <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
+          <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+          <Route path="/auth" element={<AuthScreen />} />
+          <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/_admin" element={<AdminDashboard />} />
+        </Route>
+      </Routes>
+      <TaviButton />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        toastOptions={{
+          style: {
+            background: colors.glass.backgroundAlt,
+            backdropFilter: 'blur(20px)',
+            border: `2px solid ${colors.border.light}`,
+            borderRadius: '16px',
+            color: colors.text.primary,
+          },
+        }}
+      />
+    </>
+  );
+};
+
 const AppContent = () => {
   useLanguageSync(); // Sync language on load
 
   return (
     <Router>
       <div style={{ minHeight: '100vh', background: colors.gradients.background }}>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/landing" element={<LandingPage />} />
-            <Route path="/" element={<HomeScreen />} />
-            <Route path="/avatar" element={<AvatarsScreen />} />
-            <Route path="/avatar/create" element={<AvatarWizardScreen />} />
-            <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
-            <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
-            <Route path="/story" element={<ModernStoryWizard />} />
-            <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
-            <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
-            <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
-            <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
-            <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
-            <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-            <Route path="/stories" element={<StoriesScreen />} />
-            <Route path="/community" element={<ModernHomeScreen />} />
-            <Route path="/logs" element={<LogViewerScreen />} />
-            <Route path="/doku" element={<DokusScreen />} />
-            <Route path="/characters" element={<CharacterPoolScreen />} />
-            <Route path="/fairytales" element={<FairyTalesScreen />} />
-            <Route path="/doku/create" element={<DokuWizardScreen />} />
-            <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
-            <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
-            <Route path="/auth" element={<AuthScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-            <Route path="/_admin" element={<AdminDashboard />} />
-          </Route>
-        </Routes>
-        <TaviButton />
-        <Toaster
-          position="top-right"
-          richColors
-          closeButton
-          toastOptions={{
-            style: {
-              background: colors.glass.backgroundAlt,
-              backdropFilter: 'blur(20px)',
-              border: `2px solid ${colors.border.light}`,
-              borderRadius: '16px',
-              color: colors.text.primary,
-            },
-          }}
-        />
+        <RouterContent />
       </div>
     </Router>
   );

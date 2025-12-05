@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import LottieLoader from '../../components/common/LottieLoader';
 import FadeInView from '../../components/animated/FadeInView';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
@@ -361,20 +362,7 @@ const EditAvatarScreen: React.FC = () => {
   if (loading) {
     return (
       <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '48px', 
-            height: '48px', 
-            border: `4px solid rgba(255,255,255,0.6)`,
-            borderTop: `4px solid ${colors.primary}`,
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: `0 auto ${spacing.lg}px auto`
-          }} />
-          <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
-            Lade Avatar...
-          </p>
-        </div>
+        <LottieLoader message="Lade Avatar..." size={150} />
       </div>
     );
   }

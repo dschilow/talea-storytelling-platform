@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { SignedIn, SignedOut, UserButton, useAuth, useUser } from "@clerk/clerk-react";
 import Card from "../../components/common/Card";
 import FadeInView from "../../components/animated/FadeInView";
+import LottieLoader from "../../components/common/LottieLoader";
 import { colors } from "../../utils/constants/colors";
 import { typography } from "../../utils/constants/typography";
 import { spacing, radii, shadows } from "../../utils/constants/spacing";
@@ -200,13 +201,7 @@ const AdminDashboard: React.FC = () => {
         justifyContent: "center",
         background: colors.appBackground
       }}>
-        <div>
-          <div style={{
-            width: 56, height: 56, border: "4px solid rgba(0,0,0,0.08)", borderTop: `4px solid ${colors.primary}`,
-            borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto"
-          }} />
-          <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
-        </div>
+        <LottieLoader message="Admin-Daten werden geladen..." size={180} />
       </div>
     );
   }

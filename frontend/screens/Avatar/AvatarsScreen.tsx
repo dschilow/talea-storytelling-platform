@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import LottieLoader from '../../components/common/LottieLoader';
 import FadeInView from '../../components/animated/FadeInView';
 import { useBackend } from '../../hooks/useBackend';
 import type { Avatar } from '../../types/avatar';
@@ -163,13 +164,8 @@ const AvatarsScreen: React.FC = () => {
 
           <div style={contentStyle}>
             {isLoading ? (
-              <div style={{ textAlign: 'center' as const, padding: `${spacing.xxxl}px` }}>
-                <div style={{ ...emptyIconStyle, background: colors.gradients.primary }}>
-                  <User size={40} color={colors.text.inverse} />
-                </div>
-                <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
-                  {t('common.loading')}
-                </p>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: `${spacing.xxxl}px` }}>
+                <LottieLoader message={t('common.loading')} size={150} />
               </div>
             ) : avatars.length === 0 ? (
               <Card variant="glass" style={emptyStateStyle}>
