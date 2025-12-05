@@ -6,3 +6,6 @@ node_modules
 /encore.gen
 backend/frontend/dist
 Logs
+
+# Prevent local npm registry configs from leaking into CI/CD
+package-lock.json
