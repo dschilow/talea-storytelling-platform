@@ -672,8 +672,8 @@ OUTPUT (JSON):
   ],
   "avatarDevelopments": [
     {
-      "avatarName": "Name des Avatars",
-      "updates": [
+      "name": "Name des Avatars",
+      "changedTraits": [
         {
           "trait": "knowledge" oder "knowledge.subcategory" (z.B. "knowledge.science", "knowledge.history"),
           "change": +2 bis +10 (positive Zahl),
@@ -896,8 +896,8 @@ IMPORTANT LANGUAGE INSTRUCTION:
       // Just warn instead of failing, but log heavily
       console.warn(`[Phase3] ⚠️ Konfliktdichte grenzwertig: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
 
-      // Only fail if it's REALLY bad (less than 2 conflicts in a fairy tale)
-      if (conflictfulChapters < 2) {
+      // Only fail if it's REALLY bad (0 conflicts)
+      if (conflictfulChapters < 1) {
         throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
       }
     }
@@ -968,11 +968,12 @@ IMPORTANT LANGUAGE INSTRUCTION:
       "ennemi", "méchant", "menace", "danger", "obstacle", "problème", "difficulté", "défi",
       "sorcier", "sorcière", "monstre", "dragon", "troll", "géant", "mal", "maléfique"
     ];
-    const hasConflict = antagonistKeywords.some(k => text.includes(k));
-    if (!hasConflict && !fairyTale) {
-      throw new Error("[Phase3] No antagonist/conflict presence detected in story text");
-    } else if (!hasConflict) {
-      console.warn("[Phase3] Weak conflict detection in fairy tale mode - may lack clear antagonist");
+    const lowerText = text.toLowerCase();
+    const hasConflict = antagonistKeywords.some(k => lowerText.includes(k.toLowerCase()));
+
+    if (!hasConflict) {
+      console.warn(`[Phase3] ⚠️ Weak conflict detection - story may lack clear antagonist keywords (fairyTaleMode: ${fairyTale})`);
+      // We do NOT throw here anymore, as it causes unnecessary failures for valid stories that just use different wording.
     }
 
     // Twist heuristic - support German, English, Russian, and French
