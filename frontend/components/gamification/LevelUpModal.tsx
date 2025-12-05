@@ -64,6 +64,16 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
     };
 
     const getIcon = () => {
+        // Show artifact image if available
+        if (item?.imageUrl) {
+            return (
+                <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="w-20 h-20 object-contain rounded-lg"
+                />
+            );
+        }
         if (item) return <Shield className="w-16 h-16 text-purple-500" />;
         if (skill) return <Zap className="w-16 h-16 text-yellow-500" />;
         return <Star className="w-16 h-16 text-purple-500" />;

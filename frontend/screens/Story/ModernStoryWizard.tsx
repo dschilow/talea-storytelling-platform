@@ -9,6 +9,8 @@ import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationProgress, StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 import { useTranslation } from 'react-i18next';
+import LevelUpModal from '../../components/gamification/LevelUpModal';
+import type { InventoryItem } from '../../types/avatar';
 
 // Import Steps
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
@@ -67,6 +69,11 @@ export default function ModernStoryWizard() {
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<StoryGenerationStep>('profiles');
   const [userLanguage, setUserLanguage] = useState<string>('de');
+
+  // 🎁 Loot reward state
+  const [lootArtifact, setLootArtifact] = useState<InventoryItem | null>(null);
+  const [showLootModal, setShowLootModal] = useState(false);
+  const [pendingStoryId, setPendingStoryId] = useState<string | null>(null);
 
   // Sync userLanguage with i18n.language
   useEffect(() => {
@@ -145,16 +152,34 @@ export default function ModernStoryWizard() {
       setGenerationStep('complete');
       await new Promise(r => setTimeout(r, 800));
 
-      // Success - navigate to story
+      // 🎁 Check for new artifact (loot reward)
+      const storyData = story as any;
+      if (storyData.newArtifact) {
+        console.log('[ModernWizard] 🎁 New artifact received:', storyData.newArtifact);
 
-      // CHECK FOR NEWLY GENERATED CHARACTERS
-      // if ((story as any).newlyGeneratedCharacters && (story as any).newlyGeneratedCharacters.length > 0) {
-      //   const names = (story as any).newlyGeneratedCharacters.map((c: any) => c.name).join(', ');
-      //   showNewCharacterToast(names);
-      // }
+        // Convert newArtifact to InventoryItem format
+        const lootItem: InventoryItem = {
+          id: crypto.randomUUID(),
+          name: storyData.newArtifact.name,
+          type: storyData.newArtifact.type || 'TOOL',
+          level: 1,
+          sourceStoryId: story.id,
+          description: storyData.newArtifact.description,
+          visualPrompt: storyData.newArtifact.visualDescriptorKeywords?.join(', ') || '',
+          tags: storyData.newArtifact.visualDescriptorKeywords || [],
+          acquiredAt: new Date().toISOString(),
+          imageUrl: storyData.newArtifact.imageUrl,
+          storyEffect: storyData.newArtifact.storyEffect,
+        };
 
-      alert(t('story.wizard.alerts.success', { title: story.title }));
-      navigate(`/story-reader/${story.id}`);
+        setLootArtifact(lootItem);
+        setPendingStoryId(story.id);
+        setShowLootModal(true);
+        // Navigation happens when modal closes
+      } else {
+        // No artifact - navigate directly
+        navigate(`/story-reader/${story.id}`);
+      }
 
     } catch (error) {
       console.error('[ModernWizard] Error generating story:', error);
@@ -203,6 +228,16 @@ export default function ModernStoryWizard() {
         return <Step6Summary state={state} onGenerate={handleGenerate} />;
       default:
         return null;
+    }
+  };
+
+  // 🎁 Handle loot modal close - navigate to story
+  const handleLootModalClose = () => {
+    setShowLootModal(false);
+    setLootArtifact(null);
+    if (pendingStoryId) {
+      navigate(`/story-reader/${pendingStoryId}`);
+      setPendingStoryId(null);
     }
   };
 
@@ -315,6 +350,14 @@ export default function ModernStoryWizard() {
           )}
         </div>
       </div>
+
+      {/* 🎁 Loot Reward Modal */}
+      <LevelUpModal
+        isOpen={showLootModal}
+        onClose={handleLootModalClose}
+        item={lootArtifact || undefined}
+        type="new_item"
+      />
     </div>
   );
 }

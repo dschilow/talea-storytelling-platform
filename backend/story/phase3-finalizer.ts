@@ -18,6 +18,7 @@ import {
   getAdaptedPronouns,
 } from "../fairytales/role-transformations";
 import { OriginalityValidator } from "./originality-validator";
+import type { InventoryItem } from "../avatar/avatar";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -32,24 +33,24 @@ function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     const cause = (error as any).cause;
-    
+
     // Check for socket/network errors
     if (message.includes('fetch failed') ||
-        message.includes('socket') ||
-        message.includes('econnreset') ||
-        message.includes('econnrefused') ||
-        message.includes('etimedout') ||
-        message.includes('network') ||
-        message.includes('aborted')) {
+      message.includes('socket') ||
+      message.includes('econnreset') ||
+      message.includes('econnrefused') ||
+      message.includes('etimedout') ||
+      message.includes('network') ||
+      message.includes('aborted')) {
       return true;
     }
-    
+
     // Check cause for socket errors (like UND_ERR_SOCKET)
     if (cause && typeof cause === 'object') {
       const causeCode = (cause as any).code;
-      if (causeCode === 'UND_ERR_SOCKET' || 
-          causeCode === 'ECONNRESET' ||
-          causeCode === 'ETIMEDOUT') {
+      if (causeCode === 'UND_ERR_SOCKET' ||
+        causeCode === 'ECONNRESET' ||
+        causeCode === 'ETIMEDOUT') {
         return true;
       }
     }
@@ -66,14 +67,14 @@ async function fetchWithRetry(
   context: string
 ): Promise<Response> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, options);
       return response;
     } catch (error) {
       lastError = error as Error;
-      
+
       if (isTransientNetworkError(error) && attempt < MAX_RETRIES) {
         const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
         console.warn(`[${context}] Transient network error on attempt ${attempt}/${MAX_RETRIES}, retrying in ${delay}ms...`, {
@@ -86,7 +87,7 @@ async function fetchWithRetry(
       }
     }
   }
-  
+
   throw lastError;
 }
 
@@ -98,6 +99,7 @@ interface Phase3Input {
     name: string;
     description?: string;
     visualProfile?: any;
+    inventory?: InventoryItem[];  // 🎁 NEW: Avatar's existing artifacts
   }>;
   experience: StoryExperienceContext;
   useFairyTaleTemplate?: boolean; // NEW: Enable fairy tale mode
@@ -481,7 +483,7 @@ export class Phase3StoryFinalizer {
     skeletonWithNames: StorySkeleton,
     assignments: Map<string, CharacterTemplate>,
     config: StoryConfig,
-    avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>,
+    avatarDetails: Array<{ name: string; description?: string; visualProfile?: any; inventory?: InventoryItem[] }>,
     experience: StoryExperienceContext
   ): string {
     const characterDetails = Array.from(assignments.entries())
@@ -509,6 +511,20 @@ export class Phase3StoryFinalizer {
         return line;
       })
       .join("\n");
+
+    // 🎁 Build inventory section for artifact injection
+    const allInventoryItems = avatarDetails.flatMap(avatar =>
+      (avatar.inventory || []).map(item => ({
+        ownerName: avatar.name,
+        item
+      }))
+    );
+
+    const inventorySection = allInventoryItems.length > 0
+      ? `\n🎒 AVATAR-AUSRÜSTUNG (kann in der Geschichte genutzt werden):\n${allInventoryItems.map(({ ownerName, item }) =>
+        `- ${ownerName} besitzt: "${item.name}" (${item.type}) - ${item.storyEffect || item.description}`
+      ).join("\n")}\n\nANWEISUNG: Wenn es zur Handlung passt, lass einen Avatar eines dieser Artefakte EINMAL sinnvoll einsetzen. Wenn keines passt, ignoriere sie.\n`
+      : "";
 
     const soulSummary = experience.soul
       ? `${experience.soul.label} - ${experience.soul.storyPromise}`
@@ -563,7 +579,7 @@ Du bist eine meisterhafte Kinderbuch-Autorin. Schreibe eine vollstaendige, filmi
 
 HAUPTCHARAKTERE (Avatare):
 ${avatarDetailsText}
-
+${inventorySection}
 NEBENCHARAKTERE AUS DEM POOL:
 ${characterDetails}
 
@@ -670,7 +686,14 @@ OUTPUT (JSON):
         }
       ]
     }
-  ]
+  ],
+  "newArtifact": {
+    "name": "Name des Artefakts (in Sprache: ${config.language || 'de'})",
+    "description": "Kurze Beschreibung was es ist (in Sprache: ${config.language || 'de'})",
+    "type": "TOOL | WEAPON | KNOWLEDGE | COMPANION",
+    "storyEffect": "Was kann dieses Artefakt in zukuenftigen Geschichten bewirken? (in Sprache: ${config.language || 'de'})",
+    "visualDescriptorKeywords": ["ENGLISH keyword 1", "ENGLISH keyword 2", "material", "color", "glow effect"]
+  }
 }
 
 🎯 KRITISCH: avatarDevelopments ist MANDATORY!
@@ -679,6 +702,14 @@ OUTPUT (JSON):
 - Base traits max 100, knowledge subcategories max 1000
 - Changes basieren auf KONKRETEN Story-Ereignissen
 - Description erklärt präzise, was gelernt wurde
+
+🎁 KRITISCH: newArtifact ist MANDATORY!
+- Am Ende von Kapitel 5 MUSS der Held einen besonderen Gegenstand finden, erhalten oder entdecken
+- Beschreibe diesen Gegenstand kurz im Story-Text
+- name, description, storyEffect: In der Sprache ${config.language || 'de'}
+- visualDescriptorKeywords: IMMER auf ENGLISCH (fuer Bildgenerierung)
+- Beispiele: ["golden compass", "glowing blue core", "ancient runes", "floating particles"]
+- type: TOOL (nuetzliches Werkzeug), WEAPON (magische Waffe), KNOWLEDGE (Buch/Schriftrolle), COMPANION (kleines Wesen)
 
 IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Use expressive action verbs and clear subject placement.
@@ -690,6 +721,7 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
 IMPORTANT LANGUAGE INSTRUCTION:
 - Write the story content (title, description, chapters content) in the requested language: ${config.language || 'de'}.
 - Write the imageDescription STRICTLY in ENGLISH.
+- Write newArtifact.visualDescriptorKeywords STRICTLY in ENGLISH.
     `.trim();
   }
 
@@ -803,7 +835,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
     language?: string
   ) {
     const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
-    
+
     // German conflict patterns
     const germanConflictPatterns = [
       /gefahr/, /bedroh/, /verfolg/, /flucht/, /kampf/, /duell/,
@@ -811,7 +843,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
       /gefängnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
       /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/
     ];
-    
+
     // English conflict patterns
     const englishConflictPatterns = [
       /danger/, /threat/, /chase/, /escape/, /fight/, /duel/,
@@ -821,7 +853,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
       /struggle/, /battle/, /flee/, /hunt/, /capture/, /defend/,
       /obstacle/, /challenge/, /risk/, /fear/, /trouble/, /problem/
     ];
-    
+
     // Russian conflict patterns (for ru language stories)
     const russianConflictPatterns = [
       /опасност/, /угроз/, /погон/, /побег/, /борьб/, /дуэл/,
@@ -833,7 +865,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
       /тайн/, /загадк/, /секрет/, /тень/, /тёмн/, /ночь/,
       /туман/, /шёпот/, /крик/, /помощ/, /храбр/, /смел/
     ];
-    
+
     // French conflict patterns
     const frenchConflictPatterns = [
       /danger/, /menace/, /poursuite/, /fuite/, /combat/, /duel/,
@@ -843,10 +875,10 @@ IMPORTANT LANGUAGE INSTRUCTION:
       /lutte/, /bataille/, /fuir/, /chasse/, /capturer/, /défendre/,
       /obstacle/, /défi/, /risque/, /peur/, /problème/, /difficulté/
     ];
-    
+
     // Use all language patterns for validation (stories might be in any language)
     const conflictPatterns = [
-      ...germanConflictPatterns, 
+      ...germanConflictPatterns,
       ...englishConflictPatterns,
       ...russianConflictPatterns,
       ...frenchConflictPatterns
@@ -869,7 +901,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
         throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
       }
     }
-    
+
     // Avatars must appear - check for both original name and transliterated/translated versions
     // Common name translations: German/English <-> Russian
     const nameVariants: Record<string, string[]> = {
@@ -903,12 +935,12 @@ IMPORTANT LANGUAGE INSTRUCTION:
       'emily': ['emily', 'эмили'],
       'mia': ['mia', 'мия'],
     };
-    
+
     for (const av of avatars) {
       const nameLower = av.name.toLowerCase();
       const variants = nameVariants[nameLower] || [nameLower];
       const found = variants.some(variant => text.includes(variant.toLowerCase()));
-      
+
       if (!found) {
         // Log warning but don't fail - the story might use a nickname or different spelling
         console.warn(`[Phase3] ⚠️ Avatar ${av.name} not found in story text (checked variants: ${variants.join(', ')})`);

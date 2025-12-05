@@ -21,6 +21,10 @@ import {
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import type { InventoryItem } from "../avatar/avatar";
+import { generateArtifactImage } from "./artifact-image-generator";
+import type { NewArtifact } from "./types";
+import { addArtifactToInventoryInternal } from "../gamification/item-system";
 
 interface AvatarDetail {
   id: string;
@@ -31,6 +35,7 @@ interface AvatarDetail {
   imageUrl?: string;
   visualProfile?: any;
   creationType: "ai-generated" | "photo-upload";
+  inventory?: InventoryItem[];  // 🎁 NEW: Avatar's existing artifacts
 }
 
 interface FourPhaseInput {
@@ -85,6 +90,8 @@ interface FourPhaseOutput {
   coverImageUrl?: string;
   chapters: Chapter[];
   avatarDevelopments?: any[];
+  // 🎁 NEW: Loot artifact from this story
+  newArtifact?: NewArtifact & { imageUrl?: string };
   newlyGeneratedCharacters?: Array<{
     id: string;
     name: string;
@@ -504,6 +511,57 @@ export class FourPhaseOrchestrator {
     const coverDuration = Date.now() - coverStart;
     const coverImageUrl = coverImage?.url;
 
+    // ===== PHASE 4.5: Generate Artifact Image (if newArtifact exists) =====
+    let artifactImageUrl: string | undefined;
+    let artifactImagePrompt: string | undefined;
+
+    if (finalizedStory.newArtifact) {
+      console.log("[4-Phase] 🎁 Generating artifact image...");
+      const artifactStart = Date.now();
+
+      try {
+        const artifactResult = await generateArtifactImage(finalizedStory.newArtifact);
+        artifactImageUrl = artifactResult.imageUrl;
+        artifactImagePrompt = artifactResult.prompt;
+
+        const artifactDuration = Date.now() - artifactStart;
+        console.log(`[4-Phase] Artifact image generated in ${artifactDuration}ms: ${artifactResult.success ? '✅' : '❌'}`);
+
+        if (artifactResult.error) {
+          console.warn(`[4-Phase] Artifact image warning: ${artifactResult.error}`);
+        }
+
+        // ===== PHASE 4.6: Save Artifact to Avatar Inventory =====
+        // Save the artifact to each participating avatar's inventory
+        for (const avatarDetail of input.avatarDetails) {
+          try {
+            const inventoryItem: InventoryItem = {
+              id: crypto.randomUUID(),
+              name: finalizedStory.newArtifact.name,
+              type: finalizedStory.newArtifact.type,
+              level: 1,
+              sourceStoryId: '', // Will be set by the story.save call
+              description: finalizedStory.newArtifact.description,
+              visualPrompt: finalizedStory.newArtifact.visualDescriptorKeywords.join(', '),
+              tags: finalizedStory.newArtifact.visualDescriptorKeywords,
+              acquiredAt: new Date().toISOString(),
+              imageUrl: artifactImageUrl,
+              storyEffect: finalizedStory.newArtifact.storyEffect,
+            };
+
+            await addArtifactToInventoryInternal(avatarDetail.id, inventoryItem);
+            console.log(`[4-Phase] 💾 Artifact saved to avatar ${avatarDetail.name}'s inventory`);
+          } catch (saveError) {
+            console.error(`[4-Phase] Failed to save artifact for avatar ${avatarDetail.name}:`, saveError);
+          }
+        }
+      } catch (error) {
+        console.error("[4-Phase] Failed to generate artifact image:", error);
+      }
+    } else {
+      console.log("[4-Phase] No newArtifact in story response - skipping artifact image generation");
+    }
+
     const totalDuration = Date.now() - startTime;
     console.log(`[4-Phase] Total orchestration completed in ${totalDuration}ms`);
 
@@ -567,9 +625,13 @@ export class FourPhaseOrchestrator {
       coverImageUrl,
       chapters: chaptersWithImages,
       avatarDevelopments: finalizedStory.avatarDevelopments || [], // 🔧 Pass through from Phase 3
+      // 🎁 NEW: Pass loot artifact with generated image to frontend
+      newArtifact: finalizedStory.newArtifact
+        ? { ...finalizedStory.newArtifact, imageUrl: artifactImageUrl }
+        : undefined,
       metadata: {
         processingTime: totalDuration,
-        imagesGenerated: chaptersWithImages.length + 1, // chapters + cover
+        imagesGenerated: chaptersWithImages.length + 1 + (artifactImageUrl ? 1 : 0), // chapters + cover + artifact
         phases: phaseDurations,
         characterPoolUsed,
         model: configWithExperience.aiModel || "gpt-5-mini",

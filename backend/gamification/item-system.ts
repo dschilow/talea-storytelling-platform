@@ -133,3 +133,112 @@ function evolveItemName(originalName: string, level: number): string {
 function capitalize(s: string) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/**
+ * 🎁 Add a new artifact (loot) to an avatar's inventory
+ * Called after story generation when a newArtifact is created
+ */
+interface AddArtifactRequest {
+    avatarId: string;
+    artifact: InventoryItem;
+}
+
+interface AddArtifactResponse {
+    success: boolean;
+    inventorySize: number;
+    message: string;
+}
+
+export const addArtifactToInventory = api(
+    { expose: true, auth: true, method: "POST", path: "/gamification/add-artifact" },
+    async (req: AddArtifactRequest): Promise<AddArtifactResponse> => {
+        const { avatarId, artifact } = req;
+        console.log(`[Gamification] 🎁 Adding artifact "${artifact.name}" to avatar ${avatarId}`);
+
+        // 1. Fetch current avatar inventory
+        const row = await avatarDB.queryRow<{ inventory: string }>`
+            SELECT inventory FROM avatars WHERE id = ${avatarId}
+        `;
+
+        if (!row) {
+            throw APIError.notFound("Avatar not found");
+        }
+
+        let inventory: InventoryItem[] = JSON.parse(row.inventory || '[]');
+
+        // 2. Check for duplicate (same sourceStoryId)
+        const isDuplicate = inventory.some(item =>
+            item.sourceStoryId === artifact.sourceStoryId &&
+            item.name === artifact.name
+        );
+
+        if (isDuplicate) {
+            console.log(`[Gamification] ⚠️ Artifact "${artifact.name}" already exists for this story`);
+            return {
+                success: true,
+                inventorySize: inventory.length,
+                message: "Artifact already exists in inventory"
+            };
+        }
+
+        // 3. Add artifact to inventory
+        inventory.push(artifact);
+        console.log(`[Gamification] ✅ Added "${artifact.name}" to inventory (now ${inventory.length} items)`);
+
+        // 4. Save to database
+        await avatarDB.exec`
+            UPDATE avatars
+            SET inventory = ${JSON.stringify(inventory)},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${avatarId}
+        `;
+
+        return {
+            success: true,
+            inventorySize: inventory.length,
+            message: `Artifact "${artifact.name}" added to inventory`
+        };
+    }
+);
+
+/**
+ * Internal helper to add artifact from story generation (bypasses auth for internal calls)
+ */
+export async function addArtifactToInventoryInternal(
+    avatarId: string,
+    artifact: InventoryItem
+): Promise<void> {
+    console.log(`[Gamification] 🎁 Internal: Adding artifact "${artifact.name}" to avatar ${avatarId}`);
+
+    const row = await avatarDB.queryRow<{ inventory: string }>`
+        SELECT inventory FROM avatars WHERE id = ${avatarId}
+    `;
+
+    if (!row) {
+        console.error(`[Gamification] ❌ Avatar ${avatarId} not found`);
+        return;
+    }
+
+    let inventory: InventoryItem[] = JSON.parse(row.inventory || '[]');
+
+    // Check for duplicate
+    const isDuplicate = inventory.some(item =>
+        item.sourceStoryId === artifact.sourceStoryId
+    );
+
+    if (isDuplicate) {
+        console.log(`[Gamification] ⚠️ Artifact already exists for story ${artifact.sourceStoryId}`);
+        return;
+    }
+
+    inventory.push(artifact);
+
+    await avatarDB.exec`
+        UPDATE avatars
+        SET inventory = ${JSON.stringify(inventory)},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${avatarId}
+    `;
+
+    console.log(`[Gamification] ✅ Inventory updated: ${inventory.length} items`);
+}

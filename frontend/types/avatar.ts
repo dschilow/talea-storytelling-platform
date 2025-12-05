@@ -45,6 +45,8 @@ export interface InventoryItem {
   visualPrompt: string;
   tags: string[];
   acquiredAt: string;
+  imageUrl?: string;       // 🎁 URL des generierten Artefakt-Bildes
+  storyEffect?: string;    // Was das Artefakt in Geschichten bewirken kann
 }
 
 export interface Skill {

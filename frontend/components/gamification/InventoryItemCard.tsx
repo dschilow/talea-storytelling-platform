@@ -43,10 +43,17 @@ const InventoryItemCard: React.FC<InventoryItemCardProps> = ({ item, onClick }) 
             <h4 className="font-bold text-gray-800 text-sm mb-1 line-clamp-1">{item.name}</h4>
             <p className="text-xs text-gray-500 line-clamp-2">{item.description}</p>
 
-            {/* Visual placeholder if no image yet */}
-            <div className="mt-3 w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                {/* In future: <img src={generatedImageUrl} /> */}
-                <span className="text-2xl">🎁</span>
+            {/* Artifact Image */}
+            <div className="mt-3 w-full h-24 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg flex items-center justify-center overflow-hidden">
+                {item.imageUrl ? (
+                    <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                    />
+                ) : (
+                    <span className="text-2xl">🎁</span>
+                )}
             </div>
         </div>
     );
