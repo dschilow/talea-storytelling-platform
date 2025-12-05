@@ -169,10 +169,10 @@ export class Phase3StoryFinalizer {
 
     console.log(`[Phase3] Using variance seed: ${varianceSeed} to prevent duplicate stories`);
 
-    // CRITICAL FIX: Increase timeout for fairy tale mode (more complex prompts)
-    // Extended timeout for gpt-4o-mini which can be slow with reasoning
-    const baseTimeout = isReasoningModel ? 120000 : 45000; // 2 minutes for reasoning models
-    const requestTimeoutMs = selectedFairyTale ? baseTimeout * 1.5 : baseTimeout; // 3 minutes for fairy tales with reasoning
+    // CRITICAL FIX: Increase timeout for reasoning models (gpt-5-mini can be slow)
+    // Extended timeout for gpt-5-mini which needs time for reasoning tokens
+    const baseTimeout = isReasoningModel ? 180000 : 60000; // 3 minutes for reasoning models, 1 minute for others
+    const requestTimeoutMs = selectedFairyTale ? baseTimeout * 1.5 : baseTimeout; // 4.5 minutes for fairy tales with reasoning
     const abortController = new AbortController();
     const timeoutHandle = setTimeout(() => abortController.abort(), requestTimeoutMs);
 
