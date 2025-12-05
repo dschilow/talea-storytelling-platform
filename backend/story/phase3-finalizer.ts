@@ -749,8 +749,35 @@ IMPORTANT LANGUAGE INSTRUCTION:
       /obstacle/, /challenge/, /risk/, /fear/, /trouble/, /problem/
     ];
     
-    // Use both patterns for validation (stories might mix languages or use either)
-    const conflictPatterns = [...germanConflictPatterns, ...englishConflictPatterns];
+    // Russian conflict patterns (for ru language stories)
+    const russianConflictPatterns = [
+      /опасност/, /угроз/, /погон/, /побег/, /борьб/, /дуэл/,
+      /спаса/, /спасен/, /ловушк/, /магия/, /закля/, /проклят/,
+      /тюрьм/, /темниц/, /дракон/, /волк/, /ведьм/, /монстр/,
+      /конфликт/, /атак/, /шторм/, /потоп/, /опасен/, /угрож/,
+      /сраж/, /битв/, /бег/, /охот/, /захват/, /защит/,
+      /препятств/, /вызов/, /риск/, /страх/, /беда/, /проблем/,
+      /тайн/, /загадк/, /секрет/, /тень/, /тёмн/, /ночь/,
+      /туман/, /шёпот/, /крик/, /помощ/, /храбр/, /смел/
+    ];
+    
+    // French conflict patterns
+    const frenchConflictPatterns = [
+      /danger/, /menace/, /poursuite/, /fuite/, /combat/, /duel/,
+      /sauver/, /sauvetage/, /piège/, /magie/, /malédiction/, /sort/,
+      /prison/, /donjon/, /dragon/, /loup/, /sorcière/, /monstre/,
+      /conflit/, /attaque/, /tempête/, /inondation/, /péril/,
+      /lutte/, /bataille/, /fuir/, /chasse/, /capturer/, /défendre/,
+      /obstacle/, /défi/, /risque/, /peur/, /problème/, /difficulté/
+    ];
+    
+    // Use all language patterns for validation (stories might be in any language)
+    const conflictPatterns = [
+      ...germanConflictPatterns, 
+      ...englishConflictPatterns,
+      ...russianConflictPatterns,
+      ...frenchConflictPatterns
+    ];
     const chapterConflicts = story.chapters.map((ch) => this.hasConflictSignal(ch.content, conflictPatterns));
     const conflictfulChapters = chapterConflicts.filter(Boolean).length;
     const requiredConflicts = fairyTale ? 2 : 3; // Relaxed from 5 to 2 for fairy tales
@@ -778,13 +805,20 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
     // Antagonist presence (simple heuristics)
     // CRITICAL FIX: Relax antagonist check for fairy tales (they have various conflict types)
-    // Support both German and English keywords
+    // Support German, English, Russian, and French keywords
     const antagonistKeywords = [
       // German
       "antagonist", "gegner", "zauberer", "feind", "bedroh", "problem", "schwierig", "gefahr", "hindernis",
       // English
       "enemy", "villain", "foe", "threat", "danger", "obstacle", "problem", "difficult", "challenge",
-      "wizard", "witch", "monster", "dragon", "troll", "giant", "evil", "wicked", "menace"
+      "wizard", "witch", "monster", "dragon", "troll", "giant", "evil", "wicked", "menace",
+      // Russian
+      "враг", "злодей", "угроза", "опасность", "препятствие", "проблема", "сложность", "вызов",
+      "колдун", "ведьма", "монстр", "дракон", "тролль", "великан", "зло", "злой", "тень",
+      "тайна", "загадка", "страх", "беда", "ночь", "туман", "шторм",
+      // French
+      "ennemi", "méchant", "menace", "danger", "obstacle", "problème", "difficulté", "défi",
+      "sorcier", "sorcière", "monstre", "dragon", "troll", "géant", "mal", "maléfique"
     ];
     const hasConflict = antagonistKeywords.some(k => text.includes(k));
     if (!hasConflict && !fairyTale) {
@@ -793,13 +827,17 @@ IMPORTANT LANGUAGE INSTRUCTION:
       console.warn("[Phase3] Weak conflict detection in fairy tale mode - may lack clear antagonist");
     }
 
-    // Twist heuristic - support both German and English
+    // Twist heuristic - support German, English, Russian, and French
     if (twistRequired) {
       const twistSignals = [
         // German
         "twist", "wendung", "ueberraschung", "überraschung", "plot twist",
         // English
-        "surprise", "unexpected", "revelation", "secret", "discover"
+        "surprise", "unexpected", "revelation", "secret", "discover",
+        // Russian
+        "поворот", "сюрприз", "неожиданно", "оказывается", "секрет", "открытие", "тайна",
+        // French
+        "surprise", "inattendu", "révélation", "secret", "découvrir"
       ];
       const structuralTwistPatterns = [
         // German
@@ -826,6 +864,26 @@ IMPORTANT LANGUAGE INSTRUCTION:
         /transform/,
         /realize/,
         /secret/,
+        // Russian
+        /вдруг/,
+        /неожиданно/,
+        /оказалось/,
+        /оказывается/,
+        /но потом/,
+        /однако/,
+        /выяснилось/,
+        /открылось/,
+        /секрет/,
+        /превратился/,
+        /понял/,
+        // French
+        /soudain/,
+        /tout à coup/,
+        /mais alors/,
+        /cependant/,
+        /révèle/,
+        /découvre/,
+        /transforme/,
       ];
 
       const hasTwistSignal = twistSignals.some((k) => text.includes(k));
