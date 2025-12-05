@@ -21,6 +21,75 @@ import { OriginalityValidator } from "./originality-validator";
 
 const openAIKey = secret("OpenAIKey");
 
+// Retry configuration for transient network errors
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
+
+/**
+ * Helper to determine if an error is a transient network error that should be retried
+ */
+function isTransientNetworkError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    const cause = (error as any).cause;
+    
+    // Check for socket/network errors
+    if (message.includes('fetch failed') ||
+        message.includes('socket') ||
+        message.includes('econnreset') ||
+        message.includes('econnrefused') ||
+        message.includes('etimedout') ||
+        message.includes('network') ||
+        message.includes('aborted')) {
+      return true;
+    }
+    
+    // Check cause for socket errors (like UND_ERR_SOCKET)
+    if (cause && typeof cause === 'object') {
+      const causeCode = (cause as any).code;
+      if (causeCode === 'UND_ERR_SOCKET' || 
+          causeCode === 'ECONNRESET' ||
+          causeCode === 'ETIMEDOUT') {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Fetch with retry for transient network errors
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  context: string
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (isTransientNetworkError(error) && attempt < MAX_RETRIES) {
+        const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(`[${context}] Transient network error on attempt ${attempt}/${MAX_RETRIES}, retrying in ${delay}ms...`, {
+          error: (error as Error).message,
+          cause: (error as any).cause?.code
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 interface Phase3Input {
   skeleton: StorySkeleton;
   assignments: Map<string, CharacterTemplate>;
@@ -180,15 +249,19 @@ export class Phase3StoryFinalizer {
 
     try {
       const openAIRequest = { ...payload };
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAIKey()}`,
+      const response = await fetchWithRetry(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${openAIKey()}`,
+          },
+          body: JSON.stringify(payload),
+          signal: abortController.signal,
         },
-        body: JSON.stringify(payload),
-        signal: abortController.signal,
-      });
+        "Phase3"
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
