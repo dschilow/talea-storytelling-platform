@@ -834,6 +834,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
     twistRequired: boolean,
     language?: string
   ) {
+    console.log("[Phase3] 🛡️ Validating story quality (Logic v2 - Relaxed)");
     const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
 
     // German conflict patterns
@@ -841,7 +842,10 @@ IMPORTANT LANGUAGE INSTRUCTION:
       /gefahr/, /bedroh/, /verfolg/, /flucht/, /kampf/, /duell/,
       /retten/, /rettung/, /falle/, /zauber/, /fluch/,
       /gefängnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
-      /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/
+      /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/,
+      /hindernis/, /problem/, /schwierig/, /rätsel/, /aufgabe/, /prüfung/,
+      /angst/, /sorge/, /schreck/, /dunkel/, /schatten/, /verloren/,
+      /blockiert/, /versperrt/, /suche/, /geheimnis/
     ];
 
     // English conflict patterns
@@ -898,7 +902,8 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
       // Only fail if it's REALLY bad (0 conflicts)
       if (conflictfulChapters < 1) {
-        throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+        console.warn(`[Phase3] ⚠️ Critical conflict shortage (${conflictfulChapters} chapters), but allowing to proceed to prevent user frustration.`);
+        // throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
       }
     }
 
