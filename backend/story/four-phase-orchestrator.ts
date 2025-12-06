@@ -43,6 +43,7 @@ interface FourPhaseInput {
   avatarDetails: AvatarDetail[];
   userId: string;
   clerkToken: string;
+  storyId: string; // 🎁 NEW: Required for artifact source tracking
 }
 
 interface StoryExperienceSummary {
@@ -540,7 +541,7 @@ export class FourPhaseOrchestrator {
               name: finalizedStory.newArtifact.name,
               type: finalizedStory.newArtifact.type,
               level: 1,
-              sourceStoryId: '', // Will be set by the story.save call
+              sourceStoryId: input.storyId, // ✅ FIX: Use actual story ID
               description: finalizedStory.newArtifact.description,
               visualPrompt: finalizedStory.newArtifact.visualDescriptorKeywords.join(', '),
               tags: finalizedStory.newArtifact.visualDescriptorKeywords,

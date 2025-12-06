@@ -376,6 +376,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           avatarDetails,
           userId: currentUserId,
           clerkToken,
+          storyId: id, // 🎁 NEW: Pass storyId for artifact generation
         });
 
         // Store skeleton for debugging
