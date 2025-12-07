@@ -523,7 +523,7 @@ export class Phase3StoryFinalizer {
     const inventorySection = allInventoryItems.length > 0
       ? `\n🎒 AVATAR-AUSRÜSTUNG (kann in der Geschichte genutzt werden):\n${allInventoryItems.map(({ ownerName, item }) =>
         `- ${ownerName} besitzt: "${item.name}" (${item.type}) - ${item.storyEffect || item.description}`
-      ).join("\n")}\n\nANWEISUNG: Wenn es zur Handlung passt, lass einen Avatar eines dieser Artefakte EINMAL sinnvoll einsetzen. Wenn keines passt, ignoriere sie.\n`
+      ).join("\n")}\n\nANWEISUNG: Wähle höchstens EIN passendes Artefakt und lass den Besitzer es EINMAL aktiv im Plot nutzen (Erinnerung oder Werkzeug). Wenn keines passt, ignoriere sie. In Kapitel 5 MUSS trotzdem ein neues Belohnungs-Artefakt auftauchen.\n`
       : "";
 
     const soulSummary = experience.soul
@@ -1506,7 +1506,6 @@ Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
     return mapping;
   }
 }
-
 
 
 

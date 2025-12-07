@@ -222,8 +222,12 @@ export async function addArtifactToInventoryInternal(
     let inventory: InventoryItem[] = JSON.parse(row.inventory || '[]');
 
     // Check for duplicate
+    const normalizedIncomingName = artifact.name?.trim().toLowerCase();
     const isDuplicate = inventory.some(item =>
-        item.sourceStoryId === artifact.sourceStoryId
+        item.sourceStoryId === artifact.sourceStoryId ||
+        (!!normalizedIncomingName &&
+            item.name?.trim().toLowerCase() === normalizedIncomingName &&
+            item.type === artifact.type)
     );
 
     if (isDuplicate) {

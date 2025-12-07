@@ -109,11 +109,20 @@ const StoryWizardScreen: React.FC = () => {
   };
 
   const handleGenreChange = (genre: string) => {
-    // Check if genre is a fairy tale genre using i18n-independent keys
+    // Normalize to catch Umlauts/underscores/dashes (e.g., "Märchen", "maerchen", "fairy_tales")
+    const normalized = genre
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[-_\s]/g, '');
+
     const isFairyTaleGenre =
-      genre === 'fairytale' || genre === 'magic' ||
-      // Keep backwards compatibility with old German values
-      genre === 'Klassische Märchen' || genre === 'Märchenwelten und Magie';
+      normalized.includes('maerchen') ||
+      normalized.includes('marchen') ||
+      normalized.includes('fairytale') ||
+      normalized.includes('fairytales') ||
+      normalized.includes('fairy') ||
+      normalized.includes('magic');
 
     updateStoryConfig({
       genre,

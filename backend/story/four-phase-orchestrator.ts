@@ -196,17 +196,26 @@ export class FourPhaseOrchestrator {
     // ===== PHASE 0: Fairy Tale Pre-Selection (NEW) =====
     let selectedFairyTale: SelectedFairyTale | null = null;
 
-    // 🔧 OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres
-    const normalizedGenre = input.config.genre?.toLowerCase() ?? "";
+    // 🔧 OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres (robust i18n)
+    const normalizeGenreString = (value?: string) =>
+      (value ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[-_\s]/g, "");
+
+    const normalizedGenre = normalizeGenreString(input.config.genre);
+    const normalizedSetting = normalizeGenreString(input.config.setting);
     const isFairyTaleGenre =
-      // Support both old German values and new i18n keys
-      input.config.genre === "Klassische Märchen" ||
-      input.config.genre === "Märchenwelten und Magie" ||
-      input.config.genre === "fairytale" ||
-      input.config.genre === "magic" ||
-      normalizedGenre.includes("märchen") ||
+      normalizedGenre.includes("maerchen") ||
+      normalizedGenre.includes("marchen") ||
+      normalizedGenre.includes("fairytale") ||
+      normalizedGenre.includes("fairytales") ||
       normalizedGenre.includes("fairy") ||
-      normalizedGenre.includes("magic");
+      normalizedGenre.includes("magic") ||
+      normalizedSetting.includes("fairy") ||
+      normalizedSetting.includes("maerchen") ||
+      normalizedSetting.includes("marchen");
 
     const userRequestedFairyTaleTemplate = input.config.preferences?.useFairyTaleTemplate ?? false;
     const experienceRequestedFairyTaleTemplate = configWithExperience.preferences?.useFairyTaleTemplate ?? false;
@@ -215,6 +224,17 @@ export class FourPhaseOrchestrator {
       userRequestedFairyTaleTemplate ||
       experienceRequestedFairyTaleTemplate ||
       isFairyTaleGenre;
+
+    // If user wants fairy tales but genre is not canonical, normalize to a stable backend value
+    const genreLooksFairy =
+      normalizedGenre.includes("fairy") ||
+      normalizedGenre.includes("maerchen") ||
+      normalizedGenre.includes("marchen");
+    if (useFairyTaleTemplate && !genreLooksFairy) {
+      configWithExperience.genre = "fairytale";
+      input.config.genre = input.config.genre || "fairytale";
+      console.log(`[4-Phase] Normalized genre to "fairytale" because fairy-tale template is active (original: "${normalizedGenre}")`);
+    }
 
     // Propagate the resolved preference so every phase sees the same flag
     configWithExperience.preferences = {
@@ -225,6 +245,15 @@ export class FourPhaseOrchestrator {
       ...(input.config.preferences ?? {}),
       useFairyTaleTemplate,
     };
+
+    console.log("[4-Phase] Fairy tale intent:", {
+      requestedByUser: userRequestedFairyTaleTemplate,
+      requestedByExperience: experienceRequestedFairyTaleTemplate,
+      detectedFromGenre: isFairyTaleGenre,
+      resolved: useFairyTaleTemplate,
+      genre: configWithExperience.genre,
+      setting: configWithExperience.setting,
+    });
 
     if (isFairyTaleGenre && !userRequestedFairyTaleTemplate) {
       console.log(`[4-Phase] 🎭 AUTO-ACTIVATED Fairy Tale Template for genre: "${input.config.genre}"`);
@@ -539,7 +568,7 @@ export class FourPhaseOrchestrator {
             const inventoryItem: InventoryItem = {
               id: crypto.randomUUID(),
               name: finalizedStory.newArtifact.name,
-              type: finalizedStory.newArtifact.type,
+              type: finalizedStory.newArtifact.type || "TOOL",
               level: 1,
               sourceStoryId: input.storyId, // ✅ FIX: Use actual story ID
               description: finalizedStory.newArtifact.description,
@@ -556,6 +585,12 @@ export class FourPhaseOrchestrator {
             console.error(`[4-Phase] Failed to save artifact for avatar ${avatarDetail.name}:`, saveError);
           }
         }
+
+        console.log("[4-Phase] Artifact generation summary:", {
+          newArtifact: finalizedStory.newArtifact.name,
+          imageGenerated: !!artifactImageUrl,
+          assignedAvatars: input.avatarDetails.map(a => a.name),
+        });
       } catch (error) {
         console.error("[4-Phase] Failed to generate artifact image:", error);
       }
@@ -1203,3 +1238,4 @@ ${story.description}
     await this.phase2Matcher.updateUsageStats(characterAssignments, storyId);
   }
 }
+
