@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { InventoryItem } from '../../types/avatar';
 import InventoryItemCard from './InventoryItemCard';
+import ArtifactDetailModal from './ArtifactDetailModal';
 import { PackageOpen } from 'lucide-react';
 import FadeInView from '../animated/FadeInView';
 
@@ -9,6 +10,19 @@ interface TreasureRoomProps {
 }
 
 const TreasureRoom: React.FC<TreasureRoomProps> = ({ items }) => {
+    const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleItemClick = (item: InventoryItem) => {
+        setSelectedItem(item);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setTimeout(() => setSelectedItem(null), 300); // Clear after animation
+    };
+
     if (!items || items.length === 0) {
         return (
             <div className="text-center py-12">
@@ -24,13 +38,26 @@ const TreasureRoom: React.FC<TreasureRoomProps> = ({ items }) => {
     }
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {items.map((item, index) => (
-                <FadeInView key={item.id} delay={index * 50}>
-                    <InventoryItemCard item={item} />
-                </FadeInView>
-            ))}
-        </div>
+        <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {items.map((item, index) => (
+                    <FadeInView key={item.id} delay={index * 50}>
+                        <InventoryItemCard 
+                            item={item} 
+                            onClick={() => handleItemClick(item)}
+                        />
+                    </FadeInView>
+                ))}
+            </div>
+
+            {/* Artifact Detail Modal */}
+            <ArtifactDetailModal
+                item={selectedItem}
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                showStoryLink={true}
+            />
+        </>
     );
 };
 

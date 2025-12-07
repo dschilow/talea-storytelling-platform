@@ -9,6 +9,7 @@ import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
+import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 
@@ -37,6 +38,10 @@ const StoryReaderScreen: React.FC = () => {
   const [rewardQueue, setRewardQueue] = useState<Array<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' }>>([]);
   const [currentReward, setCurrentReward] = useState<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' } | null>(null);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+
+  // Artifact Toast State
+  const [earnedArtifact, setEarnedArtifact] = useState<InventoryItem | null>(null);
+  const [showArtifactToast, setShowArtifactToast] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +148,7 @@ const StoryReaderScreen: React.FC = () => {
 
         // Process Rewards
         const newRewards: typeof rewardQueue = [];
+        const collectedArtifacts: InventoryItem[] = [];
 
         if (result.personalityChanges) {
           result.personalityChanges.forEach((pc: any) => {
@@ -151,6 +157,7 @@ const StoryReaderScreen: React.FC = () => {
               if (pc.rewards.newItems) {
                 pc.rewards.newItems.forEach((item: InventoryItem) => {
                   newRewards.push({ item, type: 'new_item' });
+                  collectedArtifacts.push(item);
                 });
               }
               // Upgraded Items
@@ -172,6 +179,17 @@ const StoryReaderScreen: React.FC = () => {
         if (newRewards.length > 0) {
           console.log('🎁 Queuing rewards:', newRewards);
           setRewardQueue(prev => [...prev, ...newRewards]);
+        }
+
+        // Show artifact toast notification if an artifact was earned
+        if (collectedArtifacts.length > 0) {
+          const firstArtifact = collectedArtifacts[0];
+          console.log('🏆 Artifact earned:', firstArtifact.name);
+          setEarnedArtifact(firstArtifact);
+          // Small delay to let the story completion sink in
+          setTimeout(() => {
+            setShowArtifactToast(true);
+          }, 1500);
         }
 
         // Show success notification with compact personality changes
@@ -409,6 +427,18 @@ const StoryReaderScreen: React.FC = () => {
           item={currentReward.item}
           skill={currentReward.skill}
           type={currentReward.type}
+        />
+      )}
+
+      {/* Artifact Reward Toast */}
+      {earnedArtifact && (
+        <ArtifactRewardToast
+          isVisible={showArtifactToast}
+          item={earnedArtifact}
+          onClose={() => {
+            setShowArtifactToast(false);
+            setEarnedArtifact(null);
+          }}
         />
       )}
 

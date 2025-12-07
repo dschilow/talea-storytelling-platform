@@ -20,7 +20,7 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
 
   const CATEGORIES = [
     {
-      id: 'fairy_tales',
+      id: 'fairy-tales',
       title: t('wizard.categories.fairy_tales.title'),
       description: t('wizard.categories.fairy_tales.description'),
       icon: Sparkles,

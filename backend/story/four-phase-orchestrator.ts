@@ -990,7 +990,18 @@ export class FourPhaseOrchestrator {
         }
       }
 
-      const age = 30; // Adults default to 30
+      // Determine age from age_category or default to 30 for adults
+      let age = 30;
+      if (char.age_category) {
+        switch (char.age_category) {
+          case 'child': age = 8; break;
+          case 'teenager': age = 15; break;
+          case 'young_adult': age = 22; break;
+          case 'adult': age = 35; break;
+          case 'elder': age = 65; break;
+          default: age = 30;
+        }
+      }
 
       allCharacters.set(char.name.toLowerCase(), {
         name: char.name,
