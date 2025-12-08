@@ -19,6 +19,9 @@ import {
 } from "../fairytales/role-transformations";
 import { OriginalityValidator } from "./originality-validator";
 import type { InventoryItem } from "../avatar/avatar";
+// NEW: Import professional storytelling rules v2.0
+import { generateCompleteRulesBlockEN, containsMetaPatterns } from "./professional-storytelling-rules";
+import StoryPostProcessor, { getQualityLabel } from "./story-post-processor";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -280,18 +283,57 @@ export class Phase3StoryFinalizer {
         throw new Error("No content in Phase 3 response");
       }
 
-      const finalStory = JSON.parse(content) as FinalizedStory;
+      let finalStory = JSON.parse(content) as FinalizedStory;
 
       // Validate structure
       this.validateFinalStory(finalStory);
-      
+
       // Debug: Log artifact status after validation
       console.log("[Phase3] 🎁 Artifact status after validation:", {
         hasArtifact: !!finalStory.newArtifact,
         artifactName: finalStory.newArtifact?.name || 'none',
         artifactType: finalStory.newArtifact?.type || 'none'
       });
-      
+
+      // NEW: Post-processing with professional quality rules v2.0
+      console.log("[Phase3] 📝 Running professional quality post-processor...");
+      const postProcessor = new StoryPostProcessor(input.config.ageGroup || '6-8');
+      const postProcessResult = postProcessor.process(finalStory);
+
+      // Log quality score
+      const qualityLabel = getQualityLabel(postProcessResult.qualityScore.overall);
+      console.log(`[Phase3] 📊 Quality Score: ${postProcessResult.qualityScore.overall}/10 ${qualityLabel}`);
+      console.log(`[Phase3] 📊 Breakdown:`, {
+        title: postProcessResult.qualityScore.titleScore,
+        dialogue: postProcessResult.qualityScore.dialogueScore,
+        showDontTell: postProcessResult.qualityScore.showDontTellScore,
+        sentenceLength: postProcessResult.qualityScore.sentenceLengthScore,
+        sensory: postProcessResult.qualityScore.sensoryScore,
+        structure: postProcessResult.qualityScore.structureScore,
+        metaPenalty: postProcessResult.qualityScore.metaPatternPenalty,
+      });
+
+      // Log issues and suggestions
+      if (postProcessResult.qualityScore.issues.length > 0) {
+        console.warn(`[Phase3] ⚠️ Quality Issues:`, postProcessResult.qualityScore.issues);
+      }
+      if (postProcessResult.qualityScore.suggestions.length > 0) {
+        console.log(`[Phase3] 💡 Suggestions:`, postProcessResult.qualityScore.suggestions);
+      }
+
+      // Apply cleaned story if modifications were made
+      if (postProcessResult.wasModified) {
+        console.log(`[Phase3] 🔧 Applied modifications:`, postProcessResult.modifications);
+        finalStory = postProcessResult.story;
+      }
+
+      // Check for critical meta-pattern issues
+      const metaCheck = containsMetaPatterns(finalStory.chapters.map(c => c.content).join('\n'));
+      if (metaCheck.hasMeta) {
+        console.error(`[Phase3] ❌ CRITICAL: Meta-patterns still present after post-processing:`, metaCheck.patterns);
+        // Don't throw - just log warning for now, as we want to see the output
+      }
+
       this.validateStoryQuality(finalStory, input.avatarDetails, selectedFairyTale, input.config.hasTwist ?? false, input.config.language);
 
       // NEW: Validate originality if fairy tale was used
@@ -855,8 +897,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
   /**
    * Generate a fallback artifact when AI doesn't provide one
    */
-  private generateFallbackArtifact(story: any): any {
-    const storyTitle = story.title || "Abenteuer";
+  private generateFallbackArtifact(_story: any): any {
     const types = ['TOOL', 'WEAPON', 'KNOWLEDGE', 'COMPANION'] as const;
     const randomType = types[Math.floor(Math.random() * types.length)];
     
@@ -889,7 +930,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
     avatars: Array<{ name: string }>,
     fairyTale: SelectedFairyTale | null,
     twistRequired: boolean,
-    language?: string
+    _language?: string
   ) {
     console.log("[Phase3] 🛡️ Validating story quality (Logic v2 - Relaxed)");
     const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
@@ -1127,7 +1168,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
    * Build prompt using fairy tale template
    */
   private buildFairyTalePrompt(
-    skeletonWithNames: StorySkeleton,
+    _skeletonWithNames: StorySkeleton, // Skeleton is used indirectly via chapter structure
     assignments: Map<string, CharacterTemplate>,
     config: StoryConfig,
     avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>,
@@ -1193,16 +1234,6 @@ IMPORTANT LANGUAGE INSTRUCTION:
       .map((mapping) => `- ${mapping.fairyTaleRole} ? ${mapping.avatarName} (${mapping.roleType})`)
       .join("\n");
 
-    // Build scene structure from fairy tale
-    const sceneStructure = fairyTale.scenes
-      .map((scene) => {
-        let sceneText = `Szene ${scene.sceneNumber}: ${scene.sceneTitle}\n`;
-        sceneText += `Stimmung: ${scene.mood}, Setting: ${scene.setting}\n`;
-        sceneText += `Beschreibung: ${scene.sceneDescription}\n`;
-        return sceneText;
-      })
-      .join("\n");
-
     // ==================== SCENE-TO-CHAPTER MAPPING ====================
     // Map fairy tale scenes (6-9 scenes) to exactly 5 chapters
     const sceneChapterMapping = this.mapScenesToChapters(fairyTale.scenes);
@@ -1246,174 +1277,153 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
     const styleInstructions = this.buildStyleInstructions(config, experience);
 
-    return `
-Du bist ein preisgekrönter Kinderbuch-Autor. Deine Aufgabe: Schreibe eine EIGENE, neue Geschichte, inspiriert von "${fairyTale.tale.title}" - personalisiert mit den Avataren des Benutzers. KEINE 1:1-Nacherzaehlung; Motive duerfen erkannt werden, aber Plot/Twist/Setpieces sind neu.
+    // Determine target language name for the prompt
+    const languageMap: Record<string, string> = {
+      'de': 'German',
+      'en': 'English',
+      'ru': 'Russian',
+      'fr': 'French',
+      'es': 'Spanish',
+      'it': 'Italian',
+    };
+    const targetLanguage = languageMap[config.language || 'de'] || 'German';
 
-?? ROLLEN-BESETZUNG (Märchen ? Benutzer-Avatare):
+    // NEW: Generate professional quality rules in English (better AI understanding)
+    const professionalRules = generateCompleteRulesBlockEN(config.ageGroup || '6-8', targetLanguage);
+
+    return `
+You are an award-winning children's book author. Your task: Write an ORIGINAL, new story inspired by "${fairyTale.tale.title}" - personalized with the user's avatars. NO 1:1 retelling; motifs may be recognized, but plot/twists/setpieces are new.
+
+CRITICAL: Write all story content in ${targetLanguage}. Only imageDescription fields should be in English.
+
+## ROLE CASTING (Fairy Tale → User Avatars):
 ${roleMappingText}
 
-?? CHARAKTER-DETAILS:
-Hauptcharaktere (User-Avatare):
+## CHARACTER DETAILS:
+Main Characters (User Avatars):
 ${avatarDetailsText}
 
-Nebencharaktere (Character Pool):
+Supporting Characters (Character Pool):
 ${characterDetails}
 
-🎯 KRITISCH - CHARAKTER-INTEGRATION:
-- ALLE Hauptcharaktere (User-Avatare) müssen AKTIVE Rollen spielen
-- Jeder Avatar muss in MINDESTENS 3 von 5 Kapiteln aktiv handeln (nicht nur beobachten!)
-- Avatare müssen EIGENE Entscheidungen treffen und Probleme lösen
-- Zeige INTERAKTIONEN zwischen den Avataren (Dialoge, Zusammenarbeit, Konflikte)
-- Nebencharaktere unterstützen, aber Avatare sind die HAUPTAKTEURE
-- Vermeide: "Adrian stand dabei und schaute zu" ❌
-- Besser: "Adrian griff ein und half mit seiner Idee" ✅
+## CRITICAL - CHARACTER INTEGRATION:
+- ALL main characters (User Avatars) must play ACTIVE roles
+- Each avatar must act in AT LEAST 3 of 5 chapters (not just observe!)
+- Avatars must make their OWN decisions and solve problems
+- Show INTERACTIONS between avatars (dialogues, cooperation, conflicts)
+- Supporting characters assist, but avatars are the MAIN ACTORS
+- AVOID: "Adrian stood by and watched" ❌
+- BETTER: "Adrian stepped in and helped with his idea" ✅
 
-?? HANDLUNG: INSPIRATIONS-PLOT AUS "${fairyTale.tale.title}"
-?? KRITISCH: Nutze die Szenen nur als Richtungsgeber. Du darfst umordnen, mischen, streichen und neue Konflikte/Twists einbauen. Leser sollen Motive erkennen, aber die Handlung muss frisch sein.
+## PLOT: INSPIRATION FROM "${fairyTale.tale.title}"
+CRITICAL: Use scenes only as direction. You MAY reorder, mix, delete and add new conflicts/twists. Readers should recognize motifs, but the plot must be fresh.
 
 ${chapterStructure}
 
-?? KONFLIKT-PFLICHT & HINDERNISSE:
-- Jedes Kapitel braucht ein konkretes Hindernis (Antagonist, Falle, Rätsel, moralisches Dilemma oder physische Gefahr).
-- Kapitel 1-2: Gefahr nur anteasern, aber spürbar machen (Wolf beobachtet, Hexe wirft Fluch, Natur droht).
-- Kapitel 3: Eskalation mit echtem Risiko (Gefangenschaft, Verlust, drohende Niederlage).
-- Kapitel 4: Aktiver Gegenschlag der Avatare, klarer Konflikt mit Konsequenzen.
-- Kapitel 5: Finale Konfrontation + Lösung, Hindernis wird überwunden (nicht übersprungen!).
-- Benenne Antagonist*innen oder Hindernisse klar und lasse sie handeln ("Die Hexe sperrt sie ein", "Der Nebel verschlingt den Pfad").
-- Keine rein inneren Konflikte ohne äußeres Ereignis.
+## CONFLICT REQUIREMENT & OBSTACLES:
+- Every chapter needs a concrete obstacle (antagonist, trap, puzzle, moral dilemma, or physical danger)
+- Chapters 1-2: Only tease danger, but make it palpable (wolf watches, witch casts curse, nature threatens)
+- Chapter 3: Escalation with real risk (captivity, loss, impending defeat)
+- Chapter 4: Active counterattack by avatars, clear conflict with consequences
+- Chapter 5: Final confrontation + resolution, obstacle is overcome (not skipped!)
+- Name antagonists or obstacles clearly and let them act ("The witch locks them up", "The fog swallows the path")
+- No purely internal conflicts without external events
 
-?? MORALISCHE LEKTION: ${fairyTale.tale.moralLesson}
+## MORAL LESSON: ${fairyTale.tale.moralLesson}
 
-🎯 KRITISCH - MORAL UMSETZEN:
-- Die Moral MUSS durch HANDLUNGEN demonstriert werden, nicht nur erwähnt
-- Zeige KONSEQUENZEN wenn Charaktere falsch handeln
-- Der Protagonist muss die Lektion LERNEN und ANWENDEN
-- KEINE Abkürzungen oder Umgehungen der moralischen Herausforderung
-- Beispiel: Wenn Moral = "Halte Versprechen", dann MUSS der Protagonist ein Versprechen halten (nicht umhandeln!)
+CRITICAL - IMPLEMENT THE MORAL:
+- The moral MUST be demonstrated through ACTIONS, not just mentioned
+- Show CONSEQUENCES when characters act wrongly
+- The protagonist must LEARN and APPLY the lesson
+- NO shortcuts or circumventions of the moral challenge
+- Example: If moral = "Keep promises", then the protagonist MUST keep a promise (not negotiate around it!)
 
 ${styleInstructions}
 
-?? PROFESSIONAL STORYTELLING RULES:
+${professionalRules}
 
-0?? **MORALISCHE INTEGRITÄT**: Die moralische Lektion muss klar und konsequent umgesetzt werden.
-   - Protagonist muss die Lektion durch eigene Erfahrung lernen
-   - Zeige negative Folgen bei Fehlverhalten
-   - Zeige positive Folgen bei richtigem Verhalten
-   - KEINE moralischen Abkürzungen oder "Schlupflöcher"
+## CINEMATIC IMAGE DESCRIPTIONS (ALWAYS in English, 80-120 words):
+- Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
+- Character details: Insert avatar names and physical features
+- LIGHTING: "golden hour", "dramatic shadows", "soft moonlight"
+- COMPOSITION: Foreground, midground, background
+- MOOD/ATMOSPHERE: Specific adjectives
+- Style reference: "Watercolor illustration style, Axel Scheffler inspired"
+- Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset. FOREGROUND: Dark twisted roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest. MOOD: Brave but cautious. Watercolor style."
 
-1?? **FLEXIBLES PLOT-GERUEST**: Nutze die Szenen-Zuordnung als Vorschlag. Du DARFST Szenen mischen, streichen oder zusammenlegen, solange Tempo und Konflikt pro Kapitel klar sind.
-   - Kapitel 1-2: Ausgangslage + Problem aufbauen (passende Szenen mischen)
-   - Kapitel 3: Eskalation/Finte (eigener Dreh erlaubt)
-   - Kapitel 4: Twist oder Wendepunkt (darf vom Original abweichen)
-   - Kapitel 5: Aufloesung mit frischem Ende (kein Copy-Paste aus Vorlage)
+## STORY SOUL: ${(experience as any).storySoul || 'magische_entdeckung'}
+${(experience as any).storySoul === 'wilder_ritt' ? '- Fast-paced action! Chases, puzzles, physical challenges' : ''}
+${(experience as any).storySoul === 'herzenswaerme' ? '- Emotional moments, friendship, togetherness, warm feelings' : ''}
+${(experience as any).storySoul === 'magische_entdeckung' ? '- Wonder, magic discoveries, fantastic elements' : ''}
 
-2?? **IKONISCHE MOMENTE**: Hebe 2-3 erkennbare Motive aus "${fairyTale.tale.title}" hervor, aber erfinde neue Setpieces und Outcomes. Wiedererkennung ja, Kopie nein.
-
-3?? **FILMISCHE SPRACHE** (Altersgruppe: ${config.ageGroup}):
-   - 40% kurze Sätze (3-7 Wörter): "Der Wald war dunkel."
-   - 40% mittlere Sätze (8-15 Wörter): "Alexander hörte ein Knacken zwischen den Bäumen."
-   - 20% lange Sätze (16-25 Wörter): "Mit klopfendem Herzen schlich er näher, die Augen weit aufgerissen vor Angst und Neugier."
-   
-4?? **SENSORISCHE DETAILS** (3+ pro Kapitel):
-   - Sehen: Farben, Bewegungen, Licht/Schatten
-   - Hören: Geräusche, Stimmen, Stille
-   - Fühlen: Texturen, Temperatur, körperliche Empfindungen
-   - Riechen/Schmecken: Düfte, Geschmack
-   
-5?? **EMOTIONALE TIEFE**:
-   - Zeige Gefühle durch Körpersprache: "Ihre Hände zitterten", "Sein Atem stockte"
-   - Nutze konkrete Details statt abstrakter Konzepte
-   - Vermeide: "Sie fühlte Angst" ?
-   - Nutze: "Ihr Herz raste wie ein gehetztes Kaninchen" ?
-
-6?? **DIALOGE** (2-3 pro Kapitel):
-   - Kurz, natürlich, charakterspezifisch
-   - Mit Begleitsätzen: "flüsterte", "rief", "fragte atemlos"
-   
-7?? **CINEMATIC IMAGE DESCRIPTIONS** (English, 80-120 words):
-   - Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
-   - Character details: Insert avatar names and physical features
-   - LIGHTING: "golden hour", "dramatic shadows", "soft moonlight"
-   - COMPOSITION: Foreground, midground, background
-   - MOOD/ATMOSPHERE: Specific adjectives
-   - Style reference: "Watercolor illustration style, Axel Scheffler inspired"
-   - Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset backlighting creates silhouette. FOREGROUND: Dark twisted tree roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest fading into darkness. MOOD: Brave but cautious. Watercolor style, rich shadows, warm-cool contrast."
-
-8?? **STORY SOUL**: ${(experience as any).storySoul || 'magische_entdeckung'}
-   ${(experience as any).storySoul === 'wilder_ritt' ? '- Temporeiche Action! Verfolgungsjagden, Rätsel, physische Herausforderungen' : ''}
-   ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotionale Momente, Freundschaft, Zusammenhalt, warme Gefühle' : ''}
-   ${(experience as any).storySoul === 'magische_entdeckung' ? '- Staunen, Wunder, magische Entdeckungen, fantastische Elemente' : ''}
-
-9?? **KAPITEL-LÄNGE**: 380-450 Wörter pro Kapitel
-   - Genug Details für immersive Erfahrung
-   - Nicht zu lang für junge Leser
-
-?? PLOT-KOMBINATION: Verwende Story-Skelett + Maerchen-Szenen als Ideenkatalog. Original dient nur als Leitstern; neu erfundene Konflikte/Twists sind erwuenscht. Erhalte Tempo (5 Kapitel) und Genre, aber schreibe eine neue Abfolge.
+## CHAPTER LENGTH: 380-450 words per chapter
+- Enough detail for immersive experience
+- Not too long for young readers
 
 ${remixInstructions ? `
-?? ═══════════════════════════════════════════════════════════════
-   ORIGINALITY ENFORCEMENT - KRITISCH WICHTIG!
-═══════════════════════════════════════════════════════════════
+## ORIGINALITY ENFORCEMENT - CRITICAL!
+══════════════════════════════════════════════════════════════════════════════
 
 ${remixInstructions}
 
-?? VALIDATION: Die Geschichte wird auf Originalität geprüft!
-- Maximale erlaubte Überlappung mit "${fairyTale.tale.title}": 40%
-- Vermeide direkte Phrasen-Kopien aus dem Original
-- Strukturelle Ähnlichkeit muss unter 80% bleiben
+VALIDATION: The story will be checked for originality!
+- Maximum allowed overlap with "${fairyTale.tale.title}": 40%
+- Avoid direct phrase copies from the original
+- Structural similarity must stay under 80%
 
-🚨 KRITISCH: ORIGINALITÄTS-ANFORDERUNGEN
-- KEINE wörtlichen Zitate oder Phrasen aus dem Original-Märchen
-- EIGENE Dialoge erfinden - nicht aus Vorlage kopieren
-- Lösungen und Wendepunkte MÜSSEN anders sein als im Original
-- Setting-Details variieren (nicht exakt gleicher Ort/Zeit)
-- Charakternamen aus dem Original dürfen NICHT verwendet werden (außer User-Avatare)
-- Die Geschichte muss in 3 Sätzen zusammenfassbar sein, OHNE das Original-Märchen zu nennen
+CRITICAL ORIGINALITY REQUIREMENTS:
+- NO verbatim quotes or phrases from the original fairy tale
+- INVENT your own dialogues - don't copy from template
+- Solutions and turning points MUST differ from original
+- Vary setting details (not exact same place/time)
+- Character names from original may NOT be used (except user avatars)
+- The story must be summarizable in 3 sentences WITHOUT mentioning the original
 
-WICHTIG: Wenn du die Remix-Strategien ignorierst, wird die Geschichte abgelehnt!
-Kreative Abweichungen vom Original sind nicht nur erlaubt, sondern GEFORDERT!
+IMPORTANT: If you ignore remix strategies, the story will be rejected!
+Creative deviations from the original are not only allowed, but REQUIRED!
 
-` : ''}?? AUSGABE-FORMAT (JSON):
+` : ''}## OUTPUT FORMAT (JSON):
 {
-  "title": "[Avatar-Namen] und das [Märchen-Thema]",
-  "description": "Eine personalisierte Version von ${fairyTale.tale.title}",
+  "title": "SHORT TITLE (max 4 words, mysterious object/place - NOT '[Name] and the...')",
+  "description": "A personalized version of ${fairyTale.tale.title} (in ${targetLanguage})",
   "chapters": [
     {
       "order": 1,
-      "title": "[Basierend auf Szenen-Titel]",
-      "content": "380-450 Woerter. Filmische Erzaehlung mit kurzen Saetzen, sensorischen Details, Emotionen. Eigenstaendige Handlung (inspiriert, nicht kopiert).",
+      "title": "Chapter title (in ${targetLanguage})",
+      "content": "380-450 words in ${targetLanguage}. Cinematic narrative with short sentences, sensory details, emotions. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.!",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
-    // ... 4 weitere Kapitel
+    // ... 4 more chapters
   ],
   "avatarDevelopments": [
     {
-      "avatarName": "${avatarDetails.map(a => a.name).join(' oder ')}",
+      "avatarName": "${avatarDetails.map(a => a.name).join(' or ')}",
       "updates": [
         {
-          "trait": "knowledge" oder "knowledge.subcategory" (z.B. "knowledge.fairytales", "knowledge.history"),
-          "change": +2 bis +10 (positive Zahl für Wachstum),
-          "description": "Warum hat der Avatar dieses Trait entwickelt? Was hat er gelernt oder erlebt?"
+          "trait": "knowledge" or "knowledge.subcategory" (e.g., "knowledge.fairytales", "knowledge.history"),
+          "change": +2 to +10 (positive number for growth),
+          "description": "Why did the avatar develop this trait? What did they learn or experience? (in ${targetLanguage})"
         },
         {
-          "trait": "creativity" oder "courage" oder "empathy" etc.,
-          "change": +1 bis +5,
-          "description": "Konkrete Begründung basierend auf der Handlung"
+          "trait": "creativity" or "courage" or "empathy" etc.,
+          "change": +1 to +5,
+          "description": "Concrete reason based on the plot (in ${targetLanguage})"
         }
       ]
     }
   ]
 }
 
-🎯 KRITISCH: avatarDevelopments ist MANDATORY!
-- Jeder Avatar MUSS mindestens 2-4 Trait-Updates bekommen
+## CRITICAL: avatarDevelopments is MANDATORY!
+- Every avatar MUST get at least 2-4 trait updates
 - Traits: knowledge (+ subcategories like .fairytales, .history), creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic
 - Base traits (creativity, courage, etc.) max 100, knowledge subcategories max 1000
-- Changes basieren auf KONKRETEN Story-Ereignissen
-- Description erklärt WAS der Avatar gelernt/erlebt hat
-- Beispiel: Avatar löst Rätsel → logic +3, "Hat durch das Lösen des Frosch-Rätsels logisches Denken trainiert"
+- Changes based on CONCRETE story events
+- Description explains WHAT the avatar learned/experienced
 
-? SCHREIBE JETZT: Die vollständige personalisierte ${fairyTale.tale.title}-Geschichte mit allen 5 Kapiteln UND avatarDevelopments!
+## FINAL INSTRUCTION:
+Write the complete personalized "${fairyTale.tale.title}" story with all 5 chapters AND avatarDevelopments NOW!
+Remember: Story content in ${targetLanguage}, imageDescription in English, NO meta-labels in the text!
 `;
   }
 

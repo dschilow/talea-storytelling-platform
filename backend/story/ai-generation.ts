@@ -66,77 +66,77 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   rhymed_playful: {
     inspiration:
       "Inspired by 'Der Grüffelo': rhythmic, playful cadence with gentle call-and-response energy; keep lines musical yet clearly understandable.",
-    description: "Gereimte Wendungen, Call-and-Response, humorvoll.",
+    description: "Rhymed phrases, call-and-response, humorous.",
   },
   gentle_minimal: {
     inspiration:
       "Inspired by 'Die kleine Raupe Nimmersatt': minimal, soothing structure with repeating phrases and calm sensory cues; ideal for bedtime.",
-    description: "Wiederholung, klare Struktur, ruhig.",
+    description: "Repetition, clear structure, calm.",
   },
   wild_imaginative: {
     inspiration:
       "Inspired by 'Wo die wilden Kerle wohnen': bold imaginative energy with safe boundaries that celebrate curiosity and courage.",
-    description: "Rebellische Imagination, sichere Grenzen.",
+    description: "Rebellious imagination, safe boundaries.",
   },
   philosophical_warm: {
     inspiration:
       "Inspired by 'Der kleine Prinz': warm, reflective narration with small pearls of wisdom and poetic comparisons.",
-    description: "Kleine Weisheiten, poetische Bilder.",
+    description: "Small wisdoms, poetic imagery.",
   },
   mischief_empowering: {
     inspiration:
       "Inspired by 'Pippi Langstrumpf': mischievous, empowering tone where kids act confidently and humor drives the plot.",
-    description: "Selbstwirksamkeit, Humor.",
+    description: "Self-efficacy, humor.",
   },
   adventure_epic: {
     inspiration:
       "Inspired by 'Harry Potter': episodic adventure feeling with clear quests and team spirit, always age-appropriate.",
-    description: "Quest-Gefühl, kindgerecht dosiert.",
+    description: "Quest feeling, age-appropriate dosage.",
   },
   quirky_dark_sweet: {
     inspiration:
       "Inspired by 'Charlie und die Schokoladenfabrik': quirky, gently dark sweetness with surprising yet friendly twists.",
-    description: "Leicht schräg, immer freundlich.",
+    description: "Slightly quirky, always friendly.",
   },
   cozy_friendly: {
     inspiration:
       "Inspired by 'Winnie Puuh': cozy, dialogue-rich scenes full of friendship, snacks, and gentle warmth.",
-    description: "Gemütliche Dialoge, Freundschaft.",
+    description: "Cozy dialogue, friendship.",
   },
   classic_fantasy: {
     inspiration:
       "Inspired by 'Peter Pan': timeless, fairy-tale fantasy with wide-eyed heroes and classic motifs.",
-    description: "Zeitlose Fantasie.",
+    description: "Timeless fantasy.",
   },
   whimsical_logic: {
     inspiration:
       "Inspired by 'Alice im Wunderland': playful logic puzzles and wordplay that remain easy to follow for kids.",
-    description: "Logikspiele, verspielt (altersgerecht).",
+    description: "Logic games, playful (age-appropriate).",
   },
   mythic_allegory: {
     inspiration:
       "Inspired by 'Die Chroniken von Narnia': mythic, softly allegorical storytelling with symbolic moments and calm heroism.",
-    description: "Symbolik, Teamgeist.",
+    description: "Symbolism, team spirit.",
   },
   road_fantasy: {
     inspiration:
       "Inspired by 'Der Zauberer von Oz': journey-style fantasy with clear stages, memorable companions, and scenic landscapes.",
-    description: "Weg, Etappen, Gefährten.",
+    description: "Journey, stages, companions.",
   },
   imaginative_meta: {
     inspiration:
       "Inspired by 'Die unendliche Geschichte': meta-fantasy celebrating imagination itself with stories inside stories.",
-    description: "Geschichte in Geschichte (einfach).",
+    description: "Story within story (simple).",
   },
   pastoral_heart: {
     inspiration:
       "Inspired by 'Heidi': pastoral warmth with nature imagery, heartfelt community, and gentle resilience.",
-    description: "Alpen-Gefühl, Geborgenheit.",
+    description: "Alpine feeling, comfort.",
   },
   bedtime_soothing: {
     inspiration:
       "Inspired by 'Gute Nacht, Mond': extremely soothing, near-whisper bedtime tone with long, dreamy sentences.",
-    description: "Sehr sanft, flüsterndes Tempo.",
+    description: "Very gentle, whispering pace.",
   },
 };
 
@@ -1288,18 +1288,18 @@ async function generateStoryWithOpenAITools(args: {
       : undefined;
   const systemStyleAddendum = stylePresetMeta
     ? `
-⭐ STIL-PRESET (ABSOLUT PRIORITÄR):
+⭐ STYLE PRESET (ABSOLUTE PRIORITY):
 - INSPIRATION: ${stylePresetMeta.inspiration}
-- BESCHREIBUNG: ${stylePresetMeta.description}
-- WICHTIG: Dieser Stil MUSS in JEDEM Kapitel spürbar sein!`
+- DESCRIPTION: ${stylePresetMeta.description}
+- IMPORTANT: This style MUST be perceptible in EVERY chapter!`
     : "";
   const userStyleAddendum = stylePresetMeta
     ? `
-⭐ STIL-PRESET (KRITISCH WICHTIG):
+⭐ STYLE PRESET (CRITICALLY IMPORTANT):
 INSPIRATION: ${stylePresetMeta.inspiration}
-BESCHREIBUNG: ${stylePresetMeta.description}
+DESCRIPTION: ${stylePresetMeta.description}
 
-DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
+You MUST implement this style consistently in ALL chapters!`
     : "";
 
   const languageDirective =
@@ -1346,19 +1346,19 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
       const examples: string[] = [];
 
       if (vp?.hair?.color) {
-        examples.push("\"" + avatar.name + " brushes a strand of " + vp.hair.color + " hair aside.\"");
+        examples.push(`"${avatar.name} brushes a strand of ${vp.hair.color} hair aside."`);
       }
       if (vp?.eyes?.color) {
-        examples.push("\"" + avatar.name + "'s " + vp.eyes.color + " eyes sparkle with curiosity.\"");
+        examples.push(`"${avatar.name}'s ${vp.eyes.color} eyes sparkle with curiosity."`);
       }
       if (vp?.clothingCanonical?.top) {
-        examples.push("\"The " + vp.clothingCanonical.top + " sways as " + avatar.name + " turns.\"");
+        examples.push(`"The ${vp.clothingCanonical.top} sways as ${avatar.name} turns."`);
       }
       if (vp?.locomotion === "quadruped") {
-        examples.push("\"" + avatar.name + " darts forward on four paws.\"");
+        examples.push(`"${avatar.name} darts forward on four paws."`);
       }
       if (examples.length === 0) {
-        examples.push("\"" + avatar.name + " reacts vividly to the scene.\"");
+        examples.push(`"${avatar.name} reacts vividly to the scene."`);
       }
 
       return examples.join("\n  ");
@@ -1447,7 +1447,7 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
 
   const avatarSummary = avatars
     .map((avatar) => {
-      const description = avatar.description ? avatar.description.trim() : "Keine Beschreibung vorhanden.";
+      const description = avatar.description ? avatar.description.trim() : "No description available.";
       return "- " + avatar.name + " (id: " + avatar.id + "): " + description;
     })
     .join("\n");
@@ -1525,7 +1525,7 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
     "CONFIGURATION:",
     "- Complexity: " + config.complexity,
     "- Learning mode enabled: " + Boolean(config.learningMode?.enabled),
-    config.learningMode?.enabled ? "- Learning objectives: " + ((config.learningMode.learningObjectives ?? []).join(", ") || "keine") : undefined,
+    config.learningMode?.enabled ? "- Learning objectives: " + ((config.learningMode.learningObjectives ?? []).join(", ") || "none") : undefined,
     config.allowRhymes ? "- Rhymes: encouraged (playful and natural)." : "- Rhymes: use prose; avoid rhymed verse.",
     config.suspenseLevel !== undefined ? "- Suspense level target: " + config.suspenseLevel + "/5." : undefined,
     config.humorLevel !== undefined ? "- Humor level target: " + config.humorLevel + "/5." : undefined,
@@ -1658,22 +1658,22 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
 
   const choice = data.choices?.[0];
   if (!choice?.message) {
-    throw new Error("Ungültige Antwort von OpenAI (keine Nachricht im vollständigen Ergebnis).");
+    throw new Error("Invalid response from OpenAI (no message in complete result).");
   }
 
   if (choice.finish_reason === "content_filter") {
-    throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
+    throw new Error("The request was blocked by OpenAI's content filter.");
   }
 
   if (choice.finish_reason === "length") {
     throw new Error(
-      "Die Story-Generierung wurde wegen Token-Limit abgeschnitten. Bitte versuche es mit kürzeren Einstellungen."
+      "Story generation was cut off due to token limit. Please try with shorter settings."
     );
   }
 
   const content = choice.message.content;
   if (!content) {
-    throw new Error("Leere Antwort von OpenAI erhalten.");
+    throw new Error("Empty response received from OpenAI.");
   }
 
   let parsedStory: StoryToolOutcome["story"];
@@ -1690,7 +1690,7 @@ DU MUSST diesen Stil konsequent in ALLEN Kapiteln umsetzen!`
     parsedStory = tempParsed;
   } catch (error) {
     throw new Error(
-      `JSON Parse Fehler: ${(error as Error)?.message ?? String(error)}`
+      `JSON Parse Error: ${(error as Error)?.message ?? String(error)}`
     );
   }
 

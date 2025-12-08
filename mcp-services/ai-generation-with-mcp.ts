@@ -704,7 +704,7 @@ export const generateStoryContentWithMcp = api<
       console.error("❌ [ai-generation-mcp] ERROR:", error);
       metadata.processingTime = Date.now() - startTime;
       throw new Error(
-        `Story-Generierung mit MCP fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`
+        `Story generation with MCP failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
@@ -728,34 +728,34 @@ async function generateEnhancedStoryWithOpenAI(
   const chapterCount =
     config.length === "short" ? 3 : config.length === "medium" ? 5 : 8;
 
-  const systemPrompt = `Erstelle eine fesselnde Kindergeschichte. Kapitel enden mit Cliffhanger. Show don't tell. Halte dich an Avatar-Beschreibungen. Antworte nur mit JSON.`;
+  const systemPrompt = `Create an engaging children's story. Chapters end with cliffhangers. Show don't tell. Adhere to avatar descriptions. Respond only with JSON.`;
 
-  const userPrompt = `${config.genre}-Geschichte im ${config.setting} für ${config.ageGroup}. ${chapterCount} Kapitel.
+  const userPrompt = `${config.genre} story in ${config.setting} for ${config.ageGroup}. ${chapterCount} chapters.
 
-CHARAKTERE:
+CHARACTERS:
 ${avatars.map((a) => `${a.name}: ${a.description}`).join("\n")}
 
-PERSÖNLICHKEITS-UPDATE-SYSTEM:
-Analysiere die generierte Geschichte und bestimme welche Merkmale sich bei jedem Charakter entwickeln sollen.
+PERSONALITY UPDATE SYSTEM:
+Analyze the generated story and determine which traits should develop for each character.
 
-BASIS-MERKMALE (verwende diese exakten IDs):
+BASE TRAITS (use these exact IDs):
 courage, intelligence, creativity, empathy, strength, humor, adventure, patience, curiosity, leadership, teamwork
 
-WISSENS-MERKMALE (verwende knowledge.BEREICH):
+KNOWLEDGE TRAITS (use knowledge.AREA):
 knowledge.biology, knowledge.history, knowledge.physics, knowledge.geography, knowledge.astronomy, knowledge.mathematics, knowledge.chemistry
 
-PUNKTE-VERGABE:
-- Basis-Merkmale: 1-5 Punkte (je nach Relevanz zur Geschichte)
-- Wissens-Merkmale: 1-10 Punkte (je nach Lerninhalt)
-- Hauptcharaktere: Mehr Punkte als Nebencharaktere
+POINT ALLOCATION:
+- Base traits: 1-5 points (depending on relevance to story)
+- Knowledge traits: 1-10 points (depending on learning content)
+- Main characters: More points than supporting characters
 
-ANTWORT-FORMAT:
-Gib nur JSON zurück mit: title, description, chapters[{title,content,order,imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes.
+RESPONSE FORMAT:
+Return only JSON with: title, description, chapters[{title,content,order,imageDescription:{scene,characters,environment,composition}}], coverImageDescription, avatarDevelopments, learningOutcomes.
 
-avatarDevelopments muss folgendes Format haben:
-[{ "name": "Avatar-Name", "changedTraits": [{ "trait": "MERKMAL_ID", "change": PUNKTE }] }]
+avatarDevelopments must have the following format:
+[{ "name": "Avatar-Name", "changedTraits": [{ "trait": "TRAIT_ID", "change": POINTS }] }]
 
-Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 }, { "trait": "knowledge.history", "change": 5 }] }]`;
+Example: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 }, { "trait": "knowledge.history", "change": 5 }] }]`;
 
   const payload = {
     model: MODEL,
@@ -778,7 +778,7 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`OpenAI API Fehler: ${response.status} - ${errorText}`);
+    throw new Error(`OpenAI API Error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
@@ -793,16 +793,16 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
   const choice = data.choices?.[0];
 
   if (!choice) {
-    throw new Error("Ungültige Antwort von OpenAI (keine 'choices')");
+    throw new Error("Invalid response from OpenAI (no 'choices')");
   }
 
   if (choice.finish_reason === "content_filter") {
-    throw new Error("Die Anfrage wurde vom OpenAI Inhaltsfilter blockiert.");
+    throw new Error("The request was blocked by OpenAI's content filter.");
   }
 
   if (choice.finish_reason === "length") {
     throw new Error(
-      "Die Story-Generierung wurde wegen Token-Limit abgeschnitten."
+      "Story generation was cut off due to token limit."
     );
   }
 
@@ -810,7 +810,7 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
 
   if (!content) {
     throw new Error(
-      `Leere Antwort von OpenAI erhalten (Finish Reason: ${choice.finish_reason})`
+      `Empty response received from OpenAI (Finish Reason: ${choice.finish_reason})`
     );
   }
 
@@ -819,9 +819,9 @@ Beispiel: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 
     const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
     parsed = JSON.parse(cleanContent);
   } catch (e) {
-    console.error("JSON Parse Fehler:", e);
+    console.error("JSON Parse Error:", e);
     throw new Error(
-      `JSON Parse Fehler: ${e instanceof Error ? e.message : String(e)}`
+      `JSON Parse Error: ${e instanceof Error ? e.message : String(e)}`
     );
   }
 
