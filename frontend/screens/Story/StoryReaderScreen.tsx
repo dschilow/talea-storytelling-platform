@@ -96,6 +96,13 @@ const StoryReaderScreen: React.FC = () => {
   };
 
   const goToChapter = async (index: number) => {
+    console.log('🔄 goToChapter called:', { 
+      index, 
+      totalChapters: story?.chapters?.length, 
+      storyCompleted,
+      isLastChapter: story?.chapters ? index === story.chapters.length - 1 : false
+    });
+    
     if (!story || index < 0 || index >= story.chapters!.length) return;
 
     setAnimationDirection(index > currentChapterIndex ? 1 : -1);
@@ -104,6 +111,7 @@ const StoryReaderScreen: React.FC = () => {
 
     // Check if story is completed (reached last chapter)
     if (index === story.chapters!.length - 1 && !storyCompleted) {
+      console.log('🎯 Last chapter reached! Calling handleStoryCompletion...');
       await handleStoryCompletion();
     }
   };
@@ -409,6 +417,7 @@ const StoryReaderScreen: React.FC = () => {
                   // Last chapter - show "Complete Story" button
                   <motion.button
                     onClick={() => {
+                      console.log('🔘 Complete Story button clicked!', { storyCompleted });
                       if (!storyCompleted) {
                         handleStoryCompletion();
                       }
