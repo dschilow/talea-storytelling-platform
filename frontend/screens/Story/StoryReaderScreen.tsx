@@ -183,38 +183,55 @@ const StoryReaderScreen: React.FC = () => {
         // Show artifact toast notification for each artifact earned or upgraded
         if (collectedArtifacts.length > 0) {
           console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
-          // Show artifact toasts with a delay after the completion toast
-          import('../../utils/toastUtils').then(({ showArtifactEarnedToast }) => {
-            collectedArtifacts.forEach(({ item, isUpgrade }, index) => {
-              // Stagger the toasts so they don't all appear at once
-              setTimeout(() => {
-                showArtifactEarnedToast(item, undefined, isUpgrade);
-              }, 2000 + (index * 1500)); // 2s after completion, then 1.5s between each
-            });
+          // Show artifact toasts immediately - they're important rewards!
+          const { showArtifactEarnedToast } = await import('../../utils/toastUtils');
+          collectedArtifacts.forEach(({ item, isUpgrade }, index) => {
+            // Small stagger so toasts don't overlap
+            setTimeout(() => {
+              console.log(`🎁 Showing artifact toast ${index + 1}:`, item.name);
+              showArtifactEarnedToast(item, undefined, isUpgrade);
+            }, 500 + (index * 800)); // 0.5s initial, 0.8s between each
           });
+        } else {
+          console.log('📦 No artifacts collected in this session');
         }
 
         // Show personality update notifications for each avatar
+        console.log('🔔 Checking for personality changes to show:', {
+          hasPersonalityChanges: !!result.personalityChanges,
+          length: result.personalityChanges?.length || 0,
+          updatedAvatars: result.updatedAvatars
+        });
+        
         if (result.personalityChanges && result.personalityChanges.length > 0) {
-          import('../../utils/toastUtils').then(({ showPersonalityUpdateToast, showSuccessToast }) => {
-            // First show the completion message
-            showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
-            
-            // Then show individual personality updates for each avatar with a delay
-            result.personalityChanges.forEach((avatarChange: any, index: number) => {
-              if (avatarChange.changes && avatarChange.changes.length > 0) {
-                setTimeout(() => {
-                  // Show personality update toast with trait changes
-                  showPersonalityUpdateToast(avatarChange.changes);
-                }, 500 + (index * 1000)); // Stagger the toasts
-              }
+          const { showPersonalityUpdateToast, showSuccessToast } = await import('../../utils/toastUtils');
+          
+          // First show the completion message immediately
+          console.log('🎉 Showing completion toast for', result.updatedAvatars, 'avatars');
+          showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
+          
+          // Then show individual personality updates for each avatar with a delay
+          result.personalityChanges.forEach((avatarChange: any, index: number) => {
+            console.log(`🔔 Avatar ${index + 1} changes:`, {
+              avatarName: avatarChange.avatarName,
+              hasChanges: !!avatarChange.changes,
+              changesLength: avatarChange.changes?.length || 0,
+              changes: avatarChange.changes
             });
+            
+            if (avatarChange.changes && avatarChange.changes.length > 0) {
+              setTimeout(() => {
+                console.log(`🔔 Showing personality toast for ${avatarChange.avatarName}:`, avatarChange.changes);
+                // Show personality update toast with trait changes
+                showPersonalityUpdateToast(avatarChange.changes);
+              }, 800 + (index * 600)); // Faster timing - 0.8s initial, 0.6s between each
+            }
           });
         } else {
           // No personality changes, just show completion
-          import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-            showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
-          });
+          console.log('🔔 No personality changes found, showing only completion toast');
+          const { showSuccessToast } = await import('../../utils/toastUtils');
+          showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
         }
 
         // Helper function to get translated trait names
