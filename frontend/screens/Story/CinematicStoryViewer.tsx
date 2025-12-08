@@ -7,6 +7,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
 import { Typewriter } from '../../components/ui/typewriter-text';
+import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import type { Story, Chapter } from '../../types/story';
 import type { InventoryItem, Skill } from '../../types/avatar';
 import { cn } from '../../lib/utils';
@@ -24,6 +25,10 @@ const CinematicStoryViewer: React.FC = () => {
     const [started, setStarted] = useState(false);
     const [storyCompleted, setStoryCompleted] = useState(false);
     const [participants, setParticipants] = useState<any[]>([]);
+    
+    // Artifact reward display queue
+    const [artifactQueue, setArtifactQueue] = useState<{ item: InventoryItem; isUpgrade: boolean }[]>([]);
+    const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
 
     // Scroll Progress for the whole container
     const { scrollYProgress } = useScroll({
@@ -41,6 +46,21 @@ const CinematicStoryViewer: React.FC = () => {
             loadStory();
         }
     }, [storyId]);
+
+    // Process artifact queue - show next artifact when current one is closed
+    useEffect(() => {
+        console.log('🔄 Artifact queue effect triggered:', { currentArtifact, queueLength: artifactQueue.length, queue: artifactQueue });
+        if (!currentArtifact && artifactQueue.length > 0) {
+            const [next, ...rest] = artifactQueue;
+            console.log('🔄 Setting currentArtifact:', next);
+            setCurrentArtifact(next);
+            setArtifactQueue(rest);
+        }
+    }, [currentArtifact, artifactQueue]);
+
+    const handleCloseArtifact = () => {
+        setCurrentArtifact(null);
+    };
 
     const loadStory = async () => {
         if (!storyId) return;
@@ -138,18 +158,17 @@ const CinematicStoryViewer: React.FC = () => {
                     });
                 }
 
-                // Show artifact toast notification for each artifact earned or upgraded
+                // Show FULLSCREEN artifact display for each artifact earned or upgraded
                 if (collectedArtifacts.length > 0) {
                     console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
-                    const { showArtifactEarnedToast } = await import('../../utils/toastUtils');
-                    collectedArtifacts.forEach(({ item, isUpgrade }, index) => {
-                        setTimeout(() => {
-                            console.log(`🎁 Showing artifact toast ${index + 1}:`, item.name);
-                            showArtifactEarnedToast(item, undefined, isUpgrade);
-                        }, 500 + (index * 800));
-                    });
+                    console.log('🏆 Setting artifactQueue with', collectedArtifacts.length, 'items:', collectedArtifacts);
+                    // Add all artifacts to the queue - they will be shown one by one
+                    setArtifactQueue(collectedArtifacts);
+                    // Debug: Show first artifact directly as a test
+                    console.log('🏆 First artifact to show:', collectedArtifacts[0]);
                 } else {
                     console.log('📦 No artifacts collected in this session');
+                    console.log('📦 Full result.personalityChanges:', result.personalityChanges);
                 }
 
                 // Show personality update notifications for each avatar
@@ -361,6 +380,14 @@ const CinematicStoryViewer: React.FC = () => {
                     </div>
                 </section>
             </div>
+
+            {/* Fullscreen Artifact Reward Display */}
+            <ArtifactRewardToast
+                item={currentArtifact?.item || null}
+                isVisible={!!currentArtifact}
+                onClose={handleCloseArtifact}
+                isUpgrade={currentArtifact?.isUpgrade}
+            />
         </div>
     );
 };

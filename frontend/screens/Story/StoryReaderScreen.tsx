@@ -9,6 +9,7 @@ import { useBackend } from '../../hooks/useBackend';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
+import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 
@@ -37,6 +38,10 @@ const StoryReaderScreen: React.FC = () => {
   const [rewardQueue, setRewardQueue] = useState<Array<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' }>>([]);
   const [currentReward, setCurrentReward] = useState<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' } | null>(null);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+
+  // Fullscreen Artifact Display Queue
+  const [artifactQueue, setArtifactQueue] = useState<{ item: InventoryItem; isUpgrade: boolean }[]>([]);
+  const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +77,21 @@ const StoryReaderScreen: React.FC = () => {
       setRewardQueue(prev => prev.slice(1));
     }
   }, [showLevelUpModal, rewardQueue]);
+
+  // Artifact Queue Processing - show fullscreen artifact one by one
+  useEffect(() => {
+    console.log('🔄 Artifact queue effect triggered:', { currentArtifact, queueLength: artifactQueue.length });
+    if (!currentArtifact && artifactQueue.length > 0) {
+      const [next, ...rest] = artifactQueue;
+      console.log('🔄 Setting currentArtifact:', next);
+      setCurrentArtifact(next);
+      setArtifactQueue(rest);
+    }
+  }, [currentArtifact, artifactQueue]);
+
+  const handleCloseArtifact = () => {
+    setCurrentArtifact(null);
+  };
 
   const loadStory = async () => {
     if (!storyId) return;
@@ -188,18 +208,12 @@ const StoryReaderScreen: React.FC = () => {
           setRewardQueue(prev => [...prev, ...newRewards]);
         }
 
-        // Show artifact toast notification for each artifact earned or upgraded
+        // Show FULLSCREEN artifact display for each artifact earned or upgraded
         if (collectedArtifacts.length > 0) {
           console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
-          // Show artifact toasts immediately - they're important rewards!
-          const { showArtifactEarnedToast } = await import('../../utils/toastUtils');
-          collectedArtifacts.forEach(({ item, isUpgrade }, index) => {
-            // Small stagger so toasts don't overlap
-            setTimeout(() => {
-              console.log(`🎁 Showing artifact toast ${index + 1}:`, item.name);
-              showArtifactEarnedToast(item, undefined, isUpgrade);
-            }, 500 + (index * 800)); // 0.5s initial, 0.8s between each
-          });
+          console.log('🏆 Setting artifactQueue with', collectedArtifacts.length, 'items');
+          // Add all artifacts to the queue - they will be shown one by one as fullscreen modals
+          setArtifactQueue(collectedArtifacts);
         } else {
           console.log('📦 No artifacts collected in this session');
         }
@@ -461,6 +475,14 @@ const StoryReaderScreen: React.FC = () => {
           type={currentReward.type}
         />
       )}
+
+      {/* Fullscreen Artifact Reward Display */}
+      <ArtifactRewardToast
+        item={currentArtifact?.item || null}
+        isVisible={!!currentArtifact}
+        onClose={handleCloseArtifact}
+        isUpgrade={currentArtifact?.isUpgrade}
+      />
 
     </div>
   );

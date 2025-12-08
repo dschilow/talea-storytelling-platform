@@ -8,13 +8,15 @@ interface ArtifactRewardToastProps {
   isVisible: boolean;
   onClose: () => void;
   onViewDetails?: () => void;
+  isUpgrade?: boolean;
 }
 
 const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
   item,
   isVisible,
   onClose,
-  onViewDetails
+  onViewDetails,
+  isUpgrade = false
 }) => {
   if (!item) return null;
 
@@ -106,7 +108,7 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <Sparkles className="w-6 h-6 text-yellow-400" />
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 bg-clip-text text-transparent">
-                      Neues Artefakt erhalten!
+                      {isUpgrade ? `Artefakt verstärkt! (Stufe ${item.level})` : 'Neues Artefakt erhalten!'}
                     </h2>
                     <Sparkles className="w-6 h-6 text-yellow-400" />
                   </div>
