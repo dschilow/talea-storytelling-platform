@@ -8,6 +8,7 @@ import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
 import { Typewriter } from '../../components/ui/typewriter-text';
 import type { Story, Chapter } from '../../types/story';
+import type { InventoryItem, Skill } from '../../types/avatar';
 import { cn } from '../../lib/utils';
 
 const CinematicStoryViewer: React.FC = () => {
@@ -83,7 +84,11 @@ const CinematicStoryViewer: React.FC = () => {
     };
 
     const handleStoryCompletion = async () => {
-        if (!story || !storyId || storyCompleted) return;
+        console.log('📖 Story completed - triggering personality updates for all eligible avatars');
+        if (!story || !storyId || storyCompleted) {
+            console.log('Story completion aborted - missing requirements or already completed');
+            return;
+        }
 
         try {
             setStoryCompleted(true);
@@ -106,12 +111,93 @@ const CinematicStoryViewer: React.FC = () => {
 
             if (response.ok) {
                 const result = await response.json();
-                import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-                    showSuccessToast(`🎉 Geschichte abgeschlossen!`);
+                console.log('✅ Personality updates applied:', result);
+                console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
+
+                // Collect all artifacts (new and upgraded) for toast notifications
+                const collectedArtifacts: { item: InventoryItem; isUpgrade: boolean }[] = [];
+
+                if (result.personalityChanges) {
+                    console.log('📦 Processing personality changes:', result.personalityChanges.length);
+                    result.personalityChanges.forEach((pc: any, i: number) => {
+                        console.log(`📦 Avatar ${i + 1} rewards:`, pc.rewards);
+                        if (pc.rewards) {
+                            // New Items
+                            if (pc.rewards.newItems) {
+                                pc.rewards.newItems.forEach((item: InventoryItem) => {
+                                    collectedArtifacts.push({ item, isUpgrade: false });
+                                });
+                            }
+                            // Upgraded Items
+                            if (pc.rewards.upgradedItems) {
+                                pc.rewards.upgradedItems.forEach((item: InventoryItem) => {
+                                    collectedArtifacts.push({ item, isUpgrade: true });
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // Show artifact toast notification for each artifact earned or upgraded
+                if (collectedArtifacts.length > 0) {
+                    console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
+                    const { showArtifactEarnedToast } = await import('../../utils/toastUtils');
+                    collectedArtifacts.forEach(({ item, isUpgrade }, index) => {
+                        setTimeout(() => {
+                            console.log(`🎁 Showing artifact toast ${index + 1}:`, item.name);
+                            showArtifactEarnedToast(item, undefined, isUpgrade);
+                        }, 500 + (index * 800));
+                    });
+                } else {
+                    console.log('📦 No artifacts collected in this session');
+                }
+
+                // Show personality update notifications for each avatar
+                console.log('🔔 Checking for personality changes to show:', {
+                    hasPersonalityChanges: !!result.personalityChanges,
+                    length: result.personalityChanges?.length || 0,
+                    updatedAvatars: result.updatedAvatars
                 });
+
+                if (result.personalityChanges && result.personalityChanges.length > 0) {
+                    const { showPersonalityUpdateToast, showSuccessToast } = await import('../../utils/toastUtils');
+
+                    // First show the completion message immediately
+                    console.log('🎉 Showing completion toast for', result.updatedAvatars, 'avatars');
+                    showSuccessToast(`🎉 Geschichte abgeschlossen! ${result.updatedAvatars} Avatar(e) entwickelt`);
+
+                    // Then show individual personality updates for each avatar with a delay
+                    result.personalityChanges.forEach((avatarChange: any, index: number) => {
+                        console.log(`🔔 Avatar ${index + 1} changes:`, {
+                            avatarName: avatarChange.avatarName,
+                            hasChanges: !!avatarChange.changes,
+                            changesLength: avatarChange.changes?.length || 0,
+                            changes: avatarChange.changes
+                        });
+
+                        if (avatarChange.changes && avatarChange.changes.length > 0) {
+                            setTimeout(() => {
+                                console.log(`🔔 Showing personality toast for ${avatarChange.avatarName}:`, avatarChange.changes);
+                                showPersonalityUpdateToast(avatarChange.changes);
+                            }, 800 + (index * 600));
+                        }
+                    });
+                } else {
+                    // No personality changes, just show completion
+                    console.log('🔔 No personality changes found, showing only completion toast');
+                    const { showSuccessToast } = await import('../../utils/toastUtils');
+                    showSuccessToast(`🎉 Geschichte abgeschlossen!`);
+                }
+            } else {
+                const errorText = await response.text();
+                console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
+                const { showSuccessToast } = await import('../../utils/toastUtils');
+                showSuccessToast(`🎉 Geschichte abgeschlossen!`);
             }
         } catch (error) {
             console.error('Error completing story:', error);
+            const { showSuccessToast } = await import('../../utils/toastUtils');
+            showSuccessToast(`🎉 Geschichte abgeschlossen!`);
         }
     };
 
@@ -345,7 +431,10 @@ const ChapterSection: React.FC<{
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 whileInView={{ opacity: 1, scale: 1 }}
                                 viewport={{ once: true }}
-                                onClick={onComplete}
+                                onClick={() => {
+                                    console.log('🔘 GESCHICHTE ABSCHLIESSEN button clicked!');
+                                    onComplete();
+                                }}
                                 disabled={isCompleted}
                                 className={cn(
                                     "px-16 py-8 rounded-none text-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)] border-2 border-white",
