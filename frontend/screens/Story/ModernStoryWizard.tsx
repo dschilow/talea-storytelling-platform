@@ -153,23 +153,26 @@ export default function ModernStoryWizard() {
       await new Promise(r => setTimeout(r, 800));
 
       // 🎁 Check for new artifact (loot reward)
+      // Can be on top level (from generation response) or in metadata (from DB storage)
       const storyData = story as any;
-      if (storyData.newArtifact) {
-        console.log('[ModernWizard] 🎁 New artifact received:', storyData.newArtifact);
+      const newArtifact = storyData.newArtifact || storyData.metadata?.newArtifact;
+      
+      if (newArtifact) {
+        console.log('[ModernWizard] 🎁 New artifact received:', newArtifact);
 
         // Convert newArtifact to InventoryItem format
         const lootItem: InventoryItem = {
           id: crypto.randomUUID(),
-          name: storyData.newArtifact.name,
-          type: storyData.newArtifact.type || 'TOOL',
+          name: newArtifact.name,
+          type: newArtifact.type || 'TOOL',
           level: 1,
           sourceStoryId: story.id,
-          description: storyData.newArtifact.description,
-          visualPrompt: storyData.newArtifact.visualDescriptorKeywords?.join(', ') || '',
-          tags: storyData.newArtifact.visualDescriptorKeywords || [],
+          description: newArtifact.description,
+          visualPrompt: newArtifact.visualDescriptorKeywords?.join(', ') || '',
+          tags: newArtifact.visualDescriptorKeywords || [],
           acquiredAt: new Date().toISOString(),
-          imageUrl: storyData.newArtifact.imageUrl,
-          storyEffect: storyData.newArtifact.storyEffect,
+          imageUrl: newArtifact.imageUrl,
+          storyEffect: newArtifact.storyEffect,
         };
 
         setLootArtifact(lootItem);

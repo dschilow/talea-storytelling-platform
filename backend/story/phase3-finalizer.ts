@@ -284,6 +284,14 @@ export class Phase3StoryFinalizer {
 
       // Validate structure
       this.validateFinalStory(finalStory);
+      
+      // Debug: Log artifact status after validation
+      console.log("[Phase3] 🎁 Artifact status after validation:", {
+        hasArtifact: !!finalStory.newArtifact,
+        artifactName: finalStory.newArtifact?.name || 'none',
+        artifactType: finalStory.newArtifact?.type || 'none'
+      });
+      
       this.validateStoryQuality(finalStory, input.avatarDetails, selectedFairyTale, input.config.hasTwist ?? false, input.config.language);
 
       // NEW: Validate originality if fairy tale was used
@@ -335,6 +343,8 @@ export class Phase3StoryFinalizer {
       console.log("[Phase3] Story finalized successfully:", {
         title: finalStory.title,
         chaptersCount: finalStory.chapters?.length,
+        hasNewArtifact: !!finalStory.newArtifact,
+        artifactName: finalStory.newArtifact?.name || 'none'
       });
 
       const usage = data.usage
@@ -821,7 +831,54 @@ IMPORTANT LANGUAGE INSTRUCTION:
       }
     }
 
+    // Validate newArtifact if present
+    if (story.newArtifact) {
+      if (!story.newArtifact.name || typeof story.newArtifact.name !== 'string') {
+        console.warn("[Phase3] newArtifact missing valid name");
+      }
+      if (!story.newArtifact.description || typeof story.newArtifact.description !== 'string') {
+        console.warn("[Phase3] newArtifact missing valid description");
+      }
+      if (!story.newArtifact.visualDescriptorKeywords || !Array.isArray(story.newArtifact.visualDescriptorKeywords)) {
+        console.warn("[Phase3] newArtifact missing visualDescriptorKeywords array");
+      }
+      console.log("[Phase3] ✅ newArtifact validated:", story.newArtifact.name);
+    } else {
+      console.warn("[Phase3] ⚠️ No newArtifact in AI response - generating fallback artifact");
+      // Generate a fallback artifact based on story theme
+      story.newArtifact = this.generateFallbackArtifact(story);
+    }
+
     console.log("[Phase3] Final story validated successfully");
+  }
+
+  /**
+   * Generate a fallback artifact when AI doesn't provide one
+   */
+  private generateFallbackArtifact(story: any): any {
+    const storyTitle = story.title || "Abenteuer";
+    const types = ['TOOL', 'WEAPON', 'KNOWLEDGE', 'COMPANION'] as const;
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    
+    const artifacts = [
+      { name: "Glücksbringer", desc: "Ein magischer Talisman", effect: "Bringt Glück in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
+      { name: "Sternenstaub-Phiole", desc: "Eine Flasche voller Sternenstaub", effect: "Leuchtet in der Dunkelheit", keywords: ["glass vial", "sparkling stardust", "cosmic glow", "ethereal particles"] },
+      { name: "Weisheitskristall", desc: "Ein Kristall voller alter Weisheit", effect: "Hilft bei schwierigen Entscheidungen", keywords: ["purple crystal", "ancient wisdom", "mystical glow", "floating runes"] },
+      { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "Stärkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
+      { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt Stärke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
+    ];
+    
+    const artifact = artifacts[Math.floor(Math.random() * artifacts.length)];
+    
+    console.log(`[Phase3] 🎁 Generated fallback artifact: ${artifact.name}`);
+    
+    return {
+      name: artifact.name,
+      description: artifact.desc,
+      type: randomType,
+      storyEffect: artifact.effect,
+      visualDescriptorKeywords: artifact.keywords
+    };
   }
 
   /**

@@ -3,7 +3,6 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { storyDB } from "./db";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
-import { evaluateStoryRewards } from "../gamification/item-system";
 import { InventoryItem, Skill } from "../avatar/avatar";
 
 const avatarDB = SQLDatabase.named("avatar");
@@ -143,24 +142,58 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             VALUES (${userAvatar.id}, ${req.storyId}, ${req.storyTitle})
           `;
 
-          // --- GAMIFICATION: Evaluate Rewards ---
+          // --- GAMIFICATION: Check for Artifact Upgrades Only ---
+          // Note: New artifacts are created during story generation (Phase 4.5/4.6)
+          // Here we only check if existing artifacts can be upgraded based on genre match
           let rewards = undefined;
           try {
-            const rewardResult = await evaluateStoryRewards({
-              avatarId: userAvatar.id,
-              storyId: req.storyId,
-              storyTitle: req.storyTitle,
-              storyTags: req.genre ? [req.genre.toLowerCase()] : ['adventure']
-            });
-
-            rewards = {
-              newItems: rewardResult.newItems,
-              upgradedItems: rewardResult.upgradedItems,
-              newSkills: rewardResult.newSkills
-            };
-            console.log(`🎁 Rewards for ${userAvatar.name}:`, rewards);
+            // Load avatar's current inventory
+            const avatarRow = await avatarDB.queryRow<{ inventory: string }>`
+              SELECT inventory FROM avatars WHERE id = ${userAvatar.id}
+            `;
+            
+            if (avatarRow) {
+              const inventory: InventoryItem[] = JSON.parse(avatarRow.inventory || '[]');
+              const storyTags = req.genre ? [req.genre.toLowerCase()] : ['adventure'];
+              const upgradedItems: InventoryItem[] = [];
+              
+              // Check for upgrades (items with matching tags and level < 3)
+              for (const item of inventory) {
+                const hasTagMatch = item.tags?.some(tag => storyTags.includes(tag)) ?? false;
+                if (hasTagMatch && item.level < 3) {
+                  item.level += 1;
+                  // Update item name based on level
+                  const baseName = item.name.replace(/^(Novice|Advanced|Master)\s+/, '');
+                  if (item.level === 2) item.name = `Advanced ${baseName}`;
+                  if (item.level === 3) item.name = `Master ${baseName}`;
+                  item.description = `Verstärkte Version: ${item.name}. Level ${item.level}!`;
+                  upgradedItems.push(item);
+                  console.log(`[Gamification] 📈 Upgraded ${item.name} to level ${item.level}`);
+                  break; // Only one upgrade per story
+                }
+              }
+              
+              // Save updated inventory if upgrades happened
+              if (upgradedItems.length > 0) {
+                await avatarDB.exec`
+                  UPDATE avatars
+                  SET inventory = ${JSON.stringify(inventory)},
+                      updated_at = CURRENT_TIMESTAMP
+                  WHERE id = ${userAvatar.id}
+                `;
+                
+                rewards = {
+                  newItems: [],
+                  upgradedItems: upgradedItems,
+                  newSkills: []
+                };
+                console.log(`🎁 Rewards for ${userAvatar.name}:`, rewards);
+              } else {
+                console.log(`📦 No artifact upgrades for ${userAvatar.name} (no matching tags or already max level)`);
+              }
+            }
           } catch (rewardError) {
-            console.error(`⚠️ Failed to evaluate rewards for ${userAvatar.name}:`, rewardError);
+            console.error(`⚠️ Failed to check rewards for ${userAvatar.name}:`, rewardError);
           }
 
           personalityChanges.push({

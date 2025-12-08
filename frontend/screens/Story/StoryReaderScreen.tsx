@@ -215,7 +215,28 @@ const StoryReaderScreen: React.FC = () => {
           // Add all artifacts to the queue - they will be shown one by one as fullscreen modals
           setArtifactQueue(collectedArtifacts);
         } else {
-          console.log('📦 No artifacts collected in this session');
+          // 🎁 No artifacts from mark-read response - check if story has a newArtifact in metadata
+          // This artifact was already added to inventory during story generation
+          const storyArtifact = (story as any).metadata?.newArtifact;
+          if (storyArtifact) {
+            console.log('🏆 Found story artifact in metadata:', storyArtifact.name);
+            const artifactItem: InventoryItem = {
+              id: crypto.randomUUID(),
+              name: storyArtifact.name,
+              type: storyArtifact.type || 'TOOL',
+              level: 1,
+              sourceStoryId: storyId,
+              description: storyArtifact.description,
+              visualPrompt: storyArtifact.visualDescriptorKeywords?.join(', ') || '',
+              tags: storyArtifact.visualDescriptorKeywords || [],
+              acquiredAt: new Date().toISOString(),
+              imageUrl: storyArtifact.imageUrl,
+              storyEffect: storyArtifact.storyEffect,
+            };
+            setArtifactQueue([{ item: artifactItem, isUpgrade: false }]);
+          } else {
+            console.log('📦 No artifacts collected in this session');
+          }
         }
 
         // Show personality update notifications for each avatar

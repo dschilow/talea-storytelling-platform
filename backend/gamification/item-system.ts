@@ -22,6 +22,7 @@ export const evaluateStoryRewards = api(
     async (req: EvaluateRewardsRequest): Promise<EvaluateRewardsResponse> => {
         const { avatarId, storyId, storyTags, storyTitle } = req;
         console.log(`[Gamification] Evaluating rewards for avatar ${avatarId} from story ${storyId}`);
+        console.log(`[Gamification] Story tags: ${JSON.stringify(storyTags)}`);
 
         // 1. Fetch current avatar inventory
         const row = await avatarDB.queryRow<{ inventory: string; skills: string }>`
@@ -35,6 +36,9 @@ export const evaluateStoryRewards = api(
         let inventory: InventoryItem[] = JSON.parse(row.inventory || '[]');
         let skills: Skill[] = JSON.parse(row.skills || '[]');
 
+        console.log(`[Gamification] Current inventory size: ${inventory.length}`);
+        console.log(`[Gamification] Current inventory items: ${inventory.map(i => `${i.name} (tags: ${i.tags?.join(',')}, level: ${i.level})`).join(', ') || 'empty'}`);
+
         const newItems: InventoryItem[] = [];
         const upgradedItems: InventoryItem[] = [];
 
@@ -47,7 +51,10 @@ export const evaluateStoryRewards = api(
             if (upgradeHappened) break;
 
             // Check if item tags overlap with story tags
-            const hasOverlap = item.tags.some(tag => storyTags.includes(tag));
+            console.log(`[Gamification] Checking item "${item.name}" (tags: ${item.tags?.join(',')}, level: ${item.level}) against story tags: ${storyTags.join(',')}`);
+            const hasOverlap = item.tags?.some(tag => storyTags.includes(tag)) ?? false;
+            console.log(`[Gamification] Tag overlap: ${hasOverlap}, level < 3: ${item.level < 3}`);
+            
             if (hasOverlap && item.level < 3) {
                 item.level += 1;
                 item.name = evolveItemName(item.name, item.level);
@@ -106,6 +113,9 @@ export const evaluateStoryRewards = api(
         }
 
         // 5. Save updates
+        console.log(`[Gamification] Saving inventory with ${inventory.length} items to database`);
+        console.log(`[Gamification] Items being saved: ${inventory.map(i => `${i.name} (level ${i.level})`).join(', ')}`);
+        
         await avatarDB.exec`
       UPDATE avatars
       SET inventory = ${JSON.stringify(inventory)},
@@ -113,6 +123,8 @@ export const evaluateStoryRewards = api(
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${avatarId}
     `;
+
+        console.log(`[Gamification] ✅ Inventory saved successfully for avatar ${avatarId}`);
 
         return {
             newItems,

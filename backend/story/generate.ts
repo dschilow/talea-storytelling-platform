@@ -164,6 +164,15 @@ export interface Story {
       images: number;
       total: number;
     };
+    // 🎁 Artifact earned from this story
+    newArtifact?: {
+      name: string;
+      description: string;
+      type: string;
+      storyEffect?: string;
+      visualDescriptorKeywords?: string[];
+      imageUrl?: string;
+    };
   };
   // Cost tracking properties
   tokensInput?: number;
@@ -463,6 +472,18 @@ export const generate = api<GenerateStoryRequest, Story>(
         },
       });
 
+      // 🎁 Add newArtifact to metadata so it's persisted and returned to frontend
+      const enrichedMetadata = {
+        ...generatedStory.metadata,
+        newArtifact: generatedStory.newArtifact || undefined,
+      };
+      
+      console.log("[story.generate] 🎁 newArtifact in response:", {
+        hasArtifact: !!generatedStory.newArtifact,
+        artifactName: generatedStory.newArtifact?.name || 'none',
+        artifactImageUrl: generatedStory.newArtifact?.imageUrl || 'none',
+      });
+
       // Update story with generated content
       console.log("[story.generate] Persisting story header into DB...");
       await storyDB.exec`
@@ -471,7 +492,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             description = ${generatedStory.description},
             cover_image_url = ${generatedStory.coverImageUrl},
             avatar_developments = ${JSON.stringify(validatedDevelopments || [])},
-            metadata = ${JSON.stringify(generatedStory.metadata)},
+            metadata = ${JSON.stringify(enrichedMetadata)},
             status = 'complete',
             updated_at = ${new Date()}
         WHERE id = ${id}
@@ -667,6 +688,22 @@ export const generate = api<GenerateStoryRequest, Story>(
               }
 
               console.log(`[story.generate] Updated personality and memory for ${userAvatar.name}`);
+              
+              // Mark story as read by this avatar (prevents duplicate rewards in mark-read)
+              try {
+                await avatarDB.exec`
+                  INSERT INTO avatar_story_read (avatar_id, story_id, story_title)
+                  VALUES (${userAvatar.id}, ${id}, ${generatedStory.title})
+                  ON CONFLICT (avatar_id, story_id) DO NOTHING
+                `;
+                console.log(`[story.generate] ✅ Marked story as read for ${userAvatar.name}`);
+              } catch (markReadError) {
+                console.warn(`[story.generate] Failed to mark story as read:`, markReadError);
+              }
+              
+              // Note: Artifacts are created during Phase 4.5/4.6 with thematic AI-generated content
+              // The old evaluateStoryRewards system (generic artifacts) is disabled
+              console.log(`[story.generate] 📦 Artifact generation handled by Phase 4.5/4.6 (AI-themed artifacts)`);
             } catch (updateError) {
               console.error(`[story.generate] Failed to update ${userAvatar.name}:`, updateError);
             }
