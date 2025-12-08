@@ -140,25 +140,29 @@ const StoryReaderScreen: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
+        console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
 
         // Process Rewards
         const newRewards: typeof rewardQueue = [];
-        const collectedArtifacts: InventoryItem[] = [];
+        const collectedArtifacts: { item: InventoryItem; isUpgrade: boolean }[] = [];
 
         if (result.personalityChanges) {
-          result.personalityChanges.forEach((pc: any) => {
+          console.log('📦 Processing personality changes:', result.personalityChanges.length);
+          result.personalityChanges.forEach((pc: any, i: number) => {
+            console.log(`📦 Avatar ${i + 1} rewards:`, pc.rewards);
             if (pc.rewards) {
               // New Items
               if (pc.rewards.newItems) {
                 pc.rewards.newItems.forEach((item: InventoryItem) => {
                   newRewards.push({ item, type: 'new_item' });
-                  collectedArtifacts.push(item);
+                  collectedArtifacts.push({ item, isUpgrade: false });
                 });
               }
-              // Upgraded Items
+              // Upgraded Items - also show as toast notification
               if (pc.rewards.upgradedItems) {
                 pc.rewards.upgradedItems.forEach((item: InventoryItem) => {
                   newRewards.push({ item, type: 'item_upgrade' });
+                  collectedArtifacts.push({ item, isUpgrade: true });
                 });
               }
               // New Skills
@@ -176,38 +180,42 @@ const StoryReaderScreen: React.FC = () => {
           setRewardQueue(prev => [...prev, ...newRewards]);
         }
 
-        // Show artifact toast notification for each artifact earned
+        // Show artifact toast notification for each artifact earned or upgraded
         if (collectedArtifacts.length > 0) {
-          console.log('🏆 Artifacts earned:', collectedArtifacts.map(a => a.name));
+          console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
           // Show artifact toasts with a delay after the completion toast
           import('../../utils/toastUtils').then(({ showArtifactEarnedToast }) => {
-            collectedArtifacts.forEach((artifact, index) => {
+            collectedArtifacts.forEach(({ item, isUpgrade }, index) => {
               // Stagger the toasts so they don't all appear at once
               setTimeout(() => {
-                showArtifactEarnedToast(artifact);
+                showArtifactEarnedToast(item, undefined, isUpgrade);
               }, 2000 + (index * 1500)); // 2s after completion, then 1.5s between each
             });
           });
         }
 
-        // Show success notification with compact personality changes
-        import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-          // Build compact message with trait changes
-          let message = t('story.reader.toast.completed', { count: result.updatedAvatars }) + '\n\n';
-
-          if (result.personalityChanges && result.personalityChanges.length > 0) {
-            result.personalityChanges.forEach((avatarChange: any) => {
-              const changes = avatarChange.changes.map((change: any) => {
-                // Extract trait name and points from description
-                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
-                return `${points} ${getTraitDisplayName(change.trait)}`;
-              }).join(', ');
-              message += `${avatarChange.avatarName}: ${changes}\n`;
+        // Show personality update notifications for each avatar
+        if (result.personalityChanges && result.personalityChanges.length > 0) {
+          import('../../utils/toastUtils').then(({ showPersonalityUpdateToast, showSuccessToast }) => {
+            // First show the completion message
+            showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
+            
+            // Then show individual personality updates for each avatar with a delay
+            result.personalityChanges.forEach((avatarChange: any, index: number) => {
+              if (avatarChange.changes && avatarChange.changes.length > 0) {
+                setTimeout(() => {
+                  // Show personality update toast with trait changes
+                  showPersonalityUpdateToast(avatarChange.changes);
+                }, 500 + (index * 1000)); // Stagger the toasts
+              }
             });
-          }
-
-          showSuccessToast(message.trim());
-        });
+          });
+        } else {
+          // No personality changes, just show completion
+          import('../../utils/toastUtils').then(({ showSuccessToast }) => {
+            showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
+          });
+        }
 
         // Helper function to get translated trait names
         function getTraitDisplayName(trait: string): string {

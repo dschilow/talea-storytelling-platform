@@ -186,7 +186,14 @@ export const showErrorToast = (message: string) => {
 };
 
 // Show artifact earned notification with image and description
-export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: string) => {
+export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: string, isUpgrade?: boolean) => {
+  const headerText = isUpgrade 
+    ? `⬆️ Artefakt verstärkt! (Stufe ${artifact.level})` 
+    : '🎁 Neues Artefakt erhalten!';
+  
+  const headerColor = isUpgrade ? 'text-emerald-400' : 'text-yellow-400';
+  const headerBgColor = isUpgrade ? 'bg-emerald-500/20' : 'bg-yellow-500/20';
+  
   toast.custom(
     (t) => (
       <div 
@@ -195,10 +202,10 @@ export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: st
       >
         {/* Header */}
         <div className="flex items-center gap-2 mb-3">
-          <div className="p-1.5 bg-yellow-500/20 rounded-full">
-            <Gift className="w-5 h-5 text-yellow-400" />
+          <div className={`p-1.5 ${headerBgColor} rounded-full`}>
+            <Gift className={`w-5 h-5 ${headerColor}`} />
           </div>
-          <span className="text-yellow-400 font-bold text-sm">🎁 Neues Artefakt erhalten!</span>
+          <span className={`${headerColor} font-bold text-sm`}>{headerText}</span>
         </div>
         
         {/* Content with Image */}
