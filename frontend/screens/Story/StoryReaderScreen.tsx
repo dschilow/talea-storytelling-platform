@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import LevelUpModal from '../../components/gamification/LevelUpModal';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
+import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 
 
 const StoryReaderScreen: React.FC = () => {
@@ -91,6 +92,38 @@ const StoryReaderScreen: React.FC = () => {
 
   const handleCloseArtifact = () => {
     setCurrentArtifact(null);
+  };
+
+  // PDF Export state
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+
+  const handleExportPDF = async () => {
+    if (!story || !isPDFExportSupported()) {
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('PDF-Export wird in diesem Browser nicht unterstützt');
+      return;
+    }
+
+    try {
+      setIsExportingPDF(true);
+      setExportProgress(0);
+
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+
+      await exportStoryAsPDF(story, (progress) => {
+        setExportProgress(progress);
+      });
+
+      showSuccessToast('📄 PDF erfolgreich heruntergeladen!');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('Fehler beim PDF-Export: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+    } finally {
+      setIsExportingPDF(false);
+      setExportProgress(0);
+    }
   };
 
   const loadStory = async () => {
@@ -390,9 +423,34 @@ const StoryReaderScreen: React.FC = () => {
             />
             <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{story.title}</h1>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{story.summary}</p>
-            <button onClick={startReading} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105">
-              {t('story.reader.read')}
-            </button>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <button
+                onClick={startReading}
+                className="px-8 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105"
+              >
+                {t('story.reader.read')}
+              </button>
+
+              <button
+                onClick={handleExportPDF}
+                disabled={isExportingPDF}
+                className="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isExportingPDF ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{exportProgress}%</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    <span>PDF herunterladen</span>
+                  </>
+                )}
+              </button>
+            </div>
           </motion.div>
         ) : (
           <div key="reader" className="w-full h-full flex flex-col">

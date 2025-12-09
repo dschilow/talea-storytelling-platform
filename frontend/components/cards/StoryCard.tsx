@@ -1,10 +1,11 @@
-import React from 'react';
-import { BookOpen, Trash2, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { BookOpen, Trash2, Clock, Download } from 'lucide-react';
 import type { Story } from '../../types/story';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 import { AvatarGroup } from '../ui/avatar-group';
+import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 
 interface StoryCardProps {
   story: Story;
@@ -13,10 +14,41 @@ interface StoryCardProps {
 }
 
 export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete }) => {
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onDelete) {
       onDelete(story.id, story.title);
+    }
+  };
+
+  const handleDownloadPDF = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!isPDFExportSupported()) {
+      alert('PDF-Export wird in diesem Browser nicht unterstützt');
+      return;
+    }
+
+    if (story.status !== 'complete') {
+      alert('Die Geschichte muss erst vollständig generiert werden');
+      return;
+    }
+
+    try {
+      setIsExportingPDF(true);
+      await exportStoryAsPDF(story);
+
+      // Success notification - using dynamic import to avoid circular dependency
+      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
+        showSuccessToast('📄 PDF erfolgreich heruntergeladen!');
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('Fehler beim PDF-Export: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -79,6 +111,20 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     border: 'none',
     cursor: 'pointer',
     transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const downloadButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: onDelete ? `calc(${spacing.md}px + 36px + ${spacing.sm}px)` : spacing.md,
+    background: colors.primary[500] + '90',
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    border: 'none',
+    cursor: isExportingPDF ? 'wait' : 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+    opacity: isExportingPDF ? 0.6 : 1,
   };
 
   const overlayStyle: React.CSSProperties = {
@@ -163,6 +209,39 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
           <div style={statusBadgeStyle}>
             ✨ Wird erstellt...
           </div>
+        )}
+
+        {/* PDF Download Button - Only show for complete stories */}
+        {story.status === 'complete' && (
+          <button
+            onClick={handleDownloadPDF}
+            style={downloadButtonStyle}
+            title="Als PDF herunterladen"
+            disabled={isExportingPDF}
+            onMouseEnter={(e) => {
+              if (!isExportingPDF) {
+                e.currentTarget.style.transform = 'scale(1.15)';
+                e.currentTarget.style.background = colors.primary[500];
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = colors.primary[500] + '90';
+            }}
+          >
+            {isExportingPDF ? (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid white',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+            ) : (
+              <Download size={16} style={{ color: colors.text.inverse }} />
+            )}
+          </button>
         )}
 
         {onDelete && (

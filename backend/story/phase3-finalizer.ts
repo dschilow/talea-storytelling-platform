@@ -1388,67 +1388,33 @@ EXAMPLE ("Der Silberfaden" story):
 - Style reference: "Watercolor illustration style, Axel Scheffler inspired"
 - Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset. FOREGROUND: Dark twisted roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest. MOOD: Brave but cautious. Watercolor style."
 
-## SENTENCE RHYTHM PATTERN - CRITICAL FOR FLOW!
+## WRITING STYLE - SIMPLE RULES
 ══════════════════════════════════════════════════════════════════════════════
-Every chapter MUST follow this rhythm pattern:
+1. Mix SHORT (3-7 words) and MEDIUM (8-15 words) sentences.
+2. Avoid starting 3+ sentences with the same word.
+3. Use varied sentence starts.
 
-PATTERN: 3 SHORT sentences → 1 MEDIUM sentence → repeat
-
-✅ CORRECT Example:
-"He ran. He stopped. He looked around the dark room carefully. He saw it."
-(short-short-MEDIUM-short = Perfect rhythm!)
-
-❌ WRONG Example:
-"Er rannte. Er blieb stehen. Er schaute. Er sah. Er erschrak."
-(5 short in a row = Choppy, monotonous!)
-
-SENTENCE LENGTH DEFINITIONS:
-- SHORT: 3-7 words ("The wolf came closer.")
-- MEDIUM: 8-15 words ("Adrian hid behind the big tree and held his breath.")
-- LONG: 16-20 words (ONLY for climactic moments, max 2 per chapter!)
-
-AVOID REPETITIVE STARTS:
-❌ "Er rannte. Er blieb stehen. Er schaute." (3x "Er" start)
-✅ "Er rannte. Die Füße schmerzten. Dann blieb er stehen." (Varied starts!)
-
-## SHOW, DON'T TELL - EMOTION VALIDATOR
+## SHOW, DON'T TELL - CORE RULE
 ══════════════════════════════════════════════════════════════════════════════
-FORBIDDEN EMOTION WORDS (must be replaced with body language):
-
-❌ NEVER USE:
-- "war ängstlich" / "was scared" / "hatte Angst"
-- "war traurig" / "was sad" / "fühlte sich traurig"
-- "war mutig" / "was brave" / "fühlte sich mutig"
-- "war glücklich" / "was happy" / "freute sich"
-- "war wütend" / "was angry" / "ärgerte sich"
-- "wusste, dass" / "knew that" / "erkannte, dass"
-
-✅ USE INSTEAD (body language):
-FEAR → "trembled", "froze", "backed away", "swallowed hard", "turned pale", "heart raced"
-JOY → "beamed", "hopped", "clapped", "laughed", "danced", "eyes sparkled"
-SADNESS → "sighed", "shoulders drooped", "tears ran", "slumped down", "voice cracked"
-ANGER → "stomped", "snorted", "eyes flashed", "shook", "clenched teeth", "fists tight"
-COURAGE → "straightened up", "breathed deep", "stepped forward", "raised chin", "jaw set"
-KNOWLEDGE → "remembered", "noticed", "recognized", "recalled", "realized" (with physical observation)
-
-EXAMPLE CONVERSION:
-❌ "Adrian war ängstlich, als er die Höhle betrat."
-✅ "Adrians Hände zitterten. Er schluckte. Seine Füße trugen ihn langsam in die Höhle."
+SHOW emotions through BODY LANGUAGE, not words:
+❌ "war ängstlich" → ✅ "Seine Hände zitterten"
+❌ "war glücklich" → ✅ "Ein Lächeln breitete sich aus"
 
 ## STORY SOUL: ${(experience as any).storySoul || 'magische_entdeckung'}
 ${(experience as any).storySoul === 'wilder_ritt' ? '- Fast-paced action! Chases, puzzles, physical challenges' : ''}
 ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotional moments, friendship, togetherness, warm feelings' : ''}
 ${(experience as any).storySoul === 'magische_entdeckung' ? '- Wonder, magic discoveries, fantastic elements' : ''}
 
-## CHAPTER LENGTH: PRECISE WORD TARGETS PER CHAPTER
-CRITICAL: Follow these EXACT targets to minimize variance (<30 words between chapters):
-- Chapter 1: 310 words (±10) - Introduction, set the stage
-- Chapter 2: 320 words (±10) - Conflict introduction, build tension
-- Chapter 3: 315 words (±10) - Escalation, emotional peak
-- Chapter 4: 310 words (±10) - Confrontation, action climax
-- Chapter 5: 325 words (±10) - Resolution, emotional closure
+## CHAPTER LENGTH: UNIFIED WORD TARGET
+CRITICAL: ALL chapters must have EXACTLY 300-320 words!
+- Chapter 1: 300-320 words
+- Chapter 2: 300-320 words  
+- Chapter 3: 300-320 words
+- Chapter 4: 300-320 words
+- Chapter 5: 300-320 words
 
-TARGET AVERAGE: 316 words | MAXIMUM VARIANCE: 25 words
+TARGET: 310 words per chapter | MAXIMUM VARIANCE: 20 words total
+DO NOT exceed 320 words. DO NOT go below 300 words.
 
 ${remixInstructions ? `
 ## ORIGINALITY ENFORCEMENT - CRITICAL!
@@ -1472,26 +1438,14 @@ CRITICAL ORIGINALITY REQUIREMENTS:
 IMPORTANT: If you ignore remix strategies, the story will be rejected!
 Creative deviations from the original are not only allowed, but REQUIRED!
 
-` : ''}## POV (POINT OF VIEW) CONSISTENCY - CRITICAL!
+` : ''}## POV (POINT OF VIEW) - SIMPLIFIED RULE
 ══════════════════════════════════════════════════════════════════════════════
-Each chapter MUST maintain consistent POV throughout:
+BOTH avatars are MAIN CHARACTERS and should be ACTIVE in EVERY chapter.
+Show their INTERACTIONS, DIALOGUES, and COOPERATION throughout.
 
-CHAPTER POV ASSIGNMENTS:
-- Chapter 1: PRIMARY AVATAR's perspective ONLY (${avatarDetails[0]?.name || 'First Avatar'})
-- Chapter 2: SECONDARY AVATAR's perspective ONLY (${avatarDetails[1]?.name || avatarDetails[0]?.name || 'Second Avatar'})
-- Chapter 3: PRIMARY AVATAR's perspective ONLY (${avatarDetails[0]?.name || 'First Avatar'})
-- Chapter 4: SECONDARY AVATAR's perspective ONLY (${avatarDetails[1]?.name || avatarDetails[0]?.name || 'Second Avatar'})
-- Chapter 5: SHARED perspective (both contribute equally)
-
-POV RULES (NEVER VIOLATE!):
-❌ Don't switch POV mid-paragraph
-❌ Don't access other character's thoughts in their non-POV chapter
-✅ Only show POV character's inner feelings and thoughts
-✅ Other characters visible only through POV character's observations
-
-Example Chapter 2 (Adrian's POV):
-✅ "Adrian's heart raced. What would Alexander do?" (Adrian's thoughts only)
-❌ "Adrian's heart raced. Alexander felt confident." (Breaks POV - can't know Alexander's feelings!)
+RULE: Write from a NEUTRAL third-person perspective that follows BOTH characters.
+Both ${avatarDetails[0]?.name || 'Avatar 1'} and ${avatarDetails[1]?.name || avatarDetails[0]?.name || 'Avatar 2'} 
+should speak, act, and contribute in each chapter.
 
 ## OUTPUT FORMAT (JSON):
 {

@@ -783,7 +783,8 @@ export class FourPhaseOrchestrator {
         );
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
-        const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text, clones, twins, multiple views, split screen, multiple instances of same character";
+        // OPTIMIZATION v3.0: Enhanced negative prompt to prevent character duplication
+        const negativePrompt = "deformed, disfigured, duplicate characters, extra limbs, watermark, text, clones, twins, triplets, multiple instances of same character, same person twice, copy of character, mirror image, repeated face, duplicate person, two of same child, three boys when should be two";
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
@@ -1030,9 +1031,19 @@ export class FourPhaseOrchestrator {
     // This prevents younger children from appearing older/bigger than older ones
     charactersInScene.sort((a, b) => a.age - b.age);
 
+    // OPTIMIZATION v3.0: Add LEFT/RIGHT positioning to prevent character duplication
+    const positioningInstructions = charactersInScene.length === 2
+      ? `\nPOSITIONING: ${charactersInScene[0].name} on LEFT side, ${charactersInScene[1].name} on RIGHT side of the image.`
+      : charactersInScene.length >= 3
+        ? `\nPOSITIONING: Left to right order: ${charactersInScene.map(c => c.name).join(', ')}.`
+        : '';
+
     // Add explicit age ordering instruction
     const characterBlock = charactersInScene
-      .map(c => `${c.name}: ${c.description}`)
+      .map((c, index) => {
+        const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
+        return `${c.name} ${position}: ${c.description}`;
+      })
       .join("\n\n");
 
     const ageOrder = charactersInScene.length > 1
@@ -1041,13 +1052,14 @@ export class FourPhaseOrchestrator {
 
     return `
 ${baseDescription}
+${positioningInstructions}
 
-CHARACTERS IN THIS SCENE (lock face/outfit/age):
+CHARACTERS IN THIS SCENE (lock face/outfit/age/POSITION):
 ${characterBlock}${ageOrder}
 
 Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
 IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent across all images. Do not add text or watermarks.
-ENSURE SINGLE INSTANCE OF EACH CHARACTER. Do not generate twins or clones.
+CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designated position. NO twins, NO clones, NO duplicates. If you see the same character twice, remove one.
     `.trim();
   }
 
@@ -1136,17 +1148,24 @@ ENSURE SINGLE INSTANCE OF EACH CHARACTER. Do not generate twins or clones.
     console.log("[4-Phase] Generating cover image...");
 
     try {
-      // Build cover scene description
-      const avatarNames = avatarDetails.map(a => a.name).join(", ");
+      // Build cover scene description with CLEAR character positioning
+      const avatarNames = avatarDetails.map(a => a.name).join(" and ");
       const supportingCharacters = Array.from(characterAssignments.values())
         .slice(0, 2) // Include up to 2 main supporting characters
         .map(c => c.name)
-        .join(", ");
+        .join(" and ");
+
+      // OPTIMIZATION v3.0: Clear LEFT/RIGHT positioning to prevent character duplication
+      const positioningHint = avatarDetails.length === 2 
+        ? `POSITIONING: ${avatarDetails[0].name} on LEFT side, ${avatarDetails[1].name} on RIGHT side of the image.`
+        : '';
 
       const coverDescription = `
 Book cover illustration for "${story.title}".
-Main characters ${avatarNames}${supportingCharacters ? ` with ${supportingCharacters}` : ''} in an exciting scene.
+Main characters: ${avatarNames}${supportingCharacters ? ` with ${supportingCharacters}` : ''} in an exciting scene.
+${positioningHint}
 ${story.description}
+CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twins.
       `.trim();
 
       const enhancedPrompt = this.buildEnhancedImagePrompt(
@@ -1157,7 +1176,8 @@ ${story.description}
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
       const stylePreset = "watercolor_storybook";
-      const negativePrompt = "deformed, disfigured, duplicate, extra limbs, watermark, text, clones, twins, multiple views, split screen, multiple instances of same character";
+      // OPTIMIZATION v3.0: Enhanced negative prompt for cover to prevent character duplication
+      const negativePrompt = "deformed, disfigured, duplicate characters, extra limbs, watermark, text, clones, twins, triplets, multiple instances of same character, same person twice, copy of character, mirror image, repeated face, duplicate person, two of same child, three boys when should be two, extra child, additional person";
       const imageUrl = await this.generateImage(enhancedPrompt, seed, negativePrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
