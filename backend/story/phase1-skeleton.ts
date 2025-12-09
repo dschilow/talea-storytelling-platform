@@ -410,7 +410,7 @@ AUFGABE FUER DICH:
    - NIEMALS Placeholders für Avatare erstellen: ❌ {{ALEXANDER}}, {{ADRIAN}}
    - {{PLACEHOLDER}} sind NUR für NEBENFIGUREN ({{WISE_ELDER}}, {{ANIMAL_HELPER}}, etc.)
 3. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
-4. WICHTIG: Jede Kapitelbeschreibung MAXIMAL 50-70 Woerter (niemals mehr!). Schreibe praegnant, dicht, bildlich. Keine langen Saetze.
+4. KRITISCH: Jede Kapitelbeschreibung MAXIMAL 60 Woerter (strikte Grenze!). Schreibe praegnant, dicht, bildlich. Kurze Saetze (3-10 Woerter). Vermeide Fuellwoerter.
 5. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
 6. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
 7. Fuehre fuer jede NEBENFIGUREN-Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an.
@@ -427,7 +427,7 @@ PLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):
 
 OUTPUT (JSON):
 {
-  "title": "Titel der Geschichte",
+  "title": "Titel der Geschichte (MAXIMAL 4 Wörter! Keine '[Name] und...' Konstruktionen. Beispiele: 'Der Silberfaden', 'Das Mondlicht', 'Die vergessene Karte')",
   "chapters": [
     {
       "order": 1,

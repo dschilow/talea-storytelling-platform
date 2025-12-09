@@ -225,8 +225,10 @@ export class Phase3StoryFinalizer {
     console.log(`[Phase3] Using max_completion_tokens: ${completionTokenLimit} (fairy tale mode: ${!!selectedFairyTale})`);
 
     // Add reasoning_effort for reasoning models (they don't support temperature/top_p)
+    // OPTIMIZATION: Use "low" for Phase 3 - story finalization doesn't need deep reasoning
+    // This reduces reasoning tokens from ~2600 to <1000 while maintaining quality
     if (isReasoningModel) {
-      payload.reasoning_effort = "medium";
+      payload.reasoning_effort = "low";
     } else {
       // Only add creativity parameters for non-reasoning models
       payload.temperature = 0.9;           // High creativity for unique stories
@@ -1347,6 +1349,36 @@ ${styleInstructions}
 
 ${professionalRules}
 
+## RECURRING MOTIFS - LEITMOTIF REQUIREMENTS
+══════════════════════════════════════════════════════════════════════════════
+CRITICAL: Choose 2-3 RECURRING MOTIFS that appear throughout the story:
+
+1. SOUND MOTIF (must appear in 5 chapters):
+   Examples: "nightingale's song", "wind chimes", "bell tower", "crackling fire"
+   Chapter 1: Introduce subtly
+   Chapter 2: Reinforce (appears again)
+   Chapter 3: Threaten/challenge (motif in danger)
+   Chapter 4: Transform/use (motif becomes important)
+   Chapter 5: Resolution payoff (motif completes arc)
+
+2. OBJECT MOTIF (must appear in 4 chapters):
+   Examples: "silver thread", "golden key", "magic feather", "porcelain heart"
+   Must be introduced Ch1, used Ch2, crucial Ch4, symbolic resolution Ch5
+
+3. PHRASE MOTIF (must appear in 3 chapters, same exact phrase):
+   Examples: "echte Stimme" (true voice), "das wahre Lied", "der richtige Weg"
+   Character says it, then it becomes the moral lesson
+
+MOTIF TRACKING VALIDATION:
+✅ Each motif must appear EXACTLY as specified (count appearances!)
+✅ Motifs must be woven naturally into narrative (not forced)
+✅ At least ONE motif must connect to the story's moral lesson
+
+EXAMPLE ("Der Silberfaden" story):
+- Sound Motif: "Windspiele" (wind chimes) → appears 5x across all chapters ✅
+- Object Motif: "Silberfaden" (silver thread) → introduced Ch1, used Ch2, crucial Ch4, symbolic Ch5 ✅
+- Phrase Motif: "echte Stimme" (true voice) → Ch3, Ch5 ✅
+
 ## CINEMATIC IMAGE DESCRIPTIONS (ALWAYS in English, 80-120 words):
 - Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
 - Character details: Insert avatar names and physical features
@@ -1356,14 +1388,67 @@ ${professionalRules}
 - Style reference: "Watercolor illustration style, Axel Scheffler inspired"
 - Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset. FOREGROUND: Dark twisted roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest. MOOD: Brave but cautious. Watercolor style."
 
+## SENTENCE RHYTHM PATTERN - CRITICAL FOR FLOW!
+══════════════════════════════════════════════════════════════════════════════
+Every chapter MUST follow this rhythm pattern:
+
+PATTERN: 3 SHORT sentences → 1 MEDIUM sentence → repeat
+
+✅ CORRECT Example:
+"He ran. He stopped. He looked around the dark room carefully. He saw it."
+(short-short-MEDIUM-short = Perfect rhythm!)
+
+❌ WRONG Example:
+"Er rannte. Er blieb stehen. Er schaute. Er sah. Er erschrak."
+(5 short in a row = Choppy, monotonous!)
+
+SENTENCE LENGTH DEFINITIONS:
+- SHORT: 3-7 words ("The wolf came closer.")
+- MEDIUM: 8-15 words ("Adrian hid behind the big tree and held his breath.")
+- LONG: 16-20 words (ONLY for climactic moments, max 2 per chapter!)
+
+AVOID REPETITIVE STARTS:
+❌ "Er rannte. Er blieb stehen. Er schaute." (3x "Er" start)
+✅ "Er rannte. Die Füße schmerzten. Dann blieb er stehen." (Varied starts!)
+
+## SHOW, DON'T TELL - EMOTION VALIDATOR
+══════════════════════════════════════════════════════════════════════════════
+FORBIDDEN EMOTION WORDS (must be replaced with body language):
+
+❌ NEVER USE:
+- "war ängstlich" / "was scared" / "hatte Angst"
+- "war traurig" / "was sad" / "fühlte sich traurig"
+- "war mutig" / "was brave" / "fühlte sich mutig"
+- "war glücklich" / "was happy" / "freute sich"
+- "war wütend" / "was angry" / "ärgerte sich"
+- "wusste, dass" / "knew that" / "erkannte, dass"
+
+✅ USE INSTEAD (body language):
+FEAR → "trembled", "froze", "backed away", "swallowed hard", "turned pale", "heart raced"
+JOY → "beamed", "hopped", "clapped", "laughed", "danced", "eyes sparkled"
+SADNESS → "sighed", "shoulders drooped", "tears ran", "slumped down", "voice cracked"
+ANGER → "stomped", "snorted", "eyes flashed", "shook", "clenched teeth", "fists tight"
+COURAGE → "straightened up", "breathed deep", "stepped forward", "raised chin", "jaw set"
+KNOWLEDGE → "remembered", "noticed", "recognized", "recalled", "realized" (with physical observation)
+
+EXAMPLE CONVERSION:
+❌ "Adrian war ängstlich, als er die Höhle betrat."
+✅ "Adrians Hände zitterten. Er schluckte. Seine Füße trugen ihn langsam in die Höhle."
+
 ## STORY SOUL: ${(experience as any).storySoul || 'magische_entdeckung'}
 ${(experience as any).storySoul === 'wilder_ritt' ? '- Fast-paced action! Chases, puzzles, physical challenges' : ''}
 ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotional moments, friendship, togetherness, warm feelings' : ''}
 ${(experience as any).storySoul === 'magische_entdeckung' ? '- Wonder, magic discoveries, fantastic elements' : ''}
 
-## CHAPTER LENGTH: 380-450 words per chapter
-- Enough detail for immersive experience
-- Not too long for young readers
+## CHAPTER LENGTH: PRECISE WORD TARGETS PER CHAPTER
+CRITICAL: Follow these EXACT targets to minimize variance (<30 words between chapters):
+- Chapter 1: 310 words (±10) - Introduction, set the stage
+- Chapter 2: 320 words (±10) - Conflict introduction, build tension
+- Chapter 3: 315 words (±10) - Escalation, emotional peak
+- Chapter 4: 310 words (±10) - Confrontation, action climax
+- Chapter 5: 325 words (±10) - Resolution, emotional closure
+
+TARGET AVERAGE: 316 words | MAXIMUM VARIANCE: 25 words
 
 ${remixInstructions ? `
 ## ORIGINALITY ENFORCEMENT - CRITICAL!
@@ -1387,7 +1472,28 @@ CRITICAL ORIGINALITY REQUIREMENTS:
 IMPORTANT: If you ignore remix strategies, the story will be rejected!
 Creative deviations from the original are not only allowed, but REQUIRED!
 
-` : ''}## OUTPUT FORMAT (JSON):
+` : ''}## POV (POINT OF VIEW) CONSISTENCY - CRITICAL!
+══════════════════════════════════════════════════════════════════════════════
+Each chapter MUST maintain consistent POV throughout:
+
+CHAPTER POV ASSIGNMENTS:
+- Chapter 1: PRIMARY AVATAR's perspective ONLY (${avatarDetails[0]?.name || 'First Avatar'})
+- Chapter 2: SECONDARY AVATAR's perspective ONLY (${avatarDetails[1]?.name || avatarDetails[0]?.name || 'Second Avatar'})
+- Chapter 3: PRIMARY AVATAR's perspective ONLY (${avatarDetails[0]?.name || 'First Avatar'})
+- Chapter 4: SECONDARY AVATAR's perspective ONLY (${avatarDetails[1]?.name || avatarDetails[0]?.name || 'Second Avatar'})
+- Chapter 5: SHARED perspective (both contribute equally)
+
+POV RULES (NEVER VIOLATE!):
+❌ Don't switch POV mid-paragraph
+❌ Don't access other character's thoughts in their non-POV chapter
+✅ Only show POV character's inner feelings and thoughts
+✅ Other characters visible only through POV character's observations
+
+Example Chapter 2 (Adrian's POV):
+✅ "Adrian's heart raced. What would Alexander do?" (Adrian's thoughts only)
+❌ "Adrian's heart raced. Alexander felt confident." (Breaks POV - can't know Alexander's feelings!)
+
+## OUTPUT FORMAT (JSON):
 {
   "title": "SHORT TITLE (max 4 words, mysterious object/place - NOT '[Name] and the...')",
   "description": "A personalized version of ${fairyTale.tale.title} (in ${targetLanguage})",
@@ -1395,7 +1501,7 @@ Creative deviations from the original are not only allowed, but REQUIRED!
     {
       "order": 1,
       "title": "Chapter title (in ${targetLanguage})",
-      "content": "380-450 words in ${targetLanguage}. Cinematic narrative with short sentences, sensory details, emotions. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.!",
+      "content": "TARGET: 310 words (±10) in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.!",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 more chapters
