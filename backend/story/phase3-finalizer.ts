@@ -1288,8 +1288,13 @@ IMPORTANT LANGUAGE INSTRUCTION:
     };
     const targetLanguage = languageMap[config.language || 'de'] || 'German';
 
-    // NEW: Generate professional quality rules in English (better AI understanding)
-    const professionalRules = generateCompleteRulesBlockEN(config.ageGroup || '6-8', targetLanguage);
+    // NEW v3.0: Generate professional quality rules in English (better AI understanding)
+    // Now includes genre for style reference selection
+    const professionalRules = generateCompleteRulesBlockEN(
+      config.ageGroup || '6-8',
+      targetLanguage,
+      config.genre || 'fairy_tales'
+    );
 
     return `
 You are an award-winning children's book author. Your task: Write an ORIGINAL, new story inspired by "${fairyTale.tale.title}" - personalized with the user's avatars. NO 1:1 retelling; motifs may be recognized, but plot/twists/setpieces are new.

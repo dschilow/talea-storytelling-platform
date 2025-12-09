@@ -353,6 +353,336 @@ export const REPETITION_TECHNIQUE = {
 };
 
 // ============================================================================
+// NEW v3.0: FORESHADOWING & CONFLICT RULES (Priority 1)
+// ============================================================================
+
+export const FORESHADOWING_RULES = {
+  // Every threat mentioned in Ch1-2 MUST return in Ch3-4
+  threatReturnRequired: true,
+
+  // Transformation hints required before actual transformation
+  transformationHints: {
+    minimumChaptersBefore: 2,
+    hintTypes: [
+      'strange_behavior',      // Character acts oddly
+      'unusual_shadows',       // Visual foreshadowing
+      'other_suspicion',       // Other characters notice something
+      'symbolic_imagery',      // Metaphorical hints
+      'dialogue_hints',        // Cryptic statements
+    ],
+  },
+
+  // Conflict escalation pattern
+  conflictEscalation: {
+    chapter1: 'introduce_threat',      // Wolf appears, watches
+    chapter2: 'first_encounter',       // Initial conflict, escape
+    chapter3: 'escalation_real_risk',  // Captivity, loss, defeat seems possible
+    chapter4: 'counterattack',         // Heroes fight back, consequences
+    chapter5: 'resolution',            // Final confrontation, victory
+  },
+
+  // Chekhov's Gun principle
+  chekhovsGun: {
+    enabled: true,
+    rule: 'Every element introduced in Ch1-2 must pay off by Ch5',
+    examples: [
+      'Magic item shown → used to solve problem',
+      'Character trait mentioned → saves the day',
+      'Location described → becomes crucial',
+    ],
+  },
+};
+
+// ============================================================================
+// NEW v3.0: ENHANCED DIALOGUE RULES (Priority 1 - 5 dialogues minimum)
+// ============================================================================
+
+export const ENHANCED_DIALOGUE_RULES = {
+  minimumPerChapter: 5, // Upgraded from 3!
+
+  // Dialogue distribution per chapter
+  distribution: {
+    chapter1: { min: 5, focus: 'character_introduction' },
+    chapter2: { min: 5, focus: 'conflict_building' },
+    chapter3: { min: 6, focus: 'emotional_peak' },
+    chapter4: { min: 6, focus: 'confrontation' },
+    chapter5: { min: 5, focus: 'resolution_warmth' },
+  },
+
+  // Action beats required
+  actionBeatRatio: 0.8, // 80% of dialogues need action before/after
+
+  // Character voice consistency
+  voicePatterns: {
+    brave: ['short sentences', 'direct commands', 'confident tone'],
+    scared: ['stuttering', 'questions', 'incomplete sentences'],
+    wise: ['calm pace', 'metaphors allowed', 'thoughtful pauses'],
+    trickster: ['wordplay', 'misdirection', 'humor'],
+  },
+
+  // Forbidden patterns
+  forbidden: [
+    'said flatly',
+    'replied simply',
+    'answered back',
+  ],
+};
+
+// ============================================================================
+// NEW v3.0: CHAPTER BALANCE RULES (Priority 2)
+// ============================================================================
+
+export const CHAPTER_BALANCE_RULES = {
+  // Strict word count per chapter
+  wordCount: {
+    minimum: 280,
+    maximum: 320,
+    variance: 20, // Max difference between shortest and longest
+  },
+
+  // Pacing balance
+  pacingBalance: {
+    action: { min: 0.35, max: 0.65 },
+    dialogue: { min: 0.25, max: 0.40 },
+    description: { min: 0.10, max: 0.30 },
+  },
+
+  // Sentence rhythm pattern
+  rhythmPattern: {
+    afterShortSentences: 3, // After 3 short sentences...
+    requireMedium: true,    // ...require 1 medium sentence
+    pattern: 'short-short-short-MEDIUM-short-short',
+  },
+};
+
+// ============================================================================
+// NEW v3.0: SENTENCE REPETITION DETECTION (Priority 2)
+// ============================================================================
+
+export const REPETITION_DETECTION = {
+  // Patterns that indicate poor style
+  badRepetitionPatterns: [
+    // Same structure repeated
+    /(\w+)\s+klang\s+\w+\.\s+\1\s+klang/gi,  // "Sie klang X. Sie klang Y."
+    /^(Er|Sie|Es)\s+.*?\.\s+\1\s+/gm,        // "Er X. Er Y."
+    /(war|hatte|ging)\s+.*?\.\s+.*?\1\s+/gm, // Same verb in consecutive sentences
+
+    // English versions
+    /(\w+)\s+was\s+\w+\.\s+\1\s+was/gi,      // "She was X. She was Y."
+    /^(He|She|It)\s+.*?\.\s+\1\s+/gm,        // "He X. He Y."
+  ],
+
+  // Good repetition (stylistic, like Julia Donaldson)
+  goodRepetitionPatterns: [
+    // Triple emphasis
+    /(\w+) war \w+\. \1 war \w+\. \1 war \w+\./gi,
+    // Catchphrase repetition
+    /"([^"]+)".*"(\1)"/g,
+  ],
+
+  // Maximum same-start sentences in a row
+  maxConsecutiveSameStart: 2,
+};
+
+// ============================================================================
+// NEW v3.0: POV CONSISTENCY RULES (Priority 3)
+// ============================================================================
+
+export const POV_RULES = {
+  // Each chapter has a primary POV character
+  chapterPOV: {
+    chapter1: 'protagonist',   // Alexander
+    chapter2: 'sidekick',      // Adrian
+    chapter3: 'protagonist',   // Back to Alexander
+    chapter4: 'sidekick',      // Adrian's moment
+    chapter5: 'shared',        // Both contribute equally
+  },
+
+  // POV indicators
+  povIndicators: {
+    // Whose thoughts/feelings we access
+    internalAccess: true,
+    // Who the camera follows
+    physicalFocus: true,
+    // Whose dialogue opens the chapter
+    dialoguePriority: true,
+  },
+
+  // Switching rules
+  switchRules: {
+    minimumScenesBetweenSwitches: 2,
+    transitionRequired: true,
+    transitionExamples: [
+      'Meanwhile, Adrian...',
+      'Alexander didn\'t see that...',
+      'On the other side of the forest...',
+    ],
+  },
+};
+
+// ============================================================================
+// NEW v3.0: IMAGE PROMPT CONSISTENCY (Priority 3)
+// ============================================================================
+
+export const IMAGE_PROMPT_RULES = {
+  // Language consistency - all English
+  languageRules: {
+    mustBeEnglish: true,
+    translatePatterns: {
+      'the Alte Eiche': 'the Ancient Oak',
+      'Greta the Goat': 'Greta the white goat',
+      'Rumpel der Zwerg': 'Rumpel the Dwarf',
+      'die Alte Eiche': 'the Ancient Oak',
+    },
+  },
+
+  // Style consistency across all images
+  styleConsistency: {
+    baseStyle: 'Watercolor illustration style, Axel Scheffler inspired',
+    alternatives: [
+      'Soft pastel children\'s book illustration',
+      'Whimsical storybook art, warm colors',
+      'Gentle fairy tale illustration style',
+    ],
+    // Same style must be used across all chapters
+    requireConsistent: true,
+  },
+
+  // Shot type variety
+  shotTypeVariety: {
+    required: true,
+    types: ['WIDE SHOT', 'CLOSE-UP', 'HERO SHOT', 'DRAMATIC ANGLE', 'MEDIUM SHOT'],
+    maxConsecutiveSameType: 2,
+  },
+
+  // Word count
+  wordCount: {
+    minimum: 80,
+    maximum: 120,
+  },
+};
+
+// ============================================================================
+// NEW v3.0: LEITMOTIF SYSTEM (Priority 4)
+// ============================================================================
+
+export const LEITMOTIF_RULES = {
+  // Number of recurring motifs per story
+  count: { min: 2, max: 3 },
+
+  // Motif categories
+  categories: {
+    sound: {
+      examples: ['nightingale\'s song', 'porcelain tinkling', 'wind chimes'],
+      appearancePerStory: 5, // Minimum mentions across all chapters
+    },
+    color: {
+      examples: ['gold vs. gray', 'red thread', 'silver moonlight'],
+      appearancePerStory: 5,
+    },
+    phrase: {
+      examples: ['echte Stimme', 'real voice', 'true song'],
+      appearancePerStory: 3,
+    },
+    object: {
+      examples: ['the porcelain heart', 'the silver feather', 'the old key'],
+      appearancePerStory: 4,
+    },
+  },
+
+  // Motif arc
+  motifArc: {
+    chapter1: 'introduce_subtly',
+    chapter2: 'reinforce',
+    chapter3: 'challenge_or_threaten',
+    chapter4: 'transform_or_use',
+    chapter5: 'resolution_payoff',
+  },
+};
+
+// ============================================================================
+// NEW v3.0: EMOTIONAL ARC TRACKING (Priority 4)
+// ============================================================================
+
+export const EMOTIONAL_ARC_RULES = {
+  // Each avatar has a defined emotional journey
+  arcPerAvatar: {
+    protagonist: {
+      chapter1: 'WONDER',        // Discovering the world
+      chapter2: 'DOUBT',         // Facing the challenge
+      chapter3: 'DESPAIR',       // Lowest point
+      chapter4: 'DETERMINATION', // Fighting back
+      chapter5: 'GROWTH',        // Lesson learned
+    },
+    sidekick: {
+      chapter1: 'CURIOSITY',     // Following along
+      chapter2: 'CONCERN',       // Worried about friend
+      chapter3: 'FEAR',          // Danger feels real
+      chapter4: 'COURAGE',       // Steps up to help
+      chapter5: 'PRIDE',         // Proud of achievement
+    },
+  },
+
+  // Emotional transitions must be shown, not told
+  transitionTechniques: {
+    wonder_to_doubt: 'Physical hesitation, questioning dialogue',
+    doubt_to_despair: 'Failure moment, tears, giving up gesture',
+    despair_to_determination: 'Internal realization, clenched fists, standing up',
+    determination_to_growth: 'Successful action, smile, helping others',
+  },
+
+  // Forbidden emotional shortcuts
+  forbiddenShortcuts: [
+    'suddenly felt brave',
+    'decided to be happy',
+    'stopped being scared',
+    'chose to trust',
+  ],
+};
+
+// ============================================================================
+// NEW v3.0: PROFESSIONAL STYLE REFERENCES (Priority 4)
+// ============================================================================
+
+export const STYLE_REFERENCES = {
+  // Astrid Lindgren style elements
+  lindgren: {
+    nature: 'alive, breathing, almost a character',
+    children: 'brave but vulnerable, make mistakes, have real emotions',
+    danger: 'real but not traumatizing',
+    humor: 'dry, understated, often in dialogue',
+    examples: ['Ronja Räubertochter', 'Pippi Langstrumpf', 'Die Brüder Löwenherz'],
+  },
+
+  // Julia Donaldson style elements
+  donaldson: {
+    rhythm: 'strong rhythmic patterns, memorable phrases',
+    repetition: 'stylistic repetition for emphasis',
+    villains: 'scary but defeatable through cleverness',
+    resolution: 'satisfying, often with a twist',
+    examples: ['Der Grüffelo', 'Die Schnecke und der Buckelwal', 'Stockmann'],
+  },
+
+  // Otfried Preußler style elements
+  preussler: {
+    atmosphere: 'dark but cozy, mysterious but safe',
+    magic: 'subtle, integrated into everyday life',
+    characters: 'quirky, memorable, often with catchphrases',
+    lessons: 'deep but not preachy, woven into plot',
+    examples: ['Die kleine Hexe', 'Der Räuber Hotzenplotz', 'Krabat'],
+  },
+
+  // Which style to emphasize based on story type
+  styleByGenre: {
+    adventure: 'lindgren',
+    fairy_tale: 'preussler',
+    humor: 'donaldson',
+    fantasy: 'preussler',
+    friendship: 'lindgren',
+  },
+};
+
+// ============================================================================
 // SENSORY DETAILS RULES
 // ============================================================================
 
@@ -792,13 +1122,269 @@ REQUIRED per chapter:
 }
 
 /**
+ * NEW v3.0: Generate foreshadowing and conflict rules
+ */
+export function generateForeshadowingBlockEN(): string {
+  return `
+🎯 FORESHADOWING & CONFLICT RULES (CRITICAL FOR PLOT QUALITY):
+══════════════════════════════════════════════════════════════════════════════
+
+CHEKHOV'S GUN PRINCIPLE:
+   Every element introduced in Chapters 1-2 MUST pay off by Chapter 5!
+   • Magic item shown → used to solve the problem
+   • Character trait mentioned → saves the day
+   • Location described → becomes crucial
+   • Threat introduced → must return and be defeated
+
+CONFLICT ESCALATION PATTERN:
+   Chapter 1: INTRODUCE THREAT (wolf watches, shadow lurks, stranger appears)
+   Chapter 2: FIRST ENCOUNTER (initial conflict, narrow escape)
+   Chapter 3: ESCALATION (real risk - captivity, loss, defeat seems possible)
+   Chapter 4: COUNTERATTACK (heroes fight back, clear consequences)
+   Chapter 5: RESOLUTION (final confrontation, obstacle overcome - not skipped!)
+
+TRANSFORMATION FORESHADOWING:
+   If a character transforms (good→evil, human→animal, etc.):
+   ❌ "Suddenly she transformed" - NO SETUP = BAD
+   ✅ Hint in Ch1: "Her eyes flickered strangely"
+   ✅ Hint in Ch2: "Why did she avoid the sunlight?"
+   ✅ Ch3: Other character says "Something's wrong with her"
+   ✅ Ch4: Transformation happens - READER EXPECTED IT
+
+NO LOOSE THREADS:
+   • Wolf appears in Ch1 → Must return in Ch3-4 (not just disappear!)
+   • Magic object mentioned → Must be used
+   • Character makes a promise → Must keep or break it with consequences
+`;
+}
+
+/**
+ * NEW v3.0: Generate enhanced dialogue rules (5 minimum)
+ */
+export function generateEnhancedDialogueBlockEN(): string {
+  return `
+💬 ENHANCED DIALOGUE RULES (MINIMUM 5 PER CHAPTER):
+══════════════════════════════════════════════════════════════════════════════
+
+DIALOGUE COUNT REQUIREMENT:
+   • Chapter 1: Minimum 5 dialogues (character introduction)
+   • Chapter 2: Minimum 5 dialogues (conflict building)
+   • Chapter 3: Minimum 6 dialogues (emotional peak)
+   • Chapter 4: Minimum 6 dialogues (confrontation)
+   • Chapter 5: Minimum 5 dialogues (resolution warmth)
+
+ACTION BEATS (80% of dialogues need physical action):
+   ✅ Adrian ran to the window. "There he is!" he shouted.
+   ✅ She grabbed his arm. "Don't go," she whispered.
+   ✅ "What's that?" Alexander pointed at the shadow.
+   ❌ "Hello," said Adrian. (No action = boring)
+
+CHARACTER VOICE CONSISTENCY:
+   • BRAVE character: Short, direct sentences. "Let's go." "I'll do it."
+   • SCARED character: Stuttering, questions. "W-what was that?" "Are you sure?"
+   • WISE character: Calm, thoughtful. "Think carefully, young one."
+   • TRICKSTER character: Wordplay, mischief. "Perhaps... or perhaps not!"
+
+DIALOGUE TAG VARIETY:
+   ❌ Overused: said, replied, answered, responded (max 30%)
+   ✅ Use instead: whispered, shouted, mumbled, giggled, breathed,
+      squeaked, stammered, cheered, shrieked, hissed, growled, sighed
+`;
+}
+
+/**
+ * NEW v3.0: Generate emotional arc rules
+ */
+export function generateEmotionalArcBlockEN(): string {
+  return `
+❤️ EMOTIONAL ARC TRACKING (CRITICAL FOR CHARACTER DEVELOPMENT):
+══════════════════════════════════════════════════════════════════════════════
+
+PROTAGONIST EMOTIONAL JOURNEY:
+   Chapter 1: WONDER → Discovering the world, eyes wide, curious
+   Chapter 2: DOUBT → "Can I really do this?" Hesitation, questioning
+   Chapter 3: DESPAIR → Lowest point, failure, tears, giving up
+   Chapter 4: DETERMINATION → "I have to try!" Clenched fists, standing up
+   Chapter 5: GROWTH → Success, pride, helping others, lesson learned
+
+SIDEKICK EMOTIONAL JOURNEY:
+   Chapter 1: CURIOSITY → Following along, interested
+   Chapter 2: CONCERN → Worried about friend, protective
+   Chapter 3: FEAR → Danger feels real, trembling
+   Chapter 4: COURAGE → Steps up to help when needed most
+   Chapter 5: PRIDE → Proud of what they achieved together
+
+SHOW EMOTIONAL TRANSITIONS (Never tell!):
+   ❌ "Alexander suddenly felt brave" (TELLING = BAD)
+   ✅ "Alexander's hands stopped shaking. He stood up straight." (SHOWING = GOOD)
+
+   ❌ "She decided to trust him" (SHORTCUT = BAD)
+   ✅ "She uncrossed her arms. A small smile appeared." (TRANSITION = GOOD)
+
+FORBIDDEN EMOTIONAL SHORTCUTS:
+   ❌ "suddenly felt brave"
+   ❌ "decided to be happy"
+   ❌ "stopped being scared"
+   ❌ "chose to trust"
+`;
+}
+
+/**
+ * NEW v3.0: Generate leitmotif rules
+ */
+export function generateLeitmotifBlockEN(): string {
+  return `
+🎵 RECURRING MOTIFS (LEITMOTIFS) - PROFESSIONAL TECHNIQUE:
+══════════════════════════════════════════════════════════════════════════════
+
+CHOOSE 2-3 RECURRING MOTIFS for the story:
+
+SOUND MOTIF (appears 5x across all chapters):
+   Examples: "the nightingale's song", "porcelain tinkling", "wind chimes"
+   Ch1: Introduce subtly → Ch3: Threatened/lost → Ch5: Returns triumphantly
+
+COLOR MOTIF (appears 5x):
+   Examples: "gold vs. gray", "the red thread", "silver moonlight"
+   Use to reinforce theme: Gold = true, Gray = artificial
+
+PHRASE MOTIF (appears 3x):
+   Examples: "echte Stimme" (true voice), "the real song"
+   Character says it, then it becomes the moral lesson
+
+OBJECT MOTIF (appears 4x):
+   Examples: "the porcelain heart", "the silver feather", "the old key"
+   Ch1: Shown → Ch2: Used → Ch4: Crucial → Ch5: Symbolic resolution
+
+MOTIF ARC PATTERN:
+   Chapter 1: Introduce subtly (mentioned in passing)
+   Chapter 2: Reinforce (appears again, more prominent)
+   Chapter 3: Challenge or threaten (motif is in danger)
+   Chapter 4: Transform or use (motif becomes important)
+   Chapter 5: Resolution payoff (motif completes its arc)
+`;
+}
+
+/**
+ * NEW v3.0: Generate POV consistency rules
+ */
+export function generatePOVBlockEN(): string {
+  return `
+👁️ POV (POINT OF VIEW) CONSISTENCY:
+══════════════════════════════════════════════════════════════════════════════
+
+CHAPTER POV ASSIGNMENT:
+   Chapter 1: PROTAGONIST's perspective (Alexander)
+   Chapter 2: SIDEKICK's perspective (Adrian)
+   Chapter 3: PROTAGONIST's perspective (back to Alexander)
+   Chapter 4: SIDEKICK's perspective (Adrian's moment to shine)
+   Chapter 5: SHARED perspective (both contribute equally)
+
+POV INDICATORS (stay consistent within chapter):
+   • Whose THOUGHTS we access: Only POV character's inner feelings
+   • Whose BODY we follow: Camera stays with POV character
+   • Whose DIALOGUE opens: POV character speaks first or is focus
+
+POV SWITCHING RULES:
+   ❌ Don't switch POV mid-paragraph
+   ❌ Don't access multiple characters' thoughts in same scene
+   ✅ Use transitions when switching: "Meanwhile, Adrian..."
+   ✅ Use scene breaks for POV changes
+
+EXAMPLE:
+   Chapter 2 (Adrian's POV):
+   ✅ "Adrian's heart raced. What would Alexander do?"
+   ❌ "Adrian's heart raced. Alexander felt confident." (Switching!)
+`;
+}
+
+/**
+ * NEW v3.0: Generate chapter balance rules
+ */
+export function generateChapterBalanceBlockEN(): string {
+  return `
+⚖️ CHAPTER BALANCE RULES:
+══════════════════════════════════════════════════════════════════════════════
+
+WORD COUNT PER CHAPTER:
+   • Minimum: 280 words
+   • Maximum: 320 words
+   • Maximum variance: 20 words between shortest and longest chapter
+
+PACING BALANCE:
+   • ACTION: 35-65% of chapter content
+   • DIALOGUE: 25-40% of chapter content
+   • DESCRIPTION: 10-30% of chapter content
+
+SENTENCE RHYTHM PATTERN:
+   After 3 short sentences (≤7 words), include 1 medium sentence (8-15 words)
+   Pattern: short-short-short-MEDIUM-short-short
+
+   ❌ "He ran. He stopped. He looked. He saw. He gasped." (Choppy!)
+   ✅ "He ran. He stopped. He looked around the dark room carefully. He saw it." (Rhythm!)
+
+AVOID REPETITIVE SENTENCE STARTS:
+   ❌ "Er rannte. Er blieb stehen. Er schaute." (3x "Er")
+   ✅ "Er rannte. Die Füße schmerzten. Dann blieb er stehen." (Varied!)
+`;
+}
+
+/**
+ * NEW v3.0: Generate style reference block
+ */
+export function generateStyleReferenceBlockEN(genre: string): string {
+  const styleByGenre: Record<string, string> = {
+    adventure: 'lindgren',
+    fairy_tale: 'preussler',
+    fairy_tales: 'preussler',
+    humor: 'donaldson',
+    fantasy: 'preussler',
+    friendship: 'lindgren',
+  };
+
+  const style = styleByGenre[genre] || 'preussler';
+
+  const styleDescriptions: Record<string, string> = {
+    lindgren: `
+WRITE LIKE ASTRID LINDGREN (Ronja Räubertochter, Pippi Langstrumpf):
+   • NATURE: Alive, breathing, almost a character itself
+   • CHILDREN: Brave but vulnerable, make real mistakes, have real emotions
+   • DANGER: Real but not traumatizing - always a way out
+   • HUMOR: Dry, understated, often hidden in dialogue
+   • EMOTION: Deep feelings shown through action, not named`,
+
+    donaldson: `
+WRITE LIKE JULIA DONALDSON (Der Grüffelo, Stockmann):
+   • RHYTHM: Strong rhythmic patterns, memorable phrases
+   • REPETITION: Stylistic repetition for emphasis ("He was BIG. He was STRONG.")
+   • VILLAINS: Scary but defeatable through cleverness
+   • RESOLUTION: Satisfying, often with a clever twist
+   • LANGUAGE: Playful, with sounds and wordplay`,
+
+    preussler: `
+WRITE LIKE OTFRIED PREUßLER (Die kleine Hexe, Räuber Hotzenplotz):
+   • ATMOSPHERE: Dark but cozy, mysterious but safe
+   • MAGIC: Subtle, integrated into everyday life (not flashy)
+   • CHARACTERS: Quirky, memorable, often with catchphrases
+   • LESSONS: Deep but not preachy, woven naturally into plot
+   • TONE: Warm even in danger, humor in unexpected places`,
+  };
+
+  return `
+📚 PROFESSIONAL STYLE REFERENCE:
+══════════════════════════════════════════════════════════════════════════════
+${styleDescriptions[style]}
+`;
+}
+
+/**
  * Generate the complete ENGLISH professional storytelling rules block
  * This is the recommended version for GPT-5 prompts
+ * VERSION 3.0 - Includes all 12 optimizations
  */
-export function generateCompleteRulesBlockEN(ageGroup: string, targetLanguage: string = 'German'): string {
+export function generateCompleteRulesBlockEN(ageGroup: string, targetLanguage: string = 'German', genre: string = 'fairy_tales'): string {
   return `
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║           PROFESSIONAL CHILDREN'S BOOK QUALITY RULES v2.0                    ║
+║           PROFESSIONAL CHILDREN'S BOOK QUALITY RULES v3.0                    ║
 ║     (Based on Astrid Lindgren, Julia Donaldson, Otfried Preußler)            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
@@ -811,23 +1397,41 @@ ${generateTitleBlockEN()}
 
 ${generateAgeLanguageBlockEN(ageGroup)}
 
-${generateDialogueBlockEN()}
+${generateEnhancedDialogueBlockEN()}
 
 ${generateShowDontTellBlockEN()}
 
 ${generateChapterStructureBlockEN()}
 
+${generateForeshadowingBlockEN()}
+
+${generateEmotionalArcBlockEN()}
+
+${generateLeitmotifBlockEN()}
+
+${generatePOVBlockEN()}
+
+${generateChapterBalanceBlockEN()}
+
+${generateStyleReferenceBlockEN(genre)}
+
 ══════════════════════════════════════════════════════════════════════════════
-QUALITY CHECKLIST BEFORE OUTPUT:
+QUALITY CHECKLIST v3.0 BEFORE OUTPUT:
 ══════════════════════════════════════════════════════════════════════════════
 ☐ No meta-labels in text (Dialogues:, Senses:, etc.)?
 ☐ Title maximum 4 words, no "[Name] and..."?
 ☐ Sentences short enough for ${ageGroup} year olds?
-☐ Dialogues connected with action, not listed?
+☐ MINIMUM 5 dialogues per chapter with action beats?
 ☐ Emotions shown through body language, not named?
 ☐ First sentence is action or image?
 ☐ Last sentence (Ch 1-4) creates tension?
 ☐ At least 3 senses per chapter woven in?
+☐ Every threat from Ch1-2 returns in Ch3-4? (Foreshadowing!)
+☐ Character transformations properly foreshadowed?
+☐ 2-3 recurring motifs throughout story?
+☐ Emotional arc clear for each avatar?
+☐ POV consistent within each chapter?
+☐ Word count 280-320 per chapter?
 ══════════════════════════════════════════════════════════════════════════════
 
 FINAL REMINDER: The story text MUST be written in ${targetLanguage}!
@@ -840,7 +1444,7 @@ Only imageDescription fields should be in English.
 // ============================================================================
 
 export default {
-  // Constants
+  // Constants v2.0
   FORBIDDEN_OUTPUT_PATTERNS,
   containsMetaPatterns,
   AGE_GROUP_RULES,
@@ -850,6 +1454,18 @@ export default {
   CHAPTER_STRUCTURE,
   REPETITION_TECHNIQUE,
   SENSORY_RULES,
+
+  // NEW v3.0 Constants
+  FORESHADOWING_RULES,
+  ENHANCED_DIALOGUE_RULES,
+  CHAPTER_BALANCE_RULES,
+  REPETITION_DETECTION,
+  POV_RULES,
+  IMAGE_PROMPT_RULES,
+  LEITMOTIF_RULES,
+  EMOTIONAL_ARC_RULES,
+  STYLE_REFERENCES,
+
   // German generators (legacy)
   generateAntiPatternBlock,
   generateAgeLanguageBlock,
@@ -858,12 +1474,24 @@ export default {
   generateShowDontTellBlock,
   generateChapterStructureBlock,
   generateCompleteRulesBlock,
-  // English generators (RECOMMENDED for GPT-5)
+
+  // English generators v2.0 (RECOMMENDED for GPT-5)
   generateAntiPatternBlockEN,
   generateAgeLanguageBlockEN,
   generateTitleBlockEN,
   generateDialogueBlockEN,
   generateShowDontTellBlockEN,
   generateChapterStructureBlockEN,
+
+  // NEW v3.0 English generators
+  generateForeshadowingBlockEN,
+  generateEnhancedDialogueBlockEN,
+  generateEmotionalArcBlockEN,
+  generateLeitmotifBlockEN,
+  generatePOVBlockEN,
+  generateChapterBalanceBlockEN,
+  generateStyleReferenceBlockEN,
+
+  // Complete Rules Block v3.0 (includes all optimizations)
   generateCompleteRulesBlockEN,
 };

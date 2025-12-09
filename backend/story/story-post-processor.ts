@@ -1,12 +1,13 @@
 /**
- * STORY POST-PROCESSOR v1.0
+ * STORY POST-PROCESSOR v2.0
  *
  * Validates and cleans AI-generated story output to ensure professional quality.
  * Removes meta-patterns, validates structure, and provides quality scores.
  *
  * Based on:
- * - Professional Storytelling Rules v2.0
+ * - Professional Storytelling Rules v3.0
  * - GPT-5 Output Quality Guidelines
+ * - 12 Priority Optimizations for 10.0 Quality
  */
 
 import {
@@ -15,6 +16,10 @@ import {
   AGE_GROUP_RULES,
   TITLE_RULES,
   SHOW_DONT_TELL,
+  ENHANCED_DIALOGUE_RULES,
+  CHAPTER_BALANCE_RULES,
+  REPETITION_DETECTION,
+  IMAGE_PROMPT_RULES,
   type AgeGroupRules,
 } from './professional-storytelling-rules';
 
@@ -46,6 +51,10 @@ export interface QualityScore {
   sensoryScore: number;     // 0-10
   structureScore: number;   // 0-10
   metaPatternPenalty: number; // 0-10 (higher = more penalties)
+  // NEW v2.0 scores
+  chapterBalanceScore: number;  // 0-10
+  repetitionScore: number;      // 0-10
+  imagePromptScore: number;     // 0-10
   issues: string[];
   suggestions: string[];
 }
@@ -184,7 +193,7 @@ export class StoryPostProcessor {
   }
 
   /**
-   * Calculate comprehensive quality score
+   * Calculate comprehensive quality score (v2.0 with new metrics)
    */
   private calculateQualityScore(story: ProcessedStory): QualityScore {
     const issues: string[] = [];
@@ -193,7 +202,7 @@ export class StoryPostProcessor {
     // 1. Title Score
     const titleScore = this.scoreTitleQuality(story.title, issues, suggestions);
 
-    // 2. Dialogue Score
+    // 2. Dialogue Score (now uses ENHANCED_DIALOGUE_RULES)
     const dialogueScore = this.scoreDialogueQuality(story.chapters, issues, suggestions);
 
     // 3. Show Don't Tell Score
@@ -211,14 +220,26 @@ export class StoryPostProcessor {
     // 7. Meta Pattern Penalty
     const metaPatternPenalty = this.calculateMetaPenalty(story.chapters, issues);
 
-    // Calculate overall score
+    // NEW v2.0: Chapter Balance Score
+    const chapterBalanceScore = this.scoreChapterBalance(story.chapters, issues, suggestions);
+
+    // NEW v2.0: Repetition Score (bad repetitions)
+    const repetitionScore = this.scoreRepetition(story.chapters, issues, suggestions);
+
+    // NEW v2.0: Image Prompt Score
+    const imagePromptScore = this.scoreImagePrompts(story.chapters, issues, suggestions);
+
+    // Calculate overall score (updated weights for v2.0)
     const overall = Math.max(0, Math.min(10,
-      (titleScore * 0.1) +
-      (dialogueScore * 0.2) +
-      (showDontTellScore * 0.2) +
-      (sentenceLengthScore * 0.15) +
-      (sensoryScore * 0.15) +
-      (structureScore * 0.2) -
+      (titleScore * 0.08) +
+      (dialogueScore * 0.18) +
+      (showDontTellScore * 0.15) +
+      (sentenceLengthScore * 0.12) +
+      (sensoryScore * 0.12) +
+      (structureScore * 0.15) +
+      (chapterBalanceScore * 0.08) +
+      (repetitionScore * 0.06) +
+      (imagePromptScore * 0.06) -
       (metaPatternPenalty * 0.5)
     ));
 
@@ -231,6 +252,9 @@ export class StoryPostProcessor {
       sensoryScore: Math.round(sensoryScore * 10) / 10,
       structureScore: Math.round(structureScore * 10) / 10,
       metaPatternPenalty: Math.round(metaPatternPenalty * 10) / 10,
+      chapterBalanceScore: Math.round(chapterBalanceScore * 10) / 10,
+      repetitionScore: Math.round(repetitionScore * 10) / 10,
+      imagePromptScore: Math.round(imagePromptScore * 10) / 10,
       issues,
       suggestions,
     };
@@ -265,22 +289,30 @@ export class StoryPostProcessor {
   }
 
   /**
-   * Score dialogue quality
+   * Score dialogue quality (v2.0 with ENHANCED_DIALOGUE_RULES)
    */
   private scoreDialogueQuality(chapters: StoryChapter[], issues: string[], suggestions: string[]): number {
     let score = 10;
     const allText = chapters.map(c => c.content).join('\n');
 
-    // Count dialogues (text in quotes)
+    // Count dialogues per chapter
+    for (let i = 0; i < chapters.length; i++) {
+      const chapterDialogues = chapters[i].content.match(/["„"][^""„"]+["„""]/g) || [];
+      const minRequired = ENHANCED_DIALOGUE_RULES.minimumPerChapter; // Now 5!
+
+      if (chapterDialogues.length < minRequired) {
+        score -= 0.8;
+        issues.push(`Kapitel ${i + 1}: Nur ${chapterDialogues.length} Dialoge (min: ${minRequired})`);
+      }
+    }
+
+    // Total dialogue count
     const dialogueMatches = allText.match(/["„"][^""„"]+["„""]/g) || [];
     const dialogueCount = dialogueMatches.length;
+    const expectedDialogues = chapters.length * ENHANCED_DIALOGUE_RULES.minimumPerChapter;
 
-    // Expected: at least 3 dialogues per chapter = 15 total
-    const expectedDialogues = chapters.length * 3;
     if (dialogueCount < expectedDialogues) {
-      score -= Math.min(4, (expectedDialogues - dialogueCount) * 0.3);
-      issues.push(`Zu wenige Dialoge: ${dialogueCount} (erwartet: ${expectedDialogues}+)`);
-      suggestions.push('Füge mehr lebendige Dialoge hinzu');
+      suggestions.push(`Erhöhe Dialoganzahl auf mindestens ${expectedDialogues} (${ENHANCED_DIALOGUE_RULES.minimumPerChapter}/Kapitel)`);
     }
 
     // Check for dialogue lists pattern
@@ -297,8 +329,18 @@ export class StoryPostProcessor {
 
     if (totalTagCount > 0 && basicTagCount / totalTagCount > 0.5) {
       score -= 2;
-      issues.push('Dialog-Tags zu monoton');
+      issues.push('Dialog-Tags zu monoton (>50% basic tags)');
       suggestions.push('Variiere Dialog-Tags: flüsterte, rief, murmelte, kicherte...');
+    }
+
+    // Check for action beats with dialogues (80% should have action)
+    const dialoguesWithAction = (allText.match(/[.!?]\s*["„"][^""„"]+["„""]|["„"][^""„"]+["„""]\s*[^"„""]+[.!?]/g) || []).length;
+    const actionBeatRatio = dialogueCount > 0 ? dialoguesWithAction / dialogueCount : 0;
+
+    if (actionBeatRatio < ENHANCED_DIALOGUE_RULES.actionBeatRatio) {
+      score -= 1.5;
+      issues.push(`Nur ${Math.round(actionBeatRatio * 100)}% Dialoge mit Action-Beats (Ziel: 80%)`);
+      suggestions.push('Füge Aktionen vor/nach Dialogen hinzu: "Er rannte los. \"Schnell!\""');
     }
 
     return Math.max(0, score);
@@ -504,6 +546,149 @@ export class StoryPostProcessor {
     }
 
     return Math.min(10, penalty);
+  }
+
+  // ============================================================================
+  // NEW v2.0 SCORING METHODS
+  // ============================================================================
+
+  /**
+   * Score chapter balance (word count consistency)
+   */
+  private scoreChapterBalance(chapters: StoryChapter[], issues: string[], suggestions: string[]): number {
+    let score = 10;
+
+    const wordCounts = chapters.map(c => c.content.split(/\s+/).length);
+    const minWords = Math.min(...wordCounts);
+    const maxWords = Math.max(...wordCounts);
+    const variance = maxWords - minWords;
+
+    // Check against CHAPTER_BALANCE_RULES
+    const { minimum, maximum, variance: maxVariance } = CHAPTER_BALANCE_RULES.wordCount;
+
+    // Penalty for chapters outside range
+    for (let i = 0; i < chapters.length; i++) {
+      if (wordCounts[i] < minimum) {
+        score -= 1;
+        issues.push(`Kapitel ${i + 1} zu kurz: ${wordCounts[i]} Wörter (min: ${minimum})`);
+      }
+      if (wordCounts[i] > maximum) {
+        score -= 0.5;
+        issues.push(`Kapitel ${i + 1} zu lang: ${wordCounts[i]} Wörter (max: ${maximum})`);
+      }
+    }
+
+    // Penalty for high variance
+    if (variance > maxVariance) {
+      score -= Math.min(3, (variance - maxVariance) * 0.1);
+      issues.push(`Kapitel-Längen unausgewogen: Varianz ${variance} Wörter`);
+      suggestions.push('Gleiche die Kapitellängen an (280-320 Wörter)');
+    }
+
+    return Math.max(0, score);
+  }
+
+  /**
+   * Score for bad repetition patterns
+   */
+  private scoreRepetition(chapters: StoryChapter[], issues: string[], suggestions: string[]): number {
+    let score = 10;
+    const allText = chapters.map(c => c.content).join('\n');
+
+    // Check for bad repetition patterns
+    for (const pattern of REPETITION_DETECTION.badRepetitionPatterns) {
+      pattern.lastIndex = 0;
+      const matches = allText.match(pattern);
+      if (matches && matches.length > 0) {
+        score -= matches.length * 1.5;
+        issues.push(`Stilistisch schwache Wiederholung gefunden: ${matches.length}x`);
+      }
+    }
+
+    // Check for consecutive same-start sentences
+    const sentences = allText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    let consecutiveSameStart = 0;
+    let lastStart = '';
+
+    for (const sentence of sentences) {
+      const trimmed = sentence.trim();
+      const currentStart = trimmed.split(/\s+/)[0]?.toLowerCase() || '';
+
+      if (currentStart === lastStart && currentStart.length > 0) {
+        consecutiveSameStart++;
+        if (consecutiveSameStart >= REPETITION_DETECTION.maxConsecutiveSameStart) {
+          score -= 0.5;
+        }
+      } else {
+        consecutiveSameStart = 0;
+      }
+      lastStart = currentStart;
+    }
+
+    if (score < 8) {
+      suggestions.push('Variiere Satzanfänge - vermeide wiederholte "Er/Sie/Es" Starts');
+    }
+
+    return Math.max(0, score);
+  }
+
+  /**
+   * Score image prompt quality
+   */
+  private scoreImagePrompts(chapters: StoryChapter[], issues: string[], suggestions: string[]): number {
+    let score = 10;
+
+    for (let i = 0; i < chapters.length; i++) {
+      const prompt = chapters[i].imageDescription || '';
+
+      // Check word count
+      const wordCount = prompt.split(/\s+/).length;
+      if (wordCount < IMAGE_PROMPT_RULES.wordCount.minimum) {
+        score -= 0.5;
+        issues.push(`Bild-Prompt Kapitel ${i + 1} zu kurz: ${wordCount} Wörter`);
+      }
+      if (wordCount > IMAGE_PROMPT_RULES.wordCount.maximum) {
+        score -= 0.3;
+      }
+
+      // Check for shot type
+      const shotTypes = IMAGE_PROMPT_RULES.shotTypeVariety.types;
+      const hasShot = shotTypes.some(type => prompt.toUpperCase().includes(type));
+      if (!hasShot) {
+        score -= 0.5;
+        issues.push(`Bild-Prompt Kapitel ${i + 1}: Kein SHOT TYPE definiert`);
+      }
+
+      // Check for German words in English prompt
+      const germanPatterns = Object.keys(IMAGE_PROMPT_RULES.languageRules.translatePatterns);
+      for (const pattern of germanPatterns) {
+        if (prompt.includes(pattern)) {
+          score -= 0.3;
+          issues.push(`Bild-Prompt Kapitel ${i + 1}: Deutsche Begriffe gefunden`);
+          suggestions.push(`Ersetze "${pattern}" durch englische Übersetzung`);
+          break;
+        }
+      }
+    }
+
+    // Check for shot type variety
+    const usedShots = new Set<string>();
+    for (const chapter of chapters) {
+      const prompt = chapter.imageDescription?.toUpperCase() || '';
+      for (const type of IMAGE_PROMPT_RULES.shotTypeVariety.types) {
+        if (prompt.includes(type)) {
+          usedShots.add(type);
+          break;
+        }
+      }
+    }
+
+    if (usedShots.size < 3) {
+      score -= 1;
+      suggestions.push('Variiere SHOT TYPES: WIDE, CLOSE-UP, HERO, DRAMATIC ANGLE');
+    }
+
+    return Math.max(0, score);
   }
 }
 
