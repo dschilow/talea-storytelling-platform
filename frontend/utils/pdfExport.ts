@@ -111,8 +111,18 @@ export async function exportStoryAsPDF(
     const margin = 20;
     const contentWidth = pageWidth - (margin * 2);
 
+    // Support both 'chapters' and 'pages' field names
+    const chapters = story.chapters || story.pages || [];
+
+    console.log('[PDF Export] Story data:', {
+      hasChapters: !!story.chapters,
+      hasPages: !!story.pages,
+      chaptersLength: chapters.length,
+      storyTitle: story.title
+    });
+
     // Calculate total steps for progress
-    const totalSteps = 1 + (story.chapters?.length || 0) * 2; // Cover + (chapter text + image) * chapters
+    const totalSteps = 1 + chapters.length * 2; // Cover + (chapter text + image) * chapters
     let currentStep = 0;
 
     const updateProgress = () => {
@@ -187,7 +197,7 @@ export async function exportStoryAsPDF(
     yPos += 6;
     doc.text(`Alter: ${story.config.ageGroup || '6-8'}`, margin, yPos);
     yPos += 6;
-    doc.text(`Kapitel: ${story.chapters?.length || 0}`, margin, yPos);
+    doc.text(`Kapitel: ${chapters.length || 0}`, margin, yPos);
     yPos += 6;
     const dateStr = new Date(story.createdAt).toLocaleDateString('de-DE');
     doc.text(`Erstellt: ${dateStr}`, margin, yPos);
@@ -199,8 +209,8 @@ export async function exportStoryAsPDF(
     // CHAPTERS
     // ============================================================================
 
-    if (story.chapters && story.chapters.length > 0) {
-      for (const chapter of story.chapters) {
+    if (chapters && chapters.length > 0) {
+      for (const chapter of chapters) {
         // Start new page for each chapter
         doc.addPage();
         yPos = margin;
