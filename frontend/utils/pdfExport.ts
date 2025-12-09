@@ -118,8 +118,24 @@ export async function exportStoryAsPDF(
       hasChapters: !!story.chapters,
       hasPages: !!story.pages,
       chaptersLength: chapters.length,
-      storyTitle: story.title
+      storyTitle: story.title,
+      storyKeys: Object.keys(story),
+      firstChapter: chapters.length > 0 ? {
+        title: chapters[0].title,
+        contentLength: chapters[0].content.length,
+        hasImage: !!chapters[0].imageUrl
+      } : null
     });
+
+    // Early validation
+    if (!chapters || chapters.length === 0) {
+      console.error('[PDF Export] ERROR: No chapters found!', {
+        storyId: story.id,
+        status: story.status,
+        fullStoryObject: story
+      });
+      throw new Error('Geschichte hat keine Kapitel. Bitte stelle sicher, dass die Geschichte vollständig geladen ist.');
+    }
 
     // Calculate total steps for progress
     const totalSteps = 1 + chapters.length * 2; // Cover + (chapter text + image) * chapters

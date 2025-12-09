@@ -6,6 +6,7 @@ import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 import { AvatarGroup } from '../ui/avatar-group';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { useBackend } from '../../hooks/useBackend';
 
 interface StoryCardProps {
   story: Story;
@@ -15,6 +16,7 @@ interface StoryCardProps {
 
 export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete }) => {
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const backend = useBackend();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -38,7 +40,22 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
 
     try {
       setIsExportingPDF(true);
-      await exportStoryAsPDF(story);
+
+      // CRITICAL: Load full story with chapters before exporting
+      // The story list API doesn't include chapters, so we need to fetch them
+      console.log('[StoryCard] Loading full story with chapters for PDF export...');
+      const fullStory = await backend.story.get({ id: story.id });
+
+      console.log('[StoryCard] Full story loaded:', {
+        hasChapters: !!fullStory.chapters,
+        chapterCount: fullStory.chapters?.length || 0
+      });
+
+      if (!fullStory.chapters || fullStory.chapters.length === 0) {
+        throw new Error('Die Geschichte hat keine Kapitel');
+      }
+
+      await exportStoryAsPDF(fullStory as any);
 
       // Success notification - using dynamic import to avoid circular dependency
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
