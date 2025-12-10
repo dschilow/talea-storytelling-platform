@@ -354,14 +354,14 @@ export class Phase3StoryFinalizer {
             .map(scene => scene.sceneDescription)
             .join('\n\n');
 
-          // Run validation
+          // Run validation (relaxed for fairy tales - allow traditional moral phrases)
           const originalityReport = OriginalityValidator.validate(
             generatedStoryText,
             sourceTemplateText,
             {
               maxOverlapPercentage: 40,
               minPhraseLength: 4,
-              maxDirectCopies: 3,
+              maxDirectCopies: 8, // Higher limit for fairy tales to allow traditional moral phrases
               strictMode: false,
             }
           );
