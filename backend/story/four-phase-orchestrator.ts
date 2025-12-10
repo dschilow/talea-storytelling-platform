@@ -783,8 +783,15 @@ export class FourPhaseOrchestrator {
         );
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
-        // OPTIMIZATION v3.0: Enhanced negative prompt to prevent character duplication
-        const negativePrompt = "deformed, disfigured, duplicate characters, extra limbs, watermark, text, clones, twins, triplets, multiple instances of same character, same person twice, copy of character, mirror image, repeated face, duplicate person, two of same child, three boys when should be two";
+        // OPTIMIZATION v3.5: Stronger negative prompt to prevent swaps/duplicates
+        const negativePrompt = [
+          "deformed, disfigured, watermark, text, signature, low quality",
+          "duplicate characters, extra people, crowd, extra children, extra boys, extra girls, extra humans",
+          "twins, clones, mirror image, repeated face, same person twice, multiple instances of same character",
+          "extra dwarfs, extra gnomes, gnome crowd, dwarf crowd, multiple dwarfs, second dwarf",
+          "beard on children, hat on children, dwarfified kids, child with beard",
+          "mislabeled species, wrong species, swapped species, puppet, mannequin"
+        ].join(", ");
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
@@ -850,6 +857,24 @@ export class FourPhaseOrchestrator {
 
     const parts: string[] = [];
 
+    // SPECIES/GENDER BASELINE FIRST to avoid dwarf/gnome substitution
+    if (vp.species) {
+      const speciesLower = String(vp.species).toLowerCase();
+      if (speciesLower.includes('human')) {
+        if (vp.ageApprox && vp.ageApprox <= 12) {
+          parts.push('human child (no beard, no mustache, no hat)');
+        } else {
+          parts.push('human');
+        }
+      } else if (speciesLower.includes('dwarf')) {
+        parts.push('dwarf with beard and pointed hat');
+      } else if (speciesLower.includes('magical')) {
+        parts.push('magical being');
+      } else {
+        parts.push(speciesLower);
+      }
+    }
+
     // AGE FIRST (critical for size relationships)
     if (vp.ageApprox) {
       parts.push(`${vp.ageApprox} years old`);
@@ -896,6 +921,11 @@ export class FourPhaseOrchestrator {
       parts.push(vp.consistentDescriptors.join(', '));
     }
 
+    // CHILD SAFETY: Never add beard/hat unless species is dwarf
+    if (vp.species && String(vp.species).toLowerCase().includes('human') && (vp.ageApprox ?? 10) <= 12) {
+      parts.push('clean-shaven, no beard, no mustache, no hat');
+    }
+
     return parts.join(', ');
   }
 
@@ -909,9 +939,11 @@ export class FourPhaseOrchestrator {
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
+    const cleanedDescription = baseDescription.replace(/\s+/g, ' ').trim();
+
     // OPTIMIZATION v2.4: Check imageDescription for genre keywords
     const genreKeywords = ['medieval', 'fantasy', 'magic', 'castle', 'knight', 'princess', 'dragon', 'fairy', 'wizard', 'witch', 'kingdom', 'ancient', 'steampunk', 'victorian', 'retro', 'historical', 'old world', 'village', 'steam', 'gear', 'clockwork', 'brass'];
-    const descriptionLower = baseDescription.toLowerCase();
+    const descriptionLower = cleanedDescription.toLowerCase();
     const isGenreScene = genreKeywords.some(keyword => descriptionLower.includes(keyword));
     const isSteampunk = descriptionLower.includes('steampunk') || descriptionLower.includes('steam') || descriptionLower.includes('gear') || descriptionLower.includes('clockwork');
 
@@ -920,6 +952,7 @@ export class FourPhaseOrchestrator {
       name: string;
       description: string;
       age: number;
+      species?: string;
     }
 
     const allCharacters = new Map<string, CharacterInfo>();
@@ -952,11 +985,13 @@ export class FourPhaseOrchestrator {
       }
 
       const age = avatar.visualProfile?.ageApprox || 8; // fallback
+      const species = avatar.visualProfile?.species || (age <= 12 ? 'human child' : undefined);
 
       allCharacters.set(avatar.name.toLowerCase(), {
         name: avatar.name,
         description: visualContext,
-        age
+        age,
+        species,
       });
     }
 
@@ -1007,7 +1042,8 @@ export class FourPhaseOrchestrator {
       allCharacters.set(char.name.toLowerCase(), {
         name: char.name,
         description: fullDesc,
-        age
+        age,
+        species: char.visualProfile?.species,
       });
     }
 
@@ -1042,7 +1078,12 @@ export class FourPhaseOrchestrator {
     const characterBlock = charactersInScene
       .map((c, index) => {
         const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
-        return `${c.name} ${position}: ${c.description}`;
+        const speciesTag = c.species ? `species: ${c.species}` : '';
+        // For child avatars: explicitly forbid beard/hat to prevent dwarf substitution
+        const safety = (c.species || '').toLowerCase().includes('human') && c.age <= 12
+          ? 'clean-shaven, no beard, no hat, never a dwarf or gnome'
+          : '';
+        return `${c.name} ${position}: ${speciesTag} ${c.description}${safety ? `, ${safety}` : ''}`;
       })
       .join("\n\n");
 
@@ -1050,12 +1091,18 @@ export class FourPhaseOrchestrator {
       ? `\nIMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - ${charactersInScene[0].name} (${charactersInScene[0].age}y) must be SMALLER than any older character.`
       : '';
 
+    const totalCharacters = charactersInScene.length;
+    const totalHumans = charactersInScene.filter(c => (c.species || '').toLowerCase().includes('human')).length;
+    const totalDwarfs = charactersInScene.filter(c => (c.species || '').toLowerCase().includes('dwarf')).length;
+
     return `
-${baseDescription}
+${cleanedDescription}
 ${positioningInstructions}
 
 CHARACTERS IN THIS SCENE (lock face/outfit/age/POSITION):
-${characterBlock}${ageOrder}
+${characterBlock}
+TOTAL CHARACTERS VISIBLE: ${totalCharacters}. Humans: ${totalHumans}. Dwarfs: ${totalDwarfs}. NO other humans, dwarfs, gnomes, twins, clones, dolls, statues, puppets, or background kids. If extra characters appear, remove them and leave empty space.
+${ageOrder}
 
 Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
 IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent across all images. Do not add text or watermarks.
@@ -1180,8 +1227,15 @@ CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twin
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
       const stylePreset = "watercolor_storybook";
-      // OPTIMIZATION v3.0: Enhanced negative prompt for cover to prevent character duplication
-      const negativePrompt = "deformed, disfigured, duplicate characters, extra limbs, watermark, text, clones, twins, triplets, multiple instances of same character, same person twice, copy of character, mirror image, repeated face, duplicate person, two of same child, three boys when should be two, extra child, additional person";
+      // OPTIMIZATION v3.5: Enhanced negative prompt for cover to prevent swaps/duplicates
+      const negativePrompt = [
+        "deformed, disfigured, watermark, text, signature, low quality",
+        "duplicate characters, extra people, crowd, extra children, extra boys, extra girls, extra humans",
+        "twins, clones, mirror image, repeated face, same person twice, multiple instances of same character",
+        "extra dwarfs, extra gnomes, gnome crowd, dwarf crowd, multiple dwarfs, second dwarf",
+        "beard on children, hat on children, dwarfified kids, child with beard",
+        "mislabeled species, wrong species, swapped species, puppet, mannequin"
+      ].join(", ");
       const imageUrl = await this.generateImage(enhancedPrompt, seed, negativePrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
