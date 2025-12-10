@@ -1150,7 +1150,11 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
     try {
       // Build cover scene description with CLEAR character positioning
       const avatarNames = avatarDetails.map(a => a.name).join(" and ");
+      
+      // CRITICAL FIX: Filter out avatars from supporting characters to prevent duplicates
+      const avatarNamesLower = avatarDetails.map(a => a.name.toLowerCase());
       const supportingCharacters = Array.from(characterAssignments.values())
+        .filter(c => !avatarNamesLower.includes(c.name.toLowerCase())) // Exclude avatars
         .slice(0, 2) // Include up to 2 main supporting characters
         .map(c => c.name)
         .join(" and ");

@@ -209,69 +209,90 @@ export class Phase2CharacterMatcher {
 
       const normalizedPlaceholder = req.placeholder.trim().toLowerCase();
 
-      // 🔧 CRITICAL FIX: Assign user avatars to protagonist/sidekick roles ONLY
+      // 🔧 CRITICAL FIX: Assign user avatars to protagonist/sidekick/helper roles ONLY
       // Never assign avatars to antagonist roles - those should be filled by character pool
-      const isAvatarRole = req.role === "protagonist" || req.role === "sidekick" || req.role === "companion";
+      // "helper" is used in fairy tale templates (e.g., Kind in "Des Kaisers neue Kleider")
+      const isAvatarRole = req.role === "protagonist" || req.role === "sidekick" || req.role === "companion" || req.role === "helper";
 
       if (isAvatarRole && avatarQueue.length > 0) {
         const avatarName = avatarQueue.shift();
         if (avatarName) {
-          console.log("[Phase2] ✅ Assigning user avatar to hero role", {
-            placeholder: req.placeholder,
-            avatarName,
-            role: req.role,
-            archetype: req.archetype
-          });
-
-          // 🔧 CRITICAL FIX: Load full visual profile from avatarDetails
+          // 🔧 SPECIES-AWARENESS CHECK: Verify avatar species matches placeholder expectations
+          // Load avatar details first to check species
           const fullAvatarData = avatarDetails?.find(
             a => a.name?.toLowerCase() === avatarName.toLowerCase()
           );
 
-          // Build enriched visual profile with full data
-          let visualProfile: any = {
-            description: avatarName,
-            imagePrompt: avatarName,
-            species: "human",
-            colorPalette: [],
-          };
-
-          if (fullAvatarData?.visualProfile) {
-            // Use the full visual profile from the database
-            visualProfile = {
-              description: this.visualProfileToEnglishDescription(fullAvatarData.visualProfile),
-              imagePrompt: this.visualProfileToEnglishDescription(fullAvatarData.visualProfile),
-              species: fullAvatarData.visualProfile.species || "human",
-              colorPalette: this.extractColorPalette(fullAvatarData.visualProfile),
-            };
-            console.log("[Phase2] ✅ Loaded full visual profile for", avatarName, {
-              age: fullAvatarData.visualProfile.ageApprox,
-              gender: fullAvatarData.visualProfile.gender,
-              species: visualProfile.species
-            });
+          const avatarSpecies = fullAvatarData?.visualProfile?.species || "human";
+          const placeholderUpper = req.placeholder.toUpperCase();
+          
+          // Check if placeholder suggests animal/creature species but avatar is human (or vice versa)
+          const placeholderSuggestsAnimal = placeholderUpper.includes("ANIMAL") || placeholderUpper.includes("CREATURE") || placeholderUpper.includes("PET");
+          const avatarIsHuman = avatarSpecies === "human";
+          
+          if (placeholderSuggestsAnimal && avatarIsHuman) {
+            // SPECIES MISMATCH: Human avatar cannot be animal helper!
+            console.warn(`[Phase2] ⚠️ SPECIES MISMATCH: Avatar "${avatarName}" (human) cannot fill animal-themed placeholder "${req.placeholder}". Skipping avatar assignment - will use character pool instead.`);
+            
+            // Put avatar back in queue for next role
+            avatarQueue.unshift(avatarName);
+            
+            // Fall through to character pool matching logic below
           } else {
-            console.warn("[Phase2] ⚠️ No visual profile found for avatar:", avatarName);
-          }
+            // Species matches or no conflict - proceed with avatar assignment
+            console.log("[Phase2] ✅ Assigning user avatar to hero role", {
+              placeholder: req.placeholder,
+              avatarName,
+              role: req.role,
+              archetype: req.archetype,
+              species: avatarSpecies
+            });
 
-          // Build character template with enriched data
-          const avatarChar: CharacterTemplate = {
-            id: fullAvatarData?.id || `avatar_${avatarName}`,
-            name: avatarName,
-            role: req.role,  // Will be protagonist or sidekick, NEVER antagonist
-            archetype: req.archetype,  // Will be hero or loyal_friend, NEVER villain
-            emotionalNature: {
-              dominant: req.emotionalNature,
-              secondary: req.requiredTraits || [],
-            },
-            visualProfile,
-            maxScreenTime: this.importanceToScreenTime(req.importance),
-            availableChapters: req.inChapters,
-            canonSettings: [],
-          };
-          assignments.set(req.placeholder, avatarChar);
-          usedCharacters.add(avatarChar.id);
-          usedSpecies.add(avatarChar.visualProfile.species || "human");
-          continue;
+            // Build enriched visual profile with full data
+            let visualProfile: any = {
+              description: avatarName,
+              imagePrompt: avatarName,
+              species: avatarSpecies,
+              colorPalette: [],
+            };
+
+            if (fullAvatarData?.visualProfile) {
+              // Use the full visual profile from the database
+              visualProfile = {
+                description: this.visualProfileToEnglishDescription(fullAvatarData.visualProfile),
+                imagePrompt: this.visualProfileToEnglishDescription(fullAvatarData.visualProfile),
+                species: avatarSpecies,
+                colorPalette: this.extractColorPalette(fullAvatarData.visualProfile),
+              };
+              console.log("[Phase2] ✅ Loaded full visual profile for", avatarName, {
+                age: fullAvatarData.visualProfile.ageApprox,
+                gender: fullAvatarData.visualProfile.gender,
+                species: avatarSpecies
+              });
+            } else {
+              console.warn("[Phase2] ⚠️ No visual profile found for avatar:", avatarName);
+            }
+
+            // Build character template with enriched data
+            const avatarChar: CharacterTemplate = {
+              id: fullAvatarData?.id || `avatar_${avatarName}`,
+              name: avatarName,
+              role: req.role,  // Will be protagonist or sidekick/helper, NEVER antagonist
+              archetype: req.archetype,  // Will be hero or loyal_friend, NEVER villain
+              emotionalNature: {
+                dominant: req.emotionalNature,
+                secondary: req.requiredTraits || [],
+              },
+              visualProfile,
+              maxScreenTime: this.importanceToScreenTime(req.importance),
+              availableChapters: req.inChapters,
+              canonSettings: [],
+            };
+            assignments.set(req.placeholder, avatarChar);
+            usedCharacters.add(avatarChar.id);
+            usedSpecies.add(avatarChar.visualProfile.species || "human");
+            continue;
+          }
         }
       }
 

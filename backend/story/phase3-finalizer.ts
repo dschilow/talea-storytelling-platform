@@ -705,12 +705,13 @@ KRITISCHE VERBOTE (QUALITY GATES):
    - PFLICHT: Spezifische, ueberraschende Details die zur Szene passen
 
 AUFGABE:
-1. Schreibe jedes Kapitel mit 320-420 Woertern, abwechslungsreiche Saetze, klare Abschnitte.
-2. Charaktere durch HANDLUNG zeigen - KEINE Aussehen-Beschreibungen!
-3. Lass Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten deutlich spueren.
-4. Wenn Spezialzutaten gewaehlt sind, setze sie konkret in Handlung und Szenen um.
-5. Nutze sanfte Cliffhanger in Kapiteln 1-4 und eine warme, poetische Aufloesung in Kapitel 5.
-6. Schenke dem Finale einen Lern- oder Herzensmoment, der das Versprechen der Story-Seele einloest.
+1. Schreibe jedes Kapitel mit EXAKT 310-330 Woertern, abwechslungsreiche Saetze, klare Abschnitte.
+2. KRITISCH: Kapitel unter 310 Woertern werden ABGELEHNT und muessen nachgeneriert werden!
+3. Charaktere durch HANDLUNG zeigen - KEINE Aussehen-Beschreibungen!
+4. Lass Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten deutlich spueren.
+5. Wenn Spezialzutaten gewaehlt sind, setze sie konkret in Handlung und Szenen um.
+6. Nutze sanfte Cliffhanger in Kapiteln 1-4 und eine warme, poetische Aufloesung in Kapitel 5.
+7. Schenke dem Finale einen Lern- oder Herzensmoment, der das Versprechen der Story-Seele einloest.
 
 OUTPUT (JSON):
 {
@@ -866,12 +867,12 @@ IMPORTANT LANGUAGE INSTRUCTION:
       }
 
       const wordCount = chapter.content.split(/\s+/).filter(Boolean).length;
-      if (wordCount < 280) {
-        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is below target 320-420`);
+      if (wordCount < 310) {
+        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is below target 310-330`);
       }
 
-      if (wordCount > 460) {
-        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is above target 320-420`);
+      if (wordCount > 350) {
+        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is above target 310-330`);
       }
     }
 
@@ -1406,15 +1407,16 @@ ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotional moments, frie
 ${(experience as any).storySoul === 'magische_entdeckung' ? '- Wonder, magic discoveries, fantastic elements' : ''}
 
 ## CHAPTER LENGTH: UNIFIED WORD TARGET
-CRITICAL: ALL chapters must have EXACTLY 300-320 words!
-- Chapter 1: 300-320 words
-- Chapter 2: 300-320 words  
-- Chapter 3: 300-320 words
-- Chapter 4: 300-320 words
-- Chapter 5: 300-320 words
+CRITICAL: ALL chapters must have EXACTLY 310-330 words!
+- Chapter 1: 310-330 words
+- Chapter 2: 310-330 words  
+- Chapter 3: 310-330 words
+- Chapter 4: 310-330 words
+- Chapter 5: 310-330 words
 
-TARGET: 310 words per chapter | MAXIMUM VARIANCE: 20 words total
-DO NOT exceed 320 words. DO NOT go below 300 words.
+TARGET: 320 words per chapter | MAXIMUM VARIANCE: 20 words total
+DO NOT exceed 330 words. DO NOT go below 310 words.
+IMPORTANT: Chapters with fewer than 310 words will be REJECTED.
 
 ${remixInstructions ? `
 ## ORIGINALITY ENFORCEMENT - CRITICAL!
@@ -1455,7 +1457,7 @@ should speak, act, and contribute in each chapter.
     {
       "order": 1,
       "title": "Chapter title (in ${targetLanguage})",
-      "content": "TARGET: 310 words (±10) in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.!",
+      "content": "TARGET: 320 words (±10) - MINIMUM 310 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.!",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 more chapters
