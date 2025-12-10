@@ -494,14 +494,14 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
       const wordCount = typeof chapter.content === "string"
         ? chapter.content.split(/\s+/).filter(Boolean).length
         : 0;
-      if (wordCount < 55) {
+      if (wordCount < 50) {
         throw new Error(
-          `[Phase1] Chapter ${chapter.order} has only ${wordCount} words (minimum required: 58). REJECTED!`
+          `[Phase1] Chapter ${chapter.order} has only ${wordCount} words (minimum required: 50). REJECTED!`
         );
       }
       if (wordCount < 58 || wordCount > 68) {
         console.warn(
-          `[Phase1] ⚠️ Chapter ${chapter.order} word count ${wordCount} outside ideal range (58-65). Will proceed but quality may suffer.`
+          `[Phase1] ⚠ Chapter ${chapter.order} word count ${wordCount} outside ideal range (58-65). Will proceed but quality may suffer.`
         );
       }
       if (wordCount > 75) {
@@ -540,5 +540,6 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
     console.log("[Phase1] Skeleton structure validated successfully");
   }
 }
+
 
 
