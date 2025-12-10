@@ -867,13 +867,15 @@ IMPORTANT LANGUAGE INSTRUCTION:
       }
 
       const wordCount = chapter.content.split(/\s+/).filter(Boolean).length;
-      if (wordCount < 310) {
-        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is below target 310-330`);
+      if (wordCount < 330) {
+        throw new Error(`Chapter ${chapter.order} has only ${wordCount} words (minimum: 330). This chapter is REJECTED. Please regenerate with at least 330 words.`);
       }
 
       if (wordCount > 350) {
-        console.warn(`[Phase3] Chapter ${chapter.order} word count is ${wordCount}, which is above target 310-330`);
+        throw new Error(`Chapter ${chapter.order} has ${wordCount} words (maximum: 350). This chapter is REJECTED. Please reduce to 330-350 words.`);
       }
+      
+      console.log(`[Phase3] ✅ Chapter ${chapter.order}: ${wordCount} words (target: 330-350)`);
     }
 
     // Validate newArtifact if present
@@ -1407,16 +1409,17 @@ ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotional moments, frie
 ${(experience as any).storySoul === 'magische_entdeckung' ? '- Wonder, magic discoveries, fantastic elements' : ''}
 
 ## CHAPTER LENGTH: UNIFIED WORD TARGET
-CRITICAL: ALL chapters must have EXACTLY 310-330 words!
-- Chapter 1: 310-330 words
-- Chapter 2: 310-330 words  
-- Chapter 3: 310-330 words
-- Chapter 4: 310-330 words
-- Chapter 5: 310-330 words
+CRITICAL: ALL chapters must have EXACTLY 330-350 words!
+- Chapter 1: 330-350 words
+- Chapter 2: 330-350 words  
+- Chapter 3: 330-350 words
+- Chapter 4: 330-350 words
+- Chapter 5: 330-350 words
 
-TARGET: 320 words per chapter | MAXIMUM VARIANCE: 20 words total
-DO NOT exceed 330 words. DO NOT go below 310 words.
-IMPORTANT: Chapters with fewer than 310 words will be REJECTED.
+TARGET: 340 words per chapter | MAXIMUM VARIANCE: 20 words total
+DO NOT exceed 350 words. DO NOT go below 330 words.
+CRITICAL: Chapters with fewer than 330 words will be IMMEDIATELY REJECTED AND REGENERATED!
+IMPORTANT: Aim for 340 words to ensure you meet the 330-word minimum with safety margin.
 
 ${remixInstructions ? `
 ## ORIGINALITY ENFORCEMENT - CRITICAL!
@@ -1457,7 +1460,7 @@ should speak, act, and contribute in each chapter.
     {
       "order": 1,
       "title": "Chapter title (in ${targetLanguage})",
-      "content": "TARGET: 320 words (±10) - MINIMUM 310 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.!",
+      "content": "TARGET: 340 words (±10) - ABSOLUTE MINIMUM 330 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.! CRITICAL: Count your words BEFORE submitting! Chapters under 330 words = INSTANT REJECTION!",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 more chapters

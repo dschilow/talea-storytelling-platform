@@ -1079,11 +1079,13 @@ export class FourPhaseOrchestrator {
       .map((c, index) => {
         const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
         const speciesTag = c.species ? `species: ${c.species}` : '';
+        // CRITICAL: Add visual identifiers to distinguish characters
+        const visualId = c.age <= 12 ? `young child (age ${c.age})` : c.age <= 18 ? `teenager (age ${c.age})` : `adult`;
         // For child avatars: explicitly forbid beard/hat to prevent dwarf substitution
         const safety = (c.species || '').toLowerCase().includes('human') && c.age <= 12
-          ? 'clean-shaven, no beard, no hat, never a dwarf or gnome'
+          ? 'CHILD: clean-shaven face, smooth skin, NO beard, NO mustache, NO facial hair, NO hat, NEVER a dwarf or gnome, ALWAYS young and childlike'
           : '';
-        return `${c.name} ${position}: ${speciesTag} ${c.description}${safety ? `, ${safety}` : ''}`;
+        return `${c.name} ${position}: ${speciesTag} ${visualId}, ${c.description}${safety ? `. ${safety}` : ''}`;
       })
       .join("\n\n");
 
@@ -1168,18 +1170,42 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
   private async generateImage(
     prompt: string,
     seed?: number,
-    negativePrompt?: string
+    negativePrompt?: string,
+    retryCount = 0,
+    maxRetries = 2
   ): Promise<string | undefined> {
     try {
-      const response = await ai.generateImage({
+      console.log(`[4-Phase] Generating image (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+      
+      // Increase timeout for first chapter (often slowest)
+      const timeout = 45000; // 45 seconds per image
+      
+      const imagePromise = ai.generateImage({
         prompt,
         seed,
         negativePrompt: negativePrompt,
       });
 
+      const response = await Promise.race([
+        imagePromise,
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error(`Image generation timeout after ${timeout}ms`)), timeout)
+        )
+      ]);
+
+      console.log(`[4-Phase] ✅ Image generated successfully`);
       return response.imageUrl;
     } catch (error) {
-      console.error("[4-Phase] Image generation failed:", error);
+      console.error(`[4-Phase] Image generation failed (attempt ${retryCount + 1}):`, error);
+      
+      // Retry logic
+      if (retryCount < maxRetries) {
+        console.log(`[4-Phase] Retrying image generation (${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+        return this.generateImage(prompt, seed, negativePrompt, retryCount + 1, maxRetries);
+      }
+      
+      console.error(`[4-Phase] ❌ Image generation failed after ${maxRetries + 1} attempts`);
       return undefined;
     }
   }
