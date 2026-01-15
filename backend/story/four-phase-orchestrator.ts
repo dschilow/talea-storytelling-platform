@@ -516,29 +516,32 @@ export class FourPhaseOrchestrator {
 
     await this.logPhaseEvent("phase3-story-finalization", phase3RequestPayload, phase3ResponsePayload);
 
-    // ===== PHASE 4: Generate Chapter Images =====
-    console.log("[4-Phase] ===== PHASE 4: IMAGE GENERATION =====");
+    // ===== PHASE 4: Generate Images (Parallelized) =====
+    console.log("[4-Phase] ===== PHASE 4: IMAGE GENERATION (PARALLEL) =====");
     const phase4Start = Date.now();
 
-    const chaptersWithImages = await this.generateChapterImages(
-      finalizedStory,
-      input.avatarDetails,
-      characterAssignments
-    );
+    // 🔧 OPTIMIZATION: Run Cover and Chapter generation in parallel
+    const [chaptersWithImages, coverImageResult] = await Promise.all([
+      this.generateChapterImages(
+        finalizedStory,
+        input.avatarDetails,
+        characterAssignments
+      ),
+      this.generateCoverImage(
+        finalizedStory,
+        input.avatarDetails,
+        characterAssignments
+      )
+    ]);
+
     phaseDurations.phase4Duration = Date.now() - phase4Start;
     console.log(`[4-Phase] Phase 4 completed in ${phaseDurations.phase4Duration}ms`);
 
     const successfulImages = chaptersWithImages.filter(ch => ch.imageUrl).length;
 
-    // Generate cover image
-    console.log("[4-Phase] Generating cover image...");
-    const coverStart = Date.now();
-    const coverImage = await this.generateCoverImage(
-      finalizedStory,
-      input.avatarDetails,
-      characterAssignments
-    );
-    const coverDuration = Date.now() - coverStart;
+    // Cover image results
+    const coverImage = coverImageResult;
+    const coverDuration = phaseDurations.phase4Duration; // Approximate since parallel
     const coverImageUrl = coverImage?.url;
 
     // ===== PHASE 4.5: Generate Artifact Image (if newArtifact exists) =====
@@ -1176,10 +1179,10 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
   ): Promise<string | undefined> {
     try {
       console.log(`[4-Phase] Generating image (attempt ${retryCount + 1}/${maxRetries + 1})...`);
-      
-      // Increase timeout for first chapter (often slowest)
-      const timeout = 45000; // 45 seconds per image
-      
+
+      // Increase timeout to 90s to prevent failures on complex prompts (like covers)
+      const timeout = 90000; // 90 seconds per image
+
       const imagePromise = ai.generateImage({
         prompt,
         seed,
@@ -1188,7 +1191,7 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
 
       const response = await Promise.race([
         imagePromise,
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error(`Image generation timeout after ${timeout}ms`)), timeout)
         )
       ]);
@@ -1197,14 +1200,14 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
       return response.imageUrl;
     } catch (error) {
       console.error(`[4-Phase] Image generation failed (attempt ${retryCount + 1}):`, error);
-      
+
       // Retry logic
       if (retryCount < maxRetries) {
         console.log(`[4-Phase] Retrying image generation (${retryCount + 1}/${maxRetries})...`);
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
         return this.generateImage(prompt, seed, negativePrompt, retryCount + 1, maxRetries);
       }
-      
+
       console.error(`[4-Phase] ❌ Image generation failed after ${maxRetries + 1} attempts`);
       return undefined;
     }
@@ -1223,7 +1226,7 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
     try {
       // Build cover scene description with CLEAR character positioning
       const avatarNames = avatarDetails.map(a => a.name).join(" and ");
-      
+
       // CRITICAL FIX: Filter out avatars from supporting characters to prevent duplicates
       const avatarNamesLower = avatarDetails.map(a => a.name.toLowerCase());
       const supportingCharacters = Array.from(characterAssignments.values())
@@ -1233,7 +1236,7 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
         .join(" and ");
 
       // OPTIMIZATION v3.0: Clear LEFT/RIGHT positioning to prevent character duplication
-      const positioningHint = avatarDetails.length === 2 
+      const positioningHint = avatarDetails.length === 2
         ? `POSITIONING: ${avatarDetails[0].name} on LEFT side, ${avatarDetails[1].name} on RIGHT side of the image.`
         : '';
 
