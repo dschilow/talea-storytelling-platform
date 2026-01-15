@@ -784,8 +784,18 @@ OUTPUT (JSON):
 - Beschreibe diesen Gegenstand kurz im Story-Text
 - name, description, storyEffect: In der Sprache ${config.language || 'de'}
 - visualDescriptorKeywords: IMMER auf ENGLISCH (fuer Bildgenerierung)
-- Beispiele: ["golden compass", "glowing blue core", "ancient runes", "floating particles"]
 - type: TOOL (nuetzliches Werkzeug), WEAPON (magische Waffe), KNOWLEDGE (Buch/Schriftrolle), COMPANION (kleines Wesen)
+
+⛔ VERBOTEN (GENERIC TRASH):
+- "Magischer Kristall", "Leuchtendes Amulett", "Goldener Schlüssel", "Alter Zauberstab"
+- "Stein des Mutes", "Feder der Weisheit"
+- Alles was generisch nach "RPG Item" klingt.
+
+✅ ERLAUBT (UNIQUE STORY LOOT):
+- Ein spezifischer Gegenstand aus der Handlung (z.B. "Der verbogene Löffel des Riesen", "Die Brille des Bäckers")
+- Etwas mit Charakter & Geschichte (z.B. "Eine Flasche mit eingefangenem Nordwind", "Ein Keks der niemals ausgeht")
+- Es muss "Schrullig" und "Einzigartig" sein (Stil: Otfried Preußler / Roald Dahl)
+- storyEffect muss kreativ sein (nicht nur "+1 Mut", sondern "Kann Türen öffnen wenn man höflich klopft")
 
 IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Use expressive action verbs and clear subject placement.

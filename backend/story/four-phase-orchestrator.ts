@@ -844,92 +844,72 @@ export class FourPhaseOrchestrator {
    * Convert structured visual profile to English text for image generation
    * CRITICAL: Maintains age/size relationships to prevent younger characters appearing older
    */
+  /**
+   * Convert structured visual profile to English text for image generation (SIMPLIFIED FOR CONSISTENCY)
+   * Focuses on 3-4 "Visual Anchors" rather than comprehensive details.
+   */
   private visualProfileToImagePrompt(vp: any): string {
     if (!vp) return 'no visual details available';
 
-    // OPTIMIZATION: Use the pre-generated, consistent image prompt if available
-    if (vp.imagePrompt && typeof vp.imagePrompt === 'string' && vp.imagePrompt.length > 10) {
-      // Strip "Portrait of [Name], " prefix if present to fit into scene description
-      let prompt = vp.imagePrompt;
-      // Remove common prefixes that might have been generated
-      prompt = prompt.replace(/^Portrait of [^,]+,\s*/i, '');
-      prompt = prompt.replace(/^A portrait of [^,]+,\s*/i, '');
+    // 1. Check for Manual "Visual Anchors" (consistentDescriptors) - PRIORITY #1
+    if (vp.consistentDescriptors && vp.consistentDescriptors.length > 0) {
+      // Use ONLY the anchors + age/gender/species. Ignore everything else to prevent noise.
+      const anchors = vp.consistentDescriptors.map((d: string) => d.trim()).filter(Boolean).join(", ");
+      const agePart = vp.ageApprox ? `${vp.ageApprox} years old` : "child";
+      const genderPart = vp.gender || "child";
 
-      return prompt;
+      // Safety check for human children
+      const isChild = (vp.ageApprox || 10) <= 12;
+      const safety = isChild ? "NO beard, NO hat, child proportions" : "";
+
+      return `${anchors}, ${agePart} ${genderPart}. ${safety}`;
     }
 
+    // 2. Fallback: Build SIMPLIFIED prompt from attributes (Auto-Anchors)
+    const anchors: string[] = [];
+
+    // Anchor A: Hair (Color + Style only)
+    if (vp.hair) {
+      const color = vp.hair.color || "brown";
+      const style = vp.hair.style || "tousled";
+      // SIMPLIFICATION: Limit hair description to 4 words max
+      anchors.push(`${color} ${style} hair`);
+    }
+
+    // Anchor B: Key Clothing (Outfit only)
+    if (vp.clothingCanonical) {
+      if (vp.clothingCanonical.outfit) {
+        anchors.push(`wearing ${vp.clothingCanonical.outfit}`);
+      } else if (vp.clothingCanonical.top) {
+        anchors.push(`wearing ${vp.clothingCanonical.top}`);
+      }
+    }
+
+    // Anchor C: Distinctive Feature (Glasses, Freckles - if in accessories)
+    if (vp.accessories && vp.accessories.length > 0) {
+      // Pick only the first accessory as a strong anchor
+      anchors.push(`with ${vp.accessories[0]}`);
+    }
+
+    // Construct final simplified prompt
     const parts: string[] = [];
 
-    // SPECIES/GENDER BASELINE FIRST to avoid dwarf/gnome substitution
-    if (vp.species) {
-      const speciesLower = String(vp.species).toLowerCase();
-      if (speciesLower.includes('human')) {
-        if (vp.ageApprox && vp.ageApprox <= 12) {
-          parts.push('human child (no beard, no mustache, no hat)');
-        } else {
-          parts.push('human');
-        }
-      } else if (speciesLower.includes('dwarf')) {
-        parts.push('dwarf with beard and pointed hat');
-      } else if (speciesLower.includes('magical')) {
-        parts.push('magical being');
-      } else {
-        parts.push(speciesLower);
-      }
+    // Age/Gender/Species baseline
+    if (vp.ageApprox) parts.push(`${vp.ageApprox}yo`);
+    parts.push(vp.gender || "child");
+    if (vp.species && !String(vp.species).toLowerCase().includes("human")) {
+      parts.push(String(vp.species));
     }
 
-    // AGE FIRST (critical for size relationships)
-    if (vp.ageApprox) {
-      parts.push(`${vp.ageApprox} years old`);
+    // Add anchors
+    parts.push(...anchors);
 
-      // Add explicit size constraints based on age
-      if (vp.ageApprox <= 7) {
-        parts.push('small child size');
-      } else if (vp.ageApprox <= 10) {
-        parts.push('child-sized');
-      }
+    // Child Safety (Strict)
+    if ((vp.ageApprox || 10) <= 12 && (!vp.species || String(vp.species).toLowerCase().includes("human"))) {
+      parts.push("No beard, No mustache");
     }
 
-    if (vp.gender) parts.push(vp.gender);
-
-    if (vp.hair) {
-      const hairParts = [];
-      if (vp.hair.color) hairParts.push(vp.hair.color);
-      if (vp.hair.length) hairParts.push(vp.hair.length);
-      if (vp.hair.type) hairParts.push(vp.hair.type);
-      if (vp.hair.style) hairParts.push(vp.hair.style);
-      if (hairParts.length > 0) parts.push(`${hairParts.join(' ')} hair`);
-    }
-
-    if (vp.eyes?.color) parts.push(`${vp.eyes.color} eyes`);
-
-    if (vp.skin?.tone) parts.push(`${vp.skin.tone} skin`);
-
-    if (vp.clothingCanonical) {
-      const clothingParts = [];
-      if (vp.clothingCanonical.outfit) clothingParts.push(vp.clothingCanonical.outfit);
-      else {
-        if (vp.clothingCanonical.top) clothingParts.push(vp.clothingCanonical.top);
-        if (vp.clothingCanonical.bottom) clothingParts.push(vp.clothingCanonical.bottom);
-      }
-      if (vp.clothingCanonical.footwear) clothingParts.push(vp.clothingCanonical.footwear);
-      if (clothingParts.length > 0) parts.push(`wearing ${clothingParts.join(', ')}`);
-    }
-
-    if (vp.accessories && vp.accessories.length > 0) {
-      parts.push(`with ${vp.accessories.join(', ')}`);
-    }
-
-    if (vp.consistentDescriptors && vp.consistentDescriptors.length > 0) {
-      parts.push(vp.consistentDescriptors.join(', '));
-    }
-
-    // CHILD SAFETY: Never add beard/hat unless species is dwarf
-    if (vp.species && String(vp.species).toLowerCase().includes('human') && (vp.ageApprox ?? 10) <= 12) {
-      parts.push('clean-shaven, no beard, no mustache, no hat');
-    }
-
-    return parts.join(', ');
+    return parts.join(", ");
   }
 
   /**
@@ -1109,9 +1089,9 @@ ${characterBlock}
 TOTAL CHARACTERS VISIBLE: ${totalCharacters}. Humans: ${totalHumans}. Dwarfs: ${totalDwarfs}. NO other humans, dwarfs, gnomes, twins, clones, dolls, statues, puppets, or background kids. If extra characters appear, remove them and leave empty space.
 ${ageOrder}
 
-Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly
+Art style: watercolor illustration, Axel Scheffler style (The Gruffalo), slightly caricature, bold outlines, consistent character faces.
 IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent across all images. Do not add text or watermarks.
-CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designated position. NO twins, NO clones, NO duplicates. If you see the same character twice, remove one.
+CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designated position. NO twins, NO clones, NO duplicates.
     `.trim();
   }
 
