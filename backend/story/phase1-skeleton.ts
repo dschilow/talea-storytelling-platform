@@ -26,23 +26,23 @@ function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     const cause = (error as any).cause;
-    
+
     // Check for socket/network errors
     if (message.includes('fetch failed') ||
-        message.includes('socket') ||
-        message.includes('econnreset') ||
-        message.includes('econnrefused') ||
-        message.includes('etimedout') ||
-        message.includes('network')) {
+      message.includes('socket') ||
+      message.includes('econnreset') ||
+      message.includes('econnrefused') ||
+      message.includes('etimedout') ||
+      message.includes('network')) {
       return true;
     }
-    
+
     // Check cause for socket errors (like UND_ERR_SOCKET)
     if (cause && typeof cause === 'object') {
       const causeCode = (cause as any).code;
-      if (causeCode === 'UND_ERR_SOCKET' || 
-          causeCode === 'ECONNRESET' ||
-          causeCode === 'ETIMEDOUT') {
+      if (causeCode === 'UND_ERR_SOCKET' ||
+        causeCode === 'ECONNRESET' ||
+        causeCode === 'ETIMEDOUT') {
         return true;
       }
     }
@@ -59,14 +59,14 @@ async function fetchWithRetry(
   context: string
 ): Promise<Response> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, options);
       return response;
     } catch (error) {
       lastError = error as Error;
-      
+
       if (isTransientNetworkError(error) && attempt < MAX_RETRIES) {
         const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
         console.warn(`[${context}] Transient network error on attempt ${attempt}/${MAX_RETRIES}, retrying in ${delay}ms...`, {
@@ -79,7 +79,7 @@ async function fetchWithRetry(
       }
     }
   }
-  
+
   throw lastError;
 }
 
@@ -487,8 +487,11 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
         throw new Error("Each chapter must have order and content");
       }
 
+      // 🔧 RELAXED VALIDATION: If characterRolesNeeded is missing, initialize as empty array
+      // This handles cases where OpenAI omits the array for chapters without supporting characters
       if (!chapter.characterRolesNeeded || !Array.isArray(chapter.characterRolesNeeded)) {
-        throw new Error("Each chapter must have characterRolesNeeded array");
+        console.warn(`[Phase1] ⚠️ Chapter ${chapter.order} missing characterRolesNeeded - initializing to [].`);
+        chapter.characterRolesNeeded = [];
       }
 
       const wordCount = typeof chapter.content === "string"
