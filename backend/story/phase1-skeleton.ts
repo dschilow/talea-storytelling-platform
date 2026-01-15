@@ -224,6 +224,12 @@ export class Phase1SkeletonGenerator {
 
       const skeleton = JSON.parse(content) as StorySkeleton;
 
+      // 🔧 CHECK FOR AI REFUSAL: Sometimes OpenAI returns an error object instead of the skeleton
+      if ((skeleton as any).error) {
+        console.error("[Phase1] ❌ AI refused to generate skeleton:", (skeleton as any).error);
+        throw new Error(`AI refused to generate skeleton: ${(skeleton as any).error}`);
+      }
+
       // Validate structure
       this.validateSkeletonStructure(skeleton);
 
@@ -410,7 +416,7 @@ AUFGABE FUER DICH:
    - NIEMALS Placeholders für Avatare erstellen: ❌ {{ALEXANDER}}, {{ADRIAN}}
    - {{PLACEHOLDER}} sind NUR für NEBENFIGUREN ({{WISE_ELDER}}, {{ANIMAL_HELPER}}, etc.)
 3. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
-4. KRITISCH: Jede Kapitelbeschreibung EXAKT 58-65 Woerter (nicht weniger, nicht mehr!). Schreibe praegnant, dicht, bildlich. Kurze Saetze (3-10 Woerter). Vermeide Fuellwoerter. ABSOLUTES MINIMUM: 58 Woerter pro Kapitel! Kapitel mit weniger als 58 Woertern werden ABGELEHNT!
+4. Jede Kapitelbeschreibung ca. 50-80 Woerter (flexibel). Schreibe praegnant, dicht, bildlich. Kurze Saetze (3-10 Woerter). Vermeide Fuellwoerter.
 5. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
 6. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
 7. Fuehre fuer jede NEBENFIGUREN-Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an.
@@ -431,7 +437,7 @@ OUTPUT (JSON):
   "chapters": [
     {
       "order": 1,
-      "content": "TARGET: 58-65 Woerter! MINIMUM 58! Nutze Avatar-Namen DIREKT (Alexander, Adrian), KEINE Placeholders für sie!",
+      "content": "ZIEL: 50-80 Woerter. Nutze Avatar-Namen DIREKT (Alexander, Adrian), KEINE Placeholders für sie!",
       "characterRolesNeeded": [
         {
           "placeholder": "{{WISE_ELDER}}",
@@ -461,7 +467,7 @@ OUTPUT (JSON):
 }
 
 WICHTIG: 
-- Halte chapters[].content STRIKT bei 58-65 Woertern! MINIMUM 58!
+- Halte chapters[].content bei ca. 50-80 Woertern (flexibel, Qualitaet vor Laenge).
 - Fuege bei supportingCharacterRequirements immer visualHints hinzu (Tierart, Beruf, Aussehen, Kleidung)
 
 Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in sich stimmige Dramaturgie. Kapitel 5 zeigt emotionale Entwicklung und erfuellt das Versprechen der Story-Seele.
@@ -497,19 +503,20 @@ Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in si
       const wordCount = typeof chapter.content === "string"
         ? chapter.content.split(/\s+/).filter(Boolean).length
         : 0;
-      if (wordCount < 50) {
+      // 🔧 RELAXED VALIDATION: Allow 35-100 words (very flexible)
+      if (wordCount < 35) {
         throw new Error(
-          `[Phase1] Chapter ${chapter.order} has only ${wordCount} words (minimum required: 50). REJECTED!`
+          `[Phase1] Chapter ${chapter.order} has only ${wordCount} words (minimum: 35). REJECTED!`
         );
       }
-      if (wordCount < 58 || wordCount > 68) {
+      if (wordCount < 50 || wordCount > 80) {
         console.warn(
-          `[Phase1] ⚠ Chapter ${chapter.order} word count ${wordCount} outside ideal range (58-65). Will proceed but quality may suffer.`
+          `[Phase1] ⚠ Chapter ${chapter.order} word count ${wordCount} outside ideal range (50-80). Proceeding anyway.`
         );
       }
-      if (wordCount > 75) {
-        throw new Error(
-          `[Phase1] Chapter ${chapter.order} exceeds maximum (${wordCount} words). Must be ≤ 75 words!`
+      if (wordCount > 100) {
+        console.warn(
+          `[Phase1] ⚠ Chapter ${chapter.order} has ${wordCount} words (max recommended: 100). Proceeding but may be trimmed.`
         );
       }
     }
