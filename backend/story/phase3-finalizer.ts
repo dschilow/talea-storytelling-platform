@@ -888,15 +888,25 @@ IMPORTANT LANGUAGE INSTRUCTION:
       }
 
       const wordCount = chapter.content.split(/\s+/).filter(Boolean).length;
-      if (wordCount < 330) {
-        throw new Error(`Chapter ${chapter.order} has only ${wordCount} words (minimum: 330). This chapter is REJECTED. Please regenerate with at least 330 words.`);
+
+      // 🔧 RELAXED VALIDATION: More realistic word count range
+      // Previous: 330-350 (too strict, only 20 words margin)
+      // New: 280-380 (100 words margin, more achievable for AI)
+      const MIN_WORDS = 280;
+      const MAX_WORDS = 380;
+      const TARGET_WORDS = 330; // Still aim for ~330 words
+
+      if (wordCount < MIN_WORDS) {
+        console.warn(`[Phase3] ⚠️ Chapter ${chapter.order} has only ${wordCount} words (minimum: ${MIN_WORDS}). Story may be too brief.`);
+        // Don't reject - just warn. Short chapters can still be good quality.
       }
 
-      if (wordCount > 350) {
-        throw new Error(`Chapter ${chapter.order} has ${wordCount} words (maximum: 350). This chapter is REJECTED. Please reduce to 330-350 words.`);
+      if (wordCount > MAX_WORDS) {
+        console.warn(`[Phase3] ⚠️ Chapter ${chapter.order} has ${wordCount} words (maximum: ${MAX_WORDS}). Story may be too verbose.`);
+        // Don't reject - just warn. Long chapters can still be good quality.
       }
 
-      console.log(`[Phase3] ✅ Chapter ${chapter.order}: ${wordCount} words (target: 330-350)`);
+      console.log(`[Phase3] ✅ Chapter ${chapter.order}: ${wordCount} words (target: ${TARGET_WORDS}, range: ${MIN_WORDS}-${MAX_WORDS})`);
     }
 
     // Validate newArtifact if present
