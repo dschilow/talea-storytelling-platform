@@ -287,6 +287,27 @@ export class Phase3StoryFinalizer {
 
       let finalStory = JSON.parse(content) as FinalizedStory;
 
+      // 🔧 CRITICAL FIX: Use skeleton title as fallback if AI didn't provide one
+      // This prevents "Final story must have a title" validation errors
+      if (!finalStory.title || typeof finalStory.title !== 'string' || finalStory.title.trim().length === 0) {
+        console.warn(`[Phase3] ⚠️ AI didn't provide a valid title. Using skeleton title as fallback: ${input.skeleton.title}`);
+        finalStory.title = input.skeleton.title;
+      } else {
+        console.log(`[Phase3] ✅ AI provided title: ${finalStory.title}`);
+      }
+
+      // 🔧 Add fallback for description if missing
+      if (!finalStory.description || typeof finalStory.description !== 'string' || finalStory.description.trim().length === 0) {
+        const fairyTaleTitle = selectedFairyTale?.tale.title || '';
+        const fallbackDesc = fairyTaleTitle
+          ? `Eine personalisierte Version von "${fairyTaleTitle}" mit ${input.avatarDetails.map(a => a.name).join(' und ')}.`
+          : `Eine magische Geschichte mit ${input.avatarDetails.map(a => a.name).join(' und ')}.`;
+        console.warn(`[Phase3] ⚠️ AI didn't provide description. Using fallback: ${fallbackDesc}`);
+        finalStory.description = fallbackDesc;
+      } else {
+        console.log(`[Phase3] ✅ AI provided description: ${finalStory.description.substring(0, 50)}...`);
+      }
+
       // Validate structure
       this.validateFinalStory(finalStory);
 
@@ -874,7 +895,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
       if (wordCount > 350) {
         throw new Error(`Chapter ${chapter.order} has ${wordCount} words (maximum: 350). This chapter is REJECTED. Please reduce to 330-350 words.`);
       }
-      
+
       console.log(`[Phase3] ✅ Chapter ${chapter.order}: ${wordCount} words (target: 330-350)`);
     }
 
@@ -905,7 +926,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
   private generateFallbackArtifact(_story: any): any {
     const types = ['TOOL', 'WEAPON', 'KNOWLEDGE', 'COMPANION'] as const;
     const randomType = types[Math.floor(Math.random() * types.length)];
-    
+
     const artifacts = [
       { name: "Glücksbringer", desc: "Ein magischer Talisman", effect: "Bringt Glück in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
       { name: "Sternenstaub-Phiole", desc: "Eine Flasche voller Sternenstaub", effect: "Leuchtet in der Dunkelheit", keywords: ["glass vial", "sparkling stardust", "cosmic glow", "ethereal particles"] },
@@ -913,11 +934,11 @@ IMPORTANT LANGUAGE INSTRUCTION:
       { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "Stärkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
       { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt Stärke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
     ];
-    
+
     const artifact = artifacts[Math.floor(Math.random() * artifacts.length)];
-    
+
     console.log(`[Phase3] 🎁 Generated fallback artifact: ${artifact.name}`);
-    
+
     return {
       name: artifact.name,
       description: artifact.desc,
