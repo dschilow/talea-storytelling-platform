@@ -17,7 +17,41 @@ export interface PersonalityTraits {
   logic: number | { value: number; subcategories?: Record<string, number> };
 }
 
+/**
+ * Invariant Feature - A feature that MUST appear consistently across all images
+ * @see character-invariants.ts for full implementation
+ */
+export interface InvariantFeature {
+  /** Unique identifier for the feature */
+  id: string;
+  /** Category of the feature */
+  category: 'facial' | 'body' | 'accessory' | 'clothing' | 'distinctive';
+  /** English description for image prompts */
+  promptDescription: string;
+  /** Short token for MUST INCLUDE list */
+  mustIncludeToken: string;
+  /** What happens if this feature is missing */
+  forbiddenAlternative?: string;
+  /** Priority level (1 = highest, 3 = lowest) */
+  priority: 1 | 2 | 3;
+  /** German label for UI display */
+  labelDe?: string;
+}
+
 export interface AvatarVisualProfile {
+  // ===== NEW: Explicit Measurements for Image Consistency =====
+  /** Explicit numeric age in years (e.g., 5 for a 5-year-old) */
+  ageNumeric?: number;
+  /** Explicit height in centimeters (e.g., 120 for 120cm) */
+  heightCm?: number;
+
+  // ===== NEW: Character Invariants for Feature Consistency =====
+  /** Features that MUST appear in every generated image */
+  mustIncludeFeatures?: InvariantFeature[];
+  /** Features that MUST NEVER appear (e.g., "complete teeth" if tooth gap required) */
+  forbiddenFeatures?: string[];
+
+  // ===== Existing Fields =====
   ageApprox: string;
   gender: string;
   skin: {

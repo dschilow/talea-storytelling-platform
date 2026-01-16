@@ -1,11 +1,20 @@
 /**
- * Image Description Enricher
+ * Image Description Enricher v2.0
  *
- * Enriches OpenAI-generated imageDescription with species-specific details
- * to prevent issues like humans getting animal features (tails, ears, etc.)
+ * Enriches OpenAI-generated imageDescription with:
+ * - Species-specific details to prevent humans getting animal features
+ * - Character Invariants (tooth gaps, glasses, etc.) for consistency
+ * - Explicit height/age information for size accuracy
+ *
+ * CRITICAL: This is the last line of defense for image consistency!
  */
 
-import type { AvatarVisualProfile } from "../avatar/avatar";
+import type { AvatarVisualProfile, InvariantFeature } from "../avatar/avatar";
+import {
+  buildInvariantsFromVisualProfile,
+  formatInvariantsForPrompt,
+  type CharacterInvariants
+} from "./character-invariants";
 
 export interface EnrichedCharacterDescription {
   originalDescription: string;
@@ -14,14 +23,47 @@ export interface EnrichedCharacterDescription {
 
 /**
  * Builds a concise species descriptor from avatar visual profile
+ * v2.0: Now includes Character Invariants for critical features
  * GENERIC - NO HARDCODING!
  */
-function buildSpeciesDescriptor(profile: AvatarVisualProfile): string {
-  const species = profile.species?.toLowerCase() || 'unknown';
+function buildSpeciesDescriptor(
+  profile: AvatarVisualProfile,
+  avatarDescription?: string
+): string {
+  const profileAny = profile as any;
+  const species = profileAny.species?.toLowerCase() || 'unknown';
+
+  // NEW v2.0: Build character invariants for critical features
+  const invariants = buildInvariantsFromVisualProfile(
+    '', // name not needed for descriptor
+    profile,
+    avatarDescription
+  );
+  const invariantFormat = formatInvariantsForPrompt(invariants);
+
+  // Build MUST INCLUDE tokens string (e.g., "large tooth gap, blue eyes")
+  const criticalInvariants = invariantFormat.mustIncludeTokens
+    .filter(t => !t.includes('hair') && !t.includes('eyes') && !t.includes('skin')) // Avoid duplicates
+    .slice(0, 3)
+    .join(', ');
 
   // For HUMANS: Build explicit anti-animal-features descriptor
   if (species === 'human') {
-    const ageInfo = profile.age?.approx || 'child';
+    const ageNumeric = profileAny.ageNumeric;
+    const heightCm = profileAny.heightCm;
+    const ageApprox = profileAny.age?.approx || profile.ageApprox || 'child';
+
+    // Build age/height string
+    let ageHeightStr = '';
+    if (ageNumeric && heightCm) {
+      ageHeightStr = `${ageNumeric} years old, ${heightCm}cm tall`;
+    } else if (ageNumeric) {
+      ageHeightStr = `${ageNumeric} years old`;
+    } else if (heightCm) {
+      ageHeightStr = `${heightCm}cm tall child`;
+    } else {
+      ageHeightStr = ageApprox;
+    }
 
     // Get key visual features from profile
     const hairColor = profile.hair?.color || '';
@@ -33,9 +75,14 @@ function buildSpeciesDescriptor(profile: AvatarVisualProfile): string {
     if (eyeColor) features.push(`${eyeColor} eyes`);
     if (skinTone) features.push(`${skinTone} tone`);
 
+    // NEW v2.0: Add critical invariants (tooth gap, glasses, etc.)
+    if (criticalInvariants) {
+      features.push(criticalInvariants);
+    }
+
     const visualHints = features.length > 0 ? `, ${features.join(', ')}` : '';
 
-    return `(HUMAN ${ageInfo}${visualHints}, standing on two legs, NO animal ears, NO tail, NO fur, smooth human skin, human hands with fingers, human feet with toes)`;
+    return `(HUMAN ${ageHeightStr}${visualHints}, standing on two legs, NO animal ears, NO tail, NO fur, smooth human skin, human hands with fingers, human feet with toes)`;
   }
 
   // For ANIMALS: Build descriptor from profile
@@ -83,7 +130,16 @@ function buildSpeciesDescriptor(profile: AvatarVisualProfile): string {
 }
 
 /**
+ * Avatar profile with optional description for invariant extraction
+ */
+export interface AvatarProfileWithDescription {
+  profile: AvatarVisualProfile;
+  description?: string;
+}
+
+/**
  * Enriches character descriptions in imageDescription with species information
+ * v2.0: Now supports avatar descriptions for invariant extraction
  *
  * Problem: OpenAI generates descriptions like "Character1 crouches left, Character2 leans right"
  * without species info, which causes Runware to sometimes add wrong features.
@@ -94,14 +150,22 @@ function buildSpeciesDescriptor(profile: AvatarVisualProfile): string {
  */
 export function enrichImageDescriptionWithSpecies(
   charactersString: string,
-  avatarProfiles: Record<string, AvatarVisualProfile>
+  avatarProfiles: Record<string, AvatarVisualProfile | AvatarProfileWithDescription>
 ): string {
   let enriched = charactersString;
 
   // For each avatar, inject species information near their name
-  for (const [name, profile] of Object.entries(avatarProfiles)) {
-    // Build descriptor from profile (NO HARDCODING!)
-    const speciesDescriptor = buildSpeciesDescriptor(profile);
+  for (const [name, profileOrWithDesc] of Object.entries(avatarProfiles)) {
+    // Support both legacy format (just profile) and new format (profile + description)
+    const profile = 'profile' in profileOrWithDesc
+      ? profileOrWithDesc.profile
+      : profileOrWithDesc;
+    const description = 'description' in profileOrWithDesc
+      ? profileOrWithDesc.description
+      : undefined;
+
+    // Build descriptor from profile WITH avatar description for invariant extraction
+    const speciesDescriptor = buildSpeciesDescriptor(profile, description);
 
     // Find all occurrences of the character name and inject species info
     // Use word boundaries to avoid partial matches
@@ -119,6 +183,46 @@ export function enrichImageDescriptionWithSpecies(
   }
 
   return enriched;
+}
+
+/**
+ * NEW v2.0: Builds a cross-chapter character invariants reference block
+ * This should be appended to EVERY image prompt in a story for consistency
+ */
+export function buildCrossChapterInvariantsBlock(
+  avatarProfiles: Record<string, AvatarProfileWithDescription>
+): string {
+  const lines: string[] = [
+    "CHARACTER INVARIANTS (MUST BE CONSISTENT IN EVERY IMAGE):"
+  ];
+
+  for (const [name, data] of Object.entries(avatarProfiles)) {
+    const invariants = buildInvariantsFromVisualProfile(name, data.profile, data.description);
+    const format = formatInvariantsForPrompt(invariants);
+
+    const parts = [`[${name}]`];
+
+    // Add explicit measurements
+    if (invariants.ageNumeric) parts.push(`${invariants.ageNumeric}yo`);
+    if (invariants.heightCm) parts.push(`${invariants.heightCm}cm`);
+
+    // Add critical invariants (priority 1 only)
+    const criticalFeatures = invariants.mustIncludeFeatures
+      .filter(f => f.priority === 1)
+      .map(f => f.mustIncludeToken);
+
+    if (criticalFeatures.length > 0) {
+      parts.push(`MUST: ${criticalFeatures.join(', ')}`);
+    }
+
+    // Add locked colors
+    if (invariants.lockedHairColor) parts.push(`${invariants.lockedHairColor} hair`);
+    if (invariants.lockedEyeColor) parts.push(`${invariants.lockedEyeColor} eyes`);
+
+    lines.push(parts.join(' | '));
+  }
+
+  return lines.join('\n');
 }
 
 /**

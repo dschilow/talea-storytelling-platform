@@ -21,10 +21,17 @@ import {
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import type { InventoryItem } from "../avatar/avatar";
+import type { InventoryItem, AvatarVisualProfile } from "../avatar/avatar";
 import { generateArtifactImage } from "./artifact-image-generator";
 import type { NewArtifact } from "./types";
 import { addArtifactToInventoryInternal } from "../gamification/item-system";
+// NEW v2.0: Character Invariants for image consistency
+import {
+  buildInvariantsFromVisualProfile,
+  formatInvariantsForPrompt,
+  type CharacterInvariants
+} from "./character-invariants";
+import { buildCrossChapterInvariantsBlock, type AvatarProfileWithDescription } from "./image-description-enricher";
 
 interface AvatarDetail {
   id: string;
@@ -773,6 +780,43 @@ export class FourPhaseOrchestrator {
     // This ensures we use the manually corrected/enhanced character data
     await this.patchCharacterAssignments(characterAssignments);
 
+    // NEW v2.0: Build character invariants for ALL avatars
+    // This ensures consistent features (tooth gaps, etc.) across all chapters
+    const avatarInvariants = new Map<string, CharacterInvariants>();
+    const characterForbiddenFeatures: string[] = [];
+
+    for (const avatar of avatarDetails) {
+      if (avatar.visualProfile) {
+        const invariants = buildInvariantsFromVisualProfile(
+          avatar.name,
+          avatar.visualProfile as AvatarVisualProfile,
+          avatar.description
+        );
+        avatarInvariants.set(avatar.name, invariants);
+
+        // Collect all forbidden features for negative prompt
+        characterForbiddenFeatures.push(...invariants.forbiddenFeatures);
+
+        console.log(`[4-Phase] Built invariants for ${avatar.name}:`, {
+          mustInclude: invariants.mustIncludeFeatures.map(f => f.mustIncludeToken).slice(0, 3),
+          forbidden: invariants.forbiddenFeatures.slice(0, 3)
+        });
+      }
+    }
+
+    // NEW v2.0: Build cross-chapter invariants reference block
+    // This is appended to EVERY image prompt for consistency
+    const avatarProfilesWithDesc: Record<string, AvatarProfileWithDescription> = {};
+    for (const avatar of avatarDetails) {
+      if (avatar.visualProfile) {
+        avatarProfilesWithDesc[avatar.name] = {
+          profile: avatar.visualProfile as AvatarVisualProfile,
+          description: avatar.description
+        };
+      }
+    }
+    const crossChapterInvariantsBlock = buildCrossChapterInvariantsBlock(avatarProfilesWithDesc);
+
     const chapters: Chapter[] = [];
 
     // Generate all images in parallel for speed
@@ -784,21 +828,31 @@ export class FourPhaseOrchestrator {
           avatarDetails,
           characterAssignments
         );
+
+        // NEW v2.0: Append cross-chapter invariants block to EVERY image prompt
+        const promptWithInvariants = `${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
+
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
-        // OPTIMIZATION v3.5: Stronger negative prompt to prevent swaps/duplicates
-        const negativePrompt = [
+
+        // OPTIMIZATION v4.0: Character-specific negative prompt with invariant-based forbidden features
+        const baseNegativePrompts = [
           "deformed, disfigured, watermark, text, signature, low quality",
           "duplicate characters, extra people, crowd, extra children, extra boys, extra girls, extra humans",
           "twins, clones, mirror image, repeated face, same person twice, multiple instances of same character",
           "extra dwarfs, extra gnomes, gnome crowd, dwarf crowd, multiple dwarfs, second dwarf",
           "beard on children, hat on children, dwarfified kids, child with beard",
           "mislabeled species, wrong species, swapped species, puppet, mannequin"
-        ].join(", ");
+        ];
+
+        // Add character-specific forbidden features (e.g., "complete teeth" if tooth gap required)
+        const uniqueForbidden = [...new Set(characterForbiddenFeatures)].slice(0, 20);
+        const negativePrompt = [...baseNegativePrompts, ...uniqueForbidden].join(", ");
+
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(enhancedPrompt, imageSeed, negativePrompt);
+        const imageUrl = await this.generateImage(promptWithInvariants, imageSeed, negativePrompt);
 
         return {
           id: crypto.randomUUID(),

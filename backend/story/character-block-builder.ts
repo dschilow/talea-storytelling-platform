@@ -14,6 +14,12 @@ import {
   buildRelativeHeightReferencesWithHeight,
   type CharacterWithHeight
 } from "./age-consistency-guards";
+import {
+  buildInvariantsFromVisualProfile,
+  formatInvariantsForPrompt,
+  extractInvariantsFromDescription,
+  type CharacterInvariants
+} from "./character-invariants";
 
 /**
  * Normalizes all text fields in a visual profile from German to English
@@ -92,8 +98,14 @@ export interface CharacterBlock {
   species: SpeciesType;
   characterType?: string; // Full character type from visual profile (e.g., "anthropomorphic mouse-fox hybrid")
   ageHint?: string;
+  /** NEW v2.0: Explicit numeric age from visual profile */
+  ageNumeric?: number;
+  /** NEW v2.0: Explicit height in cm from visual profile */
+  heightCm?: number;
   mustInclude: string[];
   forbid: string[];
+  /** NEW v2.0: Character invariants for cross-chapter consistency */
+  invariants?: CharacterInvariants;
   pose?: string;
   position?: string;
   expression?: string;
@@ -492,6 +504,12 @@ function buildForbidList(
 
 /**
  * Builds a complete CHARACTER BLOCK for image generation
+ * v2.0: Now includes Character Invariants for cross-chapter consistency
+ *
+ * @param name - Character name
+ * @param profile - Visual profile from database
+ * @param sceneDetails - Optional scene-specific details
+ * @param avatarDescription - Original avatar description (for extracting invariants)
  */
 export function buildCharacterBlock(
   name: string,
@@ -501,13 +519,52 @@ export function buildCharacterBlock(
     expression?: string;
     action?: string;
     pose?: string;
-  }
+  },
+  avatarDescription?: string
 ): CharacterBlock {
   // CRITICAL: Normalize profile to English BEFORE building character block
   const normalizedProfile = normalizeVisualProfile(profile);
 
   const species = getSpeciesFromProfile(normalizedProfile);
   const ageHint = normalizedProfile.ageApprox || (species === "human" ? "child 6-8 years" : `young ${species}`);
+
+  // NEW v2.0: Extract explicit measurements from visual profile
+  const profileAny = normalizedProfile as any;
+  const ageNumeric = profileAny.ageNumeric;
+  const heightCm = profileAny.heightCm;
+
+  // NEW v2.0: Build Character Invariants for consistency across all images
+  // This ensures features like "tooth gap" ALWAYS appear in every image
+  const invariants = buildInvariantsFromVisualProfile(
+    name,
+    normalizedProfile as AvatarVisualProfile,
+    avatarDescription
+  );
+
+  // CRITICAL: Also extract invariants from the avatar description text
+  // This catches features like "große Zahnlücke" that might not be in visual profile
+  if (avatarDescription) {
+    const descriptionInvariants = extractInvariantsFromDescription(avatarDescription);
+    // Merge with existing invariants (no duplicates)
+    const existingIds = new Set(invariants.mustIncludeFeatures.map(f => f.id.split('_')[0]));
+    for (const feature of descriptionInvariants) {
+      const baseId = feature.id.split('_')[0];
+      if (!existingIds.has(baseId)) {
+        invariants.mustIncludeFeatures.push(feature);
+        // Also add forbidden alternative if exists
+        if (feature.forbiddenAlternative) {
+          invariants.forbiddenFeatures.push(feature.forbiddenAlternative);
+        }
+      }
+    }
+  }
+
+  console.log(`[character-block-builder] Built invariants for ${name}:`, {
+    ageNumeric,
+    heightCm,
+    mustIncludeFeatures: invariants.mustIncludeFeatures.map(f => f.mustIncludeToken),
+    forbiddenFeatures: invariants.forbiddenFeatures.slice(0, 5)
+  });
 
   const resolvePose = () => {
     if (sceneDetails?.pose) {
@@ -540,6 +597,15 @@ export function buildCharacterBlock(
 
   let mustInclude = extractMustInclude(normalizedProfile, species);
 
+  // NEW v2.0: Add invariant features to mustInclude list (CRITICAL for consistency)
+  // This ensures tooth gaps, glasses, etc. are ALWAYS mentioned in prompts
+  const invariantFormat = formatInvariantsForPrompt(invariants);
+  mustInclude = [...mustInclude, ...invariantFormat.mustIncludeTokens];
+
+  // Build forbid list with invariant-specific forbidden features
+  let forbidList = buildForbidList(species, name, normalizedProfile);
+  forbidList = [...forbidList, ...invariantFormat.forbidTokens];
+
   // Try hardcoded canon ONLY as last resort for legacy avatars (alexander, adrian)
   try {
     const canon = getAvatarCanon(name);
@@ -556,8 +622,7 @@ export function buildCharacterBlock(
     console.log(`[character-block-builder] Using visual_profile data for avatar: ${name} (no hardcoded canon)`);
   }
 
-  // Extract characterType from profile
-  const profileAny = normalizedProfile as any;
+  // Extract characterType from profile (already extracted above, reuse)
   const characterType = profileAny.characterType || undefined;
 
   const block: CharacterBlock = {
@@ -565,8 +630,11 @@ export function buildCharacterBlock(
     species,
     characterType, // ADD: Character type from visual profile
     ageHint,
-    mustInclude,
-    forbid: buildForbidList(species, name, normalizedProfile),
+    ageNumeric,  // NEW v2.0: Explicit numeric age
+    heightCm,    // NEW v2.0: Explicit height in cm
+    mustInclude: [...new Set(mustInclude)], // Deduplicate
+    forbid: [...new Set(forbidList)], // Deduplicate with invariants
+    invariants,  // NEW v2.0: Full invariants object for cross-chapter reference
     pose,
     position,
     expression,
@@ -779,10 +847,15 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
   return parts.join(". ");
 }
 
+/**
+ * Builds multi-character prompt with enhanced positioning and invariants
+ * v2.0: Now supports avatar descriptions for invariant extraction
+ */
 export function buildMultiCharacterPrompt(
   charactersData: Array<{
     name: string;
     profile: AvatarVisualProfile | MinimalAvatarProfile;
+    description?: string; // NEW v2.0: Original avatar description for invariant extraction
     sceneDetails?: {
       position?: string;
       expression?: string;
@@ -790,27 +863,61 @@ export function buildMultiCharacterPrompt(
       pose?: string;
     };
   }>
-): { prompt: string; blocks: CharacterBlock[] } {
+): { prompt: string; blocks: CharacterBlock[]; characterInvariantsRef: string } {
   // CRITICAL: For multi-character scenes, explicitly set left/right positions
-  const enrichedData = charactersData.map((data, index) => {
-    const sceneDetails = data.sceneDetails || {};
-    
+  // NEW v2.0: Sort characters by height (shorter on left) for visual consistency
+  const sortedData = [...charactersData].sort((a, b) => {
+    const heightA = (a.profile as any).heightCm || 999;
+    const heightB = (b.profile as any).heightCm || 999;
+    return heightA - heightB;
+  });
+
+  const enrichedData = sortedData.map((data, index) => {
+    const sceneDetails = { ...(data.sceneDetails || {}) };
+
     // Auto-assign positions for 2-character scenes if not specified
-    if (charactersData.length === 2 && !sceneDetails.position) {
-      sceneDetails.position = index === 0 ? "left side of frame" : "right side of frame";
+    // CRITICAL: Shorter character always on LEFT to prevent visual confusion
+    if (sortedData.length === 2 && !sceneDetails.position) {
+      sceneDetails.position = index === 0 ? "left side of frame (shorter)" : "right side of frame (taller)";
+    } else if (sortedData.length > 2 && !sceneDetails.position) {
+      const positions = ["far left", "center left", "center", "center right", "far right"];
+      sceneDetails.position = positions[index] || "foreground";
     } else if (!sceneDetails.position) {
       sceneDetails.position = "foreground";
     }
-    
+
     return {
       ...data,
       sceneDetails,
     };
   });
-  
+
+  // Build character blocks with invariants
   const blocks = enrichedData.map((data) =>
-    buildCharacterBlock(data.name, data.profile, data.sceneDetails)
+    buildCharacterBlock(data.name, data.profile, data.sceneDetails, data.description)
   );
+
+  // NEW v2.0: Build cross-chapter character invariants reference
+  // This can be appended to EVERY image prompt in the story for consistency
+  const characterInvariantsRef = blocks
+    .filter(b => b.invariants)
+    .map(b => {
+      const inv = b.invariants!;
+      const parts = [`[${b.name}]`];
+      if (inv.ageNumeric) parts.push(`${inv.ageNumeric}yo`);
+      if (inv.heightCm) parts.push(`${inv.heightCm}cm`);
+      if (inv.lockedHairColor) parts.push(`${inv.lockedHairColor} hair`);
+      if (inv.lockedEyeColor) parts.push(`${inv.lockedEyeColor} eyes`);
+      const criticalFeatures = inv.mustIncludeFeatures
+        .filter(f => f.priority === 1)
+        .map(f => f.mustIncludeToken)
+        .slice(0, 3);
+      if (criticalFeatures.length > 0) {
+        parts.push(`MUST: ${criticalFeatures.join(', ')}`);
+      }
+      return parts.join(' | ');
+    })
+    .join('\n');
 
   const formattedBlocks = blocks
     .map((block) => formatCharacterBlockAsPrompt(block))
@@ -837,9 +944,15 @@ export function buildMultiCharacterPrompt(
     }
   }
 
+  // NEW v2.0: Add CHARACTER INVARIANTS section to prompt for cross-chapter consistency
+  const invariantsSection = characterInvariantsRef
+    ? `\n\nCHARACTER INVARIANTS (CRITICAL - SAME IN EVERY IMAGE):\n${characterInvariantsRef}`
+    : "";
+
   return {
     blocks,
-    prompt: formattedBlocks + (distinctionWarning ? "\n\n" + distinctionWarning : ""),
+    prompt: formattedBlocks + (distinctionWarning ? "\n\n" + distinctionWarning : "") + invariantsSection,
+    characterInvariantsRef, // NEW v2.0: Return for use across all chapter images
   };
 }
 
