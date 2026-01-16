@@ -6,5 +6,6 @@ import "./personality-tracker";
 import "./analyze-avatar";
 import "./avatar-generation";
 import "./image-generation";
+import "./generate-visual-profile";
 
 export default new Service("ai");

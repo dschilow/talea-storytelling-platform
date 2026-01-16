@@ -1,84 +1,193 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Sparkles, Save } from 'lucide-react';
+import { ArrowLeft, Sparkles, Save, RefreshCw, Scan, ChevronDown, ChevronUp } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import LottieLoader from '../../components/common/LottieLoader';
 import FadeInView from '../../components/animated/FadeInView';
+import { AvatarForm } from '../../components/avatar-form';
+import {
+  AvatarFormData,
+  DEFAULT_AVATAR_FORM_DATA,
+  formDataToVisualProfile,
+  formDataToDescription,
+  CHARACTER_TYPES,
+  GENDERS,
+  HAIR_COLORS,
+  HAIR_STYLES,
+  EYE_COLORS,
+  SKIN_TONES_HUMAN,
+  FUR_COLORS_ANIMAL,
+  BODY_BUILDS,
+  SPECIAL_FEATURES,
+  CharacterTypeId,
+  isHumanCharacter,
+  isAnimalCharacter,
+} from '../../types/avatarForm';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
-// Define types locally since they're not exported from backend
-type PhysicalTraits = {
-  characterType: string;
-  appearance: string;
-};
 
-type PersonalityTraits = {
-  courage?: number;
-  intelligence?: number;
-  creativity?: number;
-  empathy?: number;
-  strength?: number;
-  humor?: number;
-  adventure?: number;
-  patience?: number;
-  curiosity?: number;
-  leadership?: number;
-  knowledge?: number;
-  vocabulary?: number;
-  teamwork?: number;
-  persistence?: number;
-  logic?: number;
-  [key: string]: number | undefined;
-};
+// Helper to convert backend avatar to form data
+function avatarToFormData(avatar: any): Partial<AvatarFormData> {
+  const formData: Partial<AvatarFormData> = {
+    name: avatar.name || '',
+  };
 
-type AvatarVisualProfile = any;
+  // Try to extract from visual profile first (most accurate)
+  const vp = avatar.visualProfile;
+  if (vp) {
+    // Character type
+    const charType = vp.characterType?.toLowerCase() || '';
+    const matchedType = CHARACTER_TYPES.find(t =>
+      charType.includes(t.labelEn) || charType.includes(t.id)
+    );
+    formData.characterType = matchedType?.id || 'human';
 
-type Avatar = {
-  id: string;
-  userId: string;
-  name: string;
-  description?: string;
-  imageUrl?: string;
-  physicalTraits?: PhysicalTraits;
-  personalityTraits?: any;
-  visualProfile?: AvatarVisualProfile;
-  creationType?: string;
-  status?: string;
+    // Gender
+    const gender = vp.gender?.toLowerCase();
+    if (gender?.includes('female') || gender?.includes('girl')) {
+      formData.gender = 'female';
+    } else {
+      formData.gender = 'male';
+    }
+
+    // Age
+    const ageMatch = vp.ageApprox?.match(/(\d+)/);
+    formData.age = ageMatch ? parseInt(ageMatch[1], 10) : 8;
+
+    // Hair
+    const hairColor = vp.hair?.color?.toLowerCase();
+    const matchedHair = HAIR_COLORS.find(h =>
+      hairColor?.includes(h.labelEn.toLowerCase())
+    );
+    formData.hairColor = matchedHair?.id || 'brown';
+
+    const hairStyle = vp.hair?.style?.toLowerCase() || vp.hair?.length?.toLowerCase();
+    const matchedStyle = HAIR_STYLES.find(s =>
+      hairStyle?.includes(s.labelEn.toLowerCase())
+    );
+    formData.hairStyle = matchedStyle?.id || 'short';
+
+    // Eyes
+    const eyeColor = vp.eyes?.color?.toLowerCase();
+    const matchedEye = EYE_COLORS.find(e =>
+      eyeColor?.includes(e.labelEn.toLowerCase())
+    );
+    formData.eyeColor = matchedEye?.id || 'brown';
+
+    // Skin/Fur
+    const skinTone = vp.skin?.tone?.toLowerCase();
+    if (isHumanCharacter(formData.characterType as CharacterTypeId)) {
+      const matchedSkin = SKIN_TONES_HUMAN.find(s =>
+        skinTone?.includes(s.labelEn.toLowerCase())
+      );
+      formData.skinTone = matchedSkin?.id || 'medium';
+    } else {
+      const matchedFur = FUR_COLORS_ANIMAL.find(f =>
+        skinTone?.includes(f.labelEn.toLowerCase())
+      );
+      formData.skinTone = matchedFur?.id || 'brown';
+    }
+
+    // Accessories as special features
+    const accessories = vp.accessories || [];
+    const features: string[] = [];
+    accessories.forEach((acc: string) => {
+      const accLower = acc.toLowerCase();
+      const matchedFeature = SPECIAL_FEATURES.find(f =>
+        accLower.includes(f.labelEn.toLowerCase()) || f.labelEn.toLowerCase().includes(accLower)
+      );
+      if (matchedFeature) {
+        features.push(matchedFeature.id);
+      }
+    });
+    formData.specialFeatures = features as any;
+  }
+
+  // Fallback: Try to parse from physical traits
+  if (!vp && avatar.physicalTraits) {
+    const pt = avatar.physicalTraits;
+
+    // Character type from physicalTraits.characterType
+    const charType = pt.characterType?.toLowerCase() || '';
+    const matchedType = CHARACTER_TYPES.find(t =>
+      charType.includes(t.labelDe.toLowerCase()) ||
+      charType.includes(t.labelEn.toLowerCase()) ||
+      charType.includes(t.id)
+    );
+    formData.characterType = matchedType?.id || 'human';
+
+    // Try to parse appearance text for other fields
+    const appearance = pt.appearance?.toLowerCase() || '';
+
+    // Age from appearance
+    const ageMatch = appearance.match(/(\d+)\s*(jahre|years|j\.)/i);
+    formData.age = ageMatch ? parseInt(ageMatch[1], 10) : 8;
+
+    // Height from appearance
+    const heightMatch = appearance.match(/(\d+)\s*(cm|groß)/i);
+    formData.height = heightMatch ? parseInt(heightMatch[1], 10) : 130;
+  }
+
+  // Use description as additional description
+  if (avatar.description) {
+    formData.additionalDescription = avatar.description;
+  }
+
+  return formData;
+}
+
+// Convert form data back to backend format
+function formDataToBackendFormat(formData: AvatarFormData) {
+  const characterType = CHARACTER_TYPES.find(t => t.id === formData.characterType);
+  const description = formDataToDescription(formData);
+
+  return {
+    name: formData.name,
+    description: formData.additionalDescription || description,
+    physicalTraits: {
+      characterType: formData.characterType === 'other' && formData.customCharacterType
+        ? formData.customCharacterType
+        : characterType?.labelDe || 'Mensch',
+      appearance: description,
+    },
+    visualProfile: formDataToVisualProfile(formData),
+  };
+}
+
+// Personality trait display config
+const personalityLabels = {
+  knowledge: { label: 'Wissen', icon: '🧠', color: colors.primary[500] },
+  creativity: { label: 'Kreativität', icon: '🎨', color: colors.peach[500] },
+  vocabulary: { label: 'Wortschatz', icon: '🔤', color: colors.lavender[500] },
+  courage: { label: 'Mut', icon: '🦁', color: colors.semantic.error },
+  curiosity: { label: 'Neugier', icon: '🔍', color: colors.peach[400] },
+  teamwork: { label: 'Teamgeist', icon: '🤝', color: colors.sky[500] },
+  empathy: { label: 'Empathie', icon: '💗', color: colors.rose[500] },
+  persistence: { label: 'Ausdauer', icon: '🧗', color: colors.mint[500] },
+  logic: { label: 'Logik', icon: '🔢', color: colors.lilac[500] },
 };
 
 const EditAvatarScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
   const navigate = useNavigate();
   const backend = useBackend();
-  
-  const [avatar, setAvatar] = useState<Avatar | null>(null);
+
+  const [avatar, setAvatar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regeneratingImage, setRegeneratingImage] = useState(false);
+  const [analyzingImage, setAnalyzingImage] = useState(false);
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [physicalTraits, setPhysicalTraits] = useState<PhysicalTraits>({
-    characterType: '',
-    appearance: '',
-  });
-  const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
-    courage: 7,
-    intelligence: 6,
-    creativity: 8,
-    empathy: 7,
-    strength: 5,
-    humor: 8,
-    adventure: 9,
-    patience: 4,
-    curiosity: 9,
-    leadership: 6,
-  });
+  const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const [showPersonality, setShowPersonality] = useState(true);
 
+  // Load avatar data
   useEffect(() => {
     if (!avatarId) {
       console.error('No avatarId provided');
@@ -88,42 +197,13 @@ const EditAvatarScreen: React.FC = () => {
     const loadAvatar = async () => {
       try {
         setLoading(true);
-        // The client expects params as path parameter
         const avatarData = await backend.avatar.get({ id: avatarId });
+        setAvatar(avatarData);
+        setPreviewUrl((avatarData as any).imageUrl);
 
-        setAvatar(avatarData as any);
-        setName((avatarData as any).name);
-        setDescription((avatarData as any).description || '');
-        setPhysicalTraits((avatarData as any).physicalTraits || { characterType: '', appearance: '' });
-
-        // Convert new hierarchical format to old flat format
-        const rawTraits = (avatarData as any).personalityTraits;
-        
-        const flatTraits: PersonalityTraits = {
-          courage: 0,
-          intelligence: 0,
-          creativity: 0,
-          empathy: 0,
-          strength: 0,
-          humor: 0,
-          adventure: 0,
-          patience: 0,
-          curiosity: 0,
-          leadership: 0,
-        };
-
-        // Handle both old format (numbers) and new format (objects with value/subcategories)
-        if (rawTraits && typeof rawTraits === 'object' && Object.keys(rawTraits).length > 0) {
-          Object.entries(rawTraits).forEach(([key, val]) => {
-            if (typeof val === 'number') {
-              flatTraits[key] = val;
-            } else if (typeof val === 'object' && val !== null && 'value' in val) {
-              flatTraits[key] = (val as any).value;
-            }
-          });
-        }
-
-        setPersonalityTraits(flatTraits);
+        // Convert to form data
+        const converted = avatarToFormData(avatarData);
+        setFormData(prev => ({ ...prev, ...converted }));
       } catch (error) {
         console.error('Error loading avatar:', error);
         alert('Avatar konnte nicht geladen werden.');
@@ -134,18 +214,113 @@ const EditAvatarScreen: React.FC = () => {
     };
 
     loadAvatar();
-  }, [avatarId]);
+  }, [avatarId, backend, navigate]);
 
-  const updatePhysicalTrait = <K extends keyof PhysicalTraits>(key: K, value: PhysicalTraits[K]) => {
-    setPhysicalTraits(prev => ({ ...prev, [key]: value }));
+  // Handle form changes
+  const handleFormChange = useCallback((data: AvatarFormData) => {
+    setFormData(data);
+  }, []);
+
+  // Generate preview image
+  const handleGeneratePreview = async (data: AvatarFormData) => {
+    try {
+      setRegeneratingImage(true);
+
+      const description = formDataToDescription(data);
+      const characterType = CHARACTER_TYPES.find(t => t.id === data.characterType);
+
+      const result = await backend.ai.generateAvatarImage({
+        characterType: data.characterType === 'other' && data.customCharacterType
+          ? data.customCharacterType
+          : characterType?.labelEn || 'human child',
+        appearance: description,
+        personalityTraits: {},
+        style: 'disney',
+      });
+
+      setPreviewUrl(result.imageUrl);
+
+      // Analyze the new image to get visual profile
+      try {
+        const analysis = await backend.ai.analyzeAvatarImage({
+          imageUrl: result.imageUrl,
+          hints: {
+            name: data.name,
+            expectedType: isHumanCharacter(data.characterType) ? 'human' : 'animal',
+          },
+        });
+
+        // Store analysis result for later save
+        setAvatar((prev: any) => ({
+          ...prev,
+          imageUrl: result.imageUrl,
+          visualProfile: analysis.visualProfile,
+        }));
+      } catch (err) {
+        console.error('Error analyzing new image:', err);
+        setAvatar((prev: any) => ({
+          ...prev,
+          imageUrl: result.imageUrl,
+        }));
+      }
+
+      // Show success
+      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
+        showSuccessToast('Neues Avatar-Bild wurde generiert!');
+      });
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      import('../../utils/toastUtils').then(({ showErrorToast }) => {
+        showErrorToast('Fehler beim Generieren des Bildes.');
+      });
+    } finally {
+      setRegeneratingImage(false);
+    }
   };
 
-  const updatePersonalityTrait = <K extends keyof PersonalityTraits>(key: K, value: PersonalityTraits[K]) => {
-    setPersonalityTraits(prev => ({ ...prev, [key]: value }));
+  // Analyze existing image
+  const handleAnalyzeImage = async () => {
+    if (!avatar?.imageUrl) {
+      alert('Kein Bild vorhanden zum Analysieren.');
+      return;
+    }
+
+    try {
+      setAnalyzingImage(true);
+
+      const analysis = await backend.ai.analyzeAvatarImage({
+        imageUrl: avatar.imageUrl,
+        hints: {
+          name: formData.name,
+        },
+      });
+
+      // Update avatar with new visual profile
+      await backend.avatar.update(avatarId!, {
+        visualProfile: analysis.visualProfile,
+      });
+
+      setAvatar((prev: any) => ({
+        ...prev,
+        visualProfile: analysis.visualProfile,
+      }));
+
+      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
+        showSuccessToast('Bild analysiert und visuelles Profil aktualisiert!');
+      });
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      import('../../utils/toastUtils').then(({ showErrorToast }) => {
+        showErrorToast('Fehler beim Analysieren des Bildes.');
+      });
+    } finally {
+      setAnalyzingImage(false);
+    }
   };
 
+  // Save changes
   const handleSave = async () => {
-    if (!avatarId || !name.trim()) {
+    if (!avatarId || !formData.name.trim()) {
       alert('Bitte gib deinem Avatar einen Namen.');
       return;
     }
@@ -153,15 +328,17 @@ const EditAvatarScreen: React.FC = () => {
     try {
       setSaving(true);
 
-      // The Encore client expects id as path param and rest as body
+      const backendData = formDataToBackendFormat(formData);
+
       await backend.avatar.update(avatarId, {
-        name: name.trim(),
-        description: description.trim() || undefined,
-        physicalTraits,
-        personalityTraits: personalityTraits as any,
+        ...backendData,
+        imageUrl: previewUrl,
       });
 
-      alert(`Avatar "${name}" wurde erfolgreich aktualisiert! 🎉`);
+      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
+        showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich aktualisiert!`);
+      });
+
       navigate('/');
     } catch (error) {
       console.error('Error updating avatar:', error);
@@ -171,197 +348,25 @@ const EditAvatarScreen: React.FC = () => {
     }
   };
 
-  const handleAnalyzeExistingImage = async () => {
-    if (!avatar || !avatarId || !avatar.imageUrl) {
-      alert('Kein Bild vorhanden zum Analysieren.');
-      return;
-    }
+  // Get personality traits for display
+  const getPersonalityTraits = () => {
+    const traits = avatar?.personalityTraits || {};
+    const result: Record<string, number> = {};
 
-    try {
-      setRegeneratingImage(true);
-      
-      console.log('🔬 Analyzing existing avatar image...');
-      const analysis = await backend.ai.analyzeAvatarImage({
-        imageUrl: avatar.imageUrl,
-        hints: {
-          name,
-          personalityTraits: personalityTraits as any,
-        }
-      });
-
-      const newVisualProfile = analysis.visualProfile as any;
-
-      // Update avatar with the new visual profile
-      await backend.avatar.update(avatarId!, {
-        visualProfile: newVisualProfile,
-      });
-
-      setAvatar(prev => prev ? { ...prev, visualProfile: newVisualProfile } : null);
-      alert('Bild erfolgreich analysiert und visuelles Profil gespeichert! 🎨');
-      console.log('✅ Visual profile updated:', newVisualProfile);
-    } catch (error) {
-      console.error('Error analyzing avatar image:', error);
-      alert('Fehler beim Analysieren des Bildes. Bitte versuche es erneut.');
-    } finally {
-      setRegeneratingImage(false);
-    }
-  };
-
-  const handleRegenerateImage = async () => {
-    if (!avatar || !avatarId) return;
-
-    try {
-      setRegeneratingImage(true);
-      
-      const result = await backend.ai.generateAvatarImage({
-        characterType: physicalTraits.characterType,
-        appearance: physicalTraits.appearance,
-        personalityTraits,
-        style: 'disney',
-      });
-
-      let newVisualProfile: AvatarVisualProfile | undefined = undefined;
-      try {
-        const analysis = await backend.ai.analyzeAvatarImage({
-          imageUrl: result.imageUrl,
-          hints: {
-            name,
-            personalityTraits: personalityTraits as any,
-          }
-        });
-        newVisualProfile = analysis.visualProfile as any;
-      } catch (err) {
-        console.error('Error analyzing new avatar image:', err);
+    Object.entries(traits).forEach(([key, val]) => {
+      if (typeof val === 'number') {
+        result[key] = val;
+      } else if (typeof val === 'object' && val !== null && 'value' in val) {
+        result[key] = (val as any).value;
       }
+    });
 
-      // The Encore client expects id as path param and rest as body
-      await backend.avatar.update(avatarId!, {
-        imageUrl: result.imageUrl,
-        visualProfile: newVisualProfile,
-      });
-
-      setAvatar(prev => prev ? { ...prev, imageUrl: result.imageUrl, visualProfile: newVisualProfile } : null);
-      alert('Avatar-Bild wurde erfolgreich neu generiert! 🎨');
-    } catch (error) {
-      console.error('Error regenerating avatar image:', error);
-      alert('Fehler beim Generieren des neuen Avatar-Bildes. Bitte versuche es erneut.');
-    } finally {
-      setRegeneratingImage(false);
-    }
-  };
-
-  // Match the 9 personality traits from the backend
-  const personalityLabels = {
-    knowledge: { label: 'Wissen', icon: '🧠', color: colors.primary[500] },
-    creativity: { label: 'Kreativität', icon: '🎨', color: colors.peach[500] },
-    vocabulary: { label: 'Wortschatz', icon: '🔤', color: colors.lavender[500] },
-    courage: { label: 'Mut', icon: '🦁', color: colors.semantic.error },
-    curiosity: { label: 'Neugier', icon: '🔍', color: colors.peach[400] },
-    teamwork: { label: 'Teamgeist', icon: '🤝', color: colors.sky[500] },
-    empathy: { label: 'Empathie', icon: '💗', color: colors.rose[500] },
-    persistence: { label: 'Ausdauer', icon: '🧗', color: colors.mint[500] },
-    logic: { label: 'Logik', icon: '🔢', color: colors.lilac[500] },
-  };
-
-  const containerStyle: React.CSSProperties = {
-    minHeight: '100vh',
-    background: colors.background.primary,
-    paddingBottom: '120px',
-  };
-
-  const headerStyle: React.CSSProperties = {
-    background: colors.glass.background,
-    border: `1px solid ${colors.glass.border}`,
-    padding: `${spacing.lg}px`,
-    boxShadow: colors.glass.shadow,
-    backdropFilter: 'blur(14px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(14px) saturate(160%)',
-  };
-
-  const headerContentStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    maxWidth: '880px',
-    margin: '0 auto',
-  };
-
-  const backButtonStyle: React.CSSProperties = {
-    padding: `${spacing.sm}px`,
-    borderRadius: `${radii.pill}px`,
-    background: colors.glass.backgroundAlt,
-    border: `1px solid ${colors.glass.border}`,
-    color: colors.text.primary,
-    cursor: 'pointer',
-    marginRight: `${spacing.md}px`,
-    transition: 'all 0.2s ease',
-  };
-
-  const titleStyle: React.CSSProperties = {
-    ...typography.textStyles.headingMd,
-    color: colors.text.primary,
-    flex: 1,
-    textAlign: 'center' as const,
-  };
-
-  const contentStyle: React.CSSProperties = {
-    maxWidth: '880px',
-    margin: '0 auto',
-    padding: `${spacing.xl}px`,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: `${spacing.lg}px`,
-    border: `2px solid ${colors.border.normal}`,
-    borderRadius: `${radii.lg}px`,
-    fontSize: typography.textStyles.body.fontSize,
-    fontFamily: typography.fonts.primary,
-    backgroundColor: colors.background.card,
-    color: colors.text.primary,
-    outline: 'none',
-    transition: 'all 0.3s ease',
-  };
-
-  const sliderStyle: React.CSSProperties = {
-    width: '100%',
-    height: '8px',
-    borderRadius: `${radii.sm}px`,
-    background: colors.border.normal,
-    outline: 'none',
-    appearance: 'none' as const,
-    cursor: 'pointer',
-  };
-
-  const previewStyle: React.CSSProperties = {
-    textAlign: 'center' as const,
-    padding: `${spacing.xl}px`,
-    background: colors.glass.background,
-    border: `1px solid ${colors.glass.border}`,
-    borderRadius: `${radii.xl}px`,
-    boxShadow: colors.glass.shadow,
-    backdropFilter: 'blur(14px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(14px) saturate(160%)',
-  };
-
-  const avatarPreviewStyle: React.CSSProperties = {
-    width: '140px',
-    height: '140px',
-    borderRadius: `${radii.pill}px`,
-    backgroundColor: colors.background.card,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: `0 auto ${spacing.lg}px auto`,
-    fontSize: '64px',
-    overflow: 'hidden' as const,
-    position: 'relative' as const,
-    border: `4px solid ${colors.glass.border}`,
-    boxShadow: shadows.lg,
+    return result;
   };
 
   if (loading) {
     return (
-      <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: colors.background.primary }}>
         <LottieLoader message="Lade Avatar..." size={150} />
       </div>
     );
@@ -369,220 +374,202 @@ const EditAvatarScreen: React.FC = () => {
 
   if (!avatar) {
     return (
-      <div style={containerStyle}>
-        <div style={headerStyle}>
-          <div style={headerContentStyle}>
-            <button
-              style={backButtonStyle}
-              onClick={() => navigate('/')}
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div style={titleStyle}>Avatar nicht gefunden</div>
-          </div>
+      <div className="min-h-screen" style={{ background: colors.background.primary }}>
+        <div className="p-6 text-center">
+          <p className="text-gray-600">Avatar nicht gefunden</p>
+          <Button title="Zurück" onPress={() => navigate('/')} variant="secondary" />
         </div>
       </div>
     );
   }
 
+  const personalityTraits = getPersonalityTraits();
+
   return (
-    <div style={containerStyle}>
+    <div className="min-h-screen pb-32" style={{ background: colors.background.primary }}>
       {/* Header */}
-      <div style={headerStyle}>
-        <div style={headerContentStyle}>
-          <button
-            style={backButtonStyle}
+      <div
+        className="sticky top-0 z-10 backdrop-blur-xl border-b"
+        style={{
+          background: colors.glass.background,
+          borderColor: colors.glass.border,
+        }}
+      >
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/')}
+            className="p-2 rounded-full hover:bg-purple-50 transition-colors"
           >
-            <ArrowLeft size={20} />
-          </button>
-          <div style={titleStyle}>Avatar bearbeiten</div>
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </motion.button>
+          <h1 className="text-xl font-bold text-gray-800 flex-1">Avatar bearbeiten</h1>
+          <div className="flex items-center gap-2">
+            <motion.div
+              animate={{ rotate: saving ? 360 : 0 }}
+              transition={{ duration: 1, repeat: saving ? Infinity : 0 }}
+            >
+              <Sparkles className="w-5 h-5 text-purple-500" />
+            </motion.div>
+          </div>
         </div>
       </div>
 
-      <div style={contentStyle}>
-        {/* Basic Info */}
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        {/* Avatar Form */}
         <FadeInView delay={100}>
-          <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.lg}px` }}>
-              ⭐ Grundinformationen
-            </h2>
-
-            <div style={{ marginBottom: `${spacing.lg}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-                Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.lg}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-                Beschreibung
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Eine kurze Beschreibung deines Avatars..."
-                style={{ ...inputStyle, minHeight: '80px' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: `${spacing.lg}px` }}>
-              <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-                Charakter-Typ
-              </label>
-              <input
-                type="text"
-                value={physicalTraits.characterType}
-                onChange={(e) => updatePhysicalTrait('characterType', e.target.value)}
-                placeholder="z.B. Tier (Hund, Katze) oder Mensch"
-                style={inputStyle}
-              />
-            </div>
-
-            <div>
-              <label style={{ ...typography.textStyles.label, color: colors.text.primary, display: 'block', marginBottom: `${spacing.sm}px` }}>
-                Aussehen & Merkmale
-              </label>
-              <textarea
-                value={physicalTraits.appearance}
-                onChange={(e) => updatePhysicalTrait('appearance', e.target.value)}
-                rows={4}
-                placeholder="Beschreibe das Aussehen: Farbe, Größe, besondere Merkmale..."
-                style={{ ...inputStyle, minHeight: '120px' }}
-              />
-            </div>
-          </Card>
+          <AvatarForm
+            initialData={formData}
+            onChange={handleFormChange}
+            onPreview={handleGeneratePreview}
+            previewUrl={previewUrl}
+            isGeneratingPreview={regeneratingImage}
+            mode="edit"
+          />
         </FadeInView>
 
-        {/* Personality Traits - Read-Only Display */}
-        <FadeInView delay={200}>
-          <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <h2 style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
-              💫 Persönlichkeitsentwicklung
-            </h2>
-            <p style={{ fontSize: '14px', color: colors.text.secondary, marginBottom: `${spacing.lg}px`, lineHeight: '1.5' }}>
-              Die Persönlichkeit deines Avatars entwickelt sich automatisch durch Erlebnisse in Geschichten und Dokus. Du kannst diese Werte nicht manuell ändern.
-            </p>
-            <div style={{
-              backgroundColor: '#F3F4F6',
-              borderRadius: `${radii.lg}px`,
-              padding: `${spacing.md}px`,
-              border: '2px dashed #D1D5DB'
-            }}>
-              {Object.entries(personalityTraits).map(([key, value], index) => {
-                const trait = personalityLabels[key as keyof typeof personalityLabels];
-                // Skip traits that don't have labels defined
-                if (!trait) return null;
-
-                return (
-                  <div key={key} style={{
-                    marginBottom: index < Object.keys(personalityTraits).length - 1 ? `${spacing.md}px` : 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: '20px', marginRight: `${spacing.sm}px` }}>{trait.icon}</span>
-                      <span style={{ fontSize: '14px', color: colors.text.primary, fontWeight: '500' }}>{trait.label}</span>
-                    </div>
-                    <div style={{
-                      padding: `${spacing.xs}px ${spacing.md}px`,
-                      borderRadius: `${radii.md}px`,
-                      backgroundColor: trait.color,
-                      color: colors.text.inverse,
-                      fontWeight: 'bold',
-                      fontSize: '14px',
-                      minWidth: '40px',
-                      textAlign: 'center'
-                    }}>
-                      {value}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p style={{ fontSize: '12px', color: colors.text.secondary, marginTop: `${spacing.md}px`, fontStyle: 'italic' }}>
-              💡 Tipp: Lasse deinen Avatar Geschichten lesen, um seine Persönlichkeit weiterzuentwickeln!
-            </p>
-          </Card>
-        </FadeInView>
-
-        {/* Preview */}
-        <FadeInView delay={300}>
-          <Card variant="glass" style={{ marginBottom: `${spacing.xl}px` }}>
-            <div style={previewStyle}>
-              <div style={avatarPreviewStyle}>
-                {avatar.imageUrl ? (
-                  <img
-                    src={avatar.imageUrl}
-                    alt="Avatar Preview"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <span>🤖</span>
-                )}
+        {/* Visual Profile Warning */}
+        {avatar.imageUrl && !avatar.visualProfile && (
+          <FadeInView delay={200}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-amber-50 border border-amber-200 rounded-xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-amber-800 font-medium mb-2">
+                    Kein visuelles Profil vorhanden
+                  </p>
+                  <p className="text-amber-700 text-sm mb-3">
+                    Für konsistente Darstellung in Geschichten sollte das Bild analysiert werden.
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleAnalyzeImage}
+                    disabled={analyzingImage}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 transition-colors disabled:opacity-50"
+                  >
+                    {analyzingImage ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Analysiere...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Scan className="w-4 h-4" />
+                        <span>Bild analysieren</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </div>
-              <Button
-                title={regeneratingImage ? 'Generiere...' : '🎨 Neues Bild'}
-                onPress={handleRegenerateImage}
-                disabled={regeneratingImage}
-                icon={<Sparkles size={16} />}
-                variant="secondary"
-              />
-            </div>
+            </motion.div>
+          </FadeInView>
+        )}
+
+        {/* Personality Development (Read-only) */}
+        <FadeInView delay={300}>
+          <Card variant="glass">
+            <motion.button
+              type="button"
+              onClick={() => setShowPersonality(!showPersonality)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💫</span>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">Persönlichkeitsentwicklung</h2>
+                  <p className="text-sm text-gray-500">
+                    Entwickelt sich automatisch durch Geschichten
+                  </p>
+                </div>
+              </div>
+              <motion.div animate={{ rotate: showPersonality ? 180 : 0 }}>
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              </motion.div>
+            </motion.button>
+
+            <AnimatePresence>
+              {showPersonality && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {Object.entries(personalityTraits).map(([key, value]) => {
+                        const trait = personalityLabels[key as keyof typeof personalityLabels];
+                        if (!trait) return null;
+
+                        return (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{trait.icon}</span>
+                              <span className="text-sm font-medium text-gray-700">{trait.label}</span>
+                            </div>
+                            <div
+                              className="px-3 py-1 rounded-full text-white font-bold text-sm"
+                              style={{ backgroundColor: trait.color }}
+                            >
+                              {value}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-3 italic flex items-center gap-1">
+                      <span>💡</span>
+                      Lasse deinen Avatar Geschichten erleben, um seine Persönlichkeit weiterzuentwickeln!
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         </FadeInView>
 
         {/* Action Buttons */}
-        <FadeInView delay={350}>
-          {avatar.imageUrl && !avatar.visualProfile && (
-            <div style={{ marginBottom: `${spacing.lg}px`, padding: `${spacing.md}px`, background: colors.semantic.warning + '20', borderRadius: `${radii.md}px`, border: `1px solid ${colors.semantic.warning}` }}>
-              <p style={{ ...typography.textStyles.body, color: colors.semantic.warning, marginBottom: `${spacing.sm}px` }}>
-                ⚠️ Kein visuelles Profil vorhanden! Bild analysieren, um konsistente Darstellung in Geschichten zu gewährleisten.
-              </p>
-              <Button
-                title="🔬 Bild analysieren"
-                onPress={handleAnalyzeExistingImage}
-                disabled={regeneratingImage}
-                variant="secondary"
-              />
-            </div>
-          )}
-        </FadeInView>
-
         <FadeInView delay={400}>
-          <div style={{ display: 'flex', gap: spacing.lg }}>
-            <Button
-              title="Abbrechen"
-              onPress={() => navigate('/')}
-              variant="outline"
-              className="flex-1"
-            />
-            <Button
-              title="💾 Änderungen speichern"
-              onPress={handleSave}
-              disabled={saving}
-              icon={<Save size={16} />}
-              variant="fun"
-              className="flex-1"
-            />
+          <div className="flex gap-4">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/')}
+              className="flex-1 py-4 px-6 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Abbrechen
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSave}
+              disabled={saving || !formData.name.trim()}
+              className="flex-1 py-4 px-6 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Speichere...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  <span>Änderungen speichern</span>
+                </>
+              )}
+            </motion.button>
           </div>
         </FadeInView>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

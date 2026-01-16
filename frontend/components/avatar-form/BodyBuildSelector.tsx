@@ -1,0 +1,57 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import { BODY_BUILDS, BodyBuildId } from '../../types/avatarForm';
+
+interface BodyBuildSelectorProps {
+  value: BodyBuildId;
+  onChange: (value: BodyBuildId) => void;
+}
+
+export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onChange }) => {
+  // Body silhouettes for visual representation
+  const BodySilhouette: React.FC<{ build: BodyBuildId; isSelected: boolean }> = ({ build, isSelected }) => {
+    const width = build === 'slim' ? 16 : build === 'normal' ? 20 : 28;
+    const color = isSelected ? '#A855F7' : '#D1D5DB';
+
+    return (
+      <svg width="40" height="60" viewBox="0 0 40 60" className="mb-2">
+        {/* Head */}
+        <circle cx="20" cy="8" r="7" fill={color} />
+        {/* Body */}
+        <ellipse cx="20" cy="32" rx={width / 2} ry="18" fill={color} />
+        {/* Legs */}
+        <rect x="14" y="48" width="4" height="12" rx="2" fill={color} />
+        <rect x="22" y="48" width="4" height="12" rx="2" fill={color} />
+      </svg>
+    );
+  };
+
+  return (
+    <div className="flex gap-3">
+      {BODY_BUILDS.map((build) => (
+        <motion.button
+          key={build.id}
+          type="button"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onChange(build.id)}
+          className={`
+            flex-1 py-4 px-3 rounded-xl flex flex-col items-center justify-center
+            transition-all duration-200 border-2
+            ${value === build.id
+              ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200/50'
+              : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+            }
+          `}
+        >
+          <BodySilhouette build={build.id} isSelected={value === build.id} />
+          <span className={`text-sm font-medium ${value === build.id ? 'text-purple-700' : 'text-gray-600'}`}>
+            {build.labelDe}
+          </span>
+        </motion.button>
+      ))}
+    </div>
+  );
+};
+
+export default BodyBuildSelector;

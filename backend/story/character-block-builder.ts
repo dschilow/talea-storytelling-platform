@@ -7,7 +7,13 @@ import type { AvatarVisualProfile } from "../avatar/avatar";
 import type { MinimalAvatarProfile, SpeciesType } from "./avatar-image-optimization";
 import { normalizeLanguage } from "./avatar-image-optimization";
 import { getAvatarCanon, buildVisualDistinctionWarning } from "../avatar/avatar-canon-simple";
-import { buildAgeAccuratePrompt, buildRelativeHeightReferences } from "./age-consistency-guards";
+import {
+  buildAgeAccuratePrompt,
+  buildRelativeHeightReferences,
+  buildAgeAccuratePromptWithHeight,
+  buildRelativeHeightReferencesWithHeight,
+  type CharacterWithHeight
+} from "./age-consistency-guards";
 
 /**
  * Normalizes all text fields in a visual profile from German to English
@@ -1225,35 +1231,87 @@ export function buildCompleteImagePrompt(
   const negativePrompt = buildNegativePromptFromBlocks(blocks);
 
   // Add Age-Consistency Guards for human characters
+  // CRITICAL FIX: Use explicit height data from visual profile to ensure Adrian (5y/120cm)
+  // is always visibly shorter than Alexander (8y/135cm)
   const humanBlocks = blocks.filter(b => b.species === 'human');
   let ageGuardsSection = "";
 
   if (humanBlocks.length > 0) {
     const ageGuardLines: string[] = [];
 
-    humanBlocks.forEach(block => {
-      // Extract age from ageHint (e.g., "child 6-8 years" -> extract first number)
-      const ageMatch = block.ageHint?.match(/(\d+)/);
-      const age = ageMatch ? parseInt(ageMatch[1], 10) : undefined;
+    // Build character data with explicit height from visual profile
+    const charactersWithHeight: CharacterWithHeight[] = humanBlocks.map((block) => {
+      // Find matching character data by name (since humanBlocks is filtered)
+      const originalCharData = options.characters.find(c => c.name === block.name);
+      const profile = originalCharData?.profile as any;
 
-      if (age || block.ageHint) {
-        const ageGuard = buildAgeAccuratePrompt(block.name, age, block.ageHint);
-        ageGuardLines.push(ageGuard);
+      // Extract explicit numeric age from visual profile (prioritize ageNumeric > age > ageApprox)
+      const ageNumeric = profile?.ageNumeric || profile?.age;
+      const ageFromHint = block.ageHint?.match(/(\d+)/);
+      const extractedAge = ageNumeric || (ageFromHint ? parseInt(ageFromHint[1], 10) : undefined);
+
+      // Extract explicit height in cm from visual profile
+      const heightCm = profile?.heightCm || profile?.height;
+
+      return {
+        name: block.name,
+        age: extractedAge,
+        ageNumeric: ageNumeric,
+        ageApprox: block.ageHint,
+        heightCm: heightCm,
+        species: block.species
+      };
+    });
+
+    // Use height-aware prompts for each character
+    charactersWithHeight.forEach(char => {
+      if (char.ageNumeric || char.age || char.heightCm || char.ageApprox) {
+        // Use height-aware function if we have explicit height data
+        if (char.heightCm) {
+          const ageGuard = buildAgeAccuratePromptWithHeight(
+            char.name,
+            char.ageNumeric || char.age,
+            char.ageApprox,
+            char.heightCm
+          );
+          ageGuardLines.push(ageGuard);
+        } else {
+          // Fallback to standard age prompt
+          const ageGuard = buildAgeAccuratePrompt(
+            char.name,
+            char.ageNumeric || char.age,
+            char.ageApprox
+          );
+          ageGuardLines.push(ageGuard);
+        }
       }
     });
 
     // Add relative height references for multi-character scenes
-    if (humanBlocks.length > 1) {
-      const relativeHeights = buildRelativeHeightReferences(
-        humanBlocks.map(b => ({
-          name: b.name,
-          ageApprox: b.ageHint,
-          species: b.species
-        }))
-      );
+    // CRITICAL: This fixes the Adrian/Alexander issue by using explicit height comparisons
+    if (charactersWithHeight.length > 1) {
+      // Check if any character has explicit height data
+      const hasExplicitHeights = charactersWithHeight.some(c => c.heightCm);
 
-      if (relativeHeights) {
-        ageGuardLines.push(relativeHeights);
+      if (hasExplicitHeights) {
+        // Use height-aware function for precise comparisons
+        const relativeHeights = buildRelativeHeightReferencesWithHeight(charactersWithHeight);
+        if (relativeHeights) {
+          ageGuardLines.push(relativeHeights);
+        }
+      } else {
+        // Fallback to age-based height references
+        const relativeHeights = buildRelativeHeightReferences(
+          charactersWithHeight.map(c => ({
+            name: c.name,
+            age: c.age,
+            ageApprox: c.ageApprox,
+            species: c.species
+          }))
+        );
+        if (relativeHeights) {
+          ageGuardLines.push(relativeHeights);
+        }
       }
     }
 

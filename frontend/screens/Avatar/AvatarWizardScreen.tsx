@@ -2,941 +2,414 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, CheckCircle, Sparkles, Star, Heart, Palette, Users, Globe } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Wand2, Check, Rocket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
+import { AvatarForm } from '../../components/avatar-form';
+import {
+  AvatarFormData,
+  DEFAULT_AVATAR_FORM_DATA,
+  formDataToVisualProfile,
+  formDataToDescription,
+  CHARACTER_TYPES,
+  isHumanCharacter,
+} from '../../types/avatarForm';
 import { useBackend } from '../../hooks/useBackend';
-import { colors, gradients } from '../../utils/constants/colors';
-import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
-
-// Animated Components (based on Motion Primitives)
-const AnimatedGroup = ({ children, className = "", delay = 0 }: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    transition={{ duration: 0.4, delay: delay / 1000 }}
-    className={className}
-  >
-    {children}
-  </motion.div>
-);
-
-const TextEffect = ({
-  children,
-  className = "",
-  preset = "fade",
-  delay = 0
-}: {
-  children: string;
-  className?: string;
-  preset?: 'fade' | 'slide' | 'scale';
-  delay?: number;
-}) => {
-  const variants = {
-    fade: {
-      hidden: { opacity: 0 },
-      visible: { opacity: 1 }
-    },
-    slide: {
-      hidden: { opacity: 0, x: -20 },
-      visible: { opacity: 1, x: 0 }
-    },
-    scale: {
-      hidden: { opacity: 0, scale: 0.8 },
-      visible: { opacity: 1, scale: 1 }
-    }
-  };
-
-  return (
-    <motion.div
-      variants={variants[preset]}
-      initial="hidden"
-      animate="visible"
-      transition={{ duration: 0.6, delay: delay / 1000 }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-};
-
-// Avatar Configuration Types
-interface BasicInfo {
-  name: string;
-  type: string;
-  age: number;
-  gender: string;
-  size: string;
-  build: string;
-}
-
-interface Appearance {
-  eyeColor: string;
-  hairColor: string;
-  skinColor: string;
-  specialFeatures: string[];
-}
-
-interface Style {
-  clothing: string;
-  accessories: string[];
-  voice: string;
-  expression: string;
-}
-
-interface Background {
-  world: string;
-  backstory: string;
-}
-
-interface AvatarConfig {
-  basicInfo: BasicInfo;
-  appearance: Appearance;
-  style: Style;
-  background: Background;
-  inputMode: 'simple' | 'advanced';
-}
-
-// Step Components
-const StepBasicInfo = ({
-  config,
-  updateConfig,
-  inputMode
-}: {
-  config: BasicInfo;
-  updateConfig: (updates: Partial<BasicInfo>) => void;
-  inputMode: 'simple' | 'advanced';
-}) => {
-  const { t } = useTranslation();
-
-  return (
-    <AnimatedGroup className="space-y-6">
-      <div className="text-center mb-8">
-        <TextEffect preset="scale" className="text-3xl font-bold text-gray-800 mb-2">
-          {`✨ ${t('avatar.wizard.basic.title')}`}
-        </TextEffect>
-        <TextEffect preset="fade" delay={200} className="text-gray-600">
-          {t('avatar.wizard.basic.subtitle')}
-        </TextEffect>
-      </div>
-
-      {inputMode === 'simple' ? (
-        // Klickbare Auswahl für Kinder
-        <div className="space-y-6">
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.basic.name')}</label>
-            <input
-              type="text"
-              value={config.name}
-              onChange={(e) => updateConfig({ name: e.target.value })}
-              placeholder={t('avatar.wizard.basic.namePlaceholder')}
-              className="w-full p-4 text-lg rounded-2xl border-2 border-purple-200 focus:border-purple-400 bg-white shadow-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.basic.type')}</label>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: 'human', label: `👤 ${t('avatar.wizard.options.types.human')}` },
-                { key: 'animal', label: `🐱 ${t('avatar.wizard.options.types.animal')}` },
-                { key: 'fantasy', label: `🦄 ${t('avatar.wizard.options.types.fantasy')}` },
-                { key: 'robot', label: `🤖 ${t('avatar.wizard.options.types.robot')}` },
-                { key: 'plant', label: `🌱 ${t('avatar.wizard.options.types.plant')}` },
-                { key: 'other', label: `✨ ${t('avatar.wizard.options.types.other')}` }
-              ].map((type) => (
-                <motion.button
-                  key={type.key}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => updateConfig({ type: type.label.split(' ')[1] })}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${config.type === type.label.split(' ')[1]
-                    ? 'border-purple-400 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-200'
-                    }`}
-                >
-                  <div className="text-xl">{type.label}</div>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.basic.age')}</label>
-              <select
-                value={config.age}
-                onChange={(e) => updateConfig({ age: parseInt(e.target.value) })}
-                className="w-full p-4 text-lg rounded-2xl border-2 border-purple-200 focus:border-purple-400 bg-white"
-              >
-                <option value={5}>🍼 {t('avatar.wizard.options.ages.baby')}</option>
-                <option value={10}>🧒 {t('avatar.wizard.options.ages.child')}</option>
-                <option value={16}>🌟 {t('avatar.wizard.options.ages.teen')}</option>
-                <option value={30}>👨 {t('avatar.wizard.options.ages.adult')}</option>
-                <option value={60}>👴 {t('avatar.wizard.options.ages.old')}</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.basic.gender')}</label>
-              <select
-                value={config.gender}
-                onChange={(e) => updateConfig({ gender: e.target.value })}
-                className="w-full p-4 text-lg rounded-2xl border-2 border-purple-200 focus:border-purple-400 bg-white"
-              >
-                <option value="junge">👦 {t('avatar.wizard.options.genders.boy')}</option>
-                <option value="mädchen">👧 {t('avatar.wizard.options.genders.girl')}</option>
-                <option value="divers">🌈 {t('avatar.wizard.options.genders.diverse')}</option>
-                <option value="nicht-angegeben">❓ {t('avatar.wizard.options.genders.none')}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Freier Text für Erwachsene/Kreative
-        <div className="space-y-6">
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.basic.description')}</label>
-            <textarea
-              value={`${config.name} - ${config.type}, ${config.age} Jahre alt`}
-              onChange={(e) => {
-                // Einfache Parsing-Logik für Freitext
-                const text = e.target.value;
-                const parts = text.split(' - ');
-                if (parts.length >= 2) {
-                  updateConfig({
-                    name: parts[0],
-                    type: parts[1].split(',')[0] || config.type
-                  });
-                }
-              }}
-              placeholder={t('avatar.wizard.basic.descriptionPlaceholder')}
-              rows={4}
-              className="w-full p-4 text-lg rounded-2xl border-2 border-purple-200 focus:border-purple-400 bg-white resize-none"
-            />
-          </div>
-        </div>
-      )}
-    </AnimatedGroup>
-  );
-};
-
-const StepAppearance = ({
-  config,
-  updateConfig,
-  inputMode
-}: {
-  config: Appearance;
-  updateConfig: (updates: Partial<Appearance>) => void;
-  inputMode: 'simple' | 'advanced';
-}) => {
-  const { t } = useTranslation();
-
-  return (
-    <AnimatedGroup className="space-y-6">
-      <div className="text-center mb-8">
-        <TextEffect preset="scale" className="text-3xl font-bold text-gray-800 mb-2">
-          {`🎨 ${t('avatar.wizard.appearance.title')}`}
-        </TextEffect>
-        <TextEffect preset="fade" delay={200} className="text-gray-600">
-          {t('avatar.wizard.appearance.subtitle')}
-        </TextEffect>
-      </div>
-
-      {inputMode === 'simple' ? (
-        <div className="space-y-6">
-          {/* Augenfarbe */}
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.appearance.eyeColor')}</label>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { color: 'blau', key: 'blue', bg: 'bg-blue-400', emoji: '💙' },
-                { color: 'grün', key: 'green', bg: 'bg-green-400', emoji: '💚' },
-                { color: 'braun', key: 'brown', bg: 'bg-amber-600', emoji: '🤎' },
-                { color: 'grau', key: 'gray', bg: 'bg-gray-400', emoji: '🩶' },
-                { color: 'bunt', key: 'colorful', bg: 'bg-gradient-to-r from-purple-400 to-pink-400', emoji: '🌈' }
-              ].map((eye) => (
-                <motion.button
-                  key={eye.color}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => updateConfig({ eyeColor: t(`avatar.wizard.options.eyes.${eye.key}`) })}
-                  className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl ${config.eyeColor === t(`avatar.wizard.options.eyes.${eye.key}`) ? 'border-purple-500 shadow-lg' : 'border-white shadow-md'
-                    } ${eye.bg}`}
-                >
-                  {eye.emoji}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          {/* Haarfarbe */}
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.appearance.hairColor')}</label>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { color: 'blond', key: 'blonde', bg: 'bg-yellow-300', emoji: '👱' },
-                { color: 'braun', key: 'brown', bg: 'bg-amber-700', emoji: '👩' },
-                { color: 'schwarz', key: 'black', bg: 'bg-gray-900', emoji: '🖤' },
-                { color: 'rot', key: 'red', bg: 'bg-red-500', emoji: '🦰' },
-                { color: 'glatze', key: 'bald', bg: 'bg-pink-200', emoji: '👨‍🦲' }
-              ].map((hair) => (
-                <motion.button
-                  key={hair.color}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => updateConfig({ hairColor: t(`avatar.wizard.options.hair.${hair.key}`) })}
-                  className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl ${config.hairColor === t(`avatar.wizard.options.hair.${hair.key}`) ? 'border-purple-500 shadow-lg' : 'border-white shadow-md'
-                    } ${hair.bg}`}
-                >
-                  {hair.emoji}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          {/* Besonderheiten */}
-          <div>
-            <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.appearance.specialFeatures')}</label>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { key: 'glasses', icon: '👓' },
-                { key: 'wings', icon: '🦋' },
-                { key: 'horns', icon: '👑' },
-                { key: 'tail', icon: '🐾' },
-                { key: 'scar', icon: '✨' },
-                { key: 'tattoo', icon: '🎨' }
-              ].map((feature) => {
-                const label = `${feature.icon} ${t(`avatar.wizard.options.features.${feature.key}`)}`;
-                return (
-                  <motion.button
-                    key={feature.key}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      const featureName = t(`avatar.wizard.options.features.${feature.key}`);
-                      const currentFeatures = config.specialFeatures || [];
-                      const isSelected = currentFeatures.includes(featureName);
-                      updateConfig({
-                        specialFeatures: isSelected
-                          ? currentFeatures.filter(f => f !== featureName)
-                          : [...currentFeatures, featureName]
-                      });
-                    }}
-                    className={`px-4 py-2 rounded-xl border-2 transition-all ${config.specialFeatures?.includes(t(`avatar.wizard.options.features.${feature.key}`))
-                      ? 'border-purple-400 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white hover:border-purple-200'
-                      }`}
-                  >
-                    {label}
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <textarea
-          placeholder={t('avatar.wizard.appearance.descriptionPlaceholder')}
-          rows={6}
-          className="w-full p-4 text-lg rounded-2xl border-2 border-purple-200 focus:border-purple-400 bg-white resize-none"
-        />
-      )}
-    </AnimatedGroup>
-  );
-};
-
-const StepStyle = ({
-  config,
-  updateConfig
-}: {
-  config: Style;
-  updateConfig: (updates: Partial<Style>) => void;
-}) => {
-  const { t } = useTranslation();
-
-  return (
-    <AnimatedGroup className="space-y-6">
-      <div className="text-center mb-8">
-        <TextEffect preset="scale" className="text-3xl font-bold text-gray-800 mb-2">
-          {`👗 ${t('avatar.wizard.style.title')}`}
-        </TextEffect>
-        <TextEffect preset="fade" delay={200} className="text-gray-600">
-          {t('avatar.wizard.style.subtitle')}
-        </TextEffect>
-      </div>
-
-      <div className="space-y-6">
-        <div>
-          <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.style.clothing')}</label>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { key: 'modern', icon: '🏢' },
-              { key: 'medieval', icon: '🏰' },
-              { key: 'fairytale', icon: '✨' },
-              { key: 'future', icon: '🚀' },
-              { key: 'armor', icon: '⚔️' },
-              { key: 'magic', icon: '🔮' }
-            ].map((style) => {
-              const label = `${style.icon} ${t(`avatar.wizard.options.clothing.${style.key}`)}`;
-              return (
-                <motion.button
-                  key={style.key}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => updateConfig({ clothing: t(`avatar.wizard.options.clothing.${style.key}`) })}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${config.clothing === t(`avatar.wizard.options.clothing.${style.key}`)
-                    ? 'border-purple-400 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-200'
-                    }`}
-                >
-                  <div className="text-xl">{label}</div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.style.voice')}</label>
-          <div className="flex gap-3">
-            {[
-              { key: 'high', icon: '🎵' },
-              { key: 'normal', icon: '🎤' },
-              { key: 'deep', icon: '🎙️' },
-              { key: 'funny', icon: '😄' },
-              { key: 'mysterious', icon: '🤫' }
-            ].map((voice) => {
-              const label = `${voice.icon} ${t(`avatar.wizard.options.voice.${voice.key}`)}`;
-              return (
-                <motion.button
-                  key={voice.key}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => updateConfig({ voice: t(`avatar.wizard.options.voice.${voice.key}`) })}
-                  className={`px-4 py-2 rounded-xl border-2 transition-all ${config.voice === t(`avatar.wizard.options.voice.${voice.key}`)
-                    ? 'border-purple-400 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-200'
-                    }`}
-                >
-                  {label}
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </AnimatedGroup>
-  );
-};
-
-const StepBackground = ({
-  config,
-  updateConfig
-}: {
-  config: Background;
-  updateConfig: (updates: Partial<Background>) => void;
-}) => {
-  const { t } = useTranslation();
-
-  return (
-    <AnimatedGroup className="space-y-6">
-      <div className="text-center mb-8">
-        <TextEffect preset="scale" className="text-3xl font-bold text-gray-800 mb-2">
-          {`🌍 ${t('avatar.wizard.background.title')}`}
-        </TextEffect>
-        <TextEffect preset="fade" delay={200} className="text-gray-600">
-          {t('avatar.wizard.background.subtitle')}
-        </TextEffect>
-      </div>
-
-      <div className="space-y-6">
-        <div>
-          <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.background.world')}</label>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { key: 'forest', icon: '🌲' },
-              { key: 'city', icon: '🏙️' },
-              { key: 'castle', icon: '🏰' },
-              { key: 'future', icon: '🚀' },
-              { key: 'underwater', icon: '🌊' },
-              { key: 'space', icon: '🌌' }
-            ].map((world) => {
-              const label = `${world.icon} ${t(`avatar.wizard.options.world.${world.key}`)}`;
-              return (
-                <motion.button
-                  key={world.key}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => updateConfig({ world: t(`avatar.wizard.options.world.${world.key}`) })}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${config.world === t(`avatar.wizard.options.world.${world.key}`)
-                    ? 'border-purple-400 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-200'
-                    }`}
-                >
-                  <div className="text-xl">{label}</div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-lg font-semibold text-gray-700 mb-3">{t('avatar.wizard.background.backstory')}</label>
-          <div className="space-y-3">
-            {[
-              { key: 'lost', icon: '🏃' },
-              { key: 'adventurer', icon: '🗺️' },
-              { key: 'wizard', icon: '🧙' },
-              { key: 'talent', icon: '🐾' },
-              { key: 'normal', icon: '😊' }
-            ].map((backstory) => {
-              const label = `${backstory.icon} ${t(`avatar.wizard.options.backstory.${backstory.key}`)}`;
-              return (
-                <motion.button
-                  key={backstory.key}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => updateConfig({ backstory: t(`avatar.wizard.options.backstory.${backstory.key}`) })}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${config.backstory === t(`avatar.wizard.options.backstory.${backstory.key}`)
-                    ? 'border-purple-400 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 bg-white hover:border-purple-200'
-                    }`}
-                >
-                  <div className="text-lg">{label}</div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </AnimatedGroup>
-  );
-};
+import { colors } from '../../utils/constants/colors';
 
 const AvatarWizardScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { t } = useTranslation();
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [inputMode, setInputMode] = useState<'simple' | 'advanced'>('simple');
-  const [loading, setLoading] = useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [generatingImage, setGeneratingImage] = useState(false);
+  const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [step, setStep] = useState<'form' | 'preview' | 'creating'>('form');
 
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
-    basicInfo: {
-      name: '',
-      type: '',
-      age: 10,
-      gender: '',
-      size: 'mittel',
-      build: 'normal'
-    },
-    appearance: {
-      eyeColor: '',
-      hairColor: '',
-      skinColor: 'hell',
-      specialFeatures: []
-    },
-    style: {
-      clothing: '',
-      accessories: [],
-      voice: '',
-      expression: ''
-    },
-    background: {
-      world: '',
-      backstory: ''
-    },
-    inputMode
-  });
-
-  const steps = [
-    { title: t('avatar.wizard.steps.mode'), component: 'mode' },
-    { title: t('avatar.wizard.steps.basic'), component: 'basic' },
-    { title: t('avatar.wizard.steps.appearance'), component: 'appearance' },
-    { title: t('avatar.wizard.steps.style'), component: 'style' },
-    { title: t('avatar.wizard.steps.background'), component: 'background' },
-    { title: t('avatar.wizard.steps.create'), component: 'create' }
-  ];
-
-  const updateBasicInfo = useCallback((updates: Partial<BasicInfo>) => {
-    setAvatarConfig(prev => ({
-      ...prev,
-      basicInfo: { ...prev.basicInfo, ...updates }
-    }));
+  // Handle form changes
+  const handleFormChange = useCallback((data: AvatarFormData) => {
+    setFormData(data);
   }, []);
 
-  const updateAppearance = useCallback((updates: Partial<Appearance>) => {
-    setAvatarConfig(prev => ({
-      ...prev,
-      appearance: { ...prev.appearance, ...updates }
-    }));
-  }, []);
-
-  const updateStyle = useCallback((updates: Partial<Style>) => {
-    setAvatarConfig(prev => ({
-      ...prev,
-      style: { ...prev.style, ...updates }
-    }));
-  }, []);
-
-  const updateBackground = useCallback((updates: Partial<Background>) => {
-    setAvatarConfig(prev => ({
-      ...prev,
-      background: { ...prev.background, ...updates }
-    }));
-  }, []);
-
-  const nextStep = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const generateAvatar = async () => {
-    setLoading(true);
+  // Generate preview image
+  const handleGeneratePreview = async (data: AvatarFormData) => {
     try {
-      // Hier wird der Avatar mit neutralen Persönlichkeitswerten erstellt (matching backend schema)
-      const neutralPersonality = {
-        knowledge: { value: 0, description: 'Wissensakkumulation in verschiedenen Bereichen' },
-        creativity: { value: 0, description: 'Kreative Problemlösung und Fantasie' },
-        vocabulary: { value: 0, description: 'Sprachlicher Ausdruck und Kommunikation' },
-        courage: { value: 0, description: 'Bereitschaft Risiken einzugehen' },
-        curiosity: { value: 0, description: 'Wissensdurst und Entdeckergeist' },
-        teamwork: { value: 0, description: 'Zusammenarbeit und Kooperation' },
-        empathy: { value: 0, description: 'Mitgefühl und Verständnis für andere' },
-        persistence: { value: 0, description: 'Durchhaltevermögen und Beharrlichkeit' },
-        logic: { value: 0, description: 'Analytisches Denken und Schlussfolgerung' },
-      };
+      setIsGeneratingPreview(true);
 
-      // Generiere Avatar-Beschreibung aus den Einstellungen
-      const safeValues = {
-        name: avatarConfig.basicInfo.name || 'Unbekannt',
-        type: avatarConfig.basicInfo.type || 'Charakter',
-        world: avatarConfig.background.world || 'einer unbekannten Welt',
-        backstory: avatarConfig.background.backstory || 'Hat eine geheimnisvolle Vergangenheit',
-        eyeColor: avatarConfig.appearance.eyeColor || 'braune',
-        hairColor: avatarConfig.appearance.hairColor || 'dunkle'
-      };
-
-      const description = `${safeValues.name} ist ein ${safeValues.type} aus ${safeValues.world}. ${safeValues.backstory}. Hat ${safeValues.eyeColor} Augen und ${safeValues.hairColor} Haare.`;
-
-      const physicalTraits = {
-        characterType: safeValues.type,
-        appearance: description
-      };
-
-      // Create avatar using backend API
-      const createAvatarRequest = {
-        name: safeValues.name,
-        description,
-        physicalTraits,
-        personalityTraits: neutralPersonality,
-        imageUrl: generatedImageUrl || undefined,
-        visualProfile: undefined,
-        creationType: 'ai-generated' as const,
-      };
-
-      console.log('Creating avatar via backend API...', createAvatarRequest);
-      const avatar = await (backend.avatar as any).create(createAvatarRequest);
-      console.log('Avatar created successfully:', avatar);
-
-      // Initialize personality data for this avatar in localStorage (for local tracking)
-      // Use English trait keys for API compatibility
-      const personalityKey = `avatar_personality_${avatar.id}`;
-      const initialPersonality = {
-        traits: [
-          { trait: 'courage', value: 50, history: [] },
-          { trait: 'creativity', value: 50, history: [] },
-          { trait: 'empathy', value: 50, history: [] },
-          { trait: 'intelligence', value: 50, history: [] },
-          { trait: 'sociability', value: 50, history: [] },
-          { trait: 'energy', value: 50, history: [] },
-        ],
-        lastUpdated: new Date().toISOString()
-      };
-      localStorage.setItem(personalityKey, JSON.stringify(initialPersonality));
-
-      // Show success toast notification
-      import('../../utils/toastUtils').then(({ showAvatarCreatedToast, showSuccessToast }) => {
-        showAvatarCreatedToast(safeValues.name);
-        showSuccessToast(t('avatar.wizard.create.avatarCreatedSuccess'));
-      });
-
-      navigate('/avatar');
-    } catch (error) {
-      console.error('Error creating avatar:', error);
-      alert(t('avatar.wizard.create.avatarCreationError'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateImage = async () => {
-    try {
-      setGeneratingImage(true);
-
-      // Create neutral personality traits for image generation
-      const neutralPersonality = {
-        courage: 5,
-        intelligence: 5,
-        creativity: 5,
-        empathy: 5,
-        strength: 5,
-        humor: 5,
-        adventure: 5,
-        patience: 5,
-        curiosity: 5,
-        leadership: 5,
-      };
-
-      // Generate avatar description from settings (English for AI processing)
-      const specialFeatures = avatarConfig.appearance.specialFeatures.length > 0
-        ? `, with ${avatarConfig.appearance.specialFeatures.join(', ')}`
-        : '';
-      const appearance = `${avatarConfig.basicInfo.type} with ${avatarConfig.appearance.eyeColor} eyes and ${avatarConfig.appearance.hairColor} hair${specialFeatures}`;
+      const description = formDataToDescription(data);
+      const characterType = CHARACTER_TYPES.find(t => t.id === data.characterType);
 
       const result = await backend.ai.generateAvatarImage({
-        characterType: avatarConfig.basicInfo.type,
-        appearance,
-        personalityTraits: neutralPersonality,
+        characterType: data.characterType === 'other' && data.customCharacterType
+          ? data.customCharacterType
+          : characterType?.labelEn || 'human child',
+        appearance: description,
+        personalityTraits: {},
         style: 'disney',
       });
 
-      setGeneratedImageUrl(result.imageUrl);
+      setPreviewUrl(result.imageUrl);
 
-      // Show success notification
+      // Show success toast
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast(t('avatar.wizard.create.imageGeneratedSuccess'));
+        showSuccessToast('Avatar-Bild wurde generiert!');
       });
 
+      // Move to preview step
+      setStep('preview');
     } catch (error) {
-      console.error('Error generating avatar image:', error);
+      console.error('Error generating preview:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast(t('avatar.wizard.create.imageGenerationError'));
+        showErrorToast('Fehler beim Generieren des Bildes.');
       });
     } finally {
-      setGeneratingImage(false);
+      setIsGeneratingPreview(false);
     }
   };
 
-  const renderCurrentStep = () => {
-    switch (steps[currentStep].component) {
-      case 'mode':
+  // Create the avatar
+  const handleCreateAvatar = async () => {
+    if (!formData.name.trim()) {
+      import('../../utils/toastUtils').then(({ showErrorToast }) => {
+        showErrorToast('Bitte gib deinem Avatar einen Namen.');
+      });
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setStep('creating');
+
+      const description = formDataToDescription(formData);
+      const characterType = CHARACTER_TYPES.find(t => t.id === formData.characterType);
+
+      // Initialize visual profile from form data
+      let visualProfile = formDataToVisualProfile(formData);
+
+      // If we have an image, analyze it to get accurate visual profile
+      if (previewUrl) {
+        try {
+          const analysis = await backend.ai.analyzeAvatarImage({
+            imageUrl: previewUrl,
+            hints: {
+              name: formData.name,
+              expectedType: isHumanCharacter(formData.characterType) ? 'human' : 'animal',
+            },
+          });
+
+          if (analysis.visualProfile) {
+            // Merge form data with analysis (form data takes priority for explicit fields)
+            visualProfile = {
+              ...analysis.visualProfile,
+              // Override with explicit form data
+              ageApprox: `${formData.age} years old`,
+              gender: formData.gender === 'male' ? 'male' : 'female',
+            };
+          }
+        } catch (err) {
+          console.warn('Image analysis failed, using form-based visual profile:', err);
+        }
+      }
+
+      // Create neutral personality traits (all start at 0)
+      const neutralPersonality = {
+        knowledge: { value: 0 },
+        creativity: { value: 0 },
+        vocabulary: { value: 0 },
+        courage: { value: 0 },
+        curiosity: { value: 0 },
+        teamwork: { value: 0 },
+        empathy: { value: 0 },
+        persistence: { value: 0 },
+        logic: { value: 0 },
+      };
+
+      // Create avatar
+      const createRequest = {
+        name: formData.name.trim(),
+        description: formData.additionalDescription || description,
+        physicalTraits: {
+          characterType: formData.characterType === 'other' && formData.customCharacterType
+            ? formData.customCharacterType
+            : characterType?.labelDe || 'Mensch',
+          appearance: description,
+        },
+        personalityTraits: neutralPersonality,
+        imageUrl: previewUrl,
+        visualProfile,
+        creationType: 'ai-generated' as const,
+      };
+
+      const avatar = await (backend.avatar as any).create(createRequest);
+
+      // Show success notification
+      import('../../utils/toastUtils').then(({ showAvatarCreatedToast, showSuccessToast }) => {
+        showAvatarCreatedToast(formData.name);
+        showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich erstellt!`);
+      });
+
+      // Navigate back
+      navigate('/avatar');
+    } catch (error) {
+      console.error('Error creating avatar:', error);
+      import('../../utils/toastUtils').then(({ showErrorToast }) => {
+        showErrorToast('Avatar konnte nicht erstellt werden. Bitte versuche es erneut.');
+      });
+      setStep('preview');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Render based on current step
+  const renderStep = () => {
+    switch (step) {
+      case 'form':
         return (
-          <AnimatedGroup className="text-center space-y-8">
-            <TextEffect preset="scale" className="text-3xl font-bold text-gray-800 mb-4">
-              {`🎯 ${t('avatar.wizard.mode.title')}`}
-            </TextEffect>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            <AvatarForm
+              initialData={formData}
+              onChange={handleFormChange}
+              onPreview={handleGeneratePreview}
+              previewUrl={previewUrl}
+              isGeneratingPreview={isGeneratingPreview}
+              mode="create"
+            />
 
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <motion.button
-                whileHover={{ scale: 1.02, y: -5 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setInputMode('simple');
-                  nextStep();
-                }}
-                className="p-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-3xl text-white text-left shadow-2xl"
+            {/* Quick actions */}
+            {previewUrl && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex gap-4"
               >
-                <div className="text-6xl mb-4">🎮</div>
-                <h3 className="text-2xl font-bold mb-2">{t('avatar.wizard.mode.simple.title')}</h3>
-                <p className="text-lg opacity-90">
-                  {t('avatar.wizard.mode.simple.description')}
-                </p>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02, y: -5 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setInputMode('advanced');
-                  nextStep();
-                }}
-                className="p-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl text-white text-left shadow-2xl"
-              >
-                <div className="text-6xl mb-4">✍️</div>
-                <h3 className="text-2xl font-bold mb-2">{t('avatar.wizard.mode.advanced.title')}</h3>
-                <p className="text-lg opacity-90">
-                  {t('avatar.wizard.mode.advanced.description')}
-                </p>
-              </motion.button>
-            </div>
-          </AnimatedGroup>
-        );
-
-      case 'basic':
-        return <StepBasicInfo config={avatarConfig.basicInfo} updateConfig={updateBasicInfo} inputMode={inputMode} />;
-
-      case 'appearance':
-        return <StepAppearance config={avatarConfig.appearance} updateConfig={updateAppearance} inputMode={inputMode} />;
-
-      case 'style':
-        return <StepStyle config={avatarConfig.style} updateConfig={updateStyle} />;
-
-      case 'background':
-        return <StepBackground config={avatarConfig.background} updateConfig={updateBackground} />;
-
-      case 'create':
-        return (
-          <AnimatedGroup className="text-center space-y-8">
-            <TextEffect preset="scale" className="text-3xl font-bold text-gray-800 mb-4">
-              {`🎉 ${t('avatar.wizard.create.title')}`}
-            </TextEffect>
-
-            <div className="bg-gradient-to-br from-yellow-100 to-orange-100 rounded-3xl p-8 max-w-md mx-auto">
-              <div className="w-32 h-32 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg">
-                {generatedImageUrl ? (
-                  <img src={generatedImageUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  <div className="text-4xl">✨</div>
-                )}
-              </div>
-
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{avatarConfig.basicInfo.name}</h3>
-              <p className="text-gray-600 mb-4">{t('avatar.wizard.create.typeFrom', { type: avatarConfig.basicInfo.type, world: avatarConfig.background.world })}</p>
-
-              <div className="bg-blue-50 rounded-2xl p-4 mb-6">
-                <p className="text-sm text-blue-800">
-                  <strong>💡 Info:</strong> {t('avatar.wizard.create.info')}
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 mb-6">
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleGenerateImage}
-                  disabled={generatingImage || !avatarConfig.basicInfo.name || !avatarConfig.basicInfo.type}
-                  className="bg-gradient-to-r from-pink-400 to-purple-400 text-white px-6 py-3 rounded-2xl text-base font-semibold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setStep('preview')}
+                  className="flex-1 py-4 px-6 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold shadow-lg flex items-center justify-center gap-2"
                 >
-                  {generatingImage ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                      {t('avatar.wizard.create.generatingImage')}
-                    </>
-                  ) : (
-                    <>
-                      🎨 {t('avatar.wizard.create.generateImage')}
-                    </>
-                  )}
+                  <ArrowRight className="w-5 h-5" />
+                  <span>Weiter zur Vorschau</span>
                 </motion.button>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={generateAvatar}
-                disabled={loading}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-2xl text-lg font-bold shadow-lg disabled:opacity-50"
-              >
-                {loading ? `${t('avatar.wizard.create.creatingAvatar')} ✨` : `🚀 ${t('avatar.wizard.create.createAvatar')}`}
-              </motion.button>
-            </div>
-          </AnimatedGroup>
+              </motion.div>
+            )}
+          </motion.div>
         );
 
-      default:
-        return null;
+      case 'preview':
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            {/* Preview Card */}
+            <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-3xl p-8 text-center space-y-6">
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', damping: 15 }}
+                className="relative inline-block"
+              >
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt={formData.name}
+                    className="w-48 h-48 rounded-3xl object-cover shadow-2xl border-4 border-white"
+                  />
+                ) : (
+                  <div className="w-48 h-48 rounded-3xl bg-white/50 border-2 border-dashed border-purple-200 flex items-center justify-center">
+                    <span className="text-6xl">🎨</span>
+                  </div>
+                )}
+
+                {/* Sparkle decorations */}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    rotate: [0, 10, -10, 0],
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute -top-4 -right-4 text-3xl"
+                >
+                  ✨
+                </motion.div>
+              </motion.div>
+
+              <div>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">{formData.name}</h2>
+                <p className="text-gray-600">
+                  {CHARACTER_TYPES.find(t => t.id === formData.characterType)?.labelDe || 'Avatar'}
+                  {' · '}
+                  {formData.age} Jahre
+                  {isHumanCharacter(formData.characterType) && ` · ${formData.height} cm`}
+                </p>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 rounded-2xl p-4 text-left">
+                <p className="text-sm text-blue-800">
+                  <strong>💡 Info:</strong> Die Persönlichkeit deines Avatars startet bei 0 und
+                  entwickelt sich durch Abenteuer in Geschichten weiter. Alter und Größe werden
+                  für konsistente Darstellung in Bildern gespeichert.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setStep('form')}
+                className="flex-1 py-4 px-6 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Zurück bearbeiten</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleCreateAvatar}
+                disabled={isCreating || !formData.name.trim()}
+                className="flex-1 py-4 px-6 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Rocket className="w-5 h-5" />
+                <span>Avatar erstellen</span>
+              </motion.button>
+            </div>
+
+            {/* Regenerate Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleGeneratePreview(formData)}
+              disabled={isGeneratingPreview}
+              className="w-full py-3 px-6 rounded-xl border-2 border-purple-200 text-purple-600 font-medium hover:bg-purple-50 flex items-center justify-center gap-2"
+            >
+              {isGeneratingPreview ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  <span>Generiere neues Bild...</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  <span>Neues Bild generieren</span>
+                </>
+              )}
+            </motion.button>
+          </motion.div>
+        );
+
+      case 'creating':
+        return (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-20 space-y-8"
+          >
+            <motion.div
+              animate={{
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0],
+              }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="text-8xl"
+            >
+              ✨
+            </motion.div>
+
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Erstelle {formData.name}...
+              </h2>
+              <p className="text-gray-600">
+                Dein Avatar wird gerade zum Leben erweckt!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.5, repeat: Infinity, delay: 0 }}
+                className="w-3 h-3 bg-purple-500 rounded-full"
+              />
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.5, repeat: Infinity, delay: 0.1 }}
+                className="w-3 h-3 bg-pink-500 rounded-full"
+              />
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.5, repeat: Infinity, delay: 0.2 }}
+                className="w-3 h-3 bg-blue-500 rounded-full"
+              />
+            </div>
+          </motion.div>
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pb-20">
+    <div className="min-h-screen pb-24" style={{ background: colors.background.primary }}>
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-purple-100 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
+      <div
+        className="sticky top-0 z-10 backdrop-blur-xl border-b"
+        style={{
+          background: colors.glass.background,
+          borderColor: colors.glass.border,
+        }}
+      >
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/avatar')}
-            className="p-2 rounded-full hover:bg-purple-50 transition-colors text-gray-600"
+            className="p-2 rounded-full hover:bg-purple-50 transition-colors"
           >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </motion.button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center justify-center gap-2">
             <Sparkles className="w-6 h-6 text-purple-500" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Avatar Wizard
+              Avatar erstellen
             </h1>
           </div>
 
-          <div className="w-10" /> {/* Spacer */}
+          <div className="w-10" />
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress indicator */}
         <div className="h-1 bg-purple-100">
           <motion.div
             className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-            transition={{ duration: 0.5 }}
+            initial={{ width: '33%' }}
+            animate={{
+              width: step === 'form' ? '33%' : step === 'preview' ? '66%' : '100%',
+            }}
+            transition={{ duration: 0.3 }}
           />
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      {/* Main Content */}
+      <div className="max-w-3xl mx-auto px-4 py-6">
         <AnimatePresence mode="wait">
-          {renderCurrentStep()}
+          {renderStep()}
         </AnimatePresence>
-      </div>
-
-      {/* Navigation Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-purple-100 p-6 z-10">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <button
-            onClick={prevStep}
-            disabled={currentStep === 0}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${currentStep === 0
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'text-gray-600 hover:bg-gray-100'
-              }`}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            {t('common.back')}
-          </button>
-
-          <div className="flex gap-2">
-            {steps.map((_, index) => (
-              <div
-                key={index}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${index === currentStep
-                  ? 'bg-purple-500 scale-125'
-                  : index < currentStep
-                    ? 'bg-purple-200'
-                    : 'bg-gray-200'
-                  }`}
-              />
-            ))}
-          </div>
-
-          {currentStep < steps.length - 1 ? (
-            <button
-              onClick={nextStep}
-              className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-            >
-              {t('common.next')}
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          ) : (
-            <div className="w-24" /> // Spacer
-          )}
-        </div>
       </div>
     </div>
   );

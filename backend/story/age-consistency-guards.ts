@@ -141,3 +141,139 @@ function extractAge(ageApprox?: string): number | null {
   const match = ageApprox.match(/(\d+)/);
   return match ? parseInt(match[1], 10) : null;
 }
+
+/**
+ * Extended character info with explicit height
+ */
+export interface CharacterWithHeight {
+  name: string;
+  age?: number;
+  ageNumeric?: number; // NEW: Explicit numeric age from visual profile
+  ageApprox?: string;
+  heightCm?: number; // NEW: Explicit height in cm
+  species: string;
+}
+
+/**
+ * Builds relative height references with explicit height support
+ * CRITICAL: This fixes the Adrian/Alexander age consistency issue by using
+ * explicit height data from the visual profile
+ */
+export function buildRelativeHeightReferencesWithHeight(
+  characters: CharacterWithHeight[]
+): string {
+  const humans = characters.filter(c => c.species === 'human');
+  if (humans.length < 2) return "";
+
+  // Sort by height (shortest first), fallback to age
+  const sortedHumans = humans.sort((a, b) => {
+    // Priority 1: Use explicit height
+    if (a.heightCm && b.heightCm) {
+      return a.heightCm - b.heightCm;
+    }
+    // Priority 2: Use explicit age
+    const ageA = a.ageNumeric || a.age || extractAge(a.ageApprox) || 6;
+    const ageB = b.ageNumeric || b.age || extractAge(b.ageApprox) || 6;
+    return ageA - ageB;
+  });
+
+  const references: string[] = [];
+
+  // Build explicit height descriptions
+  sortedHumans.forEach((char, index) => {
+    const age = char.ageNumeric || char.age || extractAge(char.ageApprox) || 6;
+    const height = char.heightCm;
+
+    if (height) {
+      references.push(`${char.name}: exactly ${height}cm tall, age ${age}`);
+    } else {
+      references.push(`${char.name}: age ${age}, ${getAgeGroup(age).replace('_', '-')}`);
+    }
+
+    // Add relative comparison to next character
+    if (index < sortedHumans.length - 1) {
+      const nextChar = sortedHumans[index + 1];
+      const nextHeight = nextChar.heightCm;
+      const nextAge = nextChar.ageNumeric || nextChar.age || extractAge(nextChar.ageApprox) || 8;
+
+      if (height && nextHeight && height < nextHeight) {
+        const diff = nextHeight - height;
+        references.push(`  -> ${char.name} is ${diff}cm SHORTER than ${nextChar.name}`);
+      } else if (age < nextAge) {
+        references.push(`  -> ${char.name} (${age}y) MUST be visibly shorter than ${nextChar.name} (${nextAge}y)`);
+      }
+    }
+  });
+
+  if (references.length === 0) return "";
+
+  return `
+HEIGHT REFERENCES (CRITICAL FOR CONSISTENCY):
+${references.join('\n')}
+
+CRITICAL RULES:
+1. Younger/shorter characters MUST be visibly smaller in the image
+2. Height differences must be consistent across ALL story images
+3. A ${sortedHumans[0].name} at ${sortedHumans[0].heightCm || 'young age'}cm CANNOT appear taller than ${sortedHumans[sortedHumans.length - 1].name}
+  `.trim();
+}
+
+/**
+ * Builds age-accurate prompt with explicit height support
+ * CRITICAL: Uses both age AND height from visual profile
+ */
+export function buildAgeAccuratePromptWithHeight(
+  characterName: string,
+  age?: number,
+  ageApprox?: string,
+  heightCm?: number
+): string {
+  // Try to extract age from ageApprox if age not provided
+  let finalAge = age;
+  if (!finalAge && ageApprox) {
+    const ageMatch = ageApprox.match(/(\d+)/);
+    if (ageMatch) {
+      finalAge = parseInt(ageMatch[1], 10);
+    }
+  }
+
+  const ageGroup = getAgeGroup(finalAge);
+  const agePrompt = AGE_PROMPTS[ageGroup];
+
+  const ageDisplay = finalAge ? `age ${finalAge}` : ageApprox || "child";
+  const heightDisplay = heightCm ? `${heightCm}cm tall` : '';
+
+  // Build height comparison reference
+  let heightRef = '';
+  if (heightCm && finalAge) {
+    if (heightCm < 110) {
+      heightRef = 'VERY SHORT child, comes up to adults knee/thigh level';
+    } else if (heightCm < 130) {
+      heightRef = 'SHORT child, comes up to adults waist';
+    } else if (heightCm < 145) {
+      heightRef = 'MEDIUM height child, comes up to adults chest';
+    } else if (heightCm < 160) {
+      heightRef = 'TALLER child, comes up to adults shoulder';
+    } else {
+      heightRef = 'TALL child/pre-teen height';
+    }
+  }
+
+  return `
+${characterName} (HUMAN child, ${ageDisplay}${heightCm ? `, ${heightCm}cm` : ''}):
+  EXPLICIT MEASUREMENTS:
+    ${heightCm ? `- Height: EXACTLY ${heightCm}cm (${heightRef})` : ''}
+    - Age: EXACTLY ${finalAge || 'unknown'} years old
+
+  AGE-SPECIFIC PROPORTIONS:
+    - Body: ${agePrompt.proportions}
+    - Features: ${agePrompt.features}
+    - Comparison: ${agePrompt.comparison}
+    - Style: ${agePrompt.style}
+
+  CRITICAL:
+    - This is a ${ageDisplay} child${heightCm ? ` at ${heightCm}cm` : ''}, NOT a teenager.
+    ${finalAge && finalAge < 8 ? `- Must look DISTINCTLY YOUNGER than 10 years old.` : ''}
+    ${heightCm && heightCm < 130 ? `- Must be CLEARLY SHORT for a child.` : ''}
+  `.trim();
+}
