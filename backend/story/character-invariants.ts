@@ -193,18 +193,142 @@ export const COMMON_INVARIANT_FEATURES: Record<string, Omit<InvariantFeature, 'i
 };
 
 /**
+ * German to English translation map for common visual features
+ * Used for automatic invariant extraction from ANY user description
+ */
+const GERMAN_TO_ENGLISH_FEATURES: Record<string, string> = {
+  // Facial features
+  'zahnlücke': 'tooth gap',
+  'abstehende ohren': 'protruding ears',
+  'sommersprossen': 'freckles',
+  'grübchen': 'dimples',
+  'muttermal': 'birthmark',
+  'narbe': 'scar',
+  'stupsnase': 'button nose',
+  'große nase': 'large nose',
+  'kleine nase': 'small nose',
+  'spitze nase': 'pointed nose',
+  'pausbacken': 'chubby cheeks',
+  'hohe stirn': 'high forehead',
+  'breites lächeln': 'wide smile',
+  'schiefe zähne': 'crooked teeth',
+  'große augen': 'large eyes',
+  'kleine augen': 'small eyes',
+  'mandelförmige augen': 'almond-shaped eyes',
+  'buschige augenbrauen': 'bushy eyebrows',
+  'dünne augenbrauen': 'thin eyebrows',
+  'doppelkinn': 'double chin',
+  'spitzes kinn': 'pointed chin',
+  'rundes gesicht': 'round face',
+  'ovales gesicht': 'oval face',
+  'eckiges gesicht': 'square face',
+  'herzförmiges gesicht': 'heart-shaped face',
+
+  // Hair features
+  'lockige haare': 'curly hair',
+  'glatte haare': 'straight hair',
+  'wellige haare': 'wavy hair',
+  'kurze haare': 'short hair',
+  'lange haare': 'long hair',
+  'zöpfe': 'braids',
+  'pferdeschwanz': 'ponytail',
+  'dutt': 'bun hairstyle',
+  'pony': 'bangs',
+  'seitenscheitel': 'side part',
+  'mittelscheitel': 'center part',
+  'struppige haare': 'messy hair',
+  'strubbelige haare': 'tousled hair',
+  'glatze': 'bald head',
+  'geheimratsecken': 'receding hairline',
+
+  // Accessories
+  'brille': 'glasses',
+  'runde brille': 'round glasses',
+  'eckige brille': 'square glasses',
+  'sonnenbrille': 'sunglasses',
+  'hut': 'hat',
+  'mütze': 'cap',
+  'stirnband': 'headband',
+  'haarband': 'hair band',
+  'haarspange': 'hair clip',
+  'schleife': 'bow',
+  'haarschleife': 'hair bow',
+  'ohrring': 'earring',
+  'ohrringe': 'earrings',
+  'halskette': 'necklace',
+  'armband': 'bracelet',
+  'uhr': 'watch',
+  'schal': 'scarf',
+  'krone': 'crown',
+  'diadem': 'tiara',
+
+  // Body features
+  'klein': 'short stature',
+  'groß': 'tall stature',
+  'dünn': 'slim build',
+  'schlank': 'slender build',
+  'kräftig': 'sturdy build',
+  'rundlich': 'chubby build',
+  'muskulös': 'muscular build',
+  'sportlich': 'athletic build',
+
+  // Clothing
+  'kleid': 'dress',
+  'rock': 'skirt',
+  'hose': 'pants',
+  'jeans': 'jeans',
+  'shorts': 'shorts',
+  't-shirt': 't-shirt',
+  'pullover': 'sweater',
+  'jacke': 'jacket',
+  'mantel': 'coat',
+  'hoodie': 'hoodie',
+  'hemd': 'shirt',
+  'bluse': 'blouse',
+  'weste': 'vest',
+  'overall': 'overalls',
+  'latzhose': 'dungarees',
+  'schnürschuhe': 'lace-up shoes',
+  'turnschuhe': 'sneakers',
+  'stiefel': 'boots',
+  'sandalen': 'sandals',
+  'gummistiefel': 'rain boots',
+
+  // Colors (for compound features)
+  'rot': 'red',
+  'blau': 'blue',
+  'grün': 'green',
+  'gelb': 'yellow',
+  'orange': 'orange',
+  'lila': 'purple',
+  'pink': 'pink',
+  'rosa': 'pink',
+  'braun': 'brown',
+  'schwarz': 'black',
+  'weiß': 'white',
+  'grau': 'gray',
+  'gold': 'golden',
+  'silber': 'silver',
+};
+
+/**
  * Extracts invariant features from avatar description text
+ * FULLY GENERIC: Works with ANY user-provided description in German or English
+ *
  * @param description Free-text description of the avatar
  * @returns Array of detected invariant features
  */
 export function extractInvariantsFromDescription(description: string): InvariantFeature[] {
   const invariants: InvariantFeature[] = [];
   const descLower = description.toLowerCase();
+  const timestamp = Date.now();
+
+  // ===== PHASE 1: Check for KNOWN invariant features (high confidence) =====
 
   // Tooth gap detection (German & English)
   if (descLower.includes('zahnlücke') || descLower.includes('tooth gap') || descLower.includes('gap in teeth')) {
     invariants.push({
-      id: 'tooth_gap_' + Date.now(),
+      id: 'tooth_gap_' + timestamp,
       ...COMMON_INVARIANT_FEATURES['tooth_gap']
     });
   }
@@ -212,7 +336,7 @@ export function extractInvariantsFromDescription(description: string): Invariant
   // Protruding ears detection
   if (descLower.includes('abstehende ohren') || descLower.includes('protruding ears') || descLower.includes('sticking out ears')) {
     invariants.push({
-      id: 'prominent_ears_' + Date.now(),
+      id: 'prominent_ears_' + timestamp,
       ...COMMON_INVARIANT_FEATURES['prominent_ears']
     });
   }
@@ -220,7 +344,7 @@ export function extractInvariantsFromDescription(description: string): Invariant
   // Freckles detection
   if (descLower.includes('sommersprossen') || descLower.includes('freckles')) {
     invariants.push({
-      id: 'freckles_' + Date.now(),
+      id: 'freckles_' + timestamp,
       ...COMMON_INVARIANT_FEATURES['freckles']
     });
   }
@@ -230,7 +354,7 @@ export function extractInvariantsFromDescription(description: string): Invariant
     const isRound = descLower.includes('rund') || descLower.includes('round');
     const featureKey = isRound ? 'round_glasses' : 'square_glasses';
     invariants.push({
-      id: featureKey + '_' + Date.now(),
+      id: featureKey + '_' + timestamp,
       ...COMMON_INVARIANT_FEATURES[featureKey]
     });
   }
@@ -238,7 +362,7 @@ export function extractInvariantsFromDescription(description: string): Invariant
   // Dimples detection
   if (descLower.includes('grübchen') || descLower.includes('dimples')) {
     invariants.push({
-      id: 'dimples_' + Date.now(),
+      id: 'dimples_' + timestamp,
       ...COMMON_INVARIANT_FEATURES['dimples']
     });
   }
@@ -246,27 +370,127 @@ export function extractInvariantsFromDescription(description: string): Invariant
   // Height detection
   if (descLower.includes('sehr groß') || descLower.includes('very tall') || descLower.includes('tall for')) {
     invariants.push({
-      id: 'tall_for_age_' + Date.now(),
+      id: 'tall_for_age_' + timestamp,
       ...COMMON_INVARIANT_FEATURES['tall_for_age']
     });
   }
 
   if (descLower.includes('sehr klein') || descLower.includes('very short') || descLower.includes('short for')) {
     invariants.push({
-      id: 'short_for_age_' + Date.now(),
+      id: 'short_for_age_' + timestamp,
       ...COMMON_INVARIANT_FEATURES['short_for_age']
     });
   }
 
-  // Dancing ability detection (can be used for pose hints)
-  if (descLower.includes('kann gut tanzen') || descLower.includes('good dancer') || descLower.includes('loves dancing')) {
-    // Store as metadata for pose suggestions, not visual invariant
+  // ===== PHASE 2: Extract ANY visual feature from description (GENERIC) =====
+  // This catches ALL user-provided features, even unique ones
+
+  // Translate German features to English
+  let englishDescription = descLower;
+  for (const [german, english] of Object.entries(GERMAN_TO_ENGLISH_FEATURES)) {
+    englishDescription = englishDescription.replace(new RegExp(german, 'gi'), english);
   }
 
-  // Memory/Intelligence detection (for characterization)
-  if (descLower.includes('gutes gedächtnis') || descLower.includes('super schlau') || descLower.includes('very smart')) {
-    // Store as character trait, not visual invariant
+  // Extract feature phrases using pattern matching
+  // Look for adjective + noun patterns that describe visual features
+  const featurePatterns = [
+    // Color + feature patterns
+    /\b(red|blue|green|yellow|orange|purple|pink|brown|black|white|gray|golden|silver)\s+(hair|eyes|glasses|cap|hat|scarf|dress|shirt|bow|ribbon|band|shoes|boots)\b/gi,
+    // Adjective + body part patterns
+    /\b(large|small|big|little|wide|narrow|long|short|curly|straight|wavy|thick|thin|bushy|pointed|round|oval|square)\s+(eyes|nose|ears|mouth|chin|forehead|cheeks|eyebrows|lips|face|hair)\b/gi,
+    // Distinctive features
+    /\b(scar|birthmark|mole|freckles|dimples|wrinkles|tattoo)\s*(on|near|above|below)?\s*(the)?\s*(face|cheek|forehead|chin|nose|eye|arm|hand)?\b/gi,
+    // Accessories
+    /\b(wearing|with|has)\s+(a\s+)?(glasses|hat|cap|scarf|bow|ribbon|headband|earrings?|necklace|bracelet|watch|crown|tiara)\b/gi,
+    // Hair styles
+    /\b(braids?|ponytail|bun|bangs|pigtails|mohawk|afro|dreadlocks|cornrows)\b/gi,
+    // Clothing items with colors
+    /\b(striped|polka[- ]?dot|checkered|plaid|floral)\s+(shirt|dress|skirt|pants|sweater)\b/gi,
+  ];
+
+  const extractedFeatures = new Set<string>();
+
+  for (const pattern of featurePatterns) {
+    const matches = englishDescription.matchAll(pattern);
+    for (const match of matches) {
+      const feature = match[0].trim().toLowerCase();
+      // Skip if already added as a known invariant
+      if (!invariants.some(inv => inv.mustIncludeToken.toLowerCase().includes(feature))) {
+        extractedFeatures.add(feature);
+      }
+    }
   }
+
+  // Convert extracted features to invariants
+  for (const feature of extractedFeatures) {
+    // Determine category based on keywords
+    let category: InvariantFeature['category'] = 'distinctive';
+    if (feature.includes('hair') || feature.includes('braid') || feature.includes('ponytail') || feature.includes('bun') || feature.includes('bangs')) {
+      category = 'facial'; // Hair is part of face for image gen
+    } else if (feature.includes('eyes') || feature.includes('nose') || feature.includes('ear') || feature.includes('mouth') || feature.includes('face') || feature.includes('cheek') || feature.includes('chin')) {
+      category = 'facial';
+    } else if (feature.includes('glasses') || feature.includes('hat') || feature.includes('cap') || feature.includes('scarf') || feature.includes('earring') || feature.includes('necklace') || feature.includes('crown')) {
+      category = 'accessory';
+    } else if (feature.includes('shirt') || feature.includes('dress') || feature.includes('pants') || feature.includes('skirt') || feature.includes('shoes') || feature.includes('boots')) {
+      category = 'clothing';
+    }
+
+    // Determine priority based on distinctiveness
+    let priority: 1 | 2 | 3 = 2; // Default medium
+    if (feature.includes('scar') || feature.includes('birthmark') || feature.includes('glasses') || feature.includes('crown') || feature.includes('tiara')) {
+      priority = 1; // Very distinctive
+    } else if (feature.includes('shirt') || feature.includes('pants') || feature.includes('normal')) {
+      priority = 3; // Less distinctive
+    }
+
+    invariants.push({
+      id: `extracted_${feature.replace(/\s+/g, '_')}_${timestamp}`,
+      category,
+      promptDescription: feature,
+      mustIncludeToken: feature,
+      priority,
+      labelDe: feature // Keep English for now, could translate back
+    });
+  }
+
+  // ===== PHASE 3: Extract raw distinctive phrases =====
+  // Catch anything that looks like a distinctive physical description
+
+  // Look for "has/with/wearing" + description patterns
+  const rawPatterns = [
+    /(?:has|with|wearing|trägt|hat)\s+(?:a\s+)?([^,\.]+(?:hair|eyes|nose|ears?|face|glasses|hat|cap|scarf|dress|shirt|bow|scar|birthmark|freckles|dimples))/gi,
+    /(?:große?|kleine?|lange?|kurze?|runde?|spitze?)\s+(\w+)/gi, // German adjective patterns
+  ];
+
+  for (const pattern of rawPatterns) {
+    const matches = descLower.matchAll(pattern);
+    for (const match of matches) {
+      if (match[1]) {
+        let feature = match[1].trim();
+        // Translate if German
+        for (const [german, english] of Object.entries(GERMAN_TO_ENGLISH_FEATURES)) {
+          feature = feature.replace(new RegExp(german, 'gi'), english);
+        }
+
+        // Skip if too generic or already captured
+        if (feature.length > 3 &&
+            !extractedFeatures.has(feature) &&
+            !invariants.some(inv => inv.mustIncludeToken.toLowerCase().includes(feature.toLowerCase()))) {
+          invariants.push({
+            id: `raw_${feature.replace(/\s+/g, '_')}_${timestamp}`,
+            category: 'distinctive',
+            promptDescription: feature,
+            mustIncludeToken: feature,
+            priority: 2,
+            labelDe: feature
+          });
+        }
+      }
+    }
+  }
+
+  console.log(`[character-invariants] Extracted ${invariants.length} invariants from description:`,
+    invariants.map(i => i.mustIncludeToken).slice(0, 5));
 
   return invariants;
 }
@@ -290,7 +514,7 @@ export function buildInvariantsFromVisualProfile(
     lockedEyeColor: visualProfile.eyes?.color,
     lockedSkinTone: visualProfile.skin?.tone,
     signatureClothing: visualProfile.clothingCanonical?.outfit ||
-                       visualProfile.clothingCanonical?.top,
+                       visualProfile.clothingCanonical?.top || undefined,
     gender: visualProfile.gender as any
   };
 

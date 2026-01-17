@@ -86,10 +86,11 @@ function buildSpeciesDescriptor(
   }
 
   // For ANIMALS: Build descriptor from profile
+  // Use 'any' type assertions since animal profiles have different structure
   if (species === 'cat' || species === 'kitten') {
     // Extract visual details from profile
-    const coatColor = profile.coat?.primaryColor || profile.fur?.color || '';
-    const coatPattern = profile.coat?.pattern || profile.fur?.pattern || '';
+    const coatColor = (profileAny.coat?.primaryColor || profileAny.fur?.color || '') as string;
+    const coatPattern = (profileAny.coat?.pattern || profileAny.fur?.pattern || '') as string;
     const eyeColor = profile.eyes?.color || '';
 
     const features: string[] = [];
@@ -106,8 +107,8 @@ function buildSpeciesDescriptor(
   }
 
   if (species === 'dog') {
-    const coatColor = profile.coat?.primaryColor || profile.fur?.color || '';
-    const breed = profile.breed || '';
+    const coatColor = (profileAny.coat?.primaryColor || profileAny.fur?.color || '') as string;
+    const breed = (profileAny.breed || '') as string;
 
     const features: string[] = [];
     if (breed) features.push(breed);
@@ -119,8 +120,8 @@ function buildSpeciesDescriptor(
   }
 
   // For OTHER CREATURES: Use species + any available visual info
-  const primaryColor = profile.color?.primary || profile.skin?.tone || '';
-  const characterType = profile.characterType || species;
+  const primaryColor = (profileAny.color?.primary || profile.skin?.tone || '') as string;
+  const characterType = (profileAny.characterType || species) as string;
 
   const features: string[] = [];
   if (primaryColor) features.push(`${primaryColor}`);

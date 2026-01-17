@@ -1,4 +1,63 @@
 import { api } from "encore.dev/api";
+import type { InvariantFeature } from "../avatar/avatar";
+
+/**
+ * Character Invariants Mapping - Features that MUST appear consistently
+ * Maps feature keys to invariant definitions
+ */
+const INVARIANT_FEATURES_MAP: Record<string, Omit<InvariantFeature, 'id'>> = {
+  tooth_gap: {
+    category: 'facial',
+    promptDescription: 'prominent gap between front teeth, visible when smiling',
+    mustIncludeToken: 'large tooth gap in front teeth',
+    forbiddenAlternative: 'complete teeth, no gap',
+    priority: 1,
+    labelDe: 'Zahnlücke vorne'
+  },
+  glasses: {
+    category: 'accessory',
+    promptDescription: 'wearing glasses',
+    mustIncludeToken: 'wearing glasses',
+    priority: 1,
+    labelDe: 'Brille'
+  },
+  freckles: {
+    category: 'facial',
+    promptDescription: 'scattered freckles across nose and cheeks',
+    mustIncludeToken: 'freckles on face',
+    priority: 2,
+    labelDe: 'Sommersprossen'
+  },
+  prominent_ears: {
+    category: 'facial',
+    promptDescription: 'noticeably protruding ears, standing out from head',
+    mustIncludeToken: 'prominent protruding ears',
+    forbiddenAlternative: 'flat ears against head',
+    priority: 1,
+    labelDe: 'Abstehende Ohren'
+  },
+  scar: {
+    category: 'facial',
+    promptDescription: 'small scar visible on face',
+    mustIncludeToken: 'small scar on face',
+    priority: 2,
+    labelDe: 'Narbe'
+  },
+  dimples: {
+    category: 'facial',
+    promptDescription: 'cute dimples on cheeks when smiling',
+    mustIncludeToken: 'dimples on cheeks',
+    priority: 2,
+    labelDe: 'Grübchen'
+  },
+  birthmark: {
+    category: 'facial',
+    promptDescription: 'small birthmark on cheek',
+    mustIncludeToken: 'birthmark on cheek',
+    priority: 2,
+    labelDe: 'Muttermal'
+  },
+};
 
 /**
  * Structured Avatar Data for Visual Profile Generation
@@ -264,6 +323,10 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
     const bodyFeatures: string[] = [];
     const faceFeatures: string[] = [];
 
+    // NEW v2.0: Build Character Invariants for consistent image generation
+    const mustIncludeFeatures: InvariantFeature[] = [];
+    const forbiddenFeatures: string[] = [];
+
     (avatarData.specialFeatures || []).forEach((feature) => {
       const featureEn = SPECIAL_FEATURES_MAP[feature] || feature;
       if (["glasses", "hat", "crown", "scarf", "bow", "earrings"].includes(feature)) {
@@ -273,7 +336,48 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
       } else {
         faceFeatures.push(featureEn);
       }
+
+      // NEW v2.0: Check if this feature should be an invariant
+      const invariantDef = INVARIANT_FEATURES_MAP[feature];
+      if (invariantDef) {
+        mustIncludeFeatures.push({
+          id: `${feature}_${Date.now()}`,
+          ...invariantDef
+        });
+        // Add forbidden alternative to prevent inconsistencies
+        if (invariantDef.forbiddenAlternative) {
+          forbiddenFeatures.push(invariantDef.forbiddenAlternative);
+        }
+      }
     });
+
+    // NEW v2.0: Also check additionalDescription for invariant-worthy features
+    if (avatarData.additionalDescription) {
+      const descLower = avatarData.additionalDescription.toLowerCase();
+
+      // Check for tooth gap in description
+      if ((descLower.includes('zahnlücke') || descLower.includes('tooth gap'))
+          && !mustIncludeFeatures.some(f => f.id.startsWith('tooth_gap'))) {
+        mustIncludeFeatures.push({
+          id: `tooth_gap_desc_${Date.now()}`,
+          ...INVARIANT_FEATURES_MAP['tooth_gap']
+        });
+        forbiddenFeatures.push('complete teeth, no gap');
+      }
+
+      // Check for protruding ears in description
+      if ((descLower.includes('abstehende ohren') || descLower.includes('protruding ears'))
+          && !mustIncludeFeatures.some(f => f.id.startsWith('prominent_ears'))) {
+        mustIncludeFeatures.push({
+          id: `prominent_ears_desc_${Date.now()}`,
+          ...INVARIANT_FEATURES_MAP['prominent_ears']
+        });
+        forbiddenFeatures.push('flat ears against head');
+      }
+    }
+
+    console.log(`🎯 Built ${mustIncludeFeatures.length} invariant features for ${avatarData.name}:`,
+      mustIncludeFeatures.map(f => f.mustIncludeToken));
 
     // Build the visual profile
     const visualProfile = {
@@ -352,6 +456,11 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
 
       // CRITICAL: Consistent descriptors for image generation
       consistentDescriptors: consistentDescriptors.slice(0, 10),
+
+      // NEW v2.0: Character Invariants for cross-chapter consistency
+      // These features MUST appear in EVERY generated image
+      mustIncludeFeatures: mustIncludeFeatures.length > 0 ? mustIncludeFeatures : undefined,
+      forbiddenFeatures: forbiddenFeatures.length > 0 ? forbiddenFeatures : undefined,
 
       // Additional notes
       additionalNotes: avatarData.additionalDescription || undefined,
