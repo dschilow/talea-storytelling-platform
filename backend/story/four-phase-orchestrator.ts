@@ -29,6 +29,7 @@ import { addArtifactToInventoryInternal } from "../gamification/item-system";
 import {
   buildInvariantsFromVisualProfile,
   formatInvariantsForPrompt,
+  extractInvariantsFromDescription,
   type CharacterInvariants
 } from "./character-invariants";
 import { buildCrossChapterInvariantsBlock, type AvatarProfileWithDescription } from "./image-description-enricher";
@@ -783,7 +784,10 @@ export class FourPhaseOrchestrator {
     // NEW v2.0: Build character invariants for ALL avatars
     // This ensures consistent features (tooth gaps, etc.) across all chapters
     const avatarInvariants = new Map<string, CharacterInvariants>();
-    const characterForbiddenFeatures: string[] = [];
+
+    // v3.0 FIX: Only collect features that should be FORBIDDEN for ALL characters
+    // NOT features that are forbidden only because another character has them
+    const universalForbiddenFeatures: string[] = [];
 
     for (const avatar of avatarDetails) {
       if (avatar.visualProfile) {
@@ -794,12 +798,24 @@ export class FourPhaseOrchestrator {
         );
         avatarInvariants.set(avatar.name, invariants);
 
-        // Collect all forbidden features for negative prompt
-        characterForbiddenFeatures.push(...invariants.forbiddenFeatures);
+        // v3.0 FIX: Only add UNIVERSAL forbidden features to negative prompt
+        // These are features that should NEVER appear (like "complete teeth" when tooth gap is required)
+        // NOT hair/eye color conflicts between different characters!
+        const universalForbidden = invariants.forbiddenFeatures.filter(f =>
+          // Only include these categories of forbidden features:
+          f.includes('complete teeth') ||
+          f.includes('no gap') ||
+          f.includes('flat ears') ||
+          f.includes('no freckles') ||
+          f.includes('no dimples') ||
+          f.includes('no scar') ||
+          f.includes('no glasses')
+        );
+        universalForbiddenFeatures.push(...universalForbidden);
 
         console.log(`[4-Phase] Built invariants for ${avatar.name}:`, {
           mustInclude: invariants.mustIncludeFeatures.map(f => f.mustIncludeToken).slice(0, 3),
-          forbidden: invariants.forbiddenFeatures.slice(0, 3)
+          universalForbidden: universalForbidden.slice(0, 3)
         });
       }
     }
@@ -845,8 +861,9 @@ export class FourPhaseOrchestrator {
           "mislabeled species, wrong species, swapped species, puppet, mannequin"
         ];
 
-        // Add character-specific forbidden features (e.g., "complete teeth" if tooth gap required)
-        const uniqueForbidden = [...new Set(characterForbiddenFeatures)].slice(0, 20);
+        // v3.0 FIX: Only add UNIVERSAL forbidden features (not character-specific hair/eye colors!)
+        // This prevents the bug where Adrian's blonde hair was in the negative prompt
+        const uniqueForbidden = [...new Set(universalForbiddenFeatures)].slice(0, 10);
         const negativePrompt = [...baseNegativePrompts, ...uniqueForbidden].join(", ");
 
         const stylePreset = "watercolor_storybook";
@@ -899,76 +916,101 @@ export class FourPhaseOrchestrator {
    * CRITICAL: Maintains age/size relationships to prevent younger characters appearing older
    */
   /**
-   * Convert structured visual profile to English text for image generation (SIMPLIFIED FOR CONSISTENCY)
-   * Focuses on 3-4 "Visual Anchors" rather than comprehensive details.
+   * Convert structured visual profile to English text for image generation
+   * v3.0: NOW INTEGRATES CHARACTER INVARIANTS for tooth gaps, protruding ears, etc.
+   * Focuses on critical distinctive features + visual anchors
    */
-  private visualProfileToImagePrompt(vp: any): string {
+  private visualProfileToImagePromptWithInvariants(
+    vp: any,
+    avatarDescription?: string
+  ): string {
     if (!vp) return 'no visual details available';
 
-    // 1. Check for Manual "Visual Anchors" (consistentDescriptors) - PRIORITY #1
-    if (vp.consistentDescriptors && vp.consistentDescriptors.length > 0) {
-      // Use ONLY the anchors + age/gender/species. Ignore everything else to prevent noise.
-      const anchors = vp.consistentDescriptors.map((d: string) => d.trim()).filter(Boolean).join(", ");
-      const agePart = vp.ageApprox ? `${vp.ageApprox} years old` : "child";
-      const genderPart = vp.gender || "child";
+    const parts: string[] = [];
 
-      // Safety check for human children
-      const isChild = (vp.ageApprox || 10) <= 12;
-      const safety = isChild ? "NO beard, NO hat, child proportions" : "";
+    // 1. AGE AND GENDER (CRITICAL for size consistency)
+    const age = vp.ageApprox || vp.ageNumeric || 8;
+    const gender = vp.gender || 'child';
+    parts.push(`${age} years old ${gender}`);
 
-      return `${anchors}, ${agePart} ${genderPart}. ${safety}`;
-    }
-
-    // 2. Fallback: Build SIMPLIFIED prompt from attributes (Auto-Anchors)
-    const anchors: string[] = [];
-
-    // Anchor A: Hair (Color + Style only)
+    // 2. HAIR (locked color for consistency)
     if (vp.hair) {
-      const color = vp.hair.color || "brown";
-      const style = vp.hair.style || "tousled";
-      // SIMPLIFICATION: Limit hair description to 4 words max
-      anchors.push(`${color} ${style} hair`);
+      const color = vp.hair.color || 'brown';
+      const style = vp.hair.style || 'tousled';
+      parts.push(`${color} ${style} hair`);
     }
 
-    // Anchor B: Key Clothing (Outfit only)
-    if (vp.clothingCanonical) {
-      if (vp.clothingCanonical.outfit) {
-        anchors.push(`wearing ${vp.clothingCanonical.outfit}`);
-      } else if (vp.clothingCanonical.top) {
-        anchors.push(`wearing ${vp.clothingCanonical.top}`);
+    // 3. EYES (locked color for consistency)
+    if (vp.eyes?.color) {
+      parts.push(`${vp.eyes.color} eyes`);
+    }
+
+    // 4. SKIN TONE
+    if (vp.skin?.tone) {
+      parts.push(`${vp.skin.tone} skin`);
+    }
+
+    // 5. KEY CLOTHING
+    if (vp.clothingCanonical?.outfit) {
+      parts.push(`wearing ${vp.clothingCanonical.outfit}`);
+    } else if (vp.clothingCanonical?.top) {
+      parts.push(`wearing ${vp.clothingCanonical.top}`);
+    }
+
+    // 6. CRITICAL: EXTRACT INVARIANTS FROM DESCRIPTION
+    // This is where tooth gaps, protruding ears, etc. come from!
+    if (avatarDescription) {
+      const invariantFeatures = extractInvariantsFromDescription(avatarDescription);
+
+      // Add priority 1 features (tooth gap, protruding ears, glasses, etc.)
+      const criticalFeatures = invariantFeatures
+        .filter(f => f.priority === 1)
+        .map(f => f.mustIncludeToken);
+
+      if (criticalFeatures.length > 0) {
+        parts.push(`DISTINCTIVE FEATURES: ${criticalFeatures.join(', ')}`);
+      }
+
+      // Add priority 2 features
+      const secondaryFeatures = invariantFeatures
+        .filter(f => f.priority === 2)
+        .map(f => f.mustIncludeToken)
+        .slice(0, 3); // Limit to avoid prompt bloat
+
+      if (secondaryFeatures.length > 0) {
+        parts.push(secondaryFeatures.join(', '));
       }
     }
 
-    // Anchor C: Distinctive Feature (Glasses, Freckles - if in accessories)
+    // 7. ACCESSORIES FROM PROFILE
     if (vp.accessories && vp.accessories.length > 0) {
-      // Pick only the first accessory as a strong anchor
-      anchors.push(`with ${vp.accessories[0]}`);
+      // Add up to 2 accessories
+      const accessoryList = vp.accessories.slice(0, 2).join(', ');
+      parts.push(`with ${accessoryList}`);
     }
 
-    // Construct final simplified prompt
-    const parts: string[] = [];
-
-    // Age/Gender/Species baseline
-    if (vp.ageApprox) parts.push(`${vp.ageApprox}yo`);
-    parts.push(vp.gender || "child");
-    if (vp.species && !String(vp.species).toLowerCase().includes("human")) {
-      parts.push(String(vp.species));
+    // 8. FACE FEATURES FROM PROFILE
+    if (vp.face?.otherFeatures && vp.face.otherFeatures.length > 0) {
+      parts.push(vp.face.otherFeatures.slice(0, 2).join(', '));
     }
 
-    // Add anchors
-    parts.push(...anchors);
-
-    // Child Safety (Strict)
-    if ((vp.ageApprox || 10) <= 12 && (!vp.species || String(vp.species).toLowerCase().includes("human"))) {
-      parts.push("No beard, No mustache");
+    // 9. SKIN DISTINCTIVE FEATURES
+    if (vp.skin?.distinctiveFeatures && vp.skin.distinctiveFeatures.length > 0) {
+      parts.push(vp.skin.distinctiveFeatures.slice(0, 2).join(', '));
     }
 
-    return parts.join(", ");
+    // 10. CHILD SAFETY (Strict for human children)
+    if (age <= 12 && (!vp.species || String(vp.species).toLowerCase().includes('human'))) {
+      parts.push('child proportions, NO beard, NO mustache, smooth young face');
+    }
+
+    return parts.join(', ');
   }
 
   /**
    * Build enhanced image prompt with character consistency
    * CRITICAL: Maintains age/size order to prevent mix-ups
+   * v3.0: NOW USES CHARACTER INVARIANTS for tooth gaps, protruding ears, etc.
    * OPTIMIZATION v2.4: Genre-Aware Costume Override based on imageDescription
    */
   private buildEnhancedImagePrompt(
@@ -990,14 +1032,17 @@ export class FourPhaseOrchestrator {
       description: string;
       age: number;
       species?: string;
+      invariantsMustInclude?: string[];  // NEW: Critical features
+      invariantsForbidden?: string[];     // NEW: Forbidden features
     }
 
     const allCharacters = new Map<string, CharacterInfo>();
 
-    // Add avatars with FULL descriptions + age
+    // Add avatars with FULL descriptions + age + INVARIANTS
     for (const avatar of avatarDetails) {
+      // v3.0: Use new method that extracts invariants from avatar description
       let visualContext = avatar.visualProfile
-        ? this.visualProfileToImagePrompt(avatar.visualProfile)
+        ? this.visualProfileToImagePromptWithInvariants(avatar.visualProfile, avatar.description)
         : (avatar.description || 'default appearance');
 
       // OPTIMIZATION v2.4: Apply genre-aware costume override
@@ -1024,25 +1069,37 @@ export class FourPhaseOrchestrator {
       const age = avatar.visualProfile?.ageApprox || 8; // fallback
       const species = avatar.visualProfile?.species || (age <= 12 ? 'human child' : undefined);
 
+      // v3.0: Extract invariants for this avatar
+      let invariantsMustInclude: string[] = [];
+      let invariantsForbidden: string[] = [];
+
+      if (avatar.description) {
+        const invariantFeatures = extractInvariantsFromDescription(avatar.description);
+        invariantsMustInclude = invariantFeatures
+          .filter(f => f.priority === 1)
+          .map(f => f.mustIncludeToken);
+
+        // Build forbidden list from alternatives
+        invariantsForbidden = invariantFeatures
+          .filter(f => f.forbiddenAlternative)
+          .map(f => f.forbiddenAlternative as string);
+      }
+
       allCharacters.set(avatar.name.toLowerCase(), {
         name: avatar.name,
         description: visualContext,
         age,
         species,
+        invariantsMustInclude,
+        invariantsForbidden,
       });
     }
 
     // Add supporting characters with FULL descriptions
     for (const char of characterAssignments.values()) {
-      let fullDesc = char.visualProfile.description || 'default character';
-
-      // If we have a pre-built image prompt (from our optimization), use it!
-      // But visualProfileToImagePrompt already handles this.
-      // Wait, `char.visualProfile.description` is the TEXT description.
-      // `visualProfileToImagePrompt` converts the structured data (or uses the imagePrompt field).
-      // We should use `visualProfileToImagePrompt` here too!
-
-      fullDesc = this.visualProfileToImagePrompt(char.visualProfile);
+      // v3.0: Use the new method that integrates invariants
+      // Pool characters don't have user descriptions, so we pass undefined
+      let fullDesc = this.visualProfileToImagePromptWithInvariants(char.visualProfile, undefined);
 
       // OPTIMIZATION v2.4: Apply genre-aware costume override for pool characters too
       if (isGenreScene && fullDesc.includes('hoodie')) {
@@ -1111,24 +1168,40 @@ export class FourPhaseOrchestrator {
         ? `\nPOSITIONING: Left to right order: ${charactersInScene.map(c => c.name).join(', ')}.`
         : '';
 
-    // Add explicit age ordering instruction
+    // Add explicit age ordering instruction with INVARIANTS
     const characterBlock = charactersInScene
       .map((c, index) => {
         const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
         const speciesTag = c.species ? `species: ${c.species}` : '';
         // CRITICAL: Add visual identifiers to distinguish characters
         const visualId = c.age <= 12 ? `young child (age ${c.age})` : c.age <= 18 ? `teenager (age ${c.age})` : `adult`;
+
+        // v3.0: Add MUST INCLUDE features (tooth gap, protruding ears, etc.)
+        const mustInclude = c.invariantsMustInclude && c.invariantsMustInclude.length > 0
+          ? `\n  ⚠️ MUST SHOW: ${c.invariantsMustInclude.join(', ')}`
+          : '';
+
+        // v3.0: Add FORBIDDEN features (what NOT to show)
+        const forbidden = c.invariantsForbidden && c.invariantsForbidden.length > 0
+          ? `\n  ❌ NEVER: ${c.invariantsForbidden.join(', ')}`
+          : '';
+
         // For child avatars: explicitly forbid beard/hat to prevent dwarf substitution
         const safety = (c.species || '').toLowerCase().includes('human') && c.age <= 12
-          ? 'CHILD: clean-shaven face, smooth skin, NO beard, NO mustache, NO facial hair, NO hat, NEVER a dwarf or gnome, ALWAYS young and childlike'
+          ? '\n  CHILD SAFETY: clean-shaven face, smooth skin, NO beard, NO mustache, NO facial hair, NO hat, NEVER a dwarf or gnome, ALWAYS young and childlike'
           : '';
-        return `${c.name} ${position}: ${speciesTag} ${visualId}, ${c.description}${safety ? `. ${safety}` : ''}`;
+
+        return `${c.name} ${position}: ${speciesTag} ${visualId}\n  ${c.description}${mustInclude}${forbidden}${safety}`;
       })
       .join("\n\n");
 
-    const ageOrder = charactersInScene.length > 1
-      ? `\nIMPORTANT: Characters listed from youngest to oldest. Maintain size relationships - ${charactersInScene[0].name} (${charactersInScene[0].age}y) must be SMALLER than any older character.`
-      : '';
+    // v3.0 FIX: Only include age order instruction for CHILD characters, use actual ages
+    const childCharacters = charactersInScene.filter(c => c.age <= 18);
+    const ageOrder = childCharacters.length > 1
+      ? `\nIMPORTANT: Child characters with their ages: ${childCharacters.map(c => `${c.name} (${c.age}yo)`).join(', ')}. Younger children must be SMALLER than older ones!`
+      : childCharacters.length === 1
+        ? `\nIMPORTANT: ${childCharacters[0].name} is a ${childCharacters[0].age} year old child - draw as young child, NOT teenager!`
+        : '';
 
     const totalCharacters = charactersInScene.length;
     const totalHumans = charactersInScene.filter(c => (c.species || '').toLowerCase().includes('human')).length;
