@@ -798,24 +798,14 @@ export class FourPhaseOrchestrator {
         );
         avatarInvariants.set(avatar.name, invariants);
 
-        // v3.0 FIX: Only add UNIVERSAL forbidden features to negative prompt
-        // These are features that should NEVER appear (like "complete teeth" when tooth gap is required)
-        // NOT hair/eye color conflicts between different characters!
-        const universalForbidden = invariants.forbiddenFeatures.filter(f =>
-          // Only include these categories of forbidden features:
-          f.includes('complete teeth') ||
-          f.includes('no gap') ||
-          f.includes('flat ears') ||
-          f.includes('no freckles') ||
-          f.includes('no dimples') ||
-          f.includes('no scar') ||
-          f.includes('no glasses')
-        );
-        universalForbiddenFeatures.push(...universalForbidden);
+        // v3.1: forbiddenFeatures now ONLY contains universal features (no hair/eye colors)
+        // Hair/eye color conflicts are now in forbiddenColorsForThisCharacter (not used in negative prompt)
+        universalForbiddenFeatures.push(...invariants.forbiddenFeatures);
 
         console.log(`[4-Phase] Built invariants for ${avatar.name}:`, {
           mustInclude: invariants.mustIncludeFeatures.map(f => f.mustIncludeToken).slice(0, 3),
-          universalForbidden: universalForbidden.slice(0, 3)
+          universalForbidden: invariants.forbiddenFeatures.slice(0, 3),
+          perCharacterForbidden: invariants.forbiddenColorsForThisCharacter?.slice(0, 3) || []
         });
       }
     }
@@ -851,7 +841,10 @@ export class FourPhaseOrchestrator {
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
 
-        // OPTIMIZATION v4.0: Character-specific negative prompt with invariant-based forbidden features
+        // ⚠️ NOTE: FLUX.1 Dev does NOT support negative prompts natively!
+        // We still create this for: (1) logging/debugging, (2) future model compatibility
+        // The ACTUAL character-specific exclusions are handled via "NOT X" in the POSITIVE prompt
+        // (see buildCrossChapterInvariantsBlock and characterBlock above)
         const baseNegativePrompts = [
           "deformed, disfigured, watermark, text, signature, low quality",
           "duplicate characters, extra people, crowd, extra children, extra boys, extra girls, extra humans",
@@ -861,8 +854,8 @@ export class FourPhaseOrchestrator {
           "mislabeled species, wrong species, swapped species, puppet, mannequin"
         ];
 
-        // v3.0 FIX: Only add UNIVERSAL forbidden features (not character-specific hair/eye colors!)
-        // This prevents the bug where Adrian's blonde hair was in the negative prompt
+        // v3.1: Only add UNIVERSAL forbidden features (tooth gap → no complete teeth, etc.)
+        // Hair/eye colors are now handled via "NOT X" in the POSITIVE prompt
         const uniqueForbidden = [...new Set(universalForbiddenFeatures)].slice(0, 10);
         const negativePrompt = [...baseNegativePrompts, ...uniqueForbidden].join(", ");
 
@@ -1066,8 +1059,29 @@ export class FourPhaseOrchestrator {
         }
       }
 
-      const age = avatar.visualProfile?.ageApprox || 8; // fallback
+      // v3.1: Better age extraction - try ageNumeric first, then parse ageApprox, then fallback
+      let age = 8; // Default for child avatars
+      if (avatar.visualProfile?.ageNumeric) {
+        age = avatar.visualProfile.ageNumeric;
+      } else if (avatar.visualProfile?.ageApprox) {
+        // Parse age from string like "5", "8 years old", "young child (5)", etc.
+        const ageMatch = String(avatar.visualProfile.ageApprox).match(/\d+/);
+        if (ageMatch) {
+          age = parseInt(ageMatch[0], 10);
+        } else {
+          // Fallback for descriptive ages
+          const ageApproxLower = String(avatar.visualProfile.ageApprox).toLowerCase();
+          if (ageApproxLower.includes('toddler')) age = 3;
+          else if (ageApproxLower.includes('preschool')) age = 4;
+          else if (ageApproxLower.includes('kindergarten')) age = 5;
+          else if (ageApproxLower.includes('young child')) age = 6;
+          else if (ageApproxLower.includes('child')) age = 8;
+          else if (ageApproxLower.includes('preteen')) age = 11;
+          else if (ageApproxLower.includes('teen')) age = 14;
+        }
+      }
       const species = avatar.visualProfile?.species || (age <= 12 ? 'human child' : undefined);
+      console.log(`[Image Prompt] Avatar ${avatar.name}: age=${age} (from ageNumeric=${avatar.visualProfile?.ageNumeric}, ageApprox=${avatar.visualProfile?.ageApprox})`);
 
       // v3.0: Extract invariants for this avatar
       let invariantsMustInclude: string[] = [];
@@ -1172,23 +1186,41 @@ export class FourPhaseOrchestrator {
     const characterBlock = charactersInScene
       .map((c, index) => {
         const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
-        const speciesTag = c.species ? `species: ${c.species}` : '';
+
+        // v3.1: Clean species tag - only use if it's a simple, clear species
+        let speciesTag = '';
+        if (c.species) {
+          const speciesLower = String(c.species).toLowerCase();
+          // Only include species if it's clearly defined (not mixed like "human adult, child")
+          if (speciesLower.includes('human') && !speciesLower.includes(',')) {
+            speciesTag = c.age <= 12 ? 'HUMAN CHILD' : c.age <= 18 ? 'HUMAN TEENAGER' : 'HUMAN ADULT';
+          } else if (!speciesLower.includes(',')) {
+            speciesTag = c.species.toUpperCase();
+          }
+        }
+
         // CRITICAL: Add visual identifiers to distinguish characters
-        const visualId = c.age <= 12 ? `young child (age ${c.age})` : c.age <= 18 ? `teenager (age ${c.age})` : `adult`;
+        const visualId = c.age <= 12
+          ? `${c.age}-year-old child`
+          : c.age <= 18
+            ? `${c.age}-year-old teenager`
+            : 'adult';
 
         // v3.0: Add MUST INCLUDE features (tooth gap, protruding ears, etc.)
         const mustInclude = c.invariantsMustInclude && c.invariantsMustInclude.length > 0
-          ? `\n  ⚠️ MUST SHOW: ${c.invariantsMustInclude.join(', ')}`
+          ? `\n  ✅ MUST SHOW: ${c.invariantsMustInclude.join(', ')}`
           : '';
 
-        // v3.0: Add FORBIDDEN features (what NOT to show)
+        // v3.1 CRITICAL: FLUX.1 Dev does NOT support negative prompts!
+        // We must use "NOT X" in the POSITIVE prompt instead of relying on negativePrompt
         const forbidden = c.invariantsForbidden && c.invariantsForbidden.length > 0
-          ? `\n  ❌ NEVER: ${c.invariantsForbidden.join(', ')}`
+          ? `\n  ❌ NOT: ${c.invariantsForbidden.slice(0, 3).join(', NOT ')}`
           : '';
 
         // For child avatars: explicitly forbid beard/hat to prevent dwarf substitution
+        // v3.1: Use "NOT" syntax instead of "NO" for better FLUX.1 compatibility
         const safety = (c.species || '').toLowerCase().includes('human') && c.age <= 12
-          ? '\n  CHILD SAFETY: clean-shaven face, smooth skin, NO beard, NO mustache, NO facial hair, NO hat, NEVER a dwarf or gnome, ALWAYS young and childlike'
+          ? '\n  🧒 CHILD: smooth young face, NOT beard, NOT mustache, NOT facial hair, NOT hat, NOT dwarf, NOT gnome'
           : '';
 
         return `${c.name} ${position}: ${speciesTag} ${visualId}\n  ${c.description}${mustInclude}${forbidden}${safety}`;

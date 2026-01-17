@@ -189,6 +189,9 @@ export function enrichImageDescriptionWithSpecies(
 /**
  * NEW v2.0: Builds a cross-chapter character invariants reference block
  * This should be appended to EVERY image prompt in a story for consistency
+ *
+ * v3.1 CRITICAL: Since FLUX.1 Dev does NOT support negative prompts,
+ * we must include "NOT X" instructions in the POSITIVE prompt!
  */
 export function buildCrossChapterInvariantsBlock(
   avatarProfiles: Record<string, AvatarProfileWithDescription>
@@ -199,13 +202,8 @@ export function buildCrossChapterInvariantsBlock(
 
   for (const [name, data] of Object.entries(avatarProfiles)) {
     const invariants = buildInvariantsFromVisualProfile(name, data.profile, data.description);
-    const format = formatInvariantsForPrompt(invariants);
 
     const parts = [`[${name}]`];
-
-    // Add explicit measurements
-    if (invariants.ageNumeric) parts.push(`${invariants.ageNumeric}yo`);
-    if (invariants.heightCm) parts.push(`${invariants.heightCm}cm`);
 
     // Add critical invariants (priority 1 only)
     const criticalFeatures = invariants.mustIncludeFeatures
@@ -216,9 +214,20 @@ export function buildCrossChapterInvariantsBlock(
       parts.push(`MUST: ${criticalFeatures.join(', ')}`);
     }
 
-    // Add locked colors
-    if (invariants.lockedHairColor) parts.push(`${invariants.lockedHairColor} hair`);
-    if (invariants.lockedEyeColor) parts.push(`${invariants.lockedEyeColor} eyes`);
+    // Add locked colors with explicit "NOT" alternatives (FLUX.1 Dev doesn't support negative prompts!)
+    if (invariants.lockedHairColor) {
+      parts.push(`${invariants.lockedHairColor} hair`);
+    }
+    if (invariants.lockedEyeColor) {
+      parts.push(`${invariants.lockedEyeColor} eyes`);
+    }
+
+    // v3.1: Add "NOT" statements for wrong colors (since negative prompts don't work in FLUX)
+    if (invariants.forbiddenColorsForThisCharacter && invariants.forbiddenColorsForThisCharacter.length > 0) {
+      // Pick the most important forbidden colors (limit to 2 to avoid prompt bloat)
+      const notColors = invariants.forbiddenColorsForThisCharacter.slice(0, 2).join(', NOT ');
+      parts.push(`NOT ${notColors}`);
+    }
 
     lines.push(parts.join(' | '));
   }

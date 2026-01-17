@@ -48,8 +48,17 @@ export interface CharacterInvariants {
   heightCm?: number;
   /** Features that MUST appear in every image */
   mustIncludeFeatures: InvariantFeature[];
-  /** Features that MUST NEVER appear */
+  /**
+   * Features that MUST NEVER appear - UNIVERSAL forbidden features only!
+   * These go into negative prompts (e.g., "complete teeth" when tooth gap required)
+   * v3.1: Now EXCLUDES hair/eye color conflicts - those are handled per-character
+   */
   forbiddenFeatures: string[];
+  /**
+   * v3.1: Per-character forbidden hair/eye colors - NOT for negative prompts!
+   * These should be used in positive prompts (e.g., "blond hair, NOT brown hair")
+   */
+  forbiddenColorsForThisCharacter: string[];
   /** Hair color - locked for consistency */
   lockedHairColor?: string;
   /** Eye color - locked for consistency */
@@ -510,6 +519,7 @@ export function buildInvariantsFromVisualProfile(
     heightCm: (visualProfile as any).heightCm,
     mustIncludeFeatures: [],
     forbiddenFeatures: [],
+    forbiddenColorsForThisCharacter: [], // v3.1: Separate from negative prompts
     lockedHairColor: visualProfile.hair?.color,
     lockedEyeColor: visualProfile.eyes?.color,
     lockedSkinTone: visualProfile.skin?.tone,
@@ -591,42 +601,47 @@ export function buildInvariantsFromVisualProfile(
     }
   }
 
-  // Build forbidden features based on what MUST be included
-  // (if tooth gap is required, forbid "complete teeth")
+  // Build UNIVERSAL forbidden features based on what MUST be included
+  // (if tooth gap is required, forbid "complete teeth" - this goes to negative prompt)
   for (const feature of invariants.mustIncludeFeatures) {
     if (feature.forbiddenAlternative) {
       invariants.forbiddenFeatures.push(feature.forbiddenAlternative);
     }
   }
 
-  // Add hair color protection
+  // v3.1 CRITICAL FIX: Hair/eye color conflicts go to forbiddenColorsForThisCharacter
+  // These should NOT go to the negative prompt (which affects ALL characters)!
+  // Instead, they should be used ONLY in the positive prompt for THIS character.
+
+  // Add hair color protection - v3.1: Now goes to forbiddenColorsForThisCharacter
   if (invariants.lockedHairColor) {
     const hairLower = invariants.lockedHairColor.toLowerCase();
     if (hairLower.includes('blond') || hairLower.includes('gold')) {
-      invariants.forbiddenFeatures.push('brown hair', 'black hair', 'red hair', 'brunette');
+      invariants.forbiddenColorsForThisCharacter.push('brown hair', 'black hair', 'red hair', 'brunette');
     } else if (hairLower.includes('brown') || hairLower.includes('brunette')) {
-      invariants.forbiddenFeatures.push('blond hair', 'blonde hair', 'golden hair');
+      invariants.forbiddenColorsForThisCharacter.push('blond hair', 'blonde hair', 'golden hair');
     } else if (hairLower.includes('black')) {
-      invariants.forbiddenFeatures.push('blond hair', 'brown hair');
+      invariants.forbiddenColorsForThisCharacter.push('blond hair', 'brown hair');
     } else if (hairLower.includes('red') || hairLower.includes('ginger')) {
-      invariants.forbiddenFeatures.push('blond hair', 'black hair');
+      invariants.forbiddenColorsForThisCharacter.push('blond hair', 'black hair');
     }
   }
 
-  // Add eye color protection
+  // Add eye color protection - v3.1: Now goes to forbiddenColorsForThisCharacter
   if (invariants.lockedEyeColor) {
     const eyeLower = invariants.lockedEyeColor.toLowerCase();
     if (eyeLower.includes('blue')) {
-      invariants.forbiddenFeatures.push('brown eyes', 'green eyes', 'amber eyes');
+      invariants.forbiddenColorsForThisCharacter.push('brown eyes', 'green eyes', 'amber eyes');
     } else if (eyeLower.includes('green')) {
-      invariants.forbiddenFeatures.push('blue eyes', 'brown eyes');
+      invariants.forbiddenColorsForThisCharacter.push('blue eyes', 'brown eyes');
     } else if (eyeLower.includes('brown') || eyeLower.includes('amber')) {
-      invariants.forbiddenFeatures.push('blue eyes', 'green eyes');
+      invariants.forbiddenColorsForThisCharacter.push('blue eyes', 'green eyes');
     }
   }
 
-  // Deduplicate
+  // Deduplicate both arrays
   invariants.forbiddenFeatures = [...new Set(invariants.forbiddenFeatures)];
+  invariants.forbiddenColorsForThisCharacter = [...new Set(invariants.forbiddenColorsForThisCharacter)];
 
   return invariants;
 }
