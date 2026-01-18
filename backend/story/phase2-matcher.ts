@@ -39,12 +39,19 @@ export class Phase2CharacterMatcher {
     const assignments = new Map<string, CharacterTemplate>();
     const usedCharacters = new Set<string>();
     const usedSpecies = new Set<string>(); // Track species diversity
-    const reservedPlaceholders = new Set(
-      avatarNames
-        .map(name => name?.trim().toLowerCase())
-        .filter((name): name is string => Boolean(name))
-    );
-    const avatarQueue = [...reservedPlaceholders];
+    const avatarNameSource = (avatarDetails && avatarDetails.length > 0)
+      ? avatarDetails.map(a => a?.name)
+      : avatarNames;
+    const seenAvatarNames = new Set<string>();
+    const avatarQueue = avatarNameSource
+      .map(name => name?.trim())
+      .filter((name): name is string => Boolean(name))
+      .filter((name) => {
+        const key = name.toLowerCase();
+        if (seenAvatarNames.has(key)) return false;
+        seenAvatarNames.add(key);
+        return true;
+      });
 
     // Prefer skeleton requirements; only fall back to fairy tale roles if skeleton is empty
     let characterRequirements: any[] = skeleton.supportingCharacterRequirements;
@@ -168,7 +175,14 @@ export class Phase2CharacterMatcher {
     }
 
     // 🔧 CRITICAL FIX: Second avatar should be sidekick, NOT antagonist
-    if (avatarQueue.length > 1 && !characterRequirements.some(req => req.role === "sidekick" || req.role === "companion")) {
+    const hasSidekickSlot = characterRequirements.some(req => {
+      const role = req.role;
+      const placeholder = String(req.placeholder || "").toUpperCase();
+      return role === "sidekick" ||
+        placeholder.includes("SIDEKICK_AVATAR") ||
+        (placeholder.includes("AVATAR") && role === "companion");
+    });
+    if (avatarQueue.length > 1 && !hasSidekickSlot) {
       characterRequirements.splice(1, 0, {  // Insert at position 1 (after protagonist)
         placeholder: "{{SIDEKICK_AVATAR}}",
         role: "sidekick",
@@ -212,7 +226,9 @@ export class Phase2CharacterMatcher {
       // 🔧 CRITICAL FIX: Assign user avatars to protagonist/sidekick/helper roles ONLY
       // Never assign avatars to antagonist roles - those should be filled by character pool
       // "helper" is used in fairy tale templates (e.g., Kind in "Des Kaisers neue Kleider")
-      const isAvatarRole = req.role === "protagonist" || req.role === "sidekick" || req.role === "companion" || req.role === "helper";
+      const placeholderUpper = String(req.placeholder || "").toUpperCase();
+      const isExplicitAvatarPlaceholder = placeholderUpper.includes("AVATAR");
+      const isAvatarRole = isExplicitAvatarPlaceholder || req.role === "protagonist" || req.role === "sidekick";
 
       if (isAvatarRole && avatarQueue.length > 0) {
         const avatarName = avatarQueue.shift();
@@ -1257,21 +1273,32 @@ export class Phase2CharacterMatcher {
    * Convert structured visual profile to English description for image generation
    * Reuses logic from orchestrator to maintain consistency
    */
+  private extractNumericAge(vp: any): number | null {
+    if (!vp) return null;
+    if (typeof vp.ageNumeric === "number") return vp.ageNumeric;
+    if (typeof vp.ageApprox === "number") return vp.ageApprox;
+    const match = String(vp.ageApprox || "").match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  }
+
   private visualProfileToEnglishDescription(vp: any): string {
     if (!vp) return 'no visual details available';
 
     const parts: string[] = [];
 
     // AGE FIRST (critical for size relationships)
-    if (vp.ageApprox) {
-      parts.push(`${vp.ageApprox} years old`);
+    const numericAge = this.extractNumericAge(vp);
+    if (numericAge !== null) {
+      parts.push(`${numericAge} years old`);
 
       // Add explicit size constraints based on age
-      if (vp.ageApprox <= 7) {
+      if (numericAge <= 7) {
         parts.push('small child size');
-      } else if (vp.ageApprox <= 10) {
+      } else if (numericAge <= 10) {
         parts.push('child-sized');
       }
+    } else if (vp.ageApprox) {
+      parts.push(String(vp.ageApprox));
     }
 
     if (vp.gender) parts.push(vp.gender);
@@ -1338,4 +1365,3 @@ export class Phase2CharacterMatcher {
     return colors.slice(0, 5); // Limit to 5 main colors
   }
 }
-

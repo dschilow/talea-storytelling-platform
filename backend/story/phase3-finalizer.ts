@@ -1,4 +1,4 @@
-﻿// Phase 3: Story Finalizer with Character Injection
+// Phase 3: Story Finalizer with Character Injection
 // Writes complete story with matched characters
 // Token Budget: ~2,000 tokens
 
@@ -102,7 +102,7 @@ interface Phase3Input {
     name: string;
     description?: string;
     visualProfile?: any;
-    inventory?: InventoryItem[];  // 🎁 NEW: Avatar's existing artifacts
+    inventory?: InventoryItem[];  // ?? NEW: Avatar's existing artifacts
   }>;
   experience: StoryExperienceContext;
   useFairyTaleTemplate?: boolean; // NEW: Enable fairy tale mode
@@ -199,7 +199,7 @@ export class Phase3StoryFinalizer {
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
     const isReasoningModel = modelName.includes("gpt-5") || modelName.includes("o4");
 
-    // 🔧 CRITICAL FIX: GPT-5-mini reasoning tokens are SEPARATE from completion tokens
+    // ?? CRITICAL FIX: GPT-5-mini reasoning tokens are SEPARATE from completion tokens
     // When reasoning_effort="medium", the model uses ~8000 reasoning tokens
     // We need to increase max_completion_tokens to allow for BOTH reasoning + actual content
     const completionTokenLimit = selectedFairyTale
@@ -211,7 +211,7 @@ export class Phase3StoryFinalizer {
       messages: [
         {
           role: "system",
-          content: this.normalizeText("Du bist eine professionelle Kinderbuch-Autorin. Schreibe vollständige, neue Geschichten mit etablierten Charakteren. Nutze Vorlagen nur als Inspiration, niemals als Copy/Paste.")
+          content: this.normalizeText("You are a professional children's book author. Write complete, original stories with established characters. Use templates only as inspiration, never as copy/paste.")
         },
         {
           role: "user",
@@ -287,46 +287,46 @@ export class Phase3StoryFinalizer {
 
       let finalStory = JSON.parse(content) as FinalizedStory;
 
-      // 🔧 CRITICAL FIX: Use skeleton title as fallback if AI didn't provide one
+      // ?? CRITICAL FIX: Use skeleton title as fallback if AI didn't provide one
       // This prevents "Final story must have a title" validation errors
       if (!finalStory.title || typeof finalStory.title !== 'string' || finalStory.title.trim().length === 0) {
-        console.warn(`[Phase3] ⚠️ AI didn't provide a valid title. Using skeleton title as fallback: ${input.skeleton.title}`);
+        console.warn(`[Phase3] ?? AI didn't provide a valid title. Using skeleton title as fallback: ${input.skeleton.title}`);
         finalStory.title = input.skeleton.title;
       } else {
-        console.log(`[Phase3] ✅ AI provided title: ${finalStory.title}`);
+        console.log(`[Phase3] ? AI provided title: ${finalStory.title}`);
       }
 
-      // 🔧 Add fallback for description if missing
+      // ?? Add fallback for description if missing
       if (!finalStory.description || typeof finalStory.description !== 'string' || finalStory.description.trim().length === 0) {
         const fairyTaleTitle = selectedFairyTale?.tale.title || '';
         const fallbackDesc = fairyTaleTitle
           ? `Eine personalisierte Version von "${fairyTaleTitle}" mit ${input.avatarDetails.map(a => a.name).join(' und ')}.`
           : `Eine magische Geschichte mit ${input.avatarDetails.map(a => a.name).join(' und ')}.`;
-        console.warn(`[Phase3] ⚠️ AI didn't provide description. Using fallback: ${fallbackDesc}`);
+        console.warn(`[Phase3] ?? AI didn't provide description. Using fallback: ${fallbackDesc}`);
         finalStory.description = fallbackDesc;
       } else {
-        console.log(`[Phase3] ✅ AI provided description: ${finalStory.description.substring(0, 50)}...`);
+        console.log(`[Phase3] ? AI provided description: ${finalStory.description.substring(0, 50)}...`);
       }
 
       // Validate structure
       this.validateFinalStory(finalStory);
 
       // Debug: Log artifact status after validation
-      console.log("[Phase3] 🎁 Artifact status after validation:", {
+      console.log("[Phase3] ?? Artifact status after validation:", {
         hasArtifact: !!finalStory.newArtifact,
         artifactName: finalStory.newArtifact?.name || 'none',
         artifactType: finalStory.newArtifact?.type || 'none'
       });
 
       // NEW: Post-processing with professional quality rules v2.0
-      console.log("[Phase3] 📝 Running professional quality post-processor...");
+      console.log("[Phase3] ?? Running professional quality post-processor...");
       const postProcessor = new StoryPostProcessor(input.config.ageGroup || '6-8');
       const postProcessResult = postProcessor.process(finalStory);
 
       // Log quality score
       const qualityLabel = getQualityLabel(postProcessResult.qualityScore.overall);
-      console.log(`[Phase3] 📊 Quality Score: ${postProcessResult.qualityScore.overall}/10 ${qualityLabel}`);
-      console.log(`[Phase3] 📊 Breakdown:`, {
+      console.log(`[Phase3] ?? Quality Score: ${postProcessResult.qualityScore.overall}/10 ${qualityLabel}`);
+      console.log(`[Phase3] ?? Breakdown:`, {
         title: postProcessResult.qualityScore.titleScore,
         dialogue: postProcessResult.qualityScore.dialogueScore,
         showDontTell: postProcessResult.qualityScore.showDontTellScore,
@@ -338,22 +338,22 @@ export class Phase3StoryFinalizer {
 
       // Log issues and suggestions
       if (postProcessResult.qualityScore.issues.length > 0) {
-        console.warn(`[Phase3] ⚠️ Quality Issues:`, postProcessResult.qualityScore.issues);
+        console.warn(`[Phase3] ?? Quality Issues:`, postProcessResult.qualityScore.issues);
       }
       if (postProcessResult.qualityScore.suggestions.length > 0) {
-        console.log(`[Phase3] 💡 Suggestions:`, postProcessResult.qualityScore.suggestions);
+        console.log(`[Phase3] ?? Suggestions:`, postProcessResult.qualityScore.suggestions);
       }
 
       // Apply cleaned story if modifications were made
       if (postProcessResult.wasModified) {
-        console.log(`[Phase3] 🔧 Applied modifications:`, postProcessResult.modifications);
+        console.log(`[Phase3] ?? Applied modifications:`, postProcessResult.modifications);
         finalStory = postProcessResult.story;
       }
 
       // Check for critical meta-pattern issues
       const metaCheck = containsMetaPatterns(finalStory.chapters.map(c => c.content).join('\n'));
       if (metaCheck.hasMeta) {
-        console.error(`[Phase3] ❌ CRITICAL: Meta-patterns still present after post-processing:`, metaCheck.patterns);
+        console.error(`[Phase3] ? CRITICAL: Meta-patterns still present after post-processing:`, metaCheck.patterns);
         // Don't throw - just log warning for now, as we want to see the output
       }
 
@@ -363,7 +363,7 @@ export class Phase3StoryFinalizer {
       if (selectedFairyTale || input.selectedFairyTale) {
         const fairyTale = input.selectedFairyTale || selectedFairyTale;
         if (fairyTale) {
-          console.log("[Phase3] 🎨 Running originality validation...");
+          console.log("[Phase3] ?? Running originality validation...");
 
           // Combine all chapter content for validation
           const generatedStoryText = finalStory.chapters
@@ -387,11 +387,11 @@ export class Phase3StoryFinalizer {
             }
           );
 
-          console.log(`[Phase3] 📊 Originality: ${originalityReport.overlapPercentage.toFixed(1)}% overlap (threshold: ${originalityReport.threshold}%)`);
-          console.log(`[Phase3] ✅ Verdict: ${originalityReport.verdictReason}`);
+          console.log(`[Phase3] ?? Originality: ${originalityReport.overlapPercentage.toFixed(1)}% overlap (threshold: ${originalityReport.threshold}%)`);
+          console.log(`[Phase3] ? Verdict: ${originalityReport.verdictReason}`);
 
           if (!originalityReport.isOriginal) {
-            console.error("[Phase3] ❌ ORIGINALITY VALIDATION FAILED!");
+            console.error("[Phase3] ? ORIGINALITY VALIDATION FAILED!");
             console.error(`[Phase3] Issues: ${originalityReport.issues.join(', ')}`);
             console.error(`[Phase3] Suggestions: ${originalityReport.suggestions.join(', ')}`);
 
@@ -401,7 +401,7 @@ export class Phase3StoryFinalizer {
             );
           }
 
-          console.log("[Phase3] ✅ Originality validation passed!");
+          console.log("[Phase3] ? Originality validation passed!");
         }
       }
 
@@ -496,11 +496,11 @@ export class Phase3StoryFinalizer {
   private normalizeText(text: string): string {
     if (!text) return "";
     const replacements: Record<string, string> = {
-      "Ã¤": "ä",
-      "Ã¶": "ö",
-      "Ã¼": "ü",
-      "ÃŸ": "ß",
-      "�": ""
+      "ä": "�",
+      "ö": "�",
+      "ü": "�",
+      "ß": "�",
+      "?": ""
     };
     let normalized = text;
     for (const [bad, good] of Object.entries(replacements)) {
@@ -509,15 +509,25 @@ export class Phase3StoryFinalizer {
     return normalized.normalize("NFC");
   }
 
+  private extractNumericAgeFromProfile(vp: any): number | null {
+    if (!vp) return null;
+    if (typeof vp.ageNumeric === "number") return vp.ageNumeric;
+    if (typeof vp.ageApprox === "number") return vp.ageApprox;
+    const match = String(vp.ageApprox || "").match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  }
+
   /**
    * Convert structured visual profile to text description
    */
   private visualProfileToText(vp: any): string {
-    if (!vp) return 'Keine visuelle Beschreibung verfügbar';
+    if (!vp) return 'Keine visuelle Beschreibung verf�gbar';
 
     const parts: string[] = [];
 
-    if (vp.ageApprox) parts.push(`${vp.ageApprox} Jahre alt`);
+    const numericAge = this.extractNumericAgeFromProfile(vp);
+    if (numericAge !== null) parts.push(`${numericAge} Jahre alt`);
+    else if (vp.ageApprox) parts.push(String(vp.ageApprox));
     if (vp.gender) parts.push(vp.gender);
 
     if (vp.hair) {
@@ -561,15 +571,21 @@ export class Phase3StoryFinalizer {
     avatarDetails: Array<{ name: string; description?: string; visualProfile?: any; inventory?: InventoryItem[] }>,
     experience: StoryExperienceContext
   ): string {
+    const avatarNameSet = new Set(avatarDetails.map(a => a.name.toLowerCase()));
     const characterDetails = Array.from(assignments.entries())
+      .filter(([placeholder, char]) => {
+        const placeholderUpper = String(placeholder || "").toUpperCase();
+        if (placeholderUpper.includes("AVATAR")) return false;
+        return !avatarNameSet.has((char.name || "").toLowerCase());
+      })
       .map(([placeholder, char]) => [
         `Character ${char.name} (${char.role})`,
         `- Placeholder: ${placeholder}`,
-        `- Archetyp: ${char.archetype}`,
-        `- Emotionale Natur: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})`,
-        `- Visuelles Profil: ${char.visualProfile.description}`,
-        `- Spezies: ${char.visualProfile.species}`,
-        `- Farbpalette: ${char.visualProfile.colorPalette.join(", ")}`,
+        `- Archetype: ${char.archetype}`,
+        `- Emotional nature: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})`,
+        `- Visual profile: ${char.visualProfile.description}`,
+        `- Species: ${char.visualProfile.species}`,
+        `- Color palette: ${char.visualProfile.colorPalette.join(", ")}`,
         `- Prompt (English): ${char.visualProfile.imagePrompt}`,
       ].join("\n"))
       .join("\n\n");
@@ -581,13 +597,13 @@ export class Phase3StoryFinalizer {
           line += `, ${avatar.description}`;
         }
         if (avatar.visualProfile) {
-          line += `, Aussehen: ${this.visualProfileToText(avatar.visualProfile)}`;
+          line += `, Appearance: ${this.visualProfileToText(avatar.visualProfile)}`;
         }
         return line;
       })
       .join("\n");
 
-    // 🎁 Build inventory section for artifact injection
+    // ?? Build inventory section for artifact injection
     const allInventoryItems = avatarDetails.flatMap(avatar =>
       (avatar.inventory || []).map(item => ({
         ownerName: avatar.name,
@@ -596,32 +612,32 @@ export class Phase3StoryFinalizer {
     );
 
     const inventorySection = allInventoryItems.length > 0
-      ? `\n🎒 AVATAR-AUSRÜSTUNG (kann in der Geschichte genutzt werden):\n${allInventoryItems.map(({ ownerName, item }) =>
-        `- ${ownerName} besitzt: "${item.name}" (${item.type}) - ${item.storyEffect || item.description}`
-      ).join("\n")}\n\nANWEISUNG: Wähle höchstens EIN passendes Artefakt und lass den Besitzer es EINMAL aktiv im Plot nutzen (Erinnerung oder Werkzeug). Wenn keines passt, ignoriere sie. In Kapitel 5 MUSS trotzdem ein neues Belohnungs-Artefakt auftauchen.\n`
+      ? `\nAVATAR INVENTORY (may be used in the story):\n${allInventoryItems.map(({ ownerName, item }) =>
+        `- ${ownerName} owns: "${item.name}" (${item.type}) - ${item.storyEffect || item.description}`
+      ).join("\n")}\n\nINSTRUCTION: Choose at most ONE suitable artifact and let the owner use it ONCE actively in the plot (memory or tool). If none fits, ignore. In chapter 5 a new reward artifact MUST still appear.\n`
       : "";
 
     const soulSummary = experience.soul
       ? `${experience.soul.label} - ${experience.soul.storyPromise}`
-      : "Keine Story-Seele gewaehlt - waehle warmes, freundliches Grundgefuehl.";
+      : "No story soul selected - choose a warm, friendly baseline.";
 
     const flavorSummary = experience.emotionalFlavors.length
       ? experience.emotionalFlavors.map((flavor) => `- ${flavor.label}: ${flavor.effect}`).join("\n")
-      : "- Natuerliche Emotionen ohne Zusatz - Fokus auf Herz und Neugier.";
+      : "- Natural emotions without extra spice - focus on heart and curiosity.";
 
     const tempoSummary = experience.tempo
       ? `${experience.tempo.label} - ${experience.tempo.description}`
-      : `Standardtempo (${config.pacing ?? "balanced"}) - kombiniere ruhige und lebendige Momente.`;
+      : `Standard pace (${config.pacing ?? "balanced"}) - mix calm and lively moments.`;
 
     const ingredientSummary = experience.specialIngredients.length
       ? experience.specialIngredients
         .map((ingredient) => {
           const extras: string[] = [];
           if (ingredient.forcesTwist) {
-            extras.push("Wende in Kapitel 4 vorbereiten und in Kapitel 5 aufloesen.");
+            extras.push("Prepare a gentle twist in chapter 4 and resolve in chapter 5.");
           }
           if (ingredient.hookHint) {
-            extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
+            extras.push(`Use plot hook "${ingredient.hookHint}".`);
           }
           if (ingredient.emphasis) {
             extras.push(ingredient.emphasis);
@@ -630,216 +646,216 @@ export class Phase3StoryFinalizer {
           return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
         })
         .join("\n")
-      : "- Kein Spezial-Element - konzentriere dich auf Charakterentwicklung.";
+      : "- No special ingredient - focus on character development.";
 
     const flavorDetails = describeEmotionalFlavors(experience);
     const ingredientDetails = describeSpecialIngredients(experience);
 
     const hooksLine =
-      config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "keine speziellen Hooks";
+      config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "no special hooks";
 
     const styleInstructions = this.buildStyleInstructions(config, experience);
 
     const skeletonText = skeletonWithNames.chapters
-      .map((chapter) => `Kapitel ${chapter.order}: ${chapter.content}`)
+      .map((chapter) => `Chapter ${chapter.order}: ${chapter.content}`)
       .join("\n\n");
 
     const twistRequired = Boolean(config.hasTwist) || experience.specialIngredients.some((ingredient) => ingredient.forcesTwist);
     const twistGuidance = twistRequired
-      ? "Baue eine sanfte Wende ab Kapitel 4 ein und loese sie Kapitel 5 warmherzig auf."
-      : "Kein Pflicht-Twist - sorge trotzdem fuer einen emotionalen Hoehepunkt in Kapitel 4.";
+      ? "Add a gentle twist from chapter 4 and resolve it warmly in chapter 5."
+      : "No required twist - still create an emotional high point in chapter 4.";
 
     return `
-Du bist eine meisterhafte Kinderbuch-Autorin. Schreibe eine vollstaendige, filmisch wirkende Geschichte, die wie ein preisgekroentes Bilderbuch wirkt.
+You are an award-winning children's book author. Write a complete, cinematic story that reads like a prize-winning picture book.
 
-HAUPTCHARAKTERE (Avatare):
+MAIN CHARACTERS (avatars):
 ${avatarDetailsText}
 ${inventorySection}
-NEBENCHARAKTERE AUS DEM POOL:
+SUPPORTING CHARACTERS FROM THE POOL:
 ${characterDetails}
 
-STORY-SKELETT MIT NAMEN:
-Titel: ${skeletonWithNames.title}
+STORY SKELETON WITH NAMES:
+Title: ${skeletonWithNames.title}
 
 ${skeletonText}
 
 STORY EXPERIENCE (GUIDE):
-- Story-Seele: ${soulSummary}
-- Emotionale Wuerze:
+- Story soul: ${soulSummary}
+- Emotional flavor:
 ${flavorSummary}
-- Tempo: ${tempoSummary}
+- Pacing: ${tempoSummary}
 - Hooks: ${hooksLine}
-- Besondere Zutaten:
+- Special ingredients:
 ${ingredientSummary}
 
-DETAILLIERTE WUERZE:
+DETAILED EMOTIONAL FLAVOR:
 ${flavorDetails}
 
-DETAILLIERTE ZUTATEN:
+DETAILED SPECIAL INGREDIENTS:
 ${ingredientDetails}
 
 ${styleInstructions}
 
-?? KONFLIKT-PFLICHT (CRITICAL FOR 10/10 QUALITY):
-Jede Geschichte braucht ein konkretes Problem das gelöst wird!
-- VERBOTEN: Rein emotionale Reisen ohne äußere Handlung
-- PFLICHT: 
-  * Kapitel 1-2: Problem etablieren (Wolf taucht auf, Weg verloren, Hexe erscheint, Monster bedroht)
-  * Kapitel 3-4: Konflikt eskaliert (Gefahr steigt, Hindernis wird größer, Spannung wächst)
-  * Kapitel 5: Konkrete Lösung (Problem wird überwunden, Gefahr gebannt, Ziel erreicht)
+CONFLICT REQUIREMENTS (CRITICAL FOR 10/10 QUALITY):
+Every story needs a concrete problem that gets solved.
+- FORBIDDEN: purely emotional journeys without external action
+- REQUIRED:
+  * Chapters 1-2: establish the problem (wolf appears, path lost, witch appears, monster threatens)
+  * Chapters 3-4: conflict escalates (danger rises, obstacle grows, tension increases)
+  * Chapter 5: concrete resolution (problem overcome, danger removed, goal reached)
 
-?? STORY-MUSTER (wähle passend zum Skelett):
-- QUEST: Charakter sucht etwas (Weg nach Hause, verlorener Schatz, Freund finden)
-- KONFLIKT: Charakter vs Antagonist (Wolf, Hexe, Monster, Bully, Natur)
-- HERAUSFORDERUNG: Charakter überwindet Hindernis (Angst, Rätsel, Prüfung, Aufgabe)
-- RETTUNG: Charakter rettet jemanden (Freund gefangen, Gefahr droht, Hilfe nötig)
+STORY PATTERNS (choose what fits the skeleton):
+- QUEST: character searches for something (way home, lost treasure, friend)
+- CONFLICT: character vs antagonist (wolf, witch, monster, bully, nature)
+- CHALLENGE: character overcomes obstacle (fear, riddle, test, task)
+- RESCUE: character saves someone (friend trapped, danger imminent, help needed)
 
-? VERMEIDE (führt zu niedrigen Qualitäts-Scores):
-- Abstrakte Konzepte als Hauptplot ("vergessene Lieder", "verlorene Träume")
-- Nur emotionale Entwicklung ohne externe Handlung
-- Probleme die sich von selbst lösen (Deus ex machina)
-- Zu philosophisch für Zielgruppe
+AVOID (low quality):
+- abstract concepts as main plot ("forgotten songs", "lost dreams")
+- only emotional growth without external action
+- problems that solve themselves (deus ex machina)
+- too philosophical for the age group
 
-? NUTZE (führt zu hohen Qualitäts-Scores):
-- Konkrete Action-Verben: jagen, fangen, retten, entkommen, finden, besiegen, klettern, laufen
-- Physische Herausforderungen: verstecken, kämpfen, suchen, bauen, überqueren
-- Klare Stakes: Was passiert wenn sie verlieren? (Wolf fängt sie, Hexe sperrt ein, Freund bleibt verloren)
+USE (high quality):
+- concrete action verbs: chase, catch, rescue, escape, find, defeat, climb, run
+- physical challenges: hide, fight, search, build, cross
+- clear stakes: what happens if they fail? (wolf catches them, witch locks them in, friend stays lost)
 
-QUALITAETSREGELN:
-- Dialog-Anteil: 40-50 % lebendige Dialoge (Kinderstimmen authentisch, Erwachsene freundlich).
-- Sinneseindruecke: mind. drei Sinne pro Kapitel (sehen, hoeren, fuehlen, riechen, schmecken).
-  WICHTIG: Vermeide Klischees! Statt "riecht nach Brot und Zimt" ? verwende spezifische, unerwartete Details.
-  Beispiele: "riecht nach feuchter Erde und Honig", "schmeckt nach sauren Aepfeln", "klingt wie raschelndes Papier".
-- Show, dont tell: Emotionen ueber Aktionen, Koerpersprache, Details vermitteln.
-- Wiederkehrende Motive: Baue 2-3 Leitmotive (z. B. Licht, Symbol, Klang) an mehreren Stellen ein.
-- Rhythmus: Wechsle zwischen Action, Humor und ruhigen Momenten; jede Szene treibt die Handlung voran.
-- Charakterentwicklung: Zeige, wie die Avatare lernen, wachsen oder sich naeher kommen.
-- Twist-Regel: ${twistGuidance}
+QUALITY RULES:
+- Dialogue share: 40-50% lively dialogue (authentic child voices, friendly adults).
+- Sensory details: at least three senses per chapter (see, hear, feel, smell, taste).
+  IMPORTANT: avoid cliches. Instead of "smells like bread and cinnamon" use specific, fresh details.
+  Examples: "smells like wet earth and honey", "tastes like sour apples", "sounds like rustling paper".
+- Show, dont tell: convey emotions via actions, body language, concrete details.
+- Recurring motifs: build 2-3 motifs (light, symbol, sound) across the story.
+- Rhythm: alternate action, humor, and calm moments; every scene moves the plot.
+- Character growth: show how the avatars learn, grow, or bond.
+- Twist rule: ${twistGuidance}
 
-KRITISCHE VERBOTE (QUALITY GATES):
-? NIEMALS aeussere Merkmale im Story-Text beschreiben!
-   - VERBOTEN: "kurze braune Haare", "gruene Augen", "helle Haut", "rote Jacke"
-   - ERLAUBT: Nur Aktionen, Emotionen, Dialoge, Gedanken
-   - Visuelle Details gehoeren AUSSCHLIESSLICH in imageDescription!
-? KEINE generischen Sinneseindruecke!
-   - VERBOTEN: "riecht nach Brot und Zimt", "schmeckt suess", "fuehlt sich weich an"
-   - PFLICHT: Spezifische, ueberraschende Details die zur Szene passen
+CRITICAL PROHIBITIONS (QUALITY GATES):
+- NEVER describe physical appearance in the story text.
+  - FORBIDDEN: "short brown hair", "green eyes", "light skin", "red jacket"
+  - ALLOWED: only actions, emotions, dialogue, thoughts
+  - Visual details belong ONLY in imageDescription.
+- NO generic sensory details.
+  - FORBIDDEN: "smells like bread and cinnamon", "tastes sweet", "feels soft"
+  - REQUIRED: specific, surprising details that fit the scene
 
-AUFGABE:
-1. Schreibe jedes Kapitel mit EXAKT 310-330 Woertern, abwechslungsreiche Saetze, klare Abschnitte.
-2. KRITISCH: Kapitel unter 310 Woertern werden ABGELEHNT und muessen nachgeneriert werden!
-3. Charaktere durch HANDLUNG zeigen - KEINE Aussehen-Beschreibungen!
-4. Lass Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten deutlich spueren.
-5. Wenn Spezialzutaten gewaehlt sind, setze sie konkret in Handlung und Szenen um.
-6. Nutze sanfte Cliffhanger in Kapiteln 1-4 und eine warme, poetische Aufloesung in Kapitel 5.
-7. Schenke dem Finale einen Lern- oder Herzensmoment, der das Versprechen der Story-Seele einloest.
+TASK:
+1. Write each chapter with EXACTLY 310-330 words, varied sentences, clear paragraphs.
+2. CRITICAL: Chapters under 310 words are REJECTED and must be regenerated.
+3. Show characters through ACTION - no appearance descriptions.
+4. Make story soul, emotional flavor, pacing, and special ingredients clearly felt.
+5. If special ingredients are chosen, integrate them concretely.
+6. Use gentle cliffhangers in chapters 1-4 and a warm, poetic resolution in chapter 5.
+7. Give the finale a learning/heart moment that fulfills the story-soul promise.
 
 OUTPUT (JSON):
 {
-  "title": "Vollstaendiger Titel der Geschichte",
-  "description": "2-3 Saetze, die das Herz der Story beschreiben",
+  "title": "Full story title",
+  "description": "2-3 sentences describing the heart of the story",
   "chapters": [
     {
       "order": 1,
-      "title": "Kapitel-Titel",
-      "content": "320-420 Woerter, reich an Dialogen, Sinneseindruecken und Emotionen.",
-      "imageDescription": "STRICTLY ENGLISH: Detailed visual scene description. NO GERMAN! Describe physical actions, lighting, environment, and mood. Use 'wide shot' or 'close up'. Example: 'Wide shot of a magical forest with glowing mushrooms, Adrian (8yo boy) looking at a firefly.'"
+      "title": "Chapter title",
+      "content": "310-330 words, rich in dialogue, sensory details, and emotion.",
+      "imageDescription": "STRICTLY ENGLISH: Detailed visual scene description. NO GERMAN. Describe physical actions, lighting, environment, and mood. Use 'wide shot' or 'close up'. Example: 'Wide shot of a magical forest with glowing mushrooms, Adrian (8yo boy) looking at a firefly.'"
     }
   ],
   "avatarDevelopments": [
     {
-      "name": "Name des Avatars",
+      "name": "Avatar name",
       "changedTraits": [
         {
-          "trait": "knowledge" oder "knowledge.subcategory" (z.B. "knowledge.science", "knowledge.history"),
-          "change": +2 bis +10 (positive Zahl),
-          "description": "Konkreter Grund basierend auf Story-Ereignissen"
+          "trait": "knowledge" or "knowledge.subcategory" (e.g., "knowledge.science", "knowledge.history"),
+          "change": +2 to +10 (positive number),
+          "description": "Concrete reason based on story events"
         },
         {
-          "trait": "creativity" oder "courage" oder "empathy" etc.,
-          "change": +1 bis +5,
-          "description": "Was hat der Avatar gelernt oder erlebt?"
+          "trait": "creativity" or "courage" or "empathy" etc.,
+          "change": +1 to +5,
+          "description": "What did the avatar learn or experience?"
         }
       ]
     }
   ],
   "newArtifact": {
-    "name": "Name des Artefakts (in Sprache: ${config.language || 'de'})",
-    "description": "Kurze Beschreibung was es ist (in Sprache: ${config.language || 'de'})",
+    "name": "Artifact name (language: ${config.language || 'de'})",
+    "description": "Short description of what it is (language: ${config.language || 'de'})",
     "type": "TOOL | WEAPON | KNOWLEDGE | COMPANION",
-    "storyEffect": "Was kann dieses Artefakt in zukuenftigen Geschichten bewirken? (in Sprache: ${config.language || 'de'})",
+    "storyEffect": "What can this artifact do in future stories? (language: ${config.language || 'de'})",
     "visualDescriptorKeywords": ["ENGLISH keyword 1", "ENGLISH keyword 2", "material", "color", "glow effect"]
   }
 }
 
-🎯 KRITISCH: avatarDevelopments ist MANDATORY!
-- Jeder Avatar MUSS mindestens 2-4 Trait-Updates bekommen
-- Verfügbare Traits: knowledge (+ subcategories), creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic
+CRITICAL: avatarDevelopments is MANDATORY.
+- Each avatar MUST receive at least 2-4 trait updates
+- Available traits: knowledge (+ subcategories), creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic
 - Base traits max 100, knowledge subcategories max 1000
-- Changes basieren auf KONKRETEN Story-Ereignissen
-- Description erklärt präzise, was gelernt wurde
+- Changes must be based on CONCRETE story events
+- Descriptions must explain precisely what was learned
 
-🎁 KRITISCH: newArtifact ist MANDATORY!
-- Am Ende von Kapitel 5 MUSS der Held einen besonderen Gegenstand finden, erhalten oder entdecken
-- Beschreibe diesen Gegenstand kurz im Story-Text
-- name, description, storyEffect: In der Sprache ${config.language || 'de'}
-- visualDescriptorKeywords: IMMER auf ENGLISCH (fuer Bildgenerierung)
-- type: TOOL (nuetzliches Werkzeug), WEAPON (magische Waffe), KNOWLEDGE (Buch/Schriftrolle), COMPANION (kleines Wesen)
+CRITICAL: newArtifact is MANDATORY.
+- At the end of chapter 5 the hero MUST find, receive, or discover a special item
+- Briefly describe this item in the story text
+- name, description, storyEffect: in language ${config.language || 'de'}
+- visualDescriptorKeywords: ALWAYS in ENGLISH (for image generation)
+- type: TOOL (useful tool), WEAPON (magical weapon), KNOWLEDGE (book/scroll), COMPANION (small creature)
 
-⛔ VERBOTEN (GENERIC TRASH):
-- "Magischer Kristall", "Leuchtendes Amulett", "Goldener Schlüssel", "Alter Zauberstab"
-- "Stein des Mutes", "Feder der Weisheit"
-- Alles was generisch nach "RPG Item" klingt.
+FORBIDDEN (GENERIC TRASH):
+- "Magical crystal", "Glowing amulet", "Golden key", "Old wand"
+- "Stone of courage", "Feather of wisdom"
+- Anything that sounds like generic "RPG item"
 
-✅ ERLAUBT (UNIQUE STORY LOOT):
-- Ein spezifischer Gegenstand aus der Handlung (z.B. "Der verbogene Löffel des Riesen", "Die Brille des Bäckers")
-- Etwas mit Charakter & Geschichte (z.B. "Eine Flasche mit eingefangenem Nordwind", "Ein Keks der niemals ausgeht")
-- Es muss "Schrullig" und "Einzigartig" sein (Stil: Otfried Preußler / Roald Dahl)
-- storyEffect muss kreativ sein (nicht nur "+1 Mut", sondern "Kann Türen öffnen wenn man höflich klopft")
+ALLOWED (UNIQUE STORY LOOT):
+- A specific object from the plot (e.g., "The bent spoon of the giant", "The baker's glasses")
+- Something with character and history (e.g., "A bottle with captured north wind", "A cookie that never runs out")
+- It should be quirky and unique (style: Otfried Preussler / Roald Dahl)
+- storyEffect must be creative (not just "+1 courage", but "Can open doors when you knock politely")
 
 IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Use expressive action verbs and clear subject placement.
 - Mention all characters with consistent visual traits and outfits.
 - Highlight lighting, mood, camera angle or perspective, and environment specifics.
 - Include recurring motifs or signature items from the story.
-- Art style: watercolor illustration, Axel Scheffler style, warm colours, child-friendly.
+- Art style: watercolor illustration, Axel Scheffler style, warm colors, child-friendly.
 
 IMPORTANT LANGUAGE INSTRUCTION:
 - Write the story content (title, description, chapters content) in the requested language: ${config.language || 'de'}.
 - Write the imageDescription STRICTLY in ENGLISH.
 - Write newArtifact.visualDescriptorKeywords STRICTLY in ENGLISH.
-    `.trim();
+`.trim();
   }
 
   private buildStyleInstructions(config: StoryConfig, experience: StoryExperienceContext): string {
     const parts: string[] = [];
 
     if (config.tone) {
-      parts.push(`- Tonfall: ${config.tone}\n`);
+      parts.push(`- Tone: ${config.tone}\n`);
     }
 
     if (config.language) {
-      parts.push(`- Sprache: ${config.language}\n`);
+      parts.push(`- Language: ${config.language}\n`);
     }
 
     if (config.pacing) {
-      parts.push(`- Tempo: ${config.pacing}\n`);
+      parts.push(`- Pacing: ${config.pacing}\n`);
     }
 
     if (config.stylePreset) {
-      parts.push(`- Stil-Preset: ${config.stylePreset}\n`);
+      parts.push(`- Style preset: ${config.stylePreset}\n`);
     }
 
     if (config.pov) {
-      parts.push(`- Perspektive: ${config.pov}\n`);
+      parts.push(`- POV: ${config.pov}\n`);
     }
 
     if (config.allowRhymes) {
-      parts.push("- Reime: sanfte Reimstrukturen sind erlaubt\n");
+      parts.push("- Rhymes: light rhyme structures are allowed\n");
     }
 
     if (config.suspenseLevel !== undefined) {
-      parts.push(`- Spannung: Level ${config.suspenseLevel}/3\n`);
+      parts.push(`- Suspense: Level ${config.suspenseLevel}/3\n`);
     }
 
     if (config.humorLevel !== undefined) {
@@ -847,29 +863,29 @@ IMPORTANT LANGUAGE INSTRUCTION:
     }
 
     if (config.hooks && config.hooks.length > 0) {
-      parts.push(`- Plot-Hooks: ${config.hooks.join(", ")}\n`);
+      parts.push(`- Plot hooks: ${config.hooks.join(", ")}\n`);
     }
 
     const soul = experience.soul;
     if (soul) {
-      parts.push(`- Story-Seele Leitmotiv: ${soul.label} (Ton ${soul.recommendedTone}, Tempo ${soul.defaultPacing})\n`);
+      parts.push(`- Story soul motif: ${soul.label} (Tone ${soul.recommendedTone}, Pacing ${soul.defaultPacing})\n`);
     }
 
     if (experience.emotionalFlavors.length) {
       const flavorLabels = experience.emotionalFlavors.map((flavor) => flavor.label).join(", ");
-      parts.push(`- Emotionale Wuerze: ${flavorLabels}\n`);
+      parts.push(`- Emotional flavor: ${flavorLabels}\n`);
     }
 
     if (experience.tempo) {
-      parts.push(`- Nutzer-Tempo: ${experience.tempo.label} (${experience.tempo.pacing})\n`);
+      parts.push(`- User pacing: ${experience.tempo.label} (${experience.tempo.pacing})\n`);
     }
 
     if (experience.specialIngredients.length) {
       const ingredientLabels = experience.specialIngredients.map((ingredient) => ingredient.label).join(", ");
-      parts.push(`- Spezialzutaten: ${ingredientLabels}\n`);
+      parts.push(`- Special ingredients: ${ingredientLabels}\n`);
     }
 
-    return parts.length ? `STIL-ANWEISUNGEN:\n${parts.join("")}` : "";
+    return parts.length ? `STYLE INSTRUCTIONS:\n${parts.join("")}` : "";
   }
 
   /**
@@ -899,7 +915,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
       const wordCount = chapter.content.split(/\s+/).filter(Boolean).length;
 
-      // 🔧 RELAXED VALIDATION: More realistic word count range
+      // ?? RELAXED VALIDATION: More realistic word count range
       // Previous: 330-350 (too strict, only 20 words margin)
       // New: 280-380 (100 words margin, more achievable for AI)
       const MIN_WORDS = 280;
@@ -907,16 +923,16 @@ IMPORTANT LANGUAGE INSTRUCTION:
       const TARGET_WORDS = 330; // Still aim for ~330 words
 
       if (wordCount < MIN_WORDS) {
-        console.warn(`[Phase3] ⚠️ Chapter ${chapter.order} has only ${wordCount} words (minimum: ${MIN_WORDS}). Story may be too brief.`);
+        console.warn(`[Phase3] ?? Chapter ${chapter.order} has only ${wordCount} words (minimum: ${MIN_WORDS}). Story may be too brief.`);
         // Don't reject - just warn. Short chapters can still be good quality.
       }
 
       if (wordCount > MAX_WORDS) {
-        console.warn(`[Phase3] ⚠️ Chapter ${chapter.order} has ${wordCount} words (maximum: ${MAX_WORDS}). Story may be too verbose.`);
+        console.warn(`[Phase3] ?? Chapter ${chapter.order} has ${wordCount} words (maximum: ${MAX_WORDS}). Story may be too verbose.`);
         // Don't reject - just warn. Long chapters can still be good quality.
       }
 
-      console.log(`[Phase3] ✅ Chapter ${chapter.order}: ${wordCount} words (target: ${TARGET_WORDS}, range: ${MIN_WORDS}-${MAX_WORDS})`);
+      console.log(`[Phase3] ? Chapter ${chapter.order}: ${wordCount} words (target: ${TARGET_WORDS}, range: ${MIN_WORDS}-${MAX_WORDS})`);
     }
 
     // Validate newArtifact if present
@@ -930,9 +946,9 @@ IMPORTANT LANGUAGE INSTRUCTION:
       if (!story.newArtifact.visualDescriptorKeywords || !Array.isArray(story.newArtifact.visualDescriptorKeywords)) {
         console.warn("[Phase3] newArtifact missing visualDescriptorKeywords array");
       }
-      console.log("[Phase3] ✅ newArtifact validated:", story.newArtifact.name);
+      console.log("[Phase3] ? newArtifact validated:", story.newArtifact.name);
     } else {
-      console.warn("[Phase3] ⚠️ No newArtifact in AI response - generating fallback artifact");
+      console.warn("[Phase3] ?? No newArtifact in AI response - generating fallback artifact");
       // Generate a fallback artifact based on story theme
       story.newArtifact = this.generateFallbackArtifact(story);
     }
@@ -948,16 +964,16 @@ IMPORTANT LANGUAGE INSTRUCTION:
     const randomType = types[Math.floor(Math.random() * types.length)];
 
     const artifacts = [
-      { name: "Glücksbringer", desc: "Ein magischer Talisman", effect: "Bringt Glück in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
+      { name: "Gl�cksbringer", desc: "Ein magischer Talisman", effect: "Bringt Gl�ck in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
       { name: "Sternenstaub-Phiole", desc: "Eine Flasche voller Sternenstaub", effect: "Leuchtet in der Dunkelheit", keywords: ["glass vial", "sparkling stardust", "cosmic glow", "ethereal particles"] },
       { name: "Weisheitskristall", desc: "Ein Kristall voller alter Weisheit", effect: "Hilft bei schwierigen Entscheidungen", keywords: ["purple crystal", "ancient wisdom", "mystical glow", "floating runes"] },
-      { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "Stärkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
-      { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt Stärke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
+      { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "St�rkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
+      { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt St�rke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
     ];
 
     const artifact = artifacts[Math.floor(Math.random() * artifacts.length)];
 
-    console.log(`[Phase3] 🎁 Generated fallback artifact: ${artifact.name}`);
+    console.log(`[Phase3] ?? Generated fallback artifact: ${artifact.name}`);
 
     return {
       name: artifact.name,
@@ -978,16 +994,16 @@ IMPORTANT LANGUAGE INSTRUCTION:
     twistRequired: boolean,
     _language?: string
   ) {
-    console.log("[Phase3] 🛡️ Validating story quality (Logic v2 - Relaxed)");
+    console.log("[Phase3] ??? Validating story quality (Logic v2 - Relaxed)");
     const text = story.chapters.map(ch => ch.content).join(" ").toLowerCase();
 
     // German conflict patterns
     const germanConflictPatterns = [
       /gefahr/, /bedroh/, /verfolg/, /flucht/, /kampf/, /duell/,
       /retten/, /rettung/, /falle/, /zauber/, /fluch/,
-      /gefängnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
+      /gef�ngnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
       /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/,
-      /hindernis/, /problem/, /schwierig/, /rätsel/, /aufgabe/, /prüfung/,
+      /hindernis/, /problem/, /schwierig/, /r�tsel/, /aufgabe/, /pr�fung/,
       /angst/, /sorge/, /schreck/, /dunkel/, /schatten/, /verloren/,
       /blockiert/, /versperrt/, /suche/, /geheimnis/
     ];
@@ -1004,24 +1020,24 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
     // Russian conflict patterns (for ru language stories)
     const russianConflictPatterns = [
-      /опасност/, /угроз/, /погон/, /побег/, /борьб/, /дуэл/,
-      /спаса/, /спасен/, /ловушк/, /магия/, /закля/, /проклят/,
-      /тюрьм/, /темниц/, /дракон/, /волк/, /ведьм/, /монстр/,
-      /конфликт/, /атак/, /шторм/, /потоп/, /опасен/, /угрож/,
-      /сраж/, /битв/, /бег/, /охот/, /захват/, /защит/,
-      /препятств/, /вызов/, /риск/, /страх/, /беда/, /проблем/,
-      /тайн/, /загадк/, /секрет/, /тень/, /тёмн/, /ночь/,
-      /туман/, /шёпот/, /крик/, /помощ/, /храбр/, /смел/
+      /????????/, /?????/, /?????/, /?????/, /?????/, /????/,
+      /?????/, /??????/, /??????/, /?????/, /?????/, /???????/,
+      /?????/, /??????/, /??????/, /????/, /?????/, /??????/,
+      /????????/, /????/, /?????/, /?????/, /??????/, /?????/,
+      /????/, /????/, /???/, /????/, /??????/, /?????/,
+      /?????????/, /?????/, /????/, /?????/, /????/, /???????/,
+      /????/, /??????/, /??????/, /????/, /????/, /????/,
+      /?????/, /?????/, /????/, /?????/, /?????/, /????/
     ];
 
     // French conflict patterns
     const frenchConflictPatterns = [
       /danger/, /menace/, /poursuite/, /fuite/, /combat/, /duel/,
-      /sauver/, /sauvetage/, /piège/, /magie/, /malédiction/, /sort/,
-      /prison/, /donjon/, /dragon/, /loup/, /sorcière/, /monstre/,
-      /conflit/, /attaque/, /tempête/, /inondation/, /péril/,
-      /lutte/, /bataille/, /fuir/, /chasse/, /capturer/, /défendre/,
-      /obstacle/, /défi/, /risque/, /peur/, /problème/, /difficulté/
+      /sauver/, /sauvetage/, /pi�ge/, /magie/, /mal�diction/, /sort/,
+      /prison/, /donjon/, /dragon/, /loup/, /sorci�re/, /monstre/,
+      /conflit/, /attaque/, /temp�te/, /inondation/, /p�ril/,
+      /lutte/, /bataille/, /fuir/, /chasse/, /capturer/, /d�fendre/,
+      /obstacle/, /d�fi/, /risque/, /peur/, /probl�me/, /difficult�/
     ];
 
     // Use all language patterns for validation (stories might be in any language)
@@ -1042,47 +1058,47 @@ IMPORTANT LANGUAGE INSTRUCTION:
         .join(", ");
 
       // Just warn instead of failing, but log heavily
-      console.warn(`[Phase3] ⚠️ Konfliktdichte grenzwertig: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+      console.warn(`[Phase3] ?? Konfliktdichte grenzwertig: ${conflictfulChapters}/${story.chapters.length} CHAPTER mit Hindernis. Fehlend: ${missingChapters}`);
 
       // Only fail if it's REALLY bad (0 conflicts)
       if (conflictfulChapters < 1) {
-        console.warn(`[Phase3] ⚠️ Critical conflict shortage (${conflictfulChapters} chapters), but allowing to proceed to prevent user frustration.`);
-        // throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} Kapitel mit Hindernis. Fehlend: ${missingChapters}`);
+        console.warn(`[Phase3] ?? Critical conflict shortage (${conflictfulChapters} chapters), but allowing to proceed to prevent user frustration.`);
+        // throw new Error(`[Phase3] Konfliktdichte zu schwach: ${conflictfulChapters}/${story.chapters.length} CHAPTER mit Hindernis. Fehlend: ${missingChapters}`);
       }
     }
 
     // Avatars must appear - check for both original name and transliterated/translated versions
     // Common name translations: German/English <-> Russian
     const nameVariants: Record<string, string[]> = {
-      'alexander': ['alexander', 'александр', 'саша', 'алекс'],
-      'adrian': ['adrian', 'адриан'],
-      'anna': ['anna', 'анна', 'аня'],
-      'maria': ['maria', 'мария', 'маша'],
-      'max': ['max', 'макс', 'максим'],
-      'paul': ['paul', 'павел', 'паша'],
-      'peter': ['peter', 'пётр', 'петя'],
-      'michael': ['michael', 'михаил', 'миша'],
-      'sophie': ['sophie', 'софия', 'соня'],
-      'emma': ['emma', 'эмма'],
-      'leon': ['leon', 'леон', 'лев'],
-      'felix': ['felix', 'феликс'],
-      'lucas': ['lucas', 'лукас', 'лука'],
-      'noah': ['noah', 'ной'],
-      'elias': ['elias', 'илья'],
-      'jonas': ['jonas', 'йонас'],
-      'david': ['david', 'давид'],
-      'niklas': ['niklas', 'никлас', 'николай', 'коля'],
-      'tim': ['tim', 'тим', 'тимофей'],
-      'tom': ['tom', 'том', 'тома'],
-      'jan': ['jan', 'ян'],
-      'lena': ['lena', 'лена', 'елена'],
-      'lisa': ['lisa', 'лиза', 'елизавета'],
-      'laura': ['laura', 'лаура'],
-      'julia': ['julia', 'юлия', 'юля'],
-      'sarah': ['sarah', 'сара'],
-      'hannah': ['hannah', 'ханна', 'анна'],
-      'emily': ['emily', 'эмили'],
-      'mia': ['mia', 'мия'],
+      'alexander': ['alexander', '?????????', '????', '?????'],
+      'adrian': ['adrian', '??????'],
+      'anna': ['anna', '????', '???'],
+      'maria': ['maria', '?????', '????'],
+      'max': ['max', '????', '??????'],
+      'paul': ['paul', '?????', '????'],
+      'peter': ['peter', '????', '????'],
+      'michael': ['michael', '??????', '????'],
+      'sophie': ['sophie', '?????', '????'],
+      'emma': ['emma', '????'],
+      'leon': ['leon', '????', '???'],
+      'felix': ['felix', '??????'],
+      'lucas': ['lucas', '?????', '????'],
+      'noah': ['noah', '???'],
+      'elias': ['elias', '????'],
+      'jonas': ['jonas', '?????'],
+      'david': ['david', '?????'],
+      'niklas': ['niklas', '??????', '???????', '????'],
+      'tim': ['tim', '???', '???????'],
+      'tom': ['tom', '???', '????'],
+      'jan': ['jan', '??'],
+      'lena': ['lena', '????', '?????'],
+      'lisa': ['lisa', '????', '?????????'],
+      'laura': ['laura', '?????'],
+      'julia': ['julia', '????', '???'],
+      'sarah': ['sarah', '????'],
+      'hannah': ['hannah', '?????', '????'],
+      'emily': ['emily', '?????'],
+      'mia': ['mia', '???'],
     };
 
     for (const av of avatars) {
@@ -1092,7 +1108,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
       if (!found) {
         // Log warning but don't fail - the story might use a nickname or different spelling
-        console.warn(`[Phase3] ⚠️ Avatar ${av.name} not found in story text (checked variants: ${variants.join(', ')})`);
+        console.warn(`[Phase3] ?? Avatar ${av.name} not found in story text (checked variants: ${variants.join(', ')})`);
         // Only fail if it's a very short/unique name that should definitely be present
         if (av.name.length >= 4 && variants.length === 1) {
           throw new Error(`[Phase3] Avatar ${av.name} not present in story text`);
@@ -1110,18 +1126,18 @@ IMPORTANT LANGUAGE INSTRUCTION:
       "enemy", "villain", "foe", "threat", "danger", "obstacle", "problem", "difficult", "challenge",
       "wizard", "witch", "monster", "dragon", "troll", "giant", "evil", "wicked", "menace",
       // Russian
-      "враг", "злодей", "угроза", "опасность", "препятствие", "проблема", "сложность", "вызов",
-      "колдун", "ведьма", "монстр", "дракон", "тролль", "великан", "зло", "злой", "тень",
-      "тайна", "загадка", "страх", "беда", "ночь", "туман", "шторм",
+      "????", "??????", "??????", "?????????", "???????????", "????????", "?????????", "?????",
+      "??????", "??????", "??????", "??????", "??????", "???????", "???", "????", "????",
+      "?????", "???????", "?????", "????", "????", "?????", "?????",
       // French
-      "ennemi", "méchant", "menace", "danger", "obstacle", "problème", "difficulté", "défi",
-      "sorcier", "sorcière", "monstre", "dragon", "troll", "géant", "mal", "maléfique"
+      "ennemi", "m�chant", "menace", "danger", "obstacle", "probl�me", "difficult�", "d�fi",
+      "sorcier", "sorci�re", "monstre", "dragon", "troll", "g�ant", "mal", "mal�fique"
     ];
     const lowerText = text.toLowerCase();
     const hasConflict = antagonistKeywords.some(k => lowerText.includes(k.toLowerCase()));
 
     if (!hasConflict) {
-      console.warn(`[Phase3] ⚠️ Weak conflict detection - story may lack clear antagonist keywords (fairyTaleMode: ${fairyTale})`);
+      console.warn(`[Phase3] ?? Weak conflict detection - story may lack clear antagonist keywords (fairyTaleMode: ${fairyTale})`);
       // We do NOT throw here anymore, as it causes unnecessary failures for valid stories that just use different wording.
     }
 
@@ -1129,25 +1145,25 @@ IMPORTANT LANGUAGE INSTRUCTION:
     if (twistRequired) {
       const twistSignals = [
         // German
-        "twist", "wendung", "ueberraschung", "überraschung", "plot twist",
+        "twist", "wendung", "ueberraschung", "�berraschung", "plot twist",
         // English
         "surprise", "unexpected", "revelation", "secret", "discover",
         // Russian
-        "поворот", "сюрприз", "неожиданно", "оказывается", "секрет", "открытие", "тайна",
+        "???????", "???????", "??????????", "???????????", "??????", "????????", "?????",
         // French
-        "surprise", "inattendu", "révélation", "secret", "découvrir"
+        "surprise", "inattendu", "r�v�lation", "secret", "d�couvrir"
       ];
       const structuralTwistPatterns = [
         // German
         /ploetzlich/,
-        /plötzlich/,
+        /pl�tzlich/,
         /unerwartet/,
         /auf einmal/,
         /doch dann/,
         /aber dann/,
         /stellt sich heraus/,
         /stellt sich raus/,
-        /enthüllt/,
+        /enth�llt/,
         /enthuellt/,
         /geheimnis/,
         /verwandelt sich/,
@@ -1163,24 +1179,24 @@ IMPORTANT LANGUAGE INSTRUCTION:
         /realize/,
         /secret/,
         // Russian
-        /вдруг/,
-        /неожиданно/,
-        /оказалось/,
-        /оказывается/,
-        /но потом/,
-        /однако/,
-        /выяснилось/,
-        /открылось/,
-        /секрет/,
-        /превратился/,
-        /понял/,
+        /?????/,
+        /??????????/,
+        /?????????/,
+        /???????????/,
+        /?? ?????/,
+        /??????/,
+        /??????????/,
+        /?????????/,
+        /??????/,
+        /???????????/,
+        /?????/,
         // French
         /soudain/,
-        /tout à coup/,
+        /tout � coup/,
         /mais alors/,
         /cependant/,
-        /révèle/,
-        /découvre/,
+        /r�v�le/,
+        /d�couvre/,
         /transforme/,
       ];
 
@@ -1222,15 +1238,21 @@ IMPORTANT LANGUAGE INSTRUCTION:
     fairyTale: SelectedFairyTale,
     remixInstructions?: string // NEW: Remix transformation summary from Phase1
   ): string {
+    const avatarNameSet = new Set(avatarDetails.map(a => a.name.toLowerCase()));
     const characterDetails = Array.from(assignments.entries())
+      .filter(([placeholder, char]) => {
+        const placeholderUpper = String(placeholder || "").toUpperCase();
+        if (placeholderUpper.includes("AVATAR")) return false;
+        return !avatarNameSet.has((char.name || "").toLowerCase());
+      })
       .map(([placeholder, char]) => [
         `Character ${char.name} (${char.role})`,
         `- Placeholder: ${placeholder}`,
-        `- Archetyp: ${char.archetype}`,
-        `- Emotionale Natur: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})`,
-        `- Visuelles Profil: ${char.visualProfile.description}`,
-        `- Spezies: ${char.visualProfile.species}`,
-        `- Farbpalette: ${char.visualProfile.colorPalette.join(", ")}`,
+        `- Archetype: ${char.archetype}`,
+        `- Emotional nature: ${char.emotionalNature.dominant} (${char.emotionalNature.secondary.join(", ")})`,
+        `- Visual profile: ${char.visualProfile.description}`,
+        `- Species: ${char.visualProfile.species}`,
+        `- Color palette: ${char.visualProfile.colorPalette.join(", ")}`,
         `- Prompt (English): ${char.visualProfile.imagePrompt}`,
       ].join("\n"))
       .join("\n\n");
@@ -1263,7 +1285,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
             console.log(`[Phase3] Transformed: ${visualDescription}`);
           }
 
-          line += `, Aussehen: ${visualDescription}`;
+          line += `, Appearance: ${visualDescription}`;
         }
         return line;
       })
@@ -1277,7 +1299,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
     );
 
     const roleMappingText = roleMapping
-      .map((mapping) => `- ${mapping.fairyTaleRole} ? ${mapping.avatarName} (${mapping.roleType})`)
+      .map((mapping) => `- ${mapping.fairyTaleRole} -> ${mapping.avatarName} (${mapping.roleType})`)
       .join("\n");
 
     // ==================== SCENE-TO-CHAPTER MAPPING ====================
@@ -1310,14 +1332,14 @@ IMPORTANT LANGUAGE INSTRUCTION:
           sceneDescription = sceneDescription.replace(/{protagonist_ihre}/g, adaptedPronouns.ihre || 'ihre');
           sceneDescription = sceneDescription.replace(/{protagonist_name}/g, protagonistAvatar.name);
 
-          return `  - Szene ${s.sceneNumber}: ${s.sceneTitle}\n` +
+          return `  - Scene ${s.sceneNumber}: ${s.sceneTitle}\n` +
             `    Setting: ${s.setting}\n` +
-            `    Stimmung: ${s.mood}\n` +
-            `    Handlung: ${sceneDescription}\n` +
-            `    Bild-Template: ${s.illustrationPromptTemplate}`;
+            `    Mood: ${s.mood}\n` +
+            `    Action: ${sceneDescription}\n` +
+            `    Image template: ${s.illustrationPromptTemplate}`;
         }).join('\n');
 
-        return `KAPITEL ${idx + 1}: ${mapping.chapterTitle}\n${sceneDetails}`;
+        return `CHAPTER ${idx + 1}: ${mapping.chapterTitle}\n${sceneDetails}`;
       })
       .join('\n\n');
 
@@ -1347,7 +1369,7 @@ You are an award-winning children's book author. Your task: Write an ORIGINAL, n
 
 CRITICAL: Write all story content in ${targetLanguage}. Only imageDescription fields should be in English.
 
-## ROLE CASTING (Fairy Tale → User Avatars):
+## ROLE CASTING (Fairy Tale -> User Avatars):
 ${roleMappingText}
 
 ## CHARACTER DETAILS:
@@ -1363,8 +1385,8 @@ ${characterDetails}
 - Avatars must make their OWN decisions and solve problems
 - Show INTERACTIONS between avatars (dialogues, cooperation, conflicts)
 - Supporting characters assist, but avatars are the MAIN ACTORS
-- AVOID: "Adrian stood by and watched" ❌
-- BETTER: "Adrian stepped in and helped with his idea" ✅
+- AVOID: "Adrian stood by and watched" ?
+- BETTER: "Adrian stepped in and helped with his idea" ?
 
 ## PLOT: INSPIRATION FROM "${fairyTale.tale.title}"
 CRITICAL: Use scenes only as direction. You MAY reorder, mix, delete and add new conflicts/twists. Readers should recognize motifs, but the plot must be fresh.
@@ -1394,7 +1416,7 @@ ${styleInstructions}
 ${professionalRules}
 
 ## RECURRING MOTIFS - LEITMOTIF REQUIREMENTS
-══════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------------
 CRITICAL: Choose 2-3 RECURRING MOTIFS that appear throughout the story:
 
 1. SOUND MOTIF (must appear in 5 chapters):
@@ -1414,14 +1436,14 @@ CRITICAL: Choose 2-3 RECURRING MOTIFS that appear throughout the story:
    Character says it, then it becomes the moral lesson
 
 MOTIF TRACKING VALIDATION:
-✅ Each motif must appear EXACTLY as specified (count appearances!)
-✅ Motifs must be woven naturally into narrative (not forced)
-✅ At least ONE motif must connect to the story's moral lesson
+? Each motif must appear EXACTLY as specified (count appearances!)
+? Motifs must be woven naturally into narrative (not forced)
+? At least ONE motif must connect to the story's moral lesson
 
 EXAMPLE ("Der Silberfaden" story):
-- Sound Motif: "Windspiele" (wind chimes) → appears 5x across all chapters ✅
-- Object Motif: "Silberfaden" (silver thread) → introduced Ch1, used Ch2, crucial Ch4, symbolic Ch5 ✅
-- Phrase Motif: "echte Stimme" (true voice) → Ch3, Ch5 ✅
+- Sound Motif: "Windspiele" (wind chimes) ? appears 5x across all chapters ?
+- Object Motif: "Silberfaden" (silver thread) ? introduced Ch1, used Ch2, crucial Ch4, symbolic Ch5 ?
+- Phrase Motif: "echte Stimme" (true voice) ? Ch3, Ch5 ?
 
 ## CINEMATIC IMAGE DESCRIPTIONS (ALWAYS in English, 80-120 words):
 - Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
@@ -1433,16 +1455,16 @@ EXAMPLE ("Der Silberfaden" story):
 - Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset. FOREGROUND: Dark twisted roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest. MOOD: Brave but cautious. Watercolor style."
 
 ## WRITING STYLE - SIMPLE RULES
-══════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------------
 1. Mix SHORT (3-7 words) and MEDIUM (8-15 words) sentences.
 2. Avoid starting 3+ sentences with the same word.
 3. Use varied sentence starts.
 
 ## SHOW, DON'T TELL - CORE RULE
-══════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------------
 SHOW emotions through BODY LANGUAGE, not words:
-❌ "war ängstlich" → ✅ "Seine Hände zitterten"
-❌ "war glücklich" → ✅ "Ein Lächeln breitete sich aus"
+? "war �ngstlich" ? ? "Seine H�nde zitterten"
+? "war gl�cklich" ? ? "Ein L�cheln breitete sich aus"
 
 ## STORY SOUL: ${(experience as any).storySoul || 'magische_entdeckung'}
 ${(experience as any).storySoul === 'wilder_ritt' ? '- Fast-paced action! Chases, puzzles, physical challenges' : ''}
@@ -1464,7 +1486,7 @@ IMPORTANT: Aim for 340 words to ensure you meet the 330-word minimum with safety
 
 ${remixInstructions ? `
 ## ORIGINALITY ENFORCEMENT - CRITICAL!
-══════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------------
 
 ${remixInstructions}
 
@@ -1485,7 +1507,7 @@ IMPORTANT: If you ignore remix strategies, the story will be rejected!
 Creative deviations from the original are not only allowed, but REQUIRED!
 
 ` : ''}## POV (POINT OF VIEW) - SIMPLIFIED RULE
-══════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------------
 BOTH avatars are MAIN CHARACTERS and should be ACTIVE in EVERY chapter.
 Show their INTERACTIONS, DIALOGUES, and COOPERATION throughout.
 
@@ -1501,7 +1523,7 @@ should speak, act, and contribute in each chapter.
     {
       "order": 1,
       "title": "Chapter title (in ${targetLanguage})",
-      "content": "TARGET: 340 words (±10) - ABSOLUTE MINIMUM 330 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.! CRITICAL: Count your words BEFORE submitting! Chapters under 330 words = INSTANT REJECTION!",
+      "content": "TARGET: 340 words (�10) - ABSOLUTE MINIMUM 330 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.! CRITICAL: Count your words BEFORE submitting! Chapters under 330 words = INSTANT REJECTION!",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 more chapters
@@ -1589,7 +1611,7 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
       const chapterScenes = scenes.slice(sceneIndex, sceneIndex + scenesInThisChapter);
 
       // Chapter title from first scene
-      const chapterTitle = chapterScenes[0]?.sceneTitle || `Kapitel ${chapterNum}`;
+      const chapterTitle = chapterScenes[0]?.sceneTitle || `CHAPTER ${chapterNum}`;
 
       mapping.push({
         chapterNumber: chapterNum,
@@ -1633,10 +1655,10 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     }
 
     // OPTIMIZATION v2.4: Avatar-Rollen-Schutz
-    // KRITISCH: User-Avatare dürfen NIE Antagonisten werden!
+    // KRITISCH: User-Avatare d�rfen NIE Antagonisten werden!
     // Antagonisten kommen IMMER aus dem Character Pool
     for (const role of antagonistRoles) {
-      // IMMER Character Pool für Antagonisten verwenden
+      // IMMER Character Pool f�r Antagonisten verwenden
       const poolCharacter = Array.from(assignments.values()).find((c) =>
         c.role === "antagonist" ||
         c.role === "obstacle" ||
@@ -1650,11 +1672,11 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
           avatarName: poolCharacter.name,
           roleType: role.roleType,
         });
-        console.log(`[Phase3] ✅ Antagonist "${role.roleName}" mapped to pool character: ${poolCharacter.name} (NOT a user avatar)`);
+        console.log(`[Phase3] ? Antagonist "${role.roleName}" mapped to pool character: ${poolCharacter.name} (NOT a user avatar)`);
       } else {
-        console.warn(`[Phase3] ⚠️ No antagonist found in pool for role: ${role.roleName}`);
+        console.warn(`[Phase3] ?? No antagonist found in pool for role: ${role.roleName}`);
       }
-      // WICHTIG: avatarIndex wird NICHT erhöht - Avatare werden übersprungen!
+      // WICHTIG: avatarIndex wird NICHT erh�ht - Avatare werden �bersprungen!
     }
 
     // Map supporting roles

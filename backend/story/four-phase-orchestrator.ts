@@ -913,6 +913,38 @@ export class FourPhaseOrchestrator {
    * v3.0: NOW INTEGRATES CHARACTER INVARIANTS for tooth gaps, protruding ears, etc.
    * Focuses on critical distinctive features + visual anchors
    */
+  private extractNumericAgeFromProfile(vp: any): number | null {
+    if (!vp) return null;
+    if (typeof vp.ageNumeric === "number") return vp.ageNumeric;
+    if (typeof vp.ageApprox === "number") return vp.ageApprox;
+    const ageApprox = String(vp.ageApprox || "");
+    const match = ageApprox.match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+
+    const ageApproxLower = ageApprox.toLowerCase();
+    if (ageApproxLower.includes("toddler")) return 3;
+    if (ageApproxLower.includes("preschool")) return 4;
+    if (ageApproxLower.includes("kindergarten")) return 5;
+    if (ageApproxLower.includes("young child")) return 6;
+    if (ageApproxLower.includes("child")) return 8;
+    if (ageApproxLower.includes("preteen")) return 11;
+    if (ageApproxLower.includes("teen")) return 14;
+
+    return null;
+  }
+
+  private ageCategoryToNumber(ageCategory?: string): number | null {
+    if (!ageCategory) return null;
+    switch (ageCategory) {
+      case "child": return 8;
+      case "teenager": return 15;
+      case "young_adult": return 22;
+      case "adult": return 35;
+      case "elder": return 65;
+      default: return null;
+    }
+  }
+
   private visualProfileToImagePromptWithInvariants(
     vp: any,
     avatarDescription?: string
@@ -922,9 +954,12 @@ export class FourPhaseOrchestrator {
     const parts: string[] = [];
 
     // 1. AGE AND GENDER (CRITICAL for size consistency)
-    const age = vp.ageApprox || vp.ageNumeric || 8;
+    const numericAge = this.extractNumericAgeFromProfile(vp);
+    const ageLabel = numericAge !== null
+      ? `${numericAge}-year-old`
+      : (vp.ageApprox ? String(vp.ageApprox).replace(/years?\s+old/gi, "year-old").trim() : "child");
     const gender = vp.gender || 'child';
-    parts.push(`${age} years old ${gender}`);
+    parts.push(`${ageLabel} ${gender}`.trim());
 
     // 2. HAIR (locked color for consistency)
     if (vp.hair) {
@@ -993,7 +1028,8 @@ export class FourPhaseOrchestrator {
     }
 
     // 10. CHILD SAFETY (Strict for human children)
-    if (age <= 12 && (!vp.species || String(vp.species).toLowerCase().includes('human'))) {
+    const ageForSafety = numericAge ?? 8;
+    if (ageForSafety <= 12 && (!vp.species || String(vp.species).toLowerCase().includes('human'))) {
       parts.push('child proportions, NO beard, NO mustache, smooth young face');
     }
 
@@ -1030,6 +1066,7 @@ export class FourPhaseOrchestrator {
     }
 
     const allCharacters = new Map<string, CharacterInfo>();
+    const avatarNameSet = new Set(avatarDetails.map(a => a.name.toLowerCase()));
 
     // Add avatars with FULL descriptions + age + INVARIANTS
     for (const avatar of avatarDetails) {
@@ -1059,27 +1096,7 @@ export class FourPhaseOrchestrator {
         }
       }
 
-      // v3.1: Better age extraction - try ageNumeric first, then parse ageApprox, then fallback
-      let age = 8; // Default for child avatars
-      if (avatar.visualProfile?.ageNumeric) {
-        age = avatar.visualProfile.ageNumeric;
-      } else if (avatar.visualProfile?.ageApprox) {
-        // Parse age from string like "5", "8 years old", "young child (5)", etc.
-        const ageMatch = String(avatar.visualProfile.ageApprox).match(/\d+/);
-        if (ageMatch) {
-          age = parseInt(ageMatch[0], 10);
-        } else {
-          // Fallback for descriptive ages
-          const ageApproxLower = String(avatar.visualProfile.ageApprox).toLowerCase();
-          if (ageApproxLower.includes('toddler')) age = 3;
-          else if (ageApproxLower.includes('preschool')) age = 4;
-          else if (ageApproxLower.includes('kindergarten')) age = 5;
-          else if (ageApproxLower.includes('young child')) age = 6;
-          else if (ageApproxLower.includes('child')) age = 8;
-          else if (ageApproxLower.includes('preteen')) age = 11;
-          else if (ageApproxLower.includes('teen')) age = 14;
-        }
-      }
+      const age = this.extractNumericAgeFromProfile(avatar.visualProfile) ?? 8; // Default for child avatars
       const species = avatar.visualProfile?.species || (age <= 12 ? 'human child' : undefined);
       console.log(`[Image Prompt] Avatar ${avatar.name}: age=${age} (from ageNumeric=${avatar.visualProfile?.ageNumeric}, ageApprox=${avatar.visualProfile?.ageApprox})`);
 
@@ -1111,6 +1128,9 @@ export class FourPhaseOrchestrator {
 
     // Add supporting characters with FULL descriptions
     for (const char of characterAssignments.values()) {
+      if (avatarNameSet.has(char.name.toLowerCase())) {
+        continue; // Avoid overriding avatars with lower-fidelity pool data
+      }
       // v3.0: Use the new method that integrates invariants
       // Pool characters don't have user descriptions, so we pass undefined
       let fullDesc = this.visualProfileToImagePromptWithInvariants(char.visualProfile, undefined);
@@ -1134,18 +1154,8 @@ export class FourPhaseOrchestrator {
         }
       }
 
-      // Determine age from age_category or default to 30 for adults
-      let age = 30;
-      if (char.age_category) {
-        switch (char.age_category) {
-          case 'child': age = 8; break;
-          case 'teenager': age = 15; break;
-          case 'young_adult': age = 22; break;
-          case 'adult': age = 35; break;
-          case 'elder': age = 65; break;
-          default: age = 30;
-        }
-      }
+      const ageFromProfile = this.extractNumericAgeFromProfile(char.visualProfile);
+      let age = ageFromProfile ?? this.ageCategoryToNumber(char.age_category) ?? 30;
 
       allCharacters.set(char.name.toLowerCase(), {
         name: char.name,
@@ -1198,6 +1208,9 @@ export class FourPhaseOrchestrator {
             speciesTag = c.species.toUpperCase();
           }
         }
+        if (c.name.toLowerCase().includes('dwarf')) {
+          speciesTag = 'DWARF';
+        }
 
         // CRITICAL: Add visual identifiers to distinguish characters
         const visualId = c.age <= 12
@@ -1208,19 +1221,19 @@ export class FourPhaseOrchestrator {
 
         // v3.0: Add MUST INCLUDE features (tooth gap, protruding ears, etc.)
         const mustInclude = c.invariantsMustInclude && c.invariantsMustInclude.length > 0
-          ? `\n  ✅ MUST SHOW: ${c.invariantsMustInclude.join(', ')}`
+          ? `\n  MUST SHOW: ${c.invariantsMustInclude.join(', ')}`
           : '';
 
         // v3.1 CRITICAL: FLUX.1 Dev does NOT support negative prompts!
         // We must use "NOT X" in the POSITIVE prompt instead of relying on negativePrompt
         const forbidden = c.invariantsForbidden && c.invariantsForbidden.length > 0
-          ? `\n  ❌ NOT: ${c.invariantsForbidden.slice(0, 3).join(', NOT ')}`
+          ? `\n  DO NOT: ${c.invariantsForbidden.slice(0, 3).join(', NOT ')}`
           : '';
 
         // For child avatars: explicitly forbid beard/hat to prevent dwarf substitution
         // v3.1: Use "NOT" syntax instead of "NO" for better FLUX.1 compatibility
         const safety = (c.species || '').toLowerCase().includes('human') && c.age <= 12
-          ? '\n  🧒 CHILD: smooth young face, NOT beard, NOT mustache, NOT facial hair, NOT hat, NOT dwarf, NOT gnome'
+          ? '\n  CHILD: smooth young face, NOT beard, NOT mustache, NOT facial hair, NOT hat, NOT dwarf, NOT gnome'
           : '';
 
         return `${c.name} ${position}: ${speciesTag} ${visualId}\n  ${c.description}${mustInclude}${forbidden}${safety}`;
@@ -1237,7 +1250,11 @@ export class FourPhaseOrchestrator {
 
     const totalCharacters = charactersInScene.length;
     const totalHumans = charactersInScene.filter(c => (c.species || '').toLowerCase().includes('human')).length;
-    const totalDwarfs = charactersInScene.filter(c => (c.species || '').toLowerCase().includes('dwarf')).length;
+    const totalDwarfs = charactersInScene.filter(c => {
+      const speciesLower = (c.species || '').toLowerCase();
+      const nameLower = c.name.toLowerCase();
+      return speciesLower.includes('dwarf') || nameLower.includes('dwarf');
+    }).length;
 
     return `
 ${cleanedDescription}

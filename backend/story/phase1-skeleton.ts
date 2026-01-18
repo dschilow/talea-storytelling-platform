@@ -154,7 +154,7 @@ export class Phase1SkeletonGenerator {
       messages: [
         {
           role: "system",
-          content: "Du bist eine professionelle Kinderbuch-Autorin, die Story-Strukturen mit generischen Charakter-Platzhaltern erstellt."
+          content: "You are a professional children's book author who creates story structures using generic character placeholders."
         },
         {
           role: "user",
@@ -280,37 +280,37 @@ export class Phase1SkeletonGenerator {
             avatar.description ? `${avatar.name} (${avatar.description})` : avatar.name
           )
           .join(", ")
-        : "Keine spezifischen Avatare angegeben - nutze neutrale Heldinnen und Helden.";
+        : "No specific avatars provided - use neutral protagonists.";
 
-    const suspenseLabels = ["sehr ruhig", "leicht prickelnd", "spannend", "hochspannend"];
-    const humorLabels = ["ernst", "sanft", "witzig", "sehr verspielt"];
+    const suspenseLabels = ["very calm", "light tension", "exciting", "high suspense"];
+    const humorLabels = ["serious", "gentle", "funny", "very playful"];
 
-    const suspenseLabel = suspenseLabels[config.suspenseLevel ?? 1] ?? "ausgewogen";
-    const humorLabel = humorLabels[config.humorLevel ?? 1] ?? "sanft";
+    const suspenseLabel = suspenseLabels[config.suspenseLevel ?? 1] ?? "balanced";
+    const humorLabel = humorLabels[config.humorLevel ?? 1] ?? "gentle";
 
     const soulSummary = experience.soul
-      ? `${experience.soul.label} - ${experience.soul.storyPromise} (Ton: ${experience.soul.recommendedTone}, Tempo: ${experience.soul.defaultPacing})`
-      : "Keine Story-Seele gewaehlt - erzaehle warm, fantasievoll und altersgerecht.";
+      ? `${experience.soul.label} - ${experience.soul.storyPromise} (Tone: ${experience.soul.recommendedTone}, Pacing: ${experience.soul.defaultPacing})`
+      : "No story soul selected - tell it warm, imaginative, and age-appropriate.";
 
     const flavorSummary = experience.emotionalFlavors.length
       ? experience.emotionalFlavors
         .map((flavor) => `- ${flavor.label}: ${flavor.description}`)
         .join("\n")
-      : "- Natuerliche Herzensmomente ohne zusaetzliche Wuerze.";
+      : "- Natural heart moments without extra spice.";
 
     const tempoSummary = experience.tempo
-      ? `${experience.tempo.label} - ${experience.tempo.description} (Tempo: ${experience.tempo.pacing})`
-      : `Standardtempo (${config.pacing ?? "balanced"}) - gleiche ruhige und dynamische Momente aus.`;
+      ? `${experience.tempo.label} - ${experience.tempo.description} (Pacing: ${experience.tempo.pacing})`
+      : `Standard pace (${config.pacing ?? "balanced"}) - balance calm and dynamic moments.`;
 
     const ingredientSummary = experience.specialIngredients.length
       ? experience.specialIngredients
         .map((ingredient) => {
           const extras: string[] = [];
           if (ingredient.forcesTwist) {
-            extras.push("Plane Ueberraschung oder Twist in Kapitel 4.");
+            extras.push("Plan a surprise or twist in chapter 4.");
           }
           if (ingredient.hookHint) {
-            extras.push(`Nutze Plot-Hook "${ingredient.hookHint}".`);
+            extras.push(`Use plot hook "${ingredient.hookHint}".`);
           }
           if (ingredient.emphasis) {
             extras.push(ingredient.emphasis);
@@ -319,132 +319,132 @@ export class Phase1SkeletonGenerator {
           return `- ${ingredient.label}: ${ingredient.description}${extraText}`;
         })
         .join("\n")
-      : "- Keine Spezialzutaten - klassischer Verlauf moeglich.";
+      : "- No special ingredients - classic structure is fine.";
 
     const fairyTaleLine = selectedFairyTale
-      ? `MAERCHEN-INSPIRATION (NUR als roher Startpunkt!): ${selectedFairyTale.tale.title}.
-         WICHTIG: Du MUSST die Geschichte neu erfinden!
-         - Ändere das Setting oder die Zeit (z.B. Weltraum, Unterwasser, Großstadt, Zukunft).
-         - Ändere die Motivation der Figuren.
-         - Erfinde einen VÖLLIG NEUEN Twist, den niemand erwartet.
-         - Nutze Motive, aber kopiere niemals den Plot 1:1.`
-      : "Keine Maerchen-Vorlage - komplett originelle Struktur.";
+      ? `FAIRY TALE INSPIRATION (ONLY a raw starting point!): ${selectedFairyTale.tale.title}.
+         IMPORTANT: You MUST reinvent the story!
+         - Change the setting or time (e.g., space, underwater, big city, future).
+         - Change character motivations.
+         - Invent a COMPLETELY NEW twist no one expects.
+         - Use motifs, but never copy the plot 1:1.`
+      : "No fairy-tale template - fully original structure.";
 
     const fairyTaleScenes = selectedFairyTale
       ? selectedFairyTale.scenes
         .slice(0, 6)
-        .map((scene) => `- Szene ${scene.sceneNumber}: ${scene.sceneTitle} | Stimmung: ${scene.mood} | Setting: ${scene.setting}`)
+        .map((scene) => `- Scene ${scene.sceneNumber}: ${scene.sceneTitle} | Mood: ${scene.mood} | Setting: ${scene.setting}`)
         .join("\n")
       : "";
 
     const hooksLine =
-      config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "keine speziellen Hooks";
+      config.hooks && config.hooks.length > 0 ? config.hooks.join(", ") : "no special hooks";
 
-    const customLine = config.customPrompt ? `BENUTZER-WUNSCH: ${config.customPrompt}` : "";
+    const customLine = config.customPrompt ? `USER REQUEST: ${config.customPrompt}` : "";
 
     const flavorDetails = describeEmotionalFlavors(experience);
     const ingredientDetails = describeSpecialIngredients(experience);
 
-    const povLabel = config.pov === "ich" ? "Ich-Perspektive" : "personale Perspektive";
+    const povLabel = config.pov === "ich" ? "first-person" : "limited third-person";
 
     return `
-Du bist eine preisgekroente Kinderbuch-Autorin, die meisterhafte Story-Skelette fuer illustrierte Geschichten schreibt. Arbeite praezise, bildhaft und kindgerecht.
+You are an award-winning children's book author who writes masterful story skeletons for illustrated stories. Be precise, vivid, and age-appropriate.
 
-HAUPTFIGUREN: ${avatarLine}
+MAIN CHARACTERS: ${avatarLine}
 GENRE: ${config.genre}
 SETTING: ${config.setting}
-ALTERSGRUPPE: ${config.ageGroup}
-KOMPLEXITAET: ${config.complexity}
-LAENGE: ${config.length}
-ERZAELLPERSPEKTIVE: ${povLabel}
-SPRACHE: ${config.language ?? "de"}
-REIME: ${config.allowRhymes ? "Gelegentliche sanfte Reime erlaubt." : "Keine Reimpflicht - klare Prosa."}
+AGE GROUP: ${config.ageGroup}
+COMPLEXITY: ${config.complexity}
+LENGTH: ${config.length}
+POV: ${povLabel}
+LANGUAGE: ${config.language ?? "de"}
+RHYMES: ${config.allowRhymes ? "Light rhymes are allowed when natural." : "No rhyme requirement - clear prose."}
 
-STORY EXPERIENCE (USER-WAHL):
-- Manuell gewaehlt: ${config.stylePreset ?? "Story-Seele-Empfehlung"}
-- Reime erlaubt: ${config.allowRhymes ? "Ja" : "Nein"}
-- Story-Seele: ${soulSummary}
-- Emotionale Wuerze:
+STORY EXPERIENCE (USER CHOICE):
+- Style preset: ${config.stylePreset ?? "story-soul recommendation"}
+- Rhymes allowed: ${config.allowRhymes ? "yes" : "no"}
+- Story soul: ${soulSummary}
+- Emotional flavor:
 ${flavorSummary}
-- Tempo: ${tempoSummary}
-- Spannung: Level ${config.suspenseLevel ?? 1} (${suspenseLabel})
+- Pacing: ${tempoSummary}
+- Suspense: Level ${config.suspenseLevel ?? 1} (${suspenseLabel})
 - Humor: Level ${config.humorLevel ?? 1} (${humorLabel})
-- Twist-Vorgabe: ${config.hasTwist ? "Ja - Kapitel 4 vorbereiten!" : "Nein"}
+- Twist requested: ${config.hasTwist ? "yes - set up in chapter 4" : "no"}
 - Hooks: ${hooksLine}
-- Besondere Zutaten:
+- Special ingredients:
 ${ingredientSummary}
 
-FAIRY-TALE-GUIDE: ${fairyTaleLine}
-FAIRY-TALE-SCENES (nur als loses Richtungsraster, Reihenfolge darf variieren):
-${fairyTaleScenes || "- keine Vorlagen"}
+FAIRY TALE GUIDE: ${fairyTaleLine}
+FAIRY TALE SCENES (loose guidance, order may vary):
+${fairyTaleScenes || "- no templates"}
 
-DETAILLIERTE WUERZE:
+DETAILED EMOTIONAL FLAVOR:
 ${flavorDetails}
 
-DETAILLIERTE ZUTATEN:
+DETAILED SPECIAL INGREDIENTS:
 ${ingredientDetails}
 
 ${customLine}
 
-KONFLIKT-REGELN (CRITICAL FOR QUALITY):
-1️⃣ **KONKRETE HERAUSFORDERUNGEN PFLICHT**:
-   - 80% aller Stories brauchen externe Gefahr/Hindernis
-   - Beispiele: Wolf jagt, Hexe sperrt ein, Drache raubt, Monster bedroht, Weg verloren, Freund gefangen
-   - 20% emotionale Reisen OK (nur bei "warm"/"meaningful" Gefühl UND Altersgruppe 9-12)
+CONFLICT RULES (CRITICAL FOR QUALITY):
+1. CONCRETE CHALLENGES REQUIRED:
+   - 80% of stories need an external danger/obstacle
+   - Examples: wolf hunts, witch locks in, dragon steals, monster threatens, lost path, friend trapped
+   - 20% emotional journeys OK (only for "warm/meaningful" and age group 9-12)
 
-2️⃣ **ALTERSGERECHTE KONFLIKTE**:
-   - 3-5 Jahre: EINFACH + KLAR (Wolf kommt, Hexe sperrt ein, Weg verloren, Monster versteckt sich)
-   - 6-8 Jahre: Komplexer (Rätsel lösen, Verhandlungen, clevere Pläne, moralische Entscheidungen)
-   - 9-12 Jahre: Subtil (innere Konflikte, soziale Probleme, Geheimnisse, komplexe Beziehungen)
+2. AGE-APPROPRIATE CONFLICT:
+   - Ages 3-5: simple and clear (wolf arrives, witch locks in, lost path, monster hides)
+   - Ages 6-8: more complex (solve puzzles, negotiate, clever plans, moral choices)
+   - Ages 9-12: subtle (inner conflict, social problems, secrets, complex relationships)
 
-3️⃣ **VERBOTEN (führt zu schlechter Story-Qualität)**:
-   ❌ Rein philosophische Probleme ("vergessene Lieder", "verlorene Träume", "verschwundene Farben")
-   ❌ Abstrakte Konzepte ohne physische Komponente
-   ❌ Emotionale Reisen ohne klares Ziel/Hindernis (außer explizit gefordert)
-   ❌ Probleme die sich von selbst lösen
-   
-4️⃣ **PFLICHT-ELEMENTE für jede Story**:
-   ✅ Klarer Antagonist ODER konkretes Hindernis (Character, Natur, Situation)
-   ✅ Konkretes Problem das gelöst werden muss
-   ✅ Risiko/Spannung (Was passiert wenn Protagonist scheitert?)
-   ✅ Befriedigende Lösung (Protagonist überwindet Hindernis durch Mut/Cleverness/Freundschaft)
+3. FORBIDDEN (low quality):
+   - purely philosophical problems ("forgotten songs", "lost dreams", "vanished colors")
+   - abstract concepts without physical component
+   - emotional journeys without a clear goal/obstacle (unless explicitly requested)
+   - problems that solve themselves
 
-AUFGABE FUER DICH:
-1. Erstelle eine Story-Struktur mit exakt 5 Kapiteln.
-2. 🚨 **KRITISCH**: Die HAUPTFIGUREN (oben genannt) sind USER-AVATARE!
-   - Nutze ihre NAMEN DIREKT im Story-Text: "Alexander findet...", "Adrian sieht..."
-   - NIEMALS Placeholders für Avatare erstellen: ❌ {{ALEXANDER}}, {{ADRIAN}}
-   - {{PLACEHOLDER}} sind NUR für NEBENFIGUREN ({{WISE_ELDER}}, {{ANIMAL_HELPER}}, etc.)
-3. Nutze ausschliesslich {{PLACEHOLDER}} fuer Nebenfiguren und bleibe konsistent (gleicher Placeholder = gleiche Figur).
-4. Jede Kapitelbeschreibung ca. 50-80 Woerter (flexibel). Schreibe praegnant, dicht, bildlich. Kurze Saetze (3-10 Woerter). Vermeide Fuellwoerter.
-5. Kapitel 1-4 enden mit sanftem Cliffhanger oder weiterfuehrender Frage. Kapitel 5 bietet eine warme Loesung.
-6. Lasse Story-Seele, emotionale Wuerze, Tempo und Spezialzutaten bereits im Plot spuerbar werden.
-7. Fuehre fuer jede NEBENFIGUREN-Rolle emotionale Natur, wichtige Traits, visuelle Merkmale (Tierart, Beruf, Aussehen) und Kapitel-Auftritte an.
-8. Wenn Twist gefordert oder Spezialzutat es verlangt: bereite in Kapitel 4 die Wendung vor und loese sie in Kapitel 5 liebevoll ein.
-9. BEACHTE KONFLIKT-REGELN OBEN - konkrete Herausforderungen sind PFLICHT für Qualität!
+4. REQUIRED ELEMENTS:
+   - clear antagonist OR concrete obstacle (character, nature, situation)
+   - concrete problem that must be solved
+   - risk/stakes (what happens if the protagonist fails?)
+   - satisfying resolution (overcome via courage/cleverness/friendship)
 
-PLACEHOLDER-BIBLIOTHEK (nutze nur bei Bedarf, eigene sind erlaubt):
-- {{WISE_ELDER}} - weiser Mentor oder Mentorin
-- {{ANIMAL_HELPER}} - treuer tierischer Begleiter
-- {{MAGICAL_CREATURE}} - magisches Wesen
-- {{FRIENDLY_VILLAGER}} - hilfsbereite Person vor Ort
-- {{OBSTACLE_CHARACTER}} - Hindernis oder Gegenspieler
-- Eigene Placeholder im Format {{NAME}} sind erlaubt, wenn die Rolle klar beschrieben ist.
+YOUR TASK:
+1. Create a story structure with exactly 5 chapters.
+2. CRITICAL: The MAIN CHARACTERS above are USER AVATARS.
+   - Use their NAMES directly in the story text: "Alexander finds...", "Adrian sees..."
+   - NEVER create placeholders for avatars: DO NOT use {{ALEXANDER}}, {{ADRIAN}}
+   - {{PLACEHOLDER}} is ONLY for supporting characters ({{WISE_ELDER}}, {{ANIMAL_HELPER}}, etc.)
+3. Use placeholders only for supporting characters and keep them consistent (same placeholder = same character).
+4. Each chapter description around 50-80 words (flexible). Write dense, vivid, concise. Short sentences (3-10 words). Avoid filler.
+5. Chapters 1-4 end with a gentle cliffhanger or forward question. Chapter 5 provides a warm resolution.
+6. Let story soul, emotional flavor, pacing, and special ingredients already be felt in the plot.
+7. For each SUPPORTING ROLE, include emotional nature, key traits, visual hints (species/job/appearance), and chapter appearances.
+8. If a twist is requested or a special ingredient forces it: prepare in chapter 4 and resolve warmly in chapter 5.
+9. FOLLOW THE CONFLICT RULES ABOVE - concrete challenges are required for quality.
+
+PLACEHOLDER LIBRARY (use only when needed, custom allowed):
+- {{WISE_ELDER}} - wise mentor
+- {{ANIMAL_HELPER}} - loyal animal companion
+- {{MAGICAL_CREATURE}} - magical being
+- {{FRIENDLY_VILLAGER}} - helpful local person
+- {{OBSTACLE_CHARACTER}} - obstacle or antagonist
+- Custom placeholders in {{NAME}} format are allowed if the role is clear.
 
 OUTPUT (JSON):
 {
-  "title": "TITEL (2-3 Wörter optimal, max 4). Wähle mysteriöses Objekt/Ort. GUTE Beispiele: 'Der Silberfaden', 'Das Mondtor', 'Die Flüstereiche'. SCHLECHTE Beispiele: 'Brunnen', 'Alexander und...')",
+  "title": "TITLE (2-3 words ideal, max 4). Choose a mysterious object/place. GOOD: 'The Silver Thread', 'The Moon Gate', 'The Whispering Oak'. BAD: 'Well', 'Alexander and...')",
   "chapters": [
     {
       "order": 1,
-      "content": "ZIEL: 50-80 Woerter. Nutze Avatar-Namen DIREKT (Alexander, Adrian), KEINE Placeholders für sie!",
+      "content": "TARGET: 50-80 words. Use avatar names directly (Alexander, Adrian), NO placeholders for them.",
       "characterRolesNeeded": [
         {
           "placeholder": "{{WISE_ELDER}}",
           "role": "guide",
           "archetype": "helpful_elder",
           "emotionalNature": "wise",
-          "visualHints": "aelterer Mensch, Arzt/Doktor, warmherziges Auftreten",
+          "visualHints": "older human, doctor/healer, warm demeanor",
           "importance": "high",
           "inChapters": [1, 3, 5]
         }
@@ -452,26 +452,26 @@ OUTPUT (JSON):
     }
   ],
   "supportingCharacterRequirements": [
-    // ⚠️ NUR NEBENFIGUREN hier! NIEMALS Avatar-Namen (Alexander, Adrian) als Placeholders!
+    // ONLY supporting characters here! NEVER use avatar names (Alexander, Adrian) as placeholders.
     {
       "placeholder": "{{WISE_ELDER}}",
       "role": "guide",
       "archetype": "helpful_elder",
       "emotionalNature": "wise",
       "requiredTraits": ["wise", "protective", "kind"],
-      "visualHints": "aelterer Mensch, Arzt/Doktor, warmherziges Auftreten, Brille moeglich",
+      "visualHints": "older human, doctor/healer, warm demeanor, glasses possible",
       "importance": "high",
       "inChapters": [1, 3, 5]
     }
   ]
 }
 
-WICHTIG: 
-- Halte chapters[].content bei ca. 50-80 Woertern (flexibel, Qualitaet vor Laenge).
-- Fuege bei supportingCharacterRequirements immer visualHints hinzu (Tierart, Beruf, Aussehen, Kleidung)
+IMPORTANT:
+- Keep chapters[].content around 50-80 words (flexible; quality over length).
+- Always include visualHints in supportingCharacterRequirements (species, job, appearance, clothing).
 
-Achte auf klare Lernkurve fuer die Avatare, wiederkehrende Motive und eine in sich stimmige Dramaturgie. Kapitel 5 zeigt emotionale Entwicklung und erfuellt das Versprechen der Story-Seele.
-    `.trim();
+Ensure a clear learning arc for the avatars, recurring motifs, and cohesive dramatic structure. Chapter 5 shows emotional growth and fulfills the story-soul promise.
+`.trim();
   }
 
   private validateSkeletonStructure(skeleton: any): void {
