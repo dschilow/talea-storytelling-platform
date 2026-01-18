@@ -46,10 +46,11 @@ export class Phase2CharacterMatcher {
     const avatarQueue = avatarNameSource
       .map(name => name?.trim())
       .filter((name): name is string => Boolean(name))
-      .filter((name) => {
-        const key = name.toLowerCase();
-        if (seenAvatarNames.has(key)) return false;
-        seenAvatarNames.add(key);
+      .map(name => ({ name, key: this.normalizeNameKey(name) }))
+      .filter((entry) => {
+        if (!entry.key) return false;
+        if (seenAvatarNames.has(entry.key)) return false;
+        seenAvatarNames.add(entry.key);
         return true;
       });
 
@@ -231,12 +232,14 @@ export class Phase2CharacterMatcher {
       const isAvatarRole = isExplicitAvatarPlaceholder || req.role === "protagonist" || req.role === "sidekick";
 
       if (isAvatarRole && avatarQueue.length > 0) {
-        const avatarName = avatarQueue.shift();
-        if (avatarName) {
+        const avatarEntry = avatarQueue.shift();
+        if (avatarEntry) {
+          const avatarName = avatarEntry.name;
+          const avatarKey = avatarEntry.key;
           // 🔧 SPECIES-AWARENESS CHECK: Verify avatar species matches placeholder expectations
           // Load avatar details first to check species
           const fullAvatarData = avatarDetails?.find(
-            a => a.name?.toLowerCase() === avatarName.toLowerCase()
+            a => this.normalizeNameKey(a.name) === avatarKey
           );
 
           const avatarSpecies = fullAvatarData?.visualProfile?.species || "human";
@@ -251,7 +254,7 @@ export class Phase2CharacterMatcher {
             console.warn(`[Phase2] ⚠️ SPECIES MISMATCH: Avatar "${avatarName}" (human) cannot fill animal-themed placeholder "${req.placeholder}". Skipping avatar assignment - will use character pool instead.`);
             
             // Put avatar back in queue for next role
-            avatarQueue.unshift(avatarName);
+            avatarQueue.unshift(avatarEntry);
             
             // Fall through to character pool matching logic below
           } else {
@@ -505,6 +508,16 @@ export class Phase2CharacterMatcher {
       .toUpperCase();
     if (!ascii) return "";
     return `{{${ascii}}}`;
+  }
+
+  private normalizeNameKey(name?: string): string {
+    if (!name) return "";
+    return String(name)
+      .trim()
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
   }
 
   /**

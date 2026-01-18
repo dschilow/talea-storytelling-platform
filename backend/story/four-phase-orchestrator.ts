@@ -870,7 +870,7 @@ export class FourPhaseOrchestrator {
           content: chapter.content,
           imageUrl,
           order: chapter.order,
-          imagePrompt: enhancedPrompt,
+          imagePrompt: promptWithInvariants,
           imageSeed,
           imageModel,
           imageStyle: stylePreset,
@@ -913,13 +913,49 @@ export class FourPhaseOrchestrator {
    * v3.0: NOW INTEGRATES CHARACTER INVARIANTS for tooth gaps, protruding ears, etc.
    * Focuses on critical distinctive features + visual anchors
    */
+  private normalizeNameKey(name?: string): string {
+    return String(name || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+  }
+
+  private formatDisplayName(name: string): string {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return trimmed;
+    const isAllLower = trimmed === trimmed.toLowerCase();
+    const isAllUpper = trimmed === trimmed.toUpperCase();
+    if (!isAllLower && !isAllUpper) return trimmed;
+    return trimmed
+      .split(/\s+/)
+      .map(part => (part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : ""))
+      .join(" ");
+  }
+
+  private findNameIndex(haystack: string, needle: string): number {
+    if (!needle) return -1;
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\b${escaped}\\b`, "i");
+    const match = regex.exec(haystack);
+    if (match) return match.index;
+    const fallback = haystack.indexOf(needle);
+    return fallback;
+  }
+
   private extractNumericAgeFromProfile(vp: any): number | null {
     if (!vp) return null;
     if (typeof vp.ageNumeric === "number") return vp.ageNumeric;
     if (typeof vp.ageApprox === "number") return vp.ageApprox;
+    if (typeof vp.age === "number") return vp.age;
     const ageApprox = String(vp.ageApprox || "");
     const match = ageApprox.match(/\d+/);
     if (match) return parseInt(match[0], 10);
+
+    const description = String(vp.description || "");
+    const descMatch = description.match(/\b(\d{1,2})\s*(?:years?\s*old|year-old|yo|y\/o)\b/i);
+    if (descMatch) return parseInt(descMatch[1], 10);
 
     const ageApproxLower = ageApprox.toLowerCase();
     if (ageApproxLower.includes("toddler")) return 3;
@@ -955,9 +991,14 @@ export class FourPhaseOrchestrator {
 
     // 1. AGE AND GENDER (CRITICAL for size consistency)
     const numericAge = this.extractNumericAgeFromProfile(vp);
-    const ageLabel = numericAge !== null
+    const ageLabelRaw = numericAge !== null
       ? `${numericAge}-year-old`
       : (vp.ageApprox ? String(vp.ageApprox).replace(/years?\s+old/gi, "year-old").trim() : "child");
+    const ageLabel = ageLabelRaw
+      .replace(/\b(years?\s+old)\b\s+\b(years?\s+old)\b/gi, "$1")
+      .replace(/\byear-old\b\s+\byear-old\b/gi, "year-old")
+      .replace(/\s+/g, " ")
+      .trim();
     const gender = vp.gender || 'child';
     parts.push(`${ageLabel} ${gender}`.trim());
 
@@ -1058,18 +1099,23 @@ export class FourPhaseOrchestrator {
     // Build character lookup with AGE for sorting
     interface CharacterInfo {
       name: string;
+      displayName: string;
+      nameKey: string;
       description: string;
       age: number;
       species?: string;
+      orderIndex: number;
+      appearanceIndex?: number;
       invariantsMustInclude?: string[];  // NEW: Critical features
       invariantsForbidden?: string[];     // NEW: Forbidden features
     }
 
     const allCharacters = new Map<string, CharacterInfo>();
-    const avatarNameSet = new Set(avatarDetails.map(a => a.name.toLowerCase()));
+    const avatarNameSet = new Set(avatarDetails.map(a => this.normalizeNameKey(a.name)));
+    const hasPositioning = /\bPOSITIONING\s*:/i.test(cleanedDescription);
 
     // Add avatars with FULL descriptions + age + INVARIANTS
-    for (const avatar of avatarDetails) {
+    for (const [avatarIndex, avatar] of avatarDetails.entries()) {
       // v3.0: Use new method that extracts invariants from avatar description
       let visualContext = avatar.visualProfile
         ? this.visualProfileToImagePromptWithInvariants(avatar.visualProfile, avatar.description)
@@ -1116,19 +1162,29 @@ export class FourPhaseOrchestrator {
           .map(f => f.forbiddenAlternative as string);
       }
 
-      allCharacters.set(avatar.name.toLowerCase(), {
+      const nameKey = this.normalizeNameKey(avatar.name);
+      const displayName = this.formatDisplayName(avatar.name);
+      if (!nameKey) continue;
+
+      allCharacters.set(nameKey, {
         name: avatar.name,
+        displayName,
+        nameKey,
         description: visualContext,
         age,
         species,
+        orderIndex: avatarIndex,
         invariantsMustInclude,
         invariantsForbidden,
       });
     }
 
     // Add supporting characters with FULL descriptions
+    let supportingIndex = 0;
     for (const char of characterAssignments.values()) {
-      if (avatarNameSet.has(char.name.toLowerCase())) {
+      const nameKey = this.normalizeNameKey(char.name);
+      if (!nameKey) continue;
+      if (avatarNameSet.has(nameKey)) {
         continue; // Avoid overriding avatars with lower-fidelity pool data
       }
       // v3.0: Use the new method that integrates invariants
@@ -1157,20 +1213,27 @@ export class FourPhaseOrchestrator {
       const ageFromProfile = this.extractNumericAgeFromProfile(char.visualProfile);
       let age = ageFromProfile ?? this.ageCategoryToNumber(char.age_category) ?? 30;
 
-      allCharacters.set(char.name.toLowerCase(), {
+      const displayName = this.formatDisplayName(char.name);
+      allCharacters.set(nameKey, {
         name: char.name,
+        displayName,
+        nameKey,
         description: fullDesc,
         age,
         species: char.visualProfile?.species,
+        orderIndex: avatarDetails.length + supportingIndex,
       });
+      supportingIndex += 1;
     }
 
     // Extract character names mentioned in this scene
     // Note: descriptionLower already declared above (line 755)
     const charactersInScene: CharacterInfo[] = [];
 
-    for (const [charName, charInfo] of allCharacters.entries()) {
-      if (descriptionLower.includes(charName)) {
+    for (const charInfo of allCharacters.values()) {
+      const index = this.findNameIndex(descriptionLower, charInfo.nameKey);
+      if (index >= 0) {
+        charInfo.appearanceIndex = index;
         charactersInScene.push(charInfo);
       }
     }
@@ -1181,19 +1244,29 @@ export class FourPhaseOrchestrator {
       charactersInScene.push(...allCharacters.values());
     }
 
-    // CRITICAL: Sort by AGE (youngest first) to establish clear size hierarchy
-    // This prevents younger children from appearing older/bigger than older ones
-    charactersInScene.sort((a, b) => a.age - b.age);
+    // Prefer mention order for positioning; fall back to avatar order
+    const orderedCharacters = [...charactersInScene].sort((a, b) => {
+      const aIndex = typeof a.appearanceIndex === "number" ? a.appearanceIndex : -1;
+      const bIndex = typeof b.appearanceIndex === "number" ? b.appearanceIndex : -1;
+      if (aIndex === -1 && bIndex === -1) {
+        return a.orderIndex - b.orderIndex;
+      }
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
 
     // OPTIMIZATION v3.0: Add LEFT/RIGHT positioning to prevent character duplication
-    const positioningInstructions = charactersInScene.length === 2
-      ? `\nPOSITIONING: ${charactersInScene[0].name} on LEFT side, ${charactersInScene[1].name} on RIGHT side of the image.`
-      : charactersInScene.length >= 3
-        ? `\nPOSITIONING: Left to right order: ${charactersInScene.map(c => c.name).join(', ')}.`
-        : '';
+    const positioningInstructions = hasPositioning
+      ? ''
+      : orderedCharacters.length === 2
+        ? `\nPOSITIONING: ${orderedCharacters[0].displayName} on LEFT side, ${orderedCharacters[1].displayName} on RIGHT side of the image.`
+        : orderedCharacters.length >= 3
+          ? `\nPOSITIONING: Left to right order: ${orderedCharacters.map(c => c.displayName).join(', ')}.`
+          : '';
 
     // Add explicit age ordering instruction with INVARIANTS
-    const characterBlock = charactersInScene
+    const characterBlock = orderedCharacters
       .map((c, index) => {
         const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
 
@@ -1236,16 +1309,16 @@ export class FourPhaseOrchestrator {
           ? '\n  CHILD: smooth young face, NOT beard, NOT mustache, NOT facial hair, NOT hat, NOT dwarf, NOT gnome'
           : '';
 
-        return `${c.name} ${position}: ${speciesTag} ${visualId}\n  ${c.description}${mustInclude}${forbidden}${safety}`;
+        return `${c.displayName} ${position}: ${speciesTag} ${visualId}\n  ${c.description}${mustInclude}${forbidden}${safety}`;
       })
       .join("\n\n");
 
     // v3.0 FIX: Only include age order instruction for CHILD characters, use actual ages
     const childCharacters = charactersInScene.filter(c => c.age <= 18);
     const ageOrder = childCharacters.length > 1
-      ? `\nIMPORTANT: Child characters with their ages: ${childCharacters.map(c => `${c.name} (${c.age}yo)`).join(', ')}. Younger children must be SMALLER than older ones!`
+      ? `\nIMPORTANT: Child characters with their ages: ${childCharacters.map(c => `${c.displayName} (${c.age}yo)`).join(', ')}. Younger children must be SMALLER than older ones!`
       : childCharacters.length === 1
-        ? `\nIMPORTANT: ${childCharacters[0].name} is a ${childCharacters[0].age} year old child - draw as young child, NOT teenager!`
+        ? `\nIMPORTANT: ${childCharacters[0].displayName} is a ${childCharacters[0].age} year old child - draw as young child, NOT teenager!`
         : '';
 
     const totalCharacters = charactersInScene.length;
@@ -1255,6 +1328,20 @@ export class FourPhaseOrchestrator {
       const nameLower = c.name.toLowerCase();
       return speciesLower.includes('dwarf') || nameLower.includes('dwarf');
     }).length;
+    const allowPuppets = /\b(puppet|marionette|wooden boy|wooden puppet)\b/i.test(cleanedDescription);
+    const forbiddenEntities = [
+      'extra humans',
+      'extra dwarfs',
+      'extra gnomes',
+      'twins',
+      'clones',
+      'extra people',
+      'background kids',
+      'statues',
+    ];
+    if (!allowPuppets) {
+      forbiddenEntities.push('puppets', 'dolls', 'mannequins');
+    }
 
     return `
 ${cleanedDescription}
@@ -1262,7 +1349,7 @@ ${positioningInstructions}
 
 CHARACTERS IN THIS SCENE (lock face/outfit/age/POSITION):
 ${characterBlock}
-TOTAL CHARACTERS VISIBLE: ${totalCharacters}. Humans: ${totalHumans}. Dwarfs: ${totalDwarfs}. NO other humans, dwarfs, gnomes, twins, clones, dolls, statues, puppets, or background kids. If extra characters appear, remove them and leave empty space.
+TOTAL CHARACTERS VISIBLE: ${totalCharacters}. Humans: ${totalHumans}. Dwarfs: ${totalDwarfs}. NOT any ${forbiddenEntities.join(', ')}. If extra characters appear, remove them and leave empty space.
 ${ageOrder}
 
 Art style: watercolor illustration, Axel Scheffler style (The Gruffalo), slightly caricature, bold outlines, consistent character faces.
@@ -1381,26 +1468,19 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
 
     try {
       // Build cover scene description with CLEAR character positioning
-      const avatarNames = avatarDetails.map(a => a.name).join(" and ");
+      const avatarNames = avatarDetails.map(a => this.formatDisplayName(a.name)).join(" and ");
 
       // CRITICAL FIX: Filter out avatars from supporting characters to prevent duplicates
-      const avatarNamesLower = avatarDetails.map(a => a.name.toLowerCase());
+      const avatarNamesLower = avatarDetails.map(a => this.normalizeNameKey(a.name));
       const supportingCharacters = Array.from(characterAssignments.values())
-        .filter(c => !avatarNamesLower.includes(c.name.toLowerCase())) // Exclude avatars
+        .filter(c => !avatarNamesLower.includes(this.normalizeNameKey(c.name))) // Exclude avatars
         .slice(0, 2) // Include up to 2 main supporting characters
-        .map(c => c.name)
+        .map(c => this.formatDisplayName(c.name))
         .join(" and ");
-
-      // OPTIMIZATION v3.0: Clear LEFT/RIGHT positioning to prevent character duplication
-      const positioningHint = avatarDetails.length === 2
-        ? `POSITIONING: ${avatarDetails[0].name} on LEFT side, ${avatarDetails[1].name} on RIGHT side of the image.`
-        : '';
 
       const coverDescription = `
 Book cover illustration for "${story.title}".
 Main characters: ${avatarNames}${supportingCharacters ? ` with ${supportingCharacters}` : ''} in an exciting scene.
-${positioningHint}
-${story.description}
 CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twins.
       `.trim();
 
