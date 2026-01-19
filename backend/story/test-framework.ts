@@ -9,7 +9,8 @@
 
 import type { StoryConfig } from "./generate";
 import type { Avatar } from "../avatar/avatar";
-import { performVisionQA, type VisionQAExpectation, type VisionQAResult } from "./vision-qa";
+import { performVisionQA } from "./vision-qa";
+import type { VisionQAExpectation, VisionQAResult } from "./vision-qa";
 
 export interface TestImage {
   id: string;

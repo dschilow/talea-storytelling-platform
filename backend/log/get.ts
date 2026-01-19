@@ -1,5 +1,6 @@
 import { api, APIError } from "encore.dev/api";
-import { logDB, type LogRow } from "./db";
+import { logDB } from "./db";
+import type { LogRow } from "./db";
 import type { LogEntry } from "./list";
 import { getLogTableInfo } from "./table-resolver";
 

@@ -4,7 +4,8 @@
 import { api } from "encore.dev/api";
 import type { StoryConfig } from "./generate";
 import { generate } from "./generate";
-import { generateOverallReport, type OverallScoreReport } from "./phase-scorer";
+import { generateOverallReport } from "./phase-scorer";
+import type { OverallScoreReport } from "./phase-scorer";
 import { extractPhaseLogsFromDatabase } from "./analyze-phase-logs";
 import { avatarDB } from "../avatar/db";
 import crypto from "crypto";

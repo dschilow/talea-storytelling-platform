@@ -4,7 +4,8 @@
 
 import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, CharacterRequirement, CharacterAssignment } from "./types";
-import { EnhancedCharacterMatcher, type FairyTaleRoleRequirement } from "./enhanced-character-matcher";
+import { EnhancedCharacterMatcher } from "./enhanced-character-matcher";
+import type { FairyTaleRoleRequirement } from "./enhanced-character-matcher";
 import { saveGeneratedCharacterToPool } from "./save-generated-character";
 import crypto from "crypto";
 

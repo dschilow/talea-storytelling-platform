@@ -1,5 +1,6 @@
 import { api } from "encore.dev/api";
-import { logDB, type LogRow } from "./db";
+import { logDB } from "./db";
+import type { LogRow } from "./db";
 import { getLogTableInfo } from "./table-resolver";
 
 export interface LogEntry {

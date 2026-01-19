@@ -1,4 +1,4 @@
-// Phase 3: Story Finalizer with Character Injection
+ï»¿// Phase 3: Story Finalizer with Character Injection
 // Writes complete story with matched characters
 // Token Budget: ~2,000 tokens
 
@@ -8,9 +8,10 @@ import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
 import {
   describeEmotionalFlavors,
   describeSpecialIngredients,
-  type StoryExperienceContext,
 } from "./story-experience";
-import { FairyTaleSelector, type SelectedFairyTale } from "./fairy-tale-selector";
+import type { StoryExperienceContext } from "./story-experience";
+import { FairyTaleSelector } from "./fairy-tale-selector";
+import type { SelectedFairyTale } from "./fairy-tale-selector";
 import {
   FAIRY_TALE_ROLE_MAPPINGS,
   applyRoleTransformation,
@@ -496,10 +497,10 @@ export class Phase3StoryFinalizer {
   private normalizeText(text: string): string {
     if (!text) return "";
     const replacements: Record<string, string> = {
-      "Ã¤": "ä",
-      "Ã¶": "ö",
-      "Ã¼": "ü",
-      "ÃŸ": "ß",
+      "ÃƒÂ¤": "Ã¤",
+      "ÃƒÂ¶": "Ã¶",
+      "ÃƒÂ¼": "Ã¼",
+      "ÃƒÅ¸": "ÃŸ",
       "?": ""
     };
     let normalized = text;
@@ -964,11 +965,11 @@ IMPORTANT LANGUAGE INSTRUCTION:
     const randomType = types[Math.floor(Math.random() * types.length)];
 
     const artifacts = [
-      { name: "Glücksbringer", desc: "Ein magischer Talisman", effect: "Bringt Glück in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
+      { name: "GlÃ¼cksbringer", desc: "Ein magischer Talisman", effect: "Bringt GlÃ¼ck in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
       { name: "Sternenstaub-Phiole", desc: "Eine Flasche voller Sternenstaub", effect: "Leuchtet in der Dunkelheit", keywords: ["glass vial", "sparkling stardust", "cosmic glow", "ethereal particles"] },
       { name: "Weisheitskristall", desc: "Ein Kristall voller alter Weisheit", effect: "Hilft bei schwierigen Entscheidungen", keywords: ["purple crystal", "ancient wisdom", "mystical glow", "floating runes"] },
-      { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "Stärkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
-      { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt Stärke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
+      { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "StÃ¤rkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
+      { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt StÃ¤rke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
     ];
 
     const artifact = artifacts[Math.floor(Math.random() * artifacts.length)];
@@ -1001,9 +1002,9 @@ IMPORTANT LANGUAGE INSTRUCTION:
     const germanConflictPatterns = [
       /gefahr/, /bedroh/, /verfolg/, /flucht/, /kampf/, /duell/,
       /retten/, /rettung/, /falle/, /zauber/, /fluch/,
-      /gefängnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
+      /gefÃ¤ngnis/, /kerker/, /drache/, /wolf/, /hexe/, /monster/,
       /streit/, /konflikt/, /angriff/, /attacke/, /sturm/, /fluten/,
-      /hindernis/, /problem/, /schwierig/, /rätsel/, /aufgabe/, /prüfung/,
+      /hindernis/, /problem/, /schwierig/, /rÃ¤tsel/, /aufgabe/, /prÃ¼fung/,
       /angst/, /sorge/, /schreck/, /dunkel/, /schatten/, /verloren/,
       /blockiert/, /versperrt/, /suche/, /geheimnis/
     ];
@@ -1024,11 +1025,11 @@ IMPORTANT LANGUAGE INSTRUCTION:
     // French conflict patterns
     const frenchConflictPatterns = [
       /danger/, /menace/, /poursuite/, /fuite/, /combat/, /duel/,
-      /sauver/, /sauvetage/, /piège/, /magie/, /malédiction/, /sort/,
-      /prison/, /donjon/, /dragon/, /loup/, /sorcière/, /monstre/,
-      /conflit/, /attaque/, /tempête/, /inondation/, /péril/,
-      /lutte/, /bataille/, /fuir/, /chasse/, /capturer/, /défendre/,
-      /obstacle/, /défi/, /risque/, /peur/, /problème/, /difficulté/
+      /sauver/, /sauvetage/, /piÃ¨ge/, /magie/, /malÃ©diction/, /sort/,
+      /prison/, /donjon/, /dragon/, /loup/, /sorciÃ¨re/, /monstre/,
+      /conflit/, /attaque/, /tempÃªte/, /inondation/, /pÃ©ril/,
+      /lutte/, /bataille/, /fuir/, /chasse/, /capturer/, /dÃ©fendre/,
+      /obstacle/, /dÃ©fi/, /risque/, /peur/, /problÃ¨me/, /difficultÃ©/
     ];
 
     // Use all language patterns for validation (stories might be in any language)
@@ -1117,8 +1118,8 @@ IMPORTANT LANGUAGE INSTRUCTION:
       "enemy", "villain", "foe", "threat", "danger", "obstacle", "problem", "difficult", "challenge",
       "wizard", "witch", "monster", "dragon", "troll", "giant", "evil", "wicked", "menace",
         // French
-      "ennemi", "méchant", "menace", "danger", "obstacle", "problème", "difficulté", "défi",
-      "sorcier", "sorcière", "monstre", "dragon", "troll", "géant", "mal", "maléfique"
+      "ennemi", "mÃ©chant", "menace", "danger", "obstacle", "problÃ¨me", "difficultÃ©", "dÃ©fi",
+      "sorcier", "sorciÃ¨re", "monstre", "dragon", "troll", "gÃ©ant", "mal", "malÃ©fique"
     ];
     const lowerText = text.toLowerCase();
     const hasConflict = antagonistKeywords.some(k => lowerText.includes(k.toLowerCase()));
@@ -1132,23 +1133,23 @@ IMPORTANT LANGUAGE INSTRUCTION:
     if (twistRequired) {
       const twistSignals = [
         // German
-        "twist", "wendung", "ueberraschung", "überraschung", "plot twist",
+        "twist", "wendung", "ueberraschung", "Ã¼berraschung", "plot twist",
         // English
         "surprise", "unexpected", "revelation", "secret", "discover",
         // French
-        "surprise", "inattendu", "révélation", "secret", "découvrir"
+        "surprise", "inattendu", "rÃ©vÃ©lation", "secret", "dÃ©couvrir"
       ];
       const structuralTwistPatterns = [
         // German
         /ploetzlich/,
-        /plötzlich/,
+        /plÃ¶tzlich/,
         /unerwartet/,
         /auf einmal/,
         /doch dann/,
         /aber dann/,
         /stellt sich heraus/,
         /stellt sich raus/,
-        /enthüllt/,
+        /enthÃ¼llt/,
         /enthuellt/,
         /geheimnis/,
         /verwandelt sich/,
@@ -1165,11 +1166,11 @@ IMPORTANT LANGUAGE INSTRUCTION:
         /secret/,
         // French
         /soudain/,
-        /tout à coup/,
+        /tout Ã  coup/,
         /mais alors/,
         /cependant/,
-        /révèle/,
-        /découvre/,
+        /rÃ©vÃ¨le/,
+        /dÃ©couvre/,
         /transforme/,
       ];
 
@@ -1436,8 +1437,8 @@ EXAMPLE ("Der Silberfaden" story):
 ## SHOW, DON'T TELL - CORE RULE
 ------------------------------------------------------------------------------
 SHOW emotions through BODY LANGUAGE, not words:
-? "war ängstlich" ? ? "Seine Hände zitterten"
-? "war glücklich" ? ? "Ein Lächeln breitete sich aus"
+? "war Ã¤ngstlich" ? ? "Seine HÃ¤nde zitterten"
+? "war glÃ¼cklich" ? ? "Ein LÃ¤cheln breitete sich aus"
 
 ## STORY SOUL: ${(experience as any).storySoul || 'magische_entdeckung'}
 ${(experience as any).storySoul === 'wilder_ritt' ? '- Fast-paced action! Chases, puzzles, physical challenges' : ''}
@@ -1496,7 +1497,7 @@ should speak, act, and contribute in each chapter.
     {
       "order": 1,
       "title": "Chapter title (in ${targetLanguage})",
-      "content": "TARGET: 340 words (±10) - ABSOLUTE MINIMUM 330 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.! CRITICAL: Count your words BEFORE submitting! Chapters under 330 words = INSTANT REJECTION!",
+      "content": "TARGET: 340 words (Â±10) - ABSOLUTE MINIMUM 330 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.! CRITICAL: Count your words BEFORE submitting! Chapters under 330 words = INSTANT REJECTION!",
       "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
     }
     // ... 4 more chapters
@@ -1628,10 +1629,10 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     }
 
     // OPTIMIZATION v2.4: Avatar-Rollen-Schutz
-    // KRITISCH: User-Avatare dürfen NIE Antagonisten werden!
+    // KRITISCH: User-Avatare dÃ¼rfen NIE Antagonisten werden!
     // Antagonisten kommen IMMER aus dem Character Pool
     for (const role of antagonistRoles) {
-      // IMMER Character Pool für Antagonisten verwenden
+      // IMMER Character Pool fÃ¼r Antagonisten verwenden
       const poolCharacter = Array.from(assignments.values()).find((c) =>
         c.role === "antagonist" ||
         c.role === "obstacle" ||
@@ -1649,7 +1650,7 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
       } else {
         console.warn(`[Phase3] ?? No antagonist found in pool for role: ${role.roleName}`);
       }
-      // WICHTIG: avatarIndex wird NICHT erhöht - Avatare werden übersprungen!
+      // WICHTIG: avatarIndex wird NICHT erhÃ¶ht - Avatare werden Ã¼bersprungen!
     }
 
     // Map supporting roles
@@ -1679,6 +1680,7 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     return mapping;
   }
 }
+
 
 
 

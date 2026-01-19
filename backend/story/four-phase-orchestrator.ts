@@ -2,22 +2,26 @@
 // Coordinates all 4 phases: Skeleton -> Matching -> Finalization -> Images
 
 import type { StoryConfig, Chapter } from "./generate";
-import { Phase1SkeletonGenerator, type Phase1GenerationResult } from "./phase1-skeleton";
+import { Phase1SkeletonGenerator } from "./phase1-skeleton";
+import type { Phase1GenerationResult } from "./phase1-skeleton";
 import { Phase2CharacterMatcher } from "./phase2-matcher";
-import { Phase3StoryFinalizer, type Phase3FinalizationResult } from "./phase3-finalizer";
-import { FairyTaleSelector, type SelectedFairyTale } from "./fairy-tale-selector";
+import { Phase3StoryFinalizer } from "./phase3-finalizer";
+import type { Phase3FinalizationResult } from "./phase3-finalizer";
+import { FairyTaleSelector } from "./fairy-tale-selector";
+import type { SelectedFairyTale } from "./fairy-tale-selector";
 import { ai } from "~encore/clients";
 import { storyDB } from "./db";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
-import { logTopic, type LogEvent } from "../log/logger";
+import { logTopic } from "../log/logger";
+import type { LogEvent } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import {
   applyStoryExperienceToConfig,
   buildStoryExperienceContext,
   describeEmotionalFlavors,
   describeSpecialIngredients,
-  type StoryExperienceContext,
 } from "./story-experience";
+import type { StoryExperienceContext } from "./story-experience";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -30,9 +34,10 @@ import {
   buildInvariantsFromVisualProfile,
   formatInvariantsForPrompt,
   extractInvariantsFromDescription,
-  type CharacterInvariants
 } from "./character-invariants";
-import { buildCrossChapterInvariantsBlock, type AvatarProfileWithDescription } from "./image-description-enricher";
+import type { CharacterInvariants } from "./character-invariants";
+import { buildCrossChapterInvariantsBlock } from "./image-description-enricher";
+import type { AvatarProfileWithDescription } from "./image-description-enricher";
 
 interface AvatarDetail {
   id: string;
