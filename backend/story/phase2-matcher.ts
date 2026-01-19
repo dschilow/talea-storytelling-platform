@@ -245,18 +245,18 @@ export class Phase2CharacterMatcher {
 
           const avatarSpecies = fullAvatarData?.visualProfile?.species || "human";
           const placeholderUpper = req.placeholder.toUpperCase();
-          
+
           // Check if placeholder suggests animal/creature species but avatar is human (or vice versa)
           const placeholderSuggestsAnimal = placeholderUpper.includes("ANIMAL") || placeholderUpper.includes("CREATURE") || placeholderUpper.includes("PET");
           const avatarIsHuman = avatarSpecies === "human";
-          
+
           if (placeholderSuggestsAnimal && avatarIsHuman) {
             // SPECIES MISMATCH: Human avatar cannot be animal helper!
             console.warn(`[Phase2] ⚠️ SPECIES MISMATCH: Avatar "${avatarName}" (human) cannot fill animal-themed placeholder "${req.placeholder}". Skipping avatar assignment - will use character pool instead.`);
-            
+
             // Put avatar back in queue for next role
             avatarQueue.unshift(avatarEntry);
-            
+
             // Fall through to character pool matching logic below
           } else {
             // Species matches or no conflict - proceed with avatar assignment
@@ -650,8 +650,9 @@ export class Phase2CharacterMatcher {
 
       let freshness = 0;
       if (usageCount > 0) {
-        // HEAVY PENALTY for recently used characters
-        freshness = -50 * usageCount;
+        // 🔧 FIXED: MASSIVE PENALTY for recently used characters to prevent repetition
+        // Was -50, increased to -200 to override any archetype bonuses
+        freshness = -200 * usageCount;
         debugScores.freshnessPenalty = freshness;
       } else {
         // BONUS for unused characters
@@ -677,12 +678,12 @@ export class Phase2CharacterMatcher {
       // 11. TOTAL USAGE PENALTY (reduce score for overused characters)
       let usagePenalty = 0;
       if (candidate.totalUsageCount && candidate.totalUsageCount > 10) {
-        usagePenalty = Math.min((candidate.totalUsageCount - 10) * 3, 30);
+        usagePenalty = Math.min((candidate.totalUsageCount - 10) * 5, 50); // Increased penalty
         score -= usagePenalty;
         debugScores.usagePenalty = -usagePenalty;
       }
 
-      // 12. FAIRY TALE BONUS/PENALTY (CRITICAL for MÃ¤rchen stories)
+      // 12. FAIRY TALE BONUS/PENALTY (CRITICAL for Märchen stories)
       if (useFairyTaleTemplate) {
         // MASSIVE BONUS for fairy-tale archetypes
         const fairyTaleArchetypes = ['witch', 'wolf', 'fairy', 'magical_being', 'helper', 'wise_elder', 'trickster'];
@@ -741,38 +742,42 @@ export class Phase2CharacterMatcher {
       return null;
     }
 
-    // OPTIMIZATION v2.4: Random Selection bei gleichen Scores
-    // Sammle alle Kandidaten mit ähnlichen Scores (innerhalb von 3 Punkten)
-    // und wähle dann zufällig aus dieser Gruppe
-    const scoreThreshold = 3; // Alle innerhalb von 3 Punkten gelten als "gleich gut"
-    const candidatesWithEqualScore = pool.filter(c => {
+    // OPTIMIZATION v4.0: TIERED RANDOM SELECTION
+    // Instead of just picking the best score, we group valid candidates into tiers
+    // and select randomly from the top tier. This guarantees variety!
+
+    const validCandidates = pool.filter(c => {
       const score = (c as any)._matchScore || 0;
-      return score >= 60 && Math.abs(bestScore - score) <= scoreThreshold;
+      return score >= qualityThreshold;
     });
 
-    if (candidatesWithEqualScore.length > 1) {
-      // Zufällige Auswahl aus gleichwertigen Kandidaten
-      const randomIndex = Math.floor(Math.random() * candidatesWithEqualScore.length);
-      bestMatch = candidatesWithEqualScore[randomIndex];
-      console.log(`[Phase2] 🎲 Random selection from ${candidatesWithEqualScore.length} equal-score candidates (score: ${bestScore}±${scoreThreshold})`);
-    } else if (candidatesWithEqualScore.length === 1) {
-      bestMatch = candidatesWithEqualScore[0];
-    } else {
-      // Fallback: Finde den besten Match (sollte nicht passieren, aber sicherheitshalber)
-      for (const candidate of pool) {
-        const score = (candidate as any)._matchScore || 0;
-        if (score === bestScore) {
-          bestMatch = candidate;
-          break;
-        }
-      }
-    }
+    if (validCandidates.length === 0) return null;
+
+    // Sort by score descending
+    validCandidates.sort((a, b) => ((b as any)._matchScore || 0) - ((a as any)._matchScore || 0));
+
+    // Define "Top Tier" as candidates within X points of the absolute best score
+    // Was 3, INCREASED TO 25 to allow much more variety
+    const varianceThreshold = 25;
+    const topScore = (validCandidates[0] as any)._matchScore || 0;
+
+    const topTier = validCandidates.filter(c => {
+      const score = (c as any)._matchScore || 0;
+      return score >= (topScore - varianceThreshold);
+    });
+
+    console.log(`[Phase2] 🎲 Tiered Selection: found ${topTier.length} top-tier candidates (from ${validCandidates.length} valid) within ${varianceThreshold}pts of best score (${topScore})`);
+
+    // Select randomly from top tier
+    const randomIndex = Math.floor(Math.random() * topTier.length);
+    bestMatch = topTier[randomIndex];
 
     if (bestMatch) {
       console.log(`[Phase2] Match details for ${requirement.placeholder}:`, {
         character: bestMatch.name,
         totalScore: (bestMatch as any)._matchScore,
         breakdown: (bestMatch as any)._debugScores,
+        tierSize: topTier.length
       });
     }
 

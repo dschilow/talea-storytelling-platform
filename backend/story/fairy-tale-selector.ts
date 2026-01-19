@@ -99,7 +99,7 @@ export class FairyTaleSelector {
       // Get all active fairy tales (excluding recently used)
       console.log("[FairyTaleSelector] Querying fairy_tales table...");
       let tales: any[];
-      
+
       if (recentlyUsedIds.length > 0) {
         // Query with exclusion using != ALL syntax (PostgreSQL array)
         tales = await fairytalesDB.queryAll<any>`
@@ -146,7 +146,7 @@ export class FairyTaleSelector {
       scoredTales.sort((a, b) => b.score.total - a.score.total);
 
       // DEBUG: Log all scores for analysis
-      console.log("[FairyTaleSelector] Scoring results:", 
+      console.log("[FairyTaleSelector] Scoring results:",
         scoredTales.slice(0, 5).map(st => ({
           title: st.tale.title,
           score: st.score.total,
@@ -162,7 +162,7 @@ export class FairyTaleSelector {
 
       // 1. Filter good matches (Score >= 25)
       const topMatches = scoredTales.filter(st => st.score.total >= 25);
-      
+
       if (topMatches.length === 0) {
         console.warn("[FairyTaleSelector] No suitable fairy tale found (all scores < 25pt):", {
           totalTales: scoredTales.length,
@@ -181,7 +181,7 @@ export class FairyTaleSelector {
         FROM fairy_tale_usage_stats
         WHERE tale_id = ANY(${topIds})
       `;
-      
+
       const usageMap = new Map(usageStats.map(u => [u.tale_id, { count: u.usage_count, last: u.last_used_at }]));
 
       // 3. Sort with heavy penalty for recent usage (Freshness Logic)
@@ -193,13 +193,13 @@ export class FairyTaleSelector {
         const now = new Date().getTime();
         const lastA = usageA.last ? new Date(usageA.last).getTime() : 0;
         const lastB = usageB.last ? new Date(usageB.last).getTime() : 0;
-        
+
         const isRecentA = (now - lastA) < (24 * 60 * 60 * 1000); // 24h
         const isRecentB = (now - lastB) < (24 * 60 * 60 * 1000); // 24h
 
         let scoreA = a.score.total - (isRecentA ? 50 : 0);
         let scoreB = b.score.total - (isRecentB ? 50 : 0);
-        
+
         // Secondary Penalty: Total usage count (minor)
         scoreA -= (usageA.count * 2);
         scoreB -= (usageB.count * 2);
@@ -207,27 +207,35 @@ export class FairyTaleSelector {
         return scoreB - scoreA; // Descending
       });
 
-      // 4. OPTIMIZATION v2.4: Random Selection bei gleichen Scores
-      // Finde alle Kandidaten mit ähnlichen Scores (innerhalb von 5 Punkten)
-      // und wähle dann zufällig aus dieser Gruppe
-      const bestEffectiveScore = topMatches[0].score.total;
-      const scoreThreshold = 5; // Alle innerhalb von 5 Punkten gelten als "gleich gut"
-      
-      // Finde alle Kandidaten mit Score innerhalb des Thresholds
-      const equalScoreCandidates = topMatches.filter(m => 
-        Math.abs(bestEffectiveScore - m.score.total) <= scoreThreshold
-      );
-      
-      // Wenn mehrere gleich gut sind, wähle zufällig
-      const candidates = equalScoreCandidates.length > 1 
-        ? equalScoreCandidates 
-        : topMatches.slice(0, 3); // Fallback: Top 3 wenn keine gleich sind
-      
-      const pickIndex = Math.floor(Math.random() * candidates.length);
-      const selectedMatch = candidates[pickIndex];
+      // 4. OPTIMIZATION v4.0: WEIGHTED RANDOM SELECTION
+      // Instead of picking just the top 1, we pick from the Top N candidates
+      // using a weighted probability based on their score.
 
-      console.log(`[FairyTaleSelector] 🎲 Random selection from ${candidates.length} candidates (score range: ${bestEffectiveScore - scoreThreshold} - ${bestEffectiveScore})`);
-      console.log(`[FairyTaleSelector] Selected: ${selectedMatch.tale.title} (score: ${selectedMatch.score.total})`);
+      const candidatePoolSize = 10; // Consider top 10 stories
+      const candidates = topMatches.slice(0, candidatePoolSize);
+
+      if (candidates.length === 0) return null; // Should not happen given check above
+
+      console.log(`[FairyTaleSelector] 🎲 Weighted Random Selection from top ${candidates.length} candidates:`);
+      candidates.forEach((c, i) => console.log(`   ${i + 1}. ${c.tale.title} (Score: ${c.score.total})`));
+
+      // Calculate total weight (sum of scores)
+      // We raise score to power of 2 to favor higher scores slightly more
+      const weights = candidates.map(c => Math.pow(Math.max(0, c.score.total), 2));
+      const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+      let randomValue = Math.random() * totalWeight;
+      let selectedMatch = candidates[0];
+
+      for (let i = 0; i < candidates.length; i++) {
+        randomValue -= weights[i];
+        if (randomValue <= 0) {
+          selectedMatch = candidates[i];
+          break;
+        }
+      }
+
+      console.log(`[FairyTaleSelector] ✅ Selected via Weighted Randomness: ${selectedMatch.tale.title} (score: ${selectedMatch.score.total})`);
       console.log(`[FairyTaleSelector] Usage Stats: ${usageMap.get(selectedMatch.tale.id)?.count || 0}x uses`);
 
       // Update usage stats
@@ -365,7 +373,7 @@ export class FairyTaleSelector {
     // Genre match (0-30 points) with fuzzy matching
     const genreTags = this.parseJsonArray(tale.genre_tags);
     const exactMatch = genreTags.includes(config.genre);
-    
+
     // Genre mapping: Story genres (from Frontend) → Fairy tale genre_tags (in DB)
     const genreAliases: Record<string, string[]> = {
       // Frontend category IDs → DB genre_tags
@@ -375,17 +383,17 @@ export class FairyTaleSelector {
       "animals": ["animals", "nature", "forest", "creatures"],            // ✅ Tierwelten
       "scifi": ["scifi", "future", "space", "technology"],                // ✅ Sci-Fi & Zukunft
       "modern": ["modern", "realistic", "contemporary", "family"],        // ✅ Modern & Realität
-      
+
       // Backwards compatibility for internal genre names
       "fantasy": ["fantasy", "adventure", "magic", "mystery", "dark"],
       "friendship": ["moral", "teamwork", "family", "love"],
       "educational": ["moral", "learning", "wisdom"],
       "mystery": ["mystery", "puzzle", "riddle", "detective"],
     };
-    
+
     const aliases = genreAliases[config.genre.toLowerCase()] || [];
     const fuzzyMatch = aliases.some(alias => genreTags.includes(alias));
-    
+
     let genreScore = 0;
     if (exactMatch) {
       genreScore = 30; // Perfect match
