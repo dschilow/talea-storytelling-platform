@@ -299,10 +299,14 @@ function extractMustInclude(
     if (profile.skin?.tone) {
       mustInclude.push(`${profile.skin.tone} skin`);
     }
+    // CRITICAL v3.1: Explicitly require NORMAL HUMAN EARS
+    // This prevents elf ears, pointed ears, animal ears
+    mustInclude.push("normal human ears on sides of head");
+    mustInclude.push("round human ear shape");
   }
 
-  // Remove duplicates and limit to 6
-  return Array.from(new Set(mustInclude)).slice(0, 6);
+  // Remove duplicates and limit to 8 (increased from 6 for critical human features)
+  return Array.from(new Set(mustInclude)).slice(0, 8);
 }
 
 /**
@@ -360,7 +364,8 @@ function buildForbidList(
     // CRITICAL FIX: AGGRESSIVE HUMAN-GUARD against animal features
     // Per human-guard-fix.md - this prevents human characters from getting animal traits
 
-    // EARS - All types of animal ears MUST be forbidden
+    // EARS - All types of non-human ears MUST be forbidden
+    // CRITICAL v3.1: Added elf/fantasy ears after "Der Goldene Wind" cover issue
     add(
       "animal ears",
       "cat ears",
@@ -372,7 +377,18 @@ function buildForbidList(
       "pointed ears",
       "fox ears",
       "wolf ears",
-      "bunny ears"
+      "bunny ears",
+      // v3.1: CRITICAL - Elf/Fantasy ears must be explicitly forbidden
+      "elf ears",
+      "elven ears",
+      "fantasy ears",
+      "fairy ears",
+      "pointy ears",
+      "elongated ears",
+      "tapered ears",
+      "ears pointing upward",
+      "ears with pointed tips",
+      "non-human ears"
     );
 
     // TAIL - Any kind of tail MUST be forbidden
@@ -792,13 +808,16 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else {
     speciesSummary = `human child (${safeAge || "6-8 years"})`;
-    depictLine = `${safeName} must remain a human child with natural skin, hair, and facial structure.`;
+    depictLine = `${safeName} must remain a human child with natural skin, hair, and facial structure. CRITICAL: Normal round human ears on sides of head, NOT pointed, NOT elf-like.`;
     defaultMust = [
       "human skin (no fur)",
       "friendly child expression",
       "distinct facial features",
       "natural child anatomy",
       "everyday clothing",
+      // CRITICAL v3.1: Explicit human ear requirements
+      "normal round human ears",
+      "ears on sides of head (not pointed)",
     ];
     defaultForbid = [
       `duplicate ${safeName}`,
@@ -807,6 +826,11 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "cat nose",
       "fur texture on skin",
       "painted whiskers",
+      // CRITICAL v3.1: Explicit elf ear prohibition
+      "pointed ears",
+      "elf ears",
+      "elven ears",
+      "fantasy ears",
     ];
   }
 
@@ -1318,6 +1342,9 @@ export function buildCompleteImagePrompt(
   const moodSection = `MOOD: ${normalizeLanguage(moodText)}`;
 
   // Build final prompt with sections
+  // CRITICAL FOR FLUX.1: Add positive exclusions since Flux.1 Dev doesn't support negative prompts
+  const fluxExclusions = buildPositiveExclusionsForFlux(blocks);
+
   const sections = [
     charactersSection,
     sceneSection,
@@ -1332,6 +1359,8 @@ export function buildCompleteImagePrompt(
     moodSection,
     // Quality guards
     buildSpeciesGuardLine(blocks),
+    // CRITICAL: Flux.1 exclusions must be in positive prompt
+    fluxExclusions,
     normalizeLanguage(`${sceneStyle.masterStyle}. ${sceneStyle.mediumDetails}`),
     "No text or typography in image.",
   ].filter(Boolean);
@@ -1599,7 +1628,8 @@ function summarizeCharacterTraits(block: CharacterBlock): string {
 
 /**
  * Builds negative prompt from all character forbid lists
- * This ensures unwanted features are explicitly excluded
+ * NOTE: Flux.1 Dev does NOT support negative prompts, so this is only used
+ * for fallback with other models. For Flux.1, use buildPositiveExclusionsForFlux()
  */
 function buildNegativePromptFromBlocks(blocks: CharacterBlock[]): string {
   const allForbidden: string[] = [];
@@ -1618,6 +1648,41 @@ function buildNegativePromptFromBlocks(blocks: CharacterBlock[]): string {
 
   // Join with commas for Runware API
   return uniqueForbidden.join(", ");
+}
+
+/**
+ * CRITICAL FOR FLUX.1: Builds positive exclusion statements since Flux.1 Dev
+ * does NOT support negative prompts. All forbidden items must be stated
+ * positively as "WITHOUT X", "NO X", "NOT X" in the positive prompt.
+ *
+ * @returns A compact string to append to positive prompts
+ */
+export function buildPositiveExclusionsForFlux(blocks: CharacterBlock[]): string {
+  const humanBlocks = blocks.filter(b => b.species === 'human');
+  if (humanBlocks.length === 0) return "";
+
+  // CRITICAL exclusions for human characters (prioritized)
+  const criticalExclusions = [
+    // Ears - TOP PRIORITY after elf ears issue
+    "absolutely NO pointed ears",
+    "NO elf ears",
+    "NO fantasy ears",
+    "ears must be ROUND and on SIDES of head",
+    // Animal features
+    "NO animal ears on top of head",
+    "NO tail",
+    "NO fur on skin",
+    "NO whiskers",
+    "NO snout or muzzle",
+    "NO paws",
+    // General
+    "pure human anatomy only",
+  ];
+
+  // Build character-specific exclusions
+  const characterNames = humanBlocks.map(b => b.name).join(" and ");
+
+  return `[FLUX.1 CRITICAL EXCLUSIONS for ${characterNames}: ${criticalExclusions.join(", ")}]`;
 }
 
 function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
@@ -1640,7 +1705,7 @@ function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
         " and "
       )} as real quadruped cats with tails visible while ${humanNames.join(
         " and "
-      )} remain human children with no animal traits. CRITICAL HUMAN FEATURES for ${humanNames.join(" and ")}: Smooth HUMAN skin (NOT fur, NOT pelt), HUMAN ears on SIDES of head (NOT on top), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy. If in doubt: Make MORE human, LESS animal.`
+      )} remain human children with no animal traits. CRITICAL HUMAN FEATURES for ${humanNames.join(" and ")}: Smooth HUMAN skin (NOT fur, NOT pelt), NORMAL ROUND HUMAN EARS on SIDES of head (NOT pointed, NOT elf ears, NOT fantasy ears, NOT on top), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy. EARS MUST BE: round, normal, on sides of head like real human children. If in doubt: Make MORE human, LESS fantasy/elf-like.`
     );
   }
   if (catNames.length) {
@@ -1654,7 +1719,7 @@ function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
     return normalizeLanguage(
       `SPECIES GUARD Keep ${humanNames.join(
         " and "
-      )} purely human with natural skin, hair, and no animal features. CRITICAL HUMAN FEATURES: Smooth HUMAN skin (NOT fur, NOT pelt), HUMAN ears on SIDES of head (NOT on top), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy.`
+      )} purely human with natural skin, hair, and no animal or fantasy features. CRITICAL HUMAN FEATURES: Smooth HUMAN skin (NOT fur, NOT pelt), NORMAL ROUND HUMAN EARS on SIDES of head (NOT pointed, NOT elf ears, NOT fantasy ears, NOT on top of head), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy. EARS MUST BE: round, normal human ears, positioned on sides of head like real human children - absolutely NO pointed tips or fantasy shapes.`
     );
   }
   if (dogNames.length) {

@@ -172,9 +172,14 @@ export function extractCanonicalAppearance(
   const forbiddenFeatures: string[] = [];
   if (species === 'human') {
     forbiddenFeatures.push(
+      // Animal ears and tails
       'animal ears', 'cat ears', 'dog ears', 'pointed ears on top of head',
       'tail', 'any tail', 'fur', 'furry', 'paws', 'snout', 'muzzle', 'whiskers',
-      'animal features', 'anthropomorphic'
+      'animal features', 'anthropomorphic',
+      // CRITICAL v3.1: Elf/Fantasy ears explicitly forbidden
+      'elf ears', 'elven ears', 'pointed ears', 'pointy ears', 'fantasy ears',
+      'fairy ears', 'elongated ears', 'tapered ears', 'ears with pointed tips',
+      'non-human ears', 'ears pointing upward'
     );
 
     // Add color protection
@@ -226,12 +231,22 @@ export function extractCanonicalAppearance(
 /**
  * Builds a CHARACTER-FIRST prompt block that should NEVER be truncated
  * This is the core of the consistency system
+ *
+ * IMPORTANT: Since Flux.1 Dev does NOT support negative prompts,
+ * all critical exclusions are built INTO the positive prompt.
  */
 export function buildCharacterFirstBlock(
   characters: CharacterCanonicalAppearance[],
   style: ArtStyleConfig = TALEA_DEFAULT_STYLE
 ): string {
   const lines: string[] = [];
+
+  // 0. FLUX.1 CRITICAL EXCLUSIONS (at VERY TOP since Flux.1 has no negative prompts)
+  const humanChars = characters.filter(c => c.species === 'human');
+  if (humanChars.length > 0) {
+    lines.push('[CRITICAL RULES: Human characters must have NORMAL ROUND ears on SIDES of head. NO pointed/elf/fantasy ears. NO animal features.]');
+    lines.push('');
+  }
 
   // 1. STYLE DECLARATION (compact, at the very start)
   lines.push(`[STYLE: ${style.masterStyle}, ${style.lineStyle}]`);
@@ -295,8 +310,9 @@ function buildHumanCharacterLine(char: CharacterCanonicalAppearance): string {
     parts.push(`DISTINCTIVE: ${char.distinctiveFeatures.slice(0, 3).join(', ')}`);
   }
 
-  // Critical human guard
-  parts.push('MUST BE: 100% HUMAN child, NO animal features, human ears on SIDES of head');
+  // Critical human guard - ENHANCED v3.1 for elf ear prevention
+  parts.push('MUST BE: 100% HUMAN child, NO animal features, NO elf ears');
+  parts.push('EARS: NORMAL ROUND HUMAN ears on SIDES of head (NOT pointed, NOT elf-like, NOT fantasy)');
 
   return parts.join(' | ');
 }
@@ -380,11 +396,22 @@ export function buildConsistentImagePrompt(
   lines.push('QUALITY: child-safe, print-ready, no text/watermarks');
   lines.push('CRITICAL: Each character appears EXACTLY ONCE with their EXACT appearance defined above');
 
-  // Build negative prompt from all forbidden features
+  // CRITICAL FOR FLUX.1: Add positive exclusions since Flux.1 Dev doesn't support negative prompts
+  const humanChars = consistency.characters.filter(c => c.species === 'human');
+  if (humanChars.length > 0) {
+    const humanNames = humanChars.map(c => c.name).join(' and ');
+    lines.push('');
+    lines.push(`[FLUX.1 CRITICAL - ${humanNames} MUST HAVE: normal ROUND human ears on SIDES of head]`);
+    lines.push(`[ABSOLUTELY NO: pointed ears, elf ears, fantasy ears, animal ears, ears on top of head]`);
+    lines.push(`[NO: tail, fur on skin, whiskers, snout, paws - pure human anatomy only]`);
+  }
+
+  // Build negative prompt from all forbidden features (kept for non-Flux models)
   const allForbidden = new Set<string>();
   for (const char of consistency.characters) {
     char.forbiddenFeatures.forEach(f => allForbidden.add(f));
   }
+  // Standard quality issues
   allForbidden.add('duplicate characters');
   allForbidden.add('twins');
   allForbidden.add('text');
@@ -392,6 +419,12 @@ export function buildConsistentImagePrompt(
   allForbidden.add('signature');
   allForbidden.add('deformed');
   allForbidden.add('disfigured');
+  // CRITICAL v3.1: Explicitly add elf ears to global negative prompt
+  allForbidden.add('elf ears');
+  allForbidden.add('elven ears');
+  allForbidden.add('pointed ears');
+  allForbidden.add('pointy ears');
+  allForbidden.add('fantasy ears');
 
   const negativePrompt = Array.from(allForbidden).join(', ');
 
