@@ -241,10 +241,12 @@ export function buildCharacterFirstBlock(
 ): string {
   const lines: string[] = [];
 
-  // 0. FLUX.1 CRITICAL EXCLUSIONS (at VERY TOP since Flux.1 has no negative prompts)
+  // 0. FLUX.1 CRITICAL REQUIREMENTS (at VERY TOP since Flux.1 has no negative prompts)
+  // v3.6: Reworded to be POSITIVE guidance - Flux.1 responds better to "MUST HAVE" than "NO"
   const humanChars = characters.filter(c => c.species === 'human');
   if (humanChars.length > 0) {
-    lines.push('[CRITICAL RULES: Human characters must have NORMAL ROUND ears on SIDES of head. NO pointed/elf/fantasy ears. NO animal features.]');
+    const humanNames = humanChars.map(c => c.name).join(' and ');
+    lines.push(`[CRITICAL ANATOMY for ${humanNames}: MUST have round human ears positioned on SIDES of head at ear-level. Ear shape: curved outer rim with soft earlobe, exactly like real human children. 100% human child anatomy.]`);
     lines.push('');
   }
 
@@ -310,9 +312,11 @@ function buildHumanCharacterLine(char: CharacterCanonicalAppearance): string {
     parts.push(`DISTINCTIVE: ${char.distinctiveFeatures.slice(0, 3).join(', ')}`);
   }
 
-  // Critical human guard - ENHANCED v3.1 for elf ear prevention
-  parts.push('MUST BE: 100% HUMAN child, NO animal features, NO elf ears');
-  parts.push('EARS: NORMAL ROUND HUMAN ears on SIDES of head (NOT pointed, NOT elf-like, NOT fantasy)');
+  // Critical human guard - ENHANCED v3.6 for elf ear prevention
+  // FLUX.1 Dev responds better to POSITIVE descriptions than negations!
+  parts.push('MUST BE: 100% HUMAN child with natural human anatomy');
+  parts.push('EARS: Round human ears, naturally positioned on the sides of the head at ear-level, like a real human child');
+  parts.push('EAR SHAPE: Curved outer rim, soft earlobe, exactly like normal human ears');
 
   return parts.join(' | ');
 }
@@ -396,14 +400,14 @@ export function buildConsistentImagePrompt(
   lines.push('QUALITY: child-safe, print-ready, no text/watermarks');
   lines.push('CRITICAL: Each character appears EXACTLY ONCE with their EXACT appearance defined above');
 
-  // CRITICAL FOR FLUX.1: Add positive exclusions since Flux.1 Dev doesn't support negative prompts
+  // CRITICAL FOR FLUX.1 v3.6: Use POSITIVE guidance - Flux.1 responds better to descriptions than negations
   const humanChars = consistency.characters.filter(c => c.species === 'human');
   if (humanChars.length > 0) {
     const humanNames = humanChars.map(c => c.name).join(' and ');
     lines.push('');
-    lines.push(`[FLUX.1 CRITICAL - ${humanNames} MUST HAVE: normal ROUND human ears on SIDES of head]`);
-    lines.push(`[ABSOLUTELY NO: pointed ears, elf ears, fantasy ears, animal ears, ears on top of head]`);
-    lines.push(`[NO: tail, fur on skin, whiskers, snout, paws - pure human anatomy only]`);
+    lines.push(`[ANATOMY REQUIREMENT for ${humanNames}:]`);
+    lines.push(`EARS: Round human ears with curved outer rim and soft earlobe, positioned on sides of head at ear-level.`);
+    lines.push(`BODY: Pure human child anatomy - smooth skin, human hands with 5 fingers, human feet.`);
   }
 
   // Build negative prompt from all forbidden features (kept for non-Flux models)

@@ -807,17 +807,19 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
     defaultMust = ["natural body silhouette"];
     defaultForbid = ["standing upright", "wearing clothes", `duplicate ${safeName}`];
   } else {
+    // v3.6: Rewritten with POSITIVE guidance for Flux.1 Dev
     speciesSummary = `human child (${safeAge || "6-8 years"})`;
-    depictLine = `${safeName} must remain a human child with natural skin, hair, and facial structure. CRITICAL: Normal round human ears on sides of head, NOT pointed, NOT elf-like.`;
+    depictLine = `${safeName} is a human child with natural skin, hair, and facial structure. Ears: round human ears with curved outer rim and soft earlobe, positioned on sides of head at ear-level.`;
     defaultMust = [
-      "human skin (no fur)",
+      "smooth human skin",
       "friendly child expression",
       "distinct facial features",
       "natural child anatomy",
       "everyday clothing",
-      // CRITICAL v3.1: Explicit human ear requirements
-      "normal round human ears",
-      "ears on sides of head (not pointed)",
+      // CRITICAL v3.6: POSITIVE ear description (Flux.1 responds better to this)
+      "round human ears with curved outer rim",
+      "ears positioned on sides of head at ear-level",
+      "ear shape like real human children",
     ];
     defaultForbid = [
       `duplicate ${safeName}`,
@@ -826,10 +828,9 @@ export function formatCharacterBlockAsPrompt(block: CharacterBlock): string {
       "cat nose",
       "fur texture on skin",
       "painted whiskers",
-      // CRITICAL v3.1: Explicit elf ear prohibition
+      // v3.6: Keep these for non-Flux models, but rely on POSITIVE guidance for Flux.1
       "pointed ears",
       "elf ears",
-      "elven ears",
       "fantasy ears",
     ];
   }
@@ -1651,9 +1652,11 @@ function buildNegativePromptFromBlocks(blocks: CharacterBlock[]): string {
 }
 
 /**
- * CRITICAL FOR FLUX.1: Builds positive exclusion statements since Flux.1 Dev
- * does NOT support negative prompts. All forbidden items must be stated
- * positively as "WITHOUT X", "NO X", "NOT X" in the positive prompt.
+ * CRITICAL FOR FLUX.1 v3.6: Builds POSITIVE anatomy guidance since Flux.1 Dev
+ * does NOT support negative prompts and responds poorly to "NO X" statements.
+ *
+ * Instead of saying "NO elf ears", we describe what SHOULD be there:
+ * "round human ears positioned on sides of head at ear-level"
  *
  * @returns A compact string to append to positive prompts
  */
@@ -1661,28 +1664,23 @@ export function buildPositiveExclusionsForFlux(blocks: CharacterBlock[]): string
   const humanBlocks = blocks.filter(b => b.species === 'human');
   if (humanBlocks.length === 0) return "";
 
-  // CRITICAL exclusions for human characters (prioritized)
-  const criticalExclusions = [
-    // Ears - TOP PRIORITY after elf ears issue
-    "absolutely NO pointed ears",
-    "NO elf ears",
-    "NO fantasy ears",
-    "ears must be ROUND and on SIDES of head",
-    // Animal features
-    "NO animal ears on top of head",
-    "NO tail",
-    "NO fur on skin",
-    "NO whiskers",
-    "NO snout or muzzle",
-    "NO paws",
+  // v3.6: POSITIVE guidance for human characters - Flux.1 responds better to this!
+  const positiveGuidance = [
+    // Ears - POSITIVE description (not "NO elf ears")
+    "EARS: round human ears with curved outer rim and soft earlobe",
+    "ear position: on sides of head at ear-level like real human children",
+    // Human anatomy - POSITIVE description
+    "smooth human skin",
+    "human hands with 5 fingers",
+    "human feet with toes",
     // General
-    "pure human anatomy only",
+    "100% human child anatomy",
   ];
 
-  // Build character-specific exclusions
+  // Build character-specific positive guidance
   const characterNames = humanBlocks.map(b => b.name).join(" and ");
 
-  return `[FLUX.1 CRITICAL EXCLUSIONS for ${characterNames}: ${criticalExclusions.join(", ")}]`;
+  return `[ANATOMY REQUIREMENTS for ${characterNames}: ${positiveGuidance.join(", ")}]`;
 }
 
 function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
@@ -1699,27 +1697,20 @@ function buildSpeciesGuardLine(blocks: CharacterBlock[]): string {
     .filter((b) => b.species === "animal")
     .map((b) => normalizeLanguage(b.name));
 
+  // v3.6: Rewritten to use POSITIVE guidance - Flux.1 Dev responds better to "MUST HAVE" than "NO X"
   if (catNames.length && humanNames.length) {
     return normalizeLanguage(
-      `SPECIES GUARD Keep ${catNames.join(
-        " and "
-      )} as real quadruped cats with tails visible while ${humanNames.join(
-        " and "
-      )} remain human children with no animal traits. CRITICAL HUMAN FEATURES for ${humanNames.join(" and ")}: Smooth HUMAN skin (NOT fur, NOT pelt), NORMAL ROUND HUMAN EARS on SIDES of head (NOT pointed, NOT elf ears, NOT fantasy ears, NOT on top), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy. EARS MUST BE: round, normal, on sides of head like real human children. If in doubt: Make MORE human, LESS fantasy/elf-like.`
+      `SPECIES GUARD: ${catNames.join(" and ")} are real quadruped cats with visible tails. ${humanNames.join(" and ")} are human children with: smooth human skin, round human ears with curved outer rim positioned on sides of head at ear-level, human hands with 5 fingers, human feet with toes. Ear shape for humans: like real human children - curved outer edge, soft earlobe.`
     );
   }
   if (catNames.length) {
     return normalizeLanguage(
-      `SPECIES GUARD Keep ${catNames.join(
-        " and "
-      )} as non-anthropomorphic cats on four paws with whiskers and tails visible.`
+      `SPECIES GUARD: ${catNames.join(" and ")} are non-anthropomorphic cats on four paws with whiskers and tails visible.`
     );
   }
   if (humanNames.length) {
     return normalizeLanguage(
-      `SPECIES GUARD Keep ${humanNames.join(
-        " and "
-      )} purely human with natural skin, hair, and no animal or fantasy features. CRITICAL HUMAN FEATURES: Smooth HUMAN skin (NOT fur, NOT pelt), NORMAL ROUND HUMAN EARS on SIDES of head (NOT pointed, NOT elf ears, NOT fantasy ears, NOT on top of head), Normal HUMAN hands with 5 fingers (NOT paws), Normal HUMAN feet with toes (NOT paws), NO tail, NO appendages from back/rear, 100% HUMAN child anatomy. EARS MUST BE: round, normal human ears, positioned on sides of head like real human children - absolutely NO pointed tips or fantasy shapes.`
+      `SPECIES GUARD for ${humanNames.join(" and ")}: Human children with smooth human skin, round human ears positioned on sides of head at ear-level (curved outer rim, soft earlobe - exactly like real human children), human hands with 5 fingers, human feet with toes. 100% human child anatomy.`
     );
   }
   if (dogNames.length) {

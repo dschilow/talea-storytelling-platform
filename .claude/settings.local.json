@@ -29,7 +29,8 @@
       "Bash(timeout /t 10 /nobreak)",
       "Bash(nul)",
       "Bash(git rm:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(encore check:*)"
     ],
     "deny": [],
     "ask": []

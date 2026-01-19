@@ -101,8 +101,10 @@ export const COMMON_INVARIANT_FEATURES: Record<string, Omit<InvariantFeature, 'i
   },
   'prominent_ears': {
     category: 'facial',
-    promptDescription: 'noticeably protruding ears, standing out from head',
-    mustIncludeToken: 'prominent protruding ears',
+    // CRITICAL v3.6: Reworded to prevent Flux.1 from generating elf ears!
+    // Flux.1 Dev may interpret "protruding" as "pointed/elf-like"
+    promptDescription: 'ears that stick out slightly from the head (round human ears, NOT pointed, NOT elf-like)',
+    mustIncludeToken: 'ears sticking out from head (round human ears)',
     forbiddenAlternative: 'flat ears against head',
     priority: 1,
     labelDe: 'Abstehende Ohren'

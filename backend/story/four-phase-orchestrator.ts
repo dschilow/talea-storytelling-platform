@@ -861,6 +861,18 @@ export class FourPhaseOrchestrator {
     const ageEnforcement = buildExplicitAgeEnforcement(charactersForAgeBlock);
     console.log(`[4-Phase] 📋 Age block: ${compactAgeBlock}`);
 
+    // CRITICAL v3.6: Build Flux.1 human ear guard (Flux.1 Dev ignores negative prompts!)
+    // This MUST be at the TOP of the prompt for maximum effect
+    const humanAvatars = avatarDetails.filter(av => {
+      const profile = av.visualProfile as any;
+      const charType = profile?.characterType?.toLowerCase() || '';
+      return !charType.includes('animal') && !charType.includes('creature');
+    });
+    const flux1HumanGuard = humanAvatars.length > 0
+      ? `[FLUX.1 CRITICAL FOR ${humanAvatars.map(a => a.name).join(' AND ')}: MUST have normal ROUND human ears on SIDES of head. Ears must be naturally positioned at ear-level, NOT pointed, NOT elf-like, NOT fantasy-shaped. 100% human child anatomy.]`
+      : '';
+    console.log(`[4-Phase] 👂 Flux.1 Human Guard: ${flux1HumanGuard ? 'ACTIVE' : 'N/A (no humans)'}`);
+
     // Generate all images in parallel for speed
     const imagePromises = story.chapters.map(async (chapter, chapterIndex) => {
       try {
@@ -871,8 +883,8 @@ export class FourPhaseOrchestrator {
           characterAssignments
         );
 
-        // OPTIMIZATION v3.0: Prepend compact age block + character invariants
-        const promptWithAgeFirst = `${compactAgeBlock}\n${ageEnforcement}\n\n${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
+        // OPTIMIZATION v3.6: Prepend ALL consistency blocks including Flux.1 human guard
+        const promptWithAgeFirst = `${compactAgeBlock}\n${ageEnforcement}\n${flux1HumanGuard}\n\n${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
         const promptForModel = this.clampPositivePrompt(promptWithAgeFirst);
 
         // CRITICAL FIX v3.0: Use CONSISTENT seed with small offset for scene variation
@@ -1594,12 +1606,52 @@ Main characters: ${avatarNames}${supportingCharacters ? ` with ${supportingChara
 CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twins.
       `.trim();
 
+      // CRITICAL FIX v3.6: Cover MUST have same consistency blocks as chapters!
+      // Build age block for cover (same as chapters)
+      const charactersForAgeBlock: CharacterWithHeight[] = avatarDetails.map(av => {
+        const profile = av.visualProfile as any;
+        return {
+          name: av.name,
+          ageNumeric: profile?.ageNumeric || profile?.age,
+          ageApprox: profile?.ageApprox,
+          heightCm: profile?.heightCm || profile?.height,
+          species: profile?.characterType?.toLowerCase().includes('animal') ? 'animal' : 'human',
+        };
+      });
+      const compactAgeBlock = buildCompactAgeBlock(charactersForAgeBlock);
+      const ageEnforcement = buildExplicitAgeEnforcement(charactersForAgeBlock);
+
+      // Build cross-chapter invariants block (same as chapters)
+      const avatarProfilesWithDesc: Record<string, AvatarProfileWithDescription> = {};
+      for (const avatar of avatarDetails) {
+        if (avatar.visualProfile) {
+          avatarProfilesWithDesc[avatar.name] = {
+            profile: avatar.visualProfile as AvatarVisualProfile,
+            description: avatar.description
+          };
+        }
+      }
+      const crossChapterInvariantsBlock = buildCrossChapterInvariantsBlock(avatarProfilesWithDesc);
+
+      // CRITICAL v3.6: Build Flux.1 human ear guard (Flux.1 Dev ignores negative prompts!)
+      const humanAvatars = avatarDetails.filter(av => {
+        const profile = av.visualProfile as any;
+        const charType = profile?.characterType?.toLowerCase() || '';
+        return !charType.includes('animal') && !charType.includes('creature');
+      });
+      const flux1HumanGuard = humanAvatars.length > 0
+        ? `[FLUX.1 CRITICAL FOR ${humanAvatars.map(a => a.name).join(' AND ')}: MUST have normal ROUND human ears on SIDES of head. Ears must be naturally positioned at ear-level, NOT pointed, NOT elf-like, NOT fantasy-shaped. 100% human child anatomy.]`
+        : '';
+
       const enhancedPrompt = this.buildEnhancedImagePrompt(
         coverDescription,
         avatarDetails,
         characterAssignments
       );
-      const promptForModel = this.clampPositivePrompt(enhancedPrompt);
+
+      // CRITICAL v3.6: Prepend ALL consistency blocks (same format as chapters!)
+      const promptWithConsistency = `${compactAgeBlock}\n${ageEnforcement}\n${flux1HumanGuard}\n\n${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
+      const promptForModel = this.clampPositivePrompt(promptWithConsistency);
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
       const stylePreset = "watercolor_storybook";
