@@ -494,18 +494,15 @@ export class Phase3StoryFinalizer {
   /**
    * Normalize text to safe UTF-8 (NFC) and fix common mojibake for German umlauts.
    */
-  private normalizeText(text: string): string {
+    private normalizeText(text: string): string {
     if (!text) return "";
-    const replacements: Record<string, string> = {
-      "Ã¤": "ä",
-      "Ã¶": "ö",
-      "Ã¼": "ü",
-      "ÃŸ": "ß",
-      "?": ""
-    };
+    const replacements: Array<[string, string]> = [
+      ["\uFFFD", ""],
+    ];
     let normalized = text;
-    for (const [bad, good] of Object.entries(replacements)) {
-      normalized = normalized.replace(new RegExp(bad, "g"), good);
+    for (const [bad, good] of replacements) {
+      if (!bad) continue;
+      normalized = normalized.split(bad).join(good);
     }
     return normalized.normalize("NFC");
   }
@@ -1680,6 +1677,9 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     return mapping;
   }
 }
+
+
+
 
 
 
