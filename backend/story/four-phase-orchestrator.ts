@@ -842,6 +842,7 @@ export class FourPhaseOrchestrator {
 
         // NEW v2.0: Append cross-chapter invariants block to EVERY image prompt
         const promptWithInvariants = `${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
+        const promptForModel = this.clampPositivePrompt(promptWithInvariants);
 
         const imageSeed = Math.floor(Math.random() * 1_000_000_000);
         const imageModel = "ai.generateImage-default";
@@ -867,7 +868,7 @@ export class FourPhaseOrchestrator {
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(promptWithInvariants, imageSeed, negativePrompt);
+        const imageUrl = await this.generateImage(promptForModel, imageSeed, negativePrompt);
 
         return {
           id: crypto.randomUUID(),
@@ -875,7 +876,7 @@ export class FourPhaseOrchestrator {
           content: chapter.content,
           imageUrl,
           order: chapter.order,
-          imagePrompt: promptWithInvariants,
+          imagePrompt: promptForModel,
           imageSeed,
           imageModel,
           imageStyle: stylePreset,
@@ -1363,6 +1364,70 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
     `.trim();
   }
 
+  private clampPositivePrompt(prompt: string, maxLength = 3000): string {
+    let result = String(prompt || "").trim();
+    if (result.length <= maxLength) return result;
+
+    const originalLength = result.length;
+
+    // Remove cross-chapter invariants block first (appended at the end)
+    result = result.replace(/\nCHARACTER INVARIANTS[\s\S]*$/i, "").trim();
+    if (result.length <= maxLength) {
+      console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (removed invariants block)`);
+      return result;
+    }
+
+    // Collapse excessive whitespace to save space
+    result = result.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+    if (result.length <= maxLength) {
+      console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (collapsed whitespace)`);
+      return result;
+    }
+
+    // Preserve character block by trimming the scene description if needed
+    const marker = "\nCHARACTERS IN THIS SCENE";
+    const markerIndex = result.indexOf(marker);
+    if (markerIndex > -1) {
+      const rest = result.slice(markerIndex);
+      let pre = result.slice(0, markerIndex);
+      const allowedPre = Math.max(200, maxLength - rest.length - 3);
+      if (pre.length > allowedPre) {
+        pre = pre.slice(0, allowedPre).trimEnd() + "...";
+        result = (pre + rest).trim();
+      }
+      if (result.length <= maxLength) {
+        console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (shortened scene)`);
+        return result;
+      }
+    }
+
+    // Remove lower-priority lines to fit the limit
+    const lineRemovals: RegExp[] = [
+      /\nCRITICAL ANTI-DUPLICATION:[^\n]*/i,
+      /\nIMPORTANT: Keep each character's face[^\n]*/i,
+      /\nTOTAL CHARACTERS VISIBLE:[^\n]*/i,
+      /\nArt style:[^\n]*/i,
+    ];
+    for (const pattern of lineRemovals) {
+      const next = result.replace(pattern, "").trim();
+      if (next.length !== result.length) {
+        result = next;
+        if (result.length <= maxLength) {
+          console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (removed low-priority lines)`);
+          return result;
+        }
+      }
+    }
+
+    // Hard truncate as a last resort
+    if (result.length > maxLength) {
+      result = result.slice(0, Math.max(2, maxLength - 3)).trimEnd() + "...";
+      console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (hard truncate)`);
+    }
+
+    return result;
+  }
+
   /**
    * Helper to patch character assignments with updated data from JSON logs
    */
@@ -1494,6 +1559,7 @@ CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twin
         avatarDetails,
         characterAssignments
       );
+      const promptForModel = this.clampPositivePrompt(enhancedPrompt);
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
       const stylePreset = "watercolor_storybook";
@@ -1506,10 +1572,10 @@ CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twin
         "beard on children, hat on children, dwarfified kids, child with beard",
         "mislabeled species, wrong species, swapped species, puppet, mannequin"
       ].join(", ");
-      const imageUrl = await this.generateImage(enhancedPrompt, seed, negativePrompt);
+      const imageUrl = await this.generateImage(promptForModel, seed, negativePrompt);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
-      return { url: imageUrl, prompt: enhancedPrompt };
+      return { url: imageUrl, prompt: promptForModel };
     } catch (error) {
       console.error("[4-Phase] Failed to generate cover image:", error);
       return undefined;
