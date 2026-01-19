@@ -7,7 +7,7 @@ const runwareApiKey = secret("RunwareApiKey");
 
 export interface ImageGenerationRequest {
   prompt: string;
-  negativePrompt?: string; // NEW: Explicit negative prompts to avoid unwanted features
+  negativePrompt?: string; // Explicit negative prompts to avoid unwanted features
   model?: string;
   width?: number;
   height?: number;
@@ -15,6 +15,10 @@ export interface ImageGenerationRequest {
   CFGScale?: number;
   seed?: number;
   outputFormat?: "WEBP" | "PNG" | "JPEG";
+  /** OPTIMIZATION v3.0: Reference images for IP-Adapter character consistency */
+  referenceImages?: string[];
+  /** IP-Adapter weight (0.0-1.0) - higher = more similar to reference */
+  ipAdapterWeight?: number;
 }
 
 export interface DebugInfo {
@@ -71,8 +75,19 @@ export interface BatchGenerationResponse {
 
 // Internal helper that actually calls Runware and returns the parsed image.
 // Use this helper for intra-service calls to avoid HTTP overhead.
+// OPTIMIZATION v3.0: Now supports reference images for IP-Adapter character consistency
 export async function runwareGenerateImage(req: ImageGenerationRequest): Promise<ImageGenerationResponse> {
   const startTime = Date.now();
+
+  // Process reference images for IP-Adapter if provided
+  const refImagesBase64 = (req.referenceImages ?? [])
+    .map(stripDataUrl)
+    .filter((s): s is string => !!s && s.length > 0)
+    .slice(0, 3); // Max 3 reference images
+
+  const hasReferences = refImagesBase64.length > 0;
+  const ipAdapterWeight = req.ipAdapterWeight ?? 0.75;
+
   const debugInfo: DebugInfo = {
     requestSent: null,
     responseReceived: null,
@@ -82,15 +97,15 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     contentType: "",
     extractedFromPath: "",
     responseStatus: 0,
-    referencesCount: 0, // Keine Referenzbilder mehr
+    referencesCount: refImagesBase64.length,
   };
 
-  const requestBody = {
+  const requestBody: Record<string, any> = {
     taskType: "imageInference",
     taskUUID: crypto.randomUUID(),
     model: req.model || "runware:101@1",
     numberResults: 1,
-    outputType: ["base64Data"],  // FIXED: Runware expects "base64Data", not "BASE64"
+    outputType: ["base64Data"],
     outputFormat: req.outputFormat || "JPEG",
     outputQuality: 85,
     width: normalizeToMultiple64(req.width ?? 1024),
@@ -105,10 +120,29 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     ...(req.negativePrompt && req.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(req.negativePrompt) } : {}),
   };
 
+  // OPTIMIZATION v3.0: Add IP-Adapter for character consistency
+  if (hasReferences) {
+    requestBody.ipAdapters = [{
+      model: "runware:105@1",
+      guideImage: refImagesBase64[0],
+      weight: ipAdapterWeight
+    }];
+    requestBody.referenceImages = refImagesBase64;
+    requestBody.conditioning = "reference";
+    requestBody.conditioningWeight = ipAdapterWeight;
+    console.log(`[Runware] Using IP-Adapter with ${refImagesBase64.length} reference images (weight: ${ipAdapterWeight})`);
+  }
+
   try {
-    console.log(`[Runware] Generating image without reference images`);
-    debugInfo.requestSent = { ...requestBody };
-    console.log("[Runware] Request (sanitized):", JSON.stringify(debugInfo.requestSent, null, 2));
+    console.log(`[Runware] Generating image ${hasReferences ? 'WITH' : 'without'} reference images`);
+    // Sanitize request for logging (don't log full base64 images)
+    const sanitizedRequest = {
+      ...requestBody,
+      ipAdapters: requestBody.ipAdapters ? `[IP-Adapter enabled, weight: ${ipAdapterWeight}]` : undefined,
+      referenceImages: hasReferences ? `[${refImagesBase64.length} refs]` : undefined,
+    };
+    debugInfo.requestSent = sanitizedRequest;
+    console.log("[Runware] Request (sanitized):", JSON.stringify(sanitizedRequest, null, 2));
 
     const res = await fetch("https://api.runware.ai/v1", {
       method: "POST",

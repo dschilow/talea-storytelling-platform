@@ -277,3 +277,99 @@ ${characterName} (HUMAN child, ${ageDisplay}${heightCm ? `, ${heightCm}cm` : ''}
     ${heightCm && heightCm < 130 ? `- Must be CLEARLY SHORT for a child.` : ''}
   `.trim();
 }
+
+/**
+ * OPTIMIZATION v3.0: Builds a COMPACT, HIGH-PRIORITY age block for prompt START
+ * This should be placed at the VERY BEGINNING of any image prompt
+ * Format: [AGE: Name=Xyo/Ycm | Name2=Xyo/Ycm]
+ */
+export function buildCompactAgeBlock(
+  characters: CharacterWithHeight[]
+): string {
+  const humans = characters.filter(c => c.species === 'human');
+  if (humans.length === 0) return "";
+
+  // Sort by height/age for clear visual hierarchy
+  const sorted = [...humans].sort((a, b) => {
+    if (a.heightCm && b.heightCm) return a.heightCm - b.heightCm;
+    const ageA = a.ageNumeric || a.age || extractAge(a.ageApprox) || 6;
+    const ageB = b.ageNumeric || b.age || extractAge(b.ageApprox) || 6;
+    return ageA - ageB;
+  });
+
+  const entries = sorted.map(c => {
+    const age = c.ageNumeric || c.age || extractAge(c.ageApprox);
+    const height = c.heightCm;
+    const parts: string[] = [c.name];
+    if (age) parts.push(`${age}yo`);
+    if (height) parts.push(`${height}cm`);
+    return parts.join('=');
+  });
+
+  // Add height relationship if we have 2+ characters with explicit data
+  let relationship = "";
+  if (sorted.length >= 2) {
+    const shortest = sorted[0];
+    const tallest = sorted[sorted.length - 1];
+    if (shortest.heightCm && tallest.heightCm && shortest.heightCm < tallest.heightCm) {
+      const diff = tallest.heightCm - shortest.heightCm;
+      relationship = ` | ${shortest.name} ${diff}cm SHORTER than ${tallest.name}`;
+    } else {
+      const shortestAge = shortest.ageNumeric || shortest.age || extractAge(shortest.ageApprox) || 6;
+      const tallestAge = tallest.ageNumeric || tallest.age || extractAge(tallest.ageApprox) || 8;
+      if (shortestAge < tallestAge) {
+        relationship = ` | ${shortest.name} YOUNGER/SHORTER than ${tallest.name}`;
+      }
+    }
+  }
+
+  return `[AGES: ${entries.join(' | ')}${relationship}]`;
+}
+
+/**
+ * OPTIMIZATION v3.0: Builds explicit age enforcement text
+ * This is a STRONG, unambiguous age statement for maximum model compliance
+ */
+export function buildExplicitAgeEnforcement(
+  characters: CharacterWithHeight[]
+): string {
+  const humans = characters.filter(c => c.species === 'human');
+  if (humans.length === 0) return "";
+
+  const lines: string[] = ['⚠️ MANDATORY AGE REQUIREMENTS ⚠️'];
+
+  humans.forEach(c => {
+    const age = c.ageNumeric || c.age || extractAge(c.ageApprox);
+    const height = c.heightCm;
+
+    if (age) {
+      let ageDescription: string;
+      if (age <= 5) {
+        ageDescription = `TODDLER/PRESCHOOLER (${age} years) - very small, chubby cheeks, large head ratio`;
+      } else if (age <= 8) {
+        ageDescription = `YOUNG CHILD (${age} years) - small, childish features, NOT pre-teen`;
+      } else if (age <= 12) {
+        ageDescription = `OLDER CHILD (${age} years) - child proportions, NOT teenager`;
+      } else {
+        ageDescription = `PRE-TEEN (${age} years)`;
+      }
+
+      lines.push(`${c.name}: ${ageDescription}${height ? `, exactly ${height}cm tall` : ''}`);
+    }
+  });
+
+  // Add comparison rule for multiple characters
+  if (humans.length >= 2) {
+    const sorted = [...humans].sort((a, b) => {
+      const ageA = a.ageNumeric || a.age || extractAge(a.ageApprox) || 6;
+      const ageB = b.ageNumeric || b.age || extractAge(b.ageApprox) || 6;
+      return ageA - ageB;
+    });
+
+    const youngest = sorted[0];
+    const oldest = sorted[sorted.length - 1];
+    lines.push(`RULE: ${youngest.name} MUST appear visibly YOUNGER and SMALLER than ${oldest.name}`);
+  }
+
+  return lines.join('\n');
+}

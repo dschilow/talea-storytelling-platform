@@ -38,7 +38,19 @@ import {
   type VisionQAExpectation,
   type VisionQAResult,
 } from "./vision-qa";
+import {
+  createStoryConsistency,
+  buildCharacterFirstBlock,
+  smartClampPrompt,
+  logConsistencyStatus,
+  type StoryCharacterConsistency,
+  TALEA_DEFAULT_STYLE,
+} from "./image-consistency-system";
 
+/**
+ * OPTIMIZED v3.0: Smart prompt clamping that NEVER removes character identity blocks
+ * Character details at the START of prompt are preserved, scene details at END can be truncated
+ */
 function clampRunwarePrompt(prompt: string, maxLength = 2800): string {
   if (!prompt) {
     return "";
@@ -46,6 +58,51 @@ function clampRunwarePrompt(prompt: string, maxLength = 2800): string {
   if (prompt.length <= maxLength) {
     return prompt;
   }
+
+  // Check if prompt uses new CHARACTER block format
+  if (prompt.includes('=== CHARACTERS') || prompt.includes('[STYLE:')) {
+    return smartClampPrompt(prompt, maxLength);
+  }
+
+  // Legacy format: Try to preserve CHARACTERS section
+  const charactersMarker = 'CHARACTERS:';
+  const charactersIndex = prompt.indexOf(charactersMarker);
+
+  if (charactersIndex !== -1) {
+    // Find end of characters section (next major section or double newline)
+    const afterCharacters = prompt.substring(charactersIndex);
+    const nextSectionMatch = afterCharacters.match(/\n\n[A-Z]+:/);
+    const charactersEndIndex = nextSectionMatch
+      ? charactersIndex + (nextSectionMatch.index || afterCharacters.length)
+      : charactersIndex + Math.min(800, afterCharacters.length);
+
+    const characterBlock = prompt.substring(0, charactersEndIndex);
+    const restOfPrompt = prompt.substring(charactersEndIndex);
+
+    // Calculate how much space we have for the rest
+    const availableForRest = maxLength - characterBlock.length - 10;
+
+    if (availableForRest > 100) {
+      const truncatedRest = restOfPrompt.substring(0, availableForRest);
+      const lastGoodBreak = Math.max(
+        truncatedRest.lastIndexOf('.'),
+        truncatedRest.lastIndexOf('\n'),
+        truncatedRest.lastIndexOf(',')
+      );
+      const cleanRest = lastGoodBreak > availableForRest * 0.5
+        ? truncatedRest.substring(0, lastGoodBreak + 1)
+        : truncatedRest;
+
+      console.log(`[clampRunwarePrompt] Preserved character block (${characterBlock.length} chars), truncated scene details`);
+      return (characterBlock + cleanRest).trimEnd() + '...';
+    }
+
+    // Character block alone is too long, return it truncated
+    console.warn(`[clampRunwarePrompt] Character block too long, hard truncating`);
+    return characterBlock.substring(0, maxLength - 3) + '...';
+  }
+
+  // Fallback: simple truncation at good break point
   const sliced = prompt.slice(0, maxLength);
   const lastSeparator = Math.max(
     sliced.lastIndexOf("."),
@@ -816,15 +873,41 @@ export const generateStoryContent = api<
 
       // OPTIMIZATION v1.0: Upgrade profiles with versioning and prepare for CHARACTER-BLOCKS
       const versionedProfiles: Record<string, MinimalAvatarProfile> = {};
-      
+
       Object.entries(avatarProfilesByName).forEach(([name, profile]) => {
         const versioned = upgradeProfileWithVersion(profile);
         versionedProfiles[name] = versioned;
       });
 
-      const seedBase = deterministicSeedFrom(avatarIds.join("|"));
+      // OPTIMIZATION v3.0: Create story consistency system for character identity preservation
+      const storyTitle = normalizedStory.title || 'Untitled Story';
+      const avatarDataForConsistency = Object.entries(versionedProfiles).map(([name, profile]) => ({
+        name,
+        visualProfile: profile as unknown as AvatarVisualProfile,
+      }));
+      const storyConsistency = createStoryConsistency(
+        storyTitle,
+        avatarDataForConsistency,
+        req.config.ageGroup || '6-8',
+        TALEA_DEFAULT_STYLE
+      );
+
+      // Log consistency system status for debugging
+      logConsistencyStatus(storyConsistency);
+
+      // CRITICAL FIX: Use SAME seed for ALL images in this story for character consistency
+      const seedBase = storyConsistency.baseSeed;
+      console.log(`[ai-generation] 🎯 Using consistent seed base: ${seedBase} for all story images`);
+
       const coverDimensions = normalizeRunwareDimensions(1024, 1024);
       const chapterDimensions = normalizeRunwareDimensions(1024, 1024);
+
+      // OPTIMIZATION v3.0: Build character-first block that will be prepended to ALL prompts
+      const characterFirstBlock = buildCharacterFirstBlock(
+        storyConsistency.characters,
+        storyConsistency.lockedStyle
+      );
+      console.log(`[ai-generation] 📋 Character-first block created (${characterFirstBlock.length} chars)`);
 
       // COVER IMAGE GENERATION with CHARACTER-BLOCKS
       const coverImageDescription =
@@ -877,17 +960,19 @@ export const generateStoryContent = api<
         storytellingDetails: coverContext.storytellingDetails,
       });
 
-      // Normalize language (DE->EN)
-      const coverPromptNormalized = normalizeLanguage(coverPrompts.positivePrompt);
-      const coverPromptClamped = clampRunwarePrompt(coverPromptNormalized);
+      // OPTIMIZATION v3.0: Prepend character-first block to cover prompt
+      const coverPromptWithCharacterFirst = `${characterFirstBlock}\n\n${coverPrompts.positivePrompt}`;
+      const coverPromptNormalized = normalizeLanguage(coverPromptWithCharacterFirst);
+      const coverPromptClamped = clampRunwarePrompt(coverPromptNormalized, 3200); // Increased limit for character block
       const coverNegativePromptNormalized = normalizeLanguage(coverPrompts.negativePrompt);
 
-      console.log("[ai-generation] 📸 Generating COVER image with optimized prompt + negative prompt");
+      console.log("[ai-generation] 📸 Generating COVER image with CHARACTER-FIRST prompt structure");
       console.log("[ai-generation] Cover positive prompt length:", coverPromptNormalized.length);
       if (coverPromptClamped.length !== coverPromptNormalized.length) {
         console.log("[ai-generation] Cover positive prompt clamped to length:", coverPromptClamped.length);
       }
       console.log("[ai-generation] Cover negative prompt length:", coverNegativePromptNormalized.length);
+      console.log("[ai-generation] Using seed:", seedBase);
 
       const coverResponse = await ai.generateImage({
         prompt: coverPromptClamped,
@@ -895,8 +980,8 @@ export const generateStoryContent = api<
         model: "runware:101@1",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 30, // Increased from 28 for better quality
-        CFGScale: 7.5, // Increased from 3.5 for stronger prompt adherence
+        steps: 35, // Increased for better character consistency
+        CFGScale: 8.0, // Higher CFG for stronger prompt adherence
         seed: seedBase,
         outputFormat: "JPEG",
       });
@@ -941,16 +1026,22 @@ export const generateStoryContent = api<
           storytellingDetails: chapterContext.storytellingDetails,
         });
 
-        const chapterPromptNormalized = normalizeLanguage(chapterPrompts.positivePrompt);
-        const chapterPromptClamped = clampRunwarePrompt(chapterPromptNormalized);
+        // OPTIMIZATION v3.0: Prepend character-first block to chapter prompt
+        const chapterPromptWithCharacterFirst = `${characterFirstBlock}\n\n${chapterPrompts.positivePrompt}`;
+        const chapterPromptNormalized = normalizeLanguage(chapterPromptWithCharacterFirst);
+        const chapterPromptClamped = clampRunwarePrompt(chapterPromptNormalized, 3200); // Increased limit
         const chapterNegativePromptNormalized = normalizeLanguage(chapterPrompts.negativePrompt);
 
-        console.log(`[ai-generation] 📸 Generating Chapter ${i + 1} image with negative prompt`);
+        // CRITICAL FIX v3.0: Use SAME base seed for character consistency
+        // Small offset (i * 3) provides scene variation while maintaining character identity
+        const chapterSeed = (seedBase + i * 3) >>> 0;
+
+        console.log(`[ai-generation] 📸 Generating Chapter ${i + 1} with CHARACTER-FIRST structure`);
         console.log(`[ai-generation] Chapter ${i + 1} positive prompt length:`, chapterPromptNormalized.length);
         if (chapterPromptClamped.length !== chapterPromptNormalized.length) {
           console.log(`[ai-generation] Chapter ${i + 1} positive prompt clamped to:`, chapterPromptClamped.length);
         }
-        console.log(`[ai-generation] Chapter ${i + 1} negative prompt length:`, chapterNegativePromptNormalized.length);
+        console.log(`[ai-generation] Chapter ${i + 1} seed:`, chapterSeed);
 
         const chapterResponse = await ai.generateImage({
           prompt: chapterPromptClamped,
@@ -958,9 +1049,9 @@ export const generateStoryContent = api<
           model: "runware:101@1",
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 30, // Increased from 28 for better quality
-          CFGScale: 7.5, // Increased from 3.5 for stronger prompt adherence
-          seed: (seedBase + i * 7) >>> 0, // FIXED: Chapter index (not +1) for correct seed strategy
+          steps: 35, // Increased for better character consistency
+          CFGScale: 8.0, // Higher CFG for stronger prompt adherence
+          seed: chapterSeed,
           outputFormat: "JPEG",
         });
 

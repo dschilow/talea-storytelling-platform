@@ -38,6 +38,16 @@ import {
 import type { CharacterInvariants } from "./character-invariants";
 import { buildCrossChapterInvariantsBlock } from "./image-description-enricher";
 import type { AvatarProfileWithDescription } from "./image-description-enricher";
+// OPTIMIZATION v3.0: Image Consistency System
+import {
+  createDeterministicSeed,
+  smartClampPrompt,
+} from "./image-consistency-system";
+import {
+  buildCompactAgeBlock,
+  buildExplicitAgeEnforcement,
+  type CharacterWithHeight,
+} from "./age-consistency-guards";
 
 interface AvatarDetail {
   id: string;
@@ -830,8 +840,29 @@ export class FourPhaseOrchestrator {
 
     const chapters: Chapter[] = [];
 
+    // OPTIMIZATION v3.0: Create consistent seed base for ALL chapter images
+    const avatarNames = avatarDetails.map(a => a.name);
+    const storyBaseSeed = createDeterministicSeed(story.title || 'Story', avatarNames);
+    console.log(`[4-Phase] 🎯 Using consistent seed base: ${storyBaseSeed} for all chapter images`);
+
+    // OPTIMIZATION v3.0: Build character-first block for prompt start
+    const charactersForAgeBlock: CharacterWithHeight[] = avatarDetails.map(av => {
+      const profile = av.visualProfile as any;
+      return {
+        name: av.name,
+        ageNumeric: profile?.ageNumeric || profile?.age,
+        ageApprox: profile?.ageApprox,
+        heightCm: profile?.heightCm || profile?.height,
+        species: profile?.characterType?.toLowerCase().includes('animal') ? 'animal' : 'human',
+      };
+    });
+
+    const compactAgeBlock = buildCompactAgeBlock(charactersForAgeBlock);
+    const ageEnforcement = buildExplicitAgeEnforcement(charactersForAgeBlock);
+    console.log(`[4-Phase] 📋 Age block: ${compactAgeBlock}`);
+
     // Generate all images in parallel for speed
-    const imagePromises = story.chapters.map(async (chapter) => {
+    const imagePromises = story.chapters.map(async (chapter, chapterIndex) => {
       try {
         // Build enhanced prompt with character consistency
         const enhancedPrompt = this.buildEnhancedImagePrompt(
@@ -840,11 +871,12 @@ export class FourPhaseOrchestrator {
           characterAssignments
         );
 
-        // NEW v2.0: Append cross-chapter invariants block to EVERY image prompt
-        const promptWithInvariants = `${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
-        const promptForModel = this.clampPositivePrompt(promptWithInvariants);
+        // OPTIMIZATION v3.0: Prepend compact age block + character invariants
+        const promptWithAgeFirst = `${compactAgeBlock}\n${ageEnforcement}\n\n${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
+        const promptForModel = this.clampPositivePrompt(promptWithAgeFirst);
 
-        const imageSeed = Math.floor(Math.random() * 1_000_000_000);
+        // CRITICAL FIX v3.0: Use CONSISTENT seed with small offset for scene variation
+        const imageSeed = (storyBaseSeed + chapterIndex * 3) >>> 0;
         const imageModel = "ai.generateImage-default";
 
         // ⚠️ NOTE: FLUX.1 Dev does NOT support negative prompts natively!
@@ -1364,18 +1396,26 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
     `.trim();
   }
 
+  /**
+   * OPTIMIZATION v3.0: Smart prompt clamping that PRESERVES character identity blocks
+   * Character details at the START are never truncated, only scene details at END
+   */
   private clampPositivePrompt(prompt: string, maxLength = 3000): string {
     let result = String(prompt || "").trim();
     if (result.length <= maxLength) return result;
 
     const originalLength = result.length;
 
-    // Remove cross-chapter invariants block first (appended at the end)
-    result = result.replace(/\nCHARACTER INVARIANTS[\s\S]*$/i, "").trim();
-    if (result.length <= maxLength) {
-      console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (removed invariants block)`);
-      return result;
+    // OPTIMIZATION v3.0: Check for new format with [AGES:] or [STYLE:] blocks
+    if (result.includes('[AGES:') || result.includes('[STYLE:') || result.includes('=== CHARACTERS')) {
+      const smartResult = smartClampPrompt(result, maxLength);
+      if (smartResult.length !== originalLength) {
+        console.log(`[Image Prompt] Smart clamped from ${originalLength} to ${smartResult.length} (preserved character blocks)`);
+      }
+      return smartResult;
     }
+
+    // Legacy format handling below...
 
     // Collapse excessive whitespace to save space
     result = result.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
@@ -1401,7 +1441,7 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
       }
     }
 
-    // Remove lower-priority lines to fit the limit
+    // Remove lower-priority lines to fit the limit (NEVER remove age/character blocks)
     const lineRemovals: RegExp[] = [
       /\nCRITICAL ANTI-DUPLICATION:[^\n]*/i,
       /\nIMPORTANT: Keep each character's face[^\n]*/i,
@@ -1419,7 +1459,7 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
       }
     }
 
-    // Hard truncate as a last resort
+    // Hard truncate as a last resort (but try to preserve start with character info)
     if (result.length > maxLength) {
       result = result.slice(0, Math.max(2, maxLength - 3)).trimEnd() + "...";
       console.warn(`[Image Prompt] Trimmed prompt from ${originalLength} to ${result.length} (hard truncate)`);
