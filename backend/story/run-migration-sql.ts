@@ -66,8 +66,9 @@ export const runMigrationSQL = api<RunMigrationSQLRequest, RunMigrationSQLRespon
         statementsExecuted: executedCount,
       };
     } catch (error: any) {
-      const errorMessage = `Migration ${req.migrationName} failed: ${error.message}`;
+      const errorMessage = `Migration ${req.migrationName} failed: ${error.message || error.toString()}`;
       console.error(`[Migration API] ❌ ${errorMessage}`);
+      console.error(`[Migration API] Full error:`, error);
 
       return {
         success: false,

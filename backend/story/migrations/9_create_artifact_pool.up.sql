@@ -1,5 +1,5 @@
 -- Create artifact_pool table for story rewards (analog to character_pool)
-CREATE TABLE artifact_pool (
+CREATE TABLE IF NOT EXISTS artifact_pool (
     id TEXT PRIMARY KEY,
 
     -- Basic info (bilingual)
@@ -43,12 +43,12 @@ CREATE TABLE artifact_pool (
 );
 
 -- Indexes for faster matching
-CREATE INDEX idx_artifact_pool_category ON artifact_pool(category);
-CREATE INDEX idx_artifact_pool_rarity ON artifact_pool(rarity);
-CREATE INDEX idx_artifact_pool_active ON artifact_pool(is_active);
+CREATE INDEX IF NOT EXISTS idx_artifact_pool_category ON artifact_pool(category);
+CREATE INDEX IF NOT EXISTS idx_artifact_pool_rarity ON artifact_pool(rarity);
+CREATE INDEX IF NOT EXISTS idx_artifact_pool_active ON artifact_pool(is_active);
 
 -- Junction table to track which artifacts were used in which stories
-CREATE TABLE story_artifacts (
+CREATE TABLE IF NOT EXISTS story_artifacts (
     id TEXT PRIMARY KEY,
     story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
     artifact_id TEXT NOT NULL REFERENCES artifact_pool(id),
@@ -59,6 +59,6 @@ CREATE TABLE story_artifacts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_story_artifacts_story ON story_artifacts(story_id);
-CREATE INDEX idx_story_artifacts_artifact ON story_artifacts(artifact_id);
-CREATE INDEX idx_story_artifacts_unlocked ON story_artifacts(is_unlocked);
+CREATE INDEX IF NOT EXISTS idx_story_artifacts_story ON story_artifacts(story_id);
+CREATE INDEX IF NOT EXISTS idx_story_artifacts_artifact ON story_artifacts(artifact_id);
+CREATE INDEX IF NOT EXISTS idx_story_artifacts_unlocked ON story_artifacts(is_unlocked);
