@@ -401,10 +401,14 @@ export async function recordStoryArtifact(
     await storyDB.exec`
       INSERT INTO story_artifacts (id, story_id, artifact_id, discovery_chapter, usage_chapter, is_unlocked, created_at)
       VALUES (${id}, ${storyId}, ${artifactId}, ${discoveryChapter}, ${usageChapter}, FALSE, NOW())
-      ON CONFLICT (story_id, artifact_id) DO NOTHING
+      ON CONFLICT (story_id, artifact_id) DO UPDATE SET
+        discovery_chapter = EXCLUDED.discovery_chapter,
+        usage_chapter = EXCLUDED.usage_chapter
     `;
+    console.log(`[ArtifactMatcher] ✅ Story artifact recorded: ${storyId} + ${artifactId}`);
   } catch (error) {
     console.error("[ArtifactMatcher] Error recording story artifact:", error);
+    throw error; // Re-throw so errors are visible
   }
 }
 
