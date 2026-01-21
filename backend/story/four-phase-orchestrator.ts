@@ -590,18 +590,31 @@ export class FourPhaseOrchestrator {
     const phase4Start = Date.now();
 
     // 🔧 OPTIMIZATION: Run Cover and Chapter generation in parallel
-    const [chaptersWithImages, coverImageResult] = await Promise.all([
-      this.generateChapterImages(
-        finalizedStory,
-        input.avatarDetails,
-        characterAssignments
-      ),
-      this.generateCoverImage(
-        finalizedStory,
-        input.avatarDetails,
-        characterAssignments
-      )
-    ]);
+    let chaptersWithImages: Chapter[] = [];
+    let coverImageResult: { url?: string; prompt: string } | undefined = undefined;
+
+    try {
+      [chaptersWithImages, coverImageResult] = await Promise.all([
+        this.generateChapterImages(
+          finalizedStory,
+          input.avatarDetails,
+          characterAssignments
+        ),
+        this.generateCoverImage(
+          finalizedStory,
+          input.avatarDetails,
+          characterAssignments
+        )
+      ]);
+    } catch (imageError) {
+      console.error("[4-Phase] ❌ Image generation failed:", imageError);
+      // Continue with chapters without images - story text is still valid
+      chaptersWithImages = finalizedStory.chapters.map(ch => ({
+        ...ch,
+        imageUrl: undefined, // No image generated
+      }));
+      coverImageResult = undefined;
+    }
 
     phaseDurations.phase4Duration = Date.now() - phase4Start;
     console.log(`[4-Phase] Phase 4 completed in ${phaseDurations.phase4Duration}ms`);
