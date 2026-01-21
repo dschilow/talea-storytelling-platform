@@ -11,7 +11,8 @@ import { FairyTaleSelector } from "./fairy-tale-selector";
 import type { SelectedFairyTale } from "./fairy-tale-selector";
 import { ai } from "~encore/clients";
 import { storyDB } from "./db";
-import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
+import type { StorySkeleton, CharacterTemplate, FinalizedStory, ArtifactTemplate, PendingArtifact } from "./types";
+import { artifactMatcher, recordStoryArtifact } from "./artifact-matcher";
 import { logTopic } from "../log/logger";
 import type { LogEvent } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -114,8 +115,10 @@ interface FourPhaseOutput {
   coverImageUrl?: string;
   chapters: Chapter[];
   avatarDevelopments?: any[];
-  // 🎁 NEW: Loot artifact from this story
+  // 🎁 Loot artifact from this story (deprecated - use pendingArtifact)
   newArtifact?: NewArtifact & { imageUrl?: string };
+  // 🎁 NEW: Pending artifact from pool (unlocked after reading)
+  pendingArtifact?: PendingArtifact;
   newlyGeneratedCharacters?: Array<{
     id: string;
     name: string;
@@ -464,6 +467,48 @@ export class FourPhaseOrchestrator {
 
     await this.logPhaseEvent("phase2-character-matching", phase2RequestPayload, phase2ResponsePayload);
 
+    // ===== PHASE 2.5: Match Artifact from Pool =====
+    console.log("[4-Phase] ===== PHASE 2.5: ARTIFACT MATCHING =====");
+    const phase2_5Start = Date.now();
+
+    let matchedArtifact: ArtifactTemplate | undefined;
+
+    if (skeleton.artifactRequirement) {
+      try {
+        matchedArtifact = await artifactMatcher.match(
+          skeleton.artifactRequirement,
+          configWithExperience.genre || 'adventure',
+          recentStoryIds,
+          configWithExperience.language || 'de'
+        );
+
+        console.log("[4-Phase] 🎁 Artifact matched:", {
+          id: matchedArtifact.id,
+          name: matchedArtifact.name.de,
+          category: matchedArtifact.category,
+          rarity: matchedArtifact.rarity,
+          discoveryChapter: skeleton.artifactRequirement.discoveryChapter,
+          usageChapter: skeleton.artifactRequirement.usageChapter,
+        });
+
+        // Record the artifact assignment to the story
+        await recordStoryArtifact(
+          input.storyId,
+          matchedArtifact.id,
+          skeleton.artifactRequirement.discoveryChapter,
+          skeleton.artifactRequirement.usageChapter
+        );
+      } catch (error) {
+        console.error("[4-Phase] Failed to match artifact:", error);
+        // Continue without artifact - Phase 3 will use fallback
+      }
+    } else {
+      console.log("[4-Phase] No artifact requirement in skeleton - skipping artifact matching");
+    }
+
+    const phase2_5Duration = Date.now() - phase2_5Start;
+    console.log(`[4-Phase] Phase 2.5 completed in ${phase2_5Duration}ms`);
+
     // ===== PHASE 3: Finalize Story with Fairy Tale Template =====
     console.log("[4-Phase] ===== PHASE 3: FAIRY TALE IMPLEMENTATION =====");
     const phase3Start = Date.now();
@@ -475,8 +520,9 @@ export class FourPhaseOrchestrator {
       experience: experienceContext,
       avatarDetails: input.avatarDetails,
       useFairyTaleTemplate,
-      remixInstructions: phase1Result.remixInstructions, // NEW: Pass remix instructions from Phase1
-      selectedFairyTale: selectedFairyTale ?? undefined, // NEW: Pass fairy tale for originality validation
+      remixInstructions: phase1Result.remixInstructions,
+      selectedFairyTale: selectedFairyTale ?? undefined,
+      matchedArtifact, // NEW: Pass matched artifact from Phase 2.5
     });
     const finalizedStory = phase3Result.story;
     phaseDurations.phase3Duration = Date.now() - phase3Start;
@@ -686,11 +732,13 @@ export class FourPhaseOrchestrator {
       description: finalizedStory.description,
       coverImageUrl,
       chapters: chaptersWithImages,
-      avatarDevelopments: finalizedStory.avatarDevelopments || [], // 🔧 Pass through from Phase 3
-      // 🎁 NEW: Pass loot artifact with generated image to frontend
+      avatarDevelopments: finalizedStory.avatarDevelopments || [], // Pass through from Phase 3
+      // 🎁 Legacy: Pass loot artifact with generated image (deprecated)
       newArtifact: finalizedStory.newArtifact
         ? { ...finalizedStory.newArtifact, imageUrl: artifactImageUrl }
         : undefined,
+      // 🎁 NEW: Pending artifact from pool (unlocked after reading)
+      pendingArtifact: phase3Result.pendingArtifact,
       metadata: {
         processingTime: totalDuration,
         imagesGenerated: chaptersWithImages.length + 1 + (artifactImageUrl ? 1 : 0), // chapters + cover + artifact

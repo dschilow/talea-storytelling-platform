@@ -10,6 +10,7 @@ import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
+import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
@@ -40,9 +41,13 @@ const StoryReaderScreen: React.FC = () => {
   const [currentReward, setCurrentReward] = useState<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' } | null>(null);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
 
-  // Fullscreen Artifact Display Queue
+  // Fullscreen Artifact Display Queue (legacy inventory items)
   const [artifactQueue, setArtifactQueue] = useState<{ item: InventoryItem; isUpgrade: boolean }[]>([]);
   const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
+
+  // NEW: Pool artifact celebration (from artifact_pool system)
+  const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
+  const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -241,7 +246,14 @@ const StoryReaderScreen: React.FC = () => {
           setRewardQueue(prev => [...prev, ...newRewards]);
         }
 
-        // Show FULLSCREEN artifact display for each artifact earned or upgraded
+        // NEW: Handle pool artifact from artifact_pool system
+        if (result.unlockedArtifact) {
+          console.log('🏆 Pool artifact unlocked:', result.unlockedArtifact.name);
+          setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
+          setShowPoolArtifactModal(true);
+        }
+
+        // Show FULLSCREEN artifact display for each artifact earned or upgraded (legacy)
         if (collectedArtifacts.length > 0) {
           console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
           console.log('🏆 Setting artifactQueue with', collectedArtifacts.length, 'items');
@@ -555,12 +567,27 @@ const StoryReaderScreen: React.FC = () => {
         />
       )}
 
-      {/* Fullscreen Artifact Reward Display */}
+      {/* Fullscreen Artifact Reward Display (legacy) */}
       <ArtifactRewardToast
         item={currentArtifact?.item || null}
         isVisible={!!currentArtifact}
         onClose={handleCloseArtifact}
         isUpgrade={currentArtifact?.isUpgrade}
+      />
+
+      {/* NEW: Pool Artifact Celebration Modal */}
+      <ArtifactCelebrationModal
+        artifact={poolArtifact}
+        isVisible={showPoolArtifactModal}
+        onClose={() => {
+          setShowPoolArtifactModal(false);
+          setPoolArtifact(null);
+        }}
+        onViewTreasureRoom={() => {
+          setShowPoolArtifactModal(false);
+          setPoolArtifact(null);
+          navigate('/treasure-room');
+        }}
       />
 
     </div>

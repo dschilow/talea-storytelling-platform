@@ -4,7 +4,7 @@
 
 import { secret } from "encore.dev/config";
 import type { StoryConfig } from "./generate";
-import type { StorySkeleton } from "./types";
+import type { StorySkeleton, ArtifactRequirement } from "./types";
 import {
   describeEmotionalFlavors,
   describeSpecialIngredients,
@@ -431,6 +431,14 @@ PLACEHOLDER LIBRARY (use only when needed, custom allowed):
 - {{OBSTACLE_CHARACTER}} - obstacle or antagonist
 - Custom placeholders in {{NAME}} format are allowed if the role is clear.
 
+ARTIFACT REWARD SYSTEM:
+Every story MUST include a magical artifact that the protagonist discovers and uses.
+- The artifact is found in an early chapter (discoveryChapter: 2 or 3)
+- The artifact is used to solve a problem in a later chapter (usageChapter: 4 or 5)
+- Choose a category that fits the story: weapon, clothing, magic, book, tool, tech, nature, potion, jewelry, armor, map
+- Describe what ability the artifact should have (navigation, protection, communication, healing, courage, wisdom, discovery, stealth, combat, magic, light, time)
+- The artifact should feel earned and meaningful to the story
+
 OUTPUT (JSON):
 {
   "title": "TITLE (2-3 words ideal, max 4). Choose a mysterious object/place. GOOD: 'The Silver Thread', 'The Moon Gate', 'The Whispering Oak'. BAD: 'Well', 'Alexander and...')",
@@ -452,7 +460,6 @@ OUTPUT (JSON):
     }
   ],
   "supportingCharacterRequirements": [
-    // ONLY supporting characters here! NEVER use avatar names (Alexander, Adrian) as placeholders.
     {
       "placeholder": "{{WISE_ELDER}}",
       "role": "guide",
@@ -463,7 +470,16 @@ OUTPUT (JSON):
       "importance": "high",
       "inChapters": [1, 3, 5]
     }
-  ]
+  ],
+  "artifactRequirement": {
+    "placeholder": "{{ARTIFACT_REWARD}}",
+    "preferredCategory": "magic",
+    "requiredAbility": "navigation",
+    "contextHint": "A magical compass that helps the hero find their way through the enchanted forest",
+    "discoveryChapter": 2,
+    "usageChapter": 4,
+    "importance": "high"
+  }
 }
 
 IMPORTANT:
@@ -545,6 +561,58 @@ Ensure a clear learning arc for the avatars, recurring motifs, and cohesive dram
           `[Phase1] Warning: character requirement placeholder "${req.placeholder}" is not wrapped in {{ }}.`
         );
       }
+    }
+
+    // Validate artifact requirement (optional for backwards compatibility, but expected)
+    if (skeleton.artifactRequirement) {
+      const artifact = skeleton.artifactRequirement;
+
+      if (!artifact.contextHint || typeof artifact.contextHint !== "string") {
+        console.warn("[Phase1] ⚠️ artifactRequirement missing contextHint - adding default");
+        artifact.contextHint = "A magical item that helps the hero";
+      }
+
+      if (!artifact.discoveryChapter || artifact.discoveryChapter < 1 || artifact.discoveryChapter > 5) {
+        console.warn("[Phase1] ⚠️ artifactRequirement has invalid discoveryChapter - defaulting to 2");
+        artifact.discoveryChapter = 2;
+      }
+
+      if (!artifact.usageChapter || artifact.usageChapter < 1 || artifact.usageChapter > 5) {
+        console.warn("[Phase1] ⚠️ artifactRequirement has invalid usageChapter - defaulting to 4");
+        artifact.usageChapter = 4;
+      }
+
+      if (artifact.usageChapter <= artifact.discoveryChapter) {
+        console.warn("[Phase1] ⚠️ usageChapter must be after discoveryChapter - adjusting");
+        artifact.usageChapter = Math.min(5, artifact.discoveryChapter + 2);
+      }
+
+      if (!artifact.importance) {
+        artifact.importance = "high";
+      }
+
+      if (!artifact.placeholder) {
+        artifact.placeholder = "{{ARTIFACT_REWARD}}";
+      }
+
+      console.log("[Phase1] ✅ Artifact requirement validated:", {
+        category: artifact.preferredCategory,
+        ability: artifact.requiredAbility,
+        discovery: artifact.discoveryChapter,
+        usage: artifact.usageChapter,
+      });
+    } else {
+      // Generate a default artifact requirement if missing
+      console.warn("[Phase1] ⚠️ No artifactRequirement in skeleton - generating default");
+      skeleton.artifactRequirement = {
+        placeholder: "{{ARTIFACT_REWARD}}",
+        preferredCategory: "magic",
+        requiredAbility: "courage",
+        contextHint: "A magical item that helps the hero overcome challenges",
+        discoveryChapter: 2,
+        usageChapter: 4,
+        importance: "high",
+      };
     }
 
     console.log("[Phase1] Skeleton structure validated successfully");

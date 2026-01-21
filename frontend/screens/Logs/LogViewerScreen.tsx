@@ -424,10 +424,42 @@ const LogViewerScreen: React.FC = () => {
                               ID: {log.id}
                             </div>
                           </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ ...typography.textStyles.caption, color: colors.text.secondary, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
-                              <Clock size={12} />
-                              {formatTimestamp(log.timestamp)}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: `${spacing.md}px` }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadLog(log);
+                              }}
+                              style={{
+                                padding: `${spacing.sm}px ${spacing.md}px`,
+                                borderRadius: `${radii.lg}px`,
+                                background: colors.primary[500],
+                                color: colors.text.inverse,
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: `${spacing.xs}px`,
+                                fontSize: '14px',
+                                transition: 'all 0.2s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = shadows.md;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'none';
+                              }}
+                            >
+                              <Download size={16} />
+                              Download
+                            </button>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ ...typography.textStyles.caption, color: colors.text.secondary, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
+                                <Clock size={12} />
+                                {formatTimestamp(log.timestamp)}
+                              </div>
                             </div>
                           </div>
                         </div>

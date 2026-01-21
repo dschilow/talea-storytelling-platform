@@ -4,7 +4,7 @@
 
 import { secret } from "encore.dev/config";
 import type { StoryConfig } from "./generate";
-import type { StorySkeleton, CharacterTemplate, FinalizedStory } from "./types";
+import type { StorySkeleton, CharacterTemplate, FinalizedStory, ArtifactTemplate, PendingArtifact } from "./types";
 import {
   describeEmotionalFlavors,
   describeSpecialIngredients,
@@ -103,12 +103,13 @@ interface Phase3Input {
     name: string;
     description?: string;
     visualProfile?: any;
-    inventory?: InventoryItem[];  // ?? NEW: Avatar's existing artifacts
+    inventory?: InventoryItem[];  // Avatar's existing artifacts
   }>;
   experience: StoryExperienceContext;
-  useFairyTaleTemplate?: boolean; // NEW: Enable fairy tale mode
-  remixInstructions?: string; // NEW: Remix transformation summary from Phase1
-  selectedFairyTale?: SelectedFairyTale; // NEW: For originality validation
+  useFairyTaleTemplate?: boolean; // Enable fairy tale mode
+  remixInstructions?: string; // Remix transformation summary from Phase1
+  selectedFairyTale?: SelectedFairyTale; // For originality validation
+  matchedArtifact?: ArtifactTemplate; // NEW: Pre-matched artifact from Phase 2
 }
 
 interface OpenAIResponse {
@@ -140,6 +141,7 @@ export interface Phase3FinalizationResult {
     matchScore: number;
     matchReason: string;
   };
+  pendingArtifact?: PendingArtifact; // NEW: Artifact to be unlocked after reading
 }
 
 export class Phase3StoryFinalizer {
@@ -185,14 +187,16 @@ export class Phase3StoryFinalizer {
         input.avatarDetails,
         input.experience,
         input.selectedFairyTale || selectedFairyTale,
-        input.remixInstructions // NEW: Pass remix instructions
+        input.remixInstructions,
+        input.matchedArtifact // NEW: Pass matched artifact
       )
       : this.buildFinalizationPrompt(
         skeletonWithNames,
         input.assignments,
         input.config,
         input.avatarDetails,
-        input.experience
+        input.experience,
+        input.matchedArtifact // NEW: Pass matched artifact
       );
     const normalizedPrompt = this.normalizeText(prompt);
     const modelName = input.config.aiModel || "gpt-5-mini";
@@ -438,6 +442,36 @@ export class Phase3StoryFinalizer {
         };
       }
 
+      // NEW: Create pending artifact from matched artifact
+      if (input.matchedArtifact) {
+        const artifact = input.matchedArtifact;
+        const userLang = input.config.language || 'de';
+        const discoveryChapter = input.skeleton.artifactRequirement?.discoveryChapter || 2;
+        const usageChapter = input.skeleton.artifactRequirement?.usageChapter || 4;
+
+        result.pendingArtifact = {
+          id: artifact.id,
+          name: userLang === 'de' ? artifact.name.de : artifact.name.en,
+          nameEn: artifact.name.en,
+          description: userLang === 'de' ? artifact.description.de : artifact.description.en,
+          category: artifact.category,
+          rarity: artifact.rarity,
+          storyRole: artifact.storyRole,
+          visualKeywords: artifact.visualKeywords,
+          discoveryChapter,
+          usageChapter,
+          locked: true, // Will be unlocked when user reads the story
+        };
+
+        console.log("[Phase3] 🎁 Pending artifact created:", {
+          id: result.pendingArtifact.id,
+          name: result.pendingArtifact.name,
+          category: result.pendingArtifact.category,
+          rarity: result.pendingArtifact.rarity,
+          locked: true,
+        });
+      }
+
       return result;
     } catch (error) {
       if ((error as any)?.name === "AbortError") {
@@ -567,7 +601,8 @@ export class Phase3StoryFinalizer {
     assignments: Map<string, CharacterTemplate>,
     config: StoryConfig,
     avatarDetails: Array<{ name: string; description?: string; visualProfile?: any; inventory?: InventoryItem[] }>,
-    experience: StoryExperienceContext
+    experience: StoryExperienceContext,
+    matchedArtifact?: ArtifactTemplate
   ): string {
     const avatarNameSet = new Set(avatarDetails.map(a => a.name.toLowerCase()));
     const characterDetails = Array.from(assignments.entries())
@@ -612,8 +647,42 @@ export class Phase3StoryFinalizer {
     const inventorySection = allInventoryItems.length > 0
       ? `\nAVATAR INVENTORY (may be used in the story):\n${allInventoryItems.map(({ ownerName, item }) =>
         `- ${ownerName} owns: "${item.name}" (${item.type}) - ${item.storyEffect || item.description}`
-      ).join("\n")}\n\nINSTRUCTION: Choose at most ONE suitable artifact and let the owner use it ONCE actively in the plot (memory or tool). If none fits, ignore. In chapter 5 a new reward artifact MUST still appear.\n`
+      ).join("\n")}\n\nINSTRUCTION: Choose at most ONE suitable artifact and let the owner use it ONCE actively in the plot (memory or tool). If none fits, ignore.\n`
       : "";
+
+    // 🎁 NEW: Build artifact integration section from matched artifact
+    const artifactRequirement = skeletonWithNames.artifactRequirement;
+    const artifactSection = matchedArtifact ? `
+🎁 STORY ARTIFACT - MUST BE INTEGRATED:
+Name: "${config.language === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en}"
+Category: ${matchedArtifact.category}
+Rarity: ${matchedArtifact.rarity} ${matchedArtifact.rarity === 'legendary' ? '⭐' : matchedArtifact.rarity === 'rare' ? '✨' : ''}
+Description: ${config.language === 'de' ? matchedArtifact.description.de : matchedArtifact.description.en}
+Story Role: ${matchedArtifact.storyRole}
+${matchedArtifact.emoji ? `Emoji: ${matchedArtifact.emoji}` : ''}
+
+DISCOVERY SCENARIOS (choose one or create similar):
+${matchedArtifact.discoveryScenarios.map(s => `- ${s}`).join('\n')}
+
+USAGE SCENARIOS (choose one or create similar):
+${matchedArtifact.usageScenarios.map(s => `- ${s}`).join('\n')}
+
+CRITICAL ARTIFACT INTEGRATION RULES:
+1. DISCOVERY: The artifact MUST be discovered/found in CHAPTER ${artifactRequirement?.discoveryChapter || 2}
+   - Create a memorable discovery scene (hidden chest, mysterious gift, found in nature, etc.)
+   - Make the discovery feel earned and exciting
+   - Describe the artifact briefly when found
+
+2. USAGE: The artifact MUST be actively used to solve a problem in CHAPTER ${artifactRequirement?.usageChapter || 4}
+   - The protagonist uses the artifact's ability to overcome an obstacle
+   - Show the artifact's power/effect in action
+   - The usage should feel like a "payoff" moment
+
+3. DO NOT invent a DIFFERENT artifact - use EXACTLY the one provided above!
+4. The artifact name "${config.language === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en}" must appear in the story text.
+5. After using the artifact, the protagonist KEEPS it (for their collection).
+
+` : '';
 
     const soulSummary = experience.soul
       ? `${experience.soul.label} - ${experience.soul.storyPromise}`
@@ -669,6 +738,7 @@ You are an award-winning children's book author. Write a complete, cinematic sto
 MAIN CHARACTERS (avatars):
 ${avatarDetailsText}
 ${inventorySection}
+${artifactSection}
 SUPPORTING CHARACTERS FROM THE POOL:
 ${characterDetails}
 
@@ -793,6 +863,15 @@ CRITICAL: avatarDevelopments is MANDATORY.
 - Changes must be based on CONCRETE story events
 - Descriptions must explain precisely what was learned
 
+${matchedArtifact ? `
+ARTIFACT INTEGRATION (PRE-SELECTED FROM POOL):
+The artifact "${config.language === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en}" has been pre-selected for this story.
+- It MUST be discovered in chapter ${artifactRequirement?.discoveryChapter || 2}
+- It MUST be used to solve a problem in chapter ${artifactRequirement?.usageChapter || 4}
+- The artifact name MUST appear in the story text
+- DO NOT include "newArtifact" in your JSON output - the artifact is already defined!
+- Focus on making the discovery and usage scenes memorable and exciting.
+` : `
 CRITICAL: newArtifact is MANDATORY.
 - At the end of chapter 5 the hero MUST find, receive, or discover a special item
 - Briefly describe this item in the story text
@@ -810,6 +889,7 @@ ALLOWED (UNIQUE STORY LOOT):
 - Something with character and history (e.g., "A bottle with captured north wind", "A cookie that never runs out")
 - It should be quirky and unique (style: Otfried Preussler / Roald Dahl)
 - storyEffect must be creative (not just "+1 courage", but "Can open doors when you knock politely")
+`}
 
 IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Use expressive action verbs and clear subject placement.
@@ -1201,13 +1281,14 @@ IMPORTANT LANGUAGE INSTRUCTION:
    * Build prompt using fairy tale template
    */
   private buildFairyTalePrompt(
-    _skeletonWithNames: StorySkeleton, // Skeleton is used indirectly via chapter structure
+    skeletonWithNames: StorySkeleton, // Skeleton used for artifact requirement
     assignments: Map<string, CharacterTemplate>,
     config: StoryConfig,
     avatarDetails: Array<{ name: string; description?: string; visualProfile?: any }>,
     experience: StoryExperienceContext,
     fairyTale: SelectedFairyTale,
-    remixInstructions?: string // NEW: Remix transformation summary from Phase1
+    remixInstructions?: string,
+    matchedArtifact?: ArtifactTemplate // NEW: Pre-matched artifact from Phase 2
   ): string {
     const avatarNameSet = new Set(avatarDetails.map(a => a.name.toLowerCase()));
     const characterDetails = Array.from(assignments.entries())
@@ -1350,6 +1431,34 @@ ${avatarDetailsText}
 Supporting Characters (Character Pool):
 ${characterDetails}
 
+${matchedArtifact ? `
+## 🎁 STORY ARTIFACT - MUST BE INTEGRATED:
+Name: "${config.language === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en}"
+Category: ${matchedArtifact.category}
+Rarity: ${matchedArtifact.rarity} ${matchedArtifact.rarity === 'legendary' ? '⭐' : matchedArtifact.rarity === 'rare' ? '✨' : ''}
+Description: ${config.language === 'de' ? matchedArtifact.description.de : matchedArtifact.description.en}
+Story Role: ${matchedArtifact.storyRole}
+${matchedArtifact.emoji ? `Emoji: ${matchedArtifact.emoji}` : ''}
+
+DISCOVERY SCENARIOS (choose one or create similar):
+${matchedArtifact.discoveryScenarios.map(s => `- ${s}`).join('\n')}
+
+USAGE SCENARIOS (choose one or create similar):
+${matchedArtifact.usageScenarios.map(s => `- ${s}`).join('\n')}
+
+CRITICAL ARTIFACT INTEGRATION RULES:
+1. DISCOVERY: The artifact MUST be discovered/found in CHAPTER ${skeletonWithNames.artifactRequirement?.discoveryChapter || 2}
+   - Create a memorable discovery scene (hidden chest, mysterious gift, found in nature, etc.)
+   - Make the discovery feel earned and exciting
+   - Describe the artifact briefly when found
+2. USAGE: The artifact MUST be actively used to solve a problem in CHAPTER ${skeletonWithNames.artifactRequirement?.usageChapter || 4}
+   - The protagonist uses the artifact's ability to overcome an obstacle
+   - Show the artifact's power/effect in action
+   - The usage should feel like a "payoff" moment
+3. DO NOT invent a DIFFERENT artifact - use EXACTLY the one provided above!
+4. The artifact name "${config.language === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en}" must appear in the story text.
+5. After using the artifact, the protagonist KEEPS it (for their collection).
+` : ''}
 ## CRITICAL - CHARACTER INTEGRATION:
 - ALL main characters (User Avatars) must play ACTIVE roles
 - Each avatar must act in AT LEAST 3 of 5 chapters (not just observe!)

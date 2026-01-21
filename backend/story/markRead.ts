@@ -4,6 +4,8 @@ import { storyDB } from "./db";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
+import { unlockStoryArtifact } from "./artifact-matcher";
+import type { ArtifactTemplate, PendingArtifact } from "./types";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -26,6 +28,16 @@ interface MarkStoryReadResponse {
       newSkills: Skill[];
     };
   }>;
+  // 🎁 NEW: Artifact unlocked after reading
+  unlockedArtifact?: {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    rarity: string;
+    emoji?: string;
+    visualKeywords: string[];
+  };
 }
 
 // Marks a story as read and applies personality development to all user avatars
@@ -212,10 +224,82 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
       console.log(`🎉 Story reading complete: ${updatedCount} avatars updated`);
 
+      // ===== UNLOCK ARTIFACT FROM POOL =====
+      let unlockedArtifact: MarkStoryReadResponse['unlockedArtifact'] | undefined;
+
+      try {
+        console.log(`🎁 Checking for artifact to unlock for story: ${req.storyId}`);
+        const artifact = await unlockStoryArtifact(req.storyId);
+
+        if (artifact) {
+          console.log(`🎁 Artifact unlocked: ${artifact.name.de} (${artifact.category}, ${artifact.rarity})`);
+
+          // Determine language (assume German for now, could be passed in request)
+          const userLang = 'de';
+
+          unlockedArtifact = {
+            id: artifact.id,
+            name: userLang === 'de' ? artifact.name.de : artifact.name.en,
+            description: userLang === 'de' ? artifact.description.de : artifact.description.en,
+            category: artifact.category,
+            rarity: artifact.rarity,
+            emoji: artifact.emoji,
+            visualKeywords: artifact.visualKeywords,
+          };
+
+          // Add artifact to each avatar's inventory
+          for (const userAvatar of userAvatars) {
+            try {
+              const inventoryItem: InventoryItem = {
+                id: `artifact_${artifact.id}_${userAvatar.id}`,
+                name: unlockedArtifact.name,
+                type: artifact.category.toUpperCase() as InventoryItem['type'],
+                level: 1,
+                sourceStoryId: req.storyId,
+                description: unlockedArtifact.description,
+                visualPrompt: artifact.visualKeywords.join(', '),
+                tags: [artifact.category, artifact.rarity],
+                acquiredAt: new Date().toISOString(),
+                storyEffect: artifact.storyRole,
+              };
+
+              // Load current inventory and add new item
+              const avatarRow = await avatarDB.queryRow<{ inventory: string }>`
+                SELECT inventory FROM avatars WHERE id = ${userAvatar.id}
+              `;
+
+              if (avatarRow) {
+                const inventory: InventoryItem[] = JSON.parse(avatarRow.inventory || '[]');
+
+                // Check if already has this artifact
+                const alreadyHas = inventory.some(i => i.id === inventoryItem.id);
+                if (!alreadyHas) {
+                  inventory.push(inventoryItem);
+                  await avatarDB.exec`
+                    UPDATE avatars
+                    SET inventory = ${JSON.stringify(inventory)},
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ${userAvatar.id}
+                  `;
+                  console.log(`🎁 Artifact added to ${userAvatar.name}'s inventory`);
+                }
+              }
+            } catch (invError) {
+              console.error(`⚠️ Failed to add artifact to ${userAvatar.name}'s inventory:`, invError);
+            }
+          }
+        } else {
+          console.log(`📦 No artifact to unlock for story ${req.storyId}`);
+        }
+      } catch (artifactError) {
+        console.error(`⚠️ Failed to unlock artifact:`, artifactError);
+      }
+
       return {
         success: true,
         updatedAvatars: updatedCount,
-        personalityChanges
+        personalityChanges,
+        unlockedArtifact,
       };
 
     } catch (error) {
