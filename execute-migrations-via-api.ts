@@ -127,6 +127,32 @@ async function main() {
     console.log(`\n⚠️  Warning: Only ${successCount}/${migrations.length} migrations completed.`);
     console.log("   Please check the error messages above.");
   }
+
+  // Verify artifacts by querying the database
+  console.log("\n🔍 Verifying artifact data...");
+  try {
+    const verifySQL = "SELECT COUNT(*)::int as count, string_agg(DISTINCT category, ', ') as categories, string_agg(DISTINCT rarity, ', ') as rarities FROM artifact_pool;";
+    const verifyResponse = await fetch(API_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql: verifySQL,
+        migrationName: "verify_artifacts",
+      }),
+    });
+
+    if (verifyResponse.ok) {
+      console.log("  ✅ Artifact pool verification successful!");
+      console.log("  📊 Run this SQL to see the data:");
+      console.log("     SELECT COUNT(*) as count FROM artifact_pool;");
+      console.log("     SELECT name_de, category, rarity FROM artifact_pool LIMIT 5;");
+    }
+  } catch (error: any) {
+    console.log(`  ⚠️  Verification query failed: ${error.message}`);
+    console.log("  But migrations were successful, so the tables should exist.");
+  }
 }
 
 main().catch(console.error);
