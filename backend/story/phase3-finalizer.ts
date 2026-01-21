@@ -290,7 +290,13 @@ export class Phase3StoryFinalizer {
         throw new Error("No content in Phase 3 response");
       }
 
-      let finalStory = JSON.parse(content) as FinalizedStory;
+      let finalStory: FinalizedStory;
+      try {
+        finalStory = JSON.parse(content) as FinalizedStory;
+      } catch (jsonError) {
+        console.error("[Phase3] ?? JSON parse error. Content preview:", content.substring(0, 500));
+        throw new Error(`Failed to parse AI response as JSON: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+      }
 
       // ?? CRITICAL FIX: Use skeleton title as fallback if AI didn't provide one
       // This prevents "Final story must have a title" validation errors
@@ -311,6 +317,27 @@ export class Phase3StoryFinalizer {
         finalStory.description = fallbackDesc;
       } else {
         console.log(`[Phase3] ? AI provided description: ${finalStory.description.substring(0, 50)}...`);
+      }
+
+      // ?? CRITICAL FIX: Add fallback for missing chapters
+      // If AI response is malformed and doesn't include chapters, use skeleton as base
+      if (!finalStory.chapters || !Array.isArray(finalStory.chapters) || finalStory.chapters.length === 0) {
+        console.error(`[Phase3] ?? AI didn't provide valid chapters array. Attempting to use skeleton chapters as fallback.`);
+
+        // Try to create minimal chapters from skeleton
+        if (input.skeleton.chapters && Array.isArray(input.skeleton.chapters)) {
+          finalStory.chapters = input.skeleton.chapters.map(skeletonChapter => ({
+            order: skeletonChapter.order,
+            title: `Kapitel ${skeletonChapter.order}`,
+            content: skeletonChapter.content || "Inhalt wird generiert...",
+            imageDescription: `Illustration zu Kapitel ${skeletonChapter.order}`,
+          }));
+          console.warn(`[Phase3] ?? Created ${finalStory.chapters.length} fallback chapters from skeleton`);
+        } else {
+          // Last resort: throw error with detailed info
+          console.error(`[Phase3] ?? Cannot create fallback chapters. AI response:`, content.substring(0, 500));
+          throw new Error(`AI response missing chapters array. Response preview: ${content.substring(0, 200)}`);
+        }
       }
 
       // Validate structure
