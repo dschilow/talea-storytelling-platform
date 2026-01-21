@@ -594,7 +594,10 @@ export class FourPhaseOrchestrator {
     let coverImageResult: { url?: string; prompt: string } | undefined = undefined;
 
     try {
-      [chaptersWithImages, coverImageResult] = await Promise.all([
+      // Create a timeout promise for the entire image generation process (5 minutes max for all images)
+      const GLOBAL_IMAGE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes for all 6 images in parallel
+
+      const imageGenerationPromise = Promise.all([
         this.generateChapterImages(
           finalizedStory,
           input.avatarDetails,
@@ -606,6 +609,17 @@ export class FourPhaseOrchestrator {
           characterAssignments
         )
       ]);
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Image generation timeout after ${GLOBAL_IMAGE_TIMEOUT_MS}ms`)), GLOBAL_IMAGE_TIMEOUT_MS)
+      );
+
+      [chaptersWithImages, coverImageResult] = await Promise.race([
+        imageGenerationPromise,
+        timeoutPromise
+      ]);
+
+      console.log(`[4-Phase] ✅ All images generated successfully`);
     } catch (imageError) {
       console.error("[4-Phase] ❌ Image generation failed:", imageError);
       // Continue with chapters without images - story text is still valid
