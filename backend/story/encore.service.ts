@@ -12,3 +12,4 @@ import "./analyze-recent-stories";
 import "./auto-test-endpoint";
 import "./run-migration-sql";
 import "./test-artifacts";
+import "./show-artifacts";
