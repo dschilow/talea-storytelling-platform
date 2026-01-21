@@ -724,15 +724,13 @@ export class FourPhaseOrchestrator {
       coverImageUrl,
       chapters: chaptersWithImages,
       avatarDevelopments: finalizedStory.avatarDevelopments || [], // Pass through from Phase 3
-      // 🎁 Legacy: Pass loot artifact with generated image (deprecated)
-      newArtifact: finalizedStory.newArtifact
-        ? { ...finalizedStory.newArtifact, imageUrl: artifactImageUrl }
-        : undefined,
+      // 🎁 Legacy artifact system disabled - now using Pool System
+      newArtifact: undefined,
       // 🎁 NEW: Pending artifact from pool (unlocked after reading)
       pendingArtifact: phase3Result.pendingArtifact,
       metadata: {
         processingTime: totalDuration,
-        imagesGenerated: chaptersWithImages.length + 1 + (artifactImageUrl ? 1 : 0), // chapters + cover + artifact
+        imagesGenerated: chaptersWithImages.length + 1, // chapters + cover
         phases: phaseDurations,
         characterPoolUsed,
         model: configWithExperience.aiModel || "gpt-5-mini",
