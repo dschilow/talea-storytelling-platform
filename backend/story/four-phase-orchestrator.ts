@@ -1175,7 +1175,54 @@ export class FourPhaseOrchestrator {
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
-    const cleanedDescription = baseDescription.replace(/\s+/g, ' ').trim();
+    // CRITICAL FIX: Translate German artifact/object names to English for better image generation
+    // The image model (Flux.1) doesn't understand German well, causing "Zauberstab" to become "sword"
+    const germanToEnglishObjects: Record<string, string> = {
+      'zauberstab': 'magic wand with glowing tip',
+      'schwert': 'sword',
+      'schild': 'shield',
+      'buch': 'book',
+      'schlüssel': 'key',
+      'kompass': 'compass',
+      'krone': 'crown',
+      'ring': 'magic ring',
+      'amulett': 'amulet',
+      'kristall': 'crystal',
+      'laterne': 'lantern',
+      'feder': 'feather',
+      'stab': 'magic staff', // Important: "Stab" should be staff/wand, not sword
+      'dolch': 'dagger',
+      'bogen': 'bow',
+      'pfeil': 'arrow',
+      'helm': 'helmet',
+      'mantel': 'cloak',
+      'umhang': 'cape',
+      'kette': 'necklace',
+      'armband': 'bracelet',
+      'spiegel': 'mirror',
+      'trank': 'potion bottle',
+      'karte': 'map',
+      'pergament': 'scroll',
+      'zepter': 'scepter',
+      'kelch': 'chalice',
+      'harfe': 'harp',
+      'flöte': 'flute',
+      'glocke': 'bell',
+      'fackel': 'torch',
+      'kerze': 'candle',
+    };
+
+    let translatedDescription = baseDescription;
+    for (const [german, english] of Object.entries(germanToEnglishObjects)) {
+      // Case-insensitive replacement with word boundaries
+      const regex = new RegExp(`\\b${german}\\b`, 'gi');
+      if (regex.test(translatedDescription)) {
+        translatedDescription = translatedDescription.replace(regex, english);
+        console.log(`[Image Prompt] 🔄 Translated "${german}" -> "${english}" in image description`);
+      }
+    }
+
+    const cleanedDescription = translatedDescription.replace(/\s+/g, ' ').trim();
 
     // OPTIMIZATION v2.4: Check imageDescription for genre keywords
     const genreKeywords = ['medieval', 'fantasy', 'magic', 'castle', 'knight', 'princess', 'dragon', 'fairy', 'wizard', 'witch', 'kingdom', 'ancient', 'steampunk', 'victorian', 'retro', 'historical', 'old world', 'village', 'steam', 'gear', 'clockwork', 'brass'];
