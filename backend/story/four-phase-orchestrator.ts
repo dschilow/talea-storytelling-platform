@@ -613,62 +613,26 @@ export class FourPhaseOrchestrator {
     const coverDuration = phaseDurations.phase4Duration; // Approximate since parallel
     const coverImageUrl = coverImage?.url;
 
-    // ===== PHASE 4.5: Generate Artifact Image (if newArtifact exists) =====
-    let artifactImageUrl: string | undefined;
-    let artifactImagePrompt: string | undefined;
-
-    if (finalizedStory.newArtifact) {
-      console.log("[4-Phase] 🎁 Generating artifact image...");
-      const artifactStart = Date.now();
-
-      try {
-        const artifactResult = await generateArtifactImage(finalizedStory.newArtifact);
-        artifactImageUrl = artifactResult.imageUrl;
-        artifactImagePrompt = artifactResult.prompt;
-
-        const artifactDuration = Date.now() - artifactStart;
-        console.log(`[4-Phase] Artifact image generated in ${artifactDuration}ms: ${artifactResult.success ? '✅' : '❌'}`);
-
-        if (artifactResult.error) {
-          console.warn(`[4-Phase] Artifact image warning: ${artifactResult.error}`);
-        }
-
-        // ===== PHASE 4.6: Save Artifact to Avatar Inventory =====
-        // Save the artifact to each participating avatar's inventory
-        for (const avatarDetail of input.avatarDetails) {
-          try {
-            const inventoryItem: InventoryItem = {
-              id: crypto.randomUUID(),
-              name: finalizedStory.newArtifact.name,
-              type: finalizedStory.newArtifact.type || "TOOL",
-              level: 1,
-              sourceStoryId: input.storyId, // ✅ FIX: Use actual story ID
-              description: finalizedStory.newArtifact.description,
-              visualPrompt: finalizedStory.newArtifact.visualDescriptorKeywords.join(', '),
-              tags: finalizedStory.newArtifact.visualDescriptorKeywords,
-              acquiredAt: new Date().toISOString(),
-              imageUrl: artifactImageUrl,
-              storyEffect: finalizedStory.newArtifact.storyEffect,
-            };
-
-            await addArtifactToInventoryInternal(avatarDetail.id, inventoryItem);
-            console.log(`[4-Phase] 💾 Artifact saved to avatar ${avatarDetail.name}'s inventory`);
-          } catch (saveError) {
-            console.error(`[4-Phase] Failed to save artifact for avatar ${avatarDetail.name}:`, saveError);
-          }
-        }
-
-        console.log("[4-Phase] Artifact generation summary:", {
-          newArtifact: finalizedStory.newArtifact.name,
-          imageGenerated: !!artifactImageUrl,
-          assignedAvatars: input.avatarDetails.map(a => a.name),
-        });
-      } catch (error) {
-        console.error("[4-Phase] Failed to generate artifact image:", error);
-      }
-    } else {
-      console.log("[4-Phase] No newArtifact in story response - skipping artifact image generation");
-    }
+    // ===== PHASE 4.5 & 4.6: DISABLED - Using Artifact Pool System Instead =====
+    // OLD SYSTEM (DEPRECATED): Generated random artifacts immediately after story generation
+    // NEW SYSTEM: Artifacts are selected from pool (Phase 2.5) and unlocked AFTER reading (markRead.ts)
+    //
+    // Benefits of new system:
+    // - 100 unique, predefined artifacts with meaningful names/descriptions
+    // - Intelligent matching based on story genre and needs
+    // - Prevents repetition through usage tracking
+    // - Unlocked as REWARD after completing story reading
+    // - Creates gamification loop and encourages story completion
+    //
+    // Artifact flow:
+    // 1. Phase 1: AI generates artifactRequirement (category, abilities, discovery/usage chapters)
+    // 2. Phase 2.5: Match best artifact from pool using scoring algorithm
+    // 3. Phase 3: AI integrates matched artifact into story narrative
+    // 4. Story saved with artifact relationship in story_artifacts table (locked)
+    // 5. User reads story completely
+    // 6. markRead.ts: Unlock artifact and add to avatar inventory (REWARD!)
+    //
+    console.log("[4-Phase] ⏭️  Skipping old artifact generation - using Pool System");
 
     const totalDuration = Date.now() - startTime;
     console.log(`[4-Phase] Total orchestration completed in ${totalDuration}ms`);

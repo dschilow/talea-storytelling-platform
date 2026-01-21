@@ -866,29 +866,24 @@ CRITICAL: avatarDevelopments is MANDATORY.
 ${matchedArtifact ? `
 ARTIFACT INTEGRATION (PRE-SELECTED FROM POOL):
 The artifact "${config.language === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en}" has been pre-selected for this story.
+Category: ${matchedArtifact.category}, Rarity: ${matchedArtifact.rarity}
+Description: ${config.language === 'de' ? matchedArtifact.description.de : matchedArtifact.description.en}
+Story Role: ${matchedArtifact.storyRole}
+
+INTEGRATION REQUIREMENTS:
 - It MUST be discovered in chapter ${artifactRequirement?.discoveryChapter || 2}
 - It MUST be used to solve a problem in chapter ${artifactRequirement?.usageChapter || 4}
-- The artifact name MUST appear in the story text
-- DO NOT include "newArtifact" in your JSON output - the artifact is already defined!
-- Focus on making the discovery and usage scenes memorable and exciting.
+- The artifact name MUST appear naturally in the story text
+- Create memorable discovery scene (use hints from: ${matchedArtifact.discoveryScenarios.join(', ')})
+- Create exciting usage scene (use hints from: ${matchedArtifact.usageScenarios.join(', ')})
+- DO NOT include "newArtifact" in your JSON output - the artifact is already defined and will be unlocked after reading!
+- Focus on making the discovery and usage scenes exciting and integral to the plot.
 ` : `
-CRITICAL: newArtifact is MANDATORY.
-- At the end of chapter 5 the hero MUST find, receive, or discover a special item
-- Briefly describe this item in the story text
-- name, description, storyEffect: in language ${config.language || 'de'}
-- visualDescriptorKeywords: ALWAYS in ENGLISH (for image generation)
-- type: TOOL (useful tool), WEAPON (magical weapon), KNOWLEDGE (book/scroll), COMPANION (small creature)
-
-FORBIDDEN (GENERIC TRASH):
-- "Magical crystal", "Glowing amulet", "Golden key", "Old wand"
-- "Stone of courage", "Feather of wisdom"
-- Anything that sounds like generic "RPG item"
-
-ALLOWED (UNIQUE STORY LOOT):
-- A specific object from the plot (e.g., "The bent spoon of the giant", "The baker's glasses")
-- Something with character and history (e.g., "A bottle with captured north wind", "A cookie that never runs out")
-- It should be quirky and unique (style: Otfried Preussler / Roald Dahl)
-- storyEffect must be creative (not just "+1 courage", but "Can open doors when you knock politely")
+ARTIFACT SYSTEM DISABLED FOR THIS STORY:
+- No artifact will be included in this story
+- DO NOT include "newArtifact" in your JSON output
+- Focus on creating a compelling story without artifact rewards
+- The story should be complete and satisfying on its own
 `}
 
 IMAGE DESCRIPTION GUIDE (ENGLISH):
@@ -1013,22 +1008,14 @@ IMPORTANT LANGUAGE INSTRUCTION:
       console.log(`[Phase3] ? Chapter ${chapter.order}: ${wordCount} words (target: ${TARGET_WORDS}, range: ${MIN_WORDS}-${MAX_WORDS})`);
     }
 
-    // Validate newArtifact if present
+    // NEW ARTIFACT SYSTEM: Artifacts come from pool (Phase 2.5), not generated here
+    // Old system (deprecated): AI generated newArtifact in Phase 3 response
+    // New system: Artifact already matched and will be unlocked after reading
     if (story.newArtifact) {
-      if (!story.newArtifact.name || typeof story.newArtifact.name !== 'string') {
-        console.warn("[Phase3] newArtifact missing valid name");
-      }
-      if (!story.newArtifact.description || typeof story.newArtifact.description !== 'string') {
-        console.warn("[Phase3] newArtifact missing valid description");
-      }
-      if (!story.newArtifact.visualDescriptorKeywords || !Array.isArray(story.newArtifact.visualDescriptorKeywords)) {
-        console.warn("[Phase3] newArtifact missing visualDescriptorKeywords array");
-      }
-      console.log("[Phase3] ? newArtifact validated:", story.newArtifact.name);
+      console.warn("[Phase3] ⚠️ AI generated newArtifact despite instructions - ignoring it (using pool artifact instead)");
+      delete story.newArtifact; // Remove AI-generated artifact to use pool artifact
     } else {
-      console.warn("[Phase3] ?? No newArtifact in AI response - generating fallback artifact");
-      // Generate a fallback artifact based on story theme
-      story.newArtifact = this.generateFallbackArtifact(story);
+      console.log("[Phase3] ✅ No newArtifact in response (as expected with pool system)");
     }
 
     console.log("[Phase3] Final story validated successfully");
@@ -1037,30 +1024,8 @@ IMPORTANT LANGUAGE INSTRUCTION:
   /**
    * Generate a fallback artifact when AI doesn't provide one
    */
-  private generateFallbackArtifact(_story: any): any {
-    const types = ['TOOL', 'WEAPON', 'KNOWLEDGE', 'COMPANION'] as const;
-    const randomType = types[Math.floor(Math.random() * types.length)];
-
-    const artifacts = [
-      { name: "Glücksbringer", desc: "Ein magischer Talisman", effect: "Bringt Glück in schwierigen Situationen", keywords: ["golden amulet", "glowing runes", "ancient charm", "magical pendant"] },
-      { name: "Sternenstaub-Phiole", desc: "Eine Flasche voller Sternenstaub", effect: "Leuchtet in der Dunkelheit", keywords: ["glass vial", "sparkling stardust", "cosmic glow", "ethereal particles"] },
-      { name: "Weisheitskristall", desc: "Ein Kristall voller alter Weisheit", effect: "Hilft bei schwierigen Entscheidungen", keywords: ["purple crystal", "ancient wisdom", "mystical glow", "floating runes"] },
-      { name: "Freundschaftsband", desc: "Ein Band das Freunde verbindet", effect: "Stärkt die Verbindung zwischen Freunden", keywords: ["woven bracelet", "colorful threads", "magical bond", "friendship symbol"] },
-      { name: "Mut-Amulett", desc: "Ein Amulett das Mut verleiht", effect: "Gibt Stärke in Momenten der Angst", keywords: ["lion pendant", "golden metal", "brave heart symbol", "radiant aura"] },
-    ];
-
-    const artifact = artifacts[Math.floor(Math.random() * artifacts.length)];
-
-    console.log(`[Phase3] ?? Generated fallback artifact: ${artifact.name}`);
-
-    return {
-      name: artifact.name,
-      description: artifact.desc,
-      type: randomType,
-      storyEffect: artifact.effect,
-      visualDescriptorKeywords: artifact.keywords
-    };
-  }
+  // DEPRECATED: generateFallbackArtifact removed - using pool system instead
+  // Artifacts are now selected from artifact_pool table (Phase 2.5) and unlocked after reading (markRead.ts)
 
   /**
    * Additional quality checks: avatars present, antagonist present, twist (if requested), encoding sanity
