@@ -64,6 +64,7 @@ async function main() {
   const migrationsDir = join(import.meta.dir, "backend", "story", "migrations");
   const migrations = [
     { file: "9_create_artifact_pool.up.sql", name: "9_create_artifact_pool" },
+    { file: "9b_create_artifact_indexes.up.sql", name: "9b_create_artifact_indexes" },
     { file: "10_seed_artifact_pool.up.sql", name: "10_seed_artifact_pool" },
   ];
 

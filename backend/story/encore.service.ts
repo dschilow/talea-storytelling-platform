@@ -11,3 +11,4 @@ import "./analyze-phase-logs";
 import "./analyze-recent-stories";
 import "./auto-test-endpoint";
 import "./run-migration-sql";
+import "./test-artifacts";
