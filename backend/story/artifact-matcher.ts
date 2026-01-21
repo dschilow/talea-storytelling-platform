@@ -26,6 +26,7 @@ function rowToArtifactTemplate(row: any): ArtifactTemplate {
     usageScenarios: row.usage_scenarios || [],
     emoji: row.emoji,
     visualKeywords: row.visual_keywords || [],
+    imageUrl: row.image_url || undefined,
     genreAffinity: {
       adventure: parseFloat(row.genre_adventure) || 0.5,
       fantasy: parseFloat(row.genre_fantasy) || 0.5,

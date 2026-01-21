@@ -161,6 +161,7 @@ export interface ArtifactTemplate {
   // Visual
   emoji?: string;                     // Fallback emoji representation
   visualKeywords: string[];           // For image generation
+  imageUrl?: string;                  // Optional generated image
 
   // Genre affinity (0.0 - 1.0 for matching)
   genreAffinity: {

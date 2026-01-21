@@ -1197,6 +1197,16 @@ import { analyzeStory as api_story_analyze_phase_logs_analyzeStory } from "~back
 import { analyzeRecentStories as api_story_analyze_recent_stories_analyzeRecentStories } from "~backend/story/analyze-recent-stories";
 import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/story/auto-test-endpoint";
 import {
+    addArtifact as api_story_artifact_pool_api_addArtifact,
+    deleteArtifact as api_story_artifact_pool_api_deleteArtifact,
+    exportArtifacts as api_story_artifact_pool_api_exportArtifacts,
+    generateArtifactImage as api_story_artifact_pool_api_generateArtifactImage,
+    getArtifact as api_story_artifact_pool_api_getArtifact,
+    importArtifacts as api_story_artifact_pool_api_importArtifacts,
+    listArtifacts as api_story_artifact_pool_api_listArtifacts,
+    updateArtifact as api_story_artifact_pool_api_updateArtifact
+} from "~backend/story/artifact-pool-api";
+import {
     addCharacter as api_story_character_pool_api_addCharacter,
     deleteCharacter as api_story_character_pool_api_deleteCharacter,
     exportCharacters as api_story_character_pool_api_exportCharacters,
@@ -1226,30 +1236,39 @@ import {
 import { update as api_story_update_update } from "~backend/story/update";
 
 export namespace story {
+    export type CharacterTemplate = import("~backend/story/types").CharacterTemplate
+    export type ArtifactTemplate = import("~backend/story/types").ArtifactTemplate
 
     export class ServiceClient {
         private baseClient: BaseClient
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.addArtifact = this.addArtifact.bind(this)
             this.addCharacter = this.addCharacter.bind(this)
             this.analyzeRecentStories = this.analyzeRecentStories.bind(this)
             this.analyzeStory = this.analyzeStory.bind(this)
             this.autoTest = this.autoTest.bind(this)
+            this.deleteArtifact = this.deleteArtifact.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
+            this.exportArtifacts = this.exportArtifacts.bind(this)
             this.exportCharacters = this.exportCharacters.bind(this)
             this.generate = this.generate.bind(this)
+            this.generateArtifactImage = this.generateArtifactImage.bind(this)
             this.generateCharacterImage = this.generateCharacterImage.bind(this)
             this.generateFromFairyTale = this.generateFromFairyTale.bind(this)
             this.generateStoryContent = this.generateStoryContent.bind(this)
             this.get = this.get.bind(this)
+            this.getArtifact = this.getArtifact.bind(this)
             this.getCharacter = this.getCharacter.bind(this)
             this.getCharacterStats = this.getCharacterStats.bind(this)
             this.getFairyTaleDetails = this.getFairyTaleDetails.bind(this)
+            this.importArtifacts = this.importArtifacts.bind(this)
             this.importCharacters = this.importCharacters.bind(this)
             this.list = this.list.bind(this)
             this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this)
+            this.listArtifacts = this.listArtifacts.bind(this)
             this.listCharacters = this.listCharacters.bind(this)
             this.listTestConfigs = this.listTestConfigs.bind(this)
             this.markRead = this.markRead.bind(this)
@@ -1258,7 +1277,14 @@ export namespace story {
             this.runTest = this.runTest.bind(this)
             this.seedPool = this.seedPool.bind(this)
             this.update = this.update.bind(this)
+            this.updateArtifact = this.updateArtifact.bind(this)
             this.updateCharacter = this.updateCharacter.bind(this)
+        }
+
+        public async addArtifact(params: RequestType<typeof api_story_artifact_pool_api_addArtifact>): Promise<ResponseType<typeof api_story_artifact_pool_api_addArtifact>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_addArtifact>
         }
 
         public async addCharacter(params: RequestType<typeof api_story_character_pool_api_addCharacter>): Promise<ResponseType<typeof api_story_character_pool_api_addCharacter>> {
@@ -1302,6 +1328,12 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_deleteCharacter>
         }
 
+        public async deleteArtifact(params: { id: string }): Promise<ResponseType<typeof api_story_artifact_pool_api_deleteArtifact>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_deleteArtifact>
+        }
+
         /**
          * Deletes a story and all its chapters.
          */
@@ -1316,6 +1348,15 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_exportCharacters>
+        }
+
+        /**
+         * ===== EXPORT ARTIFACTS =====
+         */
+        public async exportArtifacts(): Promise<ResponseType<typeof api_story_artifact_pool_api_exportArtifacts>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/export`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_exportArtifacts>
         }
 
         /**
@@ -1336,6 +1377,17 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_generateCharacterImage>
+        }
+
+        public async generateArtifactImage(params: RequestType<typeof api_story_artifact_pool_api_generateArtifactImage>): Promise<ResponseType<typeof api_story_artifact_pool_api_generateArtifactImage>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                style: params.style,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_generateArtifactImage>
         }
 
         /**
@@ -1363,6 +1415,12 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_get_get>
         }
 
+        public async getArtifact(params: { id: string }): Promise<ResponseType<typeof api_story_artifact_pool_api_getArtifact>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_getArtifact>
+        }
+
         public async getCharacter(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_getCharacter>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
@@ -1380,6 +1438,12 @@ export namespace story {
          */
         public async getFairyTaleDetails(params: { taleId: string }): Promise<void> {
             await this.baseClient.callTypedAPI(`/story/fairytale/${encodeURIComponent(params.taleId)}`, {method: "GET", body: undefined})
+        }
+
+        public async importArtifacts(params: RequestType<typeof api_story_artifact_pool_api_importArtifacts>): Promise<ResponseType<typeof api_story_artifact_pool_api_importArtifacts>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/import`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_importArtifacts>
         }
 
         public async importCharacters(params: RequestType<typeof api_story_character_pool_api_importCharacters>): Promise<ResponseType<typeof api_story_character_pool_api_importCharacters>> {
@@ -1408,6 +1472,15 @@ export namespace story {
          */
         public async listAvailableFairyTales(): Promise<void> {
             await this.baseClient.callTypedAPI(`/story/available-fairytales`, {method: "GET", body: undefined})
+        }
+
+        /**
+         * ===== GET ALL ARTIFACTS =====
+         */
+        public async listArtifacts(): Promise<ResponseType<typeof api_story_artifact_pool_api_listArtifacts>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_listArtifacts>
         }
 
         /**
@@ -1486,6 +1559,17 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_update_update>
+        }
+
+        public async updateArtifact(params: RequestType<typeof api_story_artifact_pool_api_updateArtifact>): Promise<ResponseType<typeof api_story_artifact_pool_api_updateArtifact>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                updates: params.updates,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_updateArtifact>
         }
 
         public async updateCharacter(params: RequestType<typeof api_story_character_pool_api_updateCharacter>): Promise<ResponseType<typeof api_story_character_pool_api_updateCharacter>> {

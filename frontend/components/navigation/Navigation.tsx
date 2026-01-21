@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, BookOpen, FlaskConical, Code, Sparkles, BookMarked } from 'lucide-react';
+import { Home, User, BookOpen, FlaskConical, Code, Sparkles, Gem, BookMarked } from 'lucide-react';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
@@ -15,6 +15,7 @@ const Navigation: React.FC = () => {
     { path: '/stories', label: 'Stories', icon: BookOpen, color: colors.rose[500] },
     { path: '/doku', label: 'Doku', icon: FlaskConical, color: colors.mint[500] },
     { path: '/characters', label: 'Charaktere', icon: Sparkles, color: colors.peach[500] },
+    { path: '/artifacts', label: 'Artefakte', icon: Gem, color: colors.honey[500] },
     { path: '/fairytales', label: 'Märchen', icon: BookMarked, color: '#f59e0b' },
     { path: '/logs', label: 'Logs', icon: Code, color: colors.sky[500] },
   ];

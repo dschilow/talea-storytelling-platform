@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, BookOpen, User, FlaskConical, Settings, LogOut, Sparkles, BookMarked, Code } from 'lucide-react';
+import { Home, BookOpen, User, FlaskConical, Settings, LogOut, Sparkles, Gem, BookMarked, Code } from 'lucide-react';
 import { useClerk } from '@clerk/clerk-react';
 import { Sidebar as AceternitySidebar, SidebarBody, SidebarLink } from '../ui/sidebar';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ const Sidebar: React.FC = () => {
         { icon: <BookOpen className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.stories'), href: '/stories' },
         { icon: <FlaskConical className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.doku'), href: '/doku' },
         { icon: <Sparkles className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.characters'), href: '/characters' },
+        { icon: <Gem className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.artifacts'), href: '/artifacts' },
         { icon: <BookMarked className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.fairytales'), href: '/fairytales' },
         { icon: <Code className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />, label: t('navigation.logs'), href: '/logs' },
     ];

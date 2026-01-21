@@ -32,6 +32,7 @@ import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
 import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
 import DokusScreen from './screens/Doku/DokusScreen';
 import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
+import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -64,6 +65,7 @@ const RouterContent = () => {
           <Route path="/logs" element={<LogViewerScreen />} />
           <Route path="/doku" element={<DokusScreen />} />
           <Route path="/characters" element={<CharacterPoolScreen />} />
+          <Route path="/artifacts" element={<ArtifactPoolScreen />} />
           <Route path="/fairytales" element={<FairyTalesScreen />} />
           <Route path="/doku/create" element={<DokuWizardScreen />} />
           <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />

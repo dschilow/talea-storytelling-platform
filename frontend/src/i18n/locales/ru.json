@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "appName": "Talea",
     "loading": "Загрузка...",
@@ -29,6 +29,7 @@
     "chat": "Чат с Тави",
     "settings": "Настройки",
     "characters": "Персонажи",
+    "artifacts": "Артефакты",
     "fairytales": "Сказки",
     "logs": "Логи",
     "admin": "Админ",
