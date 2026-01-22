@@ -8,6 +8,7 @@ import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
 import { Typewriter } from '../../components/ui/typewriter-text';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
+import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
 import type { Story, Chapter } from '../../types/story';
 import type { InventoryItem, Skill } from '../../types/avatar';
 import { cn } from '../../lib/utils';
@@ -29,6 +30,8 @@ const CinematicStoryViewer: React.FC = () => {
     // Artifact reward display queue
     const [artifactQueue, setArtifactQueue] = useState<{ item: InventoryItem; isUpgrade: boolean }[]>([]);
     const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
+    const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
+    const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
 
     // Scroll Progress for the whole container
     const { scrollYProgress } = useScroll({
@@ -133,6 +136,18 @@ const CinematicStoryViewer: React.FC = () => {
                 const result = await response.json();
                 console.log('✅ Personality updates applied:', result);
                 console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
+
+                // Handle pool artifact unlock (artifact_pool system)
+                console.log('Pool artifact in response?', !!result.unlockedArtifact);
+                if (result.unlockedArtifact) {
+                    console.log('Setting pool artifact:', result.unlockedArtifact.name);
+                    setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
+                    setTimeout(() => {
+                        setShowPoolArtifactModal(true);
+                    }, 250);
+                } else {
+                    console.log('No unlockedArtifact in response');
+                }
 
                 // Collect all artifacts (new and upgraded) for toast notifications
                 const collectedArtifacts: { item: InventoryItem; isUpgrade: boolean }[] = [];
@@ -387,6 +402,20 @@ const CinematicStoryViewer: React.FC = () => {
                 isVisible={!!currentArtifact}
                 onClose={handleCloseArtifact}
                 isUpgrade={currentArtifact?.isUpgrade}
+            />
+
+            <ArtifactCelebrationModal
+                artifact={poolArtifact}
+                isVisible={showPoolArtifactModal}
+                onClose={() => {
+                    setShowPoolArtifactModal(false);
+                    setPoolArtifact(null);
+                }}
+                onViewTreasureRoom={() => {
+                    setShowPoolArtifactModal(false);
+                    setPoolArtifact(null);
+                    navigate('/treasure-room');
+                }}
             />
         </div>
     );

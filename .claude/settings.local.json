@@ -33,7 +33,9 @@
       "Bash(encore check:*)",
       "Bash(curl -X POST https://backend-2-production-3de1.up.railway.app/story/run-migration-sql -H \"Content-Type: application/json\" -d '{\"\"sql\"\":\"\"SELECT 1 as test;\"\",\"\"migrationName\"\":\"\"test\"\"}')",
       "Bash(DATABASE_URL=\"postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@postgres.railway.internal:5432/railway\" bun run:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
