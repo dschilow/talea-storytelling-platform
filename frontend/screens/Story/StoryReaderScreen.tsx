@@ -208,6 +208,20 @@ const StoryReaderScreen: React.FC = () => {
         console.log('✅ Personality updates applied:', result);
         console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
 
+        // 🎁 CRITICAL: Handle pool artifact IMMEDIATELY (before any other processing)
+        console.log('🎁 [DEPLOY-CHECK] Artifact in response?', !!result.unlockedArtifact);
+        if (result.unlockedArtifact) {
+          console.log('🏆 [DEPLOY-CHECK] Setting pool artifact:', result.unlockedArtifact.name);
+          setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
+          // Show modal after state is set
+          setTimeout(() => {
+            console.log('🏆 [DEPLOY-CHECK] TRIGGERING MODAL NOW');
+            setShowPoolArtifactModal(true);
+          }, 250);
+        } else {
+          console.log('⚠️ [DEPLOY-CHECK] No unlockedArtifact in response!');
+        }
+
         // Process Rewards
         const newRewards: typeof rewardQueue = [];
         const collectedArtifacts: { item: InventoryItem; isUpgrade: boolean }[] = [];
@@ -244,18 +258,6 @@ const StoryReaderScreen: React.FC = () => {
         if (newRewards.length > 0) {
           console.log('🎁 Queuing rewards:', newRewards);
           setRewardQueue(prev => [...prev, ...newRewards]);
-        }
-
-        // CRITICAL FIX: Handle pool artifact from artifact_pool system
-        console.log('🎁 [FIXED-v3] Checking for unlockedArtifact:', result.unlockedArtifact);
-        if (result.unlockedArtifact) {
-          console.log('🏆 [FIXED-v3] Pool artifact unlocked!', result.unlockedArtifact.name);
-          setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
-          // Show modal after a small delay to ensure state is set
-          setTimeout(() => {
-            console.log('🏆 [FIXED-v3] NOW SHOWING ARTIFACT MODAL');
-            setShowPoolArtifactModal(true);
-          }, 200);
         }
 
         // Show FULLSCREEN artifact display for each artifact earned or upgraded (legacy)
