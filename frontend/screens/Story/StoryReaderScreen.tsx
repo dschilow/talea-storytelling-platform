@@ -246,16 +246,16 @@ const StoryReaderScreen: React.FC = () => {
           setRewardQueue(prev => [...prev, ...newRewards]);
         }
 
-        // NEW: Handle pool artifact from artifact_pool system (v2 - deployment fix)
-        console.log('🎁 [v2] Checking for unlockedArtifact:', result.unlockedArtifact);
+        // CRITICAL FIX: Handle pool artifact from artifact_pool system
+        console.log('🎁 [FIXED-v3] Checking for unlockedArtifact:', result.unlockedArtifact);
         if (result.unlockedArtifact) {
-          console.log('🏆 [v2] Pool artifact unlocked:', result.unlockedArtifact.name);
+          console.log('🏆 [FIXED-v3] Pool artifact unlocked!', result.unlockedArtifact.name);
           setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
-          // Delay showing modal to avoid React batching issues
+          // Show modal after a small delay to ensure state is set
           setTimeout(() => {
-            console.log('🏆 [v2] Showing pool artifact modal NOW');
+            console.log('🏆 [FIXED-v3] NOW SHOWING ARTIFACT MODAL');
             setShowPoolArtifactModal(true);
-          }, 150);
+          }, 200);
         }
 
         // Show FULLSCREEN artifact display for each artifact earned or upgraded (legacy)
