@@ -723,8 +723,8 @@ export const SENSORY_RULES = {
     taste: { required: false, examples: ['sweet', 'sour', 'salty', 'bitter'] },
   },
 
-  // Avoid clichÃ©s (English)
-  forbiddenClichÃ©s: [
+  // Avoid cliches (English)
+  forbiddenCliches: [
     'smells like bread and cinnamon',
     'tastes sweet as honey',
     'soft as velvet',
@@ -733,14 +733,14 @@ export const SENSORY_RULES = {
     'hot as fire',
   ],
 
-  // Avoid clichÃ©s (German) - for validation
-  forbiddenClichÃ©sDE: [
+  // Avoid cliches (German) - for validation
+  forbiddenClichesDE: [
     'riecht nach Brot und Zimt',
-    'schmeckt sÃ¼ÃŸ wie Honig',
+    'schmeckt suess wie Honig',
     'weich wie Samt',
     'hart wie Stein',
     'kalt wie Eis',
-    'heiÃŸ wie Feuer',
+    'heiss wie Feuer',
   ],
 
   // Encourage specific, unexpected details (English)
@@ -1453,6 +1453,7 @@ export default {
   // Complete Rules Block v3.0 (includes all optimizations)
   generateCompleteRulesBlockEN,
 };
+
 
 
 
