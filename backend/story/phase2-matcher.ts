@@ -39,6 +39,7 @@ export class Phase2CharacterMatcher {
 
     const assignments = new Map<string, CharacterTemplate>();
     const usedCharacters = new Set<string>();
+    const usedNames = new Set<string>();
     const usedSpecies = new Set<string>(); // Track species diversity
     const avatarNameSource = (avatarDetails && avatarDetails.length > 0)
       ? avatarDetails.map(a => a?.name)
@@ -310,6 +311,9 @@ export class Phase2CharacterMatcher {
             };
             assignments.set(req.placeholder, avatarChar);
             usedCharacters.add(avatarChar.id);
+            if (avatarEntry.key) {
+              usedNames.add(avatarEntry.key);
+            }
             usedSpecies.add(avatarChar.visualProfile.species || "human");
             continue;
           }
@@ -336,6 +340,7 @@ export class Phase2CharacterMatcher {
         pool,
         setting,
         usedCharacters,
+        usedNames,
         recentUsage,
         usedSpecies,
         useFairyTaleTemplate,
@@ -359,6 +364,12 @@ export class Phase2CharacterMatcher {
 
         assignments.set(req.placeholder, generated);
         usedCharacters.add(generated.id);
+        {
+          const generatedNameKey = this.normalizeNameKey(generated.name);
+          if (generatedNameKey) {
+            usedNames.add(generatedNameKey);
+          }
+        }
         if (generated.visualProfile.species) {
           usedSpecies.add(generated.visualProfile.species);
         }
@@ -366,6 +377,12 @@ export class Phase2CharacterMatcher {
         console.log(`[Phase2] Matched ${req.placeholder} -> ${bestMatch.name} (score: ${(bestMatch as any)._matchScore})`);
         assignments.set(req.placeholder, bestMatch);
         usedCharacters.add(bestMatch.id);
+        {
+          const bestMatchNameKey = this.normalizeNameKey(bestMatch.name);
+          if (bestMatchNameKey) {
+            usedNames.add(bestMatchNameKey);
+          }
+        }
         if (bestMatch.visualProfile.species) {
           usedSpecies.add(bestMatch.visualProfile.species);
         }
@@ -530,6 +547,7 @@ export class Phase2CharacterMatcher {
     pool: CharacterTemplate[],
     setting: string,
     alreadyUsed: Set<string>,
+    usedNames: Set<string>,
     recentUsage: Map<string, number>,
     usedSpecies: Set<string>,
     useFairyTaleTemplate: boolean = false,
@@ -541,6 +559,10 @@ export class Phase2CharacterMatcher {
     for (const candidate of pool) {
       // Skip already used characters
       if (alreadyUsed.has(candidate.id)) {
+        continue;
+      }
+      const candidateNameKey = this.normalizeNameKey(candidate.name);
+      if (candidateNameKey && usedNames.has(candidateNameKey)) {
         continue;
       }
 

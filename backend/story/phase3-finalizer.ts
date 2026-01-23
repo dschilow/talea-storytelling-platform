@@ -340,6 +340,21 @@ export class Phase3StoryFinalizer {
         }
       }
 
+      const imageFixes = this.replaceImageDescriptionPlaceholders(finalStory, input.assignments);
+      if (imageFixes.length > 0) {
+        console.log("[Phase3] ?? Image description placeholder fixes:", imageFixes);
+      }
+
+      const descFix = this.ensureDescriptionLanguage(
+        finalStory,
+        input.config.language,
+        input.avatarDetails.map(a => a.name),
+        selectedFairyTale?.tale.title
+      );
+      if (descFix) {
+        console.log(`[Phase3] ?? ${descFix}`);
+      }
+
       // Validate structure
       this.validateFinalStory(finalStory, input.config.ageGroup);
 
@@ -556,6 +571,48 @@ export class Phase3StoryFinalizer {
     }
 
     return result;
+  }
+
+  private replaceImageDescriptionPlaceholders(
+    story: FinalizedStory,
+    assignments: Map<string, CharacterTemplate>
+  ): string[] {
+    const fixes: string[] = [];
+    for (const chapter of story.chapters || []) {
+      if (!chapter.imageDescription) continue;
+      const replaced = this.replaceAllPlaceholders(chapter.imageDescription, assignments)
+        .replace(/\{\{[^}]+\}\}/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (replaced !== chapter.imageDescription) {
+        chapter.imageDescription = replaced;
+        fixes.push(`Chapter ${chapter.order}: imageDescription placeholders replaced`);
+      }
+    }
+    return fixes;
+  }
+
+  private ensureDescriptionLanguage(
+    story: FinalizedStory,
+    language: string | undefined,
+    avatarNames: string[],
+    fairyTaleTitle?: string
+  ): string | null {
+    if (language !== "de") return null;
+    const description = String(story.description || "").trim();
+    if (!description) return null;
+
+    const englishHits = (description.match(/\b(the|and|with|a|an|new|personalized|story)\b/gi) || []).length;
+    const germanHits = (description.match(/\b(der|die|das|und|mit|eine|einer|geschichte|maerchen)\b/gi) || []).length;
+    if (englishHits >= 2 && englishHits > germanHits) {
+      const names = avatarNames.filter(Boolean).join(" und ");
+      const fallback = fairyTaleTitle
+        ? `Eine persoenliche Version von "${fairyTaleTitle}" mit ${names}.`
+        : `Eine warme Geschichte mit ${names}.`;
+      story.description = fallback;
+      return "Description language adjusted to German fallback";
+    }
+    return null;
   }
 
   private escapeRegex(value: string): string {

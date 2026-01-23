@@ -835,8 +835,12 @@ export class FourPhaseOrchestrator {
     const imagePromises = story.chapters.map(async (chapter, chapterIndex) => {
       try {
         // Build enhanced prompt with character consistency
-        const enhancedPrompt = this.buildEnhancedImagePrompt(
+        const preparedDescription = this.prepareImageDescription(
           chapter.imageDescription,
+          characterAssignments
+        );
+        const enhancedPrompt = this.buildEnhancedImagePrompt(
+          preparedDescription,
           avatarDetails,
           characterAssignments
         );
@@ -851,7 +855,7 @@ export class FourPhaseOrchestrator {
 
         const stylePreset = "watercolor_storybook";
 
-        const referenceImages = this.selectReferenceImagesForScene(chapter.imageDescription, avatarDetails);
+        const referenceImages = this.selectReferenceImagesForScene(preparedDescription, avatarDetails);
         if (referenceImages.length > 0) {
           console.log(`[4-Phase] Using 1 reference image for chapter ${chapter.order}`);
         }
@@ -939,6 +943,43 @@ export class FourPhaseOrchestrator {
     return fallback;
   }
 
+  private escapeRegex(value: string): string {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private normalizeGermanUmlauts(text: string): string {
+    return String(text || "")
+      .replace(/\u00e4/g, "ae")
+      .replace(/\u00f6/g, "oe")
+      .replace(/\u00fc/g, "ue")
+      .replace(/\u00df/g, "ss")
+      .replace(/\u00c4/g, "Ae")
+      .replace(/\u00d6/g, "Oe")
+      .replace(/\u00dc/g, "Ue");
+  }
+
+  private replaceImagePlaceholders(
+    description: string,
+    characterAssignments: Map<string, CharacterTemplate>
+  ): string {
+    let result = String(description || "");
+    for (const [placeholder, character] of characterAssignments) {
+      if (!placeholder || typeof placeholder !== "string") continue;
+      const safeName = character?.name ? this.formatDisplayName(character.name) : "unknown character";
+      const regex = new RegExp(this.escapeRegex(placeholder), "g");
+      result = result.replace(regex, safeName);
+    }
+    return result.replace(/\{\{[^}]+\}\}/g, "");
+  }
+
+  private prepareImageDescription(
+    description: string,
+    characterAssignments: Map<string, CharacterTemplate>
+  ): string {
+    const replaced = this.replaceImagePlaceholders(description, characterAssignments);
+    return this.normalizeGermanUmlauts(replaced);
+  }
+
   private selectReferenceImagesForScene(
     description: string,
     avatarDetails: AvatarDetail[]
@@ -1005,9 +1046,31 @@ export class FourPhaseOrchestrator {
     }
   }
 
+  private ageCategoryToLabel(ageCategory?: string): string | null {
+    if (!ageCategory) return null;
+    switch (ageCategory) {
+      case "child": return "child";
+      case "teenager": return "teen";
+      case "young_adult": return "young adult";
+      case "adult": return "adult";
+      case "elder": return "elderly";
+      case "ageless": return "ageless";
+      default: return null;
+    }
+  }
+
+  private normalizeGenderLabel(gender?: string): string | null {
+    if (!gender) return null;
+    const normalized = String(gender).trim().toLowerCase();
+    if (!normalized || normalized === "any" || normalized === "unknown") return null;
+    if (normalized === "neutral" || normalized === "nonbinary") return "person";
+    return normalized;
+  }
+
   private visualProfileToImagePromptWithInvariants(
     vp: any,
-    avatarDescription?: string
+    avatarDescription?: string,
+    fallback?: { ageCategory?: string; gender?: string }
   ): string {
     if (!vp) return 'no visual details available';
 
@@ -1015,16 +1078,20 @@ export class FourPhaseOrchestrator {
 
     // 1. AGE AND GENDER (CRITICAL for size consistency)
     const numericAge = this.extractNumericAgeFromProfile(vp);
+    const fallbackAgeLabel = this.ageCategoryToLabel(fallback?.ageCategory);
     const ageLabelRaw = numericAge !== null
       ? `${numericAge}-year-old`
-      : (vp.ageApprox ? String(vp.ageApprox).replace(/years?\s+old/gi, "year-old").trim() : "child");
+      : (vp.ageApprox ? String(vp.ageApprox).replace(/years?\s+old/gi, "year-old").trim() : (fallbackAgeLabel || "adult"));
     const ageLabel = ageLabelRaw
       .replace(/\b(years?\s+old)\b\s+\b(years?\s+old)\b/gi, "$1")
       .replace(/\byear-old\b\s+\byear-old\b/gi, "year-old")
       .replace(/\s+/g, " ")
       .trim();
-    const gender = vp.gender || 'child';
-    parts.push(`${ageLabel} ${gender}`.trim());
+    const genderLabel = this.normalizeGenderLabel(vp.gender || fallback?.gender);
+    const ageGender = [ageLabel, genderLabel].filter(Boolean).join(" ").trim();
+    if (ageGender) {
+      parts.push(ageGender);
+    }
 
     // 2. HAIR (locked color for consistency)
     if (vp.hair) {
@@ -1093,7 +1160,7 @@ export class FourPhaseOrchestrator {
     }
 
     // 10. CHILD SAFETY (Strict for human children)
-    const ageForSafety = numericAge ?? 8;
+    const ageForSafety = numericAge ?? this.ageCategoryToNumber(fallback?.ageCategory) ?? 8;
     if (ageForSafety <= 12 && (!vp.species || String(vp.species).toLowerCase().includes('human'))) {
       parts.push('child proportions, NO beard, NO mustache, smooth young face');
     }
@@ -1111,6 +1178,8 @@ export class FourPhaseOrchestrator {
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
+    const preparedDescription = this.prepareImageDescription(baseDescription, characterAssignments);
+
     // Translate common German object nouns to English for image models
     const germanToEnglishObjects: Record<string, string> = {
       'zauberstab': 'magic wand with glowing tip',
@@ -1149,7 +1218,7 @@ export class FourPhaseOrchestrator {
       'kerze': 'candle',
     };
 
-    let translatedDescription = baseDescription || '';
+    let translatedDescription = preparedDescription || '';
     for (const [german, english] of Object.entries(germanToEnglishObjects)) {
       const regex = new RegExp(`\\b${german}\\b`, 'gi');
       if (regex.test(translatedDescription)) {
@@ -1181,7 +1250,16 @@ export class FourPhaseOrchestrator {
     }
 
     cleanedDescription = cleanedDescription
+      .replace(/\{\{[^}]+\}\}/g, '')
       .replace(/\b(FOREGROUND|MIDGROUND|BACKGROUND|LIGHTING|MOOD|ATMOSPHERE|COMPOSITION|STYLE|SHOT TYPE|SHOT|CAMERA|POSITIONING|CHARACTERS IN THIS SCENE)\b[:,-]*/gi, '')
+      .replace(/\bCRITICAL\b[^.]*\.?/gi, '')
+      .replace(/\bCHARACTERS IN THIS SCENE\b[^.]*\.?/gi, '')
+      .replace(/\bMain characters?\b[^.]*\.?/gi, '')
+      .replace(/\bA scene with exactly\b[^.]*\.?/gi, '')
+      .replace(/\bThe scene includes\b[^.]*\.?/gi, '')
+      .replace(/\bexactly\s+\d+\b/gi, '')
+      .replace(/\b\d+\s+(?:distinct\s+)?(?:characters?|people|persons)\b/gi, '')
+      .replace(/\bchilds\b/gi, 'children')
       .replace(/\b(crowd|villagers|townsfolk|bystanders|onlookers|passersby|spectators)\b/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -1234,7 +1312,11 @@ export class FourPhaseOrchestrator {
         continue;
       }
 
-      const visualContext = this.visualProfileToImagePromptWithInvariants(char.visualProfile, undefined);
+      const visualContext = this.visualProfileToImagePromptWithInvariants(
+        char.visualProfile,
+        undefined,
+        { ageCategory: char.age_category, gender: char.gender }
+      );
       const ageFromProfile = this.extractNumericAgeFromProfile(char.visualProfile);
       const age = ageFromProfile ?? this.ageCategoryToNumber(char.age_category) ?? 30;
       const visualProfile = char.visualProfile as { heightCm?: number; height?: number } | undefined;
@@ -1254,11 +1336,11 @@ export class FourPhaseOrchestrator {
       supportingIndex += 1;
     }
 
-    const descriptionLower = cleanedDescription.toLowerCase();
+    const descriptionKey = this.normalizeNameKey(cleanedDescription);
     const charactersInScene: CharacterInfo[] = [];
 
     for (const charInfo of allCharacters.values()) {
-      const index = this.findNameIndex(descriptionLower, charInfo.nameKey);
+      const index = this.findNameIndex(descriptionKey, charInfo.nameKey);
       if (index >= 0) {
         charInfo.appearanceIndex = index;
         charactersInScene.push(charInfo);
@@ -1283,6 +1365,45 @@ export class FourPhaseOrchestrator {
       if (bIndex === -1) return -1;
       return aIndex - bIndex;
     });
+
+    const extraPersonTerms = [
+      'king', 'queen', 'princess', 'prince',
+      'villager', 'villagers', 'townsfolk',
+      'bystander', 'bystanders', 'onlooker', 'onlookers',
+      'passerby', 'passersby', 'spectator', 'spectators',
+      'crowd', 'mother', 'father', 'grandmother', 'grandfather',
+      'guard', 'guards', 'soldier', 'soldiers',
+      'servant', 'servants', 'maid', 'maids',
+      'nurse', 'nurses', 'teacher', 'teachers', 'doctor', 'doctors'
+    ];
+    const extraPersonPattern = new RegExp(`\\b(?:${extraPersonTerms.join('|')})\\b`, 'i');
+    const extraPersonPhrasePattern = new RegExp(
+      `\\b(?:with|alongside|beside|near|around|and)\\s+(?:the|a|an)?\\s*(?:${extraPersonTerms.join('|')})(?:\\s+and\\s+(?:the|a|an)?\\s*(?:${extraPersonTerms.join('|')}))?[^,.;]*`,
+      'gi'
+    );
+
+    const sanitizeSceneDescription = (text: string, nameKeys: string[]): string => {
+      const raw = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!raw) return '';
+      const sentences = raw.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+      const cleanedSentences = sentences.map(sentence => {
+        let cleaned = sentence.replace(extraPersonPhrasePattern, '').trim();
+        const sentenceKey = this.normalizeNameKey(cleaned);
+        const hasName = nameKeys.some(key => key && this.findNameIndex(sentenceKey, key) >= 0);
+        const hasExtra = extraPersonPattern.test(cleaned);
+        if (hasExtra && !hasName) return '';
+        if (hasExtra) {
+          cleaned = cleaned.replace(extraPersonPattern, '').replace(/\s+/g, ' ').trim();
+        }
+        return cleaned;
+      }).filter(Boolean);
+      return cleanedSentences.join('. ');
+    };
+
+    const sanitizedDescription = sanitizeSceneDescription(
+      cleanedDescription,
+      orderedCharacters.map(c => c.nameKey)
+    );
 
     const normalizeDescriptor = (desc: string) => {
       return String(desc || '')
@@ -1320,6 +1441,29 @@ export class FourPhaseOrchestrator {
       ? 'A scene with exactly one distinct character.'
       : `A scene with exactly ${totalCharacters} distinct characters.`;
 
+    const pluralizeLabel = (label: string, count: number) => {
+      if (count === 1) return label;
+      const irregular: Record<string, string> = {
+        child: 'children',
+        person: 'people',
+        man: 'men',
+        woman: 'women',
+        dwarf: 'dwarves',
+        mouse: 'mice',
+        goose: 'geese',
+      };
+      if (irregular[label]) return irregular[label];
+      if (label.endsWith('f')) return `${label.slice(0, -1)}ves`;
+      if (label.endsWith('y')) return `${label.slice(0, -1)}ies`;
+      return `${label}s`;
+    };
+
+    const joinWithAnd = (items: string[]) => {
+      if (items.length <= 1) return items.join('');
+      if (items.length === 2) return items.join(' and ');
+      return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+    };
+
     const typeCounts = new Map<string, number>();
     for (const c of orderedCharacters) {
       const speciesLower = String(c.species || '').toLowerCase();
@@ -1333,15 +1477,16 @@ export class FourPhaseOrchestrator {
       } else if (speciesLower) {
         label = speciesLower;
       }
+      label = label.replace(/_/g, ' ').trim();
       typeCounts.set(label, (typeCounts.get(label) || 0) + 1);
     }
 
     const breakdownParts = Array.from(typeCounts.entries()).map(([label, count]) => {
-      const suffix = count > 1 ? 's' : '';
-      return `${count} ${label}${suffix}`;
+      const plural = pluralizeLabel(label, count);
+      return `${count} ${plural}`;
     });
-    const breakdownSentence = breakdownParts.length > 1
-      ? `The scene includes ${breakdownParts.join(' and ')}.`
+    const breakdownSentence = breakdownParts.length > 0
+      ? `The scene includes ${joinWithAnd(breakdownParts)}.`
       : '';
 
     const humanKids = orderedCharacters.filter(c => {
@@ -1361,10 +1506,11 @@ export class FourPhaseOrchestrator {
       }
     }
 
-    const sceneSentence = cleanedDescription
-      ? (cleanedDescription.toLowerCase().startsWith('the scene')
-        ? cleanedDescription
-        : `The scene shows ${cleanedDescription}`)
+    const scenePrefixPattern = /^(the scene|storybook|book cover|cover illustration|storybook illustration)/i;
+    const sceneSentence = sanitizedDescription
+      ? (scenePrefixPattern.test(sanitizedDescription)
+        ? sanitizedDescription
+        : `The scene shows ${sanitizedDescription}`)
       : '';
 
     const promptParts = [
@@ -1591,13 +1737,17 @@ Main characters: ${avatarNames}${supportingCharacters ? ` with ${supportingChara
 CRITICAL: Each character appears exactly once and looks distinct.
       `.trim();
 
-      const referenceImages = this.selectReferenceImagesForScene(coverDescription, avatarDetails);
+      const preparedDescription = this.prepareImageDescription(
+        coverDescription,
+        characterAssignments
+      );
+      const referenceImages = this.selectReferenceImagesForScene(preparedDescription, avatarDetails);
       if (referenceImages.length > 0) {
         console.log("[4-Phase] Using 1 reference image for cover");
       }
 
       const enhancedPrompt = this.buildEnhancedImagePrompt(
-        coverDescription,
+        preparedDescription,
         avatarDetails,
         characterAssignments
       );
