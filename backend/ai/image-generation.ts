@@ -83,7 +83,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
   const refImagesBase64 = (req.referenceImages ?? [])
     .map(stripDataUrl)
     .filter((s): s is string => !!s && s.length > 0)
-    .slice(0, 3); // Max 3 reference images
+    .slice(0, 1); // Runware supports exactly 1 reference image
 
   const hasReferences = refImagesBase64.length > 0;
   const ipAdapterWeight = req.ipAdapterWeight ?? 0.75;
@@ -254,7 +254,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     const refImagesBase64 = (img.referenceImages ?? [])
       .map(stripDataUrl)
       .filter((s): s is string => !!s && s.length > 0)
-      .slice(0, 3);
+      .slice(0, 1);
 
     return {
       taskType: "imageInference",

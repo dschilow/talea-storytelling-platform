@@ -828,7 +828,7 @@ export class FourPhaseOrchestrator {
       .map(av => av.imageUrl || av.visualProfile?.imageUrl)
       .filter((url): url is string => !!url && url.trim().length > 0)
       .filter((url, index, arr) => arr.indexOf(url) === index)
-      .slice(0, 3);
+      .slice(0, 1);
 
     if (referenceImages.length > 0) {
       console.log(`[4-Phase] Using ${referenceImages.length} reference images for consistency`);
@@ -1504,7 +1504,7 @@ export class FourPhaseOrchestrator {
 
       const refs = (referenceImages || [])
         .filter((url) => typeof url === 'string' && url.trim().length > 0)
-        .slice(0, 3);
+        .slice(0, 1);
 
       const imagePromise = ai.generateImage({
         prompt,
@@ -1570,7 +1570,7 @@ CRITICAL: Each character appears exactly once and looks distinct.
         .map(av => av.imageUrl || av.visualProfile?.imageUrl)
         .filter((url): url is string => !!url && url.trim().length > 0)
         .filter((url, index, arr) => arr.indexOf(url) === index)
-        .slice(0, 3);
+        .slice(0, 1);
 
       const enhancedPrompt = this.buildEnhancedImagePrompt(
         coverDescription,
