@@ -824,15 +824,6 @@ export class FourPhaseOrchestrator {
     // This ensures we use the manually corrected/enhanced character data
     await this.patchCharacterAssignments(characterAssignments);
 
-    const referenceImages = avatarDetails
-      .map(av => av.imageUrl || av.visualProfile?.imageUrl)
-      .filter((url): url is string => !!url && url.trim().length > 0)
-      .filter((url, index, arr) => arr.indexOf(url) === index)
-      .slice(0, 1);
-
-    if (referenceImages.length > 0) {
-      console.log(`[4-Phase] Using ${referenceImages.length} reference images for consistency`);
-    }
     const chapters: Chapter[] = [];
 
     // OPTIMIZATION v3.0: Create consistent seed base for ALL chapter images
@@ -860,8 +851,13 @@ export class FourPhaseOrchestrator {
 
         const stylePreset = "watercolor_storybook";
 
+        const referenceImages = this.selectReferenceImagesForScene(chapter.imageDescription, avatarDetails);
+        if (referenceImages.length > 0) {
+          console.log(`[4-Phase] Using 1 reference image for chapter ${chapter.order}`);
+        }
+
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(promptForModel, imageSeed, undefined, referenceImages);
+        const imageUrl = await this.generateImage(promptForModel, imageSeed, undefined, referenceImages, 0.6);
 
         return {
           id: crypto.randomUUID(),
@@ -941,6 +937,35 @@ export class FourPhaseOrchestrator {
     if (match) return match.index;
     const fallback = haystack.indexOf(needle);
     return fallback;
+  }
+
+  private selectReferenceImagesForScene(
+    description: string,
+    avatarDetails: AvatarDetail[]
+  ): string[] {
+    const normalizedDescription = this.normalizeNameKey(description);
+    if (!normalizedDescription) return [];
+
+    const matchedAvatars = avatarDetails.filter(avatar => {
+      const key = this.normalizeNameKey(avatar.name);
+      return key && this.findNameIndex(normalizedDescription, key) >= 0;
+    });
+
+    if (matchedAvatars.length !== 1) {
+      return [];
+    }
+
+    const avatar = matchedAvatars[0];
+    if (avatar.creationType === "photo-upload") {
+      return [];
+    }
+
+    const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
+    if (!url || !url.trim()) {
+      return [];
+    }
+
+    return [url];
   }
 
   private extractNumericAgeFromProfile(vp: any): number | null {
@@ -1566,11 +1591,10 @@ Main characters: ${avatarNames}${supportingCharacters ? ` with ${supportingChara
 CRITICAL: Each character appears exactly once and looks distinct.
       `.trim();
 
-      const referenceImages = avatarDetails
-        .map(av => av.imageUrl || av.visualProfile?.imageUrl)
-        .filter((url): url is string => !!url && url.trim().length > 0)
-        .filter((url, index, arr) => arr.indexOf(url) === index)
-        .slice(0, 1);
+      const referenceImages = this.selectReferenceImagesForScene(coverDescription, avatarDetails);
+      if (referenceImages.length > 0) {
+        console.log("[4-Phase] Using 1 reference image for cover");
+      }
 
       const enhancedPrompt = this.buildEnhancedImagePrompt(
         coverDescription,
@@ -1581,7 +1605,7 @@ CRITICAL: Each character appears exactly once and looks distinct.
       const promptForModel = this.clampPositivePrompt(enhancedPrompt);
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
-      const imageUrl = await this.generateImage(promptForModel, seed, undefined, referenceImages);
+      const imageUrl = await this.generateImage(promptForModel, seed, undefined, referenceImages, 0.6);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
       return { url: imageUrl, prompt: promptForModel };
