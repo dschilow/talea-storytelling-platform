@@ -21,7 +21,7 @@ import {
 import { OriginalityValidator } from "./originality-validator";
 import type { InventoryItem } from "../avatar/avatar";
 // NEW: Import professional storytelling rules v2.0
-import { generateCompleteRulesBlockEN, containsMetaPatterns } from "./professional-storytelling-rules";
+import { generateCompleteRulesBlockEN, containsMetaPatterns, getChapterWordTarget, getDialogueMinimum } from "./professional-storytelling-rules";
 import StoryPostProcessor, { getQualityLabel } from "./story-post-processor";
 
 const openAIKey = secret("OpenAIKey");
@@ -341,7 +341,7 @@ export class Phase3StoryFinalizer {
       }
 
       // Validate structure
-      this.validateFinalStory(finalStory);
+      this.validateFinalStory(finalStory, input.config.ageGroup);
 
       // Debug: Log artifact status after validation
       console.log("[Phase3] ?? Artifact status after validation:", {
@@ -380,6 +380,16 @@ export class Phase3StoryFinalizer {
       if (postProcessResult.wasModified) {
         console.log(`[Phase3] ?? Applied modifications:`, postProcessResult.modifications);
         finalStory = postProcessResult.story;
+      }
+
+      const artifactFixes = this.enforceArtifactPlacement(
+        finalStory,
+        input.matchedArtifact,
+        input.skeleton.artifactRequirement,
+        input.config.language
+      );
+      if (artifactFixes.length > 0) {
+        console.log(`[Phase3] ?? Artifact placement fixes:`, artifactFixes);
       }
 
       // Check for critical meta-pattern issues
@@ -758,6 +768,7 @@ CRITICAL ARTIFACT INTEGRATION RULES:
     const twistGuidance = twistRequired
       ? "Add a gentle twist from chapter 4 and resolve it warmly in chapter 5."
       : "No required twist - still create an emotional high point in chapter 4.";
+    const wordTarget = getChapterWordTarget(config.ageGroup || '6-8');
 
     return `
 You are an award-winning children's book author. Write a complete, cinematic story that reads like a prize-winning picture book.
@@ -817,13 +828,9 @@ USE (high quality):
 - clear stakes: what happens if they fail? (wolf catches them, witch locks them in, friend stays lost)
 
 QUALITY RULES:
-- Dialogue share: 40-50% lively dialogue (authentic child voices, friendly adults).
-- Sensory details: at least three senses per chapter (see, hear, feel, smell, taste).
-  IMPORTANT: avoid cliches. Instead of "smells like bread and cinnamon" use specific, fresh details.
-  Examples: "smells like wet earth and honey", "tastes like sour apples", "sounds like rustling paper".
+- Dialogue: at least ${minDialogues} per chapter with action beats.
+- Sensory details: at least two senses per chapter, woven in (avoid cliches).
 - Show, dont tell: convey emotions via actions, body language, concrete details.
-- Recurring motifs: build 2-3 motifs (light, symbol, sound) across the story.
-- Rhythm: alternate action, humor, and calm moments; every scene moves the plot.
 - Character growth: show how the avatars learn, grow, or bond.
 - Twist rule: ${twistGuidance}
 
@@ -837,8 +844,8 @@ CRITICAL PROHIBITIONS (QUALITY GATES):
   - REQUIRED: specific, surprising details that fit the scene
 
 TASK:
-1. Write each chapter with EXACTLY 310-330 words, varied sentences, clear paragraphs.
-2. CRITICAL: Chapters under 310 words are REJECTED and must be regenerated.
+1. Write each chapter with ${wordTarget.min}-${wordTarget.max} words (target ${wordTarget.target}). Keep variance under ${wordTarget.variance} words.
+2. Use clear paragraphs and varied sentence length (short and medium).
 3. Show characters through ACTION - no appearance descriptions.
 4. Make story soul, emotional flavor, pacing, and special ingredients clearly felt.
 5. If special ingredients are chosen, integrate them concretely.
@@ -853,8 +860,8 @@ OUTPUT (JSON):
     {
       "order": 1,
       "title": "Chapter title",
-      "content": "310-330 words, rich in dialogue, sensory details, and emotion.",
-      "imageDescription": "STRICTLY ENGLISH: Detailed visual scene description. NO GERMAN. Describe physical actions, lighting, environment, and mood. Use 'wide shot' or 'close up'. Example: 'Wide shot of a magical forest with glowing mushrooms, Adrian (8yo boy) looking at a firefly.'"
+      "content": "${wordTarget.min}-${wordTarget.max} words (target ${wordTarget.target}), rich in dialogue, sensory details, and emotion.",
+      "imageDescription": "STRICTLY ENGLISH, 2-4 sentences. State exact character count and positions (ON THE LEFT / ON THE RIGHT). Describe distinct clothing/colors, action, setting, and lighting. Avoid crowds or extra people."
     }
   ],
   "avatarDevelopments": [
@@ -991,7 +998,7 @@ IMPORTANT LANGUAGE INSTRUCTION:
   /**
    * Validate final story structure
    */
-  private validateFinalStory(story: any): void {
+  private validateFinalStory(story: any, ageGroup: string = '6-8'): void {
     if (!story.title || typeof story.title !== 'string') {
       throw new Error("Final story must have a title");
     }
@@ -1015,12 +1022,10 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
       const wordCount = chapter.content.split(/\s+/).filter(Boolean).length;
 
-      // ?? RELAXED VALIDATION: More realistic word count range
-      // Previous: 330-350 (too strict, only 20 words margin)
-      // New: 280-380 (100 words margin, more achievable for AI)
-      const MIN_WORDS = 280;
-      const MAX_WORDS = 380;
-      const TARGET_WORDS = 330; // Still aim for ~330 words
+      const wordTarget = getChapterWordTarget(ageGroup);
+      const MIN_WORDS = wordTarget.min;
+      const MAX_WORDS = wordTarget.max;
+      const TARGET_WORDS = wordTarget.target;
 
       if (wordCount < MIN_WORDS) {
         console.warn(`[Phase3] ?? Chapter ${chapter.order} has only ${wordCount} words (minimum: ${MIN_WORDS}). Story may be too brief.`);
@@ -1046,6 +1051,104 @@ IMPORTANT LANGUAGE INSTRUCTION:
     }
 
     console.log("[Phase3] Final story validated successfully");
+  }
+
+  private enforceArtifactPlacement(
+    story: FinalizedStory,
+    matchedArtifact: ArtifactTemplate | undefined,
+    artifactRequirement: StorySkeleton['artifactRequirement'] | undefined,
+    language?: string
+  ): string[] {
+    const fixes: string[] = [];
+    if (!matchedArtifact) return fixes;
+
+    const lang = language || 'de';
+    const artifactNameStory = lang === 'de' ? matchedArtifact.name.de : matchedArtifact.name.en;
+    const artifactNameImage = matchedArtifact.name.en || artifactNameStory;
+    if (!artifactNameStory) return fixes;
+
+    const discoveryChapter = artifactRequirement?.discoveryChapter || 2;
+    const usageChapter = artifactRequirement?.usageChapter || 4;
+
+    const ensureChapter = (chapterNumber: number, kind: 'discovery' | 'usage') => {
+      const chapter = story.chapters.find(ch => ch.order === chapterNumber);
+      if (!chapter) return;
+
+      const storyNameLower = artifactNameStory.toLowerCase();
+      const imageNameLower = artifactNameImage.toLowerCase();
+
+      if (!chapter.content.toLowerCase().includes(storyNameLower)) {
+        const sentence = this.buildArtifactSentence(lang, artifactNameStory, kind);
+        chapter.content = this.appendSentence(chapter.content, sentence);
+        fixes.push(`Chapter ${chapterNumber}: inserted artifact ${kind} line`);
+      }
+
+      const imageDescriptionLower = chapter.imageDescription?.toLowerCase() || '';
+      if (!imageDescriptionLower.includes(storyNameLower) && !imageDescriptionLower.includes(imageNameLower)) {
+        const sentence = this.buildArtifactImageSentence(artifactNameImage, kind === 'usage');
+        chapter.imageDescription = this.appendSentence(chapter.imageDescription || '', sentence);
+        fixes.push(`Chapter ${chapterNumber}: imageDescription mentions artifact`);
+      }
+    };
+
+    ensureChapter(discoveryChapter, 'discovery');
+    if (usageChapter !== discoveryChapter) {
+      ensureChapter(usageChapter, 'usage');
+    }
+
+    return fixes;
+  }
+
+  private buildArtifactSentence(language: string, artifactName: string, kind: 'discovery' | 'usage'): string {
+    const templates: Record<string, { discovery: string; usage: string }> = {
+      de: {
+        discovery: `Sie entdeckten ${artifactName}.`,
+        usage: `Mit ${artifactName} loesten sie das Problem.`,
+      },
+      en: {
+        discovery: `They discovered ${artifactName}.`,
+        usage: `${artifactName} helped them overcome the obstacle.`,
+      },
+      fr: {
+        discovery: `Ils trouvent ${artifactName}.`,
+        usage: `${artifactName} les aide a surmonter l'obstacle.`,
+      },
+      es: {
+        discovery: `Ellos encuentran ${artifactName}.`,
+        usage: `${artifactName} les ayuda a superar el obstaculo.`,
+      },
+      it: {
+        discovery: `Loro trovano ${artifactName}.`,
+        usage: `${artifactName} li aiuta a superare l'ostacolo.`,
+      },
+      nl: {
+        discovery: `Ze vinden ${artifactName}.`,
+        usage: `${artifactName} helpt hen het obstakel te overwinnen.`,
+      },
+      ru: {
+        discovery: `Oni nahodyat ${artifactName}.`,
+        usage: `${artifactName} pomogaet im preodolet prepreiatstvie.`,
+      },
+    };
+
+    const template = templates[language] || templates.en;
+    return kind === 'discovery' ? template.discovery : template.usage;
+  }
+
+  private buildArtifactImageSentence(artifactName: string, isUsage: boolean): string {
+    return isUsage
+      ? `The ${artifactName} is actively used in the scene.`
+      : `The ${artifactName} is clearly visible in the scene.`;
+  }
+
+  private appendSentence(text: string, sentence: string): string {
+    const trimmed = String(text || '').trim();
+    const sentenceTrimmed = String(sentence || '').trim();
+    if (!trimmed) return sentenceTrimmed;
+
+    const needsPunctuation = !/[.!?]$/.test(trimmed);
+    const separator = needsPunctuation ? '. ' : ' ';
+    return `${trimmed}${separator}${sentenceTrimmed}`;
   }
 
   /**
@@ -1407,6 +1510,8 @@ IMPORTANT LANGUAGE INSTRUCTION:
       targetLanguage,
       config.genre || 'fairy_tales'
     );
+    const wordTarget = getChapterWordTarget(config.ageGroup || '6-8');
+    const minDialogues = getDialogueMinimum(config.ageGroup || '6-8');
 
     return `
 You are an award-winning children's book author. Your task: Write an ORIGINAL, new story inspired by "${fairyTale.tale.title}" - personalized with the user's avatars. NO 1:1 retelling; motifs may be recognized, but plot/twists/setpieces are new.
@@ -1517,15 +1622,11 @@ EXAMPLE ("Der Silberfaden" story):
 - Object Motif: "Silberfaden" (silver thread) ? introduced Ch1, used Ch2, crucial Ch4, symbolic Ch5 ?
 - Phrase Motif: "echte Stimme" (true voice) ? Ch3, Ch5 ?
 
-## CINEMATIC IMAGE DESCRIPTIONS (ALWAYS in English, 80-120 words):
-- Start with SHOT TYPE: "WIDE SHOT", "CLOSE-UP", "HERO SHOT", "DRAMATIC ANGLE"
-- Character details: Insert avatar names and physical features
-- LIGHTING: "golden hour", "dramatic shadows", "soft moonlight"
-- COMPOSITION: Foreground, midground, background
-- MOOD/ATMOSPHERE: Specific adjectives
-- Style reference: "Watercolor illustration style, Axel Scheffler inspired"
-- Example: "HERO SHOT of {avatarName} standing at forest edge. LIGHTING: Dramatic sunset. FOREGROUND: Dark twisted roots. MIDGROUND: {avatarName} in red cloak, determined expression. BACKGROUND: Misty forest. MOOD: Brave but cautious. Watercolor style."
-
+## IMAGE DESCRIPTIONS (ENGLISH, 2-4 sentences):
+- Start with a clear scene and storybook style.
+- State exact character count and positions (ON THE LEFT / ON THE RIGHT).
+- Describe distinct clothing colors and facial features; avoid crowds.
+- Mention action, lighting, mood, and setting.
 ## WRITING STYLE - SIMPLE RULES
 ------------------------------------------------------------------------------
 1. Mix SHORT (3-7 words) and MEDIUM (8-15 words) sentences.
@@ -1543,18 +1644,9 @@ ${(experience as any).storySoul === 'wilder_ritt' ? '- Fast-paced action! Chases
 ${(experience as any).storySoul === 'herzenswaerme' ? '- Emotional moments, friendship, togetherness, warm feelings' : ''}
 ${(experience as any).storySoul === 'magische_entdeckung' ? '- Wonder, magic discoveries, fantastic elements' : ''}
 
-## CHAPTER LENGTH: UNIFIED WORD TARGET
-CRITICAL: ALL chapters must have EXACTLY 330-350 words!
-- Chapter 1: 330-350 words
-- Chapter 2: 330-350 words  
-- Chapter 3: 330-350 words
-- Chapter 4: 330-350 words
-- Chapter 5: 330-350 words
+## CHAPTER LENGTH
+Write each chapter with ${wordTarget.min}-${wordTarget.max} words (target ${wordTarget.target}). Keep variance under ${wordTarget.variance} words.
 
-TARGET: 340 words per chapter | MAXIMUM VARIANCE: 20 words total
-DO NOT exceed 350 words. DO NOT go below 330 words.
-CRITICAL: Chapters with fewer than 330 words will be IMMEDIATELY REJECTED AND REGENERATED!
-IMPORTANT: Aim for 340 words to ensure you meet the 330-word minimum with safety margin.
 
 ${remixInstructions ? `
 ## ORIGINALITY ENFORCEMENT - CRITICAL!
@@ -1595,8 +1687,8 @@ should speak, act, and contribute in each chapter.
     {
       "order": 1,
       "title": "Chapter title (in ${targetLanguage})",
-      "content": "TARGET: 340 words (±10) - ABSOLUTE MINIMUM 330 words! in ${targetLanguage}. POV: ${avatarDetails[0]?.name || 'Primary Avatar'} ONLY. Cinematic narrative with SENTENCE RHYTHM (3 short, 1 medium pattern). Short sentences (3-7 words), sensory details, emotions shown through body language. Original plot (inspired, not copied). NO META-LABELS like 'Dialogues:', 'Senses:', etc.! CRITICAL: Count your words BEFORE submitting! Chapters under 330 words = INSTANT REJECTION!",
-      "imageDescription": "CINEMATIC SHOT TYPE description in English. 80-120 words. Include avatar names, lighting, composition, mood, style reference."
+      "content": "Write ${wordTarget.min}-${wordTarget.max} words (target ${wordTarget.target}) in ${targetLanguage}. Neutral third-person, both avatars active. Mix short and medium sentences. Show emotions through body language. Original plot (inspired, not copied). No meta-labels like 'Dialogues:' or 'Senses:'.",
+      "imageDescription": "ENGLISH, 2-4 sentences. State exact character count and positions (ON THE LEFT / ON THE RIGHT). Include avatar names, action, lighting, mood, and setting. Avoid crowds."
     }
     // ... 4 more chapters
   ],
@@ -1778,6 +1870,11 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     return mapping;
   }
 }
+
+
+
+
+
 
 
 

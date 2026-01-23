@@ -17,7 +17,8 @@ import {
   TITLE_RULES,
   SHOW_DONT_TELL,
   ENHANCED_DIALOGUE_RULES,
-  CHAPTER_BALANCE_RULES,
+  getChapterWordTarget,
+  getDialogueMinimum,
   REPETITION_DETECTION,
   IMAGE_PROMPT_RULES,
   type AgeGroupRules,
@@ -298,7 +299,7 @@ export class StoryPostProcessor {
     // Count dialogues per chapter
     for (let i = 0; i < chapters.length; i++) {
       const chapterDialogues = chapters[i].content.match(/["„"][^""„"]+["„""]/g) || [];
-      const minRequired = ENHANCED_DIALOGUE_RULES.minimumPerChapter; // Now 5!
+      const minRequired = getDialogueMinimum(this.ageGroup);
 
       if (chapterDialogues.length < minRequired) {
         score -= 0.8;
@@ -309,10 +310,10 @@ export class StoryPostProcessor {
     // Total dialogue count
     const dialogueMatches = allText.match(/["„"][^""„"]+["„""]/g) || [];
     const dialogueCount = dialogueMatches.length;
-    const expectedDialogues = chapters.length * ENHANCED_DIALOGUE_RULES.minimumPerChapter;
+    const expectedDialogues = chapters.length * getDialogueMinimum(this.ageGroup);
 
     if (dialogueCount < expectedDialogues) {
-      suggestions.push(`Erhöhe Dialoganzahl auf mindestens ${expectedDialogues} (${ENHANCED_DIALOGUE_RULES.minimumPerChapter}/Kapitel)`);
+      suggestions.push(`Erhöhe Dialoganzahl auf mindestens ${expectedDialogues} (${getDialogueMinimum(this.ageGroup)}/Kapitel)`);
     }
 
     // Check for dialogue lists pattern
@@ -563,8 +564,9 @@ export class StoryPostProcessor {
     const maxWords = Math.max(...wordCounts);
     const variance = maxWords - minWords;
 
-    // Check against CHAPTER_BALANCE_RULES
-    const { minimum, maximum, variance: maxVariance } = CHAPTER_BALANCE_RULES.wordCount;
+    // Check against age-aware word targets
+    const wordTarget = getChapterWordTarget(this.ageGroup);
+    const { min: minimum, max: maximum, variance: maxVariance } = wordTarget;
 
     // Penalty for chapters outside range
     for (let i = 0; i < chapters.length; i++) {
@@ -582,7 +584,7 @@ export class StoryPostProcessor {
     if (variance > maxVariance) {
       score -= Math.min(3, (variance - maxVariance) * 0.1);
       issues.push(`Kapitel-Längen unausgewogen: Varianz ${variance} Wörter`);
-      suggestions.push('Gleiche die Kapitellängen an (280-320 Wörter)');
+      suggestions.push(`Gleiche die Kapitellängen an (${wordTarget.min}-${wordTarget.max} Wörter)`);
     }
 
     return Math.max(0, score);
@@ -651,12 +653,14 @@ export class StoryPostProcessor {
         score -= 0.3;
       }
 
-      // Check for shot type
-      const shotTypes = IMAGE_PROMPT_RULES.shotTypeVariety.types;
-      const hasShot = shotTypes.some(type => prompt.toUpperCase().includes(type));
-      if (!hasShot) {
-        score -= 0.5;
-        issues.push(`Bild-Prompt Kapitel ${i + 1}: Kein SHOT TYPE definiert`);
+      // Check for shot type if required
+      if (IMAGE_PROMPT_RULES.shotTypeVariety.required) {
+        const shotTypes = IMAGE_PROMPT_RULES.shotTypeVariety.types;
+        const hasShot = shotTypes.some(type => prompt.toUpperCase().includes(type));
+        if (!hasShot) {
+          score -= 0.5;
+          issues.push(`Bild-Prompt Kapitel ${i + 1}: Kein SHOT TYPE definiert`);
+        }
       }
 
       // Check for German words in English prompt
@@ -671,21 +675,23 @@ export class StoryPostProcessor {
       }
     }
 
-    // Check for shot type variety
-    const usedShots = new Set<string>();
-    for (const chapter of chapters) {
-      const prompt = chapter.imageDescription?.toUpperCase() || '';
-      for (const type of IMAGE_PROMPT_RULES.shotTypeVariety.types) {
-        if (prompt.includes(type)) {
-          usedShots.add(type);
-          break;
+    // Check for shot type variety if required
+    if (IMAGE_PROMPT_RULES.shotTypeVariety.required) {
+      const usedShots = new Set<string>();
+      for (const chapter of chapters) {
+        const prompt = chapter.imageDescription?.toUpperCase() || '';
+        for (const type of IMAGE_PROMPT_RULES.shotTypeVariety.types) {
+          if (prompt.includes(type)) {
+            usedShots.add(type);
+            break;
+          }
         }
       }
-    }
 
-    if (usedShots.size < 3) {
-      score -= 1;
-      suggestions.push('Variiere SHOT TYPES: WIDE, CLOSE-UP, HERO, DRAMATIC ANGLE');
+      if (usedShots.size < 3) {
+        score -= 1;
+        suggestions.push('Variiere SHOT TYPES: WIDE, CLOSE-UP, HERO, DRAMATIC ANGLE');
+      }
     }
 
     return Math.max(0, score);

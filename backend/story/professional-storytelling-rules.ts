@@ -1,9 +1,9 @@
-/**
+﻿/**
  * PROFESSIONAL STORYTELLING RULES v2.0
  *
  * Based on research from:
  * - OpenAI GPT-5 Prompting Guide (https://cookbook.openai.com/examples/gpt-5/gpt-5_prompting_guide)
- * - Children's book best practices (Astrid Lindgren, Julia Donaldson, Otfried Preußler)
+ * - Children's book best practices (Astrid Lindgren, Julia Donaldson, Otfried PreuÃŸler)
  * - Prompt Engineering for Creative Writing
  *
  * Key Insight: GPT-5 follows prompts with "surgical precision" - poorly constructed
@@ -53,15 +53,15 @@ export const FORBIDDEN_OUTPUT_PATTERNS = [
   /^Action:\s*/gm,
 
   // Meta-instruction labels (RUSSIAN)
-  /^Диалоги?:\s*/gm,
-  /^Сенсорные детали:\s*/gm,
-  /^Препятствие:\s*/gm,
-  /^Опасность:\s*/gm,
-  /^Чувства:\s*/gm,
-  /^Мораль:\s*/gm,
+  /^Ð”Ð¸Ð°Ð»Ð¾Ð³Ð¸?:\s*/gm,
+  /^Ð¡ÐµÐ½ÑÐ¾Ñ€Ð½Ñ‹Ðµ Ð´ÐµÑ‚Ð°Ð»Ð¸:\s*/gm,
+  /^ÐŸÑ€ÐµÐ¿ÑÑ‚ÑÑ‚Ð²Ð¸Ðµ:\s*/gm,
+  /^ÐžÐ¿Ð°ÑÐ½Ð¾ÑÑ‚ÑŒ:\s*/gm,
+  /^Ð§ÑƒÐ²ÑÑ‚Ð²Ð°:\s*/gm,
+  /^ÐœÐ¾Ñ€Ð°Ð»ÑŒ:\s*/gm,
 
   // Numbered/bulleted dialogue lists (German)
-  /\(\d+\)\s*["„"][^"]*[""].*,\s*(?:sagte|flüsterte|rief)/gm,
+  /\(\d+\)\s*["â€ž"][^"]*[""].*,\s*(?:sagte|flÃ¼sterte|rief)/gm,
   /Dialoge?:\s*\(\d+\)/gm,
 
   // Numbered/bulleted dialogue lists (English)
@@ -69,7 +69,7 @@ export const FORBIDDEN_OUTPUT_PATTERNS = [
   /Dialogues?:\s*\(\d+\)/gm,
 
   // Comma-separated sensory lists (German)
-  /(?:riecht|schmeckt|fühlt|klingt|sieht)\s+nach\s+[\w\s,]+,\s+[\w\s,]+,\s+[\w\s,]+/gm,
+  /(?:riecht|schmeckt|fÃ¼hlt|klingt|sieht)\s+nach\s+[\w\s,]+,\s+[\w\s,]+,\s+[\w\s,]+/gm,
 
   // Comma-separated sensory lists (English)
   /(?:smells?|tastes?|feels?|sounds?|looks?)\s+like\s+[\w\s,]+,\s+[\w\s,]+,\s+[\w\s,]+/gm,
@@ -150,6 +150,29 @@ export const AGE_GROUP_RULES: Record<string, AgeGroupRules> = {
   },
 };
 
+export interface ChapterWordTarget {
+  min: number;
+  target: number;
+  max: number;
+  variance: number;
+}
+
+const CHAPTER_WORD_TARGETS: Record<string, ChapterWordTarget> = {
+  '3-5': { min: 140, target: 180, max: 220, variance: 60 },
+  '6-8': { min: 200, target: 250, max: 300, variance: 80 },
+  '9-12': { min: 260, target: 320, max: 380, variance: 80 },
+  '13+': { min: 320, target: 400, max: 480, variance: 100 },
+};
+
+export function getChapterWordTarget(ageGroup: string): ChapterWordTarget {
+  return CHAPTER_WORD_TARGETS[ageGroup] || CHAPTER_WORD_TARGETS['6-8'];
+}
+
+export function getDialogueMinimum(ageGroup: string): number {
+  const rules = AGE_GROUP_RULES[ageGroup] || AGE_GROUP_RULES['6-8'];
+  return Math.max(2, rules.dialogueMinimum);
+}
+
 // ============================================================================
 // TITLE GENERATION RULES
 // ============================================================================
@@ -169,9 +192,9 @@ export const TITLE_RULES = {
     /^The Adventure/i,        // "The Adventure..."
     /^[\w]+'s Adventure/i,    // "Adrian's Adventure"
     // Russian patterns
-    /^[\w]+ и /i,             // "Адриан и..."
-    /^История о/i,            // "История о..."
-    /^Приключения/i,          // "Приключения..."
+    /^[\w]+ Ð¸ /i,             // "ÐÐ´Ñ€Ð¸Ð°Ð½ Ð¸..."
+    /^Ð˜ÑÑ‚Ð¾Ñ€Ð¸Ñ Ð¾/i,            // "Ð˜ÑÑ‚Ð¾Ñ€Ð¸Ñ Ð¾..."
+    /^ÐŸÑ€Ð¸ÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ñ/i,          // "ÐŸÑ€Ð¸ÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ñ..."
   ],
   goodExamples: [
     'The Whispering Forest',
@@ -204,9 +227,9 @@ export const DIALOGUE_RULES = {
 
   // Good dialogue tags (German) - for validation
   goodTagsDE: [
-    'flüsterte', 'rief', 'fragte', 'murmelte', 'schrie', 'kicherte',
+    'flÃ¼sterte', 'rief', 'fragte', 'murmelte', 'schrie', 'kicherte',
     'brummte', 'quietschte', 'seufzte', 'knurrte', 'hauchte', 'piepste',
-    'stammelte', 'jubelte', 'stöhnte', 'kreischte', 'zischte', 'wimmerte',
+    'stammelte', 'jubelte', 'stÃ¶hnte', 'kreischte', 'zischte', 'wimmerte',
   ],
 
   // Avoid overuse of basic tags
@@ -246,7 +269,7 @@ export const SHOW_DONT_TELL = {
 
   // Forbidden "telling" phrases (German) - for validation
   forbiddenDE: [
-    /(?:er|sie|es) (?:war|fühlte sich) (?:traurig|glücklich|wütend|ängstlich|mutig)/gi,
+    /(?:er|sie|es) (?:war|fÃ¼hlte sich) (?:traurig|glÃ¼cklich|wÃ¼tend|Ã¤ngstlich|mutig)/gi,
     /(?:er|sie|es) hatte (?:Angst|Mut|Freude)/gi,
     /(?:er|sie|es) wusste, dass/gi,
     /(?:er|sie|es) erinnerte sich/gi,
@@ -274,9 +297,9 @@ export const SHOW_DONT_TELL = {
 
   // Body language (German) - for validation
   bodyLanguageDE: {
-    fear: ['zittern', 'erstarren', 'zurückweichen', 'schlucken', 'blass werden'],
-    joy: ['strahlen', 'hüpfen', 'klatschen', 'lachen', 'tanzen'],
-    sadness: ['seufzen', 'Schultern hängen', 'weinen', 'zusammensinken'],
+    fear: ['zittern', 'erstarren', 'zurÃ¼ckweichen', 'schlucken', 'blass werden'],
+    joy: ['strahlen', 'hÃ¼pfen', 'klatschen', 'lachen', 'tanzen'],
+    sadness: ['seufzen', 'Schultern hÃ¤ngen', 'weinen', 'zusammensinken'],
     anger: ['stampfen', 'schnauben', 'funkeln', 'beben', 'zusammenpressen'],
     courage: ['aufrichten', 'tief atmen', 'vortreten', 'Blick heben'],
   },
@@ -323,7 +346,7 @@ export const CHAPTER_STRUCTURE = {
   // Mandatory suddenness words per chapter (English)
   suddennessRequired: true,
   suddennessWords: ['suddenly', 'all at once', 'then', 'in the next moment'],
-  suddennessWordsDE: ['plötzlich', 'auf einmal', 'da', 'dann', 'im nächsten Moment'],
+  suddennessWordsDE: ['plÃ¶tzlich', 'auf einmal', 'da', 'dann', 'im nÃ¤chsten Moment'],
 };
 
 // ============================================================================
@@ -386,9 +409,9 @@ export const FORESHADOWING_RULES = {
     enabled: true,
     rule: 'Every element introduced in Ch1-2 must pay off by Ch5',
     examples: [
-      'Magic item shown → used to solve problem',
-      'Character trait mentioned → saves the day',
-      'Location described → becomes crucial',
+      'Magic item shown â†’ used to solve problem',
+      'Character trait mentioned â†’ saves the day',
+      'Location described â†’ becomes crucial',
     ],
   },
 };
@@ -398,19 +421,19 @@ export const FORESHADOWING_RULES = {
 // ============================================================================
 
 export const ENHANCED_DIALOGUE_RULES = {
-  minimumPerChapter: 5, // Upgraded from 3!
+  minimumPerChapter: 2,
 
   // Dialogue distribution per chapter
   distribution: {
-    chapter1: { min: 5, focus: 'character_introduction' },
-    chapter2: { min: 5, focus: 'conflict_building' },
-    chapter3: { min: 6, focus: 'emotional_peak' },
-    chapter4: { min: 6, focus: 'confrontation' },
-    chapter5: { min: 5, focus: 'resolution_warmth' },
+    chapter1: { min: 2, focus: 'character_introduction' },
+    chapter2: { min: 2, focus: 'conflict_building' },
+    chapter3: { min: 3, focus: 'emotional_peak' },
+    chapter4: { min: 3, focus: 'confrontation' },
+    chapter5: { min: 2, focus: 'resolution_warmth' },
   },
 
   // Action beats required
-  actionBeatRatio: 0.8, // 80% of dialogues need action before/after
+  actionBeatRatio: 0.7, // 70% of dialogues need action before/after
 
   // Character voice consistency
   voicePatterns: {
@@ -432,12 +455,14 @@ export const ENHANCED_DIALOGUE_RULES = {
 // NEW v3.0: CHAPTER BALANCE RULES (Priority 2)
 // ============================================================================
 
+const DEFAULT_CHAPTER_WORD_TARGET = getChapterWordTarget('6-8');
+
 export const CHAPTER_BALANCE_RULES = {
   // Strict word count per chapter
   wordCount: {
-    minimum: 280,
-    maximum: 320,
-    variance: 20, // Max difference between shortest and longest
+    minimum: DEFAULT_CHAPTER_WORD_TARGET.min,
+    maximum: DEFAULT_CHAPTER_WORD_TARGET.max,
+    variance: DEFAULT_CHAPTER_WORD_TARGET.variance, // Max difference between shortest and longest
   },
 
   // Pacing balance
@@ -550,15 +575,15 @@ export const IMAGE_PROMPT_RULES = {
 
   // Shot type variety
   shotTypeVariety: {
-    required: true,
+    required: false,
     types: ['WIDE SHOT', 'CLOSE-UP', 'HERO SHOT', 'DRAMATIC ANGLE', 'MEDIUM SHOT'],
     maxConsecutiveSameType: 2,
   },
 
   // Word count
   wordCount: {
-    minimum: 80,
-    maximum: 120,
+    minimum: 40,
+    maximum: 90,
   },
 };
 
@@ -651,7 +676,7 @@ export const STYLE_REFERENCES = {
     children: 'brave but vulnerable, make mistakes, have real emotions',
     danger: 'real but not traumatizing',
     humor: 'dry, understated, often in dialogue',
-    examples: ['Ronja Räubertochter', 'Pippi Langstrumpf', 'Die Brüder Löwenherz'],
+    examples: ['Ronja RÃ¤ubertochter', 'Pippi Langstrumpf', 'Die BrÃ¼der LÃ¶wenherz'],
   },
 
   // Julia Donaldson style elements
@@ -660,16 +685,16 @@ export const STYLE_REFERENCES = {
     repetition: 'stylistic repetition for emphasis',
     villains: 'scary but defeatable through cleverness',
     resolution: 'satisfying, often with a twist',
-    examples: ['Der Grüffelo', 'Die Schnecke und der Buckelwal', 'Stockmann'],
+    examples: ['Der GrÃ¼ffelo', 'Die Schnecke und der Buckelwal', 'Stockmann'],
   },
 
-  // Otfried Preußler style elements
+  // Otfried PreuÃŸler style elements
   preussler: {
     atmosphere: 'dark but cozy, mysterious but safe',
     magic: 'subtle, integrated into everyday life',
     characters: 'quirky, memorable, often with catchphrases',
     lessons: 'deep but not preachy, woven into plot',
-    examples: ['Die kleine Hexe', 'Der Räuber Hotzenplotz', 'Krabat'],
+    examples: ['Die kleine Hexe', 'Der RÃ¤uber Hotzenplotz', 'Krabat'],
   },
 
   // Which style to emphasize based on story type
@@ -698,8 +723,8 @@ export const SENSORY_RULES = {
     taste: { required: false, examples: ['sweet', 'sour', 'salty', 'bitter'] },
   },
 
-  // Avoid clichés (English)
-  forbiddenClichés: [
+  // Avoid clichÃ©s (English)
+  forbiddenClichÃ©s: [
     'smells like bread and cinnamon',
     'tastes sweet as honey',
     'soft as velvet',
@@ -708,14 +733,14 @@ export const SENSORY_RULES = {
     'hot as fire',
   ],
 
-  // Avoid clichés (German) - for validation
-  forbiddenClichésDE: [
+  // Avoid clichÃ©s (German) - for validation
+  forbiddenClichÃ©sDE: [
     'riecht nach Brot und Zimt',
-    'schmeckt süß wie Honig',
+    'schmeckt sÃ¼ÃŸ wie Honig',
     'weich wie Samt',
     'hart wie Stein',
     'kalt wie Eis',
-    'heiß wie Feuer',
+    'heiÃŸ wie Feuer',
   ],
 
   // Encourage specific, unexpected details (English)
@@ -736,31 +761,31 @@ export const SENSORY_RULES = {
  */
 export function generateAntiPatternBlock(): string {
   return `
-🚫 VERBOTENE OUTPUT-MUSTER (KRITISCH - FÜHRT ZU ABLEHNUNG):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸš« VERBOTENE OUTPUT-MUSTER (KRITISCH - FÃœHRT ZU ABLEHNUNG):
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 
 NIEMALS Meta-Labels im Story-Text ausgeben:
-❌ "Dialoge: (1) Adrian sagte..., (2) Alexander antwortete..."
-❌ "Sensorische Details: Goldene Sonne, Heugeruch, raues Fell..."
-❌ "Hindernis-Teaser: Ein Wolf beobachtet..."
-❌ "Gefahr: Die Hexe nähert sich..."
-❌ "Sinne: warm, weich, süß..."
-❌ "Moral: Man soll ehrlich sein..."
+âŒ "Dialoge: (1) Adrian sagte..., (2) Alexander antwortete..."
+âŒ "Sensorische Details: Goldene Sonne, Heugeruch, raues Fell..."
+âŒ "Hindernis-Teaser: Ein Wolf beobachtet..."
+âŒ "Gefahr: Die Hexe nÃ¤hert sich..."
+âŒ "Sinne: warm, weich, sÃ¼ÃŸ..."
+âŒ "Moral: Man soll ehrlich sein..."
 
-Diese Informationen müssen IN DIE GESCHICHTE EINGEWOBEN werden:
+Diese Informationen mÃ¼ssen IN DIE GESCHICHTE EINGEWOBEN werden:
 
-✅ RICHTIG - Eingewoben:
+âœ… RICHTIG - Eingewoben:
    Die Sonne warf goldene Streifen auf den Boden. Adrian roch Heu.
-   "Da war etwas", flüsterte Alexander. Im Schatten der Bäume
+   "Da war etwas", flÃ¼sterte Alexander. Im Schatten der BÃ¤ume
    bewegten sich zwei gelbe Augen.
 
-❌ FALSCH - Als Liste:
+âŒ FALSCH - Als Liste:
    Sensorische Details: goldene Sonne, Heugeruch
    Dialoge: (1) "Da war etwas", sagte Alexander
    Hindernis: Wolf im Schatten
 
-MERKE: Kein echtes Kinderbuch hat Überschriften wie "Dialoge:" oder "Sinne:".
-Schreibe wie Astrid Lindgren oder Julia Donaldson - reiner Fließtext!
+MERKE: Kein echtes Kinderbuch hat Ãœberschriften wie "Dialoge:" oder "Sinne:".
+Schreibe wie Astrid Lindgren oder Julia Donaldson - reiner FlieÃŸtext!
 `;
 }
 
@@ -771,24 +796,24 @@ export function generateAgeLanguageBlock(ageGroup: string): string {
   const rules = AGE_GROUP_RULES[ageGroup] || AGE_GROUP_RULES['6-8'];
 
   return `
-📖 ALTERSGERECHTE SPRACHE (${rules.ageGroup} Jahre):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸ“– ALTERSGERECHTE SPRACHE (${rules.ageGroup} Jahre):
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 
-SATZ-STRUKTUR (KRITISCH für Lesbarkeit):
-• ${Math.round(rules.shortSentenceRatio * 100)}% KURZE Sätze (3-7 Wörter): "Der Wolf kam näher."
-• ${Math.round(rules.mediumSentenceRatio * 100)}% MITTLERE Sätze (8-15 Wörter): "Adrian versteckte sich hinter dem großen Baum."
-• ${Math.round(rules.longSentenceRatio * 100)}% LANGE Sätze (16-${rules.maxWordsPerSentence} Wörter): Nur für wichtige Momente!
+SATZ-STRUKTUR (KRITISCH fÃ¼r Lesbarkeit):
+â€¢ ${Math.round(rules.shortSentenceRatio * 100)}% KURZE SÃ¤tze (3-7 WÃ¶rter): "Der Wolf kam nÃ¤her."
+â€¢ ${Math.round(rules.mediumSentenceRatio * 100)}% MITTLERE SÃ¤tze (8-15 WÃ¶rter): "Adrian versteckte sich hinter dem groÃŸen Baum."
+â€¢ ${Math.round(rules.longSentenceRatio * 100)}% LANGE SÃ¤tze (16-${rules.maxWordsPerSentence} WÃ¶rter): Nur fÃ¼r wichtige Momente!
 
-VERBOTEN für ${rules.ageGroup} Jahre:
-${rules.abstractionAllowed ? '' : '• Keine abstrakten Metaphern wie "Mut ist ein kühler Stein"'}
-• Keine Wörter über ${rules.maxWordsPerSentence} pro Satz
-• Maximal ${rules.maxMetaphorsPerChapter} Metaphern pro Kapitel
-${rules.forbiddenConcepts.map(c => `• Kein Thema: ${c}`).join('\n')}
+VERBOTEN fÃ¼r ${rules.ageGroup} Jahre:
+${rules.abstractionAllowed ? '' : 'â€¢ Keine abstrakten Metaphern wie "Mut ist ein kÃ¼hler Stein"'}
+â€¢ Keine WÃ¶rter Ã¼ber ${rules.maxWordsPerSentence} pro Satz
+â€¢ Maximal ${rules.maxMetaphorsPerChapter} Metaphern pro Kapitel
+${rules.forbiddenConcepts.map(c => `â€¢ Kein Thema: ${c}`).join('\n')}
 
 PFLICHT:
-• Mindestens ${rules.dialogueMinimum} Dialoge pro Kapitel
-• Konkrete Aktionen statt innerer Monolog
-• Wörter die ${rules.ageGroup}-Jährige kennen
+â€¢ Mindestens ${rules.dialogueMinimum} Dialoge pro Kapitel
+â€¢ Konkrete Aktionen statt innerer Monolog
+â€¢ WÃ¶rter die ${rules.ageGroup}-JÃ¤hrige kennen
 `;
 }
 
@@ -797,25 +822,25 @@ PFLICHT:
  */
 export function generateTitleBlock(): string {
   return `
-📕 TITEL-REGELN (KRITISCH für Qualität):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸ“• TITEL-REGELN (KRITISCH fÃ¼r QualitÃ¤t):
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 
-MAXIMUM: ${TITLE_RULES.maxWords} Wörter
+MAXIMUM: ${TITLE_RULES.maxWords} WÃ¶rter
 
-❌ VERBOTENE Titel-Muster:
-   • "[Name] und das [Objekt]"
-   • "[Name] und die [Person]"
-   • "[Name]s Abenteuer"
-   • "Die Geschichte von [Name]"
+âŒ VERBOTENE Titel-Muster:
+   â€¢ "[Name] und das [Objekt]"
+   â€¢ "[Name] und die [Person]"
+   â€¢ "[Name]s Abenteuer"
+   â€¢ "Die Geschichte von [Name]"
 
-✅ GUTE Titel (wie echte Bestseller):
-   ${TITLE_RULES.goodExamples.slice(0, 4).map(t => `• "${t}"`).join('\n   ')}
+âœ… GUTE Titel (wie echte Bestseller):
+   ${TITLE_RULES.goodExamples.slice(0, 4).map(t => `â€¢ "${t}"`).join('\n   ')}
 
-❌ SCHLECHTE Titel (zu generisch):
-   ${TITLE_RULES.badExamples.slice(0, 2).map(t => `• "${t}"`).join('\n   ')}
+âŒ SCHLECHTE Titel (zu generisch):
+   ${TITLE_RULES.badExamples.slice(0, 2).map(t => `â€¢ "${t}"`).join('\n   ')}
 
-TECHNIK: Wähle ein geheimnisvolles Objekt, einen magischen Ort,
-oder eine mysteriöse Eigenschaft aus der Geschichte als Titel.
+TECHNIK: WÃ¤hle ein geheimnisvolles Objekt, einen magischen Ort,
+oder eine mysteriÃ¶se Eigenschaft aus der Geschichte als Titel.
 `;
 }
 
@@ -824,25 +849,25 @@ oder eine mysteriöse Eigenschaft aus der Geschichte als Titel.
  */
 export function generateDialogueBlock(): string {
   return `
-💬 DIALOG-QUALITÄT (wie Julia Donaldson / Astrid Lindgren):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸ’¬ DIALOG-QUALITÃ„T (wie Julia Donaldson / Astrid Lindgren):
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 
 REGEL 1: Jeder Dialog braucht AKTION davor oder danach
-   ✅ Adrian rannte zum Fenster. "Da ist er!", rief er.
-   ❌ "Da ist er!", sagte Adrian.
+   âœ… Adrian rannte zum Fenster. "Da ist er!", rief er.
+   âŒ "Da ist er!", sagte Adrian.
 
 REGEL 2: Variiere Dialog-Tags (maximal 30% "sagte/antwortete")
-   NUTZE: flüsterte, rief, murmelte, kicherte, hauchte, piepste,
+   NUTZE: flÃ¼sterte, rief, murmelte, kicherte, hauchte, piepste,
           stammelte, jubelte, kreischte, zischte, brummte
 
 REGEL 3: NIEMALS Dialog-Listen
-   ❌ Dialoge: (1) "Hallo" (2) "Hi" (3) "Wie geht's?"
-   ✅ "Hallo!", rief Adrian. Alexander grinste. "Na endlich!"
+   âŒ Dialoge: (1) "Hallo" (2) "Hi" (3) "Wie geht's?"
+   âœ… "Hallo!", rief Adrian. Alexander grinste. "Na endlich!"
 
 REGEL 4: Dialoge zeigen Charakter
-   • Mutiger Charakter: kurze, direkte Sätze
-   • Ängstlicher Charakter: stockende, fragende Sätze
-   • Weiser Charakter: ruhige, bedachte Sätze
+   â€¢ Mutiger Charakter: kurze, direkte SÃ¤tze
+   â€¢ Ã„ngstlicher Charakter: stockende, fragende SÃ¤tze
+   â€¢ Weiser Charakter: ruhige, bedachte SÃ¤tze
 `;
 }
 
@@ -851,27 +876,27 @@ REGEL 4: Dialoge zeigen Charakter
  */
 export function generateShowDontTellBlock(): string {
   return `
-🎭 SHOW, DON'T TELL (KRITISCH für Qualität):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸŽ­ SHOW, DON'T TELL (KRITISCH fÃ¼r QualitÃ¤t):
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 
 VERBOTEN - "Telling" (abstrakt, langweilig):
-   ❌ "Adrian hatte Angst"
-   ❌ "Sie fühlte sich traurig"
-   ❌ "Er war mutig"
-   ❌ "Alexander wusste, dass es gefährlich war"
+   âŒ "Adrian hatte Angst"
+   âŒ "Sie fÃ¼hlte sich traurig"
+   âŒ "Er war mutig"
+   âŒ "Alexander wusste, dass es gefÃ¤hrlich war"
 
 PFLICHT - "Showing" (konkret, bildlich):
-   ✅ "Adrians Hände zitterten" (statt "hatte Angst")
-   ✅ "Tränen liefen über ihre Wangen" (statt "war traurig")
-   ✅ "Er ballte die Fäuste und trat vor" (statt "war mutig")
-   ✅ "Alexander schluckte schwer" (statt "wusste, dass...")
+   âœ… "Adrians HÃ¤nde zitterten" (statt "hatte Angst")
+   âœ… "TrÃ¤nen liefen Ã¼ber ihre Wangen" (statt "war traurig")
+   âœ… "Er ballte die FÃ¤uste und trat vor" (statt "war mutig")
+   âœ… "Alexander schluckte schwer" (statt "wusste, dass...")
 
-KÖRPERSPRACHE FÜR EMOTIONEN:
-   • ANGST: zittern, erstarren, zurückweichen, schlucken, blass werden
-   • FREUDE: strahlen, hüpfen, klatschen, lachen, tanzen
-   • TRAUER: seufzen, Schultern hängen, weinen, zusammensinken
-   • WUT: stampfen, schnauben, funkeln, beben, Zähne zusammenbeißen
-   • MUT: aufrichten, tief atmen, vortreten, Blick heben
+KÃ–RPERSPRACHE FÃœR EMOTIONEN:
+   â€¢ ANGST: zittern, erstarren, zurÃ¼ckweichen, schlucken, blass werden
+   â€¢ FREUDE: strahlen, hÃ¼pfen, klatschen, lachen, tanzen
+   â€¢ TRAUER: seufzen, Schultern hÃ¤ngen, weinen, zusammensinken
+   â€¢ WUT: stampfen, schnauben, funkeln, beben, ZÃ¤hne zusammenbeiÃŸen
+   â€¢ MUT: aufrichten, tief atmen, vortreten, Blick heben
 `;
 }
 
@@ -880,26 +905,26 @@ KÖRPERSPRACHE FÜR EMOTIONEN:
  */
 export function generateChapterStructureBlock(): string {
   return `
-📚 KAPITEL-STRUKTUR (Profi-Technik):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ðŸ“š KAPITEL-STRUKTUR (Profi-Technik):
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 
 ERSTER SATZ jedes Kapitels - AKTION oder BILD:
-   ✅ "Adrian rannte los." (Aktion)
-   ✅ "Ein Knacken durchbrach die Stille." (Bild)
-   ✅ "Schnell!", rief Alexander. (Dialog mit Aktion)
-   ❌ "Der Wald war groß und dunkel." (Beschreibung)
-   ❌ "Es war einmal..." (Klischee)
+   âœ… "Adrian rannte los." (Aktion)
+   âœ… "Ein Knacken durchbrach die Stille." (Bild)
+   âœ… "Schnell!", rief Alexander. (Dialog mit Aktion)
+   âŒ "Der Wald war groÃŸ und dunkel." (Beschreibung)
+   âŒ "Es war einmal..." (Klischee)
 
 LETZTER SATZ jedes Kapitels (1-4) - SPANNUNG:
-   ✅ "Dann knackte etwas hinter ihm." (Cliffhanger)
-   ✅ "Was würde er nur tun?" (Frage)
-   ✅ "Die Augen im Dunkel kamen näher." (Gefahr)
-   ❌ "Und so gingen sie nach Hause." (Flach)
+   âœ… "Dann knackte etwas hinter ihm." (Cliffhanger)
+   âœ… "Was wÃ¼rde er nur tun?" (Frage)
+   âœ… "Die Augen im Dunkel kamen nÃ¤her." (Gefahr)
+   âŒ "Und so gingen sie nach Hause." (Flach)
 
 PFLICHT pro Kapitel:
-   • Mindestens 1x "plötzlich" oder "auf einmal" oder "im nächsten Moment"
-   • Mindestens 1x unerwartete Wendung
-   • Mindestens 3 sensorische Details (EINGEWOBEN, nicht gelistet!)
+   â€¢ Mindestens 1x "plÃ¶tzlich" oder "auf einmal" oder "im nÃ¤chsten Moment"
+   â€¢ Mindestens 1x unerwartete Wendung
+   â€¢ Mindestens 3 sensorische Details (EINGEWOBEN, nicht gelistet!)
 `;
 }
 
@@ -908,10 +933,10 @@ PFLICHT pro Kapitel:
  */
 export function generateCompleteRulesBlock(ageGroup: string): string {
   return `
-╔══════════════════════════════════════════════════════════════════════════════╗
-║              PROFESSIONELLE KINDERBUCH-QUALITÄTSREGELN v2.0                  ║
-║     (Basierend auf Astrid Lindgren, Julia Donaldson, Otfried Preußler)       ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+â•‘              PROFESSIONELLE KINDERBUCH-QUALITÃ„TSREGELN v2.0                  â•‘
+â•‘     (Basierend auf Astrid Lindgren, Julia Donaldson, Otfried PreuÃŸler)       â•‘
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 ${generateAntiPatternBlock()}
 
@@ -925,18 +950,18 @@ ${generateShowDontTellBlock()}
 
 ${generateChapterStructureBlock()}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-QUALITÄTS-CHECKLISTE VOR AUSGABE:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-☐ Keine Meta-Labels im Text (Dialoge:, Sinne:, etc.)?
-☐ Titel maximal 4 Wörter, kein "[Name] und..."?
-☐ Sätze kurz genug für ${ageGroup} Jahre?
-☐ Dialoge mit Aktion verbunden, nicht gelistet?
-☐ Emotionen durch Körpersprache gezeigt, nicht benannt?
-☐ Erster Satz ist Aktion oder Bild?
-☐ Letzter Satz (Kap 1-4) erzeugt Spannung?
-☐ Mindestens 3 Sinne pro Kapitel eingewoben?
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+QUALITÃ„TS-CHECKLISTE VOR AUSGABE:
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+â˜ Keine Meta-Labels im Text (Dialoge:, Sinne:, etc.)?
+â˜ Titel maximal 4 WÃ¶rter, kein "[Name] und..."?
+â˜ SÃ¤tze kurz genug fÃ¼r ${ageGroup} Jahre?
+â˜ Dialoge mit Aktion verbunden, nicht gelistet?
+â˜ Emotionen durch KÃ¶rpersprache gezeigt, nicht benannt?
+â˜ Erster Satz ist Aktion oder Bild?
+â˜ Letzter Satz (Kap 1-4) erzeugt Spannung?
+â˜ Mindestens 3 Sinne pro Kapitel eingewoben?
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
 `;
 }
 
@@ -950,25 +975,25 @@ QUALITÄTS-CHECKLISTE VOR AUSGABE:
  */
 export function generateAntiPatternBlockEN(): string {
   return `
-🚫 FORBIDDEN OUTPUT PATTERNS (CRITICAL - WILL CAUSE REJECTION):
-══════════════════════════════════════════════════════════════════════════════
+ðŸš« FORBIDDEN OUTPUT PATTERNS (CRITICAL - WILL CAUSE REJECTION):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 NEVER output meta-labels in the story text:
-❌ "Dialogues: (1) Adrian said..., (2) Alexander replied..."
-❌ "Sensory details: Golden sun, hay smell, rough fur..."
-❌ "Obstacle teaser: A wolf watches..."
-❌ "Danger: The witch approaches..."
-❌ "Senses: warm, soft, sweet..."
-❌ "Moral: One should be honest..."
+âŒ "Dialogues: (1) Adrian said..., (2) Alexander replied..."
+âŒ "Sensory details: Golden sun, hay smell, rough fur..."
+âŒ "Obstacle teaser: A wolf watches..."
+âŒ "Danger: The witch approaches..."
+âŒ "Senses: warm, soft, sweet..."
+âŒ "Moral: One should be honest..."
 
 These elements MUST BE WOVEN INTO THE NARRATIVE:
 
-✅ CORRECT - Woven in:
+âœ… CORRECT - Woven in:
    The sun cast golden stripes on the floor. Adrian smelled hay.
    "Something's there," Alexander whispered. In the shadows,
    two yellow eyes moved.
 
-❌ WRONG - As a list:
+âŒ WRONG - As a list:
    Sensory details: golden sun, hay smell
    Dialogues: (1) "Something's there," said Alexander
    Obstacle: Wolf in the shadows
@@ -983,26 +1008,26 @@ Write like Astrid Lindgren or Julia Donaldson - pure flowing prose!
  */
 export function generateTitleBlockEN(): string {
   return `
-📕 TITLE RULES (CRITICAL FOR QUALITY):
-══════════════════════════════════════════════════════════════════════════════
+ðŸ“• TITLE RULES (CRITICAL FOR QUALITY):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 MAXIMUM: 4 words
 
-❌ FORBIDDEN title patterns:
-   • "[Name] and the [Object]"
-   • "[Name] and the [Person]"
-   • "[Name]'s Adventure"
-   • "The Story of [Name]"
+âŒ FORBIDDEN title patterns:
+   â€¢ "[Name] and the [Object]"
+   â€¢ "[Name] and the [Person]"
+   â€¢ "[Name]'s Adventure"
+   â€¢ "The Story of [Name]"
 
-✅ GOOD titles (like real bestsellers):
-   • "The Whispering Forest"
-   • "Stardust"
-   • "The Moon Bridge"
-   • "Rumpel's Riddle"
+âœ… GOOD titles (like real bestsellers):
+   â€¢ "The Whispering Forest"
+   â€¢ "Stardust"
+   â€¢ "The Moon Bridge"
+   â€¢ "Rumpel's Riddle"
 
-❌ BAD titles (too generic):
-   • "Adrian and the Wonder Lamp of the Old Oak"
-   • "Alexander and the Fire of Memory"
+âŒ BAD titles (too generic):
+   â€¢ "Adrian and the Wonder Lamp of the Old Oak"
+   â€¢ "Alexander and the Fire of Memory"
 
 TECHNIQUE: Choose a mysterious object, magical place, or mystical
 quality from the story as the title.
@@ -1016,24 +1041,24 @@ export function generateAgeLanguageBlockEN(ageGroup: string): string {
   const rules = AGE_GROUP_RULES[ageGroup] || AGE_GROUP_RULES['6-8'];
 
   return `
-📖 AGE-APPROPRIATE LANGUAGE (${rules.ageGroup} years):
-══════════════════════════════════════════════════════════════════════════════
+ðŸ“– AGE-APPROPRIATE LANGUAGE (${rules.ageGroup} years):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 SENTENCE STRUCTURE (CRITICAL for readability):
-• ${Math.round(rules.shortSentenceRatio * 100)}% SHORT sentences (3-7 words): "The wolf came closer."
-• ${Math.round(rules.mediumSentenceRatio * 100)}% MEDIUM sentences (8-15 words): "Adrian hid behind the big tree."
-• ${Math.round(rules.longSentenceRatio * 100)}% LONG sentences (16-${rules.maxWordsPerSentence} words): Only for important moments!
+â€¢ ${Math.round(rules.shortSentenceRatio * 100)}% SHORT sentences (3-7 words): "The wolf came closer."
+â€¢ ${Math.round(rules.mediumSentenceRatio * 100)}% MEDIUM sentences (8-15 words): "Adrian hid behind the big tree."
+â€¢ ${Math.round(rules.longSentenceRatio * 100)}% LONG sentences (16-${rules.maxWordsPerSentence} words): Only for important moments!
 
 FORBIDDEN for ${rules.ageGroup} years:
-${rules.abstractionAllowed ? '' : '• No abstract metaphors like "Courage is a cool stone"'}
-• No sentences over ${rules.maxWordsPerSentence} words
-• Maximum ${rules.maxMetaphorsPerChapter} metaphors per chapter
-${rules.forbiddenConcepts.map(c => `• No topic: ${c}`).join('\n')}
+${rules.abstractionAllowed ? '' : 'â€¢ No abstract metaphors like "Courage is a cool stone"'}
+â€¢ No sentences over ${rules.maxWordsPerSentence} words
+â€¢ Maximum ${rules.maxMetaphorsPerChapter} metaphors per chapter
+${rules.forbiddenConcepts.map(c => `â€¢ No topic: ${c}`).join('\n')}
 
 REQUIRED:
-• At least ${rules.dialogueMinimum} dialogues per chapter
-• Concrete actions instead of inner monologue
-• Words that ${rules.ageGroup}-year-olds understand
+â€¢ At least ${rules.dialogueMinimum} dialogues per chapter
+â€¢ Concrete actions instead of inner monologue
+â€¢ Words that ${rules.ageGroup}-year-olds understand
 `;
 }
 
@@ -1042,25 +1067,25 @@ REQUIRED:
  */
 export function generateDialogueBlockEN(): string {
   return `
-💬 DIALOGUE QUALITY (like Julia Donaldson / Astrid Lindgren):
-══════════════════════════════════════════════════════════════════════════════
+ðŸ’¬ DIALOGUE QUALITY (like Julia Donaldson / Astrid Lindgren):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 RULE 1: Every dialogue needs ACTION before or after
-   ✅ Adrian ran to the window. "There he is!" he shouted.
-   ❌ "There he is!" said Adrian.
+   âœ… Adrian ran to the window. "There he is!" he shouted.
+   âŒ "There he is!" said Adrian.
 
 RULE 2: Vary dialogue tags (max 30% "said/replied")
    USE: whispered, shouted, mumbled, giggled, breathed, squeaked,
         stammered, cheered, shrieked, hissed, growled
 
 RULE 3: NEVER dialogue lists
-   ❌ Dialogues: (1) "Hello" (2) "Hi" (3) "How are you?"
-   ✅ "Hello!" Adrian called. Alexander grinned. "Finally!"
+   âŒ Dialogues: (1) "Hello" (2) "Hi" (3) "How are you?"
+   âœ… "Hello!" Adrian called. Alexander grinned. "Finally!"
 
 RULE 4: Dialogues reveal character
-   • Brave character: short, direct sentences
-   • Scared character: stuttering, questioning sentences
-   • Wise character: calm, thoughtful sentences
+   â€¢ Brave character: short, direct sentences
+   â€¢ Scared character: stuttering, questioning sentences
+   â€¢ Wise character: calm, thoughtful sentences
 `;
 }
 
@@ -1069,27 +1094,27 @@ RULE 4: Dialogues reveal character
  */
 export function generateShowDontTellBlockEN(): string {
   return `
-🎭 SHOW, DON'T TELL (CRITICAL FOR QUALITY):
-══════════════════════════════════════════════════════════════════════════════
+ðŸŽ­ SHOW, DON'T TELL (CRITICAL FOR QUALITY):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 FORBIDDEN - "Telling" (abstract, boring):
-   ❌ "Adrian was scared"
-   ❌ "She felt sad"
-   ❌ "He was brave"
-   ❌ "Alexander knew it was dangerous"
+   âŒ "Adrian was scared"
+   âŒ "She felt sad"
+   âŒ "He was brave"
+   âŒ "Alexander knew it was dangerous"
 
 REQUIRED - "Showing" (concrete, visual):
-   ✅ "Adrian's hands trembled" (instead of "was scared")
-   ✅ "Tears ran down her cheeks" (instead of "was sad")
-   ✅ "He clenched his fists and stepped forward" (instead of "was brave")
-   ✅ "Alexander swallowed hard" (instead of "knew that...")
+   âœ… "Adrian's hands trembled" (instead of "was scared")
+   âœ… "Tears ran down her cheeks" (instead of "was sad")
+   âœ… "He clenched his fists and stepped forward" (instead of "was brave")
+   âœ… "Alexander swallowed hard" (instead of "knew that...")
 
 BODY LANGUAGE FOR EMOTIONS:
-   • FEAR: tremble, freeze, back away, swallow, turn pale
-   • JOY: beam, hop, clap, laugh, dance
-   • SADNESS: sigh, shoulders droop, cry, slump down
-   • ANGER: stomp, snort, eyes flash, shake, clench teeth
-   • COURAGE: straighten up, breathe deep, step forward, raise chin
+   â€¢ FEAR: tremble, freeze, back away, swallow, turn pale
+   â€¢ JOY: beam, hop, clap, laugh, dance
+   â€¢ SADNESS: sigh, shoulders droop, cry, slump down
+   â€¢ ANGER: stomp, snort, eyes flash, shake, clench teeth
+   â€¢ COURAGE: straighten up, breathe deep, step forward, raise chin
 `;
 }
 
@@ -1098,26 +1123,26 @@ BODY LANGUAGE FOR EMOTIONS:
  */
 export function generateChapterStructureBlockEN(): string {
   return `
-📚 CHAPTER STRUCTURE (Professional technique):
-══════════════════════════════════════════════════════════════════════════════
+ðŸ“š CHAPTER STRUCTURE (Professional technique):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 FIRST SENTENCE of each chapter - ACTION or IMAGE:
-   ✅ "Adrian took off running." (Action)
-   ✅ "A crack broke through the silence." (Image)
-   ✅ "Quick!" Alexander called. (Dialogue with action)
-   ❌ "The forest was big and dark." (Description)
-   ❌ "Once upon a time..." (Cliché)
+   âœ… "Adrian took off running." (Action)
+   âœ… "A crack broke through the silence." (Image)
+   âœ… "Quick!" Alexander called. (Dialogue with action)
+   âŒ "The forest was big and dark." (Description)
+   âŒ "Once upon a time..." (ClichÃ©)
 
 LAST SENTENCE of each chapter (1-4) - TENSION:
-   ✅ "Then something cracked behind him." (Cliffhanger)
-   ✅ "What would he do?" (Question)
-   ✅ "The eyes in the darkness came closer." (Danger)
-   ❌ "And so they went home." (Flat)
+   âœ… "Then something cracked behind him." (Cliffhanger)
+   âœ… "What would he do?" (Question)
+   âœ… "The eyes in the darkness came closer." (Danger)
+   âŒ "And so they went home." (Flat)
 
 REQUIRED per chapter:
-   • At least 1x "suddenly" or "all at once" or "in the next moment"
-   • At least 1x unexpected turn
-   • At least 3 sensory details (WOVEN IN, not listed!)
+   â€¢ At least 1x "suddenly" or "all at once" or "in the next moment"
+   â€¢ At least 1x unexpected turn
+   â€¢ At least 3 sensory details (WOVEN IN, not listed!)
 `;
 }
 
@@ -1126,15 +1151,15 @@ REQUIRED per chapter:
  */
 export function generateForeshadowingBlockEN(): string {
   return `
-🎯 FORESHADOWING & CONFLICT RULES (CRITICAL FOR PLOT QUALITY):
-══════════════════════════════════════════════════════════════════════════════
+ðŸŽ¯ FORESHADOWING & CONFLICT RULES (CRITICAL FOR PLOT QUALITY):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 CHEKHOV'S GUN PRINCIPLE:
    Every element introduced in Chapters 1-2 MUST pay off by Chapter 5!
-   • Magic item shown → used to solve the problem
-   • Character trait mentioned → saves the day
-   • Location described → becomes crucial
-   • Threat introduced → must return and be defeated
+   â€¢ Magic item shown â†’ used to solve the problem
+   â€¢ Character trait mentioned â†’ saves the day
+   â€¢ Location described â†’ becomes crucial
+   â€¢ Threat introduced â†’ must return and be defeated
 
 CONFLICT ESCALATION PATTERN:
    Chapter 1: INTRODUCE THREAT (wolf watches, shadow lurks, stranger appears)
@@ -1144,52 +1169,32 @@ CONFLICT ESCALATION PATTERN:
    Chapter 5: RESOLUTION (final confrontation, obstacle overcome - not skipped!)
 
 TRANSFORMATION FORESHADOWING:
-   If a character transforms (good→evil, human→animal, etc.):
-   ❌ "Suddenly she transformed" - NO SETUP = BAD
-   ✅ Hint in Ch1: "Her eyes flickered strangely"
-   ✅ Hint in Ch2: "Why did she avoid the sunlight?"
-   ✅ Ch3: Other character says "Something's wrong with her"
-   ✅ Ch4: Transformation happens - READER EXPECTED IT
+   If a character transforms (goodâ†’evil, humanâ†’animal, etc.):
+   âŒ "Suddenly she transformed" - NO SETUP = BAD
+   âœ… Hint in Ch1: "Her eyes flickered strangely"
+   âœ… Hint in Ch2: "Why did she avoid the sunlight?"
+   âœ… Ch3: Other character says "Something's wrong with her"
+   âœ… Ch4: Transformation happens - READER EXPECTED IT
 
 NO LOOSE THREADS:
-   • Wolf appears in Ch1 → Must return in Ch3-4 (not just disappear!)
-   • Magic object mentioned → Must be used
-   • Character makes a promise → Must keep or break it with consequences
+   â€¢ Wolf appears in Ch1 â†’ Must return in Ch3-4 (not just disappear!)
+   â€¢ Magic object mentioned â†’ Must be used
+   â€¢ Character makes a promise â†’ Must keep or break it with consequences
 `;
 }
 
 /**
- * NEW v3.0: Generate enhanced dialogue rules (5 minimum)
+ * NEW v3.0: Generate enhanced dialogue rules (age-aware)
  */
-export function generateEnhancedDialogueBlockEN(): string {
+export function generateEnhancedDialogueBlockEN(ageGroup: string): string {
+  const minDialogues = getDialogueMinimum(ageGroup);
   return `
-💬 ENHANCED DIALOGUE RULES (MINIMUM 5 PER CHAPTER):
-══════════════════════════════════════════════════════════════════════════════
-
-DIALOGUE COUNT REQUIREMENT:
-   • Chapter 1: Minimum 5 dialogues (character introduction)
-   • Chapter 2: Minimum 5 dialogues (conflict building)
-   • Chapter 3: Minimum 6 dialogues (emotional peak)
-   • Chapter 4: Minimum 6 dialogues (confrontation)
-   • Chapter 5: Minimum 5 dialogues (resolution warmth)
-
-ACTION BEATS (80% of dialogues need physical action):
-   ✅ Adrian ran to the window. "There he is!" he shouted.
-   ✅ She grabbed his arm. "Don't go," she whispered.
-   ✅ "What's that?" Alexander pointed at the shadow.
-   ❌ "Hello," said Adrian. (No action = boring)
-
-CHARACTER VOICE CONSISTENCY:
-   • BRAVE character: Short, direct sentences. "Let's go." "I'll do it."
-   • SCARED character: Stuttering, questions. "W-what was that?" "Are you sure?"
-   • WISE character: Calm, thoughtful. "Think carefully, young one."
-   • TRICKSTER character: Wordplay, mischief. "Perhaps... or perhaps not!"
-
-DIALOGUE TAG VARIETY:
-   ❌ Overused: said, replied, answered, responded (max 30%)
-   ✅ Use instead: whispered, shouted, mumbled, giggled, breathed,
-      squeaked, stammered, cheered, shrieked, hissed, growled, sighed
-`;
+ENHANCED DIALOGUE RULES:
+- Minimum ${minDialogues} dialogues per chapter (age group ${ageGroup})
+- Most dialogues include action beats (gesture or movement before/after)
+- Vary dialogue tags; avoid overusing "said"
+- Never output dialogue lists; weave dialogue into the prose
+`.trim();
 }
 
 /**
@@ -1197,35 +1202,35 @@ DIALOGUE TAG VARIETY:
  */
 export function generateEmotionalArcBlockEN(): string {
   return `
-❤️ EMOTIONAL ARC TRACKING (CRITICAL FOR CHARACTER DEVELOPMENT):
-══════════════════════════════════════════════════════════════════════════════
+â¤ï¸ EMOTIONAL ARC TRACKING (CRITICAL FOR CHARACTER DEVELOPMENT):
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 PROTAGONIST EMOTIONAL JOURNEY:
-   Chapter 1: WONDER → Discovering the world, eyes wide, curious
-   Chapter 2: DOUBT → "Can I really do this?" Hesitation, questioning
-   Chapter 3: DESPAIR → Lowest point, failure, tears, giving up
-   Chapter 4: DETERMINATION → "I have to try!" Clenched fists, standing up
-   Chapter 5: GROWTH → Success, pride, helping others, lesson learned
+   Chapter 1: WONDER â†’ Discovering the world, eyes wide, curious
+   Chapter 2: DOUBT â†’ "Can I really do this?" Hesitation, questioning
+   Chapter 3: DESPAIR â†’ Lowest point, failure, tears, giving up
+   Chapter 4: DETERMINATION â†’ "I have to try!" Clenched fists, standing up
+   Chapter 5: GROWTH â†’ Success, pride, helping others, lesson learned
 
 SIDEKICK EMOTIONAL JOURNEY:
-   Chapter 1: CURIOSITY → Following along, interested
-   Chapter 2: CONCERN → Worried about friend, protective
-   Chapter 3: FEAR → Danger feels real, trembling
-   Chapter 4: COURAGE → Steps up to help when needed most
-   Chapter 5: PRIDE → Proud of what they achieved together
+   Chapter 1: CURIOSITY â†’ Following along, interested
+   Chapter 2: CONCERN â†’ Worried about friend, protective
+   Chapter 3: FEAR â†’ Danger feels real, trembling
+   Chapter 4: COURAGE â†’ Steps up to help when needed most
+   Chapter 5: PRIDE â†’ Proud of what they achieved together
 
 SHOW EMOTIONAL TRANSITIONS (Never tell!):
-   ❌ "Alexander suddenly felt brave" (TELLING = BAD)
-   ✅ "Alexander's hands stopped shaking. He stood up straight." (SHOWING = GOOD)
+   âŒ "Alexander suddenly felt brave" (TELLING = BAD)
+   âœ… "Alexander's hands stopped shaking. He stood up straight." (SHOWING = GOOD)
 
-   ❌ "She decided to trust him" (SHORTCUT = BAD)
-   ✅ "She uncrossed her arms. A small smile appeared." (TRANSITION = GOOD)
+   âŒ "She decided to trust him" (SHORTCUT = BAD)
+   âœ… "She uncrossed her arms. A small smile appeared." (TRANSITION = GOOD)
 
 FORBIDDEN EMOTIONAL SHORTCUTS:
-   ❌ "suddenly felt brave"
-   ❌ "decided to be happy"
-   ❌ "stopped being scared"
-   ❌ "chose to trust"
+   âŒ "suddenly felt brave"
+   âŒ "decided to be happy"
+   âŒ "stopped being scared"
+   âŒ "chose to trust"
 `;
 }
 
@@ -1234,14 +1239,14 @@ FORBIDDEN EMOTIONAL SHORTCUTS:
  */
 export function generateLeitmotifBlockEN(): string {
   return `
-🎵 RECURRING MOTIFS (LEITMOTIFS) - PROFESSIONAL TECHNIQUE:
-══════════════════════════════════════════════════════════════════════════════
+ðŸŽµ RECURRING MOTIFS (LEITMOTIFS) - PROFESSIONAL TECHNIQUE:
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 CHOOSE 2-3 RECURRING MOTIFS for the story:
 
 SOUND MOTIF (appears 5x across all chapters):
    Examples: "the nightingale's song", "porcelain tinkling", "wind chimes"
-   Ch1: Introduce subtly → Ch3: Threatened/lost → Ch5: Returns triumphantly
+   Ch1: Introduce subtly â†’ Ch3: Threatened/lost â†’ Ch5: Returns triumphantly
 
 COLOR MOTIF (appears 5x):
    Examples: "gold vs. gray", "the red thread", "silver moonlight"
@@ -1253,7 +1258,7 @@ PHRASE MOTIF (appears 3x):
 
 OBJECT MOTIF (appears 4x):
    Examples: "the porcelain heart", "the silver feather", "the old key"
-   Ch1: Shown → Ch2: Used → Ch4: Crucial → Ch5: Symbolic resolution
+   Ch1: Shown â†’ Ch2: Used â†’ Ch4: Crucial â†’ Ch5: Symbolic resolution
 
 MOTIF ARC PATTERN:
    Chapter 1: Introduce subtly (mentioned in passing)
@@ -1269,8 +1274,8 @@ MOTIF ARC PATTERN:
  */
 export function generatePOVBlockEN(): string {
   return `
-👁️ POV (POINT OF VIEW) CONSISTENCY:
-══════════════════════════════════════════════════════════════════════════════
+ðŸ‘ï¸ POV (POINT OF VIEW) CONSISTENCY:
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 CHAPTER POV ASSIGNMENT:
    Chapter 1: PROTAGONIST's perspective (Alexander)
@@ -1280,52 +1285,35 @@ CHAPTER POV ASSIGNMENT:
    Chapter 5: SHARED perspective (both contribute equally)
 
 POV INDICATORS (stay consistent within chapter):
-   • Whose THOUGHTS we access: Only POV character's inner feelings
-   • Whose BODY we follow: Camera stays with POV character
-   • Whose DIALOGUE opens: POV character speaks first or is focus
+   â€¢ Whose THOUGHTS we access: Only POV character's inner feelings
+   â€¢ Whose BODY we follow: Camera stays with POV character
+   â€¢ Whose DIALOGUE opens: POV character speaks first or is focus
 
 POV SWITCHING RULES:
-   ❌ Don't switch POV mid-paragraph
-   ❌ Don't access multiple characters' thoughts in same scene
-   ✅ Use transitions when switching: "Meanwhile, Adrian..."
-   ✅ Use scene breaks for POV changes
+   âŒ Don't switch POV mid-paragraph
+   âŒ Don't access multiple characters' thoughts in same scene
+   âœ… Use transitions when switching: "Meanwhile, Adrian..."
+   âœ… Use scene breaks for POV changes
 
 EXAMPLE:
    Chapter 2 (Adrian's POV):
-   ✅ "Adrian's heart raced. What would Alexander do?"
-   ❌ "Adrian's heart raced. Alexander felt confident." (Switching!)
+   âœ… "Adrian's heart raced. What would Alexander do?"
+   âŒ "Adrian's heart raced. Alexander felt confident." (Switching!)
 `;
 }
 
 /**
  * NEW v3.0: Generate chapter balance rules
  */
-export function generateChapterBalanceBlockEN(): string {
+export function generateChapterBalanceBlockEN(ageGroup: string): string {
+  const wordTarget = getChapterWordTarget(ageGroup);
   return `
-⚖️ CHAPTER BALANCE RULES:
-══════════════════════════════════════════════════════════════════════════════
-
-WORD COUNT PER CHAPTER:
-   • Minimum: 280 words
-   • Maximum: 320 words
-   • Maximum variance: 20 words between shortest and longest chapter
-
-PACING BALANCE:
-   • ACTION: 35-65% of chapter content
-   • DIALOGUE: 25-40% of chapter content
-   • DESCRIPTION: 10-30% of chapter content
-
-SENTENCE RHYTHM PATTERN:
-   After 3 short sentences (≤7 words), include 1 medium sentence (8-15 words)
-   Pattern: short-short-short-MEDIUM-short-short
-
-   ❌ "He ran. He stopped. He looked. He saw. He gasped." (Choppy!)
-   ✅ "He ran. He stopped. He looked around the dark room carefully. He saw it." (Rhythm!)
-
-AVOID REPETITIVE SENTENCE STARTS:
-   ❌ "Er rannte. Er blieb stehen. Er schaute." (3x "Er")
-   ✅ "Er rannte. Die Füße schmerzten. Dann blieb er stehen." (Varied!)
-`;
+CHAPTER BALANCE RULES:
+- Word count per chapter: min ${wordTarget.min}, target ${wordTarget.target}, max ${wordTarget.max}
+- Max variance between chapters: ${wordTarget.variance} words
+- Pacing balance: action 35-65%, dialogue 20-40%, description 10-30%
+- Sentence rhythm: mix short (3-7 words) and medium (8-15 words)
+`.trim();
 }
 
 /**
@@ -1345,33 +1333,33 @@ export function generateStyleReferenceBlockEN(genre: string): string {
 
   const styleDescriptions: Record<string, string> = {
     lindgren: `
-WRITE LIKE ASTRID LINDGREN (Ronja Räubertochter, Pippi Langstrumpf):
-   • NATURE: Alive, breathing, almost a character itself
-   • CHILDREN: Brave but vulnerable, make real mistakes, have real emotions
-   • DANGER: Real but not traumatizing - always a way out
-   • HUMOR: Dry, understated, often hidden in dialogue
-   • EMOTION: Deep feelings shown through action, not named`,
+WRITE LIKE ASTRID LINDGREN (Ronja RÃ¤ubertochter, Pippi Langstrumpf):
+   â€¢ NATURE: Alive, breathing, almost a character itself
+   â€¢ CHILDREN: Brave but vulnerable, make real mistakes, have real emotions
+   â€¢ DANGER: Real but not traumatizing - always a way out
+   â€¢ HUMOR: Dry, understated, often hidden in dialogue
+   â€¢ EMOTION: Deep feelings shown through action, not named`,
 
     donaldson: `
-WRITE LIKE JULIA DONALDSON (Der Grüffelo, Stockmann):
-   • RHYTHM: Strong rhythmic patterns, memorable phrases
-   • REPETITION: Stylistic repetition for emphasis ("He was BIG. He was STRONG.")
-   • VILLAINS: Scary but defeatable through cleverness
-   • RESOLUTION: Satisfying, often with a clever twist
-   • LANGUAGE: Playful, with sounds and wordplay`,
+WRITE LIKE JULIA DONALDSON (Der GrÃ¼ffelo, Stockmann):
+   â€¢ RHYTHM: Strong rhythmic patterns, memorable phrases
+   â€¢ REPETITION: Stylistic repetition for emphasis ("He was BIG. He was STRONG.")
+   â€¢ VILLAINS: Scary but defeatable through cleverness
+   â€¢ RESOLUTION: Satisfying, often with a clever twist
+   â€¢ LANGUAGE: Playful, with sounds and wordplay`,
 
     preussler: `
-WRITE LIKE OTFRIED PREUßLER (Die kleine Hexe, Räuber Hotzenplotz):
-   • ATMOSPHERE: Dark but cozy, mysterious but safe
-   • MAGIC: Subtle, integrated into everyday life (not flashy)
-   • CHARACTERS: Quirky, memorable, often with catchphrases
-   • LESSONS: Deep but not preachy, woven naturally into plot
-   • TONE: Warm even in danger, humor in unexpected places`,
+WRITE LIKE OTFRIED PREUÃŸLER (Die kleine Hexe, RÃ¤uber Hotzenplotz):
+   â€¢ ATMOSPHERE: Dark but cozy, mysterious but safe
+   â€¢ MAGIC: Subtle, integrated into everyday life (not flashy)
+   â€¢ CHARACTERS: Quirky, memorable, often with catchphrases
+   â€¢ LESSONS: Deep but not preachy, woven naturally into plot
+   â€¢ TONE: Warm even in danger, humor in unexpected places`,
   };
 
   return `
-📚 PROFESSIONAL STYLE REFERENCE:
-══════════════════════════════════════════════════════════════════════════════
+ðŸ“š PROFESSIONAL STYLE REFERENCE:
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 ${styleDescriptions[style]}
 `;
 }
@@ -1379,64 +1367,32 @@ ${styleDescriptions[style]}
 /**
  * Generate the complete ENGLISH professional storytelling rules block
  * This is the recommended version for GPT-5 prompts
- * VERSION 3.0 - Includes all 12 optimizations
+ * VERSION 3.1 - Concise, conflict-free core rules
  */
 export function generateCompleteRulesBlockEN(ageGroup: string, targetLanguage: string = 'German', genre: string = 'fairy_tales'): string {
+  const wordTarget = getChapterWordTarget(ageGroup);
+  const minDialogues = getDialogueMinimum(ageGroup);
+  const styleHintByGenre: Record<string, string> = {
+    adventure: 'brisk pacing, clear external stakes, vivid action',
+    fairy_tale: 'classic fairy-tale warmth, gentle wonder, clear morality',
+    fairy_tales: 'classic fairy-tale warmth, gentle wonder, clear morality',
+    humor: 'playful rhythm, light humor, warm resolution',
+    fantasy: 'soft magic, cozy atmosphere, clear visual setpieces',
+    friendship: 'warm character focus, empathy, gentle humor',
+  };
+  const styleHint = styleHintByGenre[genre] || 'classic storybook warmth with clear action and heart';
+
   return `
-╔══════════════════════════════════════════════════════════════════════════════╗
-║           PROFESSIONAL CHILDREN'S BOOK QUALITY RULES v3.0                    ║
-║     (Based on Astrid Lindgren, Julia Donaldson, Otfried Preußler)            ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-IMPORTANT: Write the STORY CONTENT in ${targetLanguage}. These instructions are in
-English for better AI understanding, but the generated story must be in ${targetLanguage}.
-
-${generateAntiPatternBlockEN()}
-
-${generateTitleBlockEN()}
-
-${generateAgeLanguageBlockEN(ageGroup)}
-
-${generateEnhancedDialogueBlockEN()}
-
-${generateShowDontTellBlockEN()}
-
-${generateChapterStructureBlockEN()}
-
-${generateForeshadowingBlockEN()}
-
-${generateEmotionalArcBlockEN()}
-
-${generateLeitmotifBlockEN()}
-
-${generatePOVBlockEN()}
-
-${generateChapterBalanceBlockEN()}
-
-${generateStyleReferenceBlockEN(genre)}
-
-══════════════════════════════════════════════════════════════════════════════
-QUALITY CHECKLIST v3.0 BEFORE OUTPUT:
-══════════════════════════════════════════════════════════════════════════════
-☐ No meta-labels in text (Dialogues:, Senses:, etc.)?
-☐ Title maximum 4 words, no "[Name] and..."?
-☐ Sentences short enough for ${ageGroup} year olds?
-☐ MINIMUM 5 dialogues per chapter with action beats?
-☐ Emotions shown through body language, not named?
-☐ First sentence is action or image?
-☐ Last sentence (Ch 1-4) creates tension?
-☐ At least 3 senses per chapter woven in?
-☐ Every threat from Ch1-2 returns in Ch3-4? (Foreshadowing!)
-☐ Character transformations properly foreshadowed?
-☐ 2-3 recurring motifs throughout story?
-☐ Emotional arc clear for each avatar?
-☐ POV consistent within each chapter?
-☐ Word count 280-320 per chapter?
-══════════════════════════════════════════════════════════════════════════════
-
-FINAL REMINDER: The story text MUST be written in ${targetLanguage}!
-Only imageDescription fields should be in English.
-`;
+PROFESSIONAL CHILDREN'S BOOK QUALITY RULES:
+- Write story content in ${targetLanguage}. Instructions are in English.
+- Age group ${ageGroup}: simple concrete language, clear emotional beats.
+- Word count per chapter: min ${wordTarget.min}, target ${wordTarget.target}, max ${wordTarget.max}. Keep variance under ${wordTarget.variance} words.
+- Dialogue: at least ${minDialogues} per chapter with action beats. Avoid dialogue lists.
+- Show, do not tell: reveal emotions through actions and body language.
+- Chapter structure: open with action or vivid image; end chapters 1-4 with tension.
+- No meta labels in the prose (e.g., "Dialogues:", "Senses:").
+- Style: ${styleHint}.
+`.trim();
 }
 
 // ============================================================================
@@ -1448,6 +1404,8 @@ export default {
   FORBIDDEN_OUTPUT_PATTERNS,
   containsMetaPatterns,
   AGE_GROUP_RULES,
+  getChapterWordTarget,
+  getDialogueMinimum,
   TITLE_RULES,
   DIALOGUE_RULES,
   SHOW_DONT_TELL,
@@ -1495,3 +1453,6 @@ export default {
   // Complete Rules Block v3.0 (includes all optimizations)
   generateCompleteRulesBlockEN,
 };
+
+
+

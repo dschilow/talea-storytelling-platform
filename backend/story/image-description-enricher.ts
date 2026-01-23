@@ -82,7 +82,7 @@ function buildSpeciesDescriptor(
 
     const visualHints = features.length > 0 ? `, ${features.join(', ')}` : '';
 
-    return `(HUMAN ${ageHeightStr}${visualHints}, standing on two legs, NO animal ears, NO tail, NO fur, smooth human skin, human hands with fingers, human feet with toes)`;
+    return `(HUMAN ${ageHeightStr}${visualHints}, standing on two legs, round human ears on the sides of the head, smooth human skin, human hands with fingers, human feet with toes)`;
   }
 
   // For ANIMALS: Build descriptor from profile
@@ -190,14 +190,13 @@ export function enrichImageDescriptionWithSpecies(
  * NEW v2.0: Builds a cross-chapter character invariants reference block
  * This should be appended to EVERY image prompt in a story for consistency
  *
- * v3.1 CRITICAL: Since FLUX.1 Dev does NOT support negative prompts,
- * we must include "NOT X" instructions in the POSITIVE prompt!
+ * v3.1 CRITICAL: Flux.1 Dev responds best to positive, explicit constraints.
  */
 export function buildCrossChapterInvariantsBlock(
   avatarProfiles: Record<string, AvatarProfileWithDescription>
 ): string {
   const lines: string[] = [
-    "CHARACTER INVARIANTS (MUST BE CONSISTENT IN EVERY IMAGE):"
+    "CHARACTER INVARIANTS (KEEP CONSISTENT IN EVERY IMAGE):"
   ];
 
   for (const [name, data] of Object.entries(avatarProfiles)) {
@@ -211,22 +210,17 @@ export function buildCrossChapterInvariantsBlock(
       .map(f => f.mustIncludeToken);
 
     if (criticalFeatures.length > 0) {
-      parts.push(`MUST: ${criticalFeatures.join(', ')}`);
+      parts.push(`MUST include: ${criticalFeatures.join(', ')}`);
     }
 
-    // Add locked colors with explicit "NOT" alternatives (FLUX.1 Dev doesn't support negative prompts!)
     if (invariants.lockedHairColor) {
-      parts.push(`${invariants.lockedHairColor} hair`);
+      parts.push(`Hair color: ${invariants.lockedHairColor}`);
     }
     if (invariants.lockedEyeColor) {
-      parts.push(`${invariants.lockedEyeColor} eyes`);
+      parts.push(`Eye color: ${invariants.lockedEyeColor}`);
     }
-
-    // v3.1: Add "NOT" statements for wrong colors (since negative prompts don't work in FLUX)
-    if (invariants.forbiddenColorsForThisCharacter && invariants.forbiddenColorsForThisCharacter.length > 0) {
-      // Pick the most important forbidden colors (limit to 2 to avoid prompt bloat)
-      const notColors = invariants.forbiddenColorsForThisCharacter.slice(0, 2).join(', NOT ');
-      parts.push(`NOT ${notColors}`);
+    if (invariants.lockedSkinTone) {
+      parts.push(`Skin tone: ${invariants.lockedSkinTone}`);
     }
 
     lines.push(parts.join(' | '));

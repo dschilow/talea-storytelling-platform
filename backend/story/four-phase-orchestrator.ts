@@ -1,4 +1,4 @@
-// Four-Phase Story Generation Orchestrator
+﻿// Four-Phase Story Generation Orchestrator
 // Coordinates all 4 phases: Skeleton -> Matching -> Finalization -> Images
 
 import type { StoryConfig, Chapter } from "./generate";
@@ -26,29 +26,17 @@ import type { StoryExperienceContext } from "./story-experience";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import type { InventoryItem, AvatarVisualProfile } from "../avatar/avatar";
+import type { InventoryItem } from "../avatar/avatar";
 import { generateArtifactImage } from "./artifact-image-generator";
 import type { NewArtifact } from "./types";
 import { addArtifactToInventoryInternal } from "../gamification/item-system";
 // NEW v2.0: Character Invariants for image consistency
-import {
-  buildInvariantsFromVisualProfile,
-  formatInvariantsForPrompt,
-  extractInvariantsFromDescription,
-} from "./character-invariants";
-import type { CharacterInvariants } from "./character-invariants";
-import { buildCrossChapterInvariantsBlock } from "./image-description-enricher";
-import type { AvatarProfileWithDescription } from "./image-description-enricher";
+import { extractInvariantsFromDescription } from "./character-invariants";
 // OPTIMIZATION v3.0: Image Consistency System
 import {
   createDeterministicSeed,
   smartClampPrompt,
 } from "./image-consistency-system";
-import {
-  buildCompactAgeBlock,
-  buildExplicitAgeEnforcement,
-  type CharacterWithHeight,
-} from "./age-consistency-guards";
 
 interface AvatarDetail {
   id: string;
@@ -59,7 +47,7 @@ interface AvatarDetail {
   imageUrl?: string;
   visualProfile?: any;
   creationType: "ai-generated" | "photo-upload";
-  inventory?: InventoryItem[];  // 🎁 NEW: Avatar's existing artifacts
+  inventory?: InventoryItem[];  // ­ƒÄü NEW: Avatar's existing artifacts
 }
 
 interface FourPhaseInput {
@@ -67,7 +55,7 @@ interface FourPhaseInput {
   avatarDetails: AvatarDetail[];
   userId: string;
   clerkToken: string;
-  storyId: string; // 🎁 NEW: Required for artifact source tracking
+  storyId: string; // ­ƒÄü NEW: Required for artifact source tracking
 }
 
 interface StoryExperienceSummary {
@@ -115,9 +103,9 @@ interface FourPhaseOutput {
   coverImageUrl?: string;
   chapters: Chapter[];
   avatarDevelopments?: any[];
-  // 🎁 Loot artifact from this story (deprecated - use pendingArtifact)
+  // ­ƒÄü Loot artifact from this story (deprecated - use pendingArtifact)
   newArtifact?: NewArtifact & { imageUrl?: string };
-  // 🎁 NEW: Pending artifact from pool (unlocked after reading)
+  // ­ƒÄü NEW: Pending artifact from pool (unlocked after reading)
   pendingArtifact?: PendingArtifact;
   newlyGeneratedCharacters?: Array<{
     id: string;
@@ -222,7 +210,7 @@ export class FourPhaseOrchestrator {
     // ===== PHASE 0: Fairy Tale Pre-Selection (NEW) =====
     let selectedFairyTale: SelectedFairyTale | null = null;
 
-    // 🔧 OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres (robust i18n)
+    // ­ƒöº OPTIMIZATION 1: Auto-activate fairy tale template for fairy tale genres (robust i18n)
     const normalizeGenreString = (value?: string) =>
       (value ?? "")
         .toLowerCase()
@@ -282,7 +270,7 @@ export class FourPhaseOrchestrator {
     });
 
     if (isFairyTaleGenre && !userRequestedFairyTaleTemplate) {
-      console.log(`[4-Phase] 🎭 AUTO-ACTIVATED Fairy Tale Template for genre: "${input.config.genre}"`);
+      console.log(`[4-Phase] ­ƒÄ¡ AUTO-ACTIVATED Fairy Tale Template for genre: "${input.config.genre}"`);
     }
 
     if (useFairyTaleTemplate) {
@@ -297,11 +285,11 @@ export class FourPhaseOrchestrator {
       const phase0Duration = Date.now() - phase0Start;
 
       if (selectedFairyTale) {
-        console.log(`[4-Phase] ✅ Phase 0 completed in ${phase0Duration}ms`);
+        console.log(`[4-Phase] Ô£à Phase 0 completed in ${phase0Duration}ms`);
         console.log(`[4-Phase] Selected: ${selectedFairyTale.tale.title} (score: ${selectedFairyTale.matchScore})`);
         console.log(`[4-Phase] This will save ~47 seconds in Phase 1 by skipping skeleton generation`);
       } else {
-        console.log(`[4-Phase] ⚠️ Phase 0 completed in ${phase0Duration}ms - No suitable fairy tale found`);
+        console.log(`[4-Phase] ÔÜá´©Å Phase 0 completed in ${phase0Duration}ms - No suitable fairy tale found`);
         console.log(`[4-Phase] Will proceed with standard skeleton generation`);
       }
     } else {
@@ -405,7 +393,7 @@ export class FourPhaseOrchestrator {
       avatarNames,
       useFairyTaleTemplate,
       selectedFairyTale,  // Pass fairy tale so Phase2 can load roles from DB
-      input.avatarDetails  // 🔧 NEW: Pass full avatar details with visualProfile
+      input.avatarDetails  // ­ƒöº NEW: Pass full avatar details with visualProfile
     );
     phaseDurations.phase2Duration = Date.now() - phase2Start;
     console.log(`[4-Phase] Phase 2 completed in ${phaseDurations.phase2Duration}ms`);
@@ -482,7 +470,7 @@ export class FourPhaseOrchestrator {
           configWithExperience.language || 'de'
         );
 
-        console.log("[4-Phase] 🎁 Artifact matched:", {
+        console.log("[4-Phase] ­ƒÄü Artifact matched:", {
           id: matchedArtifact.id,
           name: matchedArtifact.name.de,
           category: matchedArtifact.category,
@@ -528,7 +516,7 @@ export class FourPhaseOrchestrator {
     phaseDurations.phase3Duration = Date.now() - phase3Start;
 
     if (phase3Result.fairyTaleUsed) {
-      console.log(`[4-Phase] ✨ Fairy tale used: ${phase3Result.fairyTaleUsed.title} (score: ${phase3Result.fairyTaleUsed.matchScore})`);
+      console.log(`[4-Phase] Ô£¿ Fairy tale used: ${phase3Result.fairyTaleUsed.title} (score: ${phase3Result.fairyTaleUsed.matchScore})`);
       console.log(`[4-Phase] Match reason: ${phase3Result.fairyTaleUsed.matchReason}`);
     } else {
       console.log("[4-Phase] No fairy tale used - standard story generation");
@@ -540,7 +528,7 @@ export class FourPhaseOrchestrator {
 
     const phase3RequestPayload = {
       phase: 3,
-      label: "PHASE 3: Märchen-basierte Story-Implementierung",
+      label: "PHASE 3: M├ñrchen-basierte Story-Implementierung",
       config: {
         aiModel: configWithExperience.aiModel || "gpt-5-mini",
         ageGroup: configWithExperience.ageGroup,
@@ -589,7 +577,7 @@ export class FourPhaseOrchestrator {
     console.log("[4-Phase] ===== PHASE 4: IMAGE GENERATION (PARALLEL) =====");
     const phase4Start = Date.now();
 
-    // 🔧 OPTIMIZATION: Run Cover and Chapter generation in parallel
+    // ­ƒöº OPTIMIZATION: Run Cover and Chapter generation in parallel
     let chaptersWithImages: Chapter[] = [];
     let coverImageResult: { url?: string; prompt: string } | undefined = undefined;
 
@@ -619,13 +607,16 @@ export class FourPhaseOrchestrator {
         timeoutPromise
       ]);
 
-      console.log(`[4-Phase] ✅ All images generated successfully`);
+      console.log(`[4-Phase] Ô£à All images generated successfully`);
     } catch (imageError) {
-      console.error("[4-Phase] ❌ Image generation failed:", imageError);
+      console.error("[4-Phase] ÔØî Image generation failed:", imageError);
       // Continue with chapters without images - story text is still valid
       chaptersWithImages = finalizedStory.chapters.map(ch => ({
-        ...ch,
+        id: (ch as { id?: string }).id ?? crypto.randomUUID(),
+        title: ch.title,
+        content: ch.content,
         imageUrl: undefined, // No image generated
+        order: ch.order,
       }));
       coverImageResult = undefined;
     }
@@ -659,7 +650,7 @@ export class FourPhaseOrchestrator {
     // 5. User reads story completely
     // 6. markRead.ts: Unlock artifact and add to avatar inventory (REWARD!)
     //
-    console.log("[4-Phase] ⏭️  Skipping old artifact generation - using Pool System");
+    console.log("[4-Phase] ÔÅ¡´©Å  Skipping old artifact generation - using Pool System");
 
     const totalDuration = Date.now() - startTime;
     console.log(`[4-Phase] Total orchestration completed in ${totalDuration}ms`);
@@ -724,9 +715,9 @@ export class FourPhaseOrchestrator {
       coverImageUrl,
       chapters: chaptersWithImages,
       avatarDevelopments: finalizedStory.avatarDevelopments || [], // Pass through from Phase 3
-      // 🎁 Legacy artifact system disabled - now using Pool System
+      // ­ƒÄü Legacy artifact system disabled - now using Pool System
       newArtifact: undefined,
-      // 🎁 NEW: Pending artifact from pool (unlocked after reading)
+      // ­ƒÄü NEW: Pending artifact from pool (unlocked after reading)
       pendingArtifact: phase3Result.pendingArtifact,
       metadata: {
         processingTime: totalDuration,
@@ -829,86 +820,25 @@ export class FourPhaseOrchestrator {
   ): Promise<Chapter[]> {
     console.log("[4-Phase] Generating chapter images...");
 
-    // 🔧 OPTIMIZATION: Patch character assignments with updated visual profiles from JSON
+    // ­ƒöº OPTIMIZATION: Patch character assignments with updated visual profiles from JSON
     // This ensures we use the manually corrected/enhanced character data
     await this.patchCharacterAssignments(characterAssignments);
 
-    // NEW v2.0: Build character invariants for ALL avatars
-    // This ensures consistent features (tooth gaps, etc.) across all chapters
-    const avatarInvariants = new Map<string, CharacterInvariants>();
+    const referenceImages = avatarDetails
+      .map(av => av.imageUrl || av.visualProfile?.imageUrl)
+      .filter((url): url is string => !!url && url.trim().length > 0)
+      .filter((url, index, arr) => arr.indexOf(url) === index)
+      .slice(0, 3);
 
-    // v3.0 FIX: Only collect features that should be FORBIDDEN for ALL characters
-    // NOT features that are forbidden only because another character has them
-    const universalForbiddenFeatures: string[] = [];
-
-    for (const avatar of avatarDetails) {
-      if (avatar.visualProfile) {
-        const invariants = buildInvariantsFromVisualProfile(
-          avatar.name,
-          avatar.visualProfile as AvatarVisualProfile,
-          avatar.description
-        );
-        avatarInvariants.set(avatar.name, invariants);
-
-        // v3.1: forbiddenFeatures now ONLY contains universal features (no hair/eye colors)
-        // Hair/eye color conflicts are now in forbiddenColorsForThisCharacter (not used in negative prompt)
-        universalForbiddenFeatures.push(...invariants.forbiddenFeatures);
-
-        console.log(`[4-Phase] Built invariants for ${avatar.name}:`, {
-          mustInclude: invariants.mustIncludeFeatures.map(f => f.mustIncludeToken).slice(0, 3),
-          universalForbidden: invariants.forbiddenFeatures.slice(0, 3),
-          perCharacterForbidden: invariants.forbiddenColorsForThisCharacter?.slice(0, 3) || []
-        });
-      }
+    if (referenceImages.length > 0) {
+      console.log(`[4-Phase] Using ${referenceImages.length} reference images for consistency`);
     }
-
-    // NEW v2.0: Build cross-chapter invariants reference block
-    // This is appended to EVERY image prompt for consistency
-    const avatarProfilesWithDesc: Record<string, AvatarProfileWithDescription> = {};
-    for (const avatar of avatarDetails) {
-      if (avatar.visualProfile) {
-        avatarProfilesWithDesc[avatar.name] = {
-          profile: avatar.visualProfile as AvatarVisualProfile,
-          description: avatar.description
-        };
-      }
-    }
-    const crossChapterInvariantsBlock = buildCrossChapterInvariantsBlock(avatarProfilesWithDesc);
-
     const chapters: Chapter[] = [];
 
     // OPTIMIZATION v3.0: Create consistent seed base for ALL chapter images
     const avatarNames = avatarDetails.map(a => a.name);
     const storyBaseSeed = createDeterministicSeed(story.title || 'Story', avatarNames);
-    console.log(`[4-Phase] 🎯 Using consistent seed base: ${storyBaseSeed} for all chapter images`);
-
-    // OPTIMIZATION v3.0: Build character-first block for prompt start
-    const charactersForAgeBlock: CharacterWithHeight[] = avatarDetails.map(av => {
-      const profile = av.visualProfile as any;
-      return {
-        name: av.name,
-        ageNumeric: profile?.ageNumeric || profile?.age,
-        ageApprox: profile?.ageApprox,
-        heightCm: profile?.heightCm || profile?.height,
-        species: profile?.characterType?.toLowerCase().includes('animal') ? 'animal' : 'human',
-      };
-    });
-
-    const compactAgeBlock = buildCompactAgeBlock(charactersForAgeBlock);
-    const ageEnforcement = buildExplicitAgeEnforcement(charactersForAgeBlock);
-    console.log(`[4-Phase] 📋 Age block: ${compactAgeBlock}`);
-
-    // CRITICAL v3.6: Build Flux.1 human ear guard (Flux.1 Dev ignores negative prompts!)
-    // This MUST be at the TOP of the prompt for maximum effect
-    const humanAvatars = avatarDetails.filter(av => {
-      const profile = av.visualProfile as any;
-      const charType = profile?.characterType?.toLowerCase() || '';
-      return !charType.includes('animal') && !charType.includes('creature');
-    });
-    const flux1HumanGuard = humanAvatars.length > 0
-      ? `[FLUX.1 CRITICAL FOR ${humanAvatars.map(a => a.name).join(' AND ')}: MUST have normal ROUND human ears on SIDES of head. Ears must be naturally positioned at ear-level, NOT pointed, NOT elf-like, NOT fantasy-shaped. 100% human child anatomy.]`
-      : '';
-    console.log(`[4-Phase] 👂 Flux.1 Human Guard: ${flux1HumanGuard ? 'ACTIVE' : 'N/A (no humans)'}`);
+    console.log(`[4-Phase] ­ƒÄ» Using consistent seed base: ${storyBaseSeed} for all chapter images`);
 
     // Generate all images in parallel for speed
     const imagePromises = story.chapters.map(async (chapter, chapterIndex) => {
@@ -920,36 +850,18 @@ export class FourPhaseOrchestrator {
           characterAssignments
         );
 
-        // OPTIMIZATION v3.6: Prepend ALL consistency blocks including Flux.1 human guard
-        const promptWithAgeFirst = `${compactAgeBlock}\n${ageEnforcement}\n${flux1HumanGuard}\n\n${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
-        const promptForModel = this.clampPositivePrompt(promptWithAgeFirst);
+        const promptForModel = this.clampPositivePrompt(enhancedPrompt);
 
         // CRITICAL FIX v3.0: Use CONSISTENT seed with small offset for scene variation
         const imageSeed = (storyBaseSeed + chapterIndex * 3) >>> 0;
         const imageModel = "ai.generateImage-default";
 
-        // ⚠️ NOTE: FLUX.1 Dev does NOT support negative prompts natively!
-        // We still create this for: (1) logging/debugging, (2) future model compatibility
-        // The ACTUAL character-specific exclusions are handled via "NOT X" in the POSITIVE prompt
-        // (see buildCrossChapterInvariantsBlock and characterBlock above)
-        const baseNegativePrompts = [
-          "deformed, disfigured, watermark, text, signature, low quality",
-          "duplicate characters, extra people, crowd, extra children, extra boys, extra girls, extra humans",
-          "twins, clones, mirror image, repeated face, same person twice, multiple instances of same character",
-          "extra dwarfs, extra gnomes, gnome crowd, dwarf crowd, multiple dwarfs, second dwarf",
-          "beard on children, hat on children, dwarfified kids, child with beard",
-          "mislabeled species, wrong species, swapped species, puppet, mannequin"
-        ];
 
-        // v3.1: Only add UNIVERSAL forbidden features (tooth gap → no complete teeth, etc.)
-        // Hair/eye colors are now handled via "NOT X" in the POSITIVE prompt
-        const uniqueForbidden = [...new Set(universalForbiddenFeatures)].slice(0, 10);
-        const negativePrompt = [...baseNegativePrompts, ...uniqueForbidden].join(", ");
 
         const stylePreset = "watercolor_storybook";
 
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(promptForModel, imageSeed, negativePrompt);
+        const imageUrl = await this.generateImage(promptForModel, imageSeed, undefined, referenceImages);
 
         return {
           id: crypto.randomUUID(),
@@ -961,7 +873,7 @@ export class FourPhaseOrchestrator {
           imageSeed,
           imageModel,
           imageStyle: stylePreset,
-          imageNegativePrompt: negativePrompt,
+          imageNegativePrompt: undefined,
         };
       } catch (error) {
         console.error(`[4-Phase] Failed to generate image for chapter ${chapter.order}:`, error);
@@ -1167,22 +1079,21 @@ export class FourPhaseOrchestrator {
   /**
    * Build enhanced image prompt with character consistency
    * CRITICAL: Maintains age/size order to prevent mix-ups
-   * v3.0: NOW USES CHARACTER INVARIANTS for tooth gaps, protruding ears, etc.
-   * OPTIMIZATION v2.4: Genre-Aware Costume Override based on imageDescription
+   * v4.0: Flux-optimized natural language with explicit positioning
    */
   private buildEnhancedImagePrompt(
     baseDescription: string,
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
-    // CRITICAL FIX: Translate German artifact/object names to English for better image generation
-    // The image model (Flux.1) doesn't understand German well, causing "Zauberstab" to become "sword"
+    // Translate common German object nouns to English for image models
     const germanToEnglishObjects: Record<string, string> = {
       'zauberstab': 'magic wand with glowing tip',
       'schwert': 'sword',
       'schild': 'shield',
       'buch': 'book',
       'schlüssel': 'key',
+      'schluessel': 'key',
       'kompass': 'compass',
       'krone': 'crown',
       'ring': 'magic ring',
@@ -1190,7 +1101,7 @@ export class FourPhaseOrchestrator {
       'kristall': 'crystal',
       'laterne': 'lantern',
       'feder': 'feather',
-      'stab': 'magic staff', // Important: "Stab" should be staff/wand, not sword
+      'stab': 'magic staff',
       'dolch': 'dagger',
       'bogen': 'bow',
       'pfeil': 'arrow',
@@ -1207,94 +1118,72 @@ export class FourPhaseOrchestrator {
       'kelch': 'chalice',
       'harfe': 'harp',
       'flöte': 'flute',
+      'floete': 'flute',
       'glocke': 'bell',
       'fackel': 'torch',
       'kerze': 'candle',
     };
 
-    let translatedDescription = baseDescription;
+    let translatedDescription = baseDescription || '';
     for (const [german, english] of Object.entries(germanToEnglishObjects)) {
-      // Case-insensitive replacement with word boundaries
       const regex = new RegExp(`\\b${german}\\b`, 'gi');
       if (regex.test(translatedDescription)) {
         translatedDescription = translatedDescription.replace(regex, english);
-        console.log(`[Image Prompt] 🔄 Translated "${german}" -> "${english}" in image description`);
       }
     }
 
-    const cleanedDescription = translatedDescription.replace(/\s+/g, ' ').trim();
+    let cleanedDescription = translatedDescription.replace(/\s+/g, ' ').trim();
 
-    // OPTIMIZATION v2.4: Check imageDescription for genre keywords
-    const genreKeywords = ['medieval', 'fantasy', 'magic', 'castle', 'knight', 'princess', 'dragon', 'fairy', 'wizard', 'witch', 'kingdom', 'ancient', 'steampunk', 'victorian', 'retro', 'historical', 'old world', 'village', 'steam', 'gear', 'clockwork', 'brass'];
-    const descriptionLower = cleanedDescription.toLowerCase();
-    const isGenreScene = genreKeywords.some(keyword => descriptionLower.includes(keyword));
-    const isSteampunk = descriptionLower.includes('steampunk') || descriptionLower.includes('steam') || descriptionLower.includes('gear') || descriptionLower.includes('clockwork');
+    const shotTypes = [
+      'WIDE SHOT',
+      'CLOSE-UP',
+      'CLOSE UP',
+      'HERO SHOT',
+      'DRAMATIC ANGLE',
+      'MEDIUM SHOT',
+      'OVERHEAD SHOT',
+      'LOW ANGLE',
+      'HIGH ANGLE'
+    ];
+    let shotType = '';
+    for (const type of shotTypes) {
+      const regex = new RegExp(`\\b${type}\\b`, 'i');
+      if (regex.test(cleanedDescription)) {
+        shotType = type;
+        cleanedDescription = cleanedDescription.replace(regex, '').trim();
+        break;
+      }
+    }
 
-    // Build character lookup with AGE for sorting
+    cleanedDescription = cleanedDescription
+      .replace(/\b(FOREGROUND|MIDGROUND|BACKGROUND|LIGHTING|MOOD|ATMOSPHERE|COMPOSITION|STYLE|SHOT TYPE|SHOT|CAMERA|POSITIONING|CHARACTERS IN THIS SCENE)\b[:,-]*/gi, '')
+      .replace(/\b(crowd|villagers|townsfolk|bystanders|onlookers|passersby|spectators)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
     interface CharacterInfo {
       name: string;
       displayName: string;
       nameKey: string;
       description: string;
       age: number;
+      heightCm?: number;
       species?: string;
       orderIndex: number;
       appearanceIndex?: number;
-      invariantsMustInclude?: string[];  // NEW: Critical features
-      invariantsForbidden?: string[];     // NEW: Forbidden features
     }
 
     const allCharacters = new Map<string, CharacterInfo>();
     const avatarNameSet = new Set(avatarDetails.map(a => this.normalizeNameKey(a.name)));
-    const hasPositioning = /\bPOSITIONING\s*:/i.test(cleanedDescription);
 
-    // Add avatars with FULL descriptions + age + INVARIANTS
     for (const [avatarIndex, avatar] of avatarDetails.entries()) {
-      // v3.0: Use new method that extracts invariants from avatar description
-      let visualContext = avatar.visualProfile
+      const visualContext = avatar.visualProfile
         ? this.visualProfileToImagePromptWithInvariants(avatar.visualProfile, avatar.description)
         : (avatar.description || 'default appearance');
 
-      // OPTIMIZATION v2.4: Apply genre-aware costume override
-      if (isGenreScene && visualContext.includes('hoodie')) {
-        if (isSteampunk) {
-          visualContext = visualContext
-            .replace(/hoodie/gi, "vest with brass buttons")
-            .replace(/jeans/gi, "striped trousers")
-            .replace(/t-shirt/gi, "ruffled shirt")
-            .replace(/sneakers/gi, "heavy boots")
-            .replace(/casual jacket/gi, "victorian coat");
-          console.log(`[Image Prompt] 🎭 Applied Steampunk costume override for ${avatar.name}`);
-        } else {
-          visualContext = visualContext
-            .replace(/hoodie/gi, "hooded tunic")
-            .replace(/jeans/gi, "breeches")
-            .replace(/t-shirt/gi, "linen shirt")
-            .replace(/sneakers/gi, "leather boots")
-            .replace(/casual jacket/gi, "medieval tunic");
-          console.log(`[Image Prompt] 🎭 Applied Fantasy costume override for ${avatar.name}`);
-        }
-      }
-
-      const age = this.extractNumericAgeFromProfile(avatar.visualProfile) ?? 8; // Default for child avatars
-      const species = avatar.visualProfile?.species || (age <= 12 ? 'human child' : undefined);
-      console.log(`[Image Prompt] Avatar ${avatar.name}: age=${age} (from ageNumeric=${avatar.visualProfile?.ageNumeric}, ageApprox=${avatar.visualProfile?.ageApprox})`);
-
-      // v3.0: Extract invariants for this avatar
-      let invariantsMustInclude: string[] = [];
-      let invariantsForbidden: string[] = [];
-
-      if (avatar.description) {
-        const invariantFeatures = extractInvariantsFromDescription(avatar.description);
-        invariantsMustInclude = invariantFeatures
-          .filter(f => f.priority === 1)
-          .map(f => f.mustIncludeToken);
-
-        // Build forbidden list from alternatives
-        invariantsForbidden = invariantFeatures
-          .filter(f => f.forbiddenAlternative)
-          .map(f => f.forbiddenAlternative as string);
-      }
+      const age = this.extractNumericAgeFromProfile(avatar.visualProfile) ?? 8;
+      const heightCm = avatar.visualProfile?.heightCm || avatar.visualProfile?.height;
+      const species = avatar.visualProfile?.species || (age <= 12 ? 'human' : undefined);
 
       const nameKey = this.normalizeNameKey(avatar.name);
       const displayName = this.formatDisplayName(avatar.name);
@@ -1306,62 +1195,41 @@ export class FourPhaseOrchestrator {
         nameKey,
         description: visualContext,
         age,
+        heightCm,
         species,
         orderIndex: avatarIndex,
-        invariantsMustInclude,
-        invariantsForbidden,
       });
     }
 
-    // Add supporting characters with FULL descriptions
     let supportingIndex = 0;
     for (const char of characterAssignments.values()) {
       const nameKey = this.normalizeNameKey(char.name);
       if (!nameKey) continue;
       if (avatarNameSet.has(nameKey)) {
-        continue; // Avoid overriding avatars with lower-fidelity pool data
-      }
-      // v3.0: Use the new method that integrates invariants
-      // Pool characters don't have user descriptions, so we pass undefined
-      let fullDesc = this.visualProfileToImagePromptWithInvariants(char.visualProfile, undefined);
-
-      // OPTIMIZATION v2.4: Apply genre-aware costume override for pool characters too
-      if (isGenreScene && fullDesc.includes('hoodie')) {
-        if (isSteampunk) {
-          fullDesc = fullDesc
-            .replace(/hoodie/gi, "vest with brass buttons")
-            .replace(/jeans/gi, "striped trousers")
-            .replace(/t-shirt/gi, "ruffled shirt")
-            .replace(/sneakers/gi, "heavy boots");
-          console.log(`[Image Prompt] 🎭 Applied Steampunk costume override for pool character: ${char.name}`);
-        } else {
-          fullDesc = fullDesc
-            .replace(/hoodie/gi, "hooded tunic")
-            .replace(/jeans/gi, "breeches")
-            .replace(/t-shirt/gi, "linen shirt")
-            .replace(/sneakers/gi, "leather boots");
-          console.log(`[Image Prompt] 🎭 Applied Fantasy costume override for pool character: ${char.name}`);
-        }
+        continue;
       }
 
+      const visualContext = this.visualProfileToImagePromptWithInvariants(char.visualProfile, undefined);
       const ageFromProfile = this.extractNumericAgeFromProfile(char.visualProfile);
-      let age = ageFromProfile ?? this.ageCategoryToNumber(char.age_category) ?? 30;
+      const age = ageFromProfile ?? this.ageCategoryToNumber(char.age_category) ?? 30;
+      const visualProfile = char.visualProfile as { heightCm?: number; height?: number } | undefined;
+      const heightCm = visualProfile?.heightCm || visualProfile?.height;
 
       const displayName = this.formatDisplayName(char.name);
       allCharacters.set(nameKey, {
         name: char.name,
         displayName,
         nameKey,
-        description: fullDesc,
+        description: visualContext,
         age,
+        heightCm,
         species: char.visualProfile?.species,
         orderIndex: avatarDetails.length + supportingIndex,
       });
       supportingIndex += 1;
     }
 
-    // Extract character names mentioned in this scene
-    // Note: descriptionLower already declared above (line 755)
+    const descriptionLower = cleanedDescription.toLowerCase();
     const charactersInScene: CharacterInfo[] = [];
 
     for (const charInfo of allCharacters.values()) {
@@ -1372,16 +1240,17 @@ export class FourPhaseOrchestrator {
       }
     }
 
-    // If no characters found, include ALL (fallback)
     if (charactersInScene.length === 0) {
-      console.warn("[Image Prompt] No characters detected in scene description, including all");
-      charactersInScene.push(...allCharacters.values());
+      for (const avatar of avatarDetails) {
+        const key = this.normalizeNameKey(avatar.name);
+        const info = key ? allCharacters.get(key) : undefined;
+        if (info) charactersInScene.push(info);
+      }
     }
 
-    // Prefer mention order for positioning; fall back to avatar order
     const orderedCharacters = [...charactersInScene].sort((a, b) => {
-      const aIndex = typeof a.appearanceIndex === "number" ? a.appearanceIndex : -1;
-      const bIndex = typeof b.appearanceIndex === "number" ? b.appearanceIndex : -1;
+      const aIndex = typeof a.appearanceIndex === 'number' ? a.appearanceIndex : -1;
+      const bIndex = typeof b.appearanceIndex === 'number' ? b.appearanceIndex : -1;
       if (aIndex === -1 && bIndex === -1) {
         return a.orderIndex - b.orderIndex;
       }
@@ -1390,108 +1259,107 @@ export class FourPhaseOrchestrator {
       return aIndex - bIndex;
     });
 
-    // OPTIMIZATION v3.0: Add LEFT/RIGHT positioning to prevent character duplication
-    const positioningInstructions = hasPositioning
-      ? ''
-      : orderedCharacters.length === 2
-        ? `\nPOSITIONING: ${orderedCharacters[0].displayName} on LEFT side, ${orderedCharacters[1].displayName} on RIGHT side of the image.`
-        : orderedCharacters.length >= 3
-          ? `\nPOSITIONING: Left to right order: ${orderedCharacters.map(c => c.displayName).join(', ')}.`
-          : '';
+    const normalizeDescriptor = (desc: string) => {
+      return String(desc || '')
+        .replace(/DISTINCTIVE FEATURES:\s*/gi, 'distinct features include ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
 
-    // Add explicit age ordering instruction with INVARIANTS
-    const characterBlock = orderedCharacters
-      .map((c, index) => {
-        const position = index === 0 ? '(LEFT)' : index === 1 ? '(RIGHT)' : `(position ${index + 1})`;
+    const positionLabels = (() => {
+      if (orderedCharacters.length === 1) return ['IN THE CENTER'];
+      if (orderedCharacters.length === 2) return ['ON THE LEFT', 'ON THE RIGHT'];
+      if (orderedCharacters.length === 3) return ['ON THE LEFT', 'IN THE CENTER', 'ON THE RIGHT'];
+      if (orderedCharacters.length === 4) return ['LEFTMOST', 'LEFT-CENTER', 'RIGHT-CENTER', 'RIGHTMOST'];
+      return orderedCharacters.map((_, idx) => `POSITION ${idx + 1} (left to right)`);
+    })();
 
-        // v3.1: Clean species tag - only use if it's a simple, clear species
-        let speciesTag = '';
-        if (c.species) {
-          const speciesLower = String(c.species).toLowerCase();
-          // Only include species if it's clearly defined (not mixed like "human adult, child")
-          if (speciesLower.includes('human') && !speciesLower.includes(',')) {
-            speciesTag = c.age <= 12 ? 'HUMAN CHILD' : c.age <= 18 ? 'HUMAN TEENAGER' : 'HUMAN ADULT';
-          } else if (!speciesLower.includes(',')) {
-            speciesTag = c.species.toUpperCase();
-          }
-        }
-        if (c.name.toLowerCase().includes('dwarf')) {
-          speciesTag = 'DWARF';
-        }
+    const ensurePeriod = (line: string) => {
+      if (!line) return '';
+      return /[.!?]$/.test(line) ? line : `${line}.`;
+    };
 
-        // CRITICAL: Add visual identifiers to distinguish characters
-        const visualId = c.age <= 12
-          ? `${c.age}-year-old child`
-          : c.age <= 18
-            ? `${c.age}-year-old teenager`
-            : 'adult';
+    const characterSentences = orderedCharacters.map((c, index) => {
+      const label = positionLabels[index] || `POSITION ${index + 1}`;
+      const descriptor = normalizeDescriptor(c.description);
+      const heightClause = c.heightCm ? `${c.heightCm}cm tall` : '';
+      const speciesLower = String(c.species || '').toLowerCase();
+      const speciesClause = speciesLower && !speciesLower.includes('human') ? c.species : '';
+      const parts = [descriptor, heightClause, speciesClause].filter(Boolean).join(', ');
+      const safeParts = parts || 'a distinct character';
+      return `${label}: ${c.displayName} is ${safeParts}.`;
+    });
 
-        // v3.0: Add MUST INCLUDE features (tooth gap, protruding ears, etc.)
-        const mustInclude = c.invariantsMustInclude && c.invariantsMustInclude.length > 0
-          ? `\n  MUST SHOW: ${c.invariantsMustInclude.join(', ')}`
-          : '';
+    const totalCharacters = orderedCharacters.length;
+    const countSentence = totalCharacters === 1
+      ? 'A scene with exactly one distinct character.'
+      : `A scene with exactly ${totalCharacters} distinct characters.`;
 
-        // v3.1 CRITICAL: FLUX.1 Dev does NOT support negative prompts!
-        // We must use "NOT X" in the POSITIVE prompt instead of relying on negativePrompt
-        const forbidden = c.invariantsForbidden && c.invariantsForbidden.length > 0
-          ? `\n  DO NOT: ${c.invariantsForbidden.slice(0, 3).join(', NOT ')}`
-          : '';
-
-        // For child avatars: explicitly forbid beard/hat to prevent dwarf substitution
-        // v3.1: Use "NOT" syntax instead of "NO" for better FLUX.1 compatibility
-        const safety = (c.species || '').toLowerCase().includes('human') && c.age <= 12
-          ? '\n  CHILD: smooth young face, NOT beard, NOT mustache, NOT facial hair, NOT hat, NOT dwarf, NOT gnome'
-          : '';
-
-        return `${c.displayName} ${position}: ${speciesTag} ${visualId}\n  ${c.description}${mustInclude}${forbidden}${safety}`;
-      })
-      .join("\n\n");
-
-    // v3.0 FIX: Only include age order instruction for CHILD characters, use actual ages
-    const childCharacters = charactersInScene.filter(c => c.age <= 18);
-    const ageOrder = childCharacters.length > 1
-      ? `\nIMPORTANT: Child characters with their ages: ${childCharacters.map(c => `${c.displayName} (${c.age}yo)`).join(', ')}. Younger children must be SMALLER than older ones!`
-      : childCharacters.length === 1
-        ? `\nIMPORTANT: ${childCharacters[0].displayName} is a ${childCharacters[0].age} year old child - draw as young child, NOT teenager!`
-        : '';
-
-    const totalCharacters = charactersInScene.length;
-    const totalHumans = charactersInScene.filter(c => (c.species || '').toLowerCase().includes('human')).length;
-    const totalDwarfs = charactersInScene.filter(c => {
-      const speciesLower = (c.species || '').toLowerCase();
-      const nameLower = c.name.toLowerCase();
-      return speciesLower.includes('dwarf') || nameLower.includes('dwarf');
-    }).length;
-    const allowPuppets = /\b(puppet|marionette|wooden boy|wooden puppet)\b/i.test(cleanedDescription);
-    const forbiddenEntities = [
-      'extra humans',
-      'extra dwarfs',
-      'extra gnomes',
-      'twins',
-      'clones',
-      'extra people',
-      'background kids',
-      'statues',
-    ];
-    if (!allowPuppets) {
-      forbiddenEntities.push('puppets', 'dolls', 'mannequins');
+    const typeCounts = new Map<string, number>();
+    for (const c of orderedCharacters) {
+      const speciesLower = String(c.species || '').toLowerCase();
+      let label = 'character';
+      if (speciesLower.includes('human')) {
+        label = c.age <= 18 ? 'child' : 'adult';
+      } else if (speciesLower.includes('dwarf') || c.name.toLowerCase().includes('dwarf')) {
+        label = 'dwarf';
+      } else if (speciesLower.includes('gnome')) {
+        label = 'gnome';
+      } else if (speciesLower) {
+        label = speciesLower;
+      }
+      typeCounts.set(label, (typeCounts.get(label) || 0) + 1);
     }
 
-    return `
-${cleanedDescription}
-${positioningInstructions}
+    const breakdownParts = Array.from(typeCounts.entries()).map(([label, count]) => {
+      const suffix = count > 1 ? 's' : '';
+      return `${count} ${label}${suffix}`;
+    });
+    const breakdownSentence = breakdownParts.length > 1
+      ? `The scene includes ${breakdownParts.join(' and ')}.`
+      : '';
 
-CHARACTERS IN THIS SCENE (lock face/outfit/age/POSITION):
-${characterBlock}
-TOTAL CHARACTERS VISIBLE: ${totalCharacters}. Humans: ${totalHumans}. Dwarfs: ${totalDwarfs}. NOT any ${forbiddenEntities.join(', ')}. If extra characters appear, remove them and leave empty space.
-${ageOrder}
+    const humanKids = orderedCharacters.filter(c => {
+      const speciesLower = String(c.species || '').toLowerCase();
+      return speciesLower.includes('human') && c.age <= 18;
+    });
+    let sizeSentence = '';
+    if (humanKids.length >= 2) {
+      const sorted = [...humanKids].sort((a, b) => {
+        if (a.heightCm && b.heightCm) return a.heightCm - b.heightCm;
+        return a.age - b.age;
+      });
+      const shortest = sorted[0];
+      const tallest = sorted[sorted.length - 1];
+      if (shortest && tallest && shortest.nameKey !== tallest.nameKey) {
+        sizeSentence = `There is a clear height difference: ${tallest.displayName} is significantly taller than ${shortest.displayName}.`;
+      }
+    }
 
-Art style: watercolor illustration, Axel Scheffler style (The Gruffalo), slightly caricature, bold outlines, consistent character faces.
-IMPORTANT: Keep each character's face, age, outfit, hair, and species consistent across all images. Do not add text or watermarks.
-CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designated position. NO twins, NO clones, NO duplicates.
-    `.trim();
+    const sceneSentence = cleanedDescription
+      ? (cleanedDescription.toLowerCase().startsWith('the scene')
+        ? cleanedDescription
+        : `The scene shows ${cleanedDescription}`)
+      : '';
+
+    const promptParts = [
+      "Children's storybook illustration, whimsical watercolor, warm light, highly detailed, print-ready.",
+      shotType ? ensurePeriod(`It is a ${shotType.toLowerCase()} view`) : '',
+      countSentence,
+      breakdownSentence,
+      sceneSentence ? ensurePeriod(sceneSentence) : '',
+      '',
+      'CHARACTERS IN THIS SCENE:',
+      ...characterSentences,
+      sizeSentence ? ensurePeriod(sizeSentence) : '',
+      orderedCharacters.length > 1
+        ? 'The characters are distinct, different, and contrasting in clothing colors and facial features.'
+        : '',
+      'Keep faces, hair, and outfits consistent across all images. No text or watermarks.'
+    ].filter(Boolean);
+
+    return promptParts.join('\n');
   }
-
   /**
    * OPTIMIZATION v3.0: Smart prompt clamping that PRESERVES character identity blocks
    * Character details at the START are never truncated, only scene details at END
@@ -1623,6 +1491,8 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
     prompt: string,
     seed?: number,
     negativePrompt?: string,
+    referenceImages?: string[],
+    ipAdapterWeight?: number,
     retryCount = 0,
     maxRetries = 2
   ): Promise<string | undefined> {
@@ -1632,10 +1502,16 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
       // Increase timeout to 90s to prevent failures on complex prompts (like covers)
       const timeout = 90000; // 90 seconds per image
 
+      const refs = (referenceImages || [])
+        .filter((url) => typeof url === 'string' && url.trim().length > 0)
+        .slice(0, 3);
+
       const imagePromise = ai.generateImage({
         prompt,
         seed,
         negativePrompt: negativePrompt,
+        referenceImages: refs.length > 0 ? refs : undefined,
+        ipAdapterWeight: refs.length > 0 ? (ipAdapterWeight ?? 0.8) : undefined,
       });
 
       const response = await Promise.race([
@@ -1645,7 +1521,7 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
         )
       ]);
 
-      console.log(`[4-Phase] ✅ Image generated successfully`);
+      console.log(`[4-Phase] Ô£à Image generated successfully`);
       return response.imageUrl;
     } catch (error) {
       console.error(`[4-Phase] Image generation failed (attempt ${retryCount + 1}):`, error);
@@ -1654,10 +1530,10 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
       if (retryCount < maxRetries) {
         console.log(`[4-Phase] Retrying image generation (${retryCount + 1}/${maxRetries})...`);
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
-        return this.generateImage(prompt, seed, negativePrompt, retryCount + 1, maxRetries);
+        return this.generateImage(prompt, seed, negativePrompt, referenceImages, ipAdapterWeight, retryCount + 1, maxRetries);
       }
 
-      console.error(`[4-Phase] ❌ Image generation failed after ${maxRetries + 1} attempts`);
+      console.error(`[4-Phase] ÔØî Image generation failed after ${maxRetries + 1} attempts`);
       return undefined;
     }
   }
@@ -1687,45 +1563,14 @@ CRITICAL ANTI-DUPLICATION: Each character appears EXACTLY ONCE at their designat
       const coverDescription = `
 Book cover illustration for "${story.title}".
 Main characters: ${avatarNames}${supportingCharacters ? ` with ${supportingCharacters}` : ''} in an exciting scene.
-CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twins.
+CRITICAL: Each character appears exactly once and looks distinct.
       `.trim();
 
-      // CRITICAL FIX v3.6: Cover MUST have same consistency blocks as chapters!
-      // Build age block for cover (same as chapters)
-      const charactersForAgeBlock: CharacterWithHeight[] = avatarDetails.map(av => {
-        const profile = av.visualProfile as any;
-        return {
-          name: av.name,
-          ageNumeric: profile?.ageNumeric || profile?.age,
-          ageApprox: profile?.ageApprox,
-          heightCm: profile?.heightCm || profile?.height,
-          species: profile?.characterType?.toLowerCase().includes('animal') ? 'animal' : 'human',
-        };
-      });
-      const compactAgeBlock = buildCompactAgeBlock(charactersForAgeBlock);
-      const ageEnforcement = buildExplicitAgeEnforcement(charactersForAgeBlock);
-
-      // Build cross-chapter invariants block (same as chapters)
-      const avatarProfilesWithDesc: Record<string, AvatarProfileWithDescription> = {};
-      for (const avatar of avatarDetails) {
-        if (avatar.visualProfile) {
-          avatarProfilesWithDesc[avatar.name] = {
-            profile: avatar.visualProfile as AvatarVisualProfile,
-            description: avatar.description
-          };
-        }
-      }
-      const crossChapterInvariantsBlock = buildCrossChapterInvariantsBlock(avatarProfilesWithDesc);
-
-      // CRITICAL v3.6: Build Flux.1 human ear guard (Flux.1 Dev ignores negative prompts!)
-      const humanAvatars = avatarDetails.filter(av => {
-        const profile = av.visualProfile as any;
-        const charType = profile?.characterType?.toLowerCase() || '';
-        return !charType.includes('animal') && !charType.includes('creature');
-      });
-      const flux1HumanGuard = humanAvatars.length > 0
-        ? `[FLUX.1 CRITICAL FOR ${humanAvatars.map(a => a.name).join(' AND ')}: MUST have normal ROUND human ears on SIDES of head. Ears must be naturally positioned at ear-level, NOT pointed, NOT elf-like, NOT fantasy-shaped. 100% human child anatomy.]`
-        : '';
+      const referenceImages = avatarDetails
+        .map(av => av.imageUrl || av.visualProfile?.imageUrl)
+        .filter((url): url is string => !!url && url.trim().length > 0)
+        .filter((url, index, arr) => arr.indexOf(url) === index)
+        .slice(0, 3);
 
       const enhancedPrompt = this.buildEnhancedImagePrompt(
         coverDescription,
@@ -1733,22 +1578,10 @@ CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twin
         characterAssignments
       );
 
-      // CRITICAL v3.6: Prepend ALL consistency blocks (same format as chapters!)
-      const promptWithConsistency = `${compactAgeBlock}\n${ageEnforcement}\n${flux1HumanGuard}\n\n${enhancedPrompt}\n\n${crossChapterInvariantsBlock}`;
-      const promptForModel = this.clampPositivePrompt(promptWithConsistency);
+      const promptForModel = this.clampPositivePrompt(enhancedPrompt);
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
-      const stylePreset = "watercolor_storybook";
-      // OPTIMIZATION v3.5: Enhanced negative prompt for cover to prevent swaps/duplicates
-      const negativePrompt = [
-        "deformed, disfigured, watermark, text, signature, low quality",
-        "duplicate characters, extra people, crowd, extra children, extra boys, extra girls, extra humans",
-        "twins, clones, mirror image, repeated face, same person twice, multiple instances of same character",
-        "extra dwarfs, extra gnomes, gnome crowd, dwarf crowd, multiple dwarfs, second dwarf",
-        "beard on children, hat on children, dwarfified kids, child with beard",
-        "mislabeled species, wrong species, swapped species, puppet, mannequin"
-      ].join(", ");
-      const imageUrl = await this.generateImage(promptForModel, seed, negativePrompt);
+      const imageUrl = await this.generateImage(promptForModel, seed, undefined, referenceImages);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
       return { url: imageUrl, prompt: promptForModel };
@@ -1839,4 +1672,14 @@ CRITICAL: Each character appears EXACTLY ONCE. NO duplicates, NO clones, NO twin
     await this.phase2Matcher.updateUsageStats(characterAssignments, storyId);
   }
 }
+
+
+
+
+
+
+
+
+
+
 
