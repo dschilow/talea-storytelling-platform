@@ -103,7 +103,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
   const requestBody: Record<string, any> = {
     taskType: "imageInference",
     taskUUID: crypto.randomUUID(),
-    model: req.model || "runware:101@1",
+    model: req.model || "runware:400@3",
     numberResults: 1,
     outputType: ["base64Data"],
     outputFormat: req.outputFormat || "JPEG",
@@ -259,7 +259,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     return {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
-      model: img.model || "runware:101@1",
+      model: img.model || "runware:400@3",
       numberResults: 1,
       outputType: ["base64Data"],  // FIXED: Runware expects "base64Data", not "BASE64"
       outputFormat: img.outputFormat || "JPEG",
