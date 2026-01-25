@@ -441,7 +441,13 @@ Every story MUST include a magical artifact that the protagonist discovers and u
 
 OUTPUT (JSON):
 {
-  "title": "TITLE (2-3 words ideal, max 4). Choose a mysterious object/place. GOOD: 'The Silver Thread', 'The Moon Gate', 'The Whispering Oak'. BAD: 'Well', 'Alexander and...')",
+  "title": "CREATIVE TITLE RULES (CRITICAL!):
+    - 2-3 words ideal, max 4
+    - Choose a MYSTERIOUS object/place that creates wonder
+    - EXCELLENT: 'The Whispering Oak', 'The Glass Mountain', 'The Dream Spinner', 'The Forgotten Door', 'The Starlight Key'
+    - FORBIDDEN (OVERUSED!): 'Mondkompass', 'Silberfaden', 'Sternenstaub', 'Zauberwald', 'Kompass'
+    - FORBIDDEN PATTERNS: '[Name] and the...', 'The [Adjective] [Common Noun]'
+    - NEVER start with avatar names!",
   "chapters": [
     {
       "order": 1,
@@ -452,7 +458,7 @@ OUTPUT (JSON):
           "role": "guide",
           "archetype": "helpful_elder",
           "emotionalNature": "wise",
-          "visualHints": "older human, doctor/healer, warm demeanor",
+          "visualHints": "ENGLISH ONLY! Example: 'elderly human, grey beard, walking stick, warm wool cloak, kind wrinkles' - NEVER use German descriptions!",
           "importance": "high",
           "inChapters": [1, 3, 5]
         }
@@ -466,7 +472,7 @@ OUTPUT (JSON):
       "archetype": "helpful_elder",
       "emotionalNature": "wise",
       "requiredTraits": ["wise", "protective", "kind"],
-      "visualHints": "older human, doctor/healer, warm demeanor, glasses possible",
+      "visualHints": "ENGLISH ONLY! Species, job, appearance, clothing. Example: 'elderly human, kind eyes, grey beard, brown cloak with hood, wooden walking stick'",
       "importance": "high",
       "inChapters": [1, 3, 5]
     }
@@ -484,7 +490,13 @@ OUTPUT (JSON):
 
 IMPORTANT:
 - Keep chapters[].content around 50-80 words (flexible; quality over length).
-- Always include visualHints in supportingCharacterRequirements (species, job, appearance, clothing).
+- ALL visualHints MUST be in ENGLISH ONLY (no German descriptions!). Example: 'elderly wizard, blue robe, white beard' NOT 'älterer Mensch, Heiler'.
+- Title must be UNIQUE and CREATIVE - never use common words like 'Kompass', 'Wald', 'Stern'.
+
+VISUALHINTS LANGUAGE RULE (CRITICAL FOR IMAGE GENERATION):
+All visualHints must be in ENGLISH to ensure proper image prompt generation.
+- CORRECT: "elderly human with grey beard, brown cloak, kind expression"
+- WRONG: "älterer Mensch, Heiler, warme Miene"
 
 Ensure a clear learning arc for the avatars, recurring motifs, and cohesive dramatic structure. Chapter 5 shows emotional growth and fulfills the story-soul promise.
 `.trim();

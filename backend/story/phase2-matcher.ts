@@ -556,8 +556,15 @@ export class Phase2CharacterMatcher {
     let bestMatch: CharacterTemplate | null = null;
     let bestScore = 0;
 
+    // 🔧 CRITICAL FIX v5.0: Reset _matchScore for ALL candidates before scoring
+    // This prevents stale scores from previous requirements from affecting current matching
     for (const candidate of pool) {
-      // Skip already used characters
+      delete (candidate as any)._matchScore;
+      delete (candidate as any)._debugScores;
+    }
+
+    for (const candidate of pool) {
+      // Skip already used characters (CRITICAL: prevents duplicates!)
       if (alreadyUsed.has(candidate.id)) {
         continue;
       }
@@ -672,14 +679,15 @@ export class Phase2CharacterMatcher {
 
       let freshness = 0;
       if (usageCount > 0) {
-        // 🔧 FIXED: MASSIVE PENALTY for recently used characters to prevent repetition
-        // Was -50, increased to -200 to override any archetype bonuses
-        freshness = -200 * usageCount;
+        // 🔧 OPTIMIZATION v5.0: EXTREME PENALTY for recently used characters
+        // Increased from -200 to -400 to GUARANTEE variety across stories
+        // This makes it nearly impossible for a character to be re-used in recent stories
+        freshness = -400 * usageCount;
         debugScores.freshnessPenalty = freshness;
       } else {
-        // BONUS for unused characters
-        freshness = 50;
-        debugScores.freshnessBonus = 50;
+        // BONUS for unused characters - increased to encourage fresh picks
+        freshness = 75;
+        debugScores.freshnessBonus = 75;
       }
       score += freshness;
 
@@ -698,9 +706,11 @@ export class Phase2CharacterMatcher {
       }
 
       // 11. TOTAL USAGE PENALTY (reduce score for overused characters)
+      // 🔧 OPTIMIZATION v5.0: Earlier and stronger penalty (threshold 5 instead of 10)
       let usagePenalty = 0;
-      if (candidate.totalUsageCount && candidate.totalUsageCount > 10) {
-        usagePenalty = Math.min((candidate.totalUsageCount - 10) * 5, 50); // Increased penalty
+      if (candidate.totalUsageCount && candidate.totalUsageCount > 5) {
+        // Increased multiplier from 5 to 10, max from 50 to 100
+        usagePenalty = Math.min((candidate.totalUsageCount - 5) * 10, 100);
         score -= usagePenalty;
         debugScores.usagePenalty = -usagePenalty;
       }
@@ -764,16 +774,24 @@ export class Phase2CharacterMatcher {
       return null;
     }
 
-    // OPTIMIZATION v4.0: TIERED RANDOM SELECTION
-    // Instead of just picking the best score, we group valid candidates into tiers
-    // and select randomly from the top tier. This guarantees variety!
+    // OPTIMIZATION v5.0: TIERED RANDOM SELECTION WITH DUPLICATE PREVENTION
+    // 🔧 CRITICAL FIX: Filter out already-used characters from validCandidates!
+    // This was the root cause of duplicate character assignments.
 
     const validCandidates = pool.filter(c => {
+      // 🚨 CRITICAL: Skip characters already assigned to other placeholders
+      if (alreadyUsed.has(c.id)) return false;
+      const nameKey = this.normalizeNameKey(c.name);
+      if (nameKey && usedNames.has(nameKey)) return false;
+
       const score = (c as any)._matchScore || 0;
       return score >= qualityThreshold;
     });
 
-    if (validCandidates.length === 0) return null;
+    if (validCandidates.length === 0) {
+      console.log(`[Phase2] ⚠️ No valid candidates after filtering (alreadyUsed: ${alreadyUsed.size}, usedNames: ${usedNames.size})`);
+      return null;
+    }
 
     // Sort by score descending
     validCandidates.sort((a, b) => ((b as any)._matchScore || 0) - ((a as any)._matchScore || 0));

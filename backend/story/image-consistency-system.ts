@@ -446,10 +446,16 @@ export function buildConsistentImagePrompt(
 /**
  * Smart prompt clamping that NEVER removes character block
  * Only truncates scene details if needed
+ * 
+ * v5.0 IMPROVEMENTS:
+ * - Removes incomplete sentences at the end
+ * - Cleans up grammatical artifacts (dangling prepositions, etc.)
+ * - Ensures prompts always end with complete thoughts
  */
 export function smartClampPrompt(prompt: string, maxLength: number = 2800): string {
   if (prompt.length <= maxLength) {
-    return prompt;
+    // Even if within limit, clean up any trailing incomplete phrases
+    return cleanupIncompleteSentences(prompt);
   }
 
   // Find the character block boundaries
@@ -457,8 +463,10 @@ export function smartClampPrompt(prompt: string, maxLength: number = 2800): stri
   const charBlockEnd = prompt.indexOf('=== END CHARACTERS');
 
   if (charBlockStart === -1 || charBlockEnd === -1) {
-    // No character block found, use simple truncation
-    return prompt.slice(0, maxLength - 3) + '...';
+    // No character block found, use simple truncation with cleanup
+    let truncated = prompt.slice(0, maxLength - 3);
+    truncated = cleanupIncompleteSentences(truncated);
+    return truncated;
   }
 
   // Extract character block (MUST preserve)
@@ -486,17 +494,99 @@ export function smartClampPrompt(prompt: string, maxLength: number = 2800): stri
     const lastPeriod = truncatedAfter.lastIndexOf('.');
     const lastNewline = truncatedAfter.lastIndexOf('\n');
     const breakPoint = Math.max(lastPeriod, lastNewline, availableForOther * 0.7);
-    truncatedAfter = truncatedAfter.slice(0, breakPoint) + '...';
+    truncatedAfter = truncatedAfter.slice(0, breakPoint);
+    truncatedAfter = cleanupIncompleteSentences(truncatedAfter);
   }
 
   const result = beforeBlock + characterBlock + truncatedAfter;
 
   if (result.length > maxLength) {
     console.warn(`[smartClampPrompt] Result still too long (${result.length}), hard truncating`);
-    return result.slice(0, maxLength - 3) + '...';
+    let hardTruncated = result.slice(0, maxLength - 3);
+    hardTruncated = cleanupIncompleteSentences(hardTruncated);
+    return hardTruncated;
   }
 
   return result;
+}
+
+/**
+ * Cleans up incomplete sentences and grammatical artifacts from prompts
+ * 
+ * Fixes issues like:
+ * - "Warm late-afternoon church tower in tense and embarrassed" → removed
+ * - "small unseen at edges" → fixed
+ * - Dangling prepositions, articles, and adjectives
+ */
+function cleanupIncompleteSentences(text: string): string {
+  // Split into lines to process each separately
+  const lines = text.split('\n');
+  const cleanedLines: string[] = [];
+
+  for (const line of lines) {
+    let cleanedLine = line.trim();
+
+    if (!cleanedLine) {
+      cleanedLines.push('');
+      continue;
+    }
+
+    // Remove trailing incomplete phrases
+    // Pattern: ends with preposition, article, conjunction, or dangling adjectives
+    const danglingPatterns = [
+      /\s+(in|on|at|with|to|for|from|by|of|the|a|an|and|or|but)\s*$/i,
+      /\s+(warm|cold|soft|bright|dark|tense|calm|visible|distant|gentle|subtle)\s*$/i,
+      /,\s*$/,  // Trailing comma
+      /\s+and\s*$/i,  // Trailing "and"
+      /\s+with\s*$/i,  // Trailing "with"
+    ];
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const pattern of danglingPatterns) {
+        if (pattern.test(cleanedLine)) {
+          cleanedLine = cleanedLine.replace(pattern, '').trim();
+          changed = true;
+        }
+      }
+    }
+
+    // Fix common truncation artifacts
+    // "church tower in tense" → "church tower"
+    const truncationFixes: [RegExp, string][] = [
+      [/\s+in\s+\w+\s+and\s*$/i, ''],
+      [/\s+at\s+\w+\s*$/i, ''],
+      [/\s+\w+\s+visible\s+in\s*$/i, ''],
+      [/\s+unseen\s+at\s+\w*\s*$/i, ''],
+    ];
+
+    for (const [pattern, replacement] of truncationFixes) {
+      cleanedLine = cleanedLine.replace(pattern, replacement).trim();
+    }
+
+    // If line ends mid-word (no space before last word and no punctuation), remove last word
+    // This handles cases like "The village gre" → "The village"
+    const words = cleanedLine.split(/\s+/);
+    if (words.length > 2) {
+      const lastWord = words[words.length - 1];
+      // Check if last word looks incomplete (very short, no punctuation, not a common word)
+      const commonShortWords = new Set(['in', 'on', 'at', 'to', 'a', 'an', 'the', 'is', 'as', 'or', 'and', 'so']);
+      if (lastWord.length < 3 && !commonShortWords.has(lastWord.toLowerCase()) && !/[.!?,;:]$/.test(lastWord)) {
+        words.pop();
+        cleanedLine = words.join(' ');
+      }
+    }
+
+    // Ensure line ends properly if it looks like a description
+    if (cleanedLine.length > 10 && !/[.!?,;:)\]]$/.test(cleanedLine)) {
+      cleanedLine = cleanedLine + '.';
+    }
+
+    cleanedLines.push(cleanedLine);
+  }
+
+  return cleanedLines.join('\n').trim();
 }
 
 /**
