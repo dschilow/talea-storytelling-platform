@@ -153,6 +153,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       };
 
       // Optional: generate a cover image
+      // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
       let coverImageUrl: string | undefined = undefined;
       try {
         const coverPromptDescription = normalizeLanguage(parsed.coverImagePrompt);
@@ -160,9 +161,9 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         const img = await ai.generateImage({
           prompt: coverPrompt,
           width: 640,
-          height: 400,
-          steps: 28,
-          CFGScale: 3.5,
+          height: 448,  // Adjusted to multiple of 64
+          steps: 4,     // runware:400@4 uses fewer steps
+          CFGScale: 4,
           outputFormat: "JPEG",
         });
         coverImageUrl = img.imageUrl;

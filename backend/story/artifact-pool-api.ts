@@ -339,12 +339,13 @@ export const generateArtifactImage = api<GenerateArtifactImageRequest, GenerateA
     const artifact = await getArtifact({ id: req.id });
     const prompt = buildArtifactImagePrompt(artifact, req.style);
 
+    // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     const result = await runwareGenerateImage({
       prompt,
       width: 640,
       height: 640,
-      steps: 28,
-      CFGScale: 7,
+      steps: 4,     // runware:400@4 uses fewer steps
+      CFGScale: 4,
       outputFormat: "WEBP",
       negativePrompt: "text, watermark, characters, humans, hands, faces, low quality, blurry, distorted, deformed",
     });

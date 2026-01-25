@@ -855,13 +855,30 @@ export class FourPhaseOrchestrator {
 
         const stylePreset = "watercolor_storybook";
 
-        const referenceImages = this.selectReferenceImagesForScene(preparedDescription, avatarDetails);
-        if (referenceImages.length > 0) {
-          console.log(`[4-Phase] Using 1 reference image for chapter ${chapter.order}`);
+        // OPTIMIZATION v4.0: Get ALL reference images for characters in this scene
+        const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
+          preparedDescription,
+          avatarDetails,
+          characterAssignments
+        );
+        if (referenceUrls.length > 0) {
+          console.log(`[4-Phase] Using ${referenceUrls.length} reference images for chapter ${chapter.order}:`,
+            characterMapping.filter(c => c.hasImage).map(c => c.name).join(', '));
         }
 
+        // Build enhanced prompt with reference image annotations
+        const promptWithRefs = this.buildPromptWithReferenceImages(
+          promptForModel,
+          characterMapping,
+          avatarDetails,
+          characterAssignments
+        );
+
+        // Build negative prompt for anti-duplication
+        const negativePrompt = this.buildNegativePrompt(characterMapping);
+
         console.log(`[4-Phase] Generating image for chapter ${chapter.order}...`);
-        const imageUrl = await this.generateImage(promptForModel, imageSeed, undefined, referenceImages, 0.6);
+        const imageUrl = await this.generateImage(promptWithRefs, imageSeed, negativePrompt, referenceUrls, 0.6);
 
         return {
           id: crypto.randomUUID(),
@@ -980,33 +997,62 @@ export class FourPhaseOrchestrator {
     return this.normalizeGermanUmlauts(replaced);
   }
 
+  /**
+   * OPTIMIZATION v4.0: Select ALL reference images for characters in the scene
+   * Returns an array of image URLs and a mapping of which character each image belongs to
+   * This enables the new runware:400@4 model to use multiple reference images
+   */
   private selectReferenceImagesForScene(
     description: string,
-    avatarDetails: AvatarDetail[]
-  ): string[] {
+    avatarDetails: AvatarDetail[],
+    characterAssignments?: Map<string, CharacterTemplate>
+  ): { urls: string[]; characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> } {
     const normalizedDescription = this.normalizeNameKey(description);
-    if (!normalizedDescription) return [];
+    if (!normalizedDescription) return { urls: [], characterMapping: [] };
 
-    const matchedAvatars = avatarDetails.filter(avatar => {
+    const urls: string[] = [];
+    const characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> = [];
+
+    // 1. Check avatars first (they have priority)
+    for (const avatar of avatarDetails) {
       const key = this.normalizeNameKey(avatar.name);
-      return key && this.findNameIndex(normalizedDescription, key) >= 0;
-    });
+      if (!key || this.findNameIndex(normalizedDescription, key) < 0) continue;
 
-    if (matchedAvatars.length !== 1) {
-      return [];
+      // Skip photo-upload avatars for reference images
+      if (avatar.creationType === "photo-upload") {
+        characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
+        continue;
+      }
+
+      const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
+      if (url && url.trim()) {
+        characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
+        urls.push(url.trim());
+      } else {
+        characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
+      }
     }
 
-    const avatar = matchedAvatars[0];
-    if (avatar.creationType === "photo-upload") {
-      return [];
+    // 2. Check supporting characters from characterAssignments
+    if (characterAssignments) {
+      const avatarNameSet = new Set(avatarDetails.map(a => this.normalizeNameKey(a.name)));
+
+      for (const char of characterAssignments.values()) {
+        const key = this.normalizeNameKey(char.name);
+        if (!key || avatarNameSet.has(key)) continue; // Skip if already in avatars
+        if (this.findNameIndex(normalizedDescription, key) < 0) continue;
+
+        const url = char.imageUrl || (char.visualProfile as any)?.imageUrl;
+        if (url && url.trim()) {
+          characterMapping.push({ name: char.name, refIndex: urls.length + 1, hasImage: true });
+          urls.push(url.trim());
+        } else {
+          characterMapping.push({ name: char.name, refIndex: -1, hasImage: false });
+        }
+      }
     }
 
-    const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
-    if (!url || !url.trim()) {
-      return [];
-    }
-
-    return [url];
+    return { urls, characterMapping };
   }
 
   private extractNumericAgeFromProfile(vp: any): number | null {
@@ -1741,9 +1787,16 @@ CRITICAL: Each character appears exactly once and looks distinct.
         coverDescription,
         characterAssignments
       );
-      const referenceImages = this.selectReferenceImagesForScene(preparedDescription, avatarDetails);
-      if (referenceImages.length > 0) {
-        console.log("[4-Phase] Using 1 reference image for cover");
+
+      // OPTIMIZATION v4.0: Get ALL reference images for cover characters
+      const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
+        preparedDescription,
+        avatarDetails,
+        characterAssignments
+      );
+      if (referenceUrls.length > 0) {
+        console.log(`[4-Phase] Using ${referenceUrls.length} reference images for cover:`,
+          characterMapping.filter(c => c.hasImage).map(c => c.name).join(', '));
       }
 
       const enhancedPrompt = this.buildEnhancedImagePrompt(
@@ -1752,17 +1805,157 @@ CRITICAL: Each character appears exactly once and looks distinct.
         characterAssignments
       );
 
-      const promptForModel = this.clampPositivePrompt(enhancedPrompt);
+      // Build prompt with reference image annotations
+      const promptWithRefs = this.buildPromptWithReferenceImages(
+        this.clampPositivePrompt(enhancedPrompt),
+        characterMapping,
+        avatarDetails,
+        characterAssignments
+      );
+
+      // Build negative prompt for anti-duplication
+      const negativePrompt = this.buildNegativePrompt(characterMapping);
 
       const seed = Math.floor(Math.random() * 1_000_000_000);
-      const imageUrl = await this.generateImage(promptForModel, seed, undefined, referenceImages, 0.6);
+      const imageUrl = await this.generateImage(promptWithRefs, seed, negativePrompt, referenceUrls, 0.6);
 
       console.log("[4-Phase] Cover image generated:", !!imageUrl);
-      return { url: imageUrl, prompt: promptForModel };
+      return { url: imageUrl, prompt: promptWithRefs };
     } catch (error) {
       console.error("[4-Phase] Failed to generate cover image:", error);
       return undefined;
     }
+  }
+
+  /**
+   * OPTIMIZATION v4.0: Build prompt with reference image annotations
+   * Uses the new runware:400@4 format with Ref1, Ref2, etc. for character identity
+   */
+  private buildPromptWithReferenceImages(
+    basePrompt: string,
+    characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }>,
+    avatarDetails: AvatarDetail[],
+    characterAssignments: Map<string, CharacterTemplate>
+  ): string {
+    const charactersWithRefs = characterMapping.filter(c => c.hasImage);
+    const charactersWithoutRefs = characterMapping.filter(c => !c.hasImage);
+
+    // If no reference images, return the base prompt as-is
+    if (charactersWithRefs.length === 0) {
+      return basePrompt;
+    }
+
+    // Build the style header
+    const styleBlock = `STYLE: high-quality children's storybook illustration, clean linework, soft watercolor shading, warm light, cozy cinematic mood, no text, no watermark.`;
+
+    // Build reference image annotations
+    const refAnnotations = charactersWithRefs.map(c => {
+      const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
+      const charTemplate = avatar ? null : Array.from(characterAssignments.values())
+        .find(ch => this.normalizeNameKey(ch.name) === this.normalizeNameKey(c.name));
+
+      // Get basic info for the reference annotation
+      let roleHint = '';
+      if (avatar) {
+        const age = this.extractNumericAgeFromProfile(avatar.visualProfile);
+        const gender = avatar.visualProfile?.gender || '';
+        if (age && age <= 12) roleHint = `(${age}-year-old ${gender} child)`;
+        else if (age) roleHint = `(${age}-year-old ${gender})`;
+      } else if (charTemplate) {
+        const role = charTemplate.role || '';
+        roleHint = role ? `(${role})` : '';
+      }
+
+      return `Ref${c.refIndex} = ${c.name.toUpperCase()} ${roleHint} — match ONLY ${c.name} from Ref${c.refIndex} (face, features, outfit cues).`;
+    }).join('\n');
+
+    // Build the reference block header
+    const refHeader = `REFERENCE IMAGES (IDENTITY ONLY — STRICT ONE-TO-ONE, DO NOT MIX):
+${refAnnotations}
+Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy reference layouts.`;
+
+    // Build character descriptions for those WITHOUT reference images (fallback to text description)
+    let fallbackDescriptions = '';
+    if (charactersWithoutRefs.length > 0) {
+      const descriptions = charactersWithoutRefs.map(c => {
+        const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
+        const charTemplate = avatar ? null : Array.from(characterAssignments.values())
+          .find(ch => this.normalizeNameKey(ch.name) === this.normalizeNameKey(c.name));
+
+        if (avatar) {
+          return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(avatar.visualProfile, avatar.description)}`;
+        } else if (charTemplate) {
+          return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(charTemplate.visualProfile, undefined, { ageCategory: charTemplate.age_category, gender: charTemplate.gender })}`;
+        }
+        return `${c.name.toUpperCase()}: distinct character`;
+      }).join('\n');
+
+      fallbackDescriptions = `\nCHARACTERS WITHOUT REFERENCE (use text description):\n${descriptions}`;
+    }
+
+    // Build absolute rules
+    const totalChars = characterMapping.length;
+    const charNames = characterMapping.map(c => c.name).join(', ');
+    const absoluteRules = `ABSOLUTE RULES (STRICT):
+- EXACTLY ${totalChars} character${totalChars > 1 ? 's' : ''} total: ${charNames} (each appears EXACTLY ONCE)
+- No extra people, no background characters, no silhouettes, no reflections, no paintings/posters with faces
+- NO identity swapping between characters
+- All ${totalChars} faces visible AND all ${totalChars} full bodies visible (head-to-toe, feet included), no cropping, nobody hidden`;
+
+    // Extract scene description from base prompt (remove character blocks if present)
+    let sceneDescription = basePrompt
+      .replace(/CHARACTERS IN THIS SCENE:[\s\S]*?(?=\n\n|$)/gi, '')
+      .replace(/Children's storybook illustration[^.]*\./gi, '')
+      .replace(/Keep faces, hair, and outfits consistent[^.]*\./gi, '')
+      .replace(/The characters are distinct[^.]*\./gi, '')
+      .replace(/A scene with exactly \d+ distinct character[s]?\./gi, '')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
+
+    // Build wardrobe lock section for characters with references
+    const wardrobeLocks = charactersWithRefs.map(c => {
+      const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
+      if (avatar?.visualProfile?.clothingCanonical?.outfit) {
+        return `- ${c.name.toUpperCase()}: ${avatar.visualProfile.clothingCanonical.outfit} (from Ref${c.refIndex})`;
+      }
+      return `- ${c.name.toUpperCase()}: outfit from Ref${c.refIndex}`;
+    }).join('\n');
+
+    // Assemble the final prompt
+    const finalPrompt = `${styleBlock}
+
+${refHeader}
+${fallbackDescriptions}
+
+${absoluteRules}
+
+SCENE: ${sceneDescription}
+
+WARDROBE LOCK (ANTI-SWAP):
+${wardrobeLocks}
+
+COMPOSITION: medium-wide shot, eye-level, clear spacing so no one overlaps or hides another. Background has scene props only, no extra people.
+
+REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or replaced, RECOMPOSE the scene until exactly these ${totalChars} characters appear once each.`;
+
+    return finalPrompt;
+  }
+
+  /**
+   * OPTIMIZATION v4.0: Build negative prompt to prevent common issues
+   */
+  private buildNegativePrompt(
+    characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }>
+  ): string {
+    const charNames = characterMapping.map(c => c.name.toLowerCase());
+    const missingWarnings = charNames.map(n => `missing ${n}`).join(', ');
+
+    return `NEGATIVE (VERY STRONG):
+extra person, extra child, extra adult, background people, crowd, silhouette, reflection, portrait face, poster face,
+duplicate, twin, clone, swapped identity, wrong character,
+${missingWarnings},
+collage, panels, grid, storyboard, split screen, border, frame, multiple images,
+cropped body, hidden face, out of frame, text, watermark, logo.`;
   }
 
   /**

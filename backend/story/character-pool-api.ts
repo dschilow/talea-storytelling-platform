@@ -267,12 +267,13 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
     const character = await getCharacter({ id: req.id });
     const prompt = buildCharacterImagePrompt(character, req.style);
 
+    // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     const result = await runwareGenerateImage({
       prompt,
       width: 640,
       height: 640,
-      steps: 28,
-      CFGScale: 7,
+      steps: 4,     // runware:400@4 uses fewer steps
+      CFGScale: 4,
       outputFormat: "WEBP",
       negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
     });

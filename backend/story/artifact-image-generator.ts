@@ -84,10 +84,14 @@ export async function generateArtifactImage(
     console.log(`[Artifact] Full prompt: ${fullPrompt.substring(0, 150)}...`);
 
     try {
+        // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
         const response = await ai.generateImage({
             prompt: fullPrompt,
             negativePrompt: ARTIFACT_NEGATIVE_PROMPT,
-            // Using standard settings for high-quality artifact images
+            width: 512,
+            height: 512,
+            steps: 4,     // runware:400@4 uses fewer steps
+            CFGScale: 4,
         });
 
         if (response.imageUrl) {

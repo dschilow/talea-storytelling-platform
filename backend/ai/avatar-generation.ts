@@ -43,11 +43,13 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
     console.log("🧠 Personality traits:", JSON.stringify(req.personalityTraits, null, 2));
     console.log("🎭 Style:", req.style);
 
+    // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     const imageResult = await runwareGenerateImage({
       prompt,
       width: 512,
       height: 512,
-      steps: 25,
+      steps: 4,  // runware:400@4 uses fewer steps
+      CFGScale: 4,
       outputFormat: "WEBP",
     });
 

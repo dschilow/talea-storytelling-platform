@@ -974,14 +974,15 @@ export const generateStoryContent = api<
       console.log("[ai-generation] Cover negative prompt length:", coverNegativePromptNormalized.length);
       console.log("[ai-generation] Using seed:", seedBase);
 
+      // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
       const coverResponse = await ai.generateImage({
         prompt: coverPromptClamped,
         negativePrompt: coverNegativePromptNormalized,
-        model: "runware:101@1",
+        model: "runware:400@4",
         width: coverDimensions.width,
         height: coverDimensions.height,
-        steps: 35, // Increased for better character consistency
-        CFGScale: 8.0, // Higher CFG for stronger prompt adherence
+        steps: 4,     // runware:400@4 uses fewer steps
+        CFGScale: 4,
         seed: seedBase,
         outputFormat: "JPEG",
       });
@@ -1043,14 +1044,15 @@ export const generateStoryContent = api<
         }
         console.log(`[ai-generation] Chapter ${i + 1} seed:`, chapterSeed);
 
+        // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
         const chapterResponse = await ai.generateImage({
           prompt: chapterPromptClamped,
           negativePrompt: chapterNegativePromptNormalized,
-          model: "runware:101@1",
+          model: "runware:400@4",
           width: chapterDimensions.width,
           height: chapterDimensions.height,
-          steps: 35, // Increased for better character consistency
-          CFGScale: 8.0, // Higher CFG for stronger prompt adherence
+          steps: 4,     // runware:400@4 uses fewer steps
+          CFGScale: 4,
           seed: chapterSeed,
           outputFormat: "JPEG",
         });
@@ -1083,8 +1085,8 @@ export const generateStoryContent = api<
         positivePrompt: coverPromptNormalized.substring(0, 500), // First 500 chars
         negativePrompt: "",
         seed: seedBase,
-        cfg: 3.5,
-        steps: 28,
+        cfg: 4,
+        steps: 4,  // runware:400@4
         generationMs: metadata.processingTime,
       });
 

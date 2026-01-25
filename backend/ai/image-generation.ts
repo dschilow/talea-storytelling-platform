@@ -75,18 +75,15 @@ export interface BatchGenerationResponse {
 
 // Internal helper that actually calls Runware and returns the parsed image.
 // Use this helper for intra-service calls to avoid HTTP overhead.
-// OPTIMIZATION v3.0: Now supports reference images for IP-Adapter character consistency
+// OPTIMIZATION v4.0: Now supports MULTIPLE reference images for runware:400@4
 export async function runwareGenerateImage(req: ImageGenerationRequest): Promise<ImageGenerationResponse> {
   const startTime = Date.now();
 
-  // Process reference images for IP-Adapter if provided
-  const refImagesBase64 = (req.referenceImages ?? [])
-    .map(stripDataUrl)
-    .filter((s): s is string => !!s && s.length > 0)
-    .slice(0, 1); // Runware supports exactly 1 reference image
+  // Process reference images - runware:400@4 supports multiple reference images as URLs
+  const refImages = (req.referenceImages ?? [])
+    .filter((s): s is string => !!s && typeof s === 'string' && s.trim().length > 0);
 
-  const hasReferences = refImagesBase64.length > 0;
-  const ipAdapterWeight = req.ipAdapterWeight ?? 0.75;
+  const hasReferences = refImages.length > 0;
 
   const debugInfo: DebugInfo = {
     requestSent: null,
@@ -97,49 +94,43 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     contentType: "",
     extractedFromPath: "",
     responseStatus: 0,
-    referencesCount: refImagesBase64.length,
+    referencesCount: refImages.length,
   };
 
+  // Build request body for runware:400@4
   const requestBody: Record<string, any> = {
     taskType: "imageInference",
     taskUUID: crypto.randomUUID(),
-    model: req.model || "runware:400@3",
+    model: req.model || "runware:400@4",
     numberResults: 1,
-    outputType: ["base64Data"],
+    outputType: ["URL"],  // Use URL output for faster response
     outputFormat: req.outputFormat || "JPEG",
-    outputQuality: 85,
-    width: normalizeToMultiple64(req.width ?? 1024),
-    height: normalizeToMultiple64(req.height ?? 1024),
-    steps: req.steps ?? 28,
-    CFGScale: req.CFGScale ?? 3.5,
-    scheduler: "FlowMatchEulerDiscreteScheduler",
+    width: normalizeToMultiple64(req.width ?? 1280),
+    height: normalizeToMultiple64(req.height ?? 832),
+    steps: req.steps ?? 4,  // runware:400@4 uses fewer steps
+    CFGScale: req.CFGScale ?? 4,
     includeCost: true,
-    checkNSFW: true,
+    acceleration: "high",
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
     positivePrompt: enhancePromptForRunware(req.prompt),
     ...(req.negativePrompt && req.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(req.negativePrompt) } : {}),
   };
 
-  // OPTIMIZATION v3.0: Add IP-Adapter for character consistency
+  // OPTIMIZATION v4.0: Add reference images for character consistency
+  // runware:400@4 uses inputs.referenceImages with direct URLs
   if (hasReferences) {
-    requestBody.ipAdapters = [{
-      model: "runware:105@1",
-      guideImage: refImagesBase64[0],
-      weight: ipAdapterWeight
-    }];
-    requestBody.referenceImages = refImagesBase64;
-    requestBody.conditioning = "reference";
-    requestBody.conditioningWeight = ipAdapterWeight;
-    console.log(`[Runware] Using IP-Adapter with ${refImagesBase64.length} reference images (weight: ${ipAdapterWeight})`);
+    requestBody.inputs = {
+      referenceImages: refImages
+    };
+    console.log(`[Runware] Using ${refImages.length} reference images for character consistency`);
   }
 
   try {
-    console.log(`[Runware] Generating image ${hasReferences ? 'WITH' : 'without'} reference images`);
-    // Sanitize request for logging (don't log full base64 images)
+    console.log(`[Runware] Generating image ${hasReferences ? `WITH ${refImages.length}` : 'without'} reference images`);
+    // Sanitize request for logging (don't log full URLs)
     const sanitizedRequest = {
       ...requestBody,
-      ipAdapters: requestBody.ipAdapters ? `[IP-Adapter enabled, weight: ${ipAdapterWeight}]` : undefined,
-      referenceImages: hasReferences ? `[${refImagesBase64.length} refs]` : undefined,
+      inputs: requestBody.inputs ? { referenceImages: `[${refImages.length} refs]` } : undefined,
     };
     debugInfo.requestSent = sanitizedRequest;
     console.log("[Runware] Request (sanitized):", JSON.stringify(sanitizedRequest, null, 2));
@@ -248,37 +239,32 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
 }
 
 // Batch helper to generate multiple images in a single Runware request.
+// OPTIMIZATION v4.0: Now supports MULTIPLE reference images for runware:400@4
 export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): Promise<BatchGenerationResponse> {
   const start = Date.now();
   const tasks = (req.images || []).map((img) => {
-    const refImagesBase64 = (img.referenceImages ?? [])
-      .map(stripDataUrl)
-      .filter((s): s is string => !!s && s.length > 0)
-      .slice(0, 1);
+    const refImages = (img.referenceImages ?? [])
+      .filter((s): s is string => !!s && typeof s === 'string' && s.trim().length > 0);
 
     return {
       taskType: "imageInference",
       taskUUID: crypto.randomUUID(),
-      model: img.model || "runware:400@3",
+      model: img.model || "runware:400@4",
       numberResults: 1,
-      outputType: ["base64Data"],  // FIXED: Runware expects "base64Data", not "BASE64"
+      outputType: ["URL"],  // Use URL output for faster response
       outputFormat: img.outputFormat || "JPEG",
-      outputQuality: 85,
       positivePrompt: enhancePromptForRunware(img.prompt),
       ...(img.negativePrompt && img.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(img.negativePrompt) } : {}),
-      width: normalizeToMultiple64(img.width || 1024),
-      height: normalizeToMultiple64(img.height || 1024),
-      steps: img.steps ?? 28,
-      CFGScale: img.CFGScale ?? 3.5,
-      scheduler: "FlowMatchEulerDiscreteScheduler",
+      width: normalizeToMultiple64(img.width || 1280),
+      height: normalizeToMultiple64(img.height || 832),
+      steps: img.steps ?? 4,  // runware:400@4 uses fewer steps
+      CFGScale: img.CFGScale ?? 4,
       seed: img.seed ?? Math.floor(Math.random() * 2147483647),
       includeCost: true,
-      checkNSFW: true,
-      ...(refImagesBase64.length > 0 && {
-        ipAdapters: [{ model: "runware:105@1", guideImage: refImagesBase64[0], weight: 0.85 }],
-        referenceImages: refImagesBase64,
-        conditioning: "reference",
-        conditioningWeight: 0.8
+      acceleration: "high",
+      // OPTIMIZATION v4.0: Add reference images for character consistency
+      ...(refImages.length > 0 && {
+        inputs: { referenceImages: refImages }
       }),
     };
   });
@@ -291,8 +277,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     console.log(`[Runware] Generating ${tasks.length} images in batch`);
     const sanitized = tasks.map((t) => ({
       ...t,
-      ipAdapters: t.ipAdapters ? `[IP-Adapter enabled]` : undefined,
-      referenceImages: Array.isArray(t.referenceImages) ? `[${t.referenceImages.length} refs]` : undefined,
+      inputs: (t as any).inputs ? { referenceImages: `[${(t as any).inputs.referenceImages.length} refs]` } : undefined,
     }));
     console.log("[Runware] Batch request (sanitized):", JSON.stringify(sanitized, null, 2));
 
@@ -766,20 +751,6 @@ function extractRunwareImage(data: any): { b64?: string; url?: string; contentTy
 
   console.log("[Runware] No base64 image data found in response");
   return null;
-}
-
-function stripDataUrl(s: string): string | null {
-  try {
-    if (!s) return null;
-    const idx = s.indexOf("base64,");
-    if (idx === -1) {
-      if (/^[0-9a-zA-Z+/=]+$/.test(s)) return s;
-      return null;
-    }
-    return s.slice(idx + "base64,".length);
-  } catch {
-    return null;
-  }
 }
 
 function generatePlaceholderImage(prompt: string): string {

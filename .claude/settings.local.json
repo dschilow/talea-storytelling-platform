@@ -35,7 +35,8 @@
       "Bash(DATABASE_URL=\"postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@postgres.railway.internal:5432/railway\" bun run:*)",
       "Bash(curl:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
