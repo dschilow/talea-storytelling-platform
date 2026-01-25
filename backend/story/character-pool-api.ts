@@ -308,6 +308,27 @@ interface BatchRegenerateImagesResponse {
   }>;
 }
 
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  handler: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const workerCount = Math.min(limit, items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await handler(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesResponse>(
   { expose: true, method: "POST", path: "/story/character-pool/batch-regenerate-images", auth: true },
   async (): Promise<BatchRegenerateImagesResponse> => {
@@ -318,66 +339,65 @@ export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesRespo
 
     console.log(`[CharacterPool] Found ${activeCharacters.length} active characters to regenerate`);
 
-    const results: BatchRegenerateImagesResponse['results'] = [];
-    let generated = 0;
-    let failed = 0;
+    const rawLimit = Number(process.env.IMAGE_BATCH_CONCURRENCY || "3");
+    const concurrency = Math.max(1, Math.min(rawLimit, 6));
+    console.log(`[CharacterPool] Using parallel generation (concurrency=${concurrency})`);
 
-    for (const character of activeCharacters) {
-      try {
-        console.log(`[CharacterPool] Generating image for: ${character.name}`);
+    const results = await runWithConcurrency(
+      activeCharacters,
+      concurrency,
+      async (character): Promise<BatchRegenerateImagesResponse['results'][number]> => {
+        try {
+          console.log(`[CharacterPool] Generating image for: ${character.name}`);
 
-        const prompt = buildCharacterImagePrompt(character, "storybook");
-        const result = await runwareGenerateImage({
-          prompt,
-          width: 1024,
-          height: 1024,
-          steps: 4,
-          CFGScale: 4,
-          outputFormat: "WEBP",
-          negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
-        });
-
-        if (result.imageUrl) {
-          // Update character with new image URL
-          await storyDB.exec`
-            UPDATE character_pool
-            SET image_url = ${result.imageUrl}, updated_at = ${new Date()}
-            WHERE id = ${character.id}
-          `;
-
-          results.push({
-            characterId: character.id,
-            characterName: character.name,
-            success: true,
-            imageUrl: result.imageUrl,
+          const prompt = buildCharacterImagePrompt(character, "storybook");
+          const result = await runwareGenerateImage({
+            prompt,
+            width: 1024,
+            height: 1024,
+            steps: 4,
+            CFGScale: 4,
+            outputFormat: "WEBP",
+            negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
           });
-          generated++;
-          console.log(`[CharacterPool] ✅ Generated image for ${character.name}`);
-        } else {
-          results.push({
+
+          if (result.imageUrl) {
+            await storyDB.exec`
+              UPDATE character_pool
+              SET image_url = ${result.imageUrl}, updated_at = ${new Date()}
+              WHERE id = ${character.id}
+            `;
+
+            console.log(`[CharacterPool] Generated image for ${character.name}`);
+            return {
+              characterId: character.id,
+              characterName: character.name,
+              success: true,
+              imageUrl: result.imageUrl,
+            };
+          }
+
+          console.warn(`[CharacterPool] No image URL for ${character.name}`);
+          return {
             characterId: character.id,
             characterName: character.name,
             success: false,
             error: "No image URL returned",
-          });
-          failed++;
-          console.warn(`[CharacterPool] ⚠️ No image URL for ${character.name}`);
+          };
+        } catch (error) {
+          console.error(`[CharacterPool] Failed to generate image for ${character.name}:`, error);
+          return {
+            characterId: character.id,
+            characterName: character.name,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
-
-        // Small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-      } catch (error) {
-        results.push({
-          characterId: character.id,
-          characterName: character.name,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        failed++;
-        console.error(`[CharacterPool] ❌ Failed to generate image for ${character.name}:`, error);
       }
-    }
+    );
+
+    const generated = results.filter(r => r.success).length;
+    const failed = results.length - generated;
 
     console.log(`[CharacterPool] Batch regeneration completed: ${generated} generated, ${failed} failed`);
 

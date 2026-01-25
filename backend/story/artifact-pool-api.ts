@@ -413,6 +413,27 @@ interface BatchRegenerateImagesResponse {
   }>;
 }
 
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  handler: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const workerCount = Math.min(limit, items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await handler(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export const batchRegenerateArtifactImages = api<{}, BatchRegenerateImagesResponse>(
   { expose: true, method: "POST", path: "/story/artifact-pool/batch-regenerate-images", auth: true },
   async (): Promise<BatchRegenerateImagesResponse> => {
@@ -423,66 +444,65 @@ export const batchRegenerateArtifactImages = api<{}, BatchRegenerateImagesRespon
 
     console.log(`[ArtifactPool] Found ${activeArtifacts.length} active artifacts to regenerate`);
 
-    const results: BatchRegenerateImagesResponse['results'] = [];
-    let generated = 0;
-    let failed = 0;
+    const rawLimit = Number(process.env.IMAGE_BATCH_CONCURRENCY || "3");
+    const concurrency = Math.max(1, Math.min(rawLimit, 6));
+    console.log(`[ArtifactPool] Using parallel generation (concurrency=${concurrency})`);
 
-    for (const artifact of activeArtifacts) {
-      try {
-        console.log(`[ArtifactPool] Generating image for: ${artifact.name.de}`);
+    const results = await runWithConcurrency(
+      activeArtifacts,
+      concurrency,
+      async (artifact): Promise<BatchRegenerateImagesResponse['results'][number]> => {
+        try {
+          console.log(`[ArtifactPool] Generating image for: ${artifact.name.de}`);
 
-        const prompt = buildArtifactImagePrompt(artifact, "storybook");
-        const result = await runwareGenerateImage({
-          prompt,
-          width: 1024,
-          height: 1024,
-          steps: 4,
-          CFGScale: 4,
-          outputFormat: "WEBP",
-          negativePrompt: "text, watermark, characters, humans, hands, faces, low quality, blurry, distorted, deformed",
-        });
-
-        if (result.imageUrl) {
-          // Update artifact with new image URL
-          await storyDB.exec`
-            UPDATE artifact_pool
-            SET image_url = ${result.imageUrl}, updated_at = ${new Date()}
-            WHERE id = ${artifact.id}
-          `;
-
-          results.push({
-            artifactId: artifact.id,
-            artifactName: artifact.name.de || artifact.name.en,
-            success: true,
-            imageUrl: result.imageUrl,
+          const prompt = buildArtifactImagePrompt(artifact, "storybook");
+          const result = await runwareGenerateImage({
+            prompt,
+            width: 1024,
+            height: 1024,
+            steps: 4,
+            CFGScale: 4,
+            outputFormat: "WEBP",
+            negativePrompt: "text, watermark, characters, humans, hands, faces, low quality, blurry, distorted, deformed",
           });
-          generated++;
-          console.log(`[ArtifactPool] ✅ Generated image for ${artifact.name.de}`);
-        } else {
-          results.push({
+
+          if (result.imageUrl) {
+            await storyDB.exec`
+              UPDATE artifact_pool
+              SET image_url = ${result.imageUrl}, updated_at = ${new Date()}
+              WHERE id = ${artifact.id}
+            `;
+
+            console.log(`[ArtifactPool] Generated image for ${artifact.name.de}`);
+            return {
+              artifactId: artifact.id,
+              artifactName: artifact.name.de || artifact.name.en,
+              success: true,
+              imageUrl: result.imageUrl,
+            };
+          }
+
+          console.warn(`[ArtifactPool] No image URL for ${artifact.name.de}`);
+          return {
             artifactId: artifact.id,
             artifactName: artifact.name.de || artifact.name.en,
             success: false,
             error: "No image URL returned",
-          });
-          failed++;
-          console.warn(`[ArtifactPool] ⚠️ No image URL for ${artifact.name.de}`);
+          };
+        } catch (error) {
+          console.error(`[ArtifactPool] Failed to generate image for ${artifact.name.de}:`, error);
+          return {
+            artifactId: artifact.id,
+            artifactName: artifact.name.de || artifact.name.en,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
-
-        // Small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-      } catch (error) {
-        results.push({
-          artifactId: artifact.id,
-          artifactName: artifact.name.de || artifact.name.en,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        failed++;
-        console.error(`[ArtifactPool] ❌ Failed to generate image for ${artifact.name.de}:`, error);
       }
-    }
+    );
+
+    const generated = results.filter(r => r.success).length;
+    const failed = results.length - generated;
 
     console.log(`[ArtifactPool] Batch regeneration completed: ${generated} generated, ${failed} failed`);
 
