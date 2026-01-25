@@ -342,8 +342,8 @@ export const generateArtifactImage = api<GenerateArtifactImageRequest, GenerateA
     // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     const result = await runwareGenerateImage({
       prompt,
-      width: 640,
-      height: 640,
+      width: 1024,
+      height: 1024,
       steps: 4,     // runware:400@4 uses fewer steps
       CFGScale: 4,
       outputFormat: "WEBP",
@@ -434,8 +434,8 @@ export const batchRegenerateArtifactImages = api<{}, BatchRegenerateImagesRespon
         const prompt = buildArtifactImagePrompt(artifact, "storybook");
         const result = await runwareGenerateImage({
           prompt,
-          width: 640,
-          height: 640,
+          width: 1024,
+          height: 1024,
           steps: 4,
           CFGScale: 4,
           outputFormat: "WEBP",

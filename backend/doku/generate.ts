@@ -160,8 +160,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         const coverPrompt = `Kid-friendly educational cover illustration: ${coverPromptDescription}. Axel Scheffler watercolor storybook style, joyful educational tone, clear composition, bright colors, child-friendly illustration, safe content, no text in the image.`;
         const img = await ai.generateImage({
           prompt: coverPrompt,
-          width: 640,
-          height: 448,  // Adjusted to multiple of 64
+          width: 1024,
+          height: 1024,
           steps: 4,     // runware:400@4 uses fewer steps
           CFGScale: 4,
           outputFormat: "JPEG",

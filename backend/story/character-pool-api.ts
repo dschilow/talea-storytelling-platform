@@ -270,8 +270,8 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
     // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     const result = await runwareGenerateImage({
       prompt,
-      width: 640,
-      height: 640,
+      width: 1024,
+      height: 1024,
       steps: 4,     // runware:400@4 uses fewer steps
       CFGScale: 4,
       outputFormat: "WEBP",
@@ -329,8 +329,8 @@ export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesRespo
         const prompt = buildCharacterImagePrompt(character, "storybook");
         const result = await runwareGenerateImage({
           prompt,
-          width: 640,
-          height: 640,
+          width: 1024,
+          height: 1024,
           steps: 4,
           CFGScale: 4,
           outputFormat: "WEBP",

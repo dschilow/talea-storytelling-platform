@@ -88,8 +88,8 @@ export async function generateArtifactImage(
         const response = await ai.generateImage({
             prompt: fullPrompt,
             negativePrompt: ARTIFACT_NEGATIVE_PROMPT,
-            width: 512,
-            height: 512,
+            width: 1024,
+            height: 1024,
             steps: 4,     // runware:400@4 uses fewer steps
             CFGScale: 4,
         });

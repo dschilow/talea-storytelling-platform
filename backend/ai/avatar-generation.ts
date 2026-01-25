@@ -46,8 +46,8 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
     // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     const imageResult = await runwareGenerateImage({
       prompt,
-      width: 512,
-      height: 512,
+      width: 1024,
+      height: 1024,
       steps: 4,  // runware:400@4 uses fewer steps
       CFGScale: 4,
       outputFormat: "WEBP",
