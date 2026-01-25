@@ -1198,6 +1198,7 @@ import { analyzeRecentStories as api_story_analyze_recent_stories_analyzeRecentS
 import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/story/auto-test-endpoint";
 import {
     addArtifact as api_story_artifact_pool_api_addArtifact,
+    batchRegenerateArtifactImages as api_story_artifact_pool_api_batchRegenerateArtifactImages,
     deleteArtifact as api_story_artifact_pool_api_deleteArtifact,
     exportArtifacts as api_story_artifact_pool_api_exportArtifacts,
     generateArtifactImage as api_story_artifact_pool_api_generateArtifactImage,
@@ -1208,6 +1209,7 @@ import {
 } from "~backend/story/artifact-pool-api";
 import {
     addCharacter as api_story_character_pool_api_addCharacter,
+    batchRegenerateCharacterImages as api_story_character_pool_api_batchRegenerateCharacterImages,
     deleteCharacter as api_story_character_pool_api_deleteCharacter,
     exportCharacters as api_story_character_pool_api_exportCharacters,
     generateCharacterImage as api_story_character_pool_api_generateCharacterImage,
@@ -1249,6 +1251,8 @@ export namespace story {
             this.analyzeRecentStories = this.analyzeRecentStories.bind(this)
             this.analyzeStory = this.analyzeStory.bind(this)
             this.autoTest = this.autoTest.bind(this)
+            this.batchRegenerateArtifactImages = this.batchRegenerateArtifactImages.bind(this)
+            this.batchRegenerateCharacterImages = this.batchRegenerateCharacterImages.bind(this)
             this.deleteArtifact = this.deleteArtifact.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
@@ -1357,6 +1361,24 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/export`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_exportArtifacts>
+        }
+
+        /**
+         * ===== BATCH REGENERATE ARTIFACT IMAGES =====
+         */
+        public async batchRegenerateArtifactImages(params: RequestType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>): Promise<ResponseType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/batch-regenerate-images`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>
+        }
+
+        /**
+         * ===== BATCH REGENERATE CHARACTER IMAGES =====
+         */
+        public async batchRegenerateCharacterImages(params: RequestType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>): Promise<ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/batch-regenerate-images`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>
         }
 
         /**
