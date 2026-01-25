@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Edit3, RefreshCcw, Save, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import { Download, Edit3, RefreshCcw, Save, Sparkles, Trash2, Upload, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Card from '../../components/common/Card';
@@ -185,6 +185,7 @@ const CharacterPoolScreen: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [batchRegenerating, setBatchRegenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -434,6 +435,43 @@ const CharacterPoolScreen: React.FC = () => {
     }
   };
 
+  const handleBatchRegenerateImages = async () => {
+    const activeCount = characters.filter(c => c.isActive).length;
+
+    const confirmRegenerate = window.confirm(
+      `Möchtest du wirklich alle Bilder von ${activeCount} aktiven Charakteren neu generieren?\n\n` +
+      `Dies kann mehrere Minuten dauern und Kosten verursachen.`
+    );
+
+    if (!confirmRegenerate) {
+      return;
+    }
+
+    try {
+      setBatchRegenerating(true);
+      toast.info(`Starte Regenerierung von ${activeCount} Charakterbildern...`);
+
+      const response = await backend.story.batchRegenerateCharacterImages({});
+
+      if (response.success) {
+        toast.success(
+          `Erfolgreich! ${response.generated}/${response.total} Bilder generiert.`
+        );
+      } else {
+        toast.warning(
+          `Fertig mit Fehlern: ${response.generated} generiert, ${response.failed} fehlgeschlagen.`
+        );
+      }
+
+      await loadCharacters();
+    } catch (err) {
+      console.error('Failed to batch regenerate images', err);
+      toast.error('Batch-Regenerierung fehlgeschlagen.');
+    } finally {
+      setBatchRegenerating(false);
+    }
+  };
+
   return (
     <div style={containerStyle}>
       <input
@@ -452,30 +490,37 @@ const CharacterPoolScreen: React.FC = () => {
         </div>
         <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
           <Button
+            title={batchRegenerating ? 'Generiert Alle...' : 'Alle Bilder neu generieren'}
+            onPress={() => void handleBatchRegenerateImages()}
+            icon={<Zap size={16} />}
+            variant="primary"
+            disabled={batchRegenerating || loading || importing || exporting}
+          />
+          <Button
             title={exporting ? 'Exportiert...' : 'Exportieren'}
             onPress={() => void handleExportCharacters()}
             icon={<Download size={16} />}
             variant="outline"
-            disabled={exporting}
+            disabled={exporting || batchRegenerating}
           />
           <Button
             title={importing ? 'Importiert...' : 'Importieren'}
             onPress={triggerImport}
             icon={<Upload size={16} />}
             variant="outline"
-            disabled={importing}
+            disabled={importing || batchRegenerating}
           />
           <Button
             title="Neuer Charakter"
             onPress={openNewCharacter}
             icon={<Sparkles size={16} />}
-            variant="primary"
-            disabled={importing || exporting}
+            variant="secondary"
+            disabled={importing || exporting || batchRegenerating}
           />
           <Button
             title={loading ? 'Laedt...' : 'Aktualisieren'}
             onPress={() => void loadCharacters()}
-            disabled={refreshButtonDisabled}
+            disabled={refreshButtonDisabled || batchRegenerating}
             icon={<RefreshCcw size={16} />}
             variant="secondary"
           />

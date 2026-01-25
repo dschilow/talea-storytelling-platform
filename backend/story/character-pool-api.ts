@@ -293,6 +293,104 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
   }
 );
 
+// ===== BATCH REGENERATE ALL CHARACTER IMAGES =====
+interface BatchRegenerateImagesResponse {
+  success: boolean;
+  total: number;
+  generated: number;
+  failed: number;
+  results: Array<{
+    characterId: string;
+    characterName: string;
+    success: boolean;
+    imageUrl?: string;
+    error?: string;
+  }>;
+}
+
+export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesResponse>(
+  { expose: true, method: "POST", path: "/story/character-pool/batch-regenerate-images", auth: true },
+  async (): Promise<BatchRegenerateImagesResponse> => {
+    console.log("[CharacterPool] Starting batch regeneration of all character images");
+
+    const characters = await fetchAllCharacters();
+    const activeCharacters = characters.filter(c => c.isActive);
+
+    console.log(`[CharacterPool] Found ${activeCharacters.length} active characters to regenerate`);
+
+    const results: BatchRegenerateImagesResponse['results'] = [];
+    let generated = 0;
+    let failed = 0;
+
+    for (const character of activeCharacters) {
+      try {
+        console.log(`[CharacterPool] Generating image for: ${character.name}`);
+
+        const prompt = buildCharacterImagePrompt(character, "storybook");
+        const result = await runwareGenerateImage({
+          prompt,
+          width: 640,
+          height: 640,
+          steps: 4,
+          CFGScale: 4,
+          outputFormat: "WEBP",
+          negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
+        });
+
+        if (result.imageUrl) {
+          // Update character with new image URL
+          await storyDB.exec`
+            UPDATE character_pool
+            SET image_url = ${result.imageUrl}, updated_at = ${new Date()}
+            WHERE id = ${character.id}
+          `;
+
+          results.push({
+            characterId: character.id,
+            characterName: character.name,
+            success: true,
+            imageUrl: result.imageUrl,
+          });
+          generated++;
+          console.log(`[CharacterPool] ✅ Generated image for ${character.name}`);
+        } else {
+          results.push({
+            characterId: character.id,
+            characterName: character.name,
+            success: false,
+            error: "No image URL returned",
+          });
+          failed++;
+          console.warn(`[CharacterPool] ⚠️ No image URL for ${character.name}`);
+        }
+
+        // Small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+      } catch (error) {
+        results.push({
+          characterId: character.id,
+          characterName: character.name,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        failed++;
+        console.error(`[CharacterPool] ❌ Failed to generate image for ${character.name}:`, error);
+      }
+    }
+
+    console.log(`[CharacterPool] Batch regeneration completed: ${generated} generated, ${failed} failed`);
+
+    return {
+      success: failed === 0,
+      total: activeCharacters.length,
+      generated,
+      failed,
+      results,
+    };
+  }
+);
+
 // ===== DELETE CHARACTER (soft delete) =====
 interface DeleteCharacterRequest {
   id: string;

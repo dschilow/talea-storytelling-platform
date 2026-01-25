@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Edit3, Gem, RefreshCcw, Save, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import { Download, Edit3, Gem, RefreshCcw, Save, Sparkles, Trash2, Upload, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Card from '../../components/common/Card';
@@ -206,6 +206,7 @@ const ArtifactPoolScreen: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [batchRegenerating, setBatchRegenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -459,6 +460,43 @@ const ArtifactPoolScreen: React.FC = () => {
     }
   };
 
+  const handleBatchRegenerateImages = async () => {
+    const activeCount = artifacts.filter(a => a.isActive).length;
+
+    const confirmRegenerate = window.confirm(
+      `Möchtest du wirklich alle Bilder von ${activeCount} aktiven Artefakten neu generieren?\n\n` +
+      `Dies kann mehrere Minuten dauern und Kosten verursachen.`
+    );
+
+    if (!confirmRegenerate) {
+      return;
+    }
+
+    try {
+      setBatchRegenerating(true);
+      toast.info(`Starte Regenerierung von ${activeCount} Artefaktbildern...`);
+
+      const response = await backend.story.batchRegenerateArtifactImages({});
+
+      if (response.success) {
+        toast.success(
+          `Erfolgreich! ${response.generated}/${response.total} Bilder generiert.`
+        );
+      } else {
+        toast.warning(
+          `Fertig mit Fehlern: ${response.generated} generiert, ${response.failed} fehlgeschlagen.`
+        );
+      }
+
+      await loadArtifacts();
+    } catch (err) {
+      console.error('Failed to batch regenerate images', err);
+      toast.error('Batch-Regenerierung fehlgeschlagen.');
+    } finally {
+      setBatchRegenerating(false);
+    }
+  };
+
   return (
     <div style={containerStyle}>
       <input
@@ -478,30 +516,37 @@ const ArtifactPoolScreen: React.FC = () => {
         </div>
         <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
           <Button
+            title={batchRegenerating ? 'Generiert Alle...' : 'Alle Bilder neu generieren'}
+            onPress={() => void handleBatchRegenerateImages()}
+            icon={<Zap size={16} />}
+            variant="primary"
+            disabled={batchRegenerating || loading || importing || exporting}
+          />
+          <Button
             title={exporting ? 'Exportiert...' : 'Exportieren'}
             onPress={() => void handleExportArtifacts()}
             icon={<Download size={16} />}
             variant="outline"
-            disabled={exporting}
+            disabled={exporting || batchRegenerating}
           />
           <Button
             title={importing ? 'Importiert...' : 'Importieren'}
             onPress={triggerImport}
             icon={<Upload size={16} />}
             variant="outline"
-            disabled={importing}
+            disabled={importing || batchRegenerating}
           />
           <Button
             title="Neues Artefakt"
             onPress={openNewArtifact}
             icon={<Gem size={16} />}
-            variant="primary"
-            disabled={importing || exporting}
+            variant="secondary"
+            disabled={importing || exporting || batchRegenerating}
           />
           <Button
             title={loading ? 'Laedt...' : 'Aktualisieren'}
             onPress={() => void loadArtifacts()}
-            disabled={refreshButtonDisabled}
+            disabled={refreshButtonDisabled || batchRegenerating}
             icon={<RefreshCcw size={16} />}
             variant="secondary"
           />
