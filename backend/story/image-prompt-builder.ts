@@ -4,14 +4,14 @@
  * Builds consistent image prompts using avatar canons for visual continuity.
  */
 
-import type { AvatarCanon } from "../avatar/avatar-analysis-schema";
+import type { SimpleAvatarCanon } from "../avatar/avatar-canon-simple";
 
 /**
  * Build image prompt for story chapters
  */
 export function buildImagePrompt(
   scene: string,
-  avatars: AvatarCanon[],
+  avatars: SimpleAvatarCanon[],
   environment: string,
   composition: string
 ): string {
@@ -20,13 +20,13 @@ export function buildImagePrompt(
   // Format: [Visual Description] (Name: [CharacterName])
   // This separates the visual tokens from the name tokens to prevent "name bleeding"
   const charactersBlock = avatars.map((avatar, index) => {
-    const visualDesc = `${avatar.hair.color} hair, ${avatar.eyes.color} eyes, ${avatar.clothing.primary}`;
+    const visualDesc = `${avatar.hair} hair, ${avatar.eyes} eyes, ${avatar.clothing}`;
     return `${visualDesc} (Name: ${avatar.name})`;
   }).join('\n\n');
 
   // 2. KRITISCHE UNTERSCHEIDUNG
   const distinctions = avatars.map(a =>
-    `${a.name}: ${a.hair.color} hair + ${a.eyes.color} eyes + ${a.clothing.primary}`
+    `${a.name}: ${a.hair} hair + ${a.eyes} eyes + ${a.clothing}`
   ).join('\n- ');
 
   // 3. FINALER PROMPT
@@ -52,7 +52,7 @@ Style: warm colors, child-friendly, hand-painted feel.
 export class ImagePromptBuilder {
 
   constructor(
-    private avatarCanons: Map<string, AvatarCanon>,
+    private avatarCanons: Map<string, SimpleAvatarCanon>,
     private style: string = "Axel Scheffler watercolor"
   ) { }
 
