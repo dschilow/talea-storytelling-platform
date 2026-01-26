@@ -456,6 +456,7 @@ export class Phase2CharacterMatcher {
       created_at: Date;
       updated_at: Date;
       is_active: boolean;
+      image_url: string | null; // CRITICAL FIX v5.0: Load image URLs for support characters
       // NEW: Enhanced matching attributes (Migration 7)
       gender: string | null;
       age_category: string | null;
@@ -486,6 +487,7 @@ export class Phase2CharacterMatcher {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isActive: row.is_active,
+      imageUrl: row.image_url || undefined, // CRITICAL FIX v5.0: Include imageUrl from DB
       // NEW: Enhanced matching attributes
       gender: row.gender || undefined,
       age_category: row.age_category || undefined,

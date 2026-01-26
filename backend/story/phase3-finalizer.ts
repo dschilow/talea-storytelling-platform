@@ -448,7 +448,7 @@ export class Phase3StoryFinalizer {
             {
               maxOverlapPercentage: 40,
               minPhraseLength: 4,
-              maxDirectCopies: 8, // Higher limit for fairy tales to allow traditional moral phrases
+              maxDirectCopies: 15, // OPTIMIZATION v5.0: Allow more traditional fairy tale phrases while maintaining originality
               strictMode: false,
             }
           );
