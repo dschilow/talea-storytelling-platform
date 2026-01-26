@@ -151,6 +151,16 @@ export class StoryPostProcessor {
     // Remove lines that are just lists of sensory words
     cleaned = cleaned.replace(/^[\w\s,]+:\s*[\w\s,]+,\s*[\w\s,]+,\s*[\w\s,]+\.?\s*$/gm, '');
 
+    // Remove any sentence that references "Phrase" to avoid meta leakage
+    const sentenceParts = cleaned
+      .split(/[.!?]+/)
+      .map(part => part.trim())
+      .filter(Boolean);
+    const filteredSentences = sentenceParts.filter(part => !/\bphrase\b/i.test(part));
+    if (filteredSentences.length !== sentenceParts.length) {
+      cleaned = filteredSentences.join('. ').trim();
+    }
+
     return cleaned.trim();
   }
 

@@ -407,6 +407,15 @@ export class Phase3StoryFinalizer {
         console.log(`[Phase3] ?? Artifact placement fixes:`, artifactFixes);
       }
 
+      const imageDescFixes = this.ensureImageDescriptionsIncludeCharacters(
+        finalStory,
+        input.avatarDetails,
+        input.assignments
+      );
+      if (imageDescFixes.length > 0) {
+        console.log(`[Phase3] ?? Image description character fixes:`, imageDescFixes);
+      }
+
       // Check for critical meta-pattern issues
       const metaCheck = containsMetaPatterns(finalStory.chapters.map(c => c.content).join('\n'));
       if (metaCheck.hasMeta) {
@@ -589,6 +598,55 @@ export class Phase3StoryFinalizer {
         fixes.push(`Chapter ${chapter.order}: imageDescription placeholders replaced`);
       }
     }
+    return fixes;
+  }
+
+  private ensureImageDescriptionsIncludeCharacters(
+    story: FinalizedStory,
+    avatarDetails: Array<{ name: string }>,
+    assignments: Map<string, CharacterTemplate>
+  ): string[] {
+    const fixes: string[] = [];
+    const allNames = [
+      ...avatarDetails.map(a => a.name),
+      ...Array.from(assignments.values()).map(c => c.name)
+    ].filter(Boolean);
+
+    const uniqueNames: string[] = [];
+    const seenKeys = new Set<string>();
+    for (const name of allNames) {
+      const key = this.normalizeNameForMatch(name);
+      if (!key || seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      uniqueNames.push(name);
+    }
+
+    const avatarNames = avatarDetails
+      .map(a => a.name)
+      .filter(Boolean);
+
+    const formatNameList = (names: string[]): string => {
+      if (names.length === 1) return names[0];
+      if (names.length === 2) return `${names[0]} and ${names[1]}`;
+      return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    };
+
+    for (const chapter of story.chapters || []) {
+      const content = String(chapter.content || "");
+      const imageDescription = String(chapter.imageDescription || "");
+      const namesInContent = uniqueNames.filter(name => this.textHasName(content, name));
+      const targetNames = namesInContent.length > 0 ? namesInContent : avatarNames;
+      if (targetNames.length === 0) continue;
+
+      const missing = targetNames.filter(name => !this.textHasName(imageDescription, name));
+      if (missing.length === 0) continue;
+
+      const baseDescription = imageDescription.trim() || "Storybook scene.";
+      const appendSentence = `${formatNameList(missing)} are also visible in the scene.`;
+      chapter.imageDescription = `${baseDescription} ${appendSentence}`.replace(/\s+/g, " ").trim();
+      fixes.push(`Chapter ${chapter.order}: imageDescription appended missing characters`);
+    }
+
     return fixes;
   }
 
@@ -1665,7 +1723,7 @@ CRITICAL: Choose 2-3 RECURRING MOTIFS that appear throughout the story:
    Examples: "silver thread", "golden key", "magic feather", "porcelain heart"
    Must be introduced Ch1, used Ch2, crucial Ch4, symbolic resolution Ch5
 
-3. PHRASE MOTIF (must appear in 3 chapters, same exact phrase):
+3. RECURRING LINE (must appear in 3 chapters, same exact line):
    Examples: "echte Stimme" (true voice), "das wahre Lied", "der richtige Weg"
    Character says it, then it becomes the moral lesson
 
@@ -1677,7 +1735,7 @@ MOTIF TRACKING VALIDATION:
 EXAMPLE ("Der Silberfaden" story):
 - Sound Motif: "Windspiele" (wind chimes) ? appears 5x across all chapters ?
 - Object Motif: "Silberfaden" (silver thread) ? introduced Ch1, used Ch2, crucial Ch4, symbolic Ch5 ?
-- Phrase Motif: "echte Stimme" (true voice) ? Ch3, Ch5 ?
+- Line Motif: "echte Stimme" (true voice) ? Ch3, Ch5 ?
 
 ## IMAGE DESCRIPTIONS (ENGLISH, 2-4 sentences):
 - Start with a clear scene and storybook style.
@@ -1846,15 +1904,169 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     return mapping;
   }
 
+  private normalizeNameForMatch(value?: string): string {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private buildNameVariants(name: string): string[] {
+    const normalized = this.normalizeNameForMatch(name);
+    if (!normalized) return [];
+    const tokens = normalized.split(" ").filter(Boolean);
+    const articles = new Set([
+      "the", "der", "die", "das", "ein", "eine", "einer", "einem", "einen",
+      "la", "le", "el", "los", "las", "de", "del", "da", "di", "von", "van",
+      "zu", "zum", "zur", "of"
+    ]);
+    const variants = new Set<string>();
+    variants.add(normalized);
+    const withoutArticles = tokens.filter(t => !articles.has(t));
+    if (withoutArticles.length > 0) {
+      variants.add(withoutArticles.join(" "));
+      if (withoutArticles[0].length >= 3) variants.add(withoutArticles[0]);
+      if (withoutArticles.length > 1 && withoutArticles[withoutArticles.length - 1].length >= 3) {
+        variants.add(withoutArticles[withoutArticles.length - 1]);
+      }
+    }
+    return Array.from(variants);
+  }
+
+  private textHasName(text: string, name: string): boolean {
+    const normalizedText = this.normalizeNameForMatch(text);
+    if (!normalizedText) return false;
+    const variants = this.buildNameVariants(name);
+    for (const variant of variants) {
+      if (!variant) continue;
+      const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`\\b${escaped}\\b`, "i");
+      if (regex.test(normalizedText)) return true;
+    }
+    return false;
+  }
+
+  private isPeerRoleName(roleName: string): boolean {
+    const name = this.normalizeNameForMatch(roleName);
+    if (!name) return false;
+    const peerPatterns = [
+      /\bfriend\b/,
+      /\bbuddy\b/,
+      /\bcompanion\b/,
+      /\bsidekick\b/,
+      /\bclassmate\b/,
+      /\bteammate\b/,
+      /\bsibling\b/,
+      /\bbrother\b/,
+      /\bsister\b/,
+      /\btwin\b/,
+      /\bchild\b/,
+      /\bkid\b/,
+      /\bboy\b/,
+      /\bgirl\b/,
+      /\bfreund\b/,
+      /\bfreundin\b/,
+      /\bkumpel\b/,
+      /\bbegleiter\b/,
+      /\bbruder\b/,
+      /\bschwester\b/,
+      /\bkind\b/,
+      /\bjunge\b/,
+      /\bmaedchen\b/,
+      /\bmadchen\b/
+    ];
+    return peerPatterns.some((pattern) => pattern.test(name));
+  }
+
+  private isAdultRoleName(roleName: string): boolean {
+    const name = this.normalizeNameForMatch(roleName);
+    if (!name) return false;
+    const adultPatterns = [
+      /\bfather\b/,
+      /\bmother\b/,
+      /\bstepmother\b/,
+      /\bstepfather\b/,
+      /\bparent\b/,
+      /\bgrandmother\b/,
+      /\bgrandfather\b/,
+      /\bking\b/,
+      /\bqueen\b/,
+      /\bwitch\b/,
+      /\bwizard\b/,
+      /\bpriest\b/,
+      /\bteacher\b/,
+      /\bmentor\b/,
+      /\belder\b/,
+      /\bold\b/,
+      /\bmiller\b/,
+      /\bvater\b/,
+      /\bmutter\b/,
+      /\bstief\b/,
+      /\boma\b/,
+      /\bopa\b/,
+      /\bkoenig\b/,
+      /\bkoenigin\b/,
+      /\bhexe\b/,
+      /\bzauberer\b/,
+      /\bgeistlicher\b/,
+      /\blehrer\b/,
+      /\bweise\b/,
+      /\balte\b/,
+      /\balt\b/
+    ];
+    return adultPatterns.some((pattern) => pattern.test(name));
+  }
+
+  private pickPoolCharacterForRole(
+    role: { roleType: string; roleName: string },
+    assignments: Map<string, CharacterTemplate>,
+    avatarNameSet: Set<string>,
+    usedPool: Set<string>
+  ): CharacterTemplate | undefined {
+    const roleType = String(role.roleType || "").toLowerCase();
+    const candidates = Array.from(assignments.values())
+      .filter((c) => {
+        const nameKey = this.normalizeNameForMatch(c.name);
+        if (!nameKey || avatarNameSet.has(nameKey) || usedPool.has(nameKey)) return false;
+        if (roleType === "antagonist") {
+          return c.role === "antagonist" ||
+            c.role === "obstacle" ||
+            c.archetype?.includes("villain") ||
+            c.archetype?.includes("trickster");
+        }
+        if (roleType === "helper") {
+          return c.role === "guide" ||
+            c.role === "helper" ||
+            c.archetype?.includes("mentor") ||
+            c.archetype?.includes("helper");
+        }
+        if (roleType === "supporting") {
+          return c.role === "supporting" ||
+            c.role === "companion" ||
+            c.role === "guide";
+        }
+        return true;
+      });
+
+    if (candidates.length === 0) return undefined;
+    return candidates[0];
+  }
+
   /**
    * Map user avatars to fairy tale roles
    */
   private mapAvatarsToFairyTaleRoles(
     roles: Array<{ roleType: string; roleName: string; required: boolean }>,
-    avatars: Array<{ name: string; description?: string }>,
+    avatars: Array<{ name: string; description?: string; visualProfile?: any }>,
     assignments: Map<string, CharacterTemplate>
   ): Array<{ fairyTaleRole: string; avatarName: string; roleType: string }> {
     const mapping: Array<{ fairyTaleRole: string; avatarName: string; roleType: string }> = [];
+    const avatarNameSet = new Set(avatars.map(a => this.normalizeNameForMatch(a.name)).filter(Boolean));
+    const usedPool = new Set<string>();
 
     // Prioritize required protagonist roles
     const protagonistRoles = roles.filter((r) => r.roleType === "protagonist" && r.required);
@@ -1880,12 +2092,7 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
     // Antagonisten kommen IMMER aus dem Character Pool
     for (const role of antagonistRoles) {
       // IMMER Character Pool für Antagonisten verwenden
-      const poolCharacter = Array.from(assignments.values()).find((c) =>
-        c.role === "antagonist" ||
-        c.role === "obstacle" ||
-        c.archetype?.includes("villain") ||
-        c.archetype?.includes("trickster")
-      );
+      const poolCharacter = this.pickPoolCharacterForRole(role, assignments, avatarNameSet, usedPool);
 
       if (poolCharacter) {
         mapping.push({
@@ -1893,6 +2100,7 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
           avatarName: poolCharacter.name,
           roleType: role.roleType,
         });
+        usedPool.add(this.normalizeNameForMatch(poolCharacter.name));
         console.log(`[Phase3] ? Antagonist "${role.roleName}" mapped to pool character: ${poolCharacter.name} (NOT a user avatar)`);
       } else {
         console.warn(`[Phase3] ?? No antagonist found in pool for role: ${role.roleName}`);
@@ -1902,7 +2110,9 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
 
     // Map supporting roles
     for (const role of supportingRoles) {
-      if (avatarIndex < avatars.length) {
+      const roleName = String(role.roleName || "");
+      const allowAvatar = this.isPeerRoleName(roleName) && !this.isAdultRoleName(roleName);
+      if (allowAvatar && avatarIndex < avatars.length) {
         mapping.push({
           fairyTaleRole: role.roleName,
           avatarName: avatars[avatarIndex].name,
@@ -1910,18 +2120,27 @@ Remember: Story content in ${targetLanguage}, imageDescription in English, NO me
         });
         avatarIndex++;
       } else {
-        // Use character pool
-        const poolCharacter = Array.from(assignments.values()).find(
-          (c) => c.role === "supporting" || c.role === "guide" || c.role === "companion"
-        );
+        const poolCharacter = this.pickPoolCharacterForRole(role, assignments, avatarNameSet, usedPool);
         if (poolCharacter) {
           mapping.push({
             fairyTaleRole: role.roleName,
             avatarName: poolCharacter.name,
             roleType: role.roleType,
           });
+          usedPool.add(this.normalizeNameForMatch(poolCharacter.name));
         }
       }
+    }
+
+    let extraIndex = 1;
+    while (avatarIndex < avatars.length) {
+      mapping.push({
+        fairyTaleRole: `Companion (added ${extraIndex})`,
+        avatarName: avatars[avatarIndex].name,
+        roleType: "companion",
+      });
+      avatarIndex += 1;
+      extraIndex += 1;
     }
 
     return mapping;

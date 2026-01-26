@@ -1255,7 +1255,7 @@ COLOR MOTIF (appears 5x):
    Examples: "gold vs. gray", "the red thread", "silver moonlight"
    Use to reinforce theme: Gold = true, Gray = artificial
 
-PHRASE MOTIF (appears 3x):
+RECURRING LINE (appears 3x):
    Examples: "echte Stimme" (true voice), "the real song"
    Character says it, then it becomes the moral lesson
 

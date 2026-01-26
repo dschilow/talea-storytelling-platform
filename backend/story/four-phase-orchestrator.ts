@@ -1112,10 +1112,14 @@ export class FourPhaseOrchestrator {
         continue;
       }
 
-      const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
-      if (url && url.trim() && urls.length < maxReferenceImages) {
+      const url = this.pickBestReferenceImageUrl(
+        avatar.imageUrl,
+        avatar.visualProfile?.imageUrl,
+        (avatar.visualProfile as any)?.imageURL
+      );
+      if (url && urls.length < maxReferenceImages) {
         characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
-        urls.push(url.trim());
+        urls.push(url);
       } else {
         characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
       }
@@ -1132,10 +1136,14 @@ export class FourPhaseOrchestrator {
         if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
         includedNameKeys.add(key);
 
-        const url = char.imageUrl || (char.visualProfile as any)?.imageUrl;
-        if (url && url.trim() && urls.length < maxReferenceImages) {
+        const url = this.pickBestReferenceImageUrl(
+          char.imageUrl,
+          (char.visualProfile as any)?.imageUrl,
+          (char.visualProfile as any)?.imageURL
+        );
+        if (url && urls.length < maxReferenceImages) {
           characterMapping.push({ name: char.name, refIndex: urls.length + 1, hasImage: true });
-          urls.push(url.trim());
+          urls.push(url);
         } else {
           characterMapping.push({ name: char.name, refIndex: -1, hasImage: false });
         }
@@ -1153,10 +1161,14 @@ export class FourPhaseOrchestrator {
           continue;
         }
 
-        const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
-        if (url && url.trim() && urls.length < maxReferenceImages) {
+        const url = this.pickBestReferenceImageUrl(
+          avatar.imageUrl,
+          avatar.visualProfile?.imageUrl,
+          (avatar.visualProfile as any)?.imageURL
+        );
+        if (url && urls.length < maxReferenceImages) {
           characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
-          urls.push(url.trim());
+          urls.push(url);
         } else {
           characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
         }
@@ -1226,6 +1238,48 @@ export class FourPhaseOrchestrator {
     if (!normalized || normalized === "any" || normalized === "unknown") return null;
     if (normalized === "neutral" || normalized === "nonbinary") return "person";
     return normalized;
+  }
+
+  private isHttpUrl(value?: string): boolean {
+    const trimmed = String(value || "").trim().toLowerCase();
+    return trimmed.startsWith("http://") || trimmed.startsWith("https://");
+  }
+
+  private cleanExtraVisualDescription(value?: string): string {
+    let cleaned = String(value || "").replace(/\s+/g, " ").trim();
+    if (!cleaned) return "";
+    cleaned = cleaned
+      .replace(/SINGLE CHARACTER ONLY\.?/gi, "")
+      .replace(/Consistency:[^.]*(\.|$)/gi, "")
+      .replace(/Same [^.]*(\.|$)/gi, "")
+      .replace(/^Portrait of\s+/i, "")
+      .replace(/Fantasy storybook illustration[^.]*\.?/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (cleaned.length > 200) {
+      cleaned = cleaned.slice(0, 200).trim();
+    }
+    return cleaned;
+  }
+
+  private pickBestReferenceImageUrl(...candidates: Array<string | undefined>): string | undefined {
+    const values = candidates
+      .map(value => (typeof value === "string" ? value.trim() : ""))
+      .filter(Boolean);
+
+    for (const value of values) {
+      if (this.isHttpUrl(value)) {
+        return value;
+      }
+    }
+
+    for (const value of values) {
+      if (value.startsWith("data:image/")) {
+        return value;
+      }
+    }
+
+    return undefined;
   }
 
   private visualProfileToImagePromptWithInvariants(
@@ -1321,12 +1375,29 @@ export class FourPhaseOrchestrator {
     }
 
     // 10. CHILD SAFETY (Strict for human children)
-    const ageForSafety = numericAge ?? this.ageCategoryToNumber(fallback?.ageCategory) ?? 8;
-    if (ageForSafety <= 12 && (!vp.species || String(vp.species).toLowerCase().includes('human'))) {
+    const ageForSafety = numericAge ?? this.ageCategoryToNumber(fallback?.ageCategory);
+    const ageLabelLower = String(ageLabelRaw || "").toLowerCase();
+    const indicatesChild = ageLabelLower.includes("child") ||
+      ageLabelLower.includes("kid") ||
+      ageLabelLower.includes("boy") ||
+      ageLabelLower.includes("girl") ||
+      ageLabelLower.includes("toddler") ||
+      ageLabelLower.includes("young");
+    const isChildHuman = (ageForSafety !== null ? ageForSafety <= 12 : indicatesChild) &&
+      (!vp.species || String(vp.species).toLowerCase().includes('human'));
+    if (isChildHuman) {
       parts.push('child proportions, NO beard, NO mustache, smooth young face');
     }
 
-    return parts.join(', ');
+    const summaryParts = parts.filter(Boolean);
+    if (summaryParts.length < 3) {
+      const extra = this.cleanExtraVisualDescription(vp?.description || vp?.imagePrompt);
+      if (extra && !summaryParts.some(part => part.toLowerCase().includes(extra.toLowerCase()))) {
+        summaryParts.push(extra);
+      }
+    }
+
+    return summaryParts.join(', ');
   }
 
   /**
@@ -1354,6 +1425,7 @@ export class FourPhaseOrchestrator {
       'ring': 'magic ring',
       'amulett': 'amulet',
       'kristall': 'crystal',
+      'kristallkugel': 'crystal ball',
       'laterne': 'lantern',
       'feder': 'feather',
       'stab': 'magic staff',
@@ -1418,8 +1490,11 @@ export class FourPhaseOrchestrator {
       .replace(/\bMain characters?\b[^.]*\.?/gi, '')
       .replace(/\bA scene with exactly\b[^.]*\.?/gi, '')
       .replace(/\bThe scene includes\b[^.]*\.?/gi, '')
+      .replace(/\bwith\s+(?:exactly\s+)?\d+\s+(?:distinct\s+)?(?:characters?|people|persons)(?:\s+visible)?\b/gi, '')
+      .replace(/\bwith\s+(?:exactly\s+)?(one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:distinct\s+)?(?:characters?|people|persons)(?:\s+visible)?\b/gi, '')
       .replace(/\bexactly\s+\d+\b/gi, '')
       .replace(/\b\d+\s+(?:distinct\s+)?(?:characters?|people|persons)\b/gi, '')
+      .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:distinct\s+)?(?:characters?|people|persons)\b/gi, '')
       .replace(/\bchilds\b/gi, 'children')
       .replace(/\b(crowd|villagers|townsfolk|bystanders|onlookers|passersby|spectators)\b/gi, '')
       .replace(/\s+/g, ' ')
