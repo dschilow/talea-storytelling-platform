@@ -1102,7 +1102,8 @@ export class FourPhaseOrchestrator {
     const characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> = [];
     const includedNameKeys = new Set<string>();
     const includedUrls = new Set<string>();
-    const maxReferenceImages = 4;
+    // OPTIMIZATION v6.0: Increased from 4 to 6 reference images for better character consistency
+    const maxReferenceImages = 6;
 
     const avatarLookup = new Map<string, AvatarDetail>();
     for (const avatar of avatarDetails) {
@@ -1160,6 +1161,12 @@ export class FourPhaseOrchestrator {
       for (const name of characterNames) {
         await addByName(name);
       }
+
+      // OPTIMIZATION v6.0: Log reference image order for debugging
+      console.log(`[4-Phase] Reference images order:`, characterMapping
+        .filter(c => c.hasImage)
+        .map(c => `Image ${c.refIndex} = ${c.name}`)
+        .join(', '));
 
       if (urls.length >= maxReferenceImages && characterMapping.some(c => !c.hasImage)) {
         console.log(`[4-Phase] Reference image cap reached (${maxReferenceImages}); remaining characters will use text descriptions only.`);
@@ -2027,8 +2034,21 @@ CRITICAL: Each character appears exactly once and looks distinct.
   }
 
   /**
-   * OPTIMIZATION v4.0: Build prompt with reference image annotations
-   * Uses the new runware:400@4 format with Ref1, Ref2, etc. for character identity
+   * OPTIMIZATION v6.0: Build prompt with reference image annotations
+   * Uses the Runware runware:400@4 format with ref_image_1, ref_image_2, etc.
+   *
+   * CRITICAL: The order of characters in the prompt MUST match the order of URLs
+   * in the referenceImages array. ref_image_1 = referenceImages[0], etc.
+   *
+   * The prompt should be structured like:
+   * - STYLE (short)
+   * - REFERENCE IMAGES (ref_image_1 = CHARACTER_NAME)
+   * - CORE CONSTRAINTS
+   * - SCENE (action/narrative)
+   * - ACTION/ROLES (who does what)
+   * - WARDROBE DISTINCTION
+   * - COMPOSITION
+   * - REPAIR RULE
    */
   private buildPromptWithReferenceImages(
     basePrompt: string,
@@ -2044,96 +2064,60 @@ CRITICAL: Each character appears exactly once and looks distinct.
       return basePrompt;
     }
 
-    let characterLayoutBlock = '';
-    const characterBlockMatch = basePrompt.match(/CHARACTERS IN THIS SCENE:[\s\S]*/i);
-    if (characterBlockMatch) {
-      const filteredLines = characterBlockMatch[0]
-        .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(Boolean)
-        .filter(line => !/^The characters are distinct\b/i.test(line))
-        .filter(line => !/^Keep faces\b/i.test(line));
-      if (filteredLines.length > 1) {
-        characterLayoutBlock = filteredLines.join('\n');
-      }
-    }
+    const totalChars = characterMapping.length;
+    const charNames = characterMapping.map(c => c.name).join(' + ');
 
-    if (!characterLayoutBlock && characterMapping.length > 0) {
-      const positionLabels = (() => {
-        if (characterMapping.length === 1) return ['IN THE CENTER'];
-        if (characterMapping.length === 2) return ['ON THE LEFT', 'ON THE RIGHT'];
-        if (characterMapping.length === 3) return ['ON THE LEFT', 'IN THE CENTER', 'ON THE RIGHT'];
-        if (characterMapping.length === 4) return ['LEFTMOST', 'LEFT-CENTER', 'RIGHT-CENTER', 'RIGHTMOST'];
-        return characterMapping.map((_, idx) => `POSITION ${idx + 1} (left to right)`);
-      })();
-      const layoutLines = characterMapping.map((c, idx) => {
-        const label = positionLabels[idx] || `POSITION ${idx + 1}`;
-        return `${label}: ${this.formatDisplayName(c.name)} is a distinct character.`;
-      });
-      characterLayoutBlock = ['CHARACTERS IN THIS SCENE:', ...layoutLines].join('\n');
-    }
+    // ===== 1. STYLE BLOCK (short) =====
+    const styleBlock = `STYLE: high-quality children's storybook illustration, clean linework, soft watercolor shading, warm lighting, cozy cinematic mood, no text, no watermark.`;
 
-    // Build the style header - OPTIMIZATION v5.1: Keep it SHORT to preserve scene action
-    const styleBlock = `STYLE: Children's picture book illustration, watercolor with soft washes, warm lighting. Full bodies visible head to toe.`;
-
-    // Build reference image annotations
+    // ===== 2. REFERENCE IMAGES BLOCK =====
+    // CRITICAL: Use "Image 1 = CHARACTER" format (more robust than ref_image_1)
+    // The order MUST match referenceImages array: Image 1 = referenceImages[0], etc.
     const refAnnotations = charactersWithRefs.map(c => {
       const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
       const charTemplate = avatar ? null : Array.from(characterAssignments.values())
         .find(ch => this.normalizeNameKey(ch.name) === this.normalizeNameKey(c.name));
 
-      // Get basic info for the reference annotation
+      // Build minimal role hint (age + gender/role only)
       let roleHint = '';
       if (avatar) {
         const age = this.extractNumericAgeFromProfile(avatar.visualProfile);
-        const gender = avatar.visualProfile?.gender || '';
-        if (age && age <= 12) roleHint = `(${age}-year-old ${gender} child)`;
-        else if (age) roleHint = `(${age}-year-old ${gender})`;
+        const gender = this.normalizeGenderLabel(avatar.visualProfile?.gender);
+        if (age && age <= 12) {
+          roleHint = `${age}-year-old ${gender || 'child'}`;
+        } else if (age) {
+          roleHint = `${age}-year-old ${gender || 'adult'}`;
+        } else {
+          roleHint = gender ? `${gender} child` : 'child';
+        }
       } else if (charTemplate) {
-        const role = charTemplate.role || '';
-        roleHint = role ? `(${role})` : '';
+        const role = charTemplate.role || charTemplate.archetype || '';
+        const gender = this.normalizeGenderLabel(charTemplate.gender);
+        if (role) {
+          roleHint = `${gender ? gender + ' ' : ''}${role}`;
+        } else {
+          roleHint = gender || 'character';
+        }
       }
 
-      return `Ref${c.refIndex} = ${c.name.toUpperCase()} ${roleHint} — match ONLY ${c.name} from Ref${c.refIndex} (face, features, outfit cues).`;
+      // Use "Image X = CHARACTER" format (more robust)
+      return `Image ${c.refIndex} = ${c.name.toUpperCase()} (${roleHint}) identity only.`;
     }).join('\n');
 
-    // Build the reference block header
-    const refHeader = `REFERENCE IMAGES (IDENTITY ONLY — STRICT ONE-TO-ONE, DO NOT MIX):
+    const refBlock = `REFERENCE IMAGES (ORDERED — IDENTITY MATCHING ONLY):
 ${refAnnotations}
-Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy reference layouts.`;
+Use each reference image ONLY to match identity (face, hair, signature outfit). Ignore all reference backgrounds. Do NOT copy reference composition or layout.`;
 
-    // Build character descriptions for those WITHOUT reference images (fallback to text description)
-    let fallbackDescriptions = '';
-    if (charactersWithoutRefs.length > 0) {
-      const descriptions = charactersWithoutRefs.map(c => {
-        const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
-        const charTemplate = avatar ? null : Array.from(characterAssignments.values())
-          .find(ch => this.normalizeNameKey(ch.name) === this.normalizeNameKey(c.name));
+    // ===== 3. CORE CONSTRAINTS =====
+    const coreConstraints = `CORE CONSTRAINTS (STRICT, MUST FOLLOW):
+- EXACTLY ${totalChars} characters total: ${charNames} (no more, no less)
+- EACH character appears EXACTLY ONCE (no duplicates, no twins, no clones)
+- NO other people anywhere (no background people, no silhouettes, no reflections, no paintings/posters with faces)
+- ALL ${totalChars} faces visible AND full bodies visible (head-to-toe, feet included, not cropped)
+- Characters must be clearly distinguishable (different outfit + different pose + different action)`;
 
-        if (avatar) {
-          return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(avatar.visualProfile, avatar.description)}`;
-        } else if (charTemplate) {
-          return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(charTemplate.visualProfile, undefined, { ageCategory: charTemplate.age_category, gender: charTemplate.gender, archetype: charTemplate.archetype, role: charTemplate.role })}`;
-        }
-        return `${c.name.toUpperCase()}: distinct character`;
-      }).join('\n');
-
-      fallbackDescriptions = `\nCHARACTERS WITHOUT REFERENCE (use text description):\n${descriptions}`;
-    }
-
-    // Build absolute rules
-    const totalChars = characterMapping.length;
-    const charNames = characterMapping.map(c => c.name).join(', ');
-    const noRefRule = charactersWithoutRefs.length > 0
-      ? "\n- Characters without reference images must look clearly different from referenced identities"
-      : "";
-    const absoluteRules = `ABSOLUTE RULES (STRICT):
-- EXACTLY ${totalChars} character${totalChars > 1 ? 's' : ''} total: ${charNames} (each appears ONCE, no duplicates, no mirrors, no clones)
-- No extra people, no background characters, no silhouettes, no reflections, no paintings/posters with faces
-- NO identity swapping between characters
-- All ${totalChars} faces visible AND all ${totalChars} full bodies visible (head-to-toe, feet included), no cropping, nobody hidden${noRefRule}`;
-
-    // Extract scene description from base prompt (remove character blocks if present)
+    // ===== 4. SCENE =====
+    // Extract scene description from base prompt, removing character description blocks
     let sceneDescription = basePrompt
       .replace(/CHARACTERS IN THIS SCENE:[\s\S]*?(?=\n\n|$)/gi, '')
       .replace(/Children's storybook illustration[^.]*\./gi, '')
@@ -2141,44 +2125,100 @@ Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy refe
       .replace(/The characters are distinct[^.]*\./gi, '')
       .replace(/A scene with exactly \d+ distinct character[s]?\./gi, '')
       .replace(/The scene includes[^.]*\./gi, '')
+      .replace(/ON THE (LEFT|RIGHT|CENTER)[^.]*\./gi, '') // Remove position directives, we'll add new ones
+      .replace(/(LEFTMOST|RIGHTMOST|LEFT-CENTER|RIGHT-CENTER)[^.]*\./gi, '')
       .replace(/\n{2,}/g, '\n')
       .trim();
 
-    const allowedNameKeys = new Set(characterMapping.map(c => this.normalizeNameKey(c.name)));
-    sceneDescription = this.stripExtraCharactersFromScene(
-      sceneDescription,
-      allowedNameKeys,
-      avatarDetails,
-      characterAssignments
-    );
+    // Also remove verbose character descriptions from scene (they're now in references)
+    for (const char of characterMapping) {
+      const namePattern = new RegExp(`${this.escapeRegex(char.name)}[^.]*?(?:hair|eyes|skin|wearing|outfit)[^.]*\\.`, 'gi');
+      sceneDescription = sceneDescription.replace(namePattern, `${char.name}`);
+    }
 
-    // Build wardrobe lock section for characters with references
-    const wardrobeLocks = charactersWithRefs.map(c => {
+    sceneDescription = sceneDescription.replace(/\s+/g, ' ').trim();
+    const sceneBlock = `SCENE: ${sceneDescription || 'storybook scene with the characters interacting'}`;
+
+    // ===== 5. ACTION/ROLES =====
+    // Build position labels based on character count
+    const positionLabels = (() => {
+      if (characterMapping.length === 1) return ['CENTER'];
+      if (characterMapping.length === 2) return ['LEFT', 'RIGHT'];
+      if (characterMapping.length === 3) return ['LEFT', 'CENTER', 'RIGHT'];
+      if (characterMapping.length === 4) return ['FAR LEFT', 'CENTER-LEFT', 'CENTER-RIGHT', 'FAR RIGHT'];
+      return characterMapping.map((_, idx) => `POSITION ${idx + 1}`);
+    })();
+
+    const actionRoles = characterMapping.map((c, idx) => {
       const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
-      if (avatar?.visualProfile?.clothingCanonical?.outfit) {
-        return `- ${c.name.toUpperCase()}: ${avatar.visualProfile.clothingCanonical.outfit} (from Ref${c.refIndex})`;
+      const charTemplate = avatar ? null : Array.from(characterAssignments.values())
+        .find(ch => this.normalizeNameKey(ch.name) === this.normalizeNameKey(c.name));
+
+      const position = positionLabels[idx] || `POSITION ${idx + 1}`;
+      let roleDesc = '';
+
+      if (avatar) {
+        const age = this.extractNumericAgeFromProfile(avatar.visualProfile);
+        const gender = this.normalizeGenderLabel(avatar.visualProfile?.gender);
+        if (age && age <= 12) {
+          roleDesc = age < 7 ? 'younger child' : 'older child';
+        } else {
+          roleDesc = gender || 'character';
+        }
+      } else if (charTemplate) {
+        roleDesc = charTemplate.role || charTemplate.archetype || 'character';
       }
-      return `- ${c.name.toUpperCase()}: outfit from Ref${c.refIndex}`;
+
+      return `- ${c.name.toUpperCase()} (${roleDesc}) stands ${position}.`;
     }).join('\n');
 
-    // Assemble the final prompt
-    const safeScene = sceneDescription ? sceneDescription : "storybook scene with the listed characters";
-    const layoutSection = characterLayoutBlock ? `${characterLayoutBlock}\n\n` : '';
+    const actionBlock = `ACTION / ROLES (DO NOT SWAP):
+${actionRoles}`;
+
+    // ===== 6. WARDROBE DISTINCTION =====
+    const wardrobeItems = characterMapping.map(c => {
+      const avatar = avatarDetails.find(a => this.normalizeNameKey(a.name) === this.normalizeNameKey(c.name));
+      const charTemplate = avatar ? null : Array.from(characterAssignments.values())
+        .find(ch => this.normalizeNameKey(ch.name) === this.normalizeNameKey(c.name));
+
+      let outfitDesc = 'distinct outfit';
+      if (avatar?.visualProfile?.clothingCanonical?.outfit) {
+        outfitDesc = avatar.visualProfile.clothingCanonical.outfit;
+      } else if (avatar?.visualProfile?.clothingCanonical?.top) {
+        outfitDesc = avatar.visualProfile.clothingCanonical.top;
+      } else if ((charTemplate?.visualProfile as any)?.clothingCanonical?.outfit) {
+        outfitDesc = (charTemplate?.visualProfile as any).clothingCanonical.outfit;
+      }
+
+      const refNote = c.hasImage ? ` (match Image ${c.refIndex})` : '';
+      return `- ${c.name}: ${outfitDesc}${refNote}`;
+    }).join('\n');
+
+    const wardrobeBlock = `WARDROBE DISTINCTION (IMPORTANT):
+${wardrobeItems}`;
+
+    // ===== 7. COMPOSITION =====
+    const compositionBlock = `COMPOSITION: medium-wide shot, eye-level, all ${totalChars} in the same scene, clearly separated and unobstructed (no one hidden behind another). Keep background detailed but empty of people.`;
+
+    // ===== 8. REPAIR RULE =====
+    const repairRule = `REPAIR RULE (STRICT): If any character would be missing, duplicated, swapped, or if any extra person appears, RECOMPOSE the scene so all ${totalChars} appear exactly once, with the roles and positions above.`;
+
+    // ===== ASSEMBLE FINAL PROMPT =====
     const finalPrompt = `${styleBlock}
 
-${refHeader}
-${fallbackDescriptions}
+${refBlock}
 
-${absoluteRules}
+${coreConstraints}
 
-SCENE: ${safeScene}
+${sceneBlock}
 
-${layoutSection}WARDROBE LOCK (ANTI-SWAP):
-${wardrobeLocks}
+${actionBlock}
 
-COMPOSITION: medium-wide shot, eye-level, clear spacing so no one overlaps or hides another. Background has scene props only, no extra people.
+${wardrobeBlock}
 
-REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or replaced, RECOMPOSE the scene until exactly these ${totalChars} characters appear once each.`;
+${compositionBlock}
+
+${repairRule}`;
 
     return this.clampPositivePrompt(finalPrompt);
   }
@@ -2202,36 +2242,35 @@ REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or repla
   }
 
   /**
-   * OPTIMIZATION v5.0: Enhanced negative prompt for professional children's book quality
-   * Addresses common issues: duplicates, wrong character count, quality issues
+   * OPTIMIZATION v6.0: Compact negative prompt for Runware runware:400@4 model
+   * Uses "NEGATIVE ONLY:" prefix format for better compatibility
+   * Focuses on the most critical issues: duplicates, extra people, composition errors
    */
   private buildNegativePrompt(
     characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }>
   ): string {
-    const charCount = characterMapping.length;
     const charNames = characterMapping.map(c => c.name.toLowerCase());
-    const missingWarnings = charNames.map(n => `missing ${n}`);
-    const duplicateWarnings = charNames.map(n => `duplicate ${n}`);
-    const nameWarnings = [...missingWarnings, ...duplicateWarnings].filter(Boolean).join(', ');
 
-    // Dynamic wrong-count warnings
-    const wrongCounts: string[] = [];
-    for (let i = charCount + 1; i <= charCount + 3; i++) {
-      wrongCounts.push(`${i} people`, `${i} characters`, `${i} children`);
-    }
-    if (charCount > 1) {
-      wrongCounts.push('1 person', '1 character', 'single character');
-    }
+    // Build character-specific warnings
+    const duplicateWarnings = charNames.map(n => `duplicate ${n}`).join(', ');
+    const twoOfWarnings = charNames.map(n => `two ${n}s`).join(', ');
 
-    return `NEGATIVE (CRITICAL - MUST AVOID):
-CHARACTER COUNT ERRORS: ${wrongCounts.join(', ')}, extra person, extra child, extra adult, background people, crowd, bystanders, spectators, villagers, townspeople,
-DUPLICATION ERRORS: duplicate, twin, clone, mirror image, reflection showing person, ${nameWarnings},
-IDENTITY ERRORS: swapped identity, wrong character, merged faces, mixed features, face swap,
-COMPOSITION ERRORS: collage, panels, grid, storyboard, split screen, border, frame, multiple images, comic strip,
-CROPPING ERRORS: cropped body, hidden face, cut off limbs, out of frame, partial body, missing feet,
-QUALITY ISSUES: blurry, low quality, pixelated, distorted, deformed, bad anatomy, wrong proportions, extra limbs, missing limbs,
-TEXT/BRANDING: text, words, letters, numbers, watermark, logo, signature, artist name,
-STYLE ISSUES: photorealistic, 3D render, anime, manga, cartoon network style, disney style, photograph.`;
+    // Compact negative prompt - most critical issues only
+    const negativeItems = [
+      // Character count errors
+      'extra person', 'extra child', 'extra adult',
+      'background people', 'crowd', 'silhouette', 'reflection',
+      'painting with face', 'poster with face',
+      // Duplication
+      'duplicate', 'twin', 'clone', duplicateWarnings, twoOfWarnings,
+      // Identity errors
+      'swapped identity', 'missing child',
+      // Composition errors
+      'collage', 'panels', 'split screen', 'border', 'frame',
+      'text', 'watermark', 'logo'
+    ].filter(Boolean);
+
+    return `NEGATIVE ONLY:\n${negativeItems.join(', ')}\n`;
   }
 
   /**
