@@ -1,5 +1,4 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { secret } from "encore.dev/config";
 import crypto from "crypto";
 
 type UploadMode = "off" | "data" | "always";
@@ -15,22 +14,28 @@ type BucketConfig = {
   uploadMode: UploadMode;
 };
 
-const bucketEndpointSecret = secret("BucketEndpoint");
-const bucketRegionSecret = secret("BucketRegion");
-const bucketNameSecret = secret("BucketName");
-const bucketAccessKeySecret = secret("BucketAccessKeyId");
-const bucketSecretKeySecret = secret("BucketSecretAccessKey");
-const bucketPublicBaseUrlSecret = secret("BucketPublicBaseUrl");
-const bucketForcePathStyleSecret = secret("BucketForcePathStyle");
-const bucketUploadModeSecret = secret("BucketUploadMode");
-
 let cachedConfig: BucketConfig | null | undefined;
 let cachedClient: S3Client | null | undefined;
 
-const safeSecret = (reader: () => string): string | undefined => {
+const safeSecret = async (name: string): Promise<string | undefined> => {
   try {
-    const value = reader();
+    const { secret } = await import("encore.dev/config");
+    const value = secret(name)();
     return value ? value.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const getEnv = async (name: string): Promise<string | undefined> => {
+  const secretValue = await safeSecret(name);
+  if (secretValue) return secretValue;
+  return process.env[name]?.trim();
+};
+
+const syncEnv = (name: string): string | undefined => {
+  try {
+    return process.env[name]?.trim();
   } catch {
     return undefined;
   }
@@ -58,13 +63,13 @@ const parseUploadMode = (value: string | undefined): UploadMode => {
   return "data";
 };
 
-const pickConfig = (): BucketConfig | null => {
+const pickConfig = async (): Promise<BucketConfig | null> => {
   if (cachedConfig !== undefined) return cachedConfig;
 
-  const endpoint = safeSecret(bucketEndpointSecret) || process.env.BUCKET_ENDPOINT;
-  const bucket = safeSecret(bucketNameSecret) || process.env.BUCKET_NAME;
-  const accessKeyId = safeSecret(bucketAccessKeySecret) || process.env.BUCKET_ACCESS_KEY_ID;
-  const secretAccessKey = safeSecret(bucketSecretKeySecret) || process.env.BUCKET_SECRET_ACCESS_KEY;
+  const endpoint = await getEnv("BucketEndpoint") || syncEnv("BUCKET_ENDPOINT");
+  const bucket = await getEnv("BucketName") || syncEnv("BUCKET_NAME");
+  const accessKeyId = await getEnv("BucketAccessKeyId") || syncEnv("BUCKET_ACCESS_KEY_ID");
+  const secretAccessKey = await getEnv("BucketSecretAccessKey") || syncEnv("BUCKET_SECRET_ACCESS_KEY");
 
   if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
     cachedConfig = null;
@@ -72,18 +77,18 @@ const pickConfig = (): BucketConfig | null => {
   }
 
   const region =
-    safeSecret(bucketRegionSecret) ||
-    process.env.BUCKET_REGION ||
+    (await getEnv("BucketRegion")) ||
+    syncEnv("BUCKET_REGION") ||
     "auto";
   const publicBaseUrl =
-    safeSecret(bucketPublicBaseUrlSecret) ||
-    process.env.BUCKET_PUBLIC_BASE_URL;
+    (await getEnv("BucketPublicBaseUrl")) ||
+    syncEnv("BUCKET_PUBLIC_BASE_URL");
   const forcePathStyle = parseBool(
-    safeSecret(bucketForcePathStyleSecret) || process.env.BUCKET_FORCE_PATH_STYLE,
+    (await getEnv("BucketForcePathStyle")) || syncEnv("BUCKET_FORCE_PATH_STYLE"),
     false
   );
   const uploadMode = parseUploadMode(
-    safeSecret(bucketUploadModeSecret) || process.env.BUCKET_UPLOAD_MODE
+    (await getEnv("BucketUploadMode")) || syncEnv("BUCKET_UPLOAD_MODE")
   );
 
   cachedConfig = {
@@ -157,7 +162,7 @@ export async function maybeUploadImageUrlToBucket(
 ): Promise<BucketUploadResult | null> {
   if (!imageUrl) return null;
 
-  const config = pickConfig();
+  const config = await pickConfig();
   if (!config || config.uploadMode === "off") {
     return null;
   }
