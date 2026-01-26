@@ -1304,7 +1304,7 @@ export class FourPhaseOrchestrator {
   private visualProfileToImagePromptWithInvariants(
     vp: any,
     avatarDescription?: string,
-    fallback?: { ageCategory?: string; gender?: string }
+    fallback?: { ageCategory?: string; gender?: string; archetype?: string; role?: string }
   ): string {
     if (!vp) return 'no visual details available';
 
@@ -1409,10 +1409,65 @@ export class FourPhaseOrchestrator {
     }
 
     const summaryParts = parts.filter(Boolean);
+
+    // OPTIMIZATION v5.0: Generate better fallback descriptions for support characters
+    // that only have their name as description (e.g. "The Woman the Miller")
     if (summaryParts.length < 3) {
-      const extra = this.cleanExtraVisualDescription(vp?.description || vp?.imagePrompt);
-      if (extra && !summaryParts.some(part => part.toLowerCase().includes(extra.toLowerCase()))) {
-        summaryParts.push(extra);
+      const rawDesc = String(vp?.description || vp?.imagePrompt || '').trim();
+
+      // Check if description is just a name (no real visual details)
+      const isJustName = rawDesc.length < 50 &&
+        !rawDesc.includes(',') &&
+        !rawDesc.includes('hair') &&
+        !rawDesc.includes('eyes') &&
+        !rawDesc.includes('wearing') &&
+        !rawDesc.includes('old');
+
+      if (isJustName) {
+        // Generate archetype-based visual description as fallback
+        const archetypeFallbacks: Record<string, string> = {
+          'helpful_elder': 'wise elderly person, grey hair, warm kind eyes, simple earth-toned clothing',
+          'guide': 'knowledgeable adult, thoughtful expression, practical clothing, carrying a staff or book',
+          'trickster': 'mischievous expression, quirky colorful clothing, playful stance',
+          'villain': 'stern expression, dark flowing robes, sharp features, imposing presence',
+          'helper': 'friendly adult, warm smile, practical working clothes, helpful demeanor',
+          'mentor': 'wise elder, grey streaked hair, calm expression, simple robes',
+          'obstacle': 'imposing figure, stern expression, dark or striking appearance',
+          'antagonist': 'cunning expression, dramatic dark clothing, intimidating presence',
+          'magical_creature': 'mystical appearance, glowing elements, fantastical features',
+          'animal': 'expressive animal eyes, soft fur, charming personality'
+        };
+
+        const archetype = String(fallback?.archetype || fallback?.role || 'helper').toLowerCase();
+        let archetypeFallback = '';
+
+        // Find matching archetype fallback
+        for (const [key, value] of Object.entries(archetypeFallbacks)) {
+          if (archetype.includes(key) || key.includes(archetype)) {
+            archetypeFallback = value;
+            break;
+          }
+        }
+
+        if (!archetypeFallback) {
+          // Default fallback based on gender
+          const gender = this.normalizeGenderLabel(vp.gender || fallback?.gender);
+          if (gender === 'female') {
+            archetypeFallback = 'friendly woman, warm expression, practical dress, kind demeanor';
+          } else if (gender === 'male') {
+            archetypeFallback = 'friendly man, warm expression, practical clothing, kind demeanor';
+          } else {
+            archetypeFallback = 'friendly adult, warm expression, practical clothing, kind demeanor';
+          }
+        }
+
+        summaryParts.push(archetypeFallback);
+        console.log(`[4-Phase] Generated fallback visual description for support character: ${rawDesc} -> ${archetypeFallback}`);
+      } else {
+        const extra = this.cleanExtraVisualDescription(rawDesc);
+        if (extra && !summaryParts.some(part => part.toLowerCase().includes(extra.toLowerCase()))) {
+          summaryParts.push(extra);
+        }
       }
     }
 
@@ -1571,7 +1626,7 @@ export class FourPhaseOrchestrator {
       const visualContext = this.visualProfileToImagePromptWithInvariants(
         char.visualProfile,
         undefined,
-        { ageCategory: char.age_category, gender: char.gender }
+        { ageCategory: char.age_category, gender: char.gender, archetype: char.archetype, role: char.role }
       );
       const ageFromProfile = this.extractNumericAgeFromProfile(char.visualProfile);
       const age = ageFromProfile ?? this.ageCategoryToNumber(char.age_category) ?? 30;
@@ -1729,8 +1784,9 @@ export class FourPhaseOrchestrator {
         : `The scene shows ${sanitizedDescription}`)
       : '';
 
+    // OPTIMIZATION v5.0: Professional children's book quality prompts
     const promptParts = [
-      "Children's storybook illustration, whimsical watercolor, warm light, highly detailed, print-ready.",
+      "Award-winning children's picture book illustration in the style of classic illustrators like Beatrix Potter and Quentin Blake. Masterful watercolor technique with soft washes, delicate brushwork, and visible hand-painted texture. Warm golden-hour lighting, rich but gentle color palette. Professional print quality, emotionally resonant character expressions.",
       shotType ? ensurePeriod(`It is a ${shotType.toLowerCase()} view`) : '',
       countSentence,
       sceneSentence ? ensurePeriod(sceneSentence) : '',
@@ -1739,9 +1795,9 @@ export class FourPhaseOrchestrator {
       ...characterSentences,
       sizeSentence ? ensurePeriod(sizeSentence) : '',
       orderedCharacters.length > 1
-        ? 'The characters are distinct, different, and contrasting in clothing colors and facial features.'
+        ? 'Each character has a unique and contrasting appearance - different hair colors, different clothing colors, different facial features. Characters are clearly distinguishable from each other at a glance.'
         : '',
-      'Keep faces, hair, and outfits consistent across all images. No text or watermarks.'
+      'CRITICAL: All character bodies must be fully visible from head to toe, including feet. No cropping, no hidden body parts. Keep faces, hair colors, and outfits perfectly consistent. Absolutely no text, words, or watermarks.'
     ].filter(Boolean);
 
     return {
@@ -2046,8 +2102,8 @@ CRITICAL: Each character appears exactly once and looks distinct.
       characterLayoutBlock = ['CHARACTERS IN THIS SCENE:', ...layoutLines].join('\n');
     }
 
-    // Build the style header
-    const styleBlock = `STYLE: high-quality children's storybook illustration, clean linework, soft watercolor shading, warm light, cozy cinematic mood, no text, no watermark.`;
+    // Build the style header - OPTIMIZATION v5.0: Professional children's book quality
+    const styleBlock = `STYLE: Award-winning children's picture book illustration, masterful watercolor technique with soft washes and delicate brushwork, reminiscent of classic illustrators like Beatrix Potter and Quentin Blake. Warm golden-hour lighting, rich but gentle color palette, hand-painted texture visible. Professional print quality, museum-worthy composition, emotionally resonant character expressions. Full scene with complete character bodies visible (head to toe). Absolutely no text, no watermarks, no UI elements.`;
 
     // Build reference image annotations
     const refAnnotations = charactersWithRefs.map(c => {
@@ -2086,7 +2142,7 @@ Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy refe
         if (avatar) {
           return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(avatar.visualProfile, avatar.description)}`;
         } else if (charTemplate) {
-          return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(charTemplate.visualProfile, undefined, { ageCategory: charTemplate.age_category, gender: charTemplate.gender })}`;
+          return `${c.name.toUpperCase()}: ${this.visualProfileToImagePromptWithInvariants(charTemplate.visualProfile, undefined, { ageCategory: charTemplate.age_category, gender: charTemplate.gender, archetype: charTemplate.archetype, role: charTemplate.role })}`;
         }
         return `${c.name.toUpperCase()}: distinct character`;
       }).join('\n');
@@ -2220,22 +2276,36 @@ REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or repla
   }
 
   /**
-   * OPTIMIZATION v4.0: Build negative prompt to prevent common issues
+   * OPTIMIZATION v5.0: Enhanced negative prompt for professional children's book quality
+   * Addresses common issues: duplicates, wrong character count, quality issues
    */
   private buildNegativePrompt(
     characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }>
   ): string {
+    const charCount = characterMapping.length;
     const charNames = characterMapping.map(c => c.name.toLowerCase());
     const missingWarnings = charNames.map(n => `missing ${n}`);
     const duplicateWarnings = charNames.map(n => `duplicate ${n}`);
     const nameWarnings = [...missingWarnings, ...duplicateWarnings].filter(Boolean).join(', ');
 
-    return `NEGATIVE (VERY STRONG):
-extra person, extra child, extra adult, background people, crowd, silhouette, reflection, portrait face, poster face,
-duplicate, twin, clone, swapped identity, wrong character,
-${nameWarnings},
-collage, panels, grid, storyboard, split screen, border, frame, multiple images,
-cropped body, hidden face, out of frame, text, watermark, logo.`;
+    // Dynamic wrong-count warnings
+    const wrongCounts: string[] = [];
+    for (let i = charCount + 1; i <= charCount + 3; i++) {
+      wrongCounts.push(`${i} people`, `${i} characters`, `${i} children`);
+    }
+    if (charCount > 1) {
+      wrongCounts.push('1 person', '1 character', 'single character');
+    }
+
+    return `NEGATIVE (CRITICAL - MUST AVOID):
+CHARACTER COUNT ERRORS: ${wrongCounts.join(', ')}, extra person, extra child, extra adult, background people, crowd, bystanders, spectators, villagers, townspeople,
+DUPLICATION ERRORS: duplicate, twin, clone, mirror image, reflection showing person, ${nameWarnings},
+IDENTITY ERRORS: swapped identity, wrong character, merged faces, mixed features, face swap,
+COMPOSITION ERRORS: collage, panels, grid, storyboard, split screen, border, frame, multiple images, comic strip,
+CROPPING ERRORS: cropped body, hidden face, cut off limbs, out of frame, partial body, missing feet,
+QUALITY ISSUES: blurry, low quality, pixelated, distorted, deformed, bad anatomy, wrong proportions, extra limbs, missing limbs,
+TEXT/BRANDING: text, words, letters, numbers, watermark, logo, signature, artist name,
+STYLE ISSUES: photorealistic, 3D render, anime, manga, cartoon network style, disney style, photograph.`;
   }
 
   /**

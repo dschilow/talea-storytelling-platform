@@ -642,7 +642,9 @@ export class Phase3StoryFinalizer {
       if (missing.length === 0) continue;
 
       const baseDescription = imageDescription.trim() || "Storybook scene.";
-      const appendSentence = `${formatNameList(missing)} are also visible in the scene.`;
+      // OPTIMIZATION v5.0: Use correct grammar (is/are) based on character count
+      const verb = missing.length === 1 ? "is" : "are";
+      const appendSentence = `${formatNameList(missing)} ${verb} also visible in the scene.`;
       chapter.imageDescription = `${baseDescription} ${appendSentence}`.replace(/\s+/g, " ").trim();
       fixes.push(`Chapter ${chapter.order}: imageDescription appended missing characters`);
     }

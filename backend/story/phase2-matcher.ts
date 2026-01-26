@@ -1227,38 +1227,121 @@ export class Phase2CharacterMatcher {
     const adjectives = (typeof req.emotionalNature === 'string' ? req.emotionalNature : (req.emotionalNature as any)?.dominant) || 'friendly';
     const archetype = req.archetype || 'helper';
 
-    let description = `${name} is a ${adjectives} ${species} (${gender}) who acts as a ${archetype}. `;
-    if (ftRole?.roleName) {
-      description += `Role inspiration: ${ftRole.roleName}. `;
-    }
+    // OPTIMIZATION v5.0: Generate DETAILED visual descriptions for better image consistency
+    // Hair colors by archetype
+    const hairColors: Record<string, string[]> = {
+      hero: ['golden blonde', 'warm brown', 'auburn'],
+      villain: ['dark black', 'silver grey', 'deep raven'],
+      trickster: ['fiery red', 'copper', 'bright orange'],
+      guide: ['grey streaked', 'silver white', 'salt and pepper'],
+      helper: ['chestnut brown', 'sandy blonde', 'soft brown'],
+      default: ['brown', 'dark brown', 'light brown']
+    };
 
-    if (ftRole?.professionPreference) {
-      description += `Profession: ${ftRole.professionPreference.join(', ')}. `;
-    }
+    // Eye colors by archetype
+    const eyeColors: Record<string, string[]> = {
+      hero: ['bright blue', 'emerald green', 'warm hazel'],
+      villain: ['piercing grey', 'cold blue', 'dark brown'],
+      trickster: ['mischievous amber', 'sparkling green', 'golden brown'],
+      guide: ['wise grey', 'warm brown', 'gentle blue'],
+      helper: ['kind brown', 'soft hazel', 'friendly green'],
+      default: ['brown', 'blue', 'green']
+    };
 
+    // Clothing by role and gender
+    const clothingStyles: Record<string, Record<string, string[]>> = {
+      guide: {
+        male: ['long grey robe with hood', 'worn brown cloak over tunic', 'simple monk robe with rope belt'],
+        female: ['flowing green dress with embroidery', 'grey shawl over simple dress', 'earth-toned layered robes']
+      },
+      villain: {
+        male: ['dark cape with high collar', 'black coat with silver buttons', 'shadowy hooded cloak'],
+        female: ['dramatic purple gown', 'dark velvet dress with thorns', 'flowing black cape']
+      },
+      helper: {
+        male: ['simple vest over white shirt', 'colorful peasant clothes', 'cheerful tunic with belt'],
+        female: ['simple apron dress', 'colorful dirndl-style outfit', 'practical linen dress']
+      },
+      trickster: {
+        male: ['patched colorful jacket', 'motley outfit with bells', 'mismatched but charming clothes'],
+        female: ['quirky patterned dress', 'bright mismatched layers', 'playful colorful outfit']
+      },
+      default: {
+        male: ['simple tunic and trousers', 'practical working clothes', 'comfortable village attire'],
+        female: ['simple dress with apron', 'practical peasant dress', 'comfortable village dress']
+      }
+    };
+
+    // Age-based descriptors
+    const ageDescriptors: Record<string, { face: string; body: string; ageNum: number }> = {
+      child: { face: 'round youthful face, rosy cheeks', body: 'small child proportions', ageNum: 8 },
+      teenager: { face: 'young fresh face, bright expression', body: 'lanky teenage proportions', ageNum: 14 },
+      young_adult: { face: 'smooth youthful face', body: 'fit adult proportions', ageNum: 25 },
+      adult: { face: 'mature friendly face', body: 'average adult proportions', ageNum: 35 },
+      elder: { face: 'wise weathered face with wrinkles', body: 'slightly hunched elder posture', ageNum: 65 }
+    };
+
+    // Determine age category
+    const ageCategory = ftRole?.ageRequirement && ftRole.ageRequirement !== 'any'
+      ? ftRole.ageRequirement
+      : (archetype === 'guide' ? 'elder' : 'adult');
+    const ageInfo = ageDescriptors[ageCategory] || ageDescriptors.adult;
+
+    // Pick random attributes
+    const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    const hairColor = pickRandom(hairColors[archetype] || hairColors.default);
+    const eyeColor = pickRandom(eyeColors[archetype] || eyeColors.default);
+    const genderKey = gender === 'female' ? 'female' : 'male';
+    const clothing = pickRandom((clothingStyles[archetype] || clothingStyles.default)[genderKey]);
+
+    // Build detailed description for image prompts
+    let description = '';
     if (species === 'human') {
-      description += gender === 'female' ? 'She wears a dress suited for her role.' : 'He wears clothes suited for his role.';
-    } else if (species === 'animal') {
-      description += 'Has soft fur and bright eyes.';
+      description = `${ageInfo.ageNum}-year-old ${gender}, ${hairColor} hair, ${eyeColor} eyes, ${ageInfo.face}, ${ageInfo.body}, wearing ${clothing}`;
+    } else if (species === 'animal' || species === 'magical_creature') {
+      const furColor = pickRandom(['soft brown', 'golden', 'silvery grey', 'tawny', 'dark']);
+      description = `${species}, ${furColor} fur, ${eyeColor} eyes, ${adjectives} expression, magical storybook creature`;
+    } else {
+      description = `${species}, ${adjectives} appearance, distinctive ${archetype} features`;
     }
 
-    // Determine color palette
-    const colors = ['brown', 'green', 'blue'];
+    // Add visualHints from requirements if available
+    if (req.visualHints && req.visualHints.trim().length > 3) {
+      description += `, ${req.visualHints}`;
+    }
+
+    // Determine color palette based on attributes
+    const colors = [hairColor.split(' ').pop() || 'brown', eyeColor.split(' ').pop() || 'brown', 'beige'];
     if (archetype === 'villain') colors[2] = 'black';
     if (archetype === 'hero') colors[2] = 'gold';
     if (species === 'magical_creature') colors[0] = 'purple';
 
-    const fairyTaleAccents = ftRole
-      ? `ornate fairy-tale costume, glowing particles, ${ftRole.roleType} symbolism`
-      : 'storybook outfit';
+    // Build image prompt optimized for Runware/Flux
+    const imagePrompt = `${description}, ${adjectives} expression, storybook watercolor illustration, child-friendly fairy tale style, detailed character portrait`;
 
     return {
       description,
-      imagePrompt: `Portrait of ${name}, a ${species} ${archetype}, ${adjectives} expression, ${fairyTaleAccents}, watercolor illustration, German fairy tale style. STRICTLY NO TEXT.`,
+      imagePrompt,
       species,
       colorPalette: colors,
       gender,
-      ageApprox: ftRole?.ageRequirement === 'child' ? 8 : 30
+      ageApprox: ageInfo.ageNum,
+      ageNumeric: ageInfo.ageNum,
+      hair: {
+        color: hairColor,
+        style: ageCategory === 'elder' ? 'slightly messy' : 'neat',
+        length: gender === 'female' ? 'long' : 'short'
+      },
+      eyes: {
+        color: eyeColor,
+        shape: 'expressive'
+      },
+      skin: {
+        tone: 'warm fair'
+      },
+      clothingCanonical: {
+        outfit: clothing
+      }
     };
   }
 
