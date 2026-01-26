@@ -1288,18 +1288,15 @@ export class FourPhaseOrchestrator {
       .map(value => (typeof value === "string" ? value.trim() : ""))
       .filter(Boolean);
 
+    // ONLY use HTTP URLs as reference images - base64 is too large and causes API issues
     for (const value of values) {
       if (this.isHttpUrl(value)) {
         return value;
       }
     }
 
-    for (const value of values) {
-      if (value.startsWith("data:image/")) {
-        return value;
-      }
-    }
-
+    // CRITICAL FIX v5.1: Do NOT use base64 URLs as references - they are too large
+    // Characters without HTTP URLs will use text-based descriptions instead
     return undefined;
   }
 
@@ -1683,38 +1680,19 @@ export class FourPhaseOrchestrator {
       return aIndex - bIndex;
     });
 
-    const extraPersonTerms = [
-      'king', 'queen', 'princess', 'prince',
-      'villager', 'villagers', 'townsfolk',
-      'bystander', 'bystanders', 'onlooker', 'onlookers',
-      'passerby', 'passersby', 'spectator', 'spectators',
-      'crowd', 'mother', 'father', 'grandmother', 'grandfather',
-      'guard', 'guards', 'soldier', 'soldiers',
-      'servant', 'servants', 'maid', 'maids',
-      'nurse', 'nurses', 'teacher', 'teachers', 'doctor', 'doctors'
-    ];
-    const extraPersonPattern = new RegExp(`\\b(?:${extraPersonTerms.join('|')})\\b`, 'i');
-    const extraPersonPhrasePattern = new RegExp(
-      `\\b(?:with|alongside|beside|near|around|and)\\s+(?:the|a|an)?\\s*(?:${extraPersonTerms.join('|')})(?:\\s+and\\s+(?:the|a|an)?\\s*(?:${extraPersonTerms.join('|')}))?[^,.;]*`,
-      'gi'
-    );
-
     // OPTIMIZATION v5.1: Keep MORE scene description to preserve action/narrative
-    const sanitizeSceneDescription = (text: string, nameKeys: string[]): string => {
+    const sanitizeSceneDescription = (text: string): string => {
       const raw = String(text || '').replace(/\s+/g, ' ').trim();
       if (!raw) return '';
-      // Only remove extra person terms, but keep ALL action sentences
-      let cleaned = raw;
-      // Only remove explicit crowd/bystander references, keep everything else
-      cleaned = cleaned.replace(/\b(crowd of people|bystanders watching|spectators watching|villagers watching)\b/gi, '');
-      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      // Only remove explicit crowd/bystander references, keep ALL action sentences
+      const cleaned = raw
+        .replace(/\b(crowd of people|bystanders watching|spectators watching|villagers watching)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
       return cleaned;
     };
 
-    const sanitizedDescription = sanitizeSceneDescription(
-      cleanedDescription,
-      orderedCharacters.map(c => c.nameKey)
-    );
+    const sanitizedDescription = sanitizeSceneDescription(cleanedDescription);
 
     const normalizeDescriptor = (desc: string) => {
       return String(desc || '')
@@ -2205,67 +2183,22 @@ REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or repla
     return this.clampPositivePrompt(finalPrompt);
   }
 
+  // OPTIMIZATION v5.1: KEEP ALL ACTION - only remove explicit crowd terms, never remove sentences
   private stripExtraCharactersFromScene(
     sceneDescription: string,
-    allowedNameKeys: Set<string>,
-    avatarDetails: AvatarDetail[],
-    characterAssignments: Map<string, CharacterTemplate>
+    _allowedNameKeys: Set<string>,
+    _avatarDetails: AvatarDetail[],
+    _characterAssignments: Map<string, CharacterTemplate>
   ): string {
     if (!sceneDescription) return sceneDescription;
 
-    const knownCharacters = [
-      ...avatarDetails.map(a => a.name),
-      ...Array.from(characterAssignments.values()).map(c => c.name),
-    ].filter(Boolean);
+    // CRITICAL v5.1: Only remove explicit crowd/bystander terms, KEEP ALL ACTION SENTENCES
+    const cleaned = sceneDescription
+      .replace(/\b(crowd|villagers|townsfolk|bystanders|onlookers|passersby|spectators)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    const disallowedCharacters = knownCharacters
-      .map(name => ({ name, key: this.normalizeNameKey(name) }))
-      .filter(entry => entry.key && !allowedNameKeys.has(entry.key));
-
-    if (disallowedCharacters.length === 0) return sceneDescription;
-
-    const allowedVariants = Array.from(allowedNameKeys).map(key => this.buildNameVariants(key));
-    const allowedVariantList = Array.from(new Set(allowedVariants.flat())).filter(Boolean);
-    const allowedVariantSet = new Set(allowedVariantList);
-    const disallowedVariants = disallowedCharacters.map(entry => this.buildNameVariants(entry.name, { includeGeneric: true }));
-    const disallowedVariantList = Array.from(new Set(disallowedVariants.flat()))
-      .filter(Boolean)
-      .filter(variant => !allowedVariantSet.has(variant));
-
-    const extraPersonPattern = /\b(crowd|villagers|townsfolk|bystanders|onlookers|passersby|spectators)\b/gi;
-
-    const sentences = sceneDescription
-      .split(/[.!?]+/)
-      .map(sentence => sentence.trim())
-      .filter(Boolean);
-
-    const cleanedSentences: string[] = [];
-
-    for (const sentence of sentences) {
-      const normalizedSentence = this.normalizeForNameMatch(sentence);
-      const hasAllowed = allowedVariants.some(vars => this.findNameIndexForVariants(normalizedSentence, vars) >= 0);
-      const hasDisallowed = disallowedVariants.some(vars => this.findNameIndexForVariants(normalizedSentence, vars) >= 0);
-
-      if (hasDisallowed && !hasAllowed) {
-        continue;
-      }
-
-      let cleanedSentence = sentence;
-      if (hasDisallowed) {
-        for (const variant of disallowedVariantList) {
-          if (!variant || variant.length < 3) continue;
-          const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          cleanedSentence = cleanedSentence.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "").trim();
-        }
-      }
-
-      cleanedSentence = cleanedSentence.replace(extraPersonPattern, "").replace(/\s+/g, " ").trim();
-      if (cleanedSentence) {
-        cleanedSentences.push(cleanedSentence);
-      }
-    }
-
-    return cleanedSentences.join(". ").trim();
+    return cleaned;
   }
 
   /**
