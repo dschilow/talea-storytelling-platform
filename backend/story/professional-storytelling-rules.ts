@@ -37,6 +37,9 @@ export const FORBIDDEN_OUTPUT_PATTERNS = [
   /^Setting:\s*/gm,
   /^Stimmung:\s*/gm,
   /^Handlung:\s*/gm,
+  /^\s*Die Phrase\b.*$/gmi,
+  /^\s*The phrase\b.*$/gmi,
+  /\([^)]*\bPhrase\b[^)]*\)/gi,
 
   // Meta-instruction labels (ENGLISH)
   /^Dialogues?:\s*/gm,

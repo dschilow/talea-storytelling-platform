@@ -97,13 +97,22 @@ export class StoryPostProcessor {
       return { ...chapter, content: cleaned };
     });
 
+    // Step 1.5: Normalize chapter lengths (clamp to age-group targets)
+    const lengthAdjusted = this.normalizeChapterLengths(cleanedChapters);
+    if (lengthAdjusted.wasModified) {
+      wasModified = true;
+      modifications.push(...lengthAdjusted.modifications);
+    }
+
+    const adjustedChapters = lengthAdjusted.chapters;
+
     // Step 2: Clean title if needed
     let cleanedTitle = story.title;
     if (this.isBadTitle(story.title)) {
       cleanedTitle = this.improveTitle(story.title);
       if (cleanedTitle !== story.title) {
         wasModified = true;
-        modifications.push(`Titel verbessert: "${story.title}" → "${cleanedTitle}"`);
+        modifications.push(`Titel verbessert: "${story.title}" -> "${cleanedTitle}"`);
       }
     }
 
@@ -111,7 +120,7 @@ export class StoryPostProcessor {
     const processedStory: ProcessedStory = {
       ...story,
       title: cleanedTitle,
-      chapters: cleanedChapters,
+      chapters: adjustedChapters,
     };
 
     const qualityScore = this.calculateQualityScore(processedStory);
@@ -143,6 +152,100 @@ export class StoryPostProcessor {
     cleaned = cleaned.replace(/^[\w\s,]+:\s*[\w\s,]+,\s*[\w\s,]+,\s*[\w\s,]+\.?\s*$/gm, '');
 
     return cleaned.trim();
+  }
+
+  private countWords(text: string): number {
+    return String(text || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .length;
+  }
+
+  private trimToWordLimit(content: string, maxWords: number): string {
+    const original = String(content || "").trim();
+    if (!original) return original;
+
+    const words = original.split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) return original;
+
+    let sentences = original.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [original];
+    while (sentences.length > 1 && this.countWords(sentences.join(" ")) > maxWords) {
+      sentences = sentences.slice(0, -1);
+    }
+
+    let trimmed = sentences.join(" ").replace(/\s+/g, " ").trim();
+    if (this.countWords(trimmed) > maxWords) {
+      trimmed = words.slice(0, maxWords).join(" ").trim() + "...";
+    }
+
+    return trimmed;
+  }
+
+  private padToMinimum(content: string, minWords: number, chapterIndex: number): string {
+    let padded = String(content || "").trim();
+    if (!padded) return padded;
+
+    const fillers = [
+      "Ein leiser Wind strich vorbei.",
+      "Die beiden blickten einander an.",
+      "Ihre Schritte wurden ruhiger.",
+      "Ein warmes Licht fiel auf den Weg.",
+      "Dann machten sie sich wieder auf den Weg.",
+      "Sie atmeten tief und gingen weiter.",
+      "Ein kurzer Blick genuegte, und sie verstanden sich.",
+    ];
+
+    let fillerIndex = chapterIndex % fillers.length;
+    let safety = 0;
+    while (this.countWords(padded) < minWords && safety < fillers.length * 3) {
+      if (!/[.!?]$/.test(padded)) {
+        padded += ".";
+      }
+      padded = `${padded} ${fillers[fillerIndex % fillers.length]}`.trim();
+      fillerIndex += 1;
+      safety += 1;
+    }
+
+    return padded.replace(/\s+/g, " ").trim();
+  }
+
+  private normalizeChapterLengths(chapters: StoryChapter[]): {
+    chapters: StoryChapter[];
+    wasModified: boolean;
+    modifications: string[];
+  } {
+    const wordTarget = getChapterWordTarget(this.ageGroup);
+    const modifications: string[] = [];
+    let wasModified = false;
+
+    const adjusted = chapters.map((chapter, idx) => {
+      let content = String(chapter.content || "").trim();
+      if (!content) return chapter;
+
+      let wordCount = this.countWords(content);
+      if (wordCount > wordTarget.max) {
+        content = this.trimToWordLimit(content, wordTarget.max);
+        wordCount = this.countWords(content);
+        wasModified = true;
+        modifications.push(`Kapitel ${idx + 1}: gekuerzt auf ${wordTarget.max} Woerter`);
+      }
+
+      if (wordCount < wordTarget.min) {
+        content = this.padToMinimum(content, wordTarget.min, idx);
+        wordCount = this.countWords(content);
+        wasModified = true;
+        modifications.push(`Kapitel ${idx + 1}: aufgefuellt auf ${wordTarget.min} Woerter`);
+      }
+
+      if (wordCount > wordTarget.max) {
+        content = this.trimToWordLimit(content, wordTarget.max);
+      }
+
+      return { ...chapter, content };
+    });
+
+    return { chapters: adjusted, wasModified, modifications };
   }
 
   /**

@@ -938,6 +938,63 @@ export class FourPhaseOrchestrator {
       .replace(/\s+/g, " ");
   }
 
+  private normalizeForNameMatch(value?: string): string {
+    return this.normalizeNameKey(value)
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private buildNameVariants(name: string, options?: { includeGeneric?: boolean }): string[] {
+    const normalized = this.normalizeForNameMatch(name);
+    if (!normalized) return [];
+
+    const includeGeneric = options?.includeGeneric ?? false;
+    const tokens = normalized.split(" ").filter(Boolean);
+    const articles = new Set([
+      "the", "der", "die", "das", "ein", "eine", "einer", "einem", "einen",
+      "la", "le", "el", "los", "las", "de", "del", "da", "di", "von", "van",
+      "zu", "zum", "zur", "of"
+    ]);
+    const genericTokens = new Set([
+      "man", "woman", "boy", "girl", "child", "kid", "adult", "elder",
+      "dwarf", "goat", "wizard", "witch", "king", "queen", "prince",
+      "princess", "villager", "farmer"
+    ]);
+
+    const variants = new Set<string>();
+    variants.add(normalized);
+
+    const withoutArticlesTokens = tokens.filter(token => !articles.has(token));
+    const withoutArticles = withoutArticlesTokens.join(" ").trim();
+    if (withoutArticles && withoutArticles !== normalized) {
+      variants.add(withoutArticles);
+    }
+
+    const firstToken = withoutArticlesTokens[0] || tokens[0];
+    if (firstToken && firstToken.length >= 4 && (!genericTokens.has(firstToken) || includeGeneric)) {
+      variants.add(firstToken);
+    }
+
+    const lastToken = withoutArticlesTokens[withoutArticlesTokens.length - 1] || tokens[tokens.length - 1];
+    if (lastToken && lastToken.length >= 4 && (!genericTokens.has(lastToken) || includeGeneric)) {
+      variants.add(lastToken);
+    }
+
+    return Array.from(variants);
+  }
+
+  private findNameIndexForVariants(haystack: string, variants: string[]): number {
+    let bestIndex = -1;
+    for (const variant of variants) {
+      const index = this.findNameIndex(haystack, variant);
+      if (index >= 0 && (bestIndex === -1 || index < bestIndex)) {
+        bestIndex = index;
+      }
+    }
+    return bestIndex;
+  }
+
   private formatDisplayName(name: string): string {
     const trimmed = String(name || "").trim();
     if (!trimmed) return trimmed;
@@ -994,7 +1051,33 @@ export class FourPhaseOrchestrator {
     characterAssignments: Map<string, CharacterTemplate>
   ): string {
     const replaced = this.replaceImagePlaceholders(description, characterAssignments);
-    return this.normalizeGermanUmlauts(replaced);
+    const normalized = this.normalizeGermanUmlauts(replaced);
+    return this.stripTextDirectives(normalized);
+  }
+
+  private stripTextDirectives(description: string): string {
+    let cleaned = String(description || "");
+
+    const textPatterns: Array<{ pattern: RegExp; replace: string }> = [
+      {
+        pattern: /\b(sign|banner|flag|book|note|scroll|paper|map)\s+(?:with\s+)?(?:the\s+)?(?:words?|text|writing|lettering|inscription)?\s*(?:reading|that reads|reads|saying)\s*["'][^"']+["']/gi,
+        replace: "$1"
+      },
+      {
+        pattern: /\b(reading|that reads|reads|saying)\s*["'][^"']+["']/gi,
+        replace: ""
+      },
+      {
+        pattern: /\b(text|words?|writing|lettering|inscription)\s*[:\-]?\s*["'][^"']+["']/gi,
+        replace: ""
+      }
+    ];
+
+    for (const { pattern, replace } of textPatterns) {
+      cleaned = cleaned.replace(pattern, replace);
+    }
+
+    return cleaned.replace(/\s+/g, " ").trim();
   }
 
   /**
@@ -1007,16 +1090,21 @@ export class FourPhaseOrchestrator {
     avatarDetails: AvatarDetail[],
     characterAssignments?: Map<string, CharacterTemplate>
   ): { urls: string[]; characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> } {
-    const normalizedDescription = this.normalizeNameKey(description);
+    const normalizedDescription = this.normalizeForNameMatch(description);
     if (!normalizedDescription) return { urls: [], characterMapping: [] };
 
     const urls: string[] = [];
     const characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> = [];
+    const includedNameKeys = new Set<string>();
+    const maxReferenceImages = 4;
 
     // 1. Check avatars first (they have priority)
     for (const avatar of avatarDetails) {
       const key = this.normalizeNameKey(avatar.name);
-      if (!key || this.findNameIndex(normalizedDescription, key) < 0) continue;
+      if (!key || includedNameKeys.has(key)) continue;
+      const variants = this.buildNameVariants(avatar.name);
+      if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
+      includedNameKeys.add(key);
 
       // Skip photo-upload avatars for reference images
       if (avatar.creationType === "photo-upload") {
@@ -1025,7 +1113,7 @@ export class FourPhaseOrchestrator {
       }
 
       const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
-      if (url && url.trim()) {
+      if (url && url.trim() && urls.length < maxReferenceImages) {
         characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
         urls.push(url.trim());
       } else {
@@ -1039,17 +1127,44 @@ export class FourPhaseOrchestrator {
 
       for (const char of characterAssignments.values()) {
         const key = this.normalizeNameKey(char.name);
-        if (!key || avatarNameSet.has(key)) continue; // Skip if already in avatars
-        if (this.findNameIndex(normalizedDescription, key) < 0) continue;
+        if (!key || avatarNameSet.has(key) || includedNameKeys.has(key)) continue; // Skip if already in avatars
+        const variants = this.buildNameVariants(char.name);
+        if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
+        includedNameKeys.add(key);
 
         const url = char.imageUrl || (char.visualProfile as any)?.imageUrl;
-        if (url && url.trim()) {
+        if (url && url.trim() && urls.length < maxReferenceImages) {
           characterMapping.push({ name: char.name, refIndex: urls.length + 1, hasImage: true });
           urls.push(url.trim());
         } else {
           characterMapping.push({ name: char.name, refIndex: -1, hasImage: false });
         }
       }
+    }
+
+    if (characterMapping.length === 0 && avatarDetails.length > 0) {
+      for (const avatar of avatarDetails) {
+        const key = this.normalizeNameKey(avatar.name);
+        if (!key || includedNameKeys.has(key)) continue;
+        includedNameKeys.add(key);
+
+        if (avatar.creationType === "photo-upload") {
+          characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
+          continue;
+        }
+
+        const url = avatar.imageUrl || avatar.visualProfile?.imageUrl;
+        if (url && url.trim() && urls.length < maxReferenceImages) {
+          characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
+          urls.push(url.trim());
+        } else {
+          characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
+        }
+      }
+    }
+
+    if (urls.length >= maxReferenceImages && characterMapping.some(c => !c.hasImage)) {
+      console.log(`[4-Phase] Reference image cap reached (${maxReferenceImages}); remaining characters will use text descriptions only.`);
     }
 
     return { urls, characterMapping };
@@ -1382,11 +1497,15 @@ export class FourPhaseOrchestrator {
       supportingIndex += 1;
     }
 
-    const descriptionKey = this.normalizeNameKey(cleanedDescription);
+    const descriptionKey = this.normalizeForNameMatch(cleanedDescription);
     const charactersInScene: CharacterInfo[] = [];
 
     for (const charInfo of allCharacters.values()) {
-      const index = this.findNameIndex(descriptionKey, charInfo.nameKey);
+      const variants = this.buildNameVariants(charInfo.name);
+      const index = this.findNameIndexForVariants(
+        descriptionKey,
+        variants.length > 0 ? variants : [charInfo.nameKey]
+      );
       if (index >= 0) {
         charInfo.appearanceIndex = index;
         charactersInScene.push(charInfo);
@@ -1434,8 +1553,12 @@ export class FourPhaseOrchestrator {
       const sentences = raw.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
       const cleanedSentences = sentences.map(sentence => {
         let cleaned = sentence.replace(extraPersonPhrasePattern, '').trim();
-        const sentenceKey = this.normalizeNameKey(cleaned);
-        const hasName = nameKeys.some(key => key && this.findNameIndex(sentenceKey, key) >= 0);
+        const sentenceKey = this.normalizeForNameMatch(cleaned);
+        const hasName = nameKeys.some(key => {
+          if (!key) return false;
+          const variants = this.buildNameVariants(key);
+          return this.findNameIndexForVariants(sentenceKey, variants) >= 0;
+        });
         const hasExtra = extraPersonPattern.test(cleaned);
         if (hasExtra && !hasName) return '';
         if (hasExtra) {
@@ -1720,8 +1843,7 @@ export class FourPhaseOrchestrator {
       const timeout = 90000; // 90 seconds per image
 
       const refs = (referenceImages || [])
-        .filter((url) => typeof url === 'string' && url.trim().length > 0)
-        .slice(0, 1);
+        .filter((url) => typeof url === 'string' && url.trim().length > 0);
 
       const imagePromise = ai.generateImage({
         prompt,
@@ -1909,8 +2031,17 @@ Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy refe
       .replace(/Keep faces, hair, and outfits consistent[^.]*\./gi, '')
       .replace(/The characters are distinct[^.]*\./gi, '')
       .replace(/A scene with exactly \d+ distinct character[s]?\./gi, '')
+      .replace(/The scene includes[^.]*\./gi, '')
       .replace(/\n{2,}/g, '\n')
       .trim();
+
+    const allowedNameKeys = new Set(characterMapping.map(c => this.normalizeNameKey(c.name)));
+    sceneDescription = this.stripExtraCharactersFromScene(
+      sceneDescription,
+      allowedNameKeys,
+      avatarDetails,
+      characterAssignments
+    );
 
     // Build wardrobe lock section for characters with references
     const wardrobeLocks = charactersWithRefs.map(c => {
@@ -1922,6 +2053,7 @@ Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy refe
     }).join('\n');
 
     // Assemble the final prompt
+    const safeScene = sceneDescription ? sceneDescription : "storybook scene with the listed characters";
     const finalPrompt = `${styleBlock}
 
 ${refHeader}
@@ -1929,7 +2061,7 @@ ${fallbackDescriptions}
 
 ${absoluteRules}
 
-SCENE: ${sceneDescription}
+SCENE: ${safeScene}
 
 WARDROBE LOCK (ANTI-SWAP):
 ${wardrobeLocks}
@@ -1939,6 +2071,69 @@ COMPOSITION: medium-wide shot, eye-level, clear spacing so no one overlaps or hi
 REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or replaced, RECOMPOSE the scene until exactly these ${totalChars} characters appear once each.`;
 
     return finalPrompt;
+  }
+
+  private stripExtraCharactersFromScene(
+    sceneDescription: string,
+    allowedNameKeys: Set<string>,
+    avatarDetails: AvatarDetail[],
+    characterAssignments: Map<string, CharacterTemplate>
+  ): string {
+    if (!sceneDescription) return sceneDescription;
+
+    const knownCharacters = [
+      ...avatarDetails.map(a => a.name),
+      ...Array.from(characterAssignments.values()).map(c => c.name),
+    ].filter(Boolean);
+
+    const disallowedCharacters = knownCharacters
+      .map(name => ({ name, key: this.normalizeNameKey(name) }))
+      .filter(entry => entry.key && !allowedNameKeys.has(entry.key));
+
+    if (disallowedCharacters.length === 0) return sceneDescription;
+
+    const allowedVariants = Array.from(allowedNameKeys).map(key => this.buildNameVariants(key));
+    const allowedVariantList = Array.from(new Set(allowedVariants.flat())).filter(Boolean);
+    const allowedVariantSet = new Set(allowedVariantList);
+    const disallowedVariants = disallowedCharacters.map(entry => this.buildNameVariants(entry.name, { includeGeneric: true }));
+    const disallowedVariantList = Array.from(new Set(disallowedVariants.flat()))
+      .filter(Boolean)
+      .filter(variant => !allowedVariantSet.has(variant));
+
+    const extraPersonPattern = /\b(crowd|villagers|townsfolk|bystanders|onlookers|passersby|spectators)\b/gi;
+
+    const sentences = sceneDescription
+      .split(/[.!?]+/)
+      .map(sentence => sentence.trim())
+      .filter(Boolean);
+
+    const cleanedSentences: string[] = [];
+
+    for (const sentence of sentences) {
+      const normalizedSentence = this.normalizeForNameMatch(sentence);
+      const hasAllowed = allowedVariants.some(vars => this.findNameIndexForVariants(normalizedSentence, vars) >= 0);
+      const hasDisallowed = disallowedVariants.some(vars => this.findNameIndexForVariants(normalizedSentence, vars) >= 0);
+
+      if (hasDisallowed && !hasAllowed) {
+        continue;
+      }
+
+      let cleanedSentence = sentence;
+      if (hasDisallowed) {
+        for (const variant of disallowedVariantList) {
+          if (!variant || variant.length < 3) continue;
+          const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          cleanedSentence = cleanedSentence.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "").trim();
+        }
+      }
+
+      cleanedSentence = cleanedSentence.replace(extraPersonPattern, "").replace(/\s+/g, " ").trim();
+      if (cleanedSentence) {
+        cleanedSentences.push(cleanedSentence);
+      }
+    }
+
+    return cleanedSentences.join(". ").trim();
   }
 
   /**

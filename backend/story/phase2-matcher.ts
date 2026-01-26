@@ -108,6 +108,42 @@ export class Phase2CharacterMatcher {
       );
     }
 
+    const artifactPlaceholders = new Set<string>();
+    if (skeleton.artifactRequirement?.placeholder) {
+      const normalizedArtifact = this.normalizePlaceholder(skeleton.artifactRequirement.placeholder);
+      if (normalizedArtifact) {
+        artifactPlaceholders.add(normalizedArtifact);
+      }
+    }
+
+    const isArtifactRequirement = (req: any): boolean => {
+      const placeholderRaw = typeof req?.placeholder === "string" ? req.placeholder : (req?.name ?? "");
+      const normalizedPlaceholder = this.normalizePlaceholder(placeholderRaw);
+      if (normalizedPlaceholder && artifactPlaceholders.has(normalizedPlaceholder)) {
+        return true;
+      }
+      if (normalizedPlaceholder && normalizedPlaceholder.includes("ARTIFACT")) {
+        return true;
+      }
+      const role = String(req?.role || "").toLowerCase();
+      const archetype = String(req?.archetype || "").toLowerCase();
+      return role.includes("magical_tool") ||
+        role.includes("artifact") ||
+        role.includes("object") ||
+        archetype.includes("guiding_object") ||
+        archetype.includes("artifact");
+    };
+
+    if (characterRequirements && characterRequirements.length > 0) {
+      const beforeCount = characterRequirements.length;
+      characterRequirements = characterRequirements.filter(req => !isArtifactRequirement(req));
+      const filteredCount = beforeCount - characterRequirements.length;
+      if (filteredCount > 0) {
+        console.log(`[Phase2] Removed ${filteredCount} artifact/object requirements from character matching`);
+      }
+    }
+    characterRequirements = characterRequirements || [];
+
     // Normalize placeholders/traits and enforce conflict presence
     characterRequirements = characterRequirements
       .map(req => this.normalizeRequirement(req))
@@ -117,7 +153,9 @@ export class Phase2CharacterMatcher {
     // CRITICAL FIX: When using fairy tale mode, skeleton.supportingCharacterRequirements is empty
     // so we MUST skip this validation to prevent all requirements from being filtered out
     const skeletonPlaceholders = new Set(
-      (skeleton.supportingCharacterRequirements || []).map(req => this.normalizePlaceholder(req.placeholder))
+      (skeleton.supportingCharacterRequirements || [])
+        .map(req => this.normalizePlaceholder(req.placeholder))
+        .filter(ph => ph && !artifactPlaceholders.has(ph) && !ph.includes("ARTIFACT"))
     );
     const requirementPlaceholders = new Set(characterRequirements.map(req => req.placeholder));
 
@@ -154,7 +192,9 @@ export class Phase2CharacterMatcher {
 
     // Guardrail: if requirements drifted (e.g. overwritten placeholders), warn/adjust
     // CRITICAL FIX: Skip in fairy tale mode
-    const expectedReqCount = skeleton.supportingCharacterRequirements?.length || 0;
+    const expectedReqCount = (skeleton.supportingCharacterRequirements || [])
+      .map(req => this.normalizePlaceholder(req.placeholder))
+      .filter(ph => ph && !artifactPlaceholders.has(ph) && !ph.includes("ARTIFACT")).length;
     if (!useFairyTaleTemplate && expectedReqCount > 0 && characterRequirements.length !== expectedReqCount) {
       console.warn(`[Phase2] Requirement count drift: expected ${expectedReqCount}, got ${characterRequirements.length}`);
     }
