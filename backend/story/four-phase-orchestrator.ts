@@ -845,7 +845,7 @@ export class FourPhaseOrchestrator {
           characterAssignments
         );
 
-        const promptForModel = this.clampPositivePrompt(enhancedPrompt);
+        const promptForModel = this.clampPositivePrompt(enhancedPrompt.prompt);
 
         // CRITICAL FIX v3.0: Use CONSISTENT seed with small offset for scene variation
         const imageSeed = (storyBaseSeed + chapterIndex * 3) >>> 0;
@@ -859,7 +859,8 @@ export class FourPhaseOrchestrator {
         const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
           preparedDescription,
           avatarDetails,
-          characterAssignments
+          characterAssignments,
+          enhancedPrompt.orderedCharacterNames
         );
         if (referenceUrls.length > 0) {
           console.log(`[4-Phase] Using ${referenceUrls.length} reference images for chapter ${chapter.order}:`,
@@ -1088,15 +1089,81 @@ export class FourPhaseOrchestrator {
   private selectReferenceImagesForScene(
     description: string,
     avatarDetails: AvatarDetail[],
-    characterAssignments?: Map<string, CharacterTemplate>
+    characterAssignments?: Map<string, CharacterTemplate>,
+    characterNames?: string[]
   ): { urls: string[]; characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> } {
     const normalizedDescription = this.normalizeForNameMatch(description);
-    if (!normalizedDescription) return { urls: [], characterMapping: [] };
+    if (!normalizedDescription && (!characterNames || characterNames.length === 0)) {
+      return { urls: [], characterMapping: [] };
+    }
 
     const urls: string[] = [];
     const characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> = [];
     const includedNameKeys = new Set<string>();
+    const includedUrls = new Set<string>();
     const maxReferenceImages = 4;
+
+    const avatarLookup = new Map<string, AvatarDetail>();
+    for (const avatar of avatarDetails) {
+      const key = this.normalizeNameKey(avatar.name);
+      if (key) avatarLookup.set(key, avatar);
+    }
+
+    const assignmentLookup = new Map<string, CharacterTemplate>();
+    if (characterAssignments) {
+      for (const char of characterAssignments.values()) {
+        const key = this.normalizeNameKey(char.name);
+        if (key) assignmentLookup.set(key, char);
+      }
+    }
+
+    const addMapping = (name: string, avatar?: AvatarDetail, charTemplate?: CharacterTemplate) => {
+      const key = this.normalizeNameKey(name);
+      if (!key || includedNameKeys.has(key)) return;
+      includedNameKeys.add(key);
+
+      const displayName = avatar?.name || charTemplate?.name || name;
+      if (avatar?.creationType === "photo-upload") {
+        characterMapping.push({ name: displayName, refIndex: -1, hasImage: false });
+        return;
+      }
+
+      const url = this.pickBestReferenceImageUrl(
+        avatar?.imageUrl,
+        avatar?.visualProfile?.imageUrl,
+        (avatar?.visualProfile as any)?.imageURL,
+        charTemplate?.imageUrl,
+        (charTemplate?.visualProfile as any)?.imageUrl,
+        (charTemplate?.visualProfile as any)?.imageURL
+      );
+
+      if (url && urls.length < maxReferenceImages && !includedUrls.has(url)) {
+        includedUrls.add(url);
+        characterMapping.push({ name: displayName, refIndex: urls.length + 1, hasImage: true });
+        urls.push(url);
+      } else {
+        characterMapping.push({ name: displayName, refIndex: -1, hasImage: false });
+      }
+    };
+
+    const addByName = (name: string) => {
+      const key = this.normalizeNameKey(name);
+      if (!key) return;
+      const avatar = avatarLookup.get(key);
+      const charTemplate = avatar ? undefined : assignmentLookup.get(key);
+      addMapping(name, avatar, charTemplate);
+    };
+
+    if (characterNames && characterNames.length > 0) {
+      for (const name of characterNames) {
+        addByName(name);
+      }
+
+      if (urls.length >= maxReferenceImages && characterMapping.some(c => !c.hasImage)) {
+        console.log(`[4-Phase] Reference image cap reached (${maxReferenceImages}); remaining characters will use text descriptions only.`);
+      }
+      return { urls, characterMapping };
+    }
 
     // 1. Check avatars first (they have priority)
     for (const avatar of avatarDetails) {
@@ -1104,25 +1171,7 @@ export class FourPhaseOrchestrator {
       if (!key || includedNameKeys.has(key)) continue;
       const variants = this.buildNameVariants(avatar.name);
       if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
-      includedNameKeys.add(key);
-
-      // Skip photo-upload avatars for reference images
-      if (avatar.creationType === "photo-upload") {
-        characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
-        continue;
-      }
-
-      const url = this.pickBestReferenceImageUrl(
-        avatar.imageUrl,
-        avatar.visualProfile?.imageUrl,
-        (avatar.visualProfile as any)?.imageURL
-      );
-      if (url && urls.length < maxReferenceImages) {
-        characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
-        urls.push(url);
-      } else {
-        characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
-      }
+      addMapping(avatar.name, avatar);
     }
 
     // 2. Check supporting characters from characterAssignments
@@ -1131,47 +1180,17 @@ export class FourPhaseOrchestrator {
 
       for (const char of characterAssignments.values()) {
         const key = this.normalizeNameKey(char.name);
-        if (!key || avatarNameSet.has(key) || includedNameKeys.has(key)) continue; // Skip if already in avatars
+        if (!key || avatarNameSet.has(key) || includedNameKeys.has(key)) continue;
         const variants = this.buildNameVariants(char.name);
         if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
-        includedNameKeys.add(key);
-
-        const url = this.pickBestReferenceImageUrl(
-          char.imageUrl,
-          (char.visualProfile as any)?.imageUrl,
-          (char.visualProfile as any)?.imageURL
-        );
-        if (url && urls.length < maxReferenceImages) {
-          characterMapping.push({ name: char.name, refIndex: urls.length + 1, hasImage: true });
-          urls.push(url);
-        } else {
-          characterMapping.push({ name: char.name, refIndex: -1, hasImage: false });
-        }
+        addMapping(char.name, undefined, char);
       }
     }
 
     if (characterMapping.length === 0 && avatarDetails.length > 0) {
       for (const avatar of avatarDetails) {
-        const key = this.normalizeNameKey(avatar.name);
-        if (!key || includedNameKeys.has(key)) continue;
-        includedNameKeys.add(key);
-
-        if (avatar.creationType === "photo-upload") {
-          characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
-          continue;
-        }
-
-        const url = this.pickBestReferenceImageUrl(
-          avatar.imageUrl,
-          avatar.visualProfile?.imageUrl,
-          (avatar.visualProfile as any)?.imageURL
-        );
-        if (url && urls.length < maxReferenceImages) {
-          characterMapping.push({ name: avatar.name, refIndex: urls.length + 1, hasImage: true });
-          urls.push(url);
-        } else {
-          characterMapping.push({ name: avatar.name, refIndex: -1, hasImage: false });
-        }
+        if (!avatar?.name) continue;
+        addMapping(avatar.name, avatar);
       }
     }
 
@@ -1404,12 +1423,13 @@ export class FourPhaseOrchestrator {
    * Build enhanced image prompt with character consistency
    * CRITICAL: Maintains age/size order to prevent mix-ups
    * v4.0: Flux-optimized natural language with explicit positioning
+   * Returns prompt plus ordered character names for reference alignment
    */
   private buildEnhancedImagePrompt(
     baseDescription: string,
     avatarDetails: AvatarDetail[],
     characterAssignments: Map<string, CharacterTemplate>
-  ): string {
+  ): { prompt: string; orderedCharacterNames: string[] } {
     const preparedDescription = this.prepareImageDescription(baseDescription, characterAssignments);
 
     // Translate common German object nouns to English for image models
@@ -1685,54 +1705,6 @@ export class FourPhaseOrchestrator {
       ? 'A scene with exactly one distinct character.'
       : `A scene with exactly ${totalCharacters} distinct characters.`;
 
-    const pluralizeLabel = (label: string, count: number) => {
-      if (count === 1) return label;
-      const irregular: Record<string, string> = {
-        child: 'children',
-        person: 'people',
-        man: 'men',
-        woman: 'women',
-        dwarf: 'dwarves',
-        mouse: 'mice',
-        goose: 'geese',
-      };
-      if (irregular[label]) return irregular[label];
-      if (label.endsWith('f')) return `${label.slice(0, -1)}ves`;
-      if (label.endsWith('y')) return `${label.slice(0, -1)}ies`;
-      return `${label}s`;
-    };
-
-    const joinWithAnd = (items: string[]) => {
-      if (items.length <= 1) return items.join('');
-      if (items.length === 2) return items.join(' and ');
-      return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
-    };
-
-    const typeCounts = new Map<string, number>();
-    for (const c of orderedCharacters) {
-      const speciesLower = String(c.species || '').toLowerCase();
-      let label = 'character';
-      if (speciesLower.includes('human')) {
-        label = c.age <= 18 ? 'child' : 'adult';
-      } else if (speciesLower.includes('dwarf') || c.name.toLowerCase().includes('dwarf')) {
-        label = 'dwarf';
-      } else if (speciesLower.includes('gnome')) {
-        label = 'gnome';
-      } else if (speciesLower) {
-        label = speciesLower;
-      }
-      label = label.replace(/_/g, ' ').trim();
-      typeCounts.set(label, (typeCounts.get(label) || 0) + 1);
-    }
-
-    const breakdownParts = Array.from(typeCounts.entries()).map(([label, count]) => {
-      const plural = pluralizeLabel(label, count);
-      return `${count} ${plural}`;
-    });
-    const breakdownSentence = breakdownParts.length > 0
-      ? `The scene includes ${joinWithAnd(breakdownParts)}.`
-      : '';
-
     const humanKids = orderedCharacters.filter(c => {
       const speciesLower = String(c.species || '').toLowerCase();
       return speciesLower.includes('human') && c.age <= 18;
@@ -1761,7 +1733,6 @@ export class FourPhaseOrchestrator {
       "Children's storybook illustration, whimsical watercolor, warm light, highly detailed, print-ready.",
       shotType ? ensurePeriod(`It is a ${shotType.toLowerCase()} view`) : '',
       countSentence,
-      breakdownSentence,
       sceneSentence ? ensurePeriod(sceneSentence) : '',
       '',
       'CHARACTERS IN THIS SCENE:',
@@ -1773,7 +1744,10 @@ export class FourPhaseOrchestrator {
       'Keep faces, hair, and outfits consistent across all images. No text or watermarks.'
     ].filter(Boolean);
 
-    return promptParts.join('\n');
+    return {
+      prompt: promptParts.join('\n'),
+      orderedCharacterNames: orderedCharacters.map(c => c.name),
+    };
   }
   /**
    * OPTIMIZATION v3.0: Smart prompt clamping that PRESERVES character identity blocks
@@ -1986,25 +1960,26 @@ CRITICAL: Each character appears exactly once and looks distinct.
       );
 
       // OPTIMIZATION v4.0: Get ALL reference images for cover characters
-      const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
-        preparedDescription,
-        avatarDetails,
-        characterAssignments
-      );
-      if (referenceUrls.length > 0) {
-        console.log(`[4-Phase] Using ${referenceUrls.length} reference images for cover:`,
-          characterMapping.filter(c => c.hasImage).map(c => c.name).join(', '));
-      }
-
       const enhancedPrompt = this.buildEnhancedImagePrompt(
         preparedDescription,
         avatarDetails,
         characterAssignments
       );
 
+      const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
+        preparedDescription,
+        avatarDetails,
+        characterAssignments,
+        enhancedPrompt.orderedCharacterNames
+      );
+      if (referenceUrls.length > 0) {
+        console.log(`[4-Phase] Using ${referenceUrls.length} reference images for cover:`,
+          characterMapping.filter(c => c.hasImage).map(c => c.name).join(', '));
+      }
+
       // Build prompt with reference image annotations
       const promptWithRefs = this.buildPromptWithReferenceImages(
-        this.clampPositivePrompt(enhancedPrompt),
+        this.clampPositivePrompt(enhancedPrompt.prompt),
         characterMapping,
         avatarDetails,
         characterAssignments
@@ -2040,6 +2015,35 @@ CRITICAL: Each character appears exactly once and looks distinct.
     // If no reference images, return the base prompt as-is
     if (charactersWithRefs.length === 0) {
       return basePrompt;
+    }
+
+    let characterLayoutBlock = '';
+    const characterBlockMatch = basePrompt.match(/CHARACTERS IN THIS SCENE:[\s\S]*/i);
+    if (characterBlockMatch) {
+      const filteredLines = characterBlockMatch[0]
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .filter(line => !/^The characters are distinct\b/i.test(line))
+        .filter(line => !/^Keep faces\b/i.test(line));
+      if (filteredLines.length > 1) {
+        characterLayoutBlock = filteredLines.join('\n');
+      }
+    }
+
+    if (!characterLayoutBlock && characterMapping.length > 0) {
+      const positionLabels = (() => {
+        if (characterMapping.length === 1) return ['IN THE CENTER'];
+        if (characterMapping.length === 2) return ['ON THE LEFT', 'ON THE RIGHT'];
+        if (characterMapping.length === 3) return ['ON THE LEFT', 'IN THE CENTER', 'ON THE RIGHT'];
+        if (characterMapping.length === 4) return ['LEFTMOST', 'LEFT-CENTER', 'RIGHT-CENTER', 'RIGHTMOST'];
+        return characterMapping.map((_, idx) => `POSITION ${idx + 1} (left to right)`);
+      })();
+      const layoutLines = characterMapping.map((c, idx) => {
+        const label = positionLabels[idx] || `POSITION ${idx + 1}`;
+        return `${label}: ${this.formatDisplayName(c.name)} is a distinct character.`;
+      });
+      characterLayoutBlock = ['CHARACTERS IN THIS SCENE:', ...layoutLines].join('\n');
     }
 
     // Build the style header
@@ -2093,11 +2097,14 @@ Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy refe
     // Build absolute rules
     const totalChars = characterMapping.length;
     const charNames = characterMapping.map(c => c.name).join(', ');
+    const noRefRule = charactersWithoutRefs.length > 0
+      ? "\n- Characters without reference images must look clearly different from referenced identities"
+      : "";
     const absoluteRules = `ABSOLUTE RULES (STRICT):
-- EXACTLY ${totalChars} character${totalChars > 1 ? 's' : ''} total: ${charNames} (each appears EXACTLY ONCE)
+- EXACTLY ${totalChars} character${totalChars > 1 ? 's' : ''} total: ${charNames} (each appears ONCE, no duplicates, no mirrors, no clones)
 - No extra people, no background characters, no silhouettes, no reflections, no paintings/posters with faces
 - NO identity swapping between characters
-- All ${totalChars} faces visible AND all ${totalChars} full bodies visible (head-to-toe, feet included), no cropping, nobody hidden`;
+- All ${totalChars} faces visible AND all ${totalChars} full bodies visible (head-to-toe, feet included), no cropping, nobody hidden${noRefRule}`;
 
     // Extract scene description from base prompt (remove character blocks if present)
     let sceneDescription = basePrompt
@@ -2129,6 +2136,7 @@ Use references ONLY for identity. Ignore reference backgrounds. Do NOT copy refe
 
     // Assemble the final prompt
     const safeScene = sceneDescription ? sceneDescription : "storybook scene with the listed characters";
+    const layoutSection = characterLayoutBlock ? `${characterLayoutBlock}\n\n` : '';
     const finalPrompt = `${styleBlock}
 
 ${refHeader}
@@ -2138,14 +2146,14 @@ ${absoluteRules}
 
 SCENE: ${safeScene}
 
-WARDROBE LOCK (ANTI-SWAP):
+${layoutSection}WARDROBE LOCK (ANTI-SWAP):
 ${wardrobeLocks}
 
 COMPOSITION: medium-wide shot, eye-level, clear spacing so no one overlaps or hides another. Background has scene props only, no extra people.
 
 REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or replaced, RECOMPOSE the scene until exactly these ${totalChars} characters appear once each.`;
 
-    return finalPrompt;
+    return this.clampPositivePrompt(finalPrompt);
   }
 
   private stripExtraCharactersFromScene(
@@ -2218,12 +2226,14 @@ REPAIR RULE (STRICT): If any character is missing, duplicated, swapped, or repla
     characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }>
   ): string {
     const charNames = characterMapping.map(c => c.name.toLowerCase());
-    const missingWarnings = charNames.map(n => `missing ${n}`).join(', ');
+    const missingWarnings = charNames.map(n => `missing ${n}`);
+    const duplicateWarnings = charNames.map(n => `duplicate ${n}`);
+    const nameWarnings = [...missingWarnings, ...duplicateWarnings].filter(Boolean).join(', ');
 
     return `NEGATIVE (VERY STRONG):
 extra person, extra child, extra adult, background people, crowd, silhouette, reflection, portrait face, poster face,
 duplicate, twin, clone, swapped identity, wrong character,
-${missingWarnings},
+${nameWarnings},
 collage, panels, grid, storyboard, split screen, border, frame, multiple images,
 cropped body, hidden face, out of frame, text, watermark, logo.`;
   }
