@@ -96,6 +96,12 @@
     },
     "BucketUploadMode": {
       "$env": "BUCKET_UPLOAD_MODE"
+    },
+    "BucketAccessMode": {
+      "$env": "BUCKET_ACCESS_MODE"
+    },
+    "BucketSignedUrlTtlSeconds": {
+      "$env": "BUCKET_SIGNED_URL_TTL"
     }
   }
 }

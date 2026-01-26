@@ -2,6 +2,7 @@ import { api } from "encore.dev/api";
 import type { Avatar, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 interface ListAvatarsResponse {
   avatars: Avatar[];
@@ -30,21 +31,21 @@ export const list = api<void, ListAvatarsResponse>(
       SELECT * FROM avatars WHERE user_id = ${auth.userID} ORDER BY created_at DESC
     `;
 
-    const avatars: Avatar[] = rows.map(row => ({
+    const avatars: Avatar[] = await Promise.all(rows.map(async row => ({
       id: row.id,
       userId: row.user_id,
       name: row.name,
       description: row.description || undefined,
       physicalTraits: JSON.parse(row.physical_traits),
       personalityTraits: JSON.parse(row.personality_traits),
-      imageUrl: row.image_url || undefined,
+      imageUrl: await resolveImageUrlForClient(row.image_url || undefined),
       visualProfile: row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined,
       creationType: row.creation_type,
       isPublic: row.is_public,
       originalAvatarId: row.original_avatar_id || undefined,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
-    }));
+    })));
 
     return { avatars };
   }

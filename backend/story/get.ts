@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import type { Story } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 interface GetStoryParams {
   id: string;
@@ -50,23 +51,26 @@ export const get = api<GetStoryParams, Story>(
       ORDER BY chapter_order
     `;
 
+    const coverImageUrl = await resolveImageUrlForClient(storyRow.cover_image_url || undefined);
+    const chapters = await Promise.all(chapterRows.map(async (ch) => ({
+      id: ch.id,
+      title: ch.title,
+      content: ch.content,
+      imageUrl: await resolveImageUrlForClient(ch.image_url || undefined),
+      order: ch.chapter_order,
+    })));
+
     return {
       id: storyRow.id,
       userId: storyRow.user_id,
       title: storyRow.title,
       summary: storyRow.description, // Frontend expects 'summary'
       description: storyRow.description,
-      coverImageUrl: storyRow.cover_image_url || undefined,
+      coverImageUrl,
       config: JSON.parse(storyRow.config),
       avatarDevelopments: storyRow.avatar_developments ? JSON.parse(storyRow.avatar_developments) : undefined,
       metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
-      chapters: chapterRows.map(ch => ({
-        id: ch.id,
-        title: ch.title,
-        content: ch.content,
-        imageUrl: ch.image_url || undefined,
-        order: ch.chapter_order,
-      })),
+      chapters,
       status: storyRow.status,
       isPublic: storyRow.is_public,
       createdAt: storyRow.created_at,

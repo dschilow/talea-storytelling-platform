@@ -30,6 +30,7 @@ import type { InventoryItem } from "../avatar/avatar";
 import { generateArtifactImage } from "./artifact-image-generator";
 import type { NewArtifact } from "./types";
 import { addArtifactToInventoryInternal } from "../gamification/item-system";
+import { resolveImageUrlForExternalUse } from "../helpers/bucket-storage";
 // NEW v2.0: Character Invariants for image consistency
 import { extractInvariantsFromDescription } from "./character-invariants";
 // OPTIMIZATION v3.0: Image Consistency System
@@ -856,7 +857,7 @@ export class FourPhaseOrchestrator {
         const stylePreset = "watercolor_storybook";
 
         // OPTIMIZATION v4.0: Get ALL reference images for characters in this scene
-        const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
+        const { urls: referenceUrls, characterMapping } = await this.selectReferenceImagesForScene(
           preparedDescription,
           avatarDetails,
           characterAssignments,
@@ -1086,12 +1087,12 @@ export class FourPhaseOrchestrator {
    * Returns an array of image URLs and a mapping of which character each image belongs to
    * This enables the new runware:400@4 model to use multiple reference images
    */
-  private selectReferenceImagesForScene(
+  private async selectReferenceImagesForScene(
     description: string,
     avatarDetails: AvatarDetail[],
     characterAssignments?: Map<string, CharacterTemplate>,
     characterNames?: string[]
-  ): { urls: string[]; characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> } {
+  ): Promise<{ urls: string[]; characterMapping: Array<{ name: string; refIndex: number; hasImage: boolean }> }> {
     const normalizedDescription = this.normalizeForNameMatch(description);
     if (!normalizedDescription && (!characterNames || characterNames.length === 0)) {
       return { urls: [], characterMapping: [] };
@@ -1117,7 +1118,7 @@ export class FourPhaseOrchestrator {
       }
     }
 
-    const addMapping = (name: string, avatar?: AvatarDetail, charTemplate?: CharacterTemplate) => {
+    const addMapping = async (name: string, avatar?: AvatarDetail, charTemplate?: CharacterTemplate) => {
       const key = this.normalizeNameKey(name);
       if (!key || includedNameKeys.has(key)) return;
       includedNameKeys.add(key);
@@ -1128,7 +1129,7 @@ export class FourPhaseOrchestrator {
         return;
       }
 
-      const url = this.pickBestReferenceImageUrl(
+      const candidate = this.pickBestReferenceImageUrl(
         avatar?.imageUrl,
         avatar?.visualProfile?.imageUrl,
         (avatar?.visualProfile as any)?.imageURL,
@@ -1136,27 +1137,28 @@ export class FourPhaseOrchestrator {
         (charTemplate?.visualProfile as any)?.imageUrl,
         (charTemplate?.visualProfile as any)?.imageURL
       );
+      const resolvedUrl = candidate ? await resolveImageUrlForExternalUse(candidate) : undefined;
 
-      if (url && urls.length < maxReferenceImages && !includedUrls.has(url)) {
-        includedUrls.add(url);
+      if (resolvedUrl && urls.length < maxReferenceImages && !includedUrls.has(resolvedUrl)) {
+        includedUrls.add(resolvedUrl);
         characterMapping.push({ name: displayName, refIndex: urls.length + 1, hasImage: true });
-        urls.push(url);
+        urls.push(resolvedUrl);
       } else {
         characterMapping.push({ name: displayName, refIndex: -1, hasImage: false });
       }
     };
 
-    const addByName = (name: string) => {
+    const addByName = async (name: string) => {
       const key = this.normalizeNameKey(name);
       if (!key) return;
       const avatar = avatarLookup.get(key);
       const charTemplate = avatar ? undefined : assignmentLookup.get(key);
-      addMapping(name, avatar, charTemplate);
+      await addMapping(name, avatar, charTemplate);
     };
 
     if (characterNames && characterNames.length > 0) {
       for (const name of characterNames) {
-        addByName(name);
+        await addByName(name);
       }
 
       if (urls.length >= maxReferenceImages && characterMapping.some(c => !c.hasImage)) {
@@ -1171,7 +1173,7 @@ export class FourPhaseOrchestrator {
       if (!key || includedNameKeys.has(key)) continue;
       const variants = this.buildNameVariants(avatar.name);
       if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
-      addMapping(avatar.name, avatar);
+      await addMapping(avatar.name, avatar);
     }
 
     // 2. Check supporting characters from characterAssignments
@@ -1183,14 +1185,14 @@ export class FourPhaseOrchestrator {
         if (!key || avatarNameSet.has(key) || includedNameKeys.has(key)) continue;
         const variants = this.buildNameVariants(char.name);
         if (this.findNameIndexForVariants(normalizedDescription, variants) < 0) continue;
-        addMapping(char.name, undefined, char);
+        await addMapping(char.name, undefined, char);
       }
     }
 
     if (characterMapping.length === 0 && avatarDetails.length > 0) {
       for (const avatar of avatarDetails) {
         if (!avatar?.name) continue;
-        addMapping(avatar.name, avatar);
+        await addMapping(avatar.name, avatar);
       }
     }
 
@@ -2013,7 +2015,7 @@ CRITICAL: Each character appears exactly once and looks distinct.
         characterAssignments
       );
 
-      const { urls: referenceUrls, characterMapping } = this.selectReferenceImagesForScene(
+      const { urls: referenceUrls, characterMapping } = await this.selectReferenceImagesForScene(
         preparedDescription,
         avatarDetails,
         characterAssignments,

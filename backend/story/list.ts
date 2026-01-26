@@ -3,6 +3,7 @@ import type { StorySummary } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 interface ListStoriesRequest {
   limit?: number;
@@ -76,7 +77,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           avatarMap.set(avatar.id, {
             id: avatar.id,
             name: avatar.name,
-            imageUrl: avatar.image_url
+            imageUrl: await resolveImageUrlForClient(avatar.image_url || undefined) || null
           });
         }
       }
@@ -114,13 +115,13 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           characterMap.set(character.id, {
             id: character.id,
             name: character.name,
-            imageUrl: character.image_url
+            imageUrl: await resolveImageUrlForClient(character.image_url || undefined) || null
           });
         }
       }
     }
 
-    const stories: StorySummary[] = storyRows.map((storyRow, idx) => {
+    const stories: StorySummary[] = await Promise.all(storyRows.map(async (storyRow, idx) => {
       const config = parsedConfigs[idx];
       const metadata = parsedMetadata[idx];
 
@@ -140,7 +141,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
         title: storyRow.title,
         summary: storyRow.description, // Frontend expects 'summary'
         description: storyRow.description,
-        coverImageUrl: storyRow.cover_image_url || undefined,
+        coverImageUrl: await resolveImageUrlForClient(storyRow.cover_image_url || undefined),
         config: { ...config, avatars, characters },
         metadata,
         status: storyRow.status,
@@ -148,7 +149,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
         createdAt: storyRow.created_at,
         updatedAt: storyRow.updated_at,
       };
-    });
+    }));
 
     const hasMore = offset + limit < total;
 

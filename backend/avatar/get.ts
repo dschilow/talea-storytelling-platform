@@ -3,6 +3,7 @@ import type { Avatar, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 interface GetAvatarParams {
   id: string;
@@ -102,6 +103,8 @@ export const get = api<GetAvatarParams, Avatar>(
 
       console.log(`[avatar.get] Successfully loaded avatar ${id}`);
 
+      const imageUrl = await resolveImageUrlForClient(row.image_url || undefined);
+
       return {
         id: row.id,
         userId: row.user_id,
@@ -109,7 +112,7 @@ export const get = api<GetAvatarParams, Avatar>(
         description: row.description || undefined,
         physicalTraits: parsedPhysicalTraits,
         personalityTraits: upgradedPersonalityTraits,
-        imageUrl: row.image_url || undefined,
+        imageUrl,
         visualProfile: parsedVisualProfile,
         creationType: row.creation_type,
         isPublic: row.is_public,

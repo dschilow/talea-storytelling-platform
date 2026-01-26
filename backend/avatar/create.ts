@@ -8,7 +8,7 @@ import {
   validateAndNormalizePhysicalTraits,
   detectNonEnglishFields
 } from "./validateAndNormalize";
-import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
+import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 export const create = api(
   {
@@ -57,6 +57,8 @@ export const create = api(
     });
     const finalImageUrl = uploadedImage?.url ?? req.imageUrl;
 
+    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+
     const avatar: Avatar = {
       id: avatarId,
       userId: userId,
@@ -64,7 +66,7 @@ export const create = api(
       description: req.description,
       physicalTraits: normalizedPhysicalTraits || req.physicalTraits, // Use normalized (English) traits
       personalityTraits: defaultPersonalityTraits, // Standardwerte mit allen 0
-      imageUrl: finalImageUrl,
+      imageUrl: resolvedImageUrl,
       visualProfile: normalizedVisualProfile, // Use normalized (English) profile
       creationType: req.creationType,
       isPublic: false,

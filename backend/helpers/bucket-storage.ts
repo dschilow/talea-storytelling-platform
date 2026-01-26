@@ -1,7 +1,9 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
 type UploadMode = "off" | "data" | "always";
+type AccessMode = "public" | "private";
 
 type BucketConfig = {
   endpoint: string;
@@ -12,6 +14,8 @@ type BucketConfig = {
   publicBaseUrl?: string;
   forcePathStyle: boolean;
   uploadMode: UploadMode;
+  accessMode: AccessMode;
+  signedUrlTtlSeconds: number;
 };
 
 let cachedConfig: BucketConfig | null | undefined;
@@ -63,6 +67,20 @@ const parseUploadMode = (value: string | undefined): UploadMode => {
   return "data";
 };
 
+const parseAccessMode = (value: string | undefined, publicBaseUrl?: string): AccessMode => {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "private") return "private";
+  if (normalized === "public") return "public";
+  return publicBaseUrl ? "public" : "private";
+};
+
+const parseSignedUrlTtl = (value: string | undefined, defaultValue = 3600): number => {
+  if (!value) return defaultValue;
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return defaultValue;
+  return parsed;
+};
+
 const pickConfig = async (): Promise<BucketConfig | null> => {
   if (cachedConfig !== undefined) return cachedConfig;
 
@@ -90,6 +108,13 @@ const pickConfig = async (): Promise<BucketConfig | null> => {
   const uploadMode = parseUploadMode(
     (await getEnv("BucketUploadMode")) || syncEnv("BUCKET_UPLOAD_MODE")
   );
+  const accessMode = parseAccessMode(
+    (await getEnv("BucketAccessMode")) || syncEnv("BUCKET_ACCESS_MODE"),
+    publicBaseUrl
+  );
+  const signedUrlTtlSeconds = parseSignedUrlTtl(
+    (await getEnv("BucketSignedUrlTtlSeconds")) || syncEnv("BUCKET_SIGNED_URL_TTL")
+  );
 
   cachedConfig = {
     endpoint: normalizeEndpoint(endpoint),
@@ -100,6 +125,8 @@ const pickConfig = async (): Promise<BucketConfig | null> => {
     publicBaseUrl: publicBaseUrl?.trim(),
     forcePathStyle,
     uploadMode,
+    accessMode,
+    signedUrlTtlSeconds,
   };
   return cachedConfig;
 };
@@ -137,6 +164,60 @@ const buildPublicUrl = (config: BucketConfig, key: string): string => {
     return `${endpointUrl.origin}/${config.bucket}/${key}`;
   }
   return `${endpointUrl.protocol}//${config.bucket}.${endpointUrl.host}/${key}`;
+};
+
+const buildStoredUrl = (config: BucketConfig, key: string): string => {
+  if (config.accessMode === "public") {
+    return buildPublicUrl(config, key);
+  }
+  return `bucket://${config.bucket}/${key}`;
+};
+
+const extractBucketKey = (value: string, config: BucketConfig): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed.startsWith("bucket://") || trimmed.startsWith("s3://")) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.hostname && parsed.hostname !== config.bucket) {
+        return null;
+      }
+      const key = parsed.pathname.replace(/^\/+/, "");
+      return key || null;
+    } catch {
+      return null;
+    }
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.hostname.startsWith(`${config.bucket}.`)) {
+        const key = parsed.pathname.replace(/^\/+/, "");
+        return key || null;
+      }
+      const pathParts = parsed.pathname.split("/").filter(Boolean);
+      if (pathParts.length >= 2 && pathParts[0] === config.bucket) {
+        return pathParts.slice(1).join("/");
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+const signObjectUrl = async (
+  config: BucketConfig,
+  key: string,
+  ttlSeconds?: number
+): Promise<string> => {
+  const client = getClient(config);
+  const command = new GetObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+  });
+  const expiresIn = ttlSeconds ?? config.signedUrlTtlSeconds;
+  return await getSignedUrl(client, command, { expiresIn });
 };
 
 const parseDataUrl = (dataUrl: string): { contentType: string; buffer: Buffer } | null => {
@@ -239,7 +320,7 @@ const uploadBuffer = async (
       Body: buffer,
       ContentType: contentType,
     }));
-    const url = buildPublicUrl(config, key);
+    const url = buildStoredUrl(config, key);
     console.log(`[Bucket] Uploaded image to ${key}`);
     return { url, key };
   } catch (error) {
@@ -247,3 +328,33 @@ const uploadBuffer = async (
     return null;
   }
 };
+
+export async function resolveImageUrlForClient(
+  imageUrl: string | undefined,
+  ttlSeconds?: number
+): Promise<string | undefined> {
+  if (!imageUrl) return undefined;
+  const config = await pickConfig();
+  if (!config) return imageUrl;
+
+  const key = extractBucketKey(imageUrl, config);
+  if (!key) return imageUrl;
+
+  if (config.accessMode === "public") {
+    return buildPublicUrl(config, key);
+  }
+
+  try {
+    return await signObjectUrl(config, key, ttlSeconds);
+  } catch (error) {
+    console.warn("[Bucket] Failed to sign URL:", error);
+    return imageUrl;
+  }
+}
+
+export async function resolveImageUrlForExternalUse(
+  imageUrl: string | undefined,
+  ttlSeconds?: number
+): Promise<string | undefined> {
+  return await resolveImageUrlForClient(imageUrl, ttlSeconds);
+}

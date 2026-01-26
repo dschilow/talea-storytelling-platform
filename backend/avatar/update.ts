@@ -7,7 +7,7 @@ import {
   validateAndNormalizePhysicalTraits,
   detectNonEnglishFields
 } from "./validateAndNormalize";
-import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
+import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -116,6 +116,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
     `;
 
     const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${id}`;
+    const resolvedImageUrl = await resolveImageUrlForClient(updated?.image_url || undefined);
 
     return {
       id: updated.id,
@@ -124,7 +125,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       description: updated.description || undefined,
       physicalTraits: JSON.parse(updated.physical_traits),
       personalityTraits: JSON.parse(updated.personality_traits),
-      imageUrl: updated.image_url || undefined,
+      imageUrl: resolvedImageUrl,
       visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
       creationType: updated.creation_type,
       isPublic: updated.is_public,

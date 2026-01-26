@@ -11,6 +11,7 @@ import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import {
   createStructuredMemory,
   filterPersonalityChangesWithCooldown,
@@ -793,22 +794,25 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     ORDER BY chapter_order
   `;
 
+  const coverImageUrl = await resolveImageUrlForClient(storyRow.cover_image_url || undefined);
+  const chapters = await Promise.all(chapterRows.map(async (ch) => ({
+    id: ch.id,
+    title: ch.title,
+    content: ch.content,
+    imageUrl: await resolveImageUrlForClient(ch.image_url || undefined),
+    order: ch.chapter_order,
+  })));
+
   return {
     id: storyRow.id,
     userId: storyRow.user_id,
     title: storyRow.title,
     description: storyRow.description,
-    coverImageUrl: storyRow.cover_image_url || undefined,
+    coverImageUrl,
     config: JSON.parse(storyRow.config),
     avatarDevelopments: storyRow.avatar_developments ? JSON.parse(storyRow.avatar_developments) : undefined,
     metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
-    chapters: chapterRows.map(ch => ({
-      id: ch.id,
-      title: ch.title,
-      content: ch.content,
-      imageUrl: ch.image_url || undefined,
-      order: ch.chapter_order,
-    })),
+    chapters,
     status: storyRow.status,
     tokensInput: storyRow.tokens_input || undefined,
     tokensOutput: storyRow.tokens_output || undefined,
