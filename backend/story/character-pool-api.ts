@@ -6,6 +6,11 @@ import { storyDB } from "./db";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
 import { runwareGenerateImage } from "../ai/image-generation";
+import {
+  maybeUploadImageUrlToBucket,
+  normalizeImageUrlForStorage,
+  resolveImageUrlForClient,
+} from "../helpers/bucket-storage";
 
 let imageColumnEnsured = false;
 
@@ -70,6 +75,14 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
   }));
 }
 
+async function resolveCharacterForClient(character: CharacterTemplate): Promise<CharacterTemplate> {
+  const resolvedImageUrl = await resolveImageUrlForClient(character.imageUrl);
+  return {
+    ...character,
+    imageUrl: resolvedImageUrl ?? character.imageUrl,
+  };
+}
+
 // ===== GET ALL CHARACTERS =====
 export const listCharacters = api(
   { expose: true, method: "GET", path: "/story/character-pool", auth: true },
@@ -77,10 +90,11 @@ export const listCharacters = api(
     console.log("[CharacterPool] Listing all active characters");
 
     const characters = await fetchAllCharacters();
+    const resolvedCharacters = await Promise.all(characters.map(resolveCharacterForClient));
 
     console.log(`[CharacterPool] Found ${characters.length} characters (active and inactive)`);
 
-    return { characters };
+    return { characters: resolvedCharacters };
   }
 );
 
@@ -119,7 +133,7 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       throw new Error(`Character ${req.id} not found`);
     }
 
-    return {
+    const character: CharacterTemplate = {
       id: row.id,
       name: row.name,
       role: row.role,
@@ -137,6 +151,8 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       updatedAt: row.updated_at,
       isActive: row.is_active,
     };
+
+    return await resolveCharacterForClient(character);
   }
 );
 
@@ -155,6 +171,18 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
 
     await ensureImageUrlColumn();
 
+    const normalizedImageUrl = req.character.imageUrl
+      ? await normalizeImageUrlForStorage(req.character.imageUrl)
+      : undefined;
+    const uploadedImage = normalizedImageUrl
+      ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+          prefix: "images/characters",
+          filenameHint: `character-${id}`,
+          uploadMode: "data",
+        })
+      : null;
+    const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
+
     await storyDB.exec`
       INSERT INTO character_pool (
         id, name, role, archetype, emotional_nature, visual_profile, image_url,
@@ -168,7 +196,7 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
         ${req.character.archetype},
         ${JSON.stringify(req.character.emotionalNature)},
         ${JSON.stringify(req.character.visualProfile)},
-        ${req.character.imageUrl || null},
+        ${finalImageUrl || null},
         ${req.character.maxScreenTime},
         ${req.character.availableChapters},
         ${req.character.canonSettings || []},
@@ -182,9 +210,12 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
 
     console.log("[CharacterPool] Character added:", id);
 
+    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+
     return {
       id,
       ...req.character,
+      imageUrl: resolvedImageUrl ?? finalImageUrl,
       recentUsageCount: 0,
       totalUsageCount: 0,
       createdAt: now,
@@ -225,7 +256,19 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
       await storyDB.exec`UPDATE character_pool SET visual_profile = ${JSON.stringify(req.updates.visualProfile)}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.imageUrl !== undefined) {
-      await storyDB.exec`UPDATE character_pool SET image_url = ${req.updates.imageUrl}, updated_at = ${now} WHERE id = ${req.id}`;
+      const normalizedImageUrl = req.updates.imageUrl
+        ? await normalizeImageUrlForStorage(req.updates.imageUrl)
+        : null;
+      const uploadedImage = normalizedImageUrl
+        ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+            prefix: "images/characters",
+            filenameHint: `character-${req.id}`,
+            uploadMode: "data",
+          })
+        : null;
+      const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
+
+      await storyDB.exec`UPDATE character_pool SET image_url = ${finalImageUrl}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.maxScreenTime !== undefined) {
       await storyDB.exec`UPDATE character_pool SET max_screen_time = ${req.updates.maxScreenTime}, updated_at = ${now} WHERE id = ${req.id}`;
@@ -284,9 +327,11 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
       promptLength: prompt.length,
     });
 
+    const resolvedImageUrl = await resolveImageUrlForClient(result.imageUrl);
+
     return {
       characterId: req.id,
-      imageUrl: result.imageUrl,
+      imageUrl: resolvedImageUrl ?? result.imageUrl,
       prompt,
       debugInfo: result.debugInfo as unknown as Record<string, unknown>,
     };

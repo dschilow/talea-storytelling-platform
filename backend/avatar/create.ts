@@ -8,7 +8,11 @@ import {
   validateAndNormalizePhysicalTraits,
   detectNonEnglishFields
 } from "./validateAndNormalize";
-import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
+import {
+  maybeUploadImageUrlToBucket,
+  normalizeImageUrlForStorage,
+  resolveImageUrlForClient,
+} from "../helpers/bucket-storage";
 
 export const create = api(
   {
@@ -50,12 +54,17 @@ export const create = api(
       }
     }
 
-    const uploadedImage = await maybeUploadImageUrlToBucket(req.imageUrl, {
-      prefix: "images/avatars",
-      filenameHint: `avatar-${avatarId}`,
-      uploadMode: "data",
-    });
-    const finalImageUrl = uploadedImage?.url ?? req.imageUrl;
+    const normalizedImageUrl = req.imageUrl
+      ? await normalizeImageUrlForStorage(req.imageUrl)
+      : undefined;
+    const uploadedImage = normalizedImageUrl
+      ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+          prefix: "images/avatars",
+          filenameHint: `avatar-${avatarId}`,
+          uploadMode: "data",
+        })
+      : null;
+    const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
 
     const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
 

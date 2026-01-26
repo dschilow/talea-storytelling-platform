@@ -5,6 +5,7 @@ import { ai, avatar } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { normalizeLanguage } from "../story/avatar-image-optimization";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -268,6 +269,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         console.warn("Applying doku personality/memory updates failed:", applyErr);
       }
 
+      const resolvedCoverImageUrl = await resolveImageUrlForClient(coverImageUrl);
+
       return {
         id,
         userId: req.userId,
@@ -275,7 +278,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         topic: req.config.topic,
         summary: parsed.summary,
         content: { sections: parsed.sections },
-        coverImageUrl,
+        coverImageUrl: resolvedCoverImageUrl ?? coverImageUrl,
         isPublic: false,
         status: "complete",
         metadata,

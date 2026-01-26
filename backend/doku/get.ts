@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { Doku, DokuSection } from "./generate";
 import { getAuthData } from "~encore/auth";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -55,6 +56,7 @@ export const getDoku = api<GetDokuParams, Doku>(
     const parsed = normalizeContent(row.content);
     const summary = typeof parsed.summary === "string" ? parsed.summary : undefined;
     const metadata = row.metadata ? safeParse(row.metadata) : undefined;
+    const coverImageUrl = await resolveImageUrlForClient(row.cover_image_url || undefined);
 
     return {
       id: row.id,
@@ -63,7 +65,7 @@ export const getDoku = api<GetDokuParams, Doku>(
       topic: row.topic,
       summary: summary ?? "",
       content: { sections: Array.isArray(parsed.sections) ? parsed.sections : [] },
-      coverImageUrl: row.cover_image_url || undefined,
+      coverImageUrl,
       isPublic: row.is_public,
       status: row.status,
       metadata,

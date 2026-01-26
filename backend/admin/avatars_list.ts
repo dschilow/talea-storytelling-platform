@@ -2,6 +2,7 @@ import { api, Query } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { ensureAdmin } from "./authz";
 import type { Avatar } from "../avatar/avatar";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -38,21 +39,21 @@ export const listAvatarsAdmin = api<ListAvatarsParams, ListAvatarsResponse>(
       LIMIT ${limit + 1}
     `;
 
-    const avatars: Avatar[] = rows.slice(0, limit).map((row: any) => ({
+    const avatars: Avatar[] = await Promise.all(rows.slice(0, limit).map(async (row: any) => ({
       id: row.id,
       userId: row.user_id,
       name: row.name,
       description: row.description || undefined,
       physicalTraits: JSON.parse(row.physical_traits),
       personalityTraits: JSON.parse(row.personality_traits),
-      imageUrl: row.image_url || undefined,
+      imageUrl: await resolveImageUrlForClient(row.image_url || undefined),
       visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
       creationType: row.creation_type,
       isPublic: row.is_public,
       originalAvatarId: row.original_avatar_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-    }));
+    })));
 
     const nextCursor = rows.length > limit ? rows[limit].id : null;
 

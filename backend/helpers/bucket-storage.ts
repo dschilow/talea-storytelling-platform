@@ -352,6 +352,26 @@ export async function resolveImageUrlForClient(
   }
 }
 
+export async function normalizeImageUrlForStorage(
+  imageUrl: string | undefined
+): Promise<string | undefined> {
+  if (!imageUrl) return undefined;
+  const config = await pickConfig();
+  if (!config) return imageUrl;
+
+  const key = extractBucketKey(imageUrl, config);
+  if (!key) return imageUrl;
+
+  return buildStoredUrl(config, key);
+}
+
+export async function isBucketImageUrl(imageUrl: string | undefined): Promise<boolean> {
+  if (!imageUrl) return false;
+  const config = await pickConfig();
+  if (!config) return false;
+  return extractBucketKey(imageUrl, config) !== null;
+}
+
 export async function resolveImageUrlForExternalUse(
   imageUrl: string | undefined,
   ttlSeconds?: number

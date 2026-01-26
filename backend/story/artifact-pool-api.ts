@@ -5,6 +5,11 @@ import { api, APIError } from "encore.dev/api";
 import { storyDB } from "./db";
 import type { ArtifactCategory, ArtifactRarity, ArtifactTemplate } from "./types";
 import { runwareGenerateImage } from "../ai/image-generation";
+import {
+  maybeUploadImageUrlToBucket,
+  normalizeImageUrlForStorage,
+  resolveImageUrlForClient,
+} from "../helpers/bucket-storage";
 
 let imageColumnEnsured = false;
 
@@ -63,6 +68,14 @@ function rowToArtifactTemplate(row: any): ArtifactTemplate {
   };
 }
 
+async function resolveArtifactForClient(artifact: ArtifactTemplate): Promise<ArtifactTemplate> {
+  const resolvedImageUrl = await resolveImageUrlForClient(artifact.imageUrl);
+  return {
+    ...artifact,
+    imageUrl: resolvedImageUrl ?? artifact.imageUrl,
+  };
+}
+
 async function fetchAllArtifacts(): Promise<ArtifactTemplate[]> {
   await ensureImageUrlColumn();
 
@@ -107,8 +120,9 @@ export const listArtifacts = api(
   async (): Promise<{ artifacts: ArtifactTemplate[] }> => {
     console.log("[ArtifactPool] Listing all artifacts");
     const artifacts = await fetchAllArtifacts();
+    const resolvedArtifacts = await Promise.all(artifacts.map(resolveArtifactForClient));
     console.log(`[ArtifactPool] Found ${artifacts.length} artifacts`);
-    return { artifacts };
+    return { artifacts: resolvedArtifacts };
   }
 );
 
@@ -159,7 +173,7 @@ export const getArtifact = api<GetArtifactRequest, ArtifactTemplate>(
       throw APIError.notFound("Artifact not found");
     }
 
-    return rowToArtifactTemplate(row);
+    return await resolveArtifactForClient(rowToArtifactTemplate(row));
   }
 );
 
@@ -177,6 +191,18 @@ export const addArtifact = api<AddArtifactRequest, ArtifactTemplate>(
     console.log("[ArtifactPool] Adding new artifact:", req.artifact.name?.de || req.artifact.name?.en);
 
     await ensureImageUrlColumn();
+
+    const normalizedImageUrl = req.artifact.imageUrl
+      ? await normalizeImageUrlForStorage(req.artifact.imageUrl)
+      : undefined;
+    const uploadedImage = normalizedImageUrl
+      ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+          prefix: "images/artifacts",
+          filenameHint: `artifact-${id}`,
+          uploadMode: "data",
+        })
+      : null;
+    const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
 
     await storyDB.exec`
       INSERT INTO artifact_pool (
@@ -201,7 +227,7 @@ export const addArtifact = api<AddArtifactRequest, ArtifactTemplate>(
         ${req.artifact.usageScenarios},
         ${req.artifact.emoji || null},
         ${req.artifact.visualKeywords},
-        ${req.artifact.imageUrl || null},
+        ${finalImageUrl || null},
         ${req.artifact.genreAffinity.adventure},
         ${req.artifact.genreAffinity.fantasy},
         ${req.artifact.genreAffinity.mystery},
@@ -221,9 +247,12 @@ export const addArtifact = api<AddArtifactRequest, ArtifactTemplate>(
 
     console.log("[ArtifactPool] Artifact added:", id);
 
+    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+
     return {
       id,
       ...req.artifact,
+      imageUrl: resolvedImageUrl ?? finalImageUrl,
       recentUsageCount: 0,
       totalUsageCount: 0,
       lastUsedAt: undefined,
@@ -292,7 +321,19 @@ export const updateArtifact = api<UpdateArtifactRequest, ArtifactTemplate>(
       `;
     }
     if (req.updates.imageUrl !== undefined) {
-      await storyDB.exec`UPDATE artifact_pool SET image_url = ${req.updates.imageUrl}, updated_at = ${now} WHERE id = ${req.id}`;
+      const normalizedImageUrl = req.updates.imageUrl
+        ? await normalizeImageUrlForStorage(req.updates.imageUrl)
+        : null;
+      const uploadedImage = normalizedImageUrl
+        ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+            prefix: "images/artifacts",
+            filenameHint: `artifact-${req.id}`,
+            uploadMode: "data",
+          })
+        : null;
+      const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
+
+      await storyDB.exec`UPDATE artifact_pool SET image_url = ${finalImageUrl}, updated_at = ${now} WHERE id = ${req.id}`;
     }
     if (req.updates.genreAffinity) {
       await storyDB.exec`
@@ -356,9 +397,11 @@ export const generateArtifactImage = api<GenerateArtifactImageRequest, GenerateA
       promptLength: prompt.length,
     });
 
+    const resolvedImageUrl = await resolveImageUrlForClient(result.imageUrl);
+
     return {
       artifactId: req.id,
-      imageUrl: result.imageUrl,
+      imageUrl: resolvedImageUrl ?? result.imageUrl,
       prompt,
       debugInfo: result.debugInfo as unknown as Record<string, unknown>,
     };

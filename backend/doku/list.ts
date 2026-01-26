@@ -2,6 +2,7 @@ import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { DokuSection, Doku } from "./generate";
 import { getAuthData } from "~encore/auth";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -66,24 +67,25 @@ export const listDokus = api<ListDokusRequest, ListDokusResponse>(
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const dokus = rows.map((r) => {
+    const dokus = await Promise.all(rows.map(async (r) => {
       const parsed = normalizeContent(r.content);
       const summary = extractSummaryFromContent(parsed);
       const metadata = r.metadata ? safeParse(r.metadata) : undefined;
+      const coverImageUrl = await resolveImageUrlForClient(r.cover_image_url || undefined);
       return {
         id: r.id,
         userId: r.user_id,
         title: r.title || parsed.title || r.topic,
         topic: r.topic,
         summary,
-        coverImageUrl: r.cover_image_url || undefined,
+        coverImageUrl,
         isPublic: r.is_public,
         status: r.status,
         metadata,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       };
-    });
+    }));
 
     const hasMore = offset + limit < total;
 

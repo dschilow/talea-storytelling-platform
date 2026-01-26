@@ -2,6 +2,11 @@ import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { PhysicalTraits, PersonalityTraits, AvatarVisualProfile, Avatar } from "../avatar/avatar";
 import { ensureAdmin } from "./authz";
+import {
+  maybeUploadImageUrlToBucket,
+  normalizeImageUrlForStorage,
+  resolveImageUrlForClient,
+} from "../helpers/bucket-storage";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -33,6 +38,21 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
     const physicalTraits = req.physicalTraits ? JSON.stringify(req.physicalTraits) : existing.physical_traits;
     const personalityTraits = req.personalityTraits ? JSON.stringify(req.personalityTraits ?? req.personalityTraits) : existing.personality_traits;
     const visualProfile = req.visualProfile ? JSON.stringify(req.visualProfile) : existing.visual_profile;
+    const normalizedImageUrl = req.imageUrl !== undefined
+      ? (req.imageUrl
+          ? await normalizeImageUrlForStorage(req.imageUrl)
+          : null)
+      : undefined;
+    const uploadedImage = normalizedImageUrl
+      ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+          prefix: "images/avatars",
+          filenameHint: `avatar-${req.id}`,
+          uploadMode: "data",
+        })
+      : null;
+    const finalImageUrl = req.imageUrl === undefined
+      ? undefined
+      : (uploadedImage?.url ?? normalizedImageUrl);
 
     await avatarDB.exec`
       UPDATE avatars SET
@@ -40,7 +60,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
         description = ${req.description ?? existing.description},
         physical_traits = ${physicalTraits},
         personality_traits = ${personalityTraits},
-        image_url = ${req.imageUrl ?? existing.image_url},
+        image_url = ${finalImageUrl ?? existing.image_url},
         visual_profile = ${visualProfile ?? null},
         is_public = ${typeof req.isPublic === "boolean" ? req.isPublic : existing.is_public},
         original_avatar_id = ${req.originalAvatarId === undefined ? existing.original_avatar_id : req.originalAvatarId},
@@ -49,6 +69,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
     `;
 
     const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${req.id}`;
+    const resolvedImageUrl = await resolveImageUrlForClient(updated.image_url || undefined);
     return {
       id: updated.id,
       userId: updated.user_id,
@@ -56,7 +77,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
       description: updated.description || undefined,
       physicalTraits: JSON.parse(updated.physical_traits),
       personalityTraits: JSON.parse(updated.personality_traits),
-      imageUrl: updated.image_url || undefined,
+      imageUrl: resolvedImageUrl,
       visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
       creationType: updated.creation_type,
       isPublic: updated.is_public,

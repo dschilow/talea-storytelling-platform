@@ -7,7 +7,11 @@ import {
   validateAndNormalizePhysicalTraits,
   detectNonEnglishFields
 } from "./validateAndNormalize";
-import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
+import {
+  maybeUploadImageUrlToBucket,
+  normalizeImageUrlForStorage,
+  resolveImageUrlForClient,
+} from "../helpers/bucket-storage";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -91,14 +95,21 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       }
     }
 
-    const uploadedImage = updates.imageUrl
-      ? await maybeUploadImageUrlToBucket(updates.imageUrl, {
+    const normalizedImageUrl = updates.imageUrl !== undefined
+      ? (updates.imageUrl
+          ? await normalizeImageUrlForStorage(updates.imageUrl)
+          : null)
+      : undefined;
+    const uploadedImage = normalizedImageUrl
+      ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
           prefix: "images/avatars",
           filenameHint: `avatar-${id}`,
           uploadMode: "data",
         })
       : null;
-    const finalImageUrl = uploadedImage?.url ?? updates.imageUrl;
+    const finalImageUrl = updates.imageUrl === undefined
+      ? undefined
+      : (uploadedImage?.url ?? normalizedImageUrl);
 
     const now = new Date();
 
