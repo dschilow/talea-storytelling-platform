@@ -1697,26 +1697,16 @@ export class FourPhaseOrchestrator {
       'gi'
     );
 
+    // OPTIMIZATION v5.1: Keep MORE scene description to preserve action/narrative
     const sanitizeSceneDescription = (text: string, nameKeys: string[]): string => {
       const raw = String(text || '').replace(/\s+/g, ' ').trim();
       if (!raw) return '';
-      const sentences = raw.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-      const cleanedSentences = sentences.map(sentence => {
-        let cleaned = sentence.replace(extraPersonPhrasePattern, '').trim();
-        const sentenceKey = this.normalizeForNameMatch(cleaned);
-        const hasName = nameKeys.some(key => {
-          if (!key) return false;
-          const variants = this.buildNameVariants(key);
-          return this.findNameIndexForVariants(sentenceKey, variants) >= 0;
-        });
-        const hasExtra = extraPersonPattern.test(cleaned);
-        if (hasExtra && !hasName) return '';
-        if (hasExtra) {
-          cleaned = cleaned.replace(extraPersonPattern, '').replace(/\s+/g, ' ').trim();
-        }
-        return cleaned;
-      }).filter(Boolean);
-      return cleanedSentences.join('. ');
+      // Only remove extra person terms, but keep ALL action sentences
+      let cleaned = raw;
+      // Only remove explicit crowd/bystander references, keep everything else
+      cleaned = cleaned.replace(/\b(crowd of people|bystanders watching|spectators watching|villagers watching)\b/gi, '');
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      return cleaned;
     };
 
     const sanitizedDescription = sanitizeSceneDescription(
@@ -1784,20 +1774,21 @@ export class FourPhaseOrchestrator {
         : `The scene shows ${sanitizedDescription}`)
       : '';
 
-    // OPTIMIZATION v5.0: Professional children's book quality prompts
+    // OPTIMIZATION v5.1: Short style, PRIORITIZE scene action
     const promptParts = [
-      "Award-winning children's picture book illustration in the style of classic illustrators like Beatrix Potter and Quentin Blake. Masterful watercolor technique with soft washes, delicate brushwork, and visible hand-painted texture. Warm golden-hour lighting, rich but gentle color palette. Professional print quality, emotionally resonant character expressions.",
-      shotType ? ensurePeriod(`It is a ${shotType.toLowerCase()} view`) : '',
+      "Children's picture book illustration, watercolor style, warm lighting.",
+      shotType ? ensurePeriod(`${shotType.toLowerCase()} view`) : '',
       countSentence,
+      // CRITICAL: Scene description comes FIRST after basic style to ensure action is included
       sceneSentence ? ensurePeriod(sceneSentence) : '',
       '',
       'CHARACTERS IN THIS SCENE:',
       ...characterSentences,
       sizeSentence ? ensurePeriod(sizeSentence) : '',
       orderedCharacters.length > 1
-        ? 'Each character has a unique and contrasting appearance - different hair colors, different clothing colors, different facial features. Characters are clearly distinguishable from each other at a glance.'
+        ? 'Characters are clearly distinguishable from each other.'
         : '',
-      'CRITICAL: All character bodies must be fully visible from head to toe, including feet. No cropping, no hidden body parts. Keep faces, hair colors, and outfits perfectly consistent. Absolutely no text, words, or watermarks.'
+      'All character bodies visible head to toe. No text or watermarks.'
     ].filter(Boolean);
 
     return {
@@ -2102,8 +2093,8 @@ CRITICAL: Each character appears exactly once and looks distinct.
       characterLayoutBlock = ['CHARACTERS IN THIS SCENE:', ...layoutLines].join('\n');
     }
 
-    // Build the style header - OPTIMIZATION v5.0: Professional children's book quality
-    const styleBlock = `STYLE: Award-winning children's picture book illustration, masterful watercolor technique with soft washes and delicate brushwork, reminiscent of classic illustrators like Beatrix Potter and Quentin Blake. Warm golden-hour lighting, rich but gentle color palette, hand-painted texture visible. Professional print quality, museum-worthy composition, emotionally resonant character expressions. Full scene with complete character bodies visible (head to toe). Absolutely no text, no watermarks, no UI elements.`;
+    // Build the style header - OPTIMIZATION v5.1: Keep it SHORT to preserve scene action
+    const styleBlock = `STYLE: Children's picture book illustration, watercolor with soft washes, warm lighting. Full bodies visible head to toe.`;
 
     // Build reference image annotations
     const refAnnotations = charactersWithRefs.map(c => {

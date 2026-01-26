@@ -2,6 +2,7 @@ import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -210,6 +211,14 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
       };
     }
 
+    const uploaded = await maybeUploadImageUrlToBucket(imageUrl, {
+      prefix: "images/runware",
+      filenameHint: `runware-${requestBody.seed}`,
+    });
+    if (uploaded) {
+      imageUrl = uploaded.url;
+    }
+
     debugInfo.success = true;
     console.log("[Runware] Image generated:", {
       contentType,
@@ -333,7 +342,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     else if (data && Array.isArray(data.results)) perTask = data.results;
     else perTask = req.images.map(() => data);
 
-    const outputs: BatchImageOutput[] = req.images.map((img, idx) => {
+    const outputs: BatchImageOutput[] = await Promise.all(req.images.map(async (img, idx) => {
       const item = perTask[idx] ?? perTask[0] ?? data;
       const extracted = extractRunwareImage(item);
       if (!extracted) {
@@ -382,6 +391,14 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
         };
       }
       
+      const uploaded = await maybeUploadImageUrlToBucket(imageUrl, {
+        prefix: "images/runware",
+        filenameHint: `runware-${tasks[idx]?.seed ?? img.seed ?? idx}`,
+      });
+      if (uploaded) {
+        imageUrl = uploaded.url;
+      }
+
       console.log(`[Runware] Batch image ${idx} generated successfully`);
       
       return {
@@ -399,7 +416,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
           referencesCount: img.referenceImages?.length ?? 0,
         },
       };
-    });
+    }));
 
     console.log(`[Runware] Batch summary: ${outputs.filter(o => o.debugInfo.success).length}/${outputs.length} successful`);
 

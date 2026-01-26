@@ -8,6 +8,7 @@ import {
   validateAndNormalizePhysicalTraits,
   detectNonEnglishFields
 } from "./validateAndNormalize";
+import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
 
 export const create = api(
   {
@@ -49,6 +50,13 @@ export const create = api(
       }
     }
 
+    const uploadedImage = await maybeUploadImageUrlToBucket(req.imageUrl, {
+      prefix: "images/avatars",
+      filenameHint: `avatar-${avatarId}`,
+      uploadMode: "data",
+    });
+    const finalImageUrl = uploadedImage?.url ?? req.imageUrl;
+
     const avatar: Avatar = {
       id: avatarId,
       userId: userId,
@@ -56,7 +64,7 @@ export const create = api(
       description: req.description,
       physicalTraits: normalizedPhysicalTraits || req.physicalTraits, // Use normalized (English) traits
       personalityTraits: defaultPersonalityTraits, // Standardwerte mit allen 0
-      imageUrl: req.imageUrl,
+      imageUrl: finalImageUrl,
       visualProfile: normalizedVisualProfile, // Use normalized (English) profile
       creationType: req.creationType,
       isPublic: false,
@@ -78,7 +86,7 @@ export const create = api(
     console.log(`- description: ${req.description || null}`);
     console.log(`- physical_traits: ${physicalTraitsJson}`);
     console.log(`- personality_traits: ${personalityTraitsJson}`);
-    console.log(`- image_url: ${req.imageUrl || null}`);
+    console.log(`- image_url: ${finalImageUrl || null}`);
     console.log(`- visual_profile: ${visualProfileJson}`);
     console.log(`- creation_type: ${req.creationType}`);
 
@@ -99,7 +107,7 @@ export const create = api(
           ${req.description || null},
           ${physicalTraitsJson},
           ${personalityTraitsJson},
-          ${req.imageUrl || null},
+          ${finalImageUrl || null},
           ${visualProfileJson},
           ${req.creationType},
           false,

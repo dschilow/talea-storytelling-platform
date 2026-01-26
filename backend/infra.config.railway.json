@@ -72,6 +72,30 @@
     },
     "MCPServerAPIKey": {
       "$env": "MCP_SERVER_API_KEY"
+    },
+    "BucketEndpoint": {
+      "$env": "BUCKET_ENDPOINT"
+    },
+    "BucketRegion": {
+      "$env": "BUCKET_REGION"
+    },
+    "BucketName": {
+      "$env": "BUCKET_NAME"
+    },
+    "BucketAccessKeyId": {
+      "$env": "BUCKET_ACCESS_KEY_ID"
+    },
+    "BucketSecretAccessKey": {
+      "$env": "BUCKET_SECRET_ACCESS_KEY"
+    },
+    "BucketPublicBaseUrl": {
+      "$env": "BUCKET_PUBLIC_BASE_URL"
+    },
+    "BucketForcePathStyle": {
+      "$env": "BUCKET_FORCE_PATH_STYLE"
+    },
+    "BucketUploadMode": {
+      "$env": "BUCKET_UPLOAD_MODE"
     }
   }
 }
