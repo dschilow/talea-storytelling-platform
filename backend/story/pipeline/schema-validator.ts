@@ -6,10 +6,37 @@ import Ajv2020 from "ajv/dist/2020.js";
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 
 function loadSchema(fileName: string): any {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const filePath = path.join(currentDir, "schemas", fileName);
-  const raw = fs.readFileSync(filePath, "utf-8");
-  return JSON.parse(raw);
+  const roots = [
+    path.dirname(fileURLToPath(import.meta.url)),
+    process.cwd(),
+  ];
+  const relativeCandidates = [
+    path.join("schemas", fileName),
+    path.join("story", "pipeline", "schemas", fileName),
+    path.join("backend", "story", "pipeline", "schemas", fileName),
+  ];
+
+  const tried: string[] = [];
+  for (const root of roots) {
+    let current = root;
+    for (let depth = 0; depth < 6; depth += 1) {
+      for (const rel of relativeCandidates) {
+        const candidate = path.join(current, rel);
+        tried.push(candidate);
+        if (fs.existsSync(candidate)) {
+          const raw = fs.readFileSync(candidate, "utf-8");
+          return JSON.parse(raw);
+        }
+      }
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  }
+
+  throw new Error(
+    `Schema file not found: ${fileName}. Tried: ${tried.slice(0, 12).join(", ")}`
+  );
 }
 
 const canonSchema = loadSchema("canon-fusion-pipeline-v2.schema.json");
