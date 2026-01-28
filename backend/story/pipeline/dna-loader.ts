@@ -3,6 +3,7 @@ import type { NormalizedRequest, RoleSlot, SceneBeat, StoryBlueprintBase, StoryD
 import { MAX_CHAPTERS, MIN_CHAPTERS } from "./constants";
 import { createSeededRandom } from "./utils";
 import { getTemplateByCategory } from "./story-dna-templates";
+import { FALLBACK_TALE_DNA } from "./fallback-tale-dna";
 
 const taleCache = new Map<string, { tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] }>();
 const templateCache = new Map<string, StoryDNA>();
@@ -14,9 +15,10 @@ export async function loadStoryBlueprintBase(input: {
   const { normalized, variantSeed } = input;
 
   if (normalized.category === "Klassische Märchen") {
-    const talePayload = await loadTaleDna(normalized.taleId);
+    let talePayload = await loadTaleDna(normalized.taleId);
     if (!talePayload) {
-      throw new Error("No TaleDNA available for fairy tale generation. Seed at least one TaleDNA entry.");
+      console.warn("[pipeline] No TaleDNA found in DB. Falling back to bundled TaleDNA.");
+      talePayload = FALLBACK_TALE_DNA;
     }
 
     const roles = ensureAvatarAndArtifactSlots(talePayload.roles, normalized.avatarCount);
