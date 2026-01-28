@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://storyweaver.local/schemas/story-variant.schema.json",
+  "title": "Story Variant Seed + Choices",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["storyInstanceId", "taleId", "variantSeed", "variantChoices"],
+  "properties": {
+    "storyInstanceId": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "taleId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "variantSeed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Klassische Märchen",
+        "Abenteuer & Schätze",
+        "Märchenwelten & Magie",
+        "Tierwelten",
+        "Sci-Fi & Zukunft",
+        "Modern & Realität"
+      ]
+    },
+
+    "variantChoices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["settingVariant", "encounterVariant", "artifactFunctionVariant", "rescueVariant", "twistVariant"],
+      "properties": {
+        "settingVariant": {
+          "type": "string",
+          "enum": [
+            "FOREST_AUTUMN",
+            "FOREST_WINTER",
+            "FOREST_FOG",
+            "FOREST_SUNSET",
+            "JUNGLE_RUINS",
+            "ISLAND_COVE",
+            "DESERT_TEMPLE",
+            "MOUNTAIN_PASS",
+            "CRYSTAL_FOREST",
+            "SKY_CASTLE",
+            "UNDERGROUND_GROVE",
+            "MIST_LAKE",
+            "FOREST_RAIN",
+            "SAVANNA_DRY",
+            "OCEAN_REEF",
+            "MOUNTAIN_SNOW",
+            "ORBITAL_STATION",
+            "MARS_COLONY",
+            "NEBULA_GATE",
+            "UNDERWATER_CITY",
+            "CITY_PARK",
+            "SCHOOL_EVENT",
+            "NEIGHBORHOOD_BLOCK",
+            "MUSEUM_DAY"
+          ]
+        },
+        "encounterVariant": {
+          "type": "string",
+          "enum": [
+            "FLOWERS_DISTRACTION",
+            "RIDDLE_DISTRACTION",
+            "FALSE_MAP",
+            "HELPFUL_STRANGER_ACT",
+            "RIVAL_CREW",
+            "TRAP_MAZE",
+            "STORM_NIGHT",
+            "HIDDEN_GUARDIAN",
+            "SPELL_GLITCH",
+            "TRICKSTER_FAIRY",
+            "RIDDLE_GATE",
+            "CURSED_PATH",
+            "PREDATOR_SHADOW",
+            "LOST_NEST",
+            "RIVER_FLOOD",
+            "STRANGE_TRACKS",
+            "ROGUE_AI",
+            "ALIEN_SIGNAL",
+            "GRAVITY_GLITCH",
+            "LOST_DRONE",
+            "LOST_ITEM",
+            "MISUNDERSTANDING",
+            "RIVAL_TEAM",
+            "SURPRISE_VISITOR"
+          ]
+        },
+        "artifactFunctionVariant": {
+          "type": "string",
+          "enum": [
+            "GUIDES_TRUE",
+            "GETS_HIJACKED",
+            "SOLVES_RIDDLE",
+            "WARNS_DANGER",
+            "REVEALS_MAP",
+            "RESTORES_MAGIC",
+            "HEALS_WOUND",
+            "CALLS_HELP",
+            "TIME_BUFFER",
+            "CONNECTS_PEOPLE"
+          ]
+        },
+        "rescueVariant": {
+          "type": "string",
+          "enum": [
+            "HUNTER_RESCUE",
+            "GRANDMA_TRICK",
+            "AVATAR_PLAN",
+            "TEAMWORK_TRAP",
+            "TEAMWORK_RESCUE",
+            "CLEVER_DECOY",
+            "HELPER_BRIDGE",
+            "MENTOR_REVEAL",
+            "HELPER_SACRIFICE",
+            "SYSTEM_REBOOT",
+            "FRIEND_APOLOGY",
+            "NATURE_HELP"
+          ]
+        },
+        "twistVariant": {
+          "type": "string",
+          "enum": [
+            "WOLF_LEARNS_LESSON",
+            "FAKE_WOLF",
+            "DOUBLE_BLIND",
+            "ARTIFACT_SECRET",
+            "TREASURE_IS_KEY",
+            "ALLY_IS_RIVAL",
+            "MAP_REWRITES",
+            "CURSE_BREAKS",
+            "FALSE_VILLAIN",
+            "FRIEND_REVEALED",
+            "STORM_CLEARS",
+            "NEW_HOME",
+            "ALIEN_HELPER",
+            "FAKE_ALARM",
+            "MISTAKE_LEARNT",
+            "NEW_FRIEND"
+          ]
+        }
+      }
+    },
+
+    "sceneOverrides": {
+      "type": "array",
+      "description": "Optional per-chapter overrides derived from variantChoices.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chapter", "setting", "goal", "conflict", "outcome", "artifactUsageHint", "imageMustShowAdd", "imageAvoidAdd"],
+        "properties": {
+          "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+          "setting": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "goal": { "type": "string", "minLength": 3, "maxLength": 300 },
+          "conflict": { "type": "string", "minLength": 3, "maxLength": 300 },
+          "outcome": { "type": "string", "minLength": 3, "maxLength": 300 },
+          "artifactUsageHint": { "type": "string", "minLength": 3, "maxLength": 300 },
+          "canonAnchorLineHint": { "type": "string", "maxLength": 250 },
+
+          "imageMustShowAdd": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 2, "maxLength": 160 },
+            "maxItems": 20
+          },
+          "imageAvoidAdd": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 2, "maxLength": 160 },
+            "maxItems": 30
+          }
+        }
+      }
+    }
+  }
+}

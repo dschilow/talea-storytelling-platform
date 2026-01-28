@@ -1,4 +1,4 @@
-import { api, APIError } from "encore.dev/api";
+﻿import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
@@ -12,13 +12,14 @@ import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { updateStoryInstanceStatus } from "./pipeline/repository";
 import {
   createStructuredMemory,
   filterPersonalityChangesWithCooldown,
   summarizeMemoryCategory,
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
-import { FourPhaseOrchestrator } from "./four-phase-orchestrator";
+import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
 import type {
   StorySoulKey,
   EmotionalFlavorKey,
@@ -165,7 +166,7 @@ export interface Story {
       images: number;
       total: number;
     };
-    // 🎁 Artifact earned from this story
+    // ðŸŽ Artifact earned from this story
     newArtifact?: {
       name: string;
       description: string;
@@ -174,6 +175,8 @@ export interface Story {
       visualDescriptorKeywords?: string[];
       imageUrl?: string;
     };
+    // Pending artifact from pool (unlock after reading)
+    pendingArtifact?: any;
   };
   // Cost tracking properties
   tokensInput?: number;
@@ -373,29 +376,81 @@ export const generate = api<GenerateStoryRequest, Story>(
         hasVisualProfile: !!a.visualProfile
       })));
 
-      // Check if we should use the 4-phase character pool system
+      // Check if we should use the Story Pipeline v2
       const useCharacterPool = req.config.useCharacterPool ?? true; // Default to true
       let generatedStory: any;
 
       if (useCharacterPool) {
-        console.log("[story.generate] Using 4-phase character pool system...");
-        const orchestrator = new FourPhaseOrchestrator();
+        console.log("[story.generate] Using Story Pipeline v2...");
+        const orchestrator = new StoryPipelineOrchestrator();
 
-        const fourPhaseResult = await orchestrator.orchestrate({
-          config: req.config,
-          avatarDetails,
+        const pipelineResult = await orchestrator.run({
+          storyId: id,
           userId: currentUserId,
-          clerkToken,
-          storyId: id, // 🎁 NEW: Pass storyId for artifact generation
+          config: req.config,
+          avatars: avatarDetails,
+          enableVisionValidation: Boolean((req.config as any).enableVisionValidation),
         });
 
-        // Store skeleton for debugging
-        // Note: skeleton storage happens inside orchestrator
+        const imageByChapter = new Map(
+          pipelineResult.images.map((img) => [img.chapter, img.imageUrl])
+        );
+        const promptByChapter = new Map(
+          pipelineResult.imageSpecs.map((spec: any) => [spec.chapter, spec.finalPromptText || ""])
+        );
 
-        // Update character usage statistics
-        // Note: This will be done after we get the character assignments
+        const chapters = pipelineResult.storyDraft.chapters.map((ch) => ({
+          id: crypto.randomUUID(),
+          title: ch.title,
+          content: ch.text,
+          imageUrl: imageByChapter.get(ch.chapter),
+          order: ch.chapter,
+          imagePrompt: promptByChapter.get(ch.chapter),
+          imageModel: "runware",
+        }));
 
-        generatedStory = fourPhaseResult;
+        const tokenUsage = pipelineResult.tokenUsage
+          ? {
+              prompt: pipelineResult.tokenUsage.promptTokens,
+              completion: pipelineResult.tokenUsage.completionTokens,
+              total: pipelineResult.tokenUsage.totalTokens,
+              inputCostUSD: pipelineResult.tokenUsage.inputCostUSD,
+              outputCostUSD: pipelineResult.tokenUsage.outputCostUSD,
+              totalCostUSD: pipelineResult.tokenUsage.totalCostUSD,
+              modelUsed: pipelineResult.tokenUsage.model || req.config.aiModel || "gpt-5-mini",
+            }
+          : { prompt: 0, completion: 0, total: 0 };
+
+        const pendingArtifact = pipelineResult.artifactMeta
+          ? {
+              id: pipelineResult.artifactMeta.id,
+              name: req.config.language === "en" ? pipelineResult.artifactMeta.name.en : pipelineResult.artifactMeta.name.de,
+              nameEn: pipelineResult.artifactMeta.name.en,
+              description: req.config.language === "en" ? pipelineResult.artifactMeta.description.en : pipelineResult.artifactMeta.description.de,
+              category: pipelineResult.artifactMeta.category,
+              rarity: pipelineResult.artifactMeta.rarity,
+              storyRole: pipelineResult.artifactMeta.storyRole,
+              visualKeywords: pipelineResult.artifactMeta.visualKeywords,
+              imageUrl: pipelineResult.artifactMeta.imageUrl,
+              discoveryChapter: 2,
+              usageChapter: 4,
+              locked: true,
+            }
+          : undefined;
+
+        generatedStory = {
+          title: pipelineResult.storyDraft.title,
+          description: pipelineResult.storyDraft.description,
+          coverImageUrl: imageByChapter.get(1),
+          chapters,
+          avatarDevelopments: [],
+          pendingArtifact,
+          metadata: {
+            tokensUsed: tokenUsage,
+            model: tokenUsage.modelUsed,
+            imagesGenerated: pipelineResult.images.length,
+          },
+        };
       } else {
         console.log("[story.generate] Using legacy story generation (no character pool)...");
         // Generate story content using AI with avatar canonical appearance
@@ -473,16 +528,18 @@ export const generate = api<GenerateStoryRequest, Story>(
         },
       });
 
-      // 🎁 Add newArtifact to metadata so it's persisted and returned to frontend
+      // ðŸŽ Add artifact metadata so it's persisted and returned to frontend
       const enrichedMetadata = {
         ...generatedStory.metadata,
         newArtifact: generatedStory.newArtifact || undefined,
+        pendingArtifact: generatedStory.pendingArtifact || undefined,
       };
       
-      console.log("[story.generate] 🎁 newArtifact in response:", {
-        hasArtifact: !!generatedStory.newArtifact,
-        artifactName: generatedStory.newArtifact?.name || 'none',
-        artifactImageUrl: generatedStory.newArtifact?.imageUrl || 'none',
+      console.log("[story.generate] ðŸŽ artifact in response:", {
+        hasNewArtifact: !!generatedStory.newArtifact,
+        newArtifactName: generatedStory.newArtifact?.name || 'none',
+        hasPendingArtifact: !!generatedStory.pendingArtifact,
+        pendingArtifactName: generatedStory.pendingArtifact?.name || 'none',
       });
 
       // Update story with generated content
@@ -627,7 +684,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                 'positive'
               );
 
-              console.log(`[story.generate] 📝 Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
+              console.log(`[story.generate] ðŸ“ Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
 
               // TODO: Fetch last personality shifts from database for cooldown check
               // For now, we skip cooldown (all changes allowed) - implement in future iteration
@@ -640,7 +697,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               );
 
               if (blockedChanges.length > 0) {
-                console.warn(`[story.generate] ⏳ ${blockedChanges.length} personality shifts blocked by cooldown:`,
+                console.warn(`[story.generate] â³ ${blockedChanges.length} personality shifts blocked by cooldown:`,
                   blockedChanges.map(b => `${b.trait} (${b.remainingHours}h remaining)`)
                 );
               }
@@ -655,7 +712,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                   contentType: 'story'
                 });
 
-                console.log(`[story.generate] ✅ Applied ${allowedChanges.length} personality changes (${blockedChanges.length} blocked)`);
+                console.log(`[story.generate] âœ… Applied ${allowedChanges.length} personality changes (${blockedChanges.length} blocked)`);
               }
 
               // Add memory with categorization info
@@ -697,14 +754,14 @@ export const generate = api<GenerateStoryRequest, Story>(
                   VALUES (${userAvatar.id}, ${id}, ${generatedStory.title})
                   ON CONFLICT (avatar_id, story_id) DO NOTHING
                 `;
-                console.log(`[story.generate] ✅ Marked story as read for ${userAvatar.name}`);
+                console.log(`[story.generate] âœ… Marked story as read for ${userAvatar.name}`);
               } catch (markReadError) {
                 console.warn(`[story.generate] Failed to mark story as read:`, markReadError);
               }
               
               // Note: Artifacts are created during Phase 4.5/4.6 with thematic AI-generated content
               // The old evaluateStoryRewards system (generic artifacts) is disabled
-              console.log(`[story.generate] 📦 Artifact generation handled by Phase 4.5/4.6 (AI-themed artifacts)`);
+              console.log(`[story.generate] ðŸ“¦ Artifact generation handled by Phase 4.5/4.6 (AI-themed artifacts)`);
             } catch (updateError) {
               console.error(`[story.generate] Failed to update ${userAvatar.name}:`, updateError);
             }
@@ -736,6 +793,11 @@ export const generate = api<GenerateStoryRequest, Story>(
             updated_at = ${new Date()}
         WHERE id = ${id}
       `;
+      try {
+        await updateStoryInstanceStatus(id, "error", String((error as any)?.message || error));
+      } catch (pipelineStatusError) {
+        console.warn("[story.generate] Failed to update story_instances status:", pipelineStatusError);
+      }
       try {
         await publishWithTimeout(logTopic, {
           source: 'openai-story-generation',
@@ -826,6 +888,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     updatedAt: storyRow.updated_at,
   };
 }
+
 
 
 

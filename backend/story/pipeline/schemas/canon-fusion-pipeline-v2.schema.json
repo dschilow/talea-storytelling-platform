@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://storyweaver.local/schemas/canon-fusion-pipeline-v2.schema.json",
+  "title": "Canon Fusion Pipeline v2 - Complete JSON Schema (Slim Fix)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tale", "roles", "scenes"],
+  "properties": {
+    "tale": { "$ref": "#/$defs/TaleDNA" },
+    "roles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/RoleSlot" } },
+    "scenes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/SceneBeat" } },
+
+    "cast": { "$ref": "#/$defs/CastSet" },
+    "integrationPlan": { "$ref": "#/$defs/IntegrationPlan" },
+    "sceneDirectives": { "type": "array", "items": { "$ref": "#/$defs/SceneDirective" } },
+    "visualDirectorPlan": { "$ref": "#/$defs/VisualDirectorPlan" },
+    "validationReport": { "$ref": "#/$defs/ValidationReport" },
+
+    "imageSpecs": { "type": "array", "items": { "$ref": "#/$defs/ImageSpec" } }
+  },
+  "patternProperties": { "^x_": {} },
+
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_\\-:.]+$"
+    },
+    "NonEmptyString": { "type": "string", "minLength": 1 },
+    "LangCode": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+    "AgeRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer", "minimum": 0, "maximum": 21 },
+        "max": { "type": "integer", "minimum": 0, "maximum": 21 }
+      }
+    },
+    "TagList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "maxItems": 40
+    },
+
+    "RoleType": {
+      "type": "string",
+      "enum": [
+        "PROTAGONIST",
+        "ANTAGONIST",
+        "HELPER",
+        "MENTOR",
+        "LOVE_INTEREST",
+        "TRICKSTER",
+        "COMIC_RELIEF",
+        "GUARDIAN",
+        "NARRATOR",
+        "CAMEO",
+        "AVATAR",
+        "ARTIFACT"
+      ]
+    },
+    "BeatType": { "type": "string", "enum": ["SETUP", "INCITING", "CONFLICT", "TWIST", "CLIMAX", "RESOLUTION", "EPILOGUE"] },
+    "Mood": { "type": "string", "enum": ["COZY", "WONDER", "FUNNY", "TENSE", "MYSTERIOUS", "SAD", "TRIUMPH", "SCARY_LIGHT", "SCARY_HEAVY"] },
+    "ShotType": { "type": "string", "enum": ["WIDE", "MEDIUM", "CLOSEUP", "DETAIL"] },
+    "CameraAngle": { "type": "string", "enum": ["EYE_LEVEL", "LOW_ANGLE", "HIGH_ANGLE", "OVER_SHOULDER", "DUTCH", "TOP_DOWN"] },
+    "Distance": { "type": "string", "enum": ["FULL_BODY", "THREE_QUARTER", "BUST", "FACE"] },
+
+    "RefKey": { "type": "string", "pattern": "^ref_image_[0-9]+$" },
+    "SlotKey": {
+      "type": "string",
+      "pattern": "^SLOT_[A-Z0-9]+(_[0-9]+)?$",
+      "examples": ["SLOT_PROTAGONIST_1", "SLOT_ANTAGONIST_1", "SLOT_HELPER_2", "SLOT_AVATAR_1", "SLOT_ARTIFACT_1"]
+    },
+
+    "TaleDNA": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taleId", "title", "language", "age", "iconicBeats", "fixedElements", "flexibleElements", "toneBounds"],
+      "properties": {
+        "taleId": { "$ref": "#/$defs/Id" },
+        "title": { "$ref": "#/$defs/NonEmptyString" },
+        "language": { "$ref": "#/$defs/LangCode" },
+        "age": { "$ref": "#/$defs/AgeRange" },
+
+        "summary": { "type": "string", "maxLength": 2000 },
+        "moralLesson": { "type": "string", "maxLength": 500 },
+        "cultureRegion": { "type": "string", "maxLength": 100 },
+        "source": { "type": "string", "maxLength": 200 },
+
+        "themeTags": { "$ref": "#/$defs/TagList" },
+        "coreConflict": { "type": "string", "maxLength": 300 },
+        "emotionalArc": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 10,
+          "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+        },
+
+        "chapterCountHint": { "type": "integer", "minimum": 3, "maximum": 12, "default": 5 },
+
+        "iconicBeats": { "type": "array", "minItems": 3, "maxItems": 12, "items": { "type": "string", "minLength": 3, "maxLength": 200 } },
+        "fixedElements": { "type": "array", "minItems": 2, "maxItems": 20, "items": { "type": "string", "minLength": 3, "maxLength": 200 } },
+        "flexibleElements": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "type": "string", "minLength": 3, "maxLength": 200 } },
+
+        "toneBounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["targetTone", "contentRules"],
+          "properties": {
+            "targetTone": { "type": "string", "maxLength": 120 },
+            "contentRules": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "type": "string", "minLength": 3, "maxLength": 200 } }
+          }
+        }
+      }
+    },
+
+    "RoleSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slotKey", "roleType", "required", "roleCount"],
+      "properties": {
+        "slotKey": { "$ref": "#/$defs/SlotKey" },
+        "roleType": { "$ref": "#/$defs/RoleType" },
+        "required": { "type": "boolean" },
+        "roleCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "default": 1,
+          "description": "Hint. Prefer explicit slotKeys (SLOT_HELPER_1, SLOT_HELPER_2) for deterministic pipelines."
+        },
+        "archetypePreference": { "type": "array", "maxItems": 12, "items": { "type": "string", "minLength": 1, "maxLength": 60 } },
+        "constraints": { "type": "array", "maxItems": 20, "items": { "type": "string", "minLength": 1, "maxLength": 200 } },
+        "visualHints": { "type": "array", "maxItems": 12, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+        "ageHint": { "$ref": "#/$defs/AgeRange" }
+      }
+    },
+
+    "SceneBeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sceneNumber", "beatType", "sceneTitle", "setting", "mood", "sceneDescription", "mustIncludeSlots"],
+      "properties": {
+        "sceneId": { "$ref": "#/$defs/Id" },
+        "sceneNumber": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "beatType": { "$ref": "#/$defs/BeatType" },
+        "sceneTitle": { "$ref": "#/$defs/NonEmptyString" },
+        "setting": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "mood": { "$ref": "#/$defs/Mood" },
+        "sceneDescription": { "type": "string", "minLength": 10, "maxLength": 4000 },
+        "durationSecondsHint": { "type": "integer", "minimum": 5, "maximum": 600 },
+
+        "mustIncludeSlots": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/SlotKey" } },
+        "optionalSlots": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/SlotKey" } },
+
+        "artifactPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requiresArtifact": { "type": "boolean", "default": false },
+            "artifactSlotKey": { "$ref": "#/$defs/SlotKey" },
+            "artifactMustBeVisible": { "type": "boolean", "default": false }
+          }
+        },
+        "cameraPlan": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "shotType": { "$ref": "#/$defs/ShotType" },
+            "angle": { "$ref": "#/$defs/CameraAngle" },
+            "distance": { "$ref": "#/$defs/Distance" }
+          }
+        },
+
+        "promptTemplate": { "type": "string", "maxLength": 4000 },
+        "promptTokens": { "$ref": "#/$defs/TagList" },
+        "imageAvoid": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+        "continuityNotes": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 200 } }
+      }
+    },
+
+    "CastSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["avatars", "poolCharacters", "artifact", "slotAssignments"],
+      "properties": {
+        "avatars": { "type": "array", "minItems": 1, "maxItems": 2, "items": { "$ref": "#/$defs/CharacterSheet" } },
+        "poolCharacters": { "type": "array", "minItems": 0, "maxItems": 5, "items": { "$ref": "#/$defs/CharacterSheet" } },
+        "artifact": { "$ref": "#/$defs/ArtifactCard" },
+        "slotAssignments": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^SLOT_[A-Z0-9]+(_[0-9]+)?$": { "$ref": "#/$defs/Id" }
+          },
+          "description": "Map SlotKey -> entityId. Recommended: include SLOT_ARTIFACT_1 -> artifactId."
+        },
+        "matchScores": { "type": "array", "maxItems": 40, "items": { "$ref": "#/$defs/MatchScore" } }
+      }
+    },
+
+    "MatchScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slotKey", "candidateId", "scores", "finalScore"],
+      "properties": {
+        "slotKey": { "$ref": "#/$defs/SlotKey" },
+        "candidateId": { "$ref": "#/$defs/Id" },
+        "scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["narrativeFit", "personalitySync", "visualHarmony", "conflictPotential"],
+          "properties": {
+            "narrativeFit": { "type": "number", "minimum": 0, "maximum": 1 },
+            "personalitySync": { "type": "number", "minimum": 0, "maximum": 1 },
+            "visualHarmony": { "type": "number", "minimum": 0, "maximum": 1 },
+            "conflictPotential": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "finalScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "notes": { "type": "string", "maxLength": 500 }
+      }
+    },
+
+    "CharacterSheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["characterId", "displayName", "roleType", "slotKey", "visualSignature", "outfitLock", "forbidden"],
+      "properties": {
+        "characterId": { "$ref": "#/$defs/Id" },
+        "displayName": { "$ref": "#/$defs/NonEmptyString" },
+        "roleType": { "$ref": "#/$defs/RoleType" },
+        "slotKey": { "$ref": "#/$defs/SlotKey" },
+
+        "personalityTags": { "$ref": "#/$defs/TagList" },
+        "speechStyleHints": { "$ref": "#/$defs/TagList" },
+
+        "visualSignature": { "type": "array", "minItems": 2, "maxItems": 6, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+        "outfitLock": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+        "faceLock": { "type": "array", "maxItems": 8, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+        "forbidden": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+
+        "refKey": { "$ref": "#/$defs/RefKey" },
+        "referenceImageId": { "$ref": "#/$defs/Id" }
+      }
+    },
+
+    "ArtifactCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "name", "storyUseRule", "visualRule"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/Id" },
+        "name": { "$ref": "#/$defs/NonEmptyString" },
+        "category": { "type": "string", "maxLength": 80 },
+        "storyUseRule": { "type": "string", "minLength": 5, "maxLength": 400 },
+        "visualRule": { "type": "string", "minLength": 5, "maxLength": 200 },
+        "rarity": { "type": "string", "enum": ["COMMON", "RARE", "EPIC", "LEGENDARY"], "default": "COMMON" }
+      }
+    },
+
+    "IntegrationPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapters"],
+      "properties": {
+        "chapters": { "type": "array", "minItems": 3, "maxItems": 12, "items": { "$ref": "#/$defs/ChapterIntegration" } },
+        "avatarsPresenceRatio": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.8 }
+      }
+    },
+
+    "ChapterIntegration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter", "charactersOnStage", "canonSafeguard", "canonAnchorLine"],
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "charactersOnStage": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/SlotKey" } },
+        "avatarFunction": { "type": "string", "maxLength": 120 },
+        "canonSafeguard": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "canonAnchorLine": { "type": "string", "minLength": 5, "maxLength": 250 },
+        "artifactMoment": { "type": "string", "maxLength": 250 }
+      }
+    },
+
+    "SceneDirective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter", "setting", "charactersOnStage", "goal", "conflict", "outcome", "artifactUsage", "canonAnchorLine", "imageMustShow", "imageAvoid"],
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "setting": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "mood": { "$ref": "#/$defs/Mood" },
+
+        "charactersOnStage": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/SlotKey" } },
+
+        "goal": { "type": "string", "minLength": 3, "maxLength": 300 },
+        "conflict": { "type": "string", "minLength": 3, "maxLength": 300 },
+        "outcome": { "type": "string", "minLength": 3, "maxLength": 300 },
+
+        "artifactUsage": { "type": "string", "maxLength": 300 },
+        "canonAnchorLine": { "type": "string", "maxLength": 250 },
+
+        "dialogCues": { "type": "array", "maxItems": 6, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+
+        "imageMustShow": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "type": "string", "minLength": 2, "maxLength": 160 } },
+        "imageAvoid": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "type": "string", "minLength": 2, "maxLength": 160 } }
+      }
+    },
+
+    "VisualDirectorPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["globalStyle", "characterSheets", "sceneCompositions", "consistencyRules"],
+      "properties": {
+        "globalStyle": { "$ref": "#/$defs/StyleSheet" },
+        "characterSheets": { "type": "array", "minItems": 1, "maxItems": 10, "items": { "$ref": "#/$defs/VisualCharacterSheet" } },
+        "sceneCompositions": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "$ref": "#/$defs/SceneComposition" } },
+        "consistencyRules": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "type": "string", "minLength": 2, "maxLength": 200 } }
+      }
+    },
+
+    "StyleSheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["styleName", "stylePrompt", "renderRules", "negativeGlobal"],
+      "properties": {
+        "styleName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "stylePrompt": { "type": "string", "minLength": 10, "maxLength": 800 },
+        "renderRules": { "type": "array", "minItems": 1, "maxItems": 25, "items": { "type": "string", "minLength": 2, "maxLength": 200 } },
+        "negativeGlobal": { "type": "array", "minItems": 1, "maxItems": 40, "items": { "type": "string", "minLength": 2, "maxLength": 120 } }
+      }
+    },
+
+    "VisualCharacterSheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slotKey", "displayName", "visualAnchors", "outfitLock", "refKey"],
+      "properties": {
+        "slotKey": { "$ref": "#/$defs/SlotKey" },
+        "displayName": { "$ref": "#/$defs/NonEmptyString" },
+        "visualAnchors": { "type": "array", "minItems": 2, "maxItems": 6, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+        "outfitLock": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+        "refKey": { "$ref": "#/$defs/RefKey" },
+        "forbidden": { "type": "array", "maxItems": 20, "items": { "type": "string", "minLength": 2, "maxLength": 120 } }
+      }
+    },
+
+    "SceneComposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter", "camera", "blocking", "interaction", "propsVisible", "lighting", "mood"],
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "camera": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shotType", "angle", "distance"],
+          "properties": {
+            "shotType": { "$ref": "#/$defs/ShotType" },
+            "angle": { "$ref": "#/$defs/CameraAngle" },
+            "distance": { "$ref": "#/$defs/Distance" }
+          }
+        },
+        "blocking": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "interaction": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "propsVisible": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+        "lighting": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "mood": { "$ref": "#/$defs/Mood" }
+      }
+    },
+
+    "ImageSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter", "style", "composition", "blocking", "actions", "propsVisible", "lighting", "refs", "negatives", "onStageExact"],
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "style": { "type": "string", "minLength": 5, "maxLength": 500 },
+
+        "composition": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "blocking": { "type": "string", "minLength": 5, "maxLength": 300 },
+        "actions": { "type": "string", "minLength": 5, "maxLength": 300 },
+
+        "propsVisible": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+        "lighting": { "type": "string", "minLength": 3, "maxLength": 200 },
+
+        "onStageExact": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/SlotKey" } },
+
+        "refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "patternProperties": { "^ref_image_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 } }
+        },
+
+        "negatives": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
+        "finalPromptText": { "type": "string", "maxLength": 6000 }
+      }
+    },
+
+    "ValidationReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "story": { "$ref": "#/$defs/StoryValidation" },
+        "images": { "type": "array", "items": { "$ref": "#/$defs/ImageValidation" } }
+      }
+    },
+
+    "StoryValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "issues"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 10 },
+        "issues": { "type": "array", "items": { "$ref": "#/$defs/ValidationIssue" } }
+      }
+    },
+
+    "ImageValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter", "score", "checks", "issues", "retryAdvice"],
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "score": { "type": "number", "minimum": 0, "maximum": 10 },
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "onStageExact": { "type": "boolean" },
+            "noExtraCharacters": { "type": "boolean" },
+            "noDuplicates": { "type": "boolean" },
+            "artifactVisible": { "type": "boolean" },
+            "fullBodyIfRequired": { "type": "boolean" },
+            "noLookingAtCamera": { "type": "boolean" }
+          }
+        },
+        "issues": { "type": "array", "items": { "$ref": "#/$defs/ValidationIssue" } },
+        "retryAdvice": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 2, "maxLength": 200 } }
+      }
+    },
+
+    "ValidationIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "severity": { "type": "string", "enum": ["INFO", "WARN", "ERROR"] },
+        "message": { "type": "string", "minLength": 3, "maxLength": 500 },
+        "chapter": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "slotKey": { "$ref": "#/$defs/SlotKey" }
+      }
+    }
+  }
+}

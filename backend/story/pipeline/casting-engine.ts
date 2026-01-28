@@ -1,0 +1,321 @@
+﻿import { storyDB } from "../db";
+import type { ArtifactRequirement } from "../types";
+import { artifactMatcher, recordStoryArtifact } from "../artifact-matcher";
+import type { AvatarDetail, CastSet, CharacterSheet, MatchScore, NormalizedRequest, RoleSlot, StoryVariantPlan } from "./types";
+import { createSeededRandom } from "./utils";
+import { buildInvariantsFromVisualProfile, formatInvariantsForPrompt } from "../character-invariants";
+import { scoreCandidate } from "./matching-score";
+
+interface CharacterPoolRow {
+  id: string;
+  name: string;
+  role: string;
+  archetype: string;
+  emotional_nature: any;
+  visual_profile: any;
+  image_url?: string | null;
+  gender?: string | null;
+  age_category?: string | null;
+  species_category?: string | null;
+  profession_tags?: string[] | null;
+  size_category?: string | null;
+  social_class?: string | null;
+  personality_keywords?: string[] | null;
+  physical_description?: string | null;
+  backstory?: string | null;
+  recent_usage_count?: number | null;
+  total_usage_count?: number | null;
+}
+
+const ARTIFACT_ABILITY_MAP: Record<string, string> = {
+  GUIDES_TRUE: "navigation",
+  GETS_HIJACKED: "protection",
+  SOLVES_RIDDLE: "wisdom",
+  WARNS_DANGER: "protection",
+  REVEALS_MAP: "navigation",
+  RESTORES_MAGIC: "magic",
+  HEALS_WOUND: "healing",
+  CALLS_HELP: "communication",
+  TIME_BUFFER: "time",
+  CONNECTS_PEOPLE: "communication",
+};
+
+export async function buildCastSet(input: {
+  normalized: NormalizedRequest;
+  roles: RoleSlot[];
+  variantPlan: StoryVariantPlan;
+  avatars: AvatarDetail[];
+}): Promise<CastSet> {
+  const { normalized, roles, variantPlan, avatars } = input;
+  const rng = createSeededRandom(variantPlan.variantSeed);
+
+  const pool = await loadCharacterPool();
+  const used = new Set<string>();
+  const matchScores: MatchScore[] = [];
+
+  const avatarSheets = buildAvatarSheets(avatars);
+  avatarSheets.forEach(sheet => used.add(sheet.characterId));
+
+  const poolSheets: CharacterSheet[] = [];
+  const slotAssignments: Record<string, string> = {};
+
+  for (const avatarSheet of avatarSheets) {
+    slotAssignments[avatarSheet.slotKey] = avatarSheet.characterId;
+  }
+
+  for (const slot of roles) {
+    if (slot.roleType === "AVATAR") continue;
+    if (slot.roleType === "ARTIFACT") continue;
+    if (!slot.required && poolSheets.length >= 5) continue;
+
+    const candidate = selectCandidateForSlot(slot, pool, used, rng, matchScores);
+    if (!candidate) {
+      if (slot.required) {
+        const fallback = buildFallbackCharacter(slot);
+        poolSheets.push(fallback);
+        slotAssignments[slot.slotKey] = fallback.characterId;
+        used.add(fallback.characterId);
+      }
+      continue;
+    }
+
+    poolSheets.push(candidate);
+    slotAssignments[slot.slotKey] = candidate.characterId;
+    used.add(candidate.characterId);
+  }
+
+  const artifactRequirement = buildArtifactRequirement(variantPlan);
+  const artifact = await artifactMatcher.match(
+    artifactRequirement,
+    normalized.category,
+    [],
+    normalized.language
+  );
+
+  await recordStoryArtifact(
+    normalized.storyId,
+    artifact.id,
+    artifactRequirement.discoveryChapter,
+    artifactRequirement.usageChapter
+  );
+
+  slotAssignments["SLOT_ARTIFACT_1"] = artifact.id;
+
+  return {
+    avatars: avatarSheets,
+    poolCharacters: poolSheets,
+    artifact: {
+      artifactId: artifact.id,
+      name: normalized.language === "en" ? artifact.name.en : artifact.name.de,
+      category: artifact.category,
+      storyUseRule: artifact.storyRole,
+      visualRule: artifact.visualKeywords.join(", ") || "artifact must be visible",
+      rarity: artifact.rarity?.toUpperCase() as any,
+    },
+    slotAssignments,
+    matchScores,
+  };
+}
+
+function buildAvatarSheets(avatars: AvatarDetail[]): CharacterSheet[] {
+  return avatars.map((avatar, index) => {
+    const invariants = avatar.visualProfile
+      ? buildInvariantsFromVisualProfile(avatar.name, avatar.visualProfile, avatar.description)
+      : null;
+    const invariantPrompt = invariants ? formatInvariantsForPrompt(invariants) : null;
+
+    const visualSignature = [
+      ...(avatar.visualProfile?.consistentDescriptors || []),
+      ...(invariantPrompt?.mustIncludeTokens || []),
+    ].filter(Boolean).slice(0, 6);
+
+    const outfitLock = [
+      avatar.visualProfile?.clothingCanonical?.outfit,
+      avatar.visualProfile?.clothingCanonical?.top,
+      avatar.visualProfile?.clothingCanonical?.bottom,
+    ].filter(Boolean) as string[];
+
+    const faceLock = [
+      avatar.visualProfile?.hair?.color ? `${avatar.visualProfile?.hair?.color} hair` : undefined,
+      avatar.visualProfile?.eyes?.color ? `${avatar.visualProfile?.eyes?.color} eyes` : undefined,
+      avatar.visualProfile?.skin?.tone ? `${avatar.visualProfile?.skin?.tone} skin` : undefined,
+    ].filter(Boolean) as string[];
+
+    const forbidden = [
+      ...(avatar.visualProfile?.forbiddenFeatures || []),
+      ...(invariants?.forbiddenFeatures || []),
+    ].filter(Boolean) as string[];
+
+    return {
+      characterId: avatar.id,
+      displayName: avatar.name,
+      roleType: "AVATAR",
+      slotKey: `SLOT_AVATAR_${index + 1}`,
+      personalityTags: Object.keys(avatar.personalityTraits || {}).slice(0, 6),
+      speechStyleHints: [],
+      visualSignature: visualSignature.length > 0 ? visualSignature : ["distinct child"],
+      outfitLock: outfitLock.length > 0 ? outfitLock : ["consistent outfit"],
+      faceLock: faceLock.length > 0 ? faceLock : undefined,
+      forbidden: forbidden.length > 0 ? forbidden : ["adult proportions"],
+      refKey: avatar.imageUrl ? `ref_image_${index + 1}` : undefined,
+      referenceImageId: avatar.imageUrl ? avatar.id : undefined,
+      imageUrl: avatar.imageUrl ?? undefined,
+    };
+  });
+}
+
+function selectCandidateForSlot(
+  slot: RoleSlot,
+  pool: CharacterPoolRow[],
+  used: Set<string>,
+  rng: ReturnType<typeof createSeededRandom>,
+  matchScores: MatchScore[]
+): CharacterSheet | null {
+  const candidates = pool.filter(candidate => !used.has(candidate.id) && passesHardConstraints(slot, candidate));
+
+  if (candidates.length === 0) return null;
+
+  const scored = candidates.map(candidate => {
+    const scoreDetails = scoreCandidate(slot, candidate as any);
+    matchScores.push({
+      slotKey: slot.slotKey,
+      candidateId: candidate.id,
+      scores: scoreDetails.scores,
+      finalScore: scoreDetails.finalScore,
+      notes: scoreDetails.notes,
+    });
+    return { candidate, score: scoreDetails.finalScore };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const topScore = scored[0]?.score ?? 0;
+  const topTier = scored.filter(item => item.score >= topScore - 0.15);
+  const picked = topTier[Math.floor(rng.next() * topTier.length)]?.candidate;
+
+  if (!picked) return null;
+
+  return buildPoolCharacterSheet(picked, slot.slotKey, slot.roleType);
+}
+
+function passesHardConstraints(slot: RoleSlot, candidate: CharacterPoolRow): boolean {
+  const constraints = (slot.constraints || []).map(c => c.toLowerCase());
+  const genderConstraint = constraints.find(c => c.startsWith("gender="));
+  const ageConstraint = constraints.find(c => c.startsWith("age="));
+  const speciesConstraint = constraints.find(c => c.startsWith("species="));
+
+  if (genderConstraint) {
+    const required = genderConstraint.split("=")[1];
+    const actual = (candidate.gender || "any").toLowerCase();
+    if (actual !== "any" && actual !== required && actual !== "neutral") {
+      return false;
+    }
+  }
+
+  if (ageConstraint) {
+    const required = ageConstraint.split("=")[1];
+    const actual = (candidate.age_category || "any").toLowerCase();
+    if (actual !== "any" && actual !== required) {
+      return false;
+    }
+  }
+
+  if (speciesConstraint) {
+    const required = speciesConstraint.split("=")[1];
+    const actual = (candidate.species_category || "any").toLowerCase();
+    if (actual !== "any" && actual !== required) {
+      return false;
+    }
+  }
+
+  if (constraints.includes("avoidmodern") || constraints.includes("no modern")) {
+    const modernTags = ["pilot", "engineer", "programmer", "police", "doctor", "scientist"];
+    const tags = (candidate.profession_tags || []).map(t => t.toLowerCase()).join(" ");
+    if (modernTags.some(tag => tags.includes(tag))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: string, roleType: RoleSlot["roleType"]): CharacterSheet {
+  const visualProfile = candidate.visual_profile || {};
+  const signature = [visualProfile.description, visualProfile.species].filter(Boolean) as string[];
+  const outfit = [candidate.physical_description].filter(Boolean) as string[];
+  const forbidden = ["duplicate character", "extra limbs"];
+
+  return {
+    characterId: candidate.id,
+    displayName: candidate.name,
+    roleType,
+    slotKey,
+    personalityTags: candidate.personality_keywords || [],
+    speechStyleHints: [],
+    visualSignature: signature.length > 0 ? signature.slice(0, 6) : ["distinct supporting character"],
+    outfitLock: outfit.length > 0 ? outfit.slice(0, 4) : ["consistent outfit"],
+    forbidden,
+    refKey: undefined,
+    referenceImageId: candidate.image_url ? candidate.id : undefined,
+    imageUrl: candidate.image_url ?? undefined,
+  };
+}
+
+function buildFallbackCharacter(slot: RoleSlot): CharacterSheet {
+  const id = `generated_${slot.slotKey}_${Date.now()}`;
+  const baseName = slot.slotKey.replace("SLOT_", "").replace(/_/g, " ").toLowerCase();
+  const name = baseName
+    .split(" ")
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+  return {
+    characterId: id,
+    displayName: name,
+    roleType: slot.roleType,
+    slotKey: slot.slotKey,
+    personalityTags: slot.archetypePreference || [],
+    speechStyleHints: [],
+    visualSignature: slot.visualHints || ["distinct character"],
+    outfitLock: ["storybook outfit"],
+    forbidden: ["duplicate character"],
+  };
+}
+
+async function loadCharacterPool(): Promise<CharacterPoolRow[]> {
+  try {
+    const rows = await storyDB.queryAll<CharacterPoolRow>`
+      SELECT * FROM character_pool
+      WHERE is_active = TRUE
+    `;
+    return rows.map(row => ({
+      ...row,
+      visual_profile: typeof row.visual_profile === "string" ? safeJson(row.visual_profile) : row.visual_profile,
+    }));
+  } catch (error) {
+    console.error("[pipeline] Failed to load character pool", error);
+    return [];
+  }
+}
+
+function safeJson(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function buildArtifactRequirement(variantPlan: StoryVariantPlan): ArtifactRequirement {
+  const functionVariant = variantPlan.variantChoices.artifactFunctionVariant || "GUIDES_TRUE";
+  const ability = ARTIFACT_ABILITY_MAP[functionVariant] ?? "navigation";
+
+  return {
+    placeholder: "{{ARTIFACT_REWARD}}",
+    preferredCategory: "magic" as any,
+    requiredAbility: ability,
+    contextHint: `Artifact function ${functionVariant}`,
+    discoveryChapter: 2,
+    usageChapter: 4,
+    importance: "high",
+  };
+}
