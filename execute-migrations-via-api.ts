@@ -9,6 +9,7 @@
  */
 
 import { readFile } from "fs/promises";
+import { existsSync } from "fs";
 import { join } from "path";
 
 const BACKEND_URL = "https://backend-2-production-3de1.up.railway.app";
@@ -169,6 +170,10 @@ async function main() {
   let successCount = 0;
   for (const migration of selected) {
     const migrationPath = join(migrationsDir, migration.file);
+    if (!existsSync(migrationPath)) {
+      console.log(`\nSkipping missing migration file: ${migration.file}`);
+      continue;
+    }
     const success = await runMigration(migrationPath, migration.name);
     if (success) {
       successCount++;
