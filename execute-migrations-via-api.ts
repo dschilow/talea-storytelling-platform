@@ -23,6 +23,7 @@ const migrations: Array<{ file: string; name: string; group: MigrationGroup }> =
   { file: "10_seed_artifact_pool.up.sql", name: "10_seed_artifact_pool", group: "artifact" },
   { file: "14_create_story_pipeline_v2_tables.up.sql", name: "14_create_story_pipeline_v2_tables", group: "pipeline" },
   { file: "15_seed_story_dna_templates.up.sql", name: "15_seed_story_dna_templates", group: "pipeline" },
+  { file: "16_seed_tale_dna_base.up.sql", name: "16_seed_tale_dna_base", group: "pipeline" },
 ];
 
 async function runMigration(migrationPath: string, migrationName: string): Promise<boolean> {
