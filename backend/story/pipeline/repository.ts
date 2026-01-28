@@ -52,10 +52,10 @@ export async function updateStoryInstanceStatus(id: string, status: string, erro
 }
 
 export async function loadCastSet(id: string): Promise<CastSet | null> {
-  const row = await storyDB.queryRow<{ cast_set: string }>`
+  const row = await storyDB.queryRow<{ cast_set: any }>`
     SELECT cast_set FROM story_cast_sets WHERE story_instance_id = ${id}
   `;
-  return row?.cast_set ? JSON.parse(row.cast_set) : null;
+  return row?.cast_set ? parseJsonValue<CastSet>(row.cast_set) : null;
 }
 
 export async function saveCastSet(id: string, cast: CastSet): Promise<void> {
@@ -68,10 +68,10 @@ export async function saveCastSet(id: string, cast: CastSet): Promise<void> {
 }
 
 export async function loadIntegrationPlan(id: string): Promise<IntegrationPlan | null> {
-  const row = await storyDB.queryRow<{ integration_plan: string }>`
+  const row = await storyDB.queryRow<{ integration_plan: any }>`
     SELECT integration_plan FROM story_integration_plans WHERE story_instance_id = ${id}
   `;
-  return row?.integration_plan ? JSON.parse(row.integration_plan) : null;
+  return row?.integration_plan ? parseJsonValue<IntegrationPlan>(row.integration_plan) : null;
 }
 
 export async function saveIntegrationPlan(id: string, plan: IntegrationPlan): Promise<void> {
@@ -84,12 +84,14 @@ export async function saveIntegrationPlan(id: string, plan: IntegrationPlan): Pr
 }
 
 export async function loadSceneDirectives(id: string): Promise<SceneDirective[]> {
-  const rows = await storyDB.queryAll<{ directive: string }>`
+  const rows = await storyDB.queryAll<{ directive: any }>`
     SELECT directive FROM story_scene_directives
     WHERE story_instance_id = ${id}
     ORDER BY chapter
   `;
-  return rows.map(row => JSON.parse(row.directive));
+  return rows
+    .map(row => parseJsonValue<SceneDirective>(row.directive))
+    .filter(Boolean) as SceneDirective[];
 }
 
 export async function saveSceneDirectives(id: string, directives: SceneDirective[]): Promise<void> {
@@ -125,12 +127,14 @@ export async function saveStoryText(id: string, chapters: Array<{ chapter: numbe
 }
 
 export async function loadImageSpecs(id: string): Promise<ImageSpec[]> {
-  const rows = await storyDB.queryAll<{ image_spec: string }>`
+  const rows = await storyDB.queryAll<{ image_spec: any }>`
     SELECT image_spec FROM story_image_specs
     WHERE story_instance_id = ${id}
     ORDER BY chapter
   `;
-  return rows.map(row => JSON.parse(row.image_spec));
+  return rows
+    .map(row => parseJsonValue<ImageSpec>(row.image_spec))
+    .filter(Boolean) as ImageSpec[];
 }
 
 export async function saveImageSpecs(id: string, specs: ImageSpec[]): Promise<void> {
@@ -162,7 +166,7 @@ export async function saveStoryImages(
 }
 
 export async function loadStoryImages(id: string): Promise<Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>> {
-  const rows = await storyDB.queryAll<{ chapter: number; image_url: string | null; provider: string | null; meta: string | null }>`
+  const rows = await storyDB.queryAll<{ chapter: number; image_url: string | null; provider: string | null; meta: any }>`
     SELECT chapter, image_url, provider, meta FROM story_images
     WHERE story_instance_id = ${id}
     ORDER BY chapter
@@ -184,11 +188,30 @@ export async function saveValidationReport(id: string, report: any): Promise<voi
   `;
 }
 
-function safePrompt(meta: string): string {
+function safePrompt(meta: any): string {
+  if (!meta) return "";
+  if (typeof meta === "object") {
+    return meta?.prompt || "";
+  }
   try {
     const parsed = JSON.parse(meta);
     return parsed?.prompt || "";
   } catch {
     return "";
   }
+}
+
+function parseJsonValue<T>(value: any): T | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === "object") {
+    return value as T;
+  }
+  return null;
 }

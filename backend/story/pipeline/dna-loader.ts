@@ -50,14 +50,17 @@ async function loadStoryDnaTemplate(category: string): Promise<StoryDNA | null> 
     return templateCache.get(category) ?? null;
   }
   try {
-    const row = await storyDB.queryRow<{ story_dna: string }>`
+    const row = await storyDB.queryRow<{ story_dna: any }>`
       SELECT story_dna FROM story_dna_templates
       WHERE category = ${category}
       ORDER BY template_id
       LIMIT 1
     `;
     if (row?.story_dna) {
-      const parsed = JSON.parse(row.story_dna) as StoryDNA;
+      const parsed = parseJsonValue<StoryDNA>(row.story_dna);
+      if (!parsed) {
+        throw new Error("Failed to parse story_dna template JSON");
+      }
       templateCache.set(category, parsed);
       return parsed;
     }
@@ -76,24 +79,30 @@ async function loadTaleDna(taleId?: string): Promise<{ tale: TaleDNA; roles: Rol
   }
   try {
     if (taleId) {
-      const row = await storyDB.queryRow<{ tale_dna: string }>`
+      const row = await storyDB.queryRow<{ tale_dna: any }>`
         SELECT tale_dna FROM tale_dna
         WHERE tale_id = ${taleId}
       `;
       if (row?.tale_dna) {
-        const parsed = JSON.parse(row.tale_dna);
+        const parsed = parseJsonValue<{ tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] }>(row.tale_dna);
+        if (!parsed) {
+          throw new Error("Failed to parse tale_dna JSON");
+        }
         taleCache.set(taleId, parsed);
         return parsed;
       }
     }
 
-    const fallback = await storyDB.queryRow<{ tale_dna: string }>`
+    const fallback = await storyDB.queryRow<{ tale_dna: any }>`
       SELECT tale_dna FROM tale_dna
       ORDER BY tale_id
       LIMIT 1
     `;
     if (fallback?.tale_dna) {
-      const parsed = JSON.parse(fallback.tale_dna);
+      const parsed = parseJsonValue<{ tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] }>(fallback.tale_dna);
+      if (!parsed) {
+        throw new Error("Failed to parse fallback tale_dna JSON");
+      }
       if (parsed?.tale?.taleId) {
         taleCache.set(parsed.tale.taleId, parsed);
       }
@@ -103,6 +112,21 @@ async function loadTaleDna(taleId?: string): Promise<{ tale: TaleDNA; roles: Rol
     console.warn("[pipeline] Failed to load TaleDNA", error);
   }
 
+  return null;
+}
+
+function parseJsonValue<T>(value: any): T | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === "object") {
+    return value as T;
+  }
   return null;
 }
 
