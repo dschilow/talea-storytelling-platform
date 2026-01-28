@@ -787,9 +787,20 @@ export const generate = api<GenerateStoryRequest, Story>(
     } catch (error) {
       // Update story status to error
       console.error("[story.generate] ERROR:", error);
+      const errorMessage = String((error as any)?.message || error);
+      const errorStack = (error as any)?.stack ? String((error as any).stack).slice(0, 2000) : undefined;
+      const errorMetadata = {
+        error: {
+          message: errorMessage,
+          stack: errorStack,
+          storyId: id,
+          at: new Date().toISOString(),
+        },
+      };
       await storyDB.exec`
         UPDATE stories
         SET status = 'error',
+            metadata = ${JSON.stringify(errorMetadata)},
             updated_at = ${new Date()}
         WHERE id = ${id}
       `;
@@ -809,7 +820,10 @@ export const generate = api<GenerateStoryRequest, Story>(
         console.warn("[story.generate] Failed to publish error log:", e);
       }
 
-      throw error;
+      if (error instanceof APIError) {
+        throw error;
+      }
+      throw APIError.internal(`Story generation failed (storyId=${id}): ${errorMessage}`);
     }
   }
 );
