@@ -16,13 +16,43 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
     ? `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for identity. Ignore backgrounds.`
     : "";
 
-  const constraints = `CORE CONSTRAINTS:\n- EXACTLY ${count} characters: ${namesLine}\n- each character appears exactly once\n- full body, head-to-toe, wide shot\n- candid action, not looking at camera\n- no extra people anywhere`;
+  // Enhanced constraints with explicit action/gaze directions
+  const constraints = `CORE CONSTRAINTS:
+- EXACTLY ${count} characters: ${namesLine}
+- each character appears exactly once
+- full body visible from head to toe, wide shot
+- characters engaged in ACTION, interacting with scene
+- characters looking at each other or at objects in scene, NOT at camera
+- candid moment, natural poses, dynamic movement
+- no extra people, no background crowds`;
 
-  const sceneBlock = `SCENE: ${spec.composition}. ${spec.blocking}.`;
-  const actionBlock = `ACTIONS: ${spec.actions}`;
-  const propsBlock = spec.propsVisible?.length ? `PROPS: ${spec.propsVisible.join(", ")}` : "";
-  const lightingBlock = `LIGHTING: ${spec.lighting}`;
-  const negativesBlock = spec.negatives?.length ? `NEGATIVE: ${spec.negatives.join(", ")}` : "";
+  // Scene composition with blocking
+  const sceneBlock = `SCENE COMPOSITION: ${spec.composition}. ${spec.blocking}`;
+
+  // Actions block with clear visual descriptions
+  const actionBlock = `CHARACTER ACTIONS: ${spec.actions}`;
+
+  // Props with artifact emphasis
+  const propsBlock = spec.propsVisible?.length
+    ? `VISIBLE PROPS AND OBJECTS: ${spec.propsVisible.join(", ")}`
+    : "";
+
+  const lightingBlock = `LIGHTING AND ATMOSPHERE: ${spec.lighting}`;
+
+  // Enhanced negatives
+  const enhancedNegatives = [
+    ...(spec.negatives || []),
+    "posed for photo",
+    "looking at viewer",
+    "staring at camera",
+    "facing camera directly",
+    "group photo",
+    "passport photo",
+    "mugshot",
+    "standing still stiffly",
+  ];
+  const uniqueNegatives = Array.from(new Set(enhancedNegatives));
+  const negativesBlock = `AVOID (NEGATIVE PROMPT): ${uniqueNegatives.join(", ")}`;
 
   return [styleBlock, refBlock, constraints, sceneBlock, actionBlock, propsBlock, lightingBlock, negativesBlock]
     .filter(Boolean)
