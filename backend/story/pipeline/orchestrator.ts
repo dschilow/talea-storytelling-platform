@@ -13,8 +13,8 @@ import { SimpleVisionValidator } from "./vision-validator";
 import { validateAndFixImageSpecs } from "./image-prompt-validator";
 import { validateCastSet } from "./schema-validator";
 import { validateStoryDraft } from "./story-validator";
-import { publishWithTimeout } from "../helpers/pubsubTimeout";
-import { logTopic } from "../log/logger";
+import { publishWithTimeout } from "../../helpers/pubsubTimeout";
+import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
 import {
   loadCastSet,
