@@ -28,7 +28,12 @@ async function runMigration(migrationPath: string, migrationName: string): Promi
   console.log(`\nRunning ${migrationName}...`);
 
   try {
-    const sql = await readFile(migrationPath, "utf-8");
+    const sqlRaw = await readFile(migrationPath, "utf-8");
+    const sql = sqlRaw
+      .split("\n")
+      .filter(line => !line.trim().startsWith("--"))
+      .join("\n")
+      .trim();
     console.log(`  SQL file size: ${sql.length} characters`);
 
     const response = await fetch(API_ENDPOINT, {

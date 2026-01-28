@@ -38,8 +38,15 @@ export const runMigrationSQL = api<RunMigrationSQLRequest, RunMigrationSQLRespon
 
         const statements = req.sql
           .split(';')
-          .map(s => s.trim())
-          .filter(s => s.length > 0 && !s.startsWith('--'));
+          .map((statement) => {
+            const withoutLineComments = statement
+              .split('\n')
+              .filter(line => !line.trim().startsWith('--'))
+              .join('\n')
+              .trim();
+            return withoutLineComments;
+          })
+          .filter(statement => statement.length > 0);
 
         console.log(`[Migration API] Executing ${statements.length} SQL statements...`);
 
