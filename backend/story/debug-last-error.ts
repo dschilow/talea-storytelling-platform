@@ -4,6 +4,7 @@ import { storyDB } from "./db";
 
 interface DebugStoryErrorRequest {
   storyId?: string;
+  onlyErrors?: boolean;
 }
 
 interface DebugStoryErrorResponse {
@@ -48,13 +49,25 @@ export const debugLastError = api<DebugStoryErrorRequest, DebugStoryErrorRespons
         throw APIError.permissionDenied("Not allowed to access this story");
       }
     } else {
-      storyRow = await storyDB.queryRow`
-        SELECT id, user_id, status, metadata, config, updated_at
-        FROM stories
-        WHERE user_id = ${auth.userID}
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `;
+      const wantErrors = req.onlyErrors !== false;
+      if (wantErrors) {
+        storyRow = await storyDB.queryRow`
+          SELECT id, user_id, status, metadata, config, updated_at
+          FROM stories
+          WHERE user_id = ${auth.userID} AND status = 'error'
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `;
+      }
+      if (!storyRow) {
+        storyRow = await storyDB.queryRow`
+          SELECT id, user_id, status, metadata, config, updated_at
+          FROM stories
+          WHERE user_id = ${auth.userID}
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `;
+      }
       if (!storyRow) {
         return { found: false };
       }
