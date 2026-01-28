@@ -8,15 +8,25 @@ export class LlmStoryWriter implements StoryWriter {
     cast: CastSet;
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
+    strict?: boolean;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage }> {
-    const { normalizedRequest, cast, dna, directives } = input;
+    const { normalizedRequest, cast, dna, directives, strict } = input;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
+    const systemPrompt = normalizedRequest.language === "de"
+      ? "Du schreibst praezise, lebendige Kapitel fuer Kindergeschichten."
+      : "You write precise, vivid chapters for children's stories.";
 
     const chapters = [] as StoryDraft["chapters"];
     let totalUsage: TokenUsage | undefined;
 
     for (const directive of directives) {
       const isFinal = directive.chapter === directives[directives.length - 1]?.chapter;
+      const finalLine = isFinal
+        ? (normalizedRequest.language === "de"
+          ? "\nLetztes Kapitel: Kein Cliffhanger, ein sanfter Abschluss."
+          : "\nFinal chapter: do NOT end on a cliffhanger.")
+        : "";
+
       const prompt = buildStoryChapterPrompt({
         chapter: directive,
         cast,
@@ -24,17 +34,18 @@ export class LlmStoryWriter implements StoryWriter {
         language: normalizedRequest.language,
         ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         tone: normalizedRequest.requestedTone,
-      }) + (isFinal ? "\nFinal chapter: do NOT end on a cliffhanger." : "");
+        strict,
+      }) + finalLine;
 
       const result = await callChatCompletion({
         model,
         messages: [
-          { role: "system", content: "You write precise, vivid chapters for children's stories." },
+          { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
         responseFormat: "json_object",
         maxTokens: 2000,
-        temperature: 0.7,
+        temperature: strict ? 0.4 : 0.7,
         context: "story-writer",
       });
 
@@ -60,10 +71,13 @@ export class LlmStoryWriter implements StoryWriter {
     let storyDescription = chapters[0]?.text?.slice(0, 140) || "";
 
     try {
+      const titleSystem = normalizedRequest.language === "de"
+        ? "Du fasst Kindergeschichten knapp zusammen."
+        : "You summarize children's stories.";
       const titleResult = await callChatCompletion({
         model,
         messages: [
-          { role: "system", content: "You summarize children's stories." },
+          { role: "system", content: titleSystem },
           { role: "user", content: titlePrompt },
         ],
         responseFormat: "json_object",

@@ -258,6 +258,7 @@ export interface StoryWriter {
     cast: CastSet;
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
+    strict?: boolean;
   }) => Promise<{ draft: StoryDraft; usage?: TokenUsage }>;
 }
 

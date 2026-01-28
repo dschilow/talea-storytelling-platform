@@ -17,6 +17,8 @@ export const MIN_CHAPTERS = 3;
 export const MAX_CHAPTERS = 12;
 
 export const DEFAULT_AVATAR_PRESENCE_RATIO = 0.8;
+export const MAX_REFERENCE_IMAGES = 4;
+export const MAX_ON_STAGE_CHARACTERS = 4;
 
 export const GLOBAL_IMAGE_NEGATIVES = [
   "looking at camera",

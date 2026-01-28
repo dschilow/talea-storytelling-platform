@@ -2,11 +2,11 @@
 import { STORY_CATEGORIES } from "./constants";
 
 const BASE_RULES = [
-  "Keep the story safe for children",
-  "No explicit violence or harm",
-  "Avoid modern slang unless the category is Modern & Realität",
-  "No new named characters beyond the cast",
-  "Keep each chapter focused on a single beat",
+  "Halte die Geschichte kindersicher",
+  "Keine explizite Gewalt oder Verletzungen",
+  "Vermeide modernen Slang ausser in Modern & Realitaet",
+  "Keine neuen benannten Figuren ausserhalb des Casts",
+  "Jedes Kapitel fokussiert einen Beat",
 ];
 
 export const STORY_DNA_TEMPLATES: StoryDNA[] = [
@@ -16,13 +16,13 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     language: "de",
     age: { min: 6, max: 10 },
     themeTags: ["courage", "discovery", "teamwork"],
-    coreConflict: "A clear obstacle blocks the quest for a treasure or goal",
+    coreConflict: "Ein klares Hindernis blockiert die Suche nach einem Schatz oder Ziel",
     beatPattern: [
-      { beatType: "SETUP", sceneTitle: "Der Ruf", settingHint: "village edge", mood: "WONDER", mustIncludeRoleTypes: ["AVATAR"] },
-      { beatType: "INCITING", sceneTitle: "Die Karte", settingHint: "trailhead", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
-      { beatType: "CONFLICT", sceneTitle: "Die Prüfung", settingHint: "wild terrain", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "CLIMAX", sceneTitle: "Der Durchbruch", settingHint: "ancient ruins", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "RESOLUTION", sceneTitle: "Die Heimkehr", settingHint: "campfire", mood: "COZY", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
+      { beatType: "SETUP", sceneTitle: "Der Ruf", settingHint: "Dorfrand", mood: "WONDER", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "INCITING", sceneTitle: "Die Karte", settingHint: "Wegbeginn", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
+      { beatType: "CONFLICT", sceneTitle: "Die Prüfung", settingHint: "wildes Gelaende", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "CLIMAX", sceneTitle: "Der Durchbruch", settingHint: "alte Ruinen", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "RESOLUTION", sceneTitle: "Die Heimkehr", settingHint: "Lagerfeuer", mood: "COZY", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
     ],
     roleSlots: [
       { slotKey: "SLOT_AVATAR_1", roleType: "AVATAR", required: true, roleCount: 1, archetypePreference: ["brave", "curious"], constraints: ["primary"], visualHints: ["child protagonist"] },
@@ -34,7 +34,7 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     artifactCategories: ["map", "tool", "magic", "jewelry"],
     artifactAbilities: ["navigation", "protection", "discovery", "light"],
     toneBounds: {
-      targetTone: "Warm, adventurous, hopeful",
+      targetTone: "Warm, abenteuerlich, hoffnungsvoll",
       contentRules: BASE_RULES,
     },
   },
@@ -44,13 +44,13 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     language: "de",
     age: { min: 6, max: 10 },
     themeTags: ["wonder", "friendship", "magic"],
-    coreConflict: "Magic is out of balance and must be restored",
+    coreConflict: "Die Magie ist aus dem Gleichgewicht geraten und muss wiederhergestellt werden",
     beatPattern: [
-      { beatType: "SETUP", sceneTitle: "Der Zauberort", settingHint: "enchanted village", mood: "WONDER", mustIncludeRoleTypes: ["AVATAR"] },
-      { beatType: "INCITING", sceneTitle: "Das Zeichen", settingHint: "mystic grove", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "MENTOR"] },
-      { beatType: "CONFLICT", sceneTitle: "Das Rätsel", settingHint: "floating castle", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "CLIMAX", sceneTitle: "Die Entfesselung", settingHint: "crystal chamber", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "RESOLUTION", sceneTitle: "Das Fest", settingHint: "glowing courtyard", mood: "COZY", mustIncludeRoleTypes: ["AVATAR", "MENTOR", "HELPER"] },
+      { beatType: "SETUP", sceneTitle: "Der Zauberort", settingHint: "verzaubertes Dorf", mood: "WONDER", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "INCITING", sceneTitle: "Das Zeichen", settingHint: "mystischer Hain", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "MENTOR"] },
+      { beatType: "CONFLICT", sceneTitle: "Das Rätsel", settingHint: "schwebendes Schloss", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "CLIMAX", sceneTitle: "Die Entfesselung", settingHint: "Kristallkammer", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "RESOLUTION", sceneTitle: "Das Fest", settingHint: "leuchtender Hof", mood: "COZY", mustIncludeRoleTypes: ["AVATAR", "MENTOR", "HELPER"] },
     ],
     roleSlots: [
       { slotKey: "SLOT_AVATAR_1", roleType: "AVATAR", required: true, roleCount: 1, archetypePreference: ["dreamer", "curious"], visualHints: ["storybook outfit"] },
@@ -63,7 +63,7 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     artifactCategories: ["magic", "book", "potion", "jewelry"],
     artifactAbilities: ["magic", "wisdom", "light", "healing"],
     toneBounds: {
-      targetTone: "Whimsical, luminous, comforting",
+      targetTone: "Verspielt, leuchtend, troestlich",
       contentRules: BASE_RULES,
     },
   },
@@ -73,13 +73,13 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     language: "de",
     age: { min: 4, max: 9 },
     themeTags: ["friendship", "empathy", "nature"],
-    coreConflict: "The animal community faces a challenge in their habitat",
+    coreConflict: "Die Tiergemeinschaft steht vor einer Herausforderung in ihrem Lebensraum",
     beatPattern: [
-      { beatType: "SETUP", sceneTitle: "Das Revier", settingHint: "forest clearing", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
-      { beatType: "INCITING", sceneTitle: "Das Warnzeichen", settingHint: "riverbank", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
-      { beatType: "CONFLICT", sceneTitle: "Die Gefahr", settingHint: "stormy meadow", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "CLIMAX", sceneTitle: "Das gemeinsame Handeln", settingHint: "old tree", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "HELPER"], requiresArtifact: true },
-      { beatType: "RESOLUTION", sceneTitle: "Die Ruhe", settingHint: "sunlit nest", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "SETUP", sceneTitle: "Das Revier", settingHint: "Waldlichtung", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "INCITING", sceneTitle: "Das Warnzeichen", settingHint: "Flussufer", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
+      { beatType: "CONFLICT", sceneTitle: "Die Gefahr", settingHint: "stuermische Wiese", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "CLIMAX", sceneTitle: "Das gemeinsame Handeln", settingHint: "alter Baum", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "HELPER"], requiresArtifact: true },
+      { beatType: "RESOLUTION", sceneTitle: "Die Ruhe", settingHint: "sonniges Nest", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
     ],
     roleSlots: [
       { slotKey: "SLOT_AVATAR_1", roleType: "AVATAR", required: true, roleCount: 1, archetypePreference: ["kind"], visualHints: ["child narrator"] },
@@ -91,7 +91,7 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     artifactCategories: ["nature", "tool", "potion"],
     artifactAbilities: ["protection", "healing", "communication"],
     toneBounds: {
-      targetTone: "Gentle, nature-focused, heartwarming",
+      targetTone: "Sanft, naturverbunden, herzerwaermend",
       contentRules: BASE_RULES,
     },
   },
@@ -101,13 +101,13 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     language: "de",
     age: { min: 7, max: 12 },
     themeTags: ["curiosity", "teamwork", "future"],
-    coreConflict: "A futuristic mission faces an unexpected hazard",
+    coreConflict: "Eine futuristische Mission wird von einer unerwarteten Gefahr gestört",
     beatPattern: [
-      { beatType: "SETUP", sceneTitle: "Die Basis", settingHint: "orbital station", mood: "WONDER", mustIncludeRoleTypes: ["AVATAR"] },
-      { beatType: "INCITING", sceneTitle: "Der Auftrag", settingHint: "control room", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "MENTOR"] },
-      { beatType: "CONFLICT", sceneTitle: "Die Fehlfunktion", settingHint: "engine bay", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "CLIMAX", sceneTitle: "Der Sprung", settingHint: "nebula field", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "HELPER"], requiresArtifact: true },
-      { beatType: "RESOLUTION", sceneTitle: "Die Rückkehr", settingHint: "hologram hall", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "SETUP", sceneTitle: "Die Basis", settingHint: "Orbitstation", mood: "WONDER", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "INCITING", sceneTitle: "Der Auftrag", settingHint: "Kontrollraum", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "MENTOR"] },
+      { beatType: "CONFLICT", sceneTitle: "Die Fehlfunktion", settingHint: "Maschinenraum", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "CLIMAX", sceneTitle: "Der Sprung", settingHint: "Nebel-Feld", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "HELPER"], requiresArtifact: true },
+      { beatType: "RESOLUTION", sceneTitle: "Die Rückkehr", settingHint: "Hologrammhalle", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
     ],
     roleSlots: [
       { slotKey: "SLOT_AVATAR_1", roleType: "AVATAR", required: true, roleCount: 1, archetypePreference: ["inventor", "explorer"], visualHints: ["futuristic outfit"] },
@@ -120,7 +120,7 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     artifactCategories: ["tech", "tool", "magic"],
     artifactAbilities: ["navigation", "communication", "time", "light"],
     toneBounds: {
-      targetTone: "Bright, curious, hopeful",
+      targetTone: "Hell, neugierig, hoffnungsvoll",
       contentRules: BASE_RULES,
     },
   },
@@ -130,13 +130,13 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     language: "de",
     age: { min: 6, max: 12 },
     themeTags: ["friendship", "confidence", "community"],
-    coreConflict: "A modern day challenge needs teamwork to solve",
+    coreConflict: "Eine moderne Alltagsherausforderung braucht Teamarbeit, um geloest zu werden",
     beatPattern: [
-      { beatType: "SETUP", sceneTitle: "Der Alltag", settingHint: "school yard", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
-      { beatType: "INCITING", sceneTitle: "Das Problem", settingHint: "city park", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
-      { beatType: "CONFLICT", sceneTitle: "Der Plan", settingHint: "library", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
-      { beatType: "CLIMAX", sceneTitle: "Die Aktion", settingHint: "community hall", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "HELPER"], requiresArtifact: true },
-      { beatType: "RESOLUTION", sceneTitle: "Die Erkenntnis", settingHint: "home", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "SETUP", sceneTitle: "Der Alltag", settingHint: "Schulhof", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
+      { beatType: "INCITING", sceneTitle: "Das Problem", settingHint: "Stadtpark", mood: "MYSTERIOUS", mustIncludeRoleTypes: ["AVATAR", "HELPER"] },
+      { beatType: "CONFLICT", sceneTitle: "Der Plan", settingHint: "Bibliothek", mood: "TENSE", mustIncludeRoleTypes: ["AVATAR", "ANTAGONIST"], requiresArtifact: true },
+      { beatType: "CLIMAX", sceneTitle: "Die Aktion", settingHint: "Gemeindehaus", mood: "TRIUMPH", mustIncludeRoleTypes: ["AVATAR", "HELPER"], requiresArtifact: true },
+      { beatType: "RESOLUTION", sceneTitle: "Die Erkenntnis", settingHint: "Zuhause", mood: "COZY", mustIncludeRoleTypes: ["AVATAR"] },
     ],
     roleSlots: [
       { slotKey: "SLOT_AVATAR_1", roleType: "AVATAR", required: true, roleCount: 1, archetypePreference: ["friendly"], visualHints: ["modern casual"] },
@@ -148,7 +148,7 @@ export const STORY_DNA_TEMPLATES: StoryDNA[] = [
     artifactCategories: ["tool", "book", "jewelry"],
     artifactAbilities: ["communication", "wisdom", "courage"],
     toneBounds: {
-      targetTone: "Modern, uplifting, grounded",
+      targetTone: "Modern, aufbauend, geerdet",
       contentRules: BASE_RULES,
     },
   },

@@ -7,8 +7,10 @@ export function buildStoryChapterPrompt(input: {
   language: string;
   ageRange: { min: number; max: number };
   tone?: string;
+  strict?: boolean;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone } = input;
+  const { chapter, cast, dna, language, ageRange, tone, strict } = input;
+  const isGerman = language === "de";
   const characterSummaries = chapter.charactersOnStage
     .map(slot => {
       const sheet = findCharacterBySlot(cast, slot);
@@ -18,7 +20,47 @@ export function buildStoryChapterPrompt(input: {
     .filter(Boolean)
     .join("\n");
 
-  const artifactLine = chapter.artifactUsage ? `Artifact usage: ${chapter.artifactUsage}` : "";
+  const allowedNames = Array.from(new Set(
+    chapter.charactersOnStage
+      .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+      .filter(Boolean) as string[]
+  )).join(", ");
+
+  const artifactLine = chapter.artifactUsage
+    ? (isGerman ? `Artefakt: ${chapter.artifactUsage}` : `Artifact usage: ${chapter.artifactUsage}`)
+    : "";
+
+  if (isGerman) {
+    return `Du bist eine professionelle Autorin fuer Kinderbuecher.
+
+Schreibe Kapitel ${chapter.chapter} fuer ein Publikum von ${ageRange.min}-${ageRange.max} Jahren auf Deutsch.
+Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+
+SZENEN-VORGABE:
+- Setting: ${chapter.setting}
+- Stimmung: ${chapter.mood ?? "COZY"}
+- Ziel: ${chapter.goal}
+- Konflikt: ${chapter.conflict}
+- Ausgang: ${chapter.outcome}
+- Kanonische Zeile (natuerlich einbauen): ${chapter.canonAnchorLine}
+- Figuren auf der Buehne (alle muessen vorkommen):
+${characterSummaries}
+${artifactLine}
+
+ERLAUBTE NAMEN (exakt so schreiben): ${allowedNames || "keine"}
+
+STRICTE REGELN:
+1) Verwende ausschliesslich die gelisteten Namen. Keine neuen Eigennamen.
+2) Keine zusaetzlichen Figuren oder Tiere mit Namen. Wenn unbedingt, dann nur unbenannt (z.B. \"einige Dorfbewohner\").
+3) Keine Regieanweisungen, keine Meta-Saetze, keine englischen Anweisungen.
+4) Erwaehne das Artefakt, wenn es gefordert ist.
+5) 120-200 Woerter, 3-6 Saetze, kindgerecht.
+6) Beende mit einem sanften Ausblick (ausser im letzten Kapitel).
+${strict ? "7) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
+
+Gib JSON zurueck:
+{ "title": "Kurzer Kapiteltitel", "text": "Kapiteltext" }`;
+  }
 
   return `You are a professional children's story author.
 
@@ -36,18 +78,31 @@ SCENE DIRECTIVE:
 ${characterSummaries}
 ${artifactLine}
 
+Allowed names (use exactly): ${allowedNames || "none"}
+
 STRICT RULES:
-1) Use all listed characters meaningfully. No extra named characters.
-2) Mention the artifact if required.
-3) Integrate the canon anchor line naturally.
-4) Write 120-200 words, 3-6 sentences, age-appropriate.
-5) End with a gentle forward-looking line (except final chapter).
+1) Use only the listed character names exactly as given. No extra named characters.
+2) Do not introduce any additional named characters or animals; if absolutely needed, keep them unnamed.
+3) Mention the artifact if required.
+4) Integrate the canon anchor line naturally.
+5) Write 120-200 words, 3-6 sentences, age-appropriate.
+6) End with a gentle forward-looking line (except final chapter).
+${strict ? "7) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
 }
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
+  if (input.language === "de") {
+    return `Erstelle einen kurzen Titel und eine Beschreibung fuer die folgende Kindergeschichte auf Deutsch.
+Gib JSON zurueck:
+{ "title": "...", "description": "..." }
+
+Geschichte:
+${input.storyText}`;
+  }
+
   return `Create a short story title and description for the following children's story in ${input.language}.
 Return JSON:
 { "title": "...", "description": "..." }

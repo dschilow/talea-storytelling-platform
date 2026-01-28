@@ -1,5 +1,6 @@
-﻿import { ai } from "~encore/clients";
+import { ai } from "~encore/clients";
 import type { CastSet, ImageGenerator, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
+import { buildReferenceImages, selectReferenceSlots } from "./reference-images";
 
 export class RunwareImageGenerator implements ImageGenerator {
   async generateImages(input: {
@@ -11,7 +12,8 @@ export class RunwareImageGenerator implements ImageGenerator {
     const results: Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }> = [];
 
     for (const spec of input.imageSpecs) {
-      const referenceImages = buildReferenceImages(spec, input.cast);
+      const refSlots = selectReferenceSlots(spec.onStageExact, input.cast);
+      const referenceImages = buildReferenceImages(refSlots, input.cast);
       const prompt = spec.finalPromptText || "";
       const negativePrompt = (spec.negatives || []).join(", ");
 
@@ -60,15 +62,4 @@ async function generateWithRetry(input: {
 
   console.error("[pipeline] Image generation failed", lastError);
   return undefined;
-}
-
-function buildReferenceImages(spec: ImageSpec, cast: CastSet): string[] {
-  const urls: string[] = [];
-  for (const slotKey of spec.onStageExact) {
-    const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
-    if (sheet?.imageUrl) {
-      urls.push(sheet.imageUrl);
-    }
-  }
-  return urls;
 }

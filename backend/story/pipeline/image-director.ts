@@ -1,6 +1,7 @@
 ﻿import type { CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildFinalPromptText } from "./image-prompt-builder";
+import { buildRefsForSlots, selectReferenceSlots } from "./reference-images";
 
 export class TemplateImageDirector implements ImageDirector {
   async createImageSpecs(input: {
@@ -12,7 +13,8 @@ export class TemplateImageDirector implements ImageDirector {
 
     return directives.map((directive) => {
       const onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
-      const refs = buildRefsForSlots(onStageExact, cast);
+      const refSlots = selectReferenceSlots(onStageExact, cast);
+      const refs = buildRefsForSlots(refSlots, cast);
       const propsVisible = directive.imageMustShow.filter(item => !item.includes("extra characters"));
       const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...directive.imageAvoid]));
 
@@ -35,23 +37,6 @@ export class TemplateImageDirector implements ImageDirector {
       return spec;
     });
   }
-}
-
-function buildRefsForSlots(onStageExact: string[], cast: CastSet): Record<string, string> {
-  const refs: Record<string, string> = {};
-  let refIndex = 1;
-
-  for (const slotKey of onStageExact) {
-    const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
-    if (!sheet?.imageUrl) continue;
-
-    const refKey = `ref_image_${refIndex}`;
-    refs[refKey] = `IDENTITY ONLY — match ONLY ${sheet.displayName}`;
-    sheet.refKey = refKey;
-    refIndex += 1;
-  }
-
-  return refs;
 }
 
 function buildBlocking(directive: SceneDirective, cast: CastSet): string {

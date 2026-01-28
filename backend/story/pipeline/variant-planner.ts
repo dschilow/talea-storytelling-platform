@@ -69,7 +69,7 @@ export function createVariantPlan(input: {
   };
 
   const baseScenes = blueprint.scenes;
-  const sceneOverrides = buildSceneOverrides(baseScenes, variantChoices, rng);
+  const sceneOverrides = buildSceneOverrides(baseScenes, variantChoices, rng, normalized.language);
 
   const plan: StoryVariantPlan = {
     storyInstanceId: normalized.storyId,
@@ -91,17 +91,18 @@ export function createVariantPlan(input: {
 function buildSceneOverrides(
   scenes: SceneBeat[],
   variantChoices: Record<string, string>,
-  rng: ReturnType<typeof createSeededRandom>
+  rng: ReturnType<typeof createSeededRandom>,
+  language: string
 ): StoryVariantPlan["sceneOverrides"] {
   if (scenes.length === 0) return [];
 
   const overrides: NonNullable<StoryVariantPlan["sceneOverrides"]> = [];
 
-  const settingDelta = variantChoices.settingVariant.replace(/_/g, " ").toLowerCase();
-  const encounterDelta = variantChoices.encounterVariant.replace(/_/g, " ").toLowerCase();
-  const artifactDelta = variantChoices.artifactFunctionVariant.replace(/_/g, " ").toLowerCase();
-  const rescueDelta = variantChoices.rescueVariant.replace(/_/g, " ").toLowerCase();
-  const twistDelta = variantChoices.twistVariant.replace(/_/g, " ").toLowerCase();
+  const settingLabel = labelVariant(variantChoices.settingVariant, language);
+  const encounterLabel = labelVariant(variantChoices.encounterVariant, language);
+  const artifactLabel = labelVariant(variantChoices.artifactFunctionVariant, language);
+  const rescueLabel = labelVariant(variantChoices.rescueVariant, language);
+  const twistLabel = labelVariant(variantChoices.twistVariant, language);
 
   const overrideChapters = rng.shuffle(scenes.map(s => s.sceneNumber)).slice(0, Math.min(3, scenes.length));
 
@@ -111,16 +112,119 @@ function buildSceneOverrides(
 
     overrides.push({
       chapter,
-      setting: `${base.setting}, ${settingDelta}`,
-      goal: `Advance the story with a focus on ${encounterDelta}.`,
-      conflict: `A challenge emerges: ${encounterDelta}.`,
-      outcome: `The scene turns because of ${rescueDelta}.`,
-      artifactUsageHint: `Artifact function: ${artifactDelta}.`,
-      canonAnchorLineHint: `Tie the scene to ${twistDelta} without breaking canon.`,
-      imageMustShowAdd: [settingDelta, encounterDelta],
+      setting: `${base.setting}, ${settingLabel}`,
+      goal: language === "de"
+        ? `Die Szene dreht sich um ${encounterLabel}.`
+        : `Advance the story with a focus on ${encounterLabel}.`,
+      conflict: language === "de"
+        ? `Ein Hindernis entsteht: ${encounterLabel}.`
+        : `A challenge emerges: ${encounterLabel}.`,
+      outcome: language === "de"
+        ? `Die Szene wendet sich durch ${rescueLabel}.`
+        : `The scene turns because of ${rescueLabel}.`,
+      artifactUsageHint: language === "de"
+        ? `Artefakt-Funktion: ${artifactLabel}.`
+        : `Artifact function: ${artifactLabel}.`,
+      imageMustShowAdd: [settingLabel, encounterLabel, twistLabel],
       imageAvoidAdd: ["extra characters", "looking at camera"],
     });
   }
 
   return overrides;
 }
+
+function labelVariant(token: string, language: string): string {
+  if (language === "de") {
+    return VARIANT_LABELS_DE[token] ?? token.replace(/_/g, " ").toLowerCase();
+  }
+  return token.replace(/_/g, " ").toLowerCase();
+}
+
+const VARIANT_LABELS_DE: Record<string, string> = {
+  FOREST_AUTUMN: "Herbstwald",
+  FOREST_WINTER: "Winterwald",
+  FOREST_FOG: "Nebelwald",
+  FOREST_SUNSET: "Wald bei Sonnenuntergang",
+  JUNGLE_RUINS: "Dschungelruinen",
+  ISLAND_COVE: "Inselbucht",
+  DESERT_TEMPLE: "Wüstentempel",
+  MOUNTAIN_PASS: "Gebirgspass",
+  CRYSTAL_FOREST: "Kristallwald",
+  SKY_CASTLE: "Himmelschloss",
+  UNDERGROUND_GROVE: "unterirdischer Hain",
+  MIST_LAKE: "Nebelsee",
+  FOREST_RAIN: "Wald im Regen",
+  SAVANNA_DRY: "trockene Savanne",
+  OCEAN_REEF: "Ozeanriff",
+  MOUNTAIN_SNOW: "Schneebirge",
+  ORBITAL_STATION: "Orbitstation",
+  MARS_COLONY: "Marskolonie",
+  NEBULA_GATE: "Nebel-Pforte",
+  UNDERWATER_CITY: "Unterwasserstadt",
+  CITY_PARK: "Stadtpark",
+  SCHOOL_EVENT: "Schulfest",
+  NEIGHBORHOOD_BLOCK: "Wohnviertel",
+  MUSEUM_DAY: "Museumstag",
+  FLOWERS_DISTRACTION: "Ablenkung durch Blumen",
+  RIDDLE_DISTRACTION: "Ablenkung durch ein Rätsel",
+  FALSE_MAP: "falsche Karte",
+  HELPFUL_STRANGER_ACT: "hilfsbereiter Fremder",
+  RIVAL_CREW: "Rivalen-Crew",
+  TRAP_MAZE: "Fallenlabyrinth",
+  STORM_NIGHT: "Sturmnacht",
+  HIDDEN_GUARDIAN: "verborgener Wächter",
+  SPELL_GLITCH: "Zauberstörung",
+  TRICKSTER_FAIRY: "Schelmenfee",
+  RIDDLE_GATE: "Rätsel-Tor",
+  CURSED_PATH: "verfluchter Pfad",
+  PREDATOR_SHADOW: "Schatten eines Raubtiers",
+  LOST_NEST: "verlorenes Nest",
+  RIVER_FLOOD: "Flussflut",
+  STRANGE_TRACKS: "seltsame Spuren",
+  ROGUE_AI: "abtrünnige KI",
+  ALIEN_SIGNAL: "Alien-Signal",
+  GRAVITY_GLITCH: "Schwerkraft-Störung",
+  LOST_DRONE: "verlorene Drohne",
+  LOST_ITEM: "verlorener Gegenstand",
+  MISUNDERSTANDING: "Missverständnis",
+  RIVAL_TEAM: "Rivalen-Team",
+  SURPRISE_VISITOR: "Überraschungsbesuch",
+  GUIDES_TRUE: "weist den wahren Weg",
+  GETS_HIJACKED: "wird gekapert",
+  SOLVES_RIDDLE: "löst ein Rätsel",
+  WARNS_DANGER: "warnt vor Gefahr",
+  REVEALS_MAP: "enthüllt die Karte",
+  RESTORES_MAGIC: "stellt Magie wieder her",
+  HEALS_WOUND: "heilt eine Wunde",
+  CALLS_HELP: "ruft Hilfe",
+  TIME_BUFFER: "verschafft Zeit",
+  CONNECTS_PEOPLE: "verbindet Menschen",
+  HUNTER_RESCUE: "Rettung durch den Jäger",
+  GRANDMA_TRICK: "Trick der Großmutter",
+  AVATAR_PLAN: "Plan der Avatare",
+  TEAMWORK_TRAP: "Teamarbeit-Falle",
+  TEAMWORK_RESCUE: "Rettung durch Teamarbeit",
+  CLEVER_DECOY: "cleverer Köder",
+  HELPER_BRIDGE: "Helfer-Brücke",
+  MENTOR_REVEAL: "Enthüllung durch Mentor",
+  HELPER_SACRIFICE: "Helfer-Opfer",
+  SYSTEM_REBOOT: "System-Neustart",
+  FRIEND_APOLOGY: "Entschuldigung eines Freundes",
+  NATURE_HELP: "Hilfe der Natur",
+  WOLF_LEARNS_LESSON: "der Wolf lernt eine Lektion",
+  FAKE_WOLF: "falscher Wolf",
+  DOUBLE_BLIND: "doppelter Bluff",
+  ARTIFACT_SECRET: "Artefakt-Geheimnis",
+  TREASURE_IS_KEY: "der Schatz ist der Schlüssel",
+  ALLY_IS_RIVAL: "Verbündeter ist Rivale",
+  MAP_REWRITES: "die Karte schreibt sich um",
+  CURSE_BREAKS: "der Fluch bricht",
+  FALSE_VILLAIN: "falscher Schurke",
+  FRIEND_REVEALED: "ein Freund wird enthüllt",
+  STORM_CLEARS: "der Sturm legt sich",
+  NEW_HOME: "neues Zuhause",
+  ALIEN_HELPER: "Alien-Helfer",
+  FAKE_ALARM: "falscher Alarm",
+  MISTAKE_LEARNT: "aus einem Fehler gelernt",
+  NEW_FRIEND: "neuer Freund",
+};

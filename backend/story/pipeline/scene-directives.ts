@@ -9,7 +9,8 @@ export function buildSceneDirectives(input: {
   variantPlan: StoryVariantPlan;
   cast: CastSet;
 }): SceneDirective[] {
-  const { blueprint, integrationPlan, variantPlan, cast } = input;
+  const { blueprint, integrationPlan, variantPlan, cast, normalized } = input;
+  const isGerman = normalized.language === "de";
 
   return blueprint.scenes.map(scene => {
     const plan = integrationPlan.chapters.find(c => c.chapter === scene.sceneNumber);
@@ -21,11 +22,19 @@ export function buildSceneDirectives(input: {
 
     const setting = override?.setting ?? scene.setting;
     const goal = override?.goal ?? scene.sceneDescription;
-    const conflict = override?.conflict ?? `Obstacle in ${scene.sceneTitle}.`;
-    const outcome = override?.outcome ?? "The scene progresses toward the next beat.";
+    const conflict = override?.conflict ?? (isGerman
+      ? `Ein Hindernis entsteht in ${scene.sceneTitle}.`
+      : `Obstacle in ${scene.sceneTitle}.`);
+    const outcome = override?.outcome ?? (isGerman
+      ? "Die Szene führt zum nächsten Beat."
+      : "The scene progresses toward the next beat.");
     const artifactUsage = scene.artifactPolicy?.requiresArtifact
-      ? (override?.artifactUsageHint ?? `Artifact is relevant to ${scene.sceneTitle}.`)
-      : (override?.artifactUsageHint ?? "Artifact is not used in this chapter.");
+      ? (override?.artifactUsageHint ?? (isGerman
+        ? "Das Artefakt spielt in dieser Szene eine wichtige Rolle."
+        : `Artifact is relevant to ${scene.sceneTitle}.`))
+      : (override?.artifactUsageHint ?? (isGerman
+        ? "Das Artefakt wird in diesem Kapitel nicht genutzt."
+        : "Artifact is not used in this chapter."));
     const canonAnchorLine = override?.canonAnchorLineHint ?? plan.canonAnchorLine;
 
     const imageMustShow = buildImageMustShow(scene, plan, cast, override?.imageMustShowAdd);

@@ -3,7 +3,6 @@ import type { NormalizedRequest, RoleSlot, SceneBeat, StoryBlueprintBase, StoryD
 import { MAX_CHAPTERS, MIN_CHAPTERS } from "./constants";
 import { createSeededRandom } from "./utils";
 import { getTemplateByCategory } from "./story-dna-templates";
-import { FALLBACK_TALE_DNA } from "./fallback-tale-dna";
 
 const taleCache = new Map<string, { tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] }>();
 const templateCache = new Map<string, StoryDNA>();
@@ -15,10 +14,9 @@ export async function loadStoryBlueprintBase(input: {
   const { normalized, variantSeed } = input;
 
   if (normalized.category === "Klassische Märchen") {
-    let talePayload = await loadTaleDna(normalized.taleId);
+    const talePayload = await loadTaleDna(normalized.taleId);
     if (!talePayload) {
-      console.warn("[pipeline] No TaleDNA found in DB. Falling back to bundled TaleDNA.");
-      talePayload = FALLBACK_TALE_DNA;
+      throw new Error("No TaleDNA available for fairy tale generation. Seed at least one TaleDNA entry.");
     }
 
     const roles = ensureAvatarAndArtifactSlots(talePayload.roles, normalized.avatarCount);
@@ -49,6 +47,8 @@ async function loadStoryDnaTemplate(category: string): Promise<StoryDNA | null> 
   if (templateCache.has(category)) {
     return templateCache.get(category) ?? null;
   }
+  const inCodeTemplate = getTemplateByCategory(category) ?? null;
+  let template = inCodeTemplate;
   try {
     const row = await storyDB.queryRow<{ story_dna: any }>`
       SELECT story_dna FROM story_dna_templates
@@ -61,16 +61,14 @@ async function loadStoryDnaTemplate(category: string): Promise<StoryDNA | null> 
       if (!parsed) {
         throw new Error("Failed to parse story_dna template JSON");
       }
-      templateCache.set(category, parsed);
-      return parsed;
+      template = parsed;
     }
   } catch (error) {
-    console.warn("[pipeline] Failed to load StoryDNA template from DB, falling back to in-code templates", error);
+    console.warn("[pipeline] Failed to load StoryDNA template from DB", error);
   }
 
-  const fallback = getTemplateByCategory(category) ?? null;
-  if (fallback) templateCache.set(category, fallback);
-  return fallback;
+  if (template) templateCache.set(category, template);
+  return template;
 }
 
 async function loadTaleDna(taleId?: string): Promise<{ tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] } | null> {
@@ -93,15 +91,15 @@ async function loadTaleDna(taleId?: string): Promise<{ tale: TaleDNA; roles: Rol
       }
     }
 
-    const fallback = await storyDB.queryRow<{ tale_dna: any }>`
+    const defaultRow = await storyDB.queryRow<{ tale_dna: any }>`
       SELECT tale_dna FROM tale_dna
       ORDER BY tale_id
       LIMIT 1
     `;
-    if (fallback?.tale_dna) {
-      const parsed = parseJsonValue<{ tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] }>(fallback.tale_dna);
+    if (defaultRow?.tale_dna) {
+      const parsed = parseJsonValue<{ tale: TaleDNA; roles: RoleSlot[]; scenes: SceneBeat[] }>(defaultRow.tale_dna);
       if (!parsed) {
-        throw new Error("Failed to parse fallback tale_dna JSON");
+        throw new Error("Failed to parse default tale_dna JSON");
       }
       if (parsed?.tale?.taleId) {
         taleCache.set(parsed.tale.taleId, parsed);

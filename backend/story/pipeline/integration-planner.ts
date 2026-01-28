@@ -1,5 +1,5 @@
 ﻿import type { CastSet, IntegrationPlan, NormalizedRequest, SceneBeat, StoryBlueprintBase } from "./types";
-import { DEFAULT_AVATAR_PRESENCE_RATIO } from "./constants";
+import { DEFAULT_AVATAR_PRESENCE_RATIO, MAX_ON_STAGE_CHARACTERS } from "./constants";
 
 export function buildIntegrationPlan(input: {
   normalized: NormalizedRequest;
@@ -23,25 +23,36 @@ export function buildIntegrationPlan(input: {
 
     const hasAvatarAlready = avatarSlots.some(slot => onStage.has(slot));
     const presenceRatio = avatarsPresent / Math.max(1, totalChapters);
+    const ensureAvatar = !hasAvatarAlready && presenceRatio < targetPresence;
 
-    if (!hasAvatarAlready && presenceRatio < targetPresence) {
+    if (ensureAvatar) {
       avatarSlots.forEach(slot => onStage.add(slot));
     }
 
-    if (avatarSlots.some(slot => onStage.has(slot))) {
+    const trimmed = trimOnStage({
+      slots: onStage,
+      mustInclude: scene.mustIncludeSlots || [],
+      avatarSlots,
+      maxCharacters: MAX_ON_STAGE_CHARACTERS,
+      ensureAvatar,
+    });
+
+    if (avatarSlots.some(slot => trimmed.includes(slot))) {
       avatarsPresent += 1;
     }
 
     const canonSafeguard = buildCanonSafeguard(blueprint, scene.sceneNumber);
-    const canonAnchorLine = buildCanonAnchorLine(normalized, cast, scene);
+    const canonAnchorLine = buildCanonAnchorLine(normalized, cast);
 
     return {
       chapter: scene.sceneNumber,
-      charactersOnStage: Array.from(onStage),
-      avatarFunction: buildAvatarFunction(scene.beatType),
+      charactersOnStage: trimmed,
+      avatarFunction: buildAvatarFunction(scene.beatType, normalized.language),
       canonSafeguard,
       canonAnchorLine,
-      artifactMoment: scene.artifactPolicy?.requiresArtifact ? "Artifact should be visually important." : undefined,
+      artifactMoment: scene.artifactPolicy?.requiresArtifact
+        ? (normalized.language === "de" ? "Artefakt soll visuell wichtig sein." : "Artifact should be visually important.")
+        : undefined,
     };
   });
 
@@ -62,27 +73,77 @@ function buildCanonSafeguard(blueprint: StoryBlueprintBase, chapter: number): st
   return rules[chapter % Math.max(1, rules.length)] || "Keep tone consistent and safe.";
 }
 
-function buildCanonAnchorLine(normalized: NormalizedRequest, cast: CastSet, scene: SceneBeat): string {
-  const avatars = cast.avatars.map(a => a.displayName).join(" and ") || "the heroes";
+function buildCanonAnchorLine(normalized: NormalizedRequest, cast: CastSet): string {
+  const isGerman = normalized.language === "de";
+  const avatars = cast.avatars.map(a => a.displayName).join(isGerman ? " und " : " and ") || (isGerman ? "die Helden" : "the heroes");
   if (normalized.category === "Klassische Märchen") {
-    return `${avatars} have always been part of this tale, walking the same path in Chapter ${scene.sceneNumber}.`;
+    return isGerman
+      ? `${avatars} gehören seit jeher zu diesem Märchen und sind ganz selbstverständlich dabei.`
+      : `${avatars} have always belonged to this tale and feel like a natural part of it.`;
   }
-  return `${avatars} feel at home in this world and belong in this moment.`;
+  return isGerman
+    ? `${avatars} sind fest in dieser Welt verankert und wirken selbstverständlich dabei.`
+    : `${avatars} feel at home in this world and belong in this moment.`;
 }
 
-function buildAvatarFunction(beatType: SceneBeat["beatType"]): string {
+function buildAvatarFunction(beatType: SceneBeat["beatType"], language: string): string {
+  const isGerman = language === "de";
   switch (beatType) {
     case "SETUP":
-      return "Establish the avatars as the main point of view.";
+      return isGerman ? "Die Avatare etablieren die Perspektive." : "Establish the avatars as the main point of view.";
     case "INCITING":
-      return "Avatars notice the change and choose to act.";
+      return isGerman ? "Die Avatare bemerken die Veränderung und handeln." : "Avatars notice the change and choose to act.";
     case "CONFLICT":
-      return "Avatars confront the obstacle and test courage.";
+      return isGerman ? "Die Avatare stellen sich dem Hindernis und zeigen Mut." : "Avatars confront the obstacle and test courage.";
     case "CLIMAX":
-      return "Avatars lead the decisive action.";
+      return isGerman ? "Die Avatare führen die entscheidende Aktion an." : "Avatars lead the decisive action.";
     case "RESOLUTION":
-      return "Avatars reflect and resolve the lesson.";
+      return isGerman ? "Die Avatare reflektieren und lösen die Lektion." : "Avatars reflect and resolve the lesson.";
     default:
-      return "Avatars participate meaningfully.";
+      return isGerman ? "Die Avatare sind sinnvoll beteiligt." : "Avatars participate meaningfully.";
   }
+}
+
+function trimOnStage(input: {
+  slots: Set<string>;
+  mustInclude: string[];
+  avatarSlots: string[];
+  maxCharacters: number;
+  ensureAvatar: boolean;
+}): string[] {
+  const { slots, mustInclude, avatarSlots, maxCharacters, ensureAvatar } = input;
+  const required = new Set(mustInclude);
+  const artifactSlot = "SLOT_ARTIFACT_1";
+  const isAvatar = (slot: string) => avatarSlots.includes(slot);
+
+  const countNonArtifact = (set: Set<string>) => Array.from(set).filter(slot => slot !== artifactSlot).length;
+
+  const finalSlots = new Set(slots);
+  const nonArtifact = Array.from(finalSlots).filter(slot => slot !== artifactSlot);
+
+  if (nonArtifact.length > maxCharacters) {
+    const optional = nonArtifact.filter(slot => !required.has(slot));
+    const optionalNonAvatar = optional.filter(slot => !isAvatar(slot));
+    const optionalAvatars = optional.filter(isAvatar);
+    const avatarRemovalOrder = optionalAvatars.sort((a, b) => {
+      if (a === "SLOT_AVATAR_2" && b !== "SLOT_AVATAR_2") return -1;
+      if (b === "SLOT_AVATAR_2" && a !== "SLOT_AVATAR_2") return 1;
+      return 0;
+    });
+
+    const removalOrder = [...optionalNonAvatar, ...avatarRemovalOrder];
+
+    for (const slot of removalOrder) {
+      if (countNonArtifact(finalSlots) <= maxCharacters) break;
+      if (!required.has(slot)) finalSlots.delete(slot);
+    }
+  }
+
+  if (ensureAvatar && !avatarSlots.some(slot => finalSlots.has(slot)) && avatarSlots.length > 0) {
+    if (countNonArtifact(finalSlots) < maxCharacters) {
+      finalSlots.add(avatarSlots[0]);
+    }
+  }
+
+  return Array.from(finalSlots);
 }

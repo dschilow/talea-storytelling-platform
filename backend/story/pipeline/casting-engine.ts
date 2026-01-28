@@ -71,10 +71,7 @@ export async function buildCastSet(input: {
     const candidate = selectCandidateForSlot(slot, pool, used, rng, matchScores);
     if (!candidate) {
       if (slot.required) {
-        const fallback = buildFallbackCharacter(slot);
-        poolSheets.push(fallback);
-        slotAssignments[slot.slotKey] = fallback.characterId;
-        used.add(fallback.characterId);
+        throw new Error(`No suitable character found for required slot ${slot.slotKey}. Update character_pool or slot constraints.`);
       }
       continue;
     }
@@ -257,27 +254,6 @@ function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: string, r
     refKey: undefined,
     referenceImageId: candidate.image_url ? candidate.id : undefined,
     imageUrl: candidate.image_url ?? undefined,
-  };
-}
-
-function buildFallbackCharacter(slot: RoleSlot): CharacterSheet {
-  const id = `generated_${slot.slotKey}_${Date.now()}`;
-  const baseName = slot.slotKey.replace("SLOT_", "").replace(/_/g, " ").toLowerCase();
-  const name = baseName
-    .split(" ")
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
-  return {
-    characterId: id,
-    displayName: name,
-    roleType: slot.roleType,
-    slotKey: slot.slotKey,
-    personalityTags: slot.archetypePreference || [],
-    speechStyleHints: [],
-    visualSignature: slot.visualHints || ["distinct character"],
-    outfitLock: ["storybook outfit"],
-    forbidden: ["duplicate character"],
   };
 }
 

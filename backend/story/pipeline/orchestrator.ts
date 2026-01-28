@@ -161,7 +161,7 @@ export class StoryPipelineOrchestrator {
         storyDraft.description = (storyDraft.chapters[0]?.text || "").slice(0, 180);
       }
     } else {
-      const writeResult = await this.storyWriter.writeStory({
+      let writeResult = await this.storyWriter.writeStory({
         normalizedRequest: normalized,
         cast: castSet,
         dna: blueprint.dna,
@@ -169,8 +169,41 @@ export class StoryPipelineOrchestrator {
       });
       storyDraft = writeResult.draft;
       tokenUsage = writeResult.usage;
+
+      let storyValidation = validateStoryDraft({
+        draft: storyDraft,
+        directives,
+        cast: castSet,
+        language: normalized.language,
+      });
+
+      const shouldRetry = shouldRetryStory(storyValidation.issues);
+      if (shouldRetry) {
+        const retryResult = await this.storyWriter.writeStory({
+          normalizedRequest: normalized,
+          cast: castSet,
+          dna: blueprint.dna,
+          directives,
+          strict: true,
+        });
+        storyDraft = retryResult.draft;
+        tokenUsage = retryResult.usage ?? tokenUsage;
+        storyValidation = validateStoryDraft({
+          draft: storyDraft,
+          directives,
+          cast: castSet,
+          language: normalized.language,
+        });
+      }
+
       await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({ chapter: ch.chapter, title: ch.title, text: ch.text })));
-      await logPhase("phase6-story", { storyId: normalized.storyId }, { chapters: storyDraft.chapters.length, durationMs: Date.now() - phase6Start, tokens: tokenUsage });
+      await logPhase("phase6-story", { storyId: normalized.storyId }, {
+        chapters: storyDraft.chapters.length,
+        durationMs: Date.now() - phase6Start,
+        tokens: tokenUsage,
+        retry: shouldRetry,
+        issues: storyValidation.issues.length,
+      });
     }
 
     const phase7Start = Date.now();
@@ -201,7 +234,7 @@ export class StoryPipelineOrchestrator {
     }
 
     let validationReport: any | undefined;
-    const storyValidation = validateStoryDraft({ draft: storyDraft, directives, cast: castSet });
+    const storyValidation = validateStoryDraft({ draft: storyDraft, directives, cast: castSet, language: normalized.language });
     validationReport = { story: storyValidation, images: [] as any[] };
     if (input.enableVisionValidation) {
       const phase10Start = Date.now();
@@ -294,4 +327,9 @@ async function fetchArtifactMeta(artifactId?: string | null): Promise<any | null
     console.warn("[pipeline] Failed to load artifact metadata", error);
     return null;
   }
+}
+
+function shouldRetryStory(issues: Array<{ code: string }>): boolean {
+  const retryCodes = new Set(["MISSING_CHARACTER", "MISSING_ARTIFACT", "INSTRUCTION_LEAK"]);
+  return issues.some(issue => retryCodes.has(issue.code));
 }

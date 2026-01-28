@@ -2,6 +2,7 @@
 import { validateImageSpec } from "./schema-validator";
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
+import { buildRefsForSlots, selectReferenceSlots } from "./reference-images";
 
 export interface ImageValidationIssue {
   chapter: number;
@@ -36,7 +37,7 @@ export function validateAndFixImageSpecs(input: {
     if (shouldFix) {
       spec.negatives = Array.from(new Set([...(spec.negatives || []), ...GLOBAL_IMAGE_NEGATIVES]));
       if (directive) {
-        spec.onStageExact = directive.charactersOnStage;
+        spec.onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
       }
       spec.refs = requiredRefs;
       spec.finalPromptText = buildFinalPromptText(spec, cast);
@@ -76,16 +77,8 @@ function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
 }
 
 function expectedRefs(spec: ImageSpec, cast: CastSet): Record<string, string> {
-  const refs: Record<string, string> = {};
-  let index = 1;
-  for (const slotKey of spec.onStageExact) {
-    const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
-    if (!sheet?.imageUrl) continue;
-    const refKey = `ref_image_${index}`;
-    refs[refKey] = `IDENTITY ONLY — match ONLY ${sheet.displayName}`;
-    index += 1;
-  }
-  return refs;
+  const refSlots = selectReferenceSlots(spec.onStageExact, cast);
+  return buildRefsForSlots(refSlots, cast);
 }
 
 function validateRefs(spec: ImageSpec, expected: Record<string, string>): ImageValidationIssue[] {
