@@ -104,7 +104,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
           prefix: "images/avatars",
           filenameHint: `avatar-${id}`,
-          uploadMode: "data",
+          uploadMode: "always",
         })
       : null;
     const finalImageUrl = updates.imageUrl === undefined

@@ -61,7 +61,7 @@ export const create = api(
       ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
           prefix: "images/avatars",
           filenameHint: `avatar-${avatarId}`,
-          uploadMode: "data",
+          uploadMode: "always",
         })
       : null;
     const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;

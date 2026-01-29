@@ -178,7 +178,7 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
       ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
           prefix: "images/characters",
           filenameHint: `character-${id}`,
-          uploadMode: "data",
+          uploadMode: "always",
         })
       : null;
     const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
@@ -263,7 +263,7 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
         ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
             prefix: "images/characters",
             filenameHint: `character-${req.id}`,
-            uploadMode: "data",
+            uploadMode: "always",
           })
         : null;
       const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
@@ -327,11 +327,20 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
       promptLength: prompt.length,
     });
 
-    const resolvedImageUrl = await resolveImageUrlForClient(result.imageUrl);
+    let finalImageUrl = result.imageUrl;
+    if (finalImageUrl) {
+      const uploaded = await maybeUploadImageUrlToBucket(finalImageUrl, {
+        prefix: "images/characters",
+        filenameHint: `character-${req.id}`,
+        uploadMode: "always",
+      });
+      finalImageUrl = uploaded?.url ?? finalImageUrl;
+    }
+    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
 
     return {
       characterId: req.id,
-      imageUrl: resolvedImageUrl ?? result.imageUrl,
+      imageUrl: resolvedImageUrl ?? finalImageUrl ?? result.imageUrl,
       prompt,
       debugInfo: result.debugInfo as unknown as Record<string, unknown>,
     };
@@ -407,9 +416,17 @@ export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesRespo
           });
 
           if (result.imageUrl) {
+            let finalImageUrl = result.imageUrl;
+            const uploaded = await maybeUploadImageUrlToBucket(finalImageUrl, {
+              prefix: "images/characters",
+              filenameHint: `character-${character.id}`,
+              uploadMode: "always",
+            });
+            finalImageUrl = uploaded?.url ?? finalImageUrl;
+
             await storyDB.exec`
               UPDATE character_pool
-              SET image_url = ${result.imageUrl}, updated_at = ${new Date()}
+              SET image_url = ${finalImageUrl}, updated_at = ${new Date()}
               WHERE id = ${character.id}
             `;
 
@@ -418,7 +435,7 @@ export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesRespo
               characterId: character.id,
               characterName: character.name,
               success: true,
-              imageUrl: result.imageUrl,
+              imageUrl: finalImageUrl,
             };
           }
 
