@@ -7,6 +7,7 @@
 
 import { jsPDF } from 'jspdf';
 import type { Story } from '../types/story';
+import { getBackendUrl } from '../config';
 
 // Type definitions for image loading
 interface ImageLoadResult {
@@ -69,19 +70,18 @@ async function loadImageAsDataUrl(url: string): Promise<ImageLoadResult> {
  * This bypasses all CORS restrictions by fetching server-side.
  */
 async function loadImageViaBackendProxy(url: string): Promise<ImageLoadResult> {
-  // Get backend URL from environment
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://backend-2-production-3de1.up.railway.app';
+  // Get backend URL using shared config logic
+  const backendUrl = getBackendUrl();
 
-  // Get auth token from Clerk
+  // Get auth token from Clerk (support both window.Clerk and window.__clerk)
   let authToken: string | null = null;
   try {
-    // Try to get auth token from window.__clerk if available
-    const clerk = (window as any).__clerk;
-    if (clerk?.session) {
-      authToken = await clerk.session.getToken();
+    const clerkGlobal = (window as any).Clerk || (window as any).__clerk;
+    if (clerkGlobal?.session?.getToken) {
+      authToken = await clerkGlobal.session.getToken();
     }
-  } catch {
-    console.warn('[PDF] Could not get auth token for proxy request');
+  } catch (error) {
+    console.warn('[PDF] Could not get auth token for proxy request', error);
   }
 
   const headers: Record<string, string> = {
