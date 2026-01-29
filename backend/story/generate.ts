@@ -442,6 +442,11 @@ export const generate = api<GenerateStoryRequest, Story>(
             }
           : undefined;
 
+        const characterPoolUsed = pipelineResult.castSet.poolCharacters.map((character) => ({
+          characterId: character.characterId,
+          characterName: character.displayName,
+        }));
+
         generatedStory = {
           title: pipelineResult.storyDraft.title,
           description: pipelineResult.storyDraft.description,
@@ -453,6 +458,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             tokensUsed: tokenUsage,
             model: tokenUsage.modelUsed,
             imagesGenerated: pipelineResult.images.length,
+            characterPoolUsed,
           },
         };
       } else {

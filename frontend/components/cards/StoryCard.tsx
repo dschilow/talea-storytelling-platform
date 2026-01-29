@@ -16,6 +16,7 @@ interface StoryCardProps {
 
 export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete }) => {
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<{ src: string; label?: string } | null>(null);
   const backend = useBackend();
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -186,6 +187,38 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     color: colors.text.tertiary,
   };
 
+  const participantOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(12, 10, 9, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: spacing.lg,
+  };
+
+  const participantCardStyle: React.CSSProperties = {
+    background: colors.glass.background,
+    borderRadius: `${radii.lg}px`,
+    padding: spacing.lg,
+    border: `2px solid ${colors.border.light}`,
+    boxShadow: shadows.xl,
+    textAlign: 'center',
+    maxWidth: 360,
+    width: '100%',
+  };
+
+  const participantImageStyle: React.CSSProperties = {
+    width: 200,
+    height: 200,
+    borderRadius: '50%',
+    objectFit: 'cover',
+    border: `4px solid ${colors.rose[400]}40`,
+    boxShadow: shadows.lg,
+    margin: '0 auto',
+  };
+
   return (
     <div
       onClick={() => onRead(story)}
@@ -310,6 +343,9 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
               maxVisible={5}
               size={40}
               overlap={4}
+              onAvatarClick={(participant) => {
+                setSelectedParticipant({ src: participant.src, label: participant.label || participant.alt });
+              }}
             />
           </div>
         )}
@@ -327,6 +363,27 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
           )}
         </div>
       </div>
+
+      {selectedParticipant && (
+        <div
+          style={participantOverlayStyle}
+          onClick={(event) => {
+            event.stopPropagation();
+            setSelectedParticipant(null);
+          }}
+        >
+          <div style={participantCardStyle} onClick={(event) => event.stopPropagation()}>
+            <img
+              src={selectedParticipant.src}
+              alt={selectedParticipant.label || 'Teilnehmer'}
+              style={participantImageStyle}
+            />
+            <div style={{ marginTop: spacing.md, ...typography.textStyles.headingSm, color: colors.text.primary }}>
+              {selectedParticipant.label || 'Teilnehmer'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

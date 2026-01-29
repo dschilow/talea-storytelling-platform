@@ -9,6 +9,7 @@ export interface AvatarGroupProps {
   maxVisible?: number;
   size?: number;
   overlap?: number;
+  onAvatarClick?: (avatar: { src: string; alt?: string; label?: string }) => void;
 }
 
 const AvatarGroup = ({
@@ -16,6 +17,7 @@ const AvatarGroup = ({
   maxVisible = 5,
   size = 40,
   overlap = 14,
+  onAvatarClick,
 }: AvatarGroupProps) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const visibleAvatars = avatars.slice(0, maxVisible);
@@ -39,9 +41,16 @@ const AvatarGroup = ({
                 transition:
                   "margin-left 0.3s cubic-bezier(0.4,0,0.2,1), z-index 0s, box-shadow 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1)",
                 transform: isHovered ? "translateY(-10px)" : "translateY(0)",
+                cursor: onAvatarClick ? "pointer" : "default",
               }}
               onMouseEnter={() => setHoveredIdx(idx)}
               onMouseLeave={() => setHoveredIdx(null)}
+              onClick={(event) => {
+                if (onAvatarClick) {
+                  event.stopPropagation();
+                  onAvatarClick(avatar);
+                }
+              }}
             >
               <img
                 src={avatar.src}

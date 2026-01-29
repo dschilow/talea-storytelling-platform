@@ -86,9 +86,42 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
 
     // Get all unique character IDs from story metadata
     const allCharacterIds = new Set<string>();
-    const parsedMetadata = storyRows.map(row =>
-      row.metadata ? JSON.parse(row.metadata) : null
-    );
+    const parsedMetadata = await Promise.all(storyRows.map(async row => {
+      let base = row.metadata ? JSON.parse(row.metadata) : null;
+      if (base?.characterPoolUsed && Array.isArray(base.characterPoolUsed) && base.characterPoolUsed.length > 0) {
+        return base;
+      }
+
+      const castRow = await storyDB.queryRow<{ cast_set: any }>`
+        SELECT cast_set FROM story_cast_sets WHERE story_instance_id = ${row.id}
+      `;
+      if (!castRow?.cast_set) {
+        return base;
+      }
+
+      let castSet: any = castRow.cast_set;
+      if (typeof castSet === "string") {
+        try {
+          castSet = JSON.parse(castSet);
+        } catch {
+          return base;
+        }
+      }
+
+      const poolCharacters = Array.isArray(castSet?.poolCharacters) ? castSet.poolCharacters : [];
+      if (poolCharacters.length === 0) {
+        return base;
+      }
+
+      const characterPoolUsed = poolCharacters.map((character: any) => ({
+        characterId: character.characterId,
+        characterName: character.displayName,
+      }));
+
+      base = base || {};
+      base.characterPoolUsed = characterPoolUsed;
+      return base;
+    }));
 
     // Extract character IDs from metadata (no verbose logging)
     parsedMetadata.forEach(metadata => {
