@@ -197,6 +197,27 @@ const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   },
 };
 
+// Quality standards
+const QUALITY_CONFIG = {
+  MIN_CHAPTER_WORDS: 200,
+  MAX_CHAPTER_WORDS: 500,
+  MIN_ACCEPTABLE_SCORE: 7.5,
+  TARGET_SCORE: 9.0,
+  MAX_RETRIES: 2,
+  AVG_SENTENCE_LENGTH: {
+    "3-5": { min: 5, max: 10 },
+    "6-8": { min: 8, max: 15 },
+    "9-12": { min: 10, max: 20 },
+    "13+": { min: 12, max: 25 },
+  },
+  FORBIDDEN_PATTERNS: [
+    /lotschte/gi,
+    /wie oelen|wie ölen/gi,
+    /\.\.\.\.\./g,
+    /!!!/g,
+  ],
+} as const;
+
 // Model configurations with costs per 1M tokens
 interface ModelConfig {
   name: string;
@@ -760,10 +781,11 @@ export const generateStoryContent = api<
         throw error; // Hard-fail as per spec
       }
 
-      const storyOutcome = await generateStoryWithOpenAITools({
-        config: req.config,
-        avatars: req.avatarDetails,
-      });
+      const storyOutcome = await generateEnhancedStoryWithOpenAI(
+        req.config,
+        req.avatarDetails,
+        QUALITY_CONFIG.MAX_RETRIES
+      );
 
       metadata.tokensUsed = storyOutcome.usage ?? {
         prompt: 0,
@@ -1356,9 +1378,338 @@ function enforceAvatarDevelopments(
   console.log("[ai-generation] Enforced avatar developments:", enforced);
 }
 
+interface StoryValidationResult {
+  isValid: boolean;
+  score: number;
+  issues: string[];
+  suggestions: string[];
+}
+
+function validateGeneratedStory(
+  story: any,
+  avatars: ExtendedAvatarDetails[],
+  config?: StoryConfig
+): StoryValidationResult {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  let score = 10;
+
+  const avatarNames = avatars.map(a => a.name.toLowerCase());
+  const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
+
+  for (const chapter of chapters) {
+    const content = String(chapter?.content || chapter?.text || "").toLowerCase();
+    const missingCharacters = avatarNames.filter(name => !content.includes(name));
+    if (missingCharacters.length > 0) {
+      issues.push(`Kapitel "${chapter?.title || "?"}": Fehlende Charaktere: ${missingCharacters.join(", ")}`);
+      score -= 0.5 * missingCharacters.length;
+    }
+  }
+
+  const fullText = chapters.map((c: any) => String(c?.content || c?.text || "")).join(" ");
+  for (const pattern of QUALITY_CONFIG.FORBIDDEN_PATTERNS) {
+    if (pattern.test(fullText)) {
+      issues.push(`Verbotenes Muster gefunden: ${pattern}`);
+      score -= 0.3;
+    }
+  }
+
+  for (const chapter of chapters) {
+    const wordCount = String(chapter?.content || chapter?.text || "").trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount < QUALITY_CONFIG.MIN_CHAPTER_WORDS) {
+      issues.push(`Kapitel "${chapter?.title || "?"}" ist zu kurz (${wordCount} Woerter, min. ${QUALITY_CONFIG.MIN_CHAPTER_WORDS})`);
+      score -= 0.3;
+    }
+  }
+
+  if (chapters.length > 0) {
+    const lastChapter = chapters[chapters.length - 1];
+    const lastText = String(lastChapter?.content || lastChapter?.text || "").trim();
+    const hasProperEnding = /[.!?]$/.test(lastText);
+    const hasEmotionalClosure = /(laechelte|freute|gluecklich|warm|zusammen|freunde)/i.test(lastText);
+
+    if (!hasProperEnding) {
+      issues.push("Letztes Kapitel endet abrupt");
+      score -= 0.5;
+    }
+    if (!hasEmotionalClosure) {
+      suggestions.push("Fuege einen waermeren, emotionaleren Abschluss hinzu");
+      score -= 0.2;
+    }
+  }
+
+  const hasRiddle = /(raetsel|rätsel|geheimnis|versteckt)/i.test(fullText);
+  const hasResolution = /(loesung|lösung|gefunden|entdeckt|geloest|gelöst)/i.test(fullText);
+  if (hasRiddle && !hasResolution) {
+    issues.push("Ein Raetsel wird erwaehnt aber nicht geloest");
+    score -= 1.0;
+  }
+
+  if (config?.ageGroup) {
+    const sentences = fullText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+    const wordCount = fullText.trim().split(/\s+/).filter(Boolean).length;
+    const avgSentenceLength = sentences.length > 0 ? wordCount / sentences.length : wordCount;
+    const range = QUALITY_CONFIG.AVG_SENTENCE_LENGTH[config.ageGroup as keyof typeof QUALITY_CONFIG.AVG_SENTENCE_LENGTH];
+    if (range && (avgSentenceLength < range.min || avgSentenceLength > range.max)) {
+      suggestions.push(`Satzlaenge variieren (aktuell ~${avgSentenceLength.toFixed(1)} Woerter/Satz)`);
+      score -= 0.2;
+    }
+  }
+
+  return {
+    isValid: score >= QUALITY_CONFIG.MIN_ACCEPTABLE_SCORE,
+    score: Math.max(0, Math.min(10, score)),
+    issues,
+    suggestions,
+  };
+}
+
+function getCharacterVoice(traits: Record<string, number> | undefined): string {
+  if (!traits) return "spricht freundlich und neugierig";
+
+  const courage = traits.courage || 50;
+  const humor = traits.humor || 50;
+  const intelligence = traits.intelligence || 50;
+
+  const voice: string[] = [];
+  if (courage > 70) voice.push("spricht mutig und direkt");
+  else if (courage < 30) voice.push("spricht vorsichtig und fragt oft nach");
+
+  if (humor > 70) voice.push("macht Witze");
+  else if (humor < 30) voice.push("ist ernst und nachdenklich");
+
+  if (intelligence > 70) voice.push("benutzt manchmal schwierige Woerter");
+
+  return voice.length > 0 ? voice.join(", ") : "spricht natuerlich und kindgerecht";
+}
+
+function getGenreGuidance(genre: string): string {
+  const guidance: Record<string, string> = {
+    fairy_tales: [
+      "- Klassische Maerchenelemente: Zauberei, sprechende Tiere, versteckte Schaetze",
+      "- Klare Gut/Boese-Unterscheidung (aber Boeses nicht zu beaengstigend)",
+      "- Dreier-Regel: 3 Versuche, 3 Aufgaben, 3 Helfer",
+      "- Happy End ist Pflicht",
+    ].join("\n"),
+    adventure: [
+      "- Spannende Entdeckungen an jedem Kapitelende",
+      "- Koerperliche Herausforderungen, die geloest werden",
+      "- Mutproben mit positivem Ausgang",
+      "- Teamwork ist der Schluessel zum Erfolg",
+    ].join("\n"),
+    mystery: [
+      "- Hinweise muessen fair sein (Leser koennte es erraten)",
+      "- Keine zu gruseligen Elemente",
+      "- Logische Aufloesung (kein Zufall)",
+      "- Alle verdaechtigen Momente werden erklaert",
+    ].join("\n"),
+    educational: [
+      "- Fakten nahtlos in Handlung einweben",
+      "- Neugier der Charaktere treibt Lernen an",
+      "- \"Aha!\"-Momente fuer Charaktere UND Leser",
+      "- Wissen hilft bei der Problemloesung",
+    ].join("\n"),
+  };
+
+  return guidance[genre] || guidance.fairy_tales;
+}
+
+function getSettingAtmosphere(setting: string): string {
+  const atmospheres: Record<string, string> = {
+    castle: "Steinerne Mauern mit Echos, Fackellicht, versteckte Gaenge, Ritterruestungen",
+    forest: "Raschelnde Blaetter, Vogelgesang, Moos und Pilze, geheime Lichtungen",
+    village: "Kopfsteinpflaster, Marktplatz-Geraeuche, freundliche Nachbarn, alte Brunnen",
+    underwater: "Schimmerndes Licht von oben, Luftblasen, bunte Fische, Korallenburgen",
+    sky: "Wolkenformationen, Wind in den Haaren, weite Sicht, Voegel als Begleiter",
+  };
+
+  return atmospheres[setting] || "Beschreibe eine kindgerechte, einladende Umgebung mit vielen sensorischen Details";
+}
+
+function getPersonalityUpdateInstructions(): string {
+  return `
+Analysiere die generierte Geschichte und bestimme Charakterentwicklungen:
+
+**BASIS-MERKMALE** (verwende exakte IDs, 1-5 Punkte):
+courage, intelligence, creativity, empathy, strength, humor, adventure, patience, curiosity, leadership, teamwork
+
+**WISSENS-MERKMALE** (verwende knowledge.BEREICH, 1-10 Punkte):
+knowledge.biology, knowledge.history, knowledge.physics, knowledge.geography, knowledge.astronomy
+
+**REGELN:**
+- Nur Merkmale vergeben, die in der Geschichte AKTIV gezeigt werden
+- Hauptcharaktere: 2-4 Merkmale
+- Nebencharaktere: 1-2 Merkmale
+- Begruendung muss sich auf konkrete Szene beziehen
+
+**FORMAT:**
+"avatarDevelopments": [
+  {
+    "avatarId": "ID",
+    "name": "Name",
+    "changedTraits": {
+      "courage": { "before": 50, "after": 53, "reason": "Hat sich dem dunklen Keller gestellt" }
+    },
+    "memoryAdditions": {
+      "experiences": ["Hat das Brunnenraetsel geloest"],
+      "relationships": { "Adrian": "Vertraut ihm jetzt mehr" }
+    }
+  }
+]`;
+}
+
+function buildEnhancedUserPrompt(
+  config: StoryConfig,
+  avatars: ExtendedAvatarDetails[],
+  chapterCount: number,
+  qualityFeedback?: string
+): string {
+  const characterProfiles = avatars.map((avatar, index) => {
+    const role = index === 0 ? "HAUPTCHARAKTER" : index === 1 ? "WICHTIGER NEBENCHARAKTER" : "UNTERSTUETZENDER CHARAKTER";
+    const personalityTraits = avatar.personalityTraits || {};
+    const topTraits = Object.entries(personalityTraits)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 3)
+      .map(([trait, value]) => `${trait} (${value}/100)`)
+      .join(", ");
+
+    return `
+### ${avatar.name} [${role}]
+- Beschreibung: ${avatar.description || "Ein Kind"}
+- Persoenlichkeit: ${topTraits || "neugierig, freundlich"}
+- Besonderheit: Nutze ein konkretes, einzigartiges Merkmal im Plot
+- Sprechweise: ${getCharacterVoice(personalityTraits)}`.trim();
+  }).join("\n\n");
+
+  const genreGuidance = getGenreGuidance(config.genre);
+  const settingAtmosphere = getSettingAtmosphere(config.setting);
+
+  const outputSchema = `{
+  "title": "Titel der Geschichte",
+  "description": "2-3 Saetze Zusammenfassung",
+  "centralProblem": "Das zentrale Problem, das geloest wird",
+  "supportingCharacters": [
+    { "name": "Name", "role": "Rolle", "personality": "Eigenschaft", "appearance": "Aussehen", "motivation": "Motivation" }
+  ],
+  "recurringElement": { "name": "Element", "description": "Beschreibung", "payoffChapter": 5 },
+  "plotBeats": [
+    { "order": 1, "focus": "Fokus", "conflict": "Konflikt", "surprise": "Ueberraschung", "supportingCast": [], "environmentHighlights": [], "cliffhanger": "", "sensoryDetails": [] }
+  ],
+  "chapters": [
+    {
+      "title": "Kapiteltitel",
+      "content": "Kapiteltext (mind. ${QUALITY_CONFIG.MIN_CHAPTER_WORDS} Woerter)",
+      "order": 1,
+      "charactersPresent": ["Name1", "Name2"],
+      "plotPoints": ["Was passiert", "Was wird geloest"],
+      "imageDescription": {
+        "scene": "Scene summary (ENGLISH)",
+        "characters": {
+          "protagonists": [ { "name": "Name", "action": "action", "expression": "expression", "position": "position", "pose": "pose" } ],
+          "supporting": [ { "name": "Name", "action": "action", "expression": "expression", "position": "position", "pose": "pose" } ]
+        },
+        "environment": { "foreground": [], "midground": [], "background": [] },
+        "props": [],
+        "atmosphere": { "weather": "", "lighting": "", "season": "", "mood": "", "sensoryDetails": [] },
+        "composition": { "camera": "", "perspective": "", "focalPoints": [], "depth": "" },
+        "recurringElement": "",
+        "storytellingDetails": []
+      }
+    }
+  ],
+  "coverImageDescription": { "scene": "", "characters": { "protagonists": [], "supporting": [] }, "environment": { "foreground": [], "midground": [], "background": [] }, "props": [], "atmosphere": { "weather": "", "lighting": "", "season": "", "mood": "", "sensoryDetails": [] }, "composition": { "camera": "", "perspective": "", "focalPoints": [], "depth": "" }, "storytellingDetails": [] },
+  "avatarDevelopments": [],
+  "learningOutcomes": []
+}`;
+
+  return `
+## GESCHICHTE ERSTELLEN
+
+### GRUNDDATEN
+- Genre: ${config.genre}
+- Setting: ${config.setting}
+- Altersgruppe: ${config.ageGroup}
+- Kapitelanzahl: ${chapterCount}
+- Komplexitaet: ${config.complexity}
+
+### CHARAKTERE (ALLE MUESSEN VORKOMMEN)
+${characterProfiles}
+
+### BEZIEHUNGSDYNAMIK
+- Wer fuehrt Entscheidungen an?
+- Wer hat kreative Ideen?
+- Wer ist vorsichtig und warnt?
+- Wie ergaenzen sie sich?
+
+### GENRE-ANFORDERUNGEN
+${genreGuidance}
+
+### SETTING-ATMOSPHAERE
+${settingAtmosphere}
+
+### PLOT-ANFORDERUNGEN (KRITISCH)
+1. Zentrales Problem: Definiere EIN klares, konkretes Problem, das geloest werden muss
+2. Raetsel: Wenn eingefuehrt, muss die Loesung in Kapitel ${Math.ceil(chapterCount * 0.7)} erscheinen
+3. Gegenstaende: Jeder wichtige Gegenstand mindestens 2x
+4. Charaktere: Alle genannten Charaktere in jedem Kapitel aktiv handeln oder sprechen
+
+${qualityFeedback ? `### FEEDBACK AUS LETZTEM VERSUCH\n${qualityFeedback}\n` : ""}
+
+### AUSGABE-FORMAT
+Gib NUR valides JSON zurueck:
+${outputSchema}
+
+### WICHTIG
+- imageDescription Felder muessen auf ENGLISCH sein (alle anderen Felder auf Deutsch).
+
+### PERSOENLICHKEITS-UPDATE-SYSTEM
+${getPersonalityUpdateInstructions()}
+`;
+}
+
+async function generateEnhancedStoryWithOpenAI(
+  config: StoryConfig,
+  avatars: ExtendedAvatarDetails[],
+  maxRetries: number = QUALITY_CONFIG.MAX_RETRIES
+): Promise<StoryToolOutcome> {
+  let attempt = 0;
+  let bestResult: StoryToolOutcome | null = null;
+  let bestScore = 0;
+  let feedback: string | undefined;
+
+  while (attempt < maxRetries) {
+    attempt += 1;
+    console.log(`[ai-generation] Story attempt ${attempt}/${maxRetries}`);
+    const result = await generateStoryWithOpenAITools({ config, avatars, qualityFeedback: feedback });
+    const validation = validateGeneratedStory(result.story, avatars, config);
+    console.log(`[ai-generation] Quality score: ${validation.score}/10`);
+    if (validation.issues.length > 0) {
+      console.log(`[ai-generation] Issues: ${validation.issues.join("; ")}`);
+    }
+    if (validation.score > bestScore) {
+      bestResult = result;
+      bestScore = validation.score;
+    }
+    const acceptScore = Math.min(QUALITY_CONFIG.TARGET_SCORE, 8.5);
+    if (validation.score >= acceptScore) {
+      console.log(`[ai-generation] Quality acceptable (${validation.score}/10)`);
+      return result;
+    }
+    feedback = [
+      validation.issues.length > 0 ? `Issues: ${validation.issues.join("; ")}` : "",
+      validation.suggestions.length > 0 ? `Suggestions: ${validation.suggestions.join("; ")}` : "",
+    ].filter(Boolean).join("\n");
+  }
+
+  console.log(`[ai-generation] Max retries reached, using best result (score ${bestScore}/10)`);
+  if (bestResult) return bestResult;
+  return generateStoryWithOpenAITools({ config, avatars });
+}
+
 async function generateStoryWithOpenAITools(args: {
   config: StoryConfig;
   avatars: ExtendedAvatarDetails[];
+  qualityFeedback?: string;
 }): Promise<StoryToolOutcome> {
   const { config, avatars } = args;
 
@@ -1373,8 +1724,8 @@ async function generateStoryWithOpenAITools(args: {
   // OPTIMIZED v2.1: 3x längere Kapitel für mehr Tiefe
   const targetWordsPerChapter =
     config.ageGroup === "3-5" ? 270 : config.ageGroup === "6-8" ? 330 : 450;
-  const minWordsPerChapter = Math.max(210, targetWordsPerChapter - 60);
-  const maxWordsPerChapter = targetWordsPerChapter + 60;
+  const minWordsPerChapter = Math.max(QUALITY_CONFIG.MIN_CHAPTER_WORDS, targetWordsPerChapter - 60);
+  const maxWordsPerChapter = Math.min(QUALITY_CONFIG.MAX_CHAPTER_WORDS, targetWordsPerChapter + 60);
   const stylePresetMeta =
     config.stylePreset && STYLE_PRESET_META[config.stylePreset]
       ? STYLE_PRESET_META[config.stylePreset]
@@ -1459,7 +1810,42 @@ You MUST implement this style consistently in ALL chapters!`
     .join("\n");
 
   const systemPrompt = [
-    "You are Talea's senior picture-book author and narrative director.",
+    `Du bist ein preisgekroenter Kinderbuchautor mit 30 Jahren Erfahrung, spezialisiert auf Geschichten fuer Kinder im Alter von ${config.ageGroup} Jahren.`,
+    "Dein Stil vereint Waerme, Rhythmus und klare, bildhafte Sprache wie in bekannten Kinderbuechern.",
+    "",
+    "FUNDAMENTALE ERZAEHLPRINZIPIEN",
+    "1) NARRATIVE ARCHITEKTUR (Drei-Akt-Struktur)",
+    "- Akt 1 (Kapitel 1-2): Welt, Alltag, und konkretes Problem etablieren.",
+    "- Akt 2 (Kapitel 2-4): Steigende Spannung, Hindernisse, Lernen, jede Huerde wird geloest.",
+    "- Akt 3 (letztes Kapitel): Klimax und befriedigende Aufloesung. Alle Faden schliessen.",
+    "",
+    "2) SPRACHQUALITAET",
+    "- Saetze: 8-15 Woerter im Durchschnitt, Rhythmus durch Varianz.",
+    "- Sensorische Sprache: sehen, hoeren, riechen, fuehlen.",
+    "- Keine Passivkonstruktionen, keine abstrakten Begriffe, keine verschachtelten Nebensaetze.",
+    "- Dialoge natuerlich, kurz, maximal 2-3 Saetze am Stueck.",
+    "- Keine erfundenen Woerter oder Grammatikfehler.",
+    "",
+    "3) SHOW, DON'T TELL",
+    "- Zeige Gefuehle durch Handlung und Details.",
+    "",
+    "4) CHARAKTER-KONSISTENZ",
+    "- Jede Figur hat klare Rolle und Persoenlichkeit.",
+    "- Keine Figuren tauchen ploetzlich auf oder verschwinden.",
+    "- Wenn eingefuehrt, dann in allen Kapiteln oder Verschwinden erklaeren.",
+    "",
+    "5) PLOT-KOHAERENZ",
+    "- Jedes Raetsel wird geloest.",
+    "- Wichtige Gegenstaende tauchen mehrfach auf und werden genutzt.",
+    "- Keine losen Enden.",
+    "",
+    "6) EMOTIONALE REISE",
+    "- Spannung -> Sorge -> Hoffnung -> Triumph.",
+    "- Mindestens ein 'Oh nein!'-Moment und ein 'Juhu!'-Moment.",
+    "",
+    "KAPITELSTRUKTUR",
+    "- Hook im ersten Satz, Entwicklung, Wendepunkt/Cliffhanger (ausser letztes Kapitel).",
+    "- Letztes Kapitel: warmer, runder Abschluss.",
     "",
     "LANGUAGE RULES:",
     "- " + languageDirective,
@@ -1470,56 +1856,10 @@ You MUST implement this style consistently in ALL chapters!`
     "- Exactly " + chapterCount + " chapters with " + minWordsPerChapter + "-" + maxWordsPerChapter + " words each (target " + targetWordsPerChapter + ").",
     "- Return a single valid JSON object and nothing else.",
     "",
-    "STORY ARCHITECTURE:",
-    "- Follow a cinematic children's adventure arc:",
-    "  1. Chapter 1: normal world, inciting incident, introduce at least one supporting character.",
-    "  2. Chapter 2: exploration or first encounter, new supporting character, first obstacle.",
-    "  3. Chapter 3: escalation, meaningful surprise, tougher setback.",
-    "  4. Chapter 4: climax where all characters collaborate to solve the biggest conflict.",
-    "  5. Chapter 5: resolution with character growth, payoff of the recurring element, hint at future adventures.",
-    "- If the story length differs, adapt the beats to cover inciting incident, escalation, climax, and resolution in order.",
-    "",
-    "CHARACTER ENSEMBLE:",
-    "- Keep the user avatars (" + avatars.map((a) => a.name).join(", ") + ") consistent and central.",
-    "- Invent at least three named supporting characters suited to the genre and setting (mix of helpers, mentors, rivals, comic relief).",
-    "- Give each supporting character a clear role, personality trait, and visual hook that reappears.",
-    "- Include ambient world citizens (shopkeepers, classmates, animals) to make the scenes lively.",
-    "",
-    "CONFLICT, SURPRISE, AND HEART:",
-    "- Every chapter needs a concrete challenge plus an emotional beat.",
-    "- Include at least one genuine surprise or twist across the story.",
-    "- Resolutions must arise from clever teamwork or learned skill, never coincidence.",
-    "",
-    "WORLD BUILDING AND SENSORY DETAIL:",
-    "- Paint each location with 8-12 tangible details (sight, sound, smell, texture, temperature, small props).",
-    "- Track a recurring element introduced in chapter 1 that meaningfully returns in chapter 5.",
-    "- Use dialogue generously (around 40% of each chapter) to show personality and learning moments.",
-    "",
-    "AVATAR VISUAL CANON (keep consistent in narration):",
-    avatarVisualLines,
-    "",
-    "INTEGRATE TRAITS IN TEXT (examples � adapt to real scenes):",
-    avatarIntegrationExamples,
-    "",
     "IMAGE DESCRIPTION SPEC (English only):",
-    "- Provide structured Wimmelbild-ready data for each image:",
-    "  scene: single-sentence cinematic summary.",
-    "  characters.protagonists: 2-3 entries (name, action, expression, position, pose).",
-    "  characters.supporting: at least one entry when supporting cast is present.",
-    "  environment.foreground: 3-5 concrete items with adjectives.",
-    "  environment.midground: 5-8 elements covering main action, extra figures, and props.",
-    "  environment.background: 3+ depth elements (buildings, nature, sky, distant characters).",
-    "  props: 5-8 story-relevant or playful objects.",
-    "  atmosphere: weather, lighting, season, mood, sensoryDetails (array of sounds or smells).",
-    "  composition: camera, perspective, focalPoints (array), depth or movement cues.",
-    "  recurringElement: explain where the recurring element appears in this scene.",
-    "  storytellingDetails: short array of easter eggs or hints that link chapters together.",
-    "- Use dynamic verbs (crouches, leans, dashes, peers) instead of static words like steht/sitzen.",
-    "- Mention supporting characters, bystanders, animals, and props explicitly in midground details.",
+    "- Use the structured imageDescription schema in the JSON.",
+    "- Use dynamic verbs, list props and environment elements explicitly.",
     "- Human characters must stay fully human (no tails, no animal ears, no fur).",
-    "",
-    "COVER IMAGE DESCRIPTION:",
-    "- Same structure as chapter imageDescription but emphasise ensemble and clear space for title typography.",
     "",
     "STYLE AND TONE:",
     "- Warm, whimsical picture-book energy with gentle suspense.",
@@ -1527,13 +1867,9 @@ You MUST implement this style consistently in ALL chapters!`
     "- Respect Axel Scheffler watercolor aesthetics (soft gouache textures, hand-drawn outlines).",
     systemStyleAddendum,
     "",
-    "AVATAR DEVELOPMENTS:",
-    "- avatarDevelopments must contain exactly one entry per avatar with concrete trait deltas (allow zero change).",
-    "- Provide meaningful descriptions of how each trait changed through the story experience.",
-    "",
     "QUALITY CHECK:",
-    "- Keep continuity on items, places, supporting cast, and the recurring element.",
-    "- Chapters 1-" + (chapterCount - 1) + " end with a hook or cliffhanger; the final chapter resolves the adventure.",
+    "- Continuity on items, places, supporting cast, and recurring elements.",
+    "- Chapters 1-" + (chapterCount - 1) + " end with a hook; final chapter resolves the adventure.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -1612,41 +1948,25 @@ You MUST implement this style consistently in ALL chapters!`
   ].join("\n");
 
   const userPrompt = [
-    "Generate a " + config.genre + " story set in " + config.setting + " for the " + config.ageGroup + " age group.",
-    "Story length: exactly " + chapterCount + " chapters with " + minWordsPerChapter + "-" + maxWordsPerChapter + " words each (target " + targetWordsPerChapter + ").",
-    "",
-    "CONFIGURATION:",
-    "- Complexity: " + config.complexity,
-    "- Learning mode enabled: " + Boolean(config.learningMode?.enabled),
-    config.learningMode?.enabled ? "- Learning objectives: " + ((config.learningMode.learningObjectives ?? []).join(", ") || "none") : undefined,
-    config.allowRhymes ? "- Rhymes: encouraged (playful and natural)." : "- Rhymes: use prose; avoid rhymed verse.",
-    config.suspenseLevel !== undefined ? "- Suspense level target: " + config.suspenseLevel + "/5." : undefined,
-    config.humorLevel !== undefined ? "- Humor level target: " + config.humorLevel + "/5." : undefined,
-    config.pacing ? "- Pacing preference: " + config.pacing + "." : undefined,
-    config.pov ? "- Narrative POV: " + config.pov + "." : undefined,
-    config.hasTwist ? "- Include at least one memorable twist." : undefined,
-    config.customPrompt ? "- Custom note: " + config.customPrompt : undefined,
-    userStyleAddendum,
+    buildEnhancedUserPrompt(config, avatars, chapterCount, args.qualityFeedback),
     "",
     "AVAILABLE AVATARS:",
     avatarSummary,
     "",
-    "JSON SCHEMA (return exactly these fields):",
-    jsonSchemaBlock,
+    "AVATAR VISUAL CANON:",
+    avatarVisualLines,
     "",
-    "SUPPORTING CHARACTER RULES:",
-    "- Supporting characters must be original (do not reuse the user avatar names).",
-    "- Provide at least three supportingCharacters entries and reference them across the chapters.",
+    "INTEGRATE TRAITS IN TEXT (examples - adapt to real scenes):",
+    avatarIntegrationExamples,
     "",
-    "AVATAR DEVELOPMENTS MUST MATCH USER AVATARS EXACTLY:",
-    "- Required names: " + avatars.map((a) => a.name).join(", ") + ".",
-    "- Provide exactly " + avatars.length + " entries in avatarDevelopments.",
-    "- Example format (adapt trait names and values to the story):",
-    exampleBlock,
+    "STYLE PRESET (IMPORTANT):",
+    userStyleAddendum,
     "",
-    "Validate before responding:",
-    "- Exactly " + avatars.length + " avatarDevelopments entries with the correct avatar names.",
-    "- No missing keys. No placeholder text."
+    "VALIDATE BEFORE RESPONDING:",
+    "- Use exact avatar names: " + avatars.map((a) => a.name).join(", "),
+    "- No missing keys, no placeholder text.",
+    "- imageDescription fields in ENGLISH only.",
+    "",
   ]
     .filter(Boolean)
     .join("\n");
