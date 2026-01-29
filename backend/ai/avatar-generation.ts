@@ -1,5 +1,6 @@
 import { api } from "encore.dev/api";
 import { runwareGenerateImage } from "./image-generation";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { translateToEnglish } from "./translate";
 
@@ -59,8 +60,10 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
     console.log("🔍 Extracted from:", imageResult.debugInfo?.extractedFromPath);
     console.log("🔍 Content-Type:", imageResult.debugInfo?.contentType);
 
+    const resolvedImageUrl = await resolveImageUrlForClient(imageResult.imageUrl);
+
     return {
-      imageUrl: imageResult.imageUrl,
+      imageUrl: resolvedImageUrl || imageResult.imageUrl,
       prompt,
       debugInfo: imageResult.debugInfo,
     };
