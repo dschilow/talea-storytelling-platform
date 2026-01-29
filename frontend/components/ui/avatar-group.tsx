@@ -24,7 +24,14 @@ const AvatarGroup = ({
   const extraCount = avatars.length - maxVisible;
 
   return (
-    <div className="flex items-center">
+    <div
+      className="flex items-center"
+      onClick={(event) => {
+        if (onAvatarClick) {
+          event.stopPropagation();
+        }
+      }}
+    >
       <div className="flex -space-x-3">
         {visibleAvatars.map((avatar, idx) => {
           const isHovered = hoveredIdx === idx;
@@ -60,6 +67,12 @@ const AvatarGroup = ({
                 className="rounded-full object-cover"
                 style={{ width: size, height: size }}
                 draggable={false}
+                onClick={(event) => {
+                  if (onAvatarClick) {
+                    event.stopPropagation();
+                    onAvatarClick(avatar);
+                  }
+                }}
               />
               <AnimatePresence>
                 {isHovered && avatar.label && (

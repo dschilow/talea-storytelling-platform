@@ -327,8 +327,8 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
             <div style={{ ...typography.textStyles.caption, color: colors.text.tertiary, marginBottom: spacing.xs, fontWeight: '600' }}>
               Teilnehmer
             </div>
-            <AvatarGroup
-              avatars={[
+            {(() => {
+              const participants = [
                 ...(story.config.avatars || []).map(avatar => ({
                   src: avatar.imageUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + avatar.name,
                   alt: avatar.name,
@@ -339,14 +339,20 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
                   alt: character.name,
                   label: character.name
                 }))
-              ]}
-              maxVisible={5}
-              size={40}
-              overlap={4}
-              onAvatarClick={(participant) => {
-                setSelectedParticipant({ src: participant.src, label: participant.label || participant.alt });
-              }}
-            />
+              ];
+
+              return (
+                <AvatarGroup
+                  avatars={participants}
+                  maxVisible={participants.length}
+                  size={40}
+                  overlap={4}
+                  onAvatarClick={(participant) => {
+                    setSelectedParticipant({ src: participant.src, label: participant.label || participant.alt });
+                  }}
+                />
+              );
+            })()}
           </div>
         )}
 
