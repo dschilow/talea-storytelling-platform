@@ -27,24 +27,6 @@ interface ProxyImageResponse {
   error?: string;
 }
 
-interface ProxyImageGetRequest {
-  key?: string;
-  url?: string;
-}
-
-interface StoryChapterImageRequest {
-  id: string;
-  chapter: string | number;
-}
-
-interface AvatarImageRequest {
-  id: string;
-}
-
-interface ArtifactImageRequest {
-  id: string;
-}
-
 /**
  * Proxy an image URL and return it as base64 data URL.
  * This bypasses CORS restrictions by fetching server-side.
@@ -133,113 +115,186 @@ export const proxyImage = api<ProxyImageRequest, ProxyImageResponse>(
  * Proxy an image by bucket key and stream it directly.
  * Useful for short, stable image URLs in the UI.
  */
-export const proxyImageStream = api<ProxyImageGetRequest, Response>(
+export const proxyImageStream = api.raw(
   { expose: true, method: "GET", path: "/story/image", auth: false },
-  async (req): Promise<Response> => {
-    return await streamByKeyOrUrl(req.key, req.url);
+  async (req, resp) => {
+    const url = parseUrl(req);
+    const key = url?.searchParams.get("key") || undefined;
+    const sourceUrl = url?.searchParams.get("url") || undefined;
+    const result = await streamByKeyOrUrl(key, sourceUrl);
+    sendResult(resp, result);
   }
 );
 
-export const proxyStoryChapterImage = api<StoryChapterImageRequest, Response>(
-  { expose: true, method: "GET", path: "/story/image/story/:id/chapter/:chapter", auth: false },
-  async (req): Promise<Response> => {
-    const chapterNumber = Number(req.chapter);
-    if (!Number.isFinite(chapterNumber) || chapterNumber < 1) {
-      return new Response("Invalid chapter", { status: 400 });
+export const proxyStoryChapterImage = api.raw(
+  { expose: true, method: "GET", path: "/story/image/story/*path", auth: false },
+  async (req, resp) => {
+    const url = parseUrl(req);
+    const parts = url?.pathname.split("/").filter(Boolean) || [];
+    // Expected: story/image/story/{id}/chapter/{n}
+    const storyIndex = parts.lastIndexOf("story");
+    const chapterIndex = parts.indexOf("chapter");
+    if (storyIndex === -1 || chapterIndex === -1 || chapterIndex !== storyIndex + 2) {
+      sendResult(resp, { status: 400, message: "Invalid story chapter path" });
+      return;
+    }
+
+    const storyId = parts[storyIndex + 1];
+    const chapterStr = parts[chapterIndex + 1];
+    const chapterNumber = Number(chapterStr);
+    if (!storyId || !Number.isFinite(chapterNumber) || chapterNumber < 1) {
+      sendResult(resp, { status: 400, message: "Invalid chapter" });
+      return;
     }
 
     const row = await storyDB.queryRow<{ image_url: string | null }>`
       SELECT image_url FROM chapters
-      WHERE story_id = ${req.id} AND chapter_order = ${chapterNumber}
+      WHERE story_id = ${storyId} AND chapter_order = ${chapterNumber}
     `;
 
     if (!row?.image_url) {
-      return new Response("Image not found", { status: 404 });
+      sendResult(resp, { status: 404, message: "Image not found" });
+      return;
     }
 
-    return await streamFromImageUrl(row.image_url);
+    const result = await streamFromImageUrl(row.image_url);
+    sendResult(resp, result);
   }
 );
 
-export const proxyAvatarImage = api<AvatarImageRequest, Response>(
+export const proxyAvatarImage = api.raw(
   { expose: true, method: "GET", path: "/story/image/avatar/:id", auth: false },
-  async (req): Promise<Response> => {
+  async (req, resp) => {
+    const url = parseUrl(req);
+    const parts = url?.pathname.split("/").filter(Boolean) || [];
+    const id = parts[parts.length - 1];
+    if (!id) {
+      sendResult(resp, { status: 400, message: "Missing avatar id" });
+      return;
+    }
+
     const row = await avatarDB.queryRow<{ image_url: string | null }>`
-      SELECT image_url FROM avatars WHERE id = ${req.id}
+      SELECT image_url FROM avatars WHERE id = ${id}
     `;
 
     if (!row?.image_url) {
-      return new Response("Image not found", { status: 404 });
+      sendResult(resp, { status: 404, message: "Image not found" });
+      return;
     }
 
-    return await streamFromImageUrl(row.image_url);
+    const result = await streamFromImageUrl(row.image_url);
+    sendResult(resp, result);
   }
 );
 
-export const proxyArtifactImage = api<ArtifactImageRequest, Response>(
+export const proxyArtifactImage = api.raw(
   { expose: true, method: "GET", path: "/story/image/artifact/:id", auth: false },
-  async (req): Promise<Response> => {
+  async (req, resp) => {
+    const url = parseUrl(req);
+    const parts = url?.pathname.split("/").filter(Boolean) || [];
+    const id = parts[parts.length - 1];
+    if (!id) {
+      sendResult(resp, { status: 400, message: "Missing artifact id" });
+      return;
+    }
+
     const row = await storyDB.queryRow<{ image_url: string | null }>`
-      SELECT image_url FROM artifact_pool WHERE id = ${req.id}
+      SELECT image_url FROM artifact_pool WHERE id = ${id}
     `;
 
     if (!row?.image_url) {
-      return new Response("Image not found", { status: 404 });
+      sendResult(resp, { status: 404, message: "Image not found" });
+      return;
     }
 
-    return await streamFromImageUrl(row.image_url);
+    const result = await streamFromImageUrl(row.image_url);
+    sendResult(resp, result);
   }
 );
 
-async function streamByKeyOrUrl(keyValue?: string, urlValue?: string): Promise<Response> {
+type StreamResult = {
+  status: number;
+  body?: Buffer;
+  contentType?: string;
+  cacheControl?: string;
+  message?: string;
+};
+
+async function streamByKeyOrUrl(keyValue?: string, urlValue?: string): Promise<StreamResult> {
   const rawKey = typeof keyValue === "string" ? keyValue.trim() : "";
   const keyFromUrl = urlValue ? await extractBucketKeyForUrl(urlValue) : null;
   const key = (rawKey || keyFromUrl || "").replace(/^\/+/, "");
 
   if (!key) {
-    return new Response("Missing image key", { status: 400 });
+    return { status: 400, message: "Missing image key" };
   }
 
   if (key.includes("..")) {
-    return new Response("Invalid image key", { status: 400 });
+    return { status: 400, message: "Invalid image key" };
   }
 
   const signedUrl = await resolveImageUrlForBucketKey(key);
   if (!signedUrl) {
-    return new Response("Image not found", { status: 404 });
+    return { status: 404, message: "Image not found" };
   }
 
   return await streamFromSignedUrl(signedUrl);
 }
 
-async function streamFromImageUrl(imageUrl: string): Promise<Response> {
+async function streamFromImageUrl(imageUrl: string): Promise<StreamResult> {
   const key = await extractBucketKeyForUrl(imageUrl);
   if (!key) {
-    return new Response("Image not found", { status: 404 });
+    return { status: 404, message: "Image not found" };
   }
 
   const signedUrl = await resolveImageUrlForBucketKey(key);
   if (!signedUrl) {
-    return new Response("Image not found", { status: 404 });
+    return { status: 404, message: "Image not found" };
   }
 
   return await streamFromSignedUrl(signedUrl);
 }
 
-async function streamFromSignedUrl(signedUrl: string): Promise<Response> {
+async function streamFromSignedUrl(signedUrl: string): Promise<StreamResult> {
   const response = await fetch(signedUrl);
   if (!response.ok) {
-    return new Response("Failed to fetch image", { status: 502 });
+    return { status: 502, message: "Failed to fetch image" };
   }
 
   const contentType = response.headers.get("content-type") || "application/octet-stream";
   const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
 
-  return new Response(arrayBuffer, {
+  return {
     status: 200,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=3600"
-    }
-  });
+    contentType,
+    cacheControl: "public, max-age=3600",
+    body: buffer,
+  };
+}
+
+function parseUrl(req: { url?: string; headers?: Record<string, string | string[] | undefined> }): URL | null {
+  const rawUrl = req.url || "";
+  const hostHeader = Array.isArray(req.headers?.host) ? req.headers?.host[0] : req.headers?.host;
+  const base = hostHeader ? `http://${hostHeader}` : "http://localhost";
+  try {
+    return new URL(rawUrl, base);
+  } catch {
+    return null;
+  }
+}
+
+function sendResult(resp: any, result: StreamResult): void {
+  resp.statusCode = result.status;
+  if (result.contentType) {
+    resp.setHeader("Content-Type", result.contentType);
+  }
+  if (result.cacheControl) {
+    resp.setHeader("Cache-Control", result.cacheControl);
+  }
+  if (result.body) {
+    resp.end(result.body);
+    return;
+  }
+  resp.end(result.message || "Error");
 }
