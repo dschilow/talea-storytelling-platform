@@ -431,6 +431,7 @@ async function runCohesionPass(input: {
 }): Promise<StoryDraft["chapters"] | null> {
   const { normalizedRequest, storyBible, outline, chapters } = input;
   const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
+  const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
   const isGerman = normalizedRequest.language === "de";
   const chapterBlock = chapters.map(ch => `Kapitel ${ch.chapter}: ${ch.title}\n${ch.text}`).join("\n\n");
 
