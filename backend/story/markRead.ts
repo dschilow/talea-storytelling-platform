@@ -6,6 +6,7 @@ import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
 import { unlockStoryArtifact } from "./artifact-matcher";
 import type { ArtifactTemplate, PendingArtifact } from "./types";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -37,6 +38,7 @@ interface MarkStoryReadResponse {
     rarity: string;
     emoji?: string;
     visualKeywords: string[];
+    imageUrl?: string;
   };
 }
 
@@ -237,6 +239,8 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           // Determine language (assume German for now, could be passed in request)
           const userLang = 'de';
 
+          const resolvedArtifactImageUrl = await resolveImageUrlForClient(artifact.imageUrl);
+
           unlockedArtifact = {
             id: artifact.id,
             name: userLang === 'de' ? artifact.name.de : artifact.name.en,
@@ -245,6 +249,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             rarity: artifact.rarity,
             emoji: artifact.emoji,
             visualKeywords: artifact.visualKeywords,
+            imageUrl: resolvedArtifactImageUrl ?? artifact.imageUrl,
           };
 
           // Add artifact to each avatar's inventory
@@ -261,6 +266,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
                 tags: [artifact.category, artifact.rarity],
                 acquiredAt: new Date().toISOString(),
                 storyEffect: artifact.storyRole,
+                imageUrl: unlockedArtifact.imageUrl,
               };
 
               // Load current inventory and add new item
