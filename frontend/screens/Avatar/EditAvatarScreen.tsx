@@ -296,7 +296,8 @@ const EditAvatarScreen: React.FC = () => {
       });
 
       // Update avatar with new visual profile
-      await backend.avatar.update(avatarId!, {
+      await backend.avatar.update({
+        id: avatarId!,
         visualProfile: analysis.visualProfile,
       });
 
@@ -330,7 +331,8 @@ const EditAvatarScreen: React.FC = () => {
 
       const backendData = formDataToBackendFormat(formData);
 
-      await backend.avatar.update(avatarId, {
+      await backend.avatar.update({
+        id: avatarId,
         ...backendData,
         imageUrl: previewUrl,
       });
