@@ -99,11 +99,28 @@ export async function callChatCompletion(input: {
 
   if (!response.ok) {
     const text = await response.text();
+    console.error(`[${input.context}] OpenAI API error ${response.status}:`, text);
     throw new Error(`OpenAI API error ${response.status}: ${text}`);
   }
 
   const data = await response.json();
+  
+  // Debug logging for empty responses
+  if (!data.choices || data.choices.length === 0) {
+    console.error(`[${input.context}] OpenAI returned no choices!`, JSON.stringify(data, null, 2));
+  }
+  
   const content = data.choices?.[0]?.message?.content ?? "";
+  
+  if (!content || content.length === 0) {
+    console.error(`[${input.context}] OpenAI returned empty content!`, {
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      firstChoice: data.choices?.[0],
+      fullResponse: JSON.stringify(data, null, 2)
+    });
+  }
+  
   const usage = data.usage
     ? {
         promptTokens: data.usage.prompt_tokens ?? 0,
