@@ -18,12 +18,151 @@ interface ImageLoadResult {
 }
 
 /**
- * Load an image from URL and convert to data URL for embedding
+ * Load an image from URL and convert to data URL for embedding.
+ * Uses multiple strategies to handle CORS restrictions:
+ * 1. fetch + blob → object URL → canvas (avoids CORS canvas taint)
+ * 2. fetch + FileReader → base64 directly (no canvas needed)
+ * 3. Image element with crossOrigin → canvas (classic approach)
  */
 async function loadImageAsDataUrl(url: string): Promise<ImageLoadResult> {
+  // Strategy 1: fetch as blob → object URL → canvas (most reliable for cross-origin)
+  try {
+    const result = await loadImageViaFetch(url);
+    if (result.success) return result;
+  } catch {
+    console.warn('[PDF] Fetch+canvas strategy failed for:', url);
+  }
+
+  // Strategy 2: fetch → FileReader → base64 (no canvas at all)
+  try {
+    const result = await loadImageViaFileReader(url);
+    if (result.success) return result;
+  } catch {
+    console.warn('[PDF] FileReader strategy failed for:', url);
+  }
+
+  // Strategy 3: classic Image element with crossOrigin → canvas
+  try {
+    const result = await loadImageViaCanvasClassic(url);
+    if (result.success) return result;
+  } catch {
+    console.warn('[PDF] Classic canvas strategy failed for:', url);
+  }
+
+  console.error('[PDF] All image loading strategies failed for:', url);
+  return { success: false, error: 'All image loading strategies failed' };
+}
+
+/**
+ * Fetch image as blob, create object URL, draw to canvas, export as data URL.
+ * This avoids CORS canvas taint because the blob data is local.
+ */
+async function loadImageViaFetch(url: string): Promise<ImageLoadResult> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    return { success: false, error: `Fetch failed: ${response.status}` };
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // Enable CORS for external images
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl);
+          resolve({ success: false, error: 'Failed to get canvas context' });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(objectUrl);
+
+        resolve({
+          success: true,
+          dataUrl,
+          width: img.width,
+          height: img.height,
+        });
+      } catch (error) {
+        URL.revokeObjectURL(objectUrl);
+        resolve({ success: false, error: String(error) });
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ success: false, error: 'Failed to load blob image' });
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Fetch image and convert directly to base64 via FileReader (no canvas needed).
+ * Gets dimensions by loading as object URL image.
+ */
+async function loadImageViaFileReader(url: string): Promise<ImageLoadResult> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    return { success: false, error: `Fetch failed: ${response.status}` };
+  }
+
+  const blob = await response.blob();
+
+  // Convert blob to base64 data URL via FileReader
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('FileReader did not return string'));
+      }
+    };
+    reader.onerror = () => reject(new Error('FileReader error'));
+    reader.readAsDataURL(blob);
+  });
+
+  // Get dimensions by loading as object URL
+  const objectUrl = URL.createObjectURL(blob);
+  const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.onerror = () => {
+      resolve({ width: 1024, height: 1024 });
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.src = objectUrl;
+  });
+
+  return {
+    success: true,
+    dataUrl,
+    width: dimensions.width,
+    height: dimensions.height,
+  };
+}
+
+/**
+ * Classic approach: Image element with crossOrigin → canvas → dataURL.
+ * May fail with CORS restrictions on some image servers.
+ */
+async function loadImageViaCanvasClassic(url: string): Promise<ImageLoadResult> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
 
     img.onload = () => {
       try {
@@ -44,7 +183,7 @@ async function loadImageAsDataUrl(url: string): Promise<ImageLoadResult> {
           success: true,
           dataUrl,
           width: img.width,
-          height: img.height
+          height: img.height,
         });
       } catch (error) {
         resolve({ success: false, error: String(error) });
@@ -52,10 +191,9 @@ async function loadImageAsDataUrl(url: string): Promise<ImageLoadResult> {
     };
 
     img.onerror = () => {
-      resolve({ success: false, error: 'Failed to load image' });
+      resolve({ success: false, error: 'Failed to load image with CORS' });
     };
 
-    // Try to load the image
     img.src = url;
   });
 }
