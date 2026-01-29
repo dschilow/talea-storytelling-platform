@@ -107,6 +107,9 @@ export async function createStoryOutline(input: {
   const model = normalized.rawConfig.aiModel || "gpt-5-mini";
   const prompt = buildOutlinePrompt({ normalized, storyBible, cast, chapterCount });
 
+  const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
+  const maxTokens = isReasoningModel ? 3500 : 1400;
+
   const result = await callChatCompletion({
     model,
     messages: [
@@ -114,7 +117,7 @@ export async function createStoryOutline(input: {
       { role: "user", content: prompt },
     ],
     responseFormat: "json_object",
-    maxTokens: 1400,
+    maxTokens,
     temperature: 0.3,
     seed: normalized.variantSeed,
     context: "story-outline",
@@ -131,7 +134,7 @@ export async function createStoryOutline(input: {
         { role: "user", content: repairPrompt },
       ],
       responseFormat: "json_object",
-      maxTokens: 1400,
+      maxTokens,
       temperature: 0.2,
       seed: normalized.variantSeed,
       context: "story-outline-repair",

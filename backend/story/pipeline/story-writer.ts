@@ -21,6 +21,7 @@ export class LlmStoryWriter implements StoryWriter {
     let outline = input.outline;
     let worldState = input.initialWorldState;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
+    const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
     const systemPrompt = normalizedRequest.language === "de"
       ? "Du bist eine erfahrene Kinderbuchautorin. Schreibe warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern."
       : "You are an experienced children's book author. Write warm, vivid, rhythmic, and clear prose.";
@@ -89,7 +90,7 @@ export class LlmStoryWriter implements StoryWriter {
           { role: "user", content: prompt },
         ],
         responseFormat: "json_object",
-        maxTokens: 2000,
+        maxTokens: isReasoningModel ? 5000 : 2000,
         temperature: strict ? 0.4 : 0.7,
         context: "story-writer",
       });
@@ -132,7 +133,7 @@ export class LlmStoryWriter implements StoryWriter {
             { role: "user", content: revisionPrompt },
           ],
           responseFormat: "json_object",
-          maxTokens: 2400,
+          maxTokens: isReasoningModel ? 6000 : 2400,
           temperature: 0.4,
           context: "story-writer-revision",
         });
@@ -226,7 +227,7 @@ export class LlmStoryWriter implements StoryWriter {
               { role: "user", content: revisionPrompt },
             ],
             responseFormat: "json_object",
-            maxTokens: 2600,
+            maxTokens: isReasoningModel ? 6500 : 2600,
             temperature: 0.4,
             context: "story-writer-length-adjust",
           });
@@ -278,7 +279,7 @@ export class LlmStoryWriter implements StoryWriter {
           { role: "user", content: titlePrompt },
         ],
         responseFormat: "json_object",
-        maxTokens: 800,
+        maxTokens: isReasoningModel ? 2000 : 800,
         temperature: 0.6,
         context: "story-title",
       });
@@ -488,7 +489,7 @@ Return JSON:
       { role: "user", content: prompt },
     ],
     responseFormat: "json_object",
-    maxTokens: 2200,
+    maxTokens: isReasoningModel ? 5500 : 2200,
     temperature: 0.3,
     context: "story-cohesion",
   });

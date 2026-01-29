@@ -175,6 +175,11 @@ export async function createStoryBible(input: {
   const chapterCount = blueprint.scenes.length;
   const prompt = buildStoryBiblePrompt({ normalized, blueprint, variantPlan, cast });
 
+  // Reasoning models (gpt-5, o4) use many tokens for internal reasoning
+  // so we need to allocate more tokens for them to have room for the actual response
+  const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
+  const maxTokens = isReasoningModel ? 4000 : 1800;
+
   const result = await callChatCompletion({
     model,
     messages: [
@@ -182,7 +187,7 @@ export async function createStoryBible(input: {
       { role: "user", content: prompt },
     ],
     responseFormat: "json_object",
-    maxTokens: 1800,
+    maxTokens,
     temperature: 0.3,
     seed: normalized.variantSeed,
     context: "story-bible",
@@ -206,7 +211,7 @@ export async function createStoryBible(input: {
         { role: "user", content: repairPrompt },
       ],
       responseFormat: "json_object",
-      maxTokens: 1800,
+      maxTokens,
       temperature: 0.2,
       seed: normalized.variantSeed,
       context: "story-bible-repair",

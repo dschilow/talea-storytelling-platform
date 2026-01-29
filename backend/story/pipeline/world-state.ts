@@ -165,6 +165,9 @@ export async function updateWorldStateFromChapter(input: {
   const model = normalized.rawConfig.aiModel || "gpt-5-mini";
   const prompt = buildWorldStatePrompt({ normalized, storyBible, directive, previousState, chapterText });
 
+  const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
+  const maxTokens = isReasoningModel ? 2500 : 1000;
+
   const result = await callChatCompletion({
     model,
     messages: [
@@ -172,7 +175,7 @@ export async function updateWorldStateFromChapter(input: {
       { role: "user", content: prompt },
     ],
     responseFormat: "json_object",
-    maxTokens: 1000,
+    maxTokens,
     temperature: 0.2,
     context: "world-state-update",
   });
@@ -188,7 +191,7 @@ export async function updateWorldStateFromChapter(input: {
         { role: "user", content: repairPrompt },
       ],
       responseFormat: "json_object",
-      maxTokens: 1000,
+      maxTokens,
       temperature: 0.2,
       context: "world-state-repair",
     });
