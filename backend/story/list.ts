@@ -4,6 +4,7 @@ import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 
 interface ListStoriesRequest {
   limit?: number;
@@ -77,7 +78,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           avatarMap.set(avatar.id, {
             id: avatar.id,
             name: avatar.name,
-            imageUrl: await resolveImageUrlForClient(avatar.image_url || undefined) || null
+            imageUrl: await buildAvatarImageUrlForClient(avatar.id, avatar.image_url || undefined) || null
           });
         }
       }

@@ -2,7 +2,7 @@ import { api, Query } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { ensureAdmin } from "./authz";
 import type { Avatar } from "../avatar/avatar";
-import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -46,7 +46,7 @@ export const listAvatarsAdmin = api<ListAvatarsParams, ListAvatarsResponse>(
       description: row.description || undefined,
       physicalTraits: JSON.parse(row.physical_traits),
       personalityTraits: JSON.parse(row.personality_traits),
-      imageUrl: await resolveImageUrlForClient(row.image_url || undefined),
+      imageUrl: await buildAvatarImageUrlForClient(row.id, row.image_url || undefined),
       visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
       creationType: row.creation_type,
       isPublic: row.is_public,

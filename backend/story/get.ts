@@ -3,6 +3,7 @@ import type { Story } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { buildStoryChapterImageUrlForClient } from "../helpers/image-proxy";
 
 interface GetStoryParams {
   id: string;
@@ -56,7 +57,7 @@ export const get = api<GetStoryParams, Story>(
       id: ch.id,
       title: ch.title,
       content: ch.content,
-      imageUrl: await resolveImageUrlForClient(ch.image_url || undefined),
+      imageUrl: await buildStoryChapterImageUrlForClient(id, ch.chapter_order, ch.image_url || undefined),
       order: ch.chapter_order,
     })));
 

@@ -10,6 +10,7 @@ import {
   normalizeImageUrlForStorage,
   resolveImageUrlForClient,
 } from "../helpers/bucket-storage";
+import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 
 let imageColumnEnsured = false;
 
@@ -69,7 +70,7 @@ function rowToArtifactTemplate(row: any): ArtifactTemplate {
 }
 
 async function resolveArtifactForClient(artifact: ArtifactTemplate): Promise<ArtifactTemplate> {
-  const resolvedImageUrl = await resolveImageUrlForClient(artifact.imageUrl);
+  const resolvedImageUrl = await buildArtifactImageUrlForClient(artifact.id, artifact.imageUrl);
   return {
     ...artifact,
     imageUrl: resolvedImageUrl ?? artifact.imageUrl,
@@ -247,7 +248,7 @@ export const addArtifact = api<AddArtifactRequest, ArtifactTemplate>(
 
     console.log("[ArtifactPool] Artifact added:", id);
 
-    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+    const resolvedImageUrl = await buildArtifactImageUrlForClient(id, finalImageUrl);
 
     return {
       id,
@@ -397,7 +398,7 @@ export const generateArtifactImage = api<GenerateArtifactImageRequest, GenerateA
       promptLength: prompt.length,
     });
 
-    const resolvedImageUrl = await resolveImageUrlForClient(result.imageUrl);
+    const resolvedImageUrl = await buildArtifactImageUrlForClient(req.id, result.imageUrl);
 
     return {
       artifactId: req.id,

@@ -5,8 +5,8 @@ import { ensureAdmin } from "./authz";
 import {
   maybeUploadImageUrlToBucket,
   normalizeImageUrlForStorage,
-  resolveImageUrlForClient,
 } from "../helpers/bucket-storage";
+import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -69,7 +69,7 @@ export const updateAvatarAdmin = api<AdminUpdateAvatarRequest, Avatar>(
     `;
 
     const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${req.id}`;
-    const resolvedImageUrl = await resolveImageUrlForClient(updated.image_url || undefined);
+    const resolvedImageUrl = await buildAvatarImageUrlForClient(updated.id, updated.image_url || undefined);
     return {
       id: updated.id,
       userId: updated.user_id,

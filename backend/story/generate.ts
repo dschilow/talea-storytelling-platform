@@ -12,6 +12,7 @@ import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { buildStoryChapterImageUrlForClient, buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { updateStoryInstanceStatus } from "./pipeline/repository";
 import {
   createStructuredMemory,
@@ -431,7 +432,10 @@ export const generate = api<GenerateStoryRequest, Story>(
               rarity: pipelineResult.artifactMeta.rarity,
               storyRole: pipelineResult.artifactMeta.storyRole,
               visualKeywords: pipelineResult.artifactMeta.visualKeywords,
-              imageUrl: pipelineResult.artifactMeta.imageUrl,
+              imageUrl: await buildArtifactImageUrlForClient(
+                pipelineResult.artifactMeta.id,
+                pipelineResult.artifactMeta.imageUrl
+              ),
               discoveryChapter: 2,
               usageChapter: 4,
               locked: true,
@@ -875,7 +879,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     id: ch.id,
     title: ch.title,
     content: ch.content,
-    imageUrl: await resolveImageUrlForClient(ch.image_url || undefined),
+    imageUrl: await buildStoryChapterImageUrlForClient(storyId, ch.chapter_order, ch.image_url || undefined),
     order: ch.chapter_order,
   })));
 

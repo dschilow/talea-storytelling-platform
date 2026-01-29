@@ -6,7 +6,7 @@ import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
 import { unlockStoryArtifact } from "./artifact-matcher";
 import type { ArtifactTemplate, PendingArtifact } from "./types";
-import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -239,7 +239,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           // Determine language (assume German for now, could be passed in request)
           const userLang = 'de';
 
-          const resolvedArtifactImageUrl = await resolveImageUrlForClient(artifact.imageUrl);
+          const resolvedArtifactImageUrl = await buildArtifactImageUrlForClient(artifact.id, artifact.imageUrl);
 
           unlockedArtifact = {
             id: artifact.id,

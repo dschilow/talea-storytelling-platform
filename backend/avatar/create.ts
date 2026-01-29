@@ -11,8 +11,8 @@ import {
 import {
   maybeUploadImageUrlToBucket,
   normalizeImageUrlForStorage,
-  resolveImageUrlForClient,
 } from "../helpers/bucket-storage";
+import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 
 export const create = api(
   {
@@ -66,7 +66,7 @@ export const create = api(
       : null;
     const finalImageUrl = uploadedImage?.url ?? normalizedImageUrl;
 
-    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+    const resolvedImageUrl = await buildAvatarImageUrlForClient(avatarId, finalImageUrl);
 
     const avatar: Avatar = {
       id: avatarId,

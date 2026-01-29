@@ -10,8 +10,8 @@ import {
 import {
   maybeUploadImageUrlToBucket,
   normalizeImageUrlForStorage,
-  resolveImageUrlForClient,
 } from "../helpers/bucket-storage";
+import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -127,7 +127,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
     `;
 
     const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${id}`;
-    const resolvedImageUrl = await resolveImageUrlForClient(updated?.image_url || undefined);
+    const resolvedImageUrl = await buildAvatarImageUrlForClient(updated.id, updated?.image_url || undefined);
 
     return {
       id: updated.id,

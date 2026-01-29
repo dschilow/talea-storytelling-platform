@@ -2,7 +2,7 @@ import { api } from "encore.dev/api";
 import type { Avatar, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
-import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 
 interface ListAvatarsResponse {
   avatars: Avatar[];
@@ -38,7 +38,7 @@ export const list = api<void, ListAvatarsResponse>(
       description: row.description || undefined,
       physicalTraits: JSON.parse(row.physical_traits),
       personalityTraits: JSON.parse(row.personality_traits),
-      imageUrl: await resolveImageUrlForClient(row.image_url || undefined),
+      imageUrl: await buildAvatarImageUrlForClient(row.id, row.image_url || undefined),
       visualProfile: row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined,
       creationType: row.creation_type,
       isPublic: row.is_public,

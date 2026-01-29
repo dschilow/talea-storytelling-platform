@@ -212,6 +212,12 @@ const pickProxyBaseUrl = async (): Promise<string | undefined> => {
   return syncEnv("IMAGE_PROXY_BASE_URL") || syncEnv("BACKEND_PUBLIC_URL");
 };
 
+export async function getProxyBaseUrl(): Promise<string | null> {
+  const base = await pickProxyBaseUrl();
+  if (!base) return null;
+  return base.replace(/\/+$/, "");
+}
+
 export async function extractBucketKeyForUrl(
   imageUrl: string | undefined
 ): Promise<string | null> {
