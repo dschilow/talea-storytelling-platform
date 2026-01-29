@@ -1,5 +1,5 @@
 ﻿import { storyDB } from "../db";
-import type { CastSet, IntegrationPlan, SceneDirective, ImageSpec, StoryVariantPlan } from "./types";
+import type { CastSet, IntegrationPlan, SceneDirective, ImageSpec, StoryVariantPlan, StoryBible, StoryOutline, WorldState } from "./types";
 
 export async function upsertStoryInstance(input: {
   id: string;
@@ -120,6 +120,58 @@ export async function loadStoryText(id: string): Promise<Array<{ chapter: number
     ORDER BY chapter
   `;
   return rows;
+}
+
+export async function loadStoryBible(id: string): Promise<StoryBible | null> {
+  const row = await storyDB.queryRow<{ story_bible: any }>`
+    SELECT story_bible FROM story_bibles WHERE story_instance_id = ${id}
+  `;
+  return row?.story_bible ? parseJsonValue<StoryBible>(row.story_bible) : null;
+}
+
+export async function saveStoryBible(id: string, bible: StoryBible): Promise<void> {
+  await storyDB.exec`
+    INSERT INTO story_bibles (story_instance_id, story_bible)
+    VALUES (${id}, ${JSON.stringify(bible)})
+    ON CONFLICT (story_instance_id) DO UPDATE SET
+      story_bible = EXCLUDED.story_bible
+  `;
+}
+
+export async function loadStoryOutline(id: string): Promise<StoryOutline | null> {
+  const row = await storyDB.queryRow<{ outline: any }>`
+    SELECT outline FROM story_outlines WHERE story_instance_id = ${id}
+  `;
+  return row?.outline ? parseJsonValue<StoryOutline>(row.outline) : null;
+}
+
+export async function saveStoryOutline(id: string, outline: StoryOutline): Promise<void> {
+  await storyDB.exec`
+    INSERT INTO story_outlines (story_instance_id, outline)
+    VALUES (${id}, ${JSON.stringify(outline)})
+    ON CONFLICT (story_instance_id) DO UPDATE SET
+      outline = EXCLUDED.outline
+  `;
+}
+
+export async function loadWorldStates(id: string): Promise<WorldState[]> {
+  const rows = await storyDB.queryAll<{ chapter: number; state: any }>`
+    SELECT chapter, state FROM story_world_states
+    WHERE story_instance_id = ${id}
+    ORDER BY chapter
+  `;
+  return rows
+    .map(row => parseJsonValue<WorldState>(row.state))
+    .filter(Boolean) as WorldState[];
+}
+
+export async function saveWorldState(id: string, state: WorldState): Promise<void> {
+  await storyDB.exec`
+    INSERT INTO story_world_states (story_instance_id, chapter, state)
+    VALUES (${id}, ${state.chapter}, ${JSON.stringify(state)})
+    ON CONFLICT (story_instance_id, chapter) DO UPDATE SET
+      state = EXCLUDED.state
+  `;
 }
 
 export async function saveStoryText(id: string, chapters: Array<{ chapter: number; title?: string; text: string }>): Promise<void> {

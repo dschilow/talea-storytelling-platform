@@ -1,4 +1,4 @@
-﻿import type { CastSet, SceneDirective, StoryDraft } from "./types";
+import type { CastSet, SceneDirective, StoryBible, StoryDraft } from "./types";
 
 export interface StoryValidationIssue {
   chapter: number;
@@ -12,8 +12,9 @@ export function validateStoryDraft(input: {
   cast: CastSet;
   language?: string;
   lengthTargets?: { wordMin: number; wordMax: number };
+  storyBible?: StoryBible;
 }): { issues: StoryValidationIssue[]; score: number } {
-  const { draft, directives, cast, language, lengthTargets } = input;
+  const { draft, directives, cast, language, lengthTargets, storyBible } = input;
   const issues: StoryValidationIssue[] = [];
 
   for (const directive of directives) {
@@ -47,6 +48,33 @@ export function validateStoryDraft(input: {
     if (hasBannedCanonPhrase(textLower, language)) {
       issues.push({ chapter: directive.chapter, code: "CANON_REPETITION", message: "Canon integration phrasing too explicit/repetitive" });
     }
+
+    if (directive.continuityMust?.length) {
+      const continuityIssues = checkContinuityMust(directive.continuityMust, textLower, language);
+      continuityIssues.forEach(message => issues.push({ chapter: directive.chapter, code: "CONTINUITY_MISS", message }));
+    }
+
+    if (directive.openLoopsToAddress?.length) {
+      const hit = directive.openLoopsToAddress.some(loop => containsKeyword(textLower, loop));
+      if (!hit) {
+        issues.push({ chapter: directive.chapter, code: "OPEN_LOOP_MISS", message: "Open loop not addressed" });
+      }
+    }
+
+    if (storyBible) {
+      const throughline = hasThroughline(textLower, storyBible);
+      if (!throughline) {
+        issues.push({ chapter: directive.chapter, code: "THROUGHLINE_MISSING", message: "Chapter does not touch core goal/problem/mystery" });
+      }
+    }
+
+    const actionIssues = checkCharacterActions({
+      textLower,
+      cast,
+      characterSlots,
+      language,
+    });
+    actionIssues.forEach(message => issues.push({ chapter: directive.chapter, code: "MISSING_ACTION", message }));
 
     if (lengthTargets) {
       if (wordCount < lengthTargets.wordMin) {
@@ -107,6 +135,77 @@ function hasBannedCanonPhrase(textLower: string, language?: string): boolean {
 
   const list = language === "de" ? bannedGerman : bannedEnglish;
   return list.some(phrase => textLower.includes(phrase));
+}
+
+function checkContinuityMust(items: string[], textLower: string, language?: string): string[] {
+  const issues: string[] = [];
+  items.forEach((item) => {
+    if (item.startsWith("ENTRY:") || item.startsWith("EXIT:")) {
+      const payload = item.split(":")[1]?.trim() || "";
+      const name = payload.split(" - ")[0]?.trim();
+      if (name && !textLower.includes(name.toLowerCase())) {
+        issues.push((language === "de" ? "Entry/Exit fehlt: " : "Entry/Exit missing: ") + name);
+      }
+      const reason = payload.split(" - ")[1];
+      if (reason && !containsKeyword(textLower, reason)) {
+        issues.push((language === "de" ? "Entry/Exit Grund fehlt fuer: " : "Entry/Exit reason missing for: ") + name);
+      }
+    }
+  });
+  return issues;
+}
+
+function hasThroughline(textLower: string, bible: StoryBible): boolean {
+  const keywords = [
+    ...extractKeywords(bible.coreGoal),
+    ...extractKeywords(bible.coreProblem),
+    ...extractKeywords(bible.mysteryOrQuestion),
+  ];
+  if (keywords.length === 0) return true;
+  return keywords.some(word => textLower.includes(word));
+}
+
+function extractKeywords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map(token => token.replace(/[^a-zäöüß]/g, ""))
+    .filter(token => token.length >= 4);
+}
+
+function containsKeyword(textLower: string, phrase: string): boolean {
+  const tokens = extractKeywords(phrase);
+  return tokens.length === 0 ? false : tokens.some(token => textLower.includes(token));
+}
+
+function checkCharacterActions(input: {
+  textLower: string;
+  cast: CastSet;
+  characterSlots: string[];
+  language?: string;
+}): string[] {
+  const { textLower, cast, characterSlots, language } = input;
+  const issues: string[] = [];
+  const verbs = language === "de"
+    ? ["geht", "läuft", "sagt", "fragt", "lacht", "ruft", "nimmt", "gibt", "hilft", "zeigt", "findet", "spuert", "schaut", "nickt", "denkt", "hoert"]
+    : ["walks", "says", "asks", "laughs", "calls", "takes", "gives", "helps", "shows", "finds", "feels", "looks", "nods", "thinks", "hears"];
+
+  for (const slot of characterSlots) {
+    const name = findCharacterName(cast, slot);
+    if (!name) continue;
+    const nameLower = name.toLowerCase();
+    if (!textLower.includes(nameLower)) {
+      issues.push((language === "de" ? "Figur fehlt: " : "Missing character: ") + name);
+      continue;
+    }
+    const sentences = textLower.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+    const hasAction = sentences.some(sentence => sentence.includes(nameLower) && verbs.some(v => sentence.includes(v)));
+    if (!hasAction) {
+      issues.push((language === "de" ? "Keine Handlung fuer: " : "No action for: ") + name);
+    }
+  }
+
+  return issues;
 }
 
 function countWords(text: string): number {

@@ -1,5 +1,5 @@
-﻿import crypto from "crypto";
-import type { AvatarDetail, CastSet, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan } from "./types";
+import crypto from "crypto";
+import type { AvatarDetail, CastSet, NormalizedRequest, PipelineDependencies, SceneDirective, StoryBible, StoryDraft, StoryOutline, StoryVariantPlan, WorldState } from "./types";
 import { normalizeRequest } from "./normalizer";
 import { loadStoryBlueprintBase } from "./dna-loader";
 import { createVariantPlan } from "./variant-planner";
@@ -8,6 +8,9 @@ import { repairCastSet } from "./castset-normalizer";
 import { buildIntegrationPlan } from "./integration-planner";
 import { buildSceneDirectives } from "./scene-directives";
 import { LlmStoryWriter } from "./story-writer";
+import { createStoryBible } from "./story-bible";
+import { createStoryOutline } from "./outline-lock";
+import { createInitialWorldState } from "./world-state";
 import { TemplateImageDirector } from "./image-director";
 import { RunwareImageGenerator } from "./image-generator";
 import { SimpleVisionValidator } from "./vision-validator";
@@ -27,6 +30,12 @@ import {
   loadSceneDirectives,
   loadStoryText,
   loadImageSpecs,
+  loadStoryBible,
+  saveStoryBible,
+  loadStoryOutline,
+  saveStoryOutline,
+  loadWorldStates,
+  saveWorldState,
   saveCastSet,
   saveIntegrationPlan,
   saveSceneDirectives,
@@ -50,6 +59,9 @@ export interface PipelineRunResult {
   validationReport?: any;
   tokenUsage?: any;
   artifactMeta?: any;
+  storyBible?: StoryBible;
+  outline?: StoryOutline;
+  worldStates?: WorldState[];
 }
 
 export class StoryPipelineOrchestrator {
@@ -161,10 +173,46 @@ export class StoryPipelineOrchestrator {
       const artifactMeta = await fetchArtifactMeta(castSet.artifact?.artifactId);
       await logPhase("phase3-casting", { storyId: normalized.storyId }, { slots: Object.keys(castSet.slotAssignments).length, durationMs: Date.now() - phase3Start, avatarCount: castSet.avatars.length, poolCharacterCount: castSet.poolCharacters.length, artifactId: castSet.artifact?.artifactId, artifactName: castSet.artifact?.name });
 
+      const phase25Start = Date.now();
+      let storyBible = await loadStoryBible(normalized.storyId);
+      if (!storyBible) {
+        storyBible = await createStoryBible({
+          normalized: { ...normalized, variantSeed },
+          blueprint,
+          variantPlan,
+          cast: castSet,
+        });
+        await saveStoryBible(normalized.storyId, storyBible);
+      }
+      await logPhase("phase2.5-storybible", { storyId: normalized.storyId }, {
+        durationMs: Date.now() - phase25Start,
+        coreGoal: storyBible.coreGoal,
+        mystery: storyBible.mysteryOrQuestion,
+      });
+
+      const phase26Start = Date.now();
+      let worldStates = await loadWorldStates(normalized.storyId);
+      let initialWorldState = worldStates.find(state => state.chapter === 0);
+      if (!initialWorldState) {
+        initialWorldState = createInitialWorldState({
+          normalized,
+          firstDirective: { chapter: 1, setting: blueprint.scenes[0]?.setting || "", charactersOnStage: [], goal: "", conflict: "", outcome: "", artifactUsage: "", canonAnchorLine: "", imageMustShow: [], imageAvoid: [] } as any,
+          cast: castSet,
+          storyBible,
+        });
+        await saveWorldState(normalized.storyId, initialWorldState);
+        worldStates = [...worldStates, initialWorldState];
+      }
+      await logPhase("phase2.6-worldstate", { storyId: normalized.storyId }, {
+        durationMs: Date.now() - phase26Start,
+        openLoops: initialWorldState.openLoops?.length ?? 0,
+        location: initialWorldState.location,
+      });
+
       const phase4Start = Date.now();
       let integrationPlan = await loadIntegrationPlan(normalized.storyId);
       if (!integrationPlan) {
-        integrationPlan = buildIntegrationPlan({ normalized, blueprint, cast: castSet });
+        integrationPlan = buildIntegrationPlan({ normalized, blueprint, cast: castSet, storyBible });
         await saveIntegrationPlan(normalized.storyId, integrationPlan);
       }
       await logPhase("phase4-integration", { storyId: normalized.storyId }, { chapters: integrationPlan.chapters.length, durationMs: Date.now() - phase4Start, avatarPresenceRatio: integrationPlan.avatarPresenceRatio });
@@ -178,12 +226,29 @@ export class StoryPipelineOrchestrator {
           integrationPlan,
           variantPlan,
           cast: castSet,
+          storyBible,
         });
         await saveSceneDirectives(normalized.storyId, directives);
       }
       await logPhase("phase5-directives", { storyId: normalized.storyId }, { chapters: directives.length, durationMs: Date.now() - phase5Start, moods: directives.map(d => d.mood) });
 
       const phase6Start = Date.now();
+      const phase60Start = Date.now();
+      let outline = await loadStoryOutline(normalized.storyId);
+      if (!outline) {
+        outline = await createStoryOutline({
+          normalized,
+          storyBible,
+          cast: castSet,
+          chapterCount: directives.length,
+        });
+        await saveStoryOutline(normalized.storyId, outline);
+      }
+      await logPhase("phase6-outline", { storyId: normalized.storyId }, {
+        durationMs: Date.now() - phase60Start,
+        chapters: outline.chapters.length,
+      });
+
       const lengthTargets = normalized.wordBudget
         ? buildLengthTargetsFromBudget(normalized.wordBudget)
         : resolveLengthTargets({
@@ -218,6 +283,7 @@ export class StoryPipelineOrchestrator {
           cast: castSet,
           language: normalized.language,
           lengthTargets,
+          storyBible,
         });
       } else {
         do {
@@ -226,17 +292,31 @@ export class StoryPipelineOrchestrator {
             cast: castSet,
             dna: blueprint.dna,
             directives,
+            storyBible,
+            outline,
+            initialWorldState: initialWorldState ?? worldStates[0],
             strict: storyAttempts > 0,
             stylePackText,
           });
           storyDraft = writeResult.draft;
           tokenUsage = writeResult.usage ?? tokenUsage;
+          if (writeResult.outline) {
+            outline = writeResult.outline;
+            await saveStoryOutline(normalized.storyId, outline);
+          }
+          if (writeResult.worldStates && writeResult.worldStates.length > 0) {
+            for (const state of writeResult.worldStates) {
+              await saveWorldState(normalized.storyId, state);
+            }
+            worldStates = writeResult.worldStates;
+          }
           storyValidation = validateStoryDraft({
             draft: storyDraft,
             directives,
             cast: castSet,
             language: normalized.language,
             lengthTargets,
+            storyBible,
           });
           shouldRetry = shouldRetryStory(storyValidation.issues);
           storyAttempts += 1;
@@ -427,6 +507,9 @@ export class StoryPipelineOrchestrator {
         validationReport,
         tokenUsage,
         artifactMeta,
+        storyBible,
+        outline,
+        worldStates,
       };
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error);

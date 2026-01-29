@@ -1,7 +1,9 @@
-﻿import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
+import type { NormalizedRequest, CastSet, StoryBible, StoryDNA, StoryOutline, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, WorldState } from "./types";
 import { buildStoryChapterPrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
+import { createStoryOutline } from "./outline-lock";
+import { createInitialWorldState, updateWorldStateFromChapter } from "./world-state";
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -9,10 +11,15 @@ export class LlmStoryWriter implements StoryWriter {
     cast: CastSet;
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
+    storyBible?: StoryBible;
+    outline?: StoryOutline;
+    initialWorldState?: WorldState;
     strict?: boolean;
     stylePackText?: string;
-  }): Promise<{ draft: StoryDraft; usage?: TokenUsage }> {
-    const { normalizedRequest, cast, dna, directives, strict, stylePackText } = input;
+  }): Promise<{ draft: StoryDraft; usage?: TokenUsage; outline?: StoryOutline; worldStates?: WorldState[] }> {
+    const { normalizedRequest, cast, dna, directives, strict, stylePackText, storyBible } = input;
+    let outline = input.outline;
+    let worldState = input.initialWorldState;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
     const systemPrompt = normalizedRequest.language === "de"
       ? "Du bist eine erfahrene Kinderbuchautorin. Schreibe warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern."
@@ -26,9 +33,30 @@ export class LlmStoryWriter implements StoryWriter {
         });
 
     const chapters = [] as StoryDraft["chapters"];
+    const worldStates: WorldState[] = [];
     let totalUsage: TokenUsage | undefined;
 
+    if (!outline && storyBible) {
+      outline = await createStoryOutline({
+        normalized: normalizedRequest,
+        storyBible,
+        cast,
+        chapterCount: directives.length,
+      });
+    }
+
+    if (!worldState && storyBible) {
+      worldState = createInitialWorldState({
+        normalized: normalizedRequest,
+        firstDirective: directives[0],
+        cast,
+        storyBible,
+      });
+    }
+
     for (const directive of directives) {
+      const outlineChapter = outline?.chapters?.find(ch => ch.chapter === directive.chapter);
+      const lastSummary = chapters.length > 0 ? summarizeChapter(chapters[chapters.length - 1]?.text || "", normalizedRequest.language) : undefined;
       const isFinal = directive.chapter === directives[directives.length - 1]?.chapter;
       const finalLine = isFinal
         ? (normalizedRequest.language === "de"
@@ -48,6 +76,10 @@ export class LlmStoryWriter implements StoryWriter {
         lengthTargets,
         stylePackText,
         strict,
+        storyBible,
+        outlineChapter,
+        worldState,
+        lastChapterSummary: lastSummary,
       }) + finalLine;
 
       const result = await callChatCompletion({
@@ -88,6 +120,9 @@ export class LlmStoryWriter implements StoryWriter {
           stylePackText,
           issues,
           originalText: text,
+          storyBible,
+          outlineChapter,
+          worldState,
         }) + finalLine;
 
         const revisionResult = await callChatCompletion({
@@ -116,6 +151,23 @@ export class LlmStoryWriter implements StoryWriter {
         title,
         text,
       });
+
+      if (storyBible && worldState) {
+        try {
+          const updated = await updateWorldStateFromChapter({
+            normalized: normalizedRequest,
+            storyBible,
+            directive,
+            previousState: worldState,
+            chapterText: text,
+            cast,
+          });
+          worldStates.push(updated);
+          worldState = updated;
+        } catch (error) {
+          console.warn("[pipeline] WorldState update failed", error);
+        }
+      }
 
       if (result.usage) {
         totalUsage = mergeUsage(totalUsage, result.usage, model);
@@ -162,6 +214,9 @@ export class LlmStoryWriter implements StoryWriter {
             stylePackText,
             issues,
             originalText: current.text,
+            storyBible,
+            outlineChapter: outline?.chapters?.find(ch => ch.chapter === directive.chapter),
+            worldState: worldStates.find(ws => ws.chapter === directive.chapter) ?? worldState,
           });
 
           const revisionResult = await callChatCompletion({
@@ -191,6 +246,18 @@ export class LlmStoryWriter implements StoryWriter {
         if (revisedChapters.length === chapters.length) {
           chapters.splice(0, chapters.length, ...revisedChapters);
         }
+      }
+    }
+
+    if (storyBible && outline) {
+      const cohesive = await runCohesionPass({
+        normalizedRequest,
+        storyBible,
+        outline,
+        chapters,
+      });
+      if (cohesive) {
+        chapters.splice(0, chapters.length, ...cohesive);
       }
     }
 
@@ -233,6 +300,8 @@ export class LlmStoryWriter implements StoryWriter {
         chapters,
       },
       usage: totalUsage,
+      outline,
+      worldStates,
     };
   }
 }
@@ -294,6 +363,29 @@ function validateChapterText(input: {
       : `Chapter too long (${wordCount} words)`);
   }
 
+  if (directive.continuityMust?.length) {
+    directive.continuityMust.forEach((item) => {
+      if (item.startsWith("ENTRY:") || item.startsWith("EXIT:")) {
+        const parts = item.split(":")[1]?.trim() || "";
+        const name = parts.split(" - ")[0]?.trim();
+        if (name && !textLower.includes(name.toLowerCase())) {
+          issues.push(language === "de"
+            ? `Entry/Exit fehlt: ${name}`
+            : `Entry/Exit missing: ${name}`);
+        }
+      }
+    });
+  }
+
+  if (directive.openLoopsToAddress?.length) {
+    const hasLoop = directive.openLoopsToAddress.some(loop => containsKeyword(textLower, loop));
+    if (!hasLoop) {
+      issues.push(language === "de"
+        ? "Offene Schleife wurde nicht aufgegriffen"
+        : "Open loop not addressed");
+    }
+  }
+
   return issues;
 }
 
@@ -306,6 +398,12 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function containsKeyword(textLower: string, phrase: string): boolean {
+  const tokens = phrase.toLowerCase().split(/\s+/).filter(t => t.length >= 4);
+  if (tokens.length === 0) return false;
+  return tokens.some(token => textLower.includes(token));
+}
+
 function scaleLengthTargets(
   targets: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number },
   factor: number
@@ -315,6 +413,96 @@ function scaleLengthTargets(
   const sentenceMin = Math.max(6, Math.round(wordMin / 18));
   const sentenceMax = Math.max(sentenceMin + 2, Math.round(wordMax / 14));
   return { wordMin, wordMax, sentenceMin, sentenceMax };
+}
+
+function summarizeChapter(text: string, language: string): string {
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const maxSentences = 3;
+  const summary = sentences.slice(0, maxSentences).join(". ");
+  return summary ? summary + "." : (language === "de" ? "Kein vorheriges Kapitel." : "No previous chapter.");
+}
+
+async function runCohesionPass(input: {
+  normalizedRequest: NormalizedRequest;
+  storyBible: StoryBible;
+  outline: StoryOutline;
+  chapters: StoryDraft["chapters"];
+}): Promise<StoryDraft["chapters"] | null> {
+  const { normalizedRequest, storyBible, outline, chapters } = input;
+  const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
+  const isGerman = normalizedRequest.language === "de";
+  const chapterBlock = chapters.map(ch => `Kapitel ${ch.chapter}: ${ch.title}\n${ch.text}`).join("\n\n");
+
+  const prompt = isGerman
+    ? `Fasse die Geschichte zu einer kohärenten, durchgehenden Erzaehlung zusammen, ohne neue Figuren zu erfinden.
+
+StoryBible:
+Ziel: ${storyBible.coreGoal}
+Problem: ${storyBible.coreProblem}
+Mystery: ${storyBible.mysteryOrQuestion}
+EntryContracts: ${JSON.stringify(storyBible.entryContracts)}
+ExitContracts: ${JSON.stringify(storyBible.exitContracts)}
+
+Outline:
+${outline.chapters.map(ch => `Kapitel ${ch.chapter}: ${ch.title} | ${ch.subgoal} | ${ch.reversal} | ${ch.hook}`).join("\n")}
+
+REGELN:
+1) Keine neuen Namen.
+2) Entry/Exit Begruendungen muessen im Text erkennbar sein.
+3) Jedes Kapitel muss das Kernziel oder Mystery beruehren.
+4) Behalte Titel bei oder verbessere sie minimal.
+
+Geschichte:
+${chapterBlock}
+
+Gib JSON:
+{ "chapters": [ { "chapter": 1, "title": "...", "text": "..." } ] }`
+    : `Make the story globally coherent without adding new characters.
+
+StoryBible:
+Goal: ${storyBible.coreGoal}
+Problem: ${storyBible.coreProblem}
+Mystery: ${storyBible.mysteryOrQuestion}
+EntryContracts: ${JSON.stringify(storyBible.entryContracts)}
+ExitContracts: ${JSON.stringify(storyBible.exitContracts)}
+
+Outline:
+${outline.chapters.map(ch => `Chapter ${ch.chapter}: ${ch.title} | ${ch.subgoal} | ${ch.reversal} | ${ch.hook}`).join("\n")}
+
+RULES:
+1) No new names.
+2) Entry/Exit reasons must be reflected in text.
+3) Each chapter must touch the core goal or mystery.
+4) Keep titles or adjust minimally.
+
+Story:
+${chapters.map(ch => `Chapter ${ch.chapter}: ${ch.title}\n${ch.text}`).join("\n\n")}
+
+Return JSON:
+{ "chapters": [ { "chapter": 1, "title": "...", "text": "..." } ] }`;
+
+  const result = await callChatCompletion({
+    model,
+    messages: [
+      { role: "system", content: isGerman ? "Du bist eine strenge Lektorin fuer Kontinuitaet." : "You are a strict cohesion editor." },
+      { role: "user", content: prompt },
+    ],
+    responseFormat: "json_object",
+    maxTokens: 2200,
+    temperature: 0.3,
+    context: "story-cohesion",
+  });
+
+  const parsed = safeJson(result.content);
+  if (!parsed || !Array.isArray(parsed.chapters) || parsed.chapters.length !== chapters.length) {
+    throw new Error("Cohesion pass failed: invalid chapter count");
+  }
+  const normalized = parsed.chapters.map((ch: any, idx: number) => ({
+    chapter: typeof ch.chapter === "number" ? ch.chapter : idx + 1,
+    title: typeof ch.title === "string" && ch.title.trim().length > 0 ? ch.title : chapters[idx].title,
+    text: typeof ch.text === "string" && ch.text.trim().length > 0 ? ch.text : chapters[idx].text,
+  }));
+  return normalized;
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {

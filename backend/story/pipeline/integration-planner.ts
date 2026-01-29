@@ -1,12 +1,13 @@
-﻿import type { CastSet, IntegrationPlan, NormalizedRequest, SceneBeat, StoryBlueprintBase } from "./types";
+import type { CastSet, IntegrationPlan, NormalizedRequest, SceneBeat, StoryBible, StoryBlueprintBase } from "./types";
 import { DEFAULT_AVATAR_PRESENCE_RATIO, MAX_ON_STAGE_CHARACTERS } from "./constants";
 
 export function buildIntegrationPlan(input: {
   normalized: NormalizedRequest;
   blueprint: StoryBlueprintBase;
   cast: CastSet;
+  storyBible?: StoryBible;
 }): IntegrationPlan {
-  const { normalized, blueprint, cast } = input;
+  const { normalized, blueprint, cast, storyBible } = input;
   const avatarSlots = cast.avatars.map(a => a.slotKey);
   const artifactSlot = "SLOT_ARTIFACT_1";
 
@@ -43,6 +44,13 @@ export function buildIntegrationPlan(input: {
 
     const canonSafeguard = buildCanonSafeguard(blueprint, scene.sceneNumber);
     const canonAnchorLine = buildCanonAnchorLine(normalized, cast, scene.sceneNumber);
+    const characterBeats = buildCharacterBeats({
+      cast,
+      slots: trimmed,
+      scene,
+      storyBible,
+      language: normalized.language,
+    });
 
     return {
       chapter: scene.sceneNumber,
@@ -53,8 +61,11 @@ export function buildIntegrationPlan(input: {
       artifactMoment: scene.artifactPolicy?.requiresArtifact
         ? (normalized.language === "de" ? "Artefakt soll visuell wichtig sein." : "Artifact should be visually important.")
         : undefined,
+      characterBeats,
     };
   });
+
+  enrichEntryExitReasons(chapters, cast, storyBible, normalized.language);
 
   return {
     chapters,
@@ -123,6 +134,101 @@ function buildAvatarFunction(beatType: SceneBeat["beatType"], language: string):
   }
 }
 
+function buildCharacterBeats(input: {
+  cast: CastSet;
+  slots: string[];
+  scene: SceneBeat;
+  storyBible?: StoryBible;
+  language: string;
+}): Record<string, { roleThisChapter: string; relationshipBeat?: string; continuityLine?: string; entryReason?: string; exitReason?: string }> {
+  const { cast, slots, scene, storyBible, language } = input;
+  const isGerman = language === "de";
+  const beats: Record<string, { roleThisChapter: string; relationshipBeat?: string; continuityLine?: string; entryReason?: string; exitReason?: string }> = {};
+  const names = slots.map(slot => findName(cast, slot)).filter(Boolean) as string[];
+
+  for (const name of names) {
+    beats[name] = {
+      roleThisChapter: buildRoleThisChapter(scene.beatType, isGerman),
+      relationshipBeat: buildRelationshipBeat(name, names, isGerman),
+      continuityLine: storyBible?.coreGoal
+        ? (isGerman ? `Hilft dem Ziel: ${storyBible.coreGoal}` : `Supports the goal: ${storyBible.coreGoal}`)
+        : undefined,
+    };
+  }
+
+  return beats;
+}
+
+function enrichEntryExitReasons(
+  chapters: IntegrationPlan["chapters"],
+  cast: CastSet,
+  storyBible?: StoryBible,
+  language?: string
+) {
+  const isGerman = language === "de";
+  const onStageNames = chapters.map(ch => ch.charactersOnStage.map(slot => findName(cast, slot)).filter(Boolean) as string[]);
+  const entryContracts = storyBible?.entryContracts || {};
+  const exitContracts = storyBible?.exitContracts || {};
+
+  for (let i = 0; i < chapters.length; i += 1) {
+    const currentNames = new Set(onStageNames[i]);
+    const prevNames = i > 0 ? new Set(onStageNames[i - 1]) : new Set<string>();
+
+    // Entries
+    for (const name of currentNames) {
+      if (!prevNames.has(name)) {
+        const contract = entryContracts[name];
+        if (contract && chapters[i].characterBeats?.[name]) {
+          if (contract.chapter === chapters[i].chapter) {
+            chapters[i].characterBeats[name].entryReason = contract.reason;
+          }
+        } else if (chapters[i].characterBeats?.[name]) {
+          chapters[i].characterBeats[name].entryReason = isGerman
+            ? `${name} kommt passend zur Szene hinzu.`
+            : `${name} joins naturally for this moment.`;
+        }
+      }
+    }
+
+    // Exits (apply to previous chapter)
+    if (i > 0) {
+      const leaving = onStageNames[i - 1].filter(name => !currentNames.has(name));
+      for (const name of leaving) {
+        const prevChapter = chapters[i - 1];
+        if (!prevChapter.characterBeats?.[name]) continue;
+        const contract = exitContracts[name];
+        if (contract && contract.chapter === prevChapter.chapter) {
+          prevChapter.characterBeats[name].exitReason = contract.reason;
+        } else {
+          prevChapter.characterBeats[name].exitReason = isGerman
+            ? `${name} zieht sich kurz zurueck, um etwas zu erledigen.`
+            : `${name} steps away briefly for a clear reason.`;
+        }
+      }
+    }
+  }
+}
+
+function buildRoleThisChapter(beatType: SceneBeat["beatType"], isGerman: boolean): string {
+  const roles: Record<string, string> = {
+    SETUP: isGerman ? "Fuehrt in die Situation ein." : "Sets up the situation.",
+    INCITING: isGerman ? "Entdeckt den Ausloeser." : "Finds the inciting change.",
+    CONFLICT: isGerman ? "Stellt sich dem Hindernis." : "Faces the obstacle.",
+    CLIMAX: isGerman ? "Handelt entscheidend." : "Acts decisively.",
+    RESOLUTION: isGerman ? "Hilft beim Abschluss." : "Helps resolve the outcome.",
+  };
+  return roles[beatType] || (isGerman ? "Unterstuetzt die Szene." : "Supports the scene.");
+}
+
+function buildRelationshipBeat(name: string, names: string[], isGerman: boolean): string | undefined {
+  const others = names.filter(n => n !== name);
+  if (others.length === 0) return undefined;
+  const partner = others[0];
+  return isGerman
+    ? `${name} reagiert auf ${partner} und zeigt Vertrauen.`
+    : `${name} reacts to ${partner} and shows trust.`;
+}
+
 function trimOnStage(input: {
   slots: Set<string>;
   mustInclude: string[];
@@ -165,4 +271,9 @@ function trimOnStage(input: {
   }
 
   return Array.from(finalSlots);
+}
+
+function findName(cast: CastSet, slotKey: string): string | null {
+  const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
+  return sheet?.displayName ?? null;
 }

@@ -1,4 +1,4 @@
-﻿import type { CastSet, SceneDirective, StoryDNA, TaleDNA } from "./types";
+import type { CastSet, SceneDirective, StoryBible, StoryDNA, StoryOutline, TaleDNA, WorldState } from "./types";
 
 export function buildStoryChapterPrompt(input: {
   chapter: SceneDirective;
@@ -12,8 +12,12 @@ export function buildStoryChapterPrompt(input: {
   lengthTargets?: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number };
   stylePackText?: string;
   strict?: boolean;
+  storyBible?: StoryBible;
+  outlineChapter?: StoryOutline["chapters"][number];
+  worldState?: WorldState;
+  lastChapterSummary?: string;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, strict, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText } = input;
+  const { chapter, cast, dna, language, ageRange, tone, strict, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText, storyBible, outlineChapter, worldState, lastChapterSummary } = input;
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
@@ -44,11 +48,29 @@ export function buildStoryChapterPrompt(input: {
       : `Artifact usage: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}`)
     : "";
 
+  const continuityBlock = [
+    chapter.recapBullet ? `RECAP: ${chapter.recapBullet}` : "",
+    chapter.continuityMust?.length ? `CONTINUITY MUST:\n- ${chapter.continuityMust.join("\n- ")}` : "",
+    chapter.openLoopsToAddress?.length ? `OPEN LOOPS TO ADDRESS:\n- ${chapter.openLoopsToAddress.join("\n- ")}` : "",
+    chapter.openLoopsToCreate?.length ? `OPEN LOOP TO CREATE:\n- ${chapter.openLoopsToCreate.join("\n- ")}` : "",
+  ].filter(Boolean).join("\n");
+
+  const bibleBlock = storyBible
+    ? `STORY BIBLE:\n- Ziel: ${storyBible.coreGoal}\n- Problem: ${storyBible.coreProblem}\n- Stakes: ${storyBible.stakes}\n- Mystery: ${storyBible.mysteryOrQuestion}`
+    : "";
+  const outlineBlock = outlineChapter
+    ? `OUTLINE:\n- Titel: ${outlineChapter.title}\n- Subgoal: ${outlineChapter.subgoal}\n- Reversal: ${outlineChapter.reversal}\n- Hook: ${outlineChapter.hook}${outlineChapter.artifactBeat ? `\n- Artefakt: ${outlineChapter.artifactBeat}` : ""}`
+    : "";
+  const worldStateBlock = worldState ? `WORLD STATE (vorher):\n${JSON.stringify(worldState)}` : "";
+  const lastSummaryBlock = lastChapterSummary ? `LETZTES KAPITEL (Kurzfassung): ${lastChapterSummary}` : "";
+
   if (isGerman) {
     return `Du bist eine professionelle Autorin fuer Kinderbuecher.
 
 Schreibe Kapitel ${chapter.chapter} fuer ein Publikum von ${ageRange.min}-${ageRange.max} Jahren auf Deutsch.
 Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+
+${bibleBlock ? `${bibleBlock}\n` : ""}${outlineBlock ? `${outlineBlock}\n` : ""}${worldStateBlock ? `${worldStateBlock}\n` : ""}${lastSummaryBlock ? `${lastSummaryBlock}\n` : ""}
 
 SZENEN-VORGABE:
 - Setting: ${chapter.setting}
@@ -56,10 +78,15 @@ SZENEN-VORGABE:
 - Ziel: ${chapter.goal}
 - Konflikt: ${chapter.conflict}
 - Ausgang: ${chapter.outcome}
+- Fortschritt: ${chapter.progressDelta ?? "muss spuerbar sein"}
+- Neue Info: ${chapter.newInformation ?? "muss spuerbar sein"}
+- Kosten/Tradeoff: ${chapter.costOrTradeoff ?? "muss spuerbar sein"}
+- Hook: ${chapter.carryOverHook ?? "muss eine offene Schleife hinterlassen"}
 - Figuren auf der Buehne (alle muessen vorkommen):
 ${characterSummaries}
 ${artifactLine}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
+${continuityBlock ? `\n${continuityBlock}\n` : ""}
 
 ERLAUBTE NAMEN (exakt so schreiben): ${allowedNames || "keine"}
 
@@ -74,7 +101,9 @@ STRICTE REGELN:
 8) Keine Meta-Aussagen ueber Zugehoerigkeit; zeige Zugehoerigkeit nur durch Handlung. Vermeide Phrasen wie "gehoeren seit jeher" oder "ganz selbstverstaendlich dabei".
 9) Avatare und Nebenfiguren muessen aktiv ins Geschehen eingebunden sein, nicht nur am Rand stehen.
 10) Beende mit einem sanften Ausblick (ausser im letzten Kapitel).
-${strict ? "11) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
+11) Entry/Exit: Wenn CONTINUITY MUST ENTRY/EXIT enthaelt, muss ein Satz das begruenden.
+12) Jede Szene muss das Story-Ziel oder Mystery beruehren.
+${strict ? "13) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
 
 Gib JSON zurueck:
 { "title": "Kurzer Kapiteltitel", "text": "Kapiteltext" }`;
@@ -85,16 +114,23 @@ Gib JSON zurueck:
 Write Chapter ${chapter.chapter} for a ${ageRange.min}-${ageRange.max} year old audience in ${language}.
 Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
 
+${bibleBlock ? `${bibleBlock}\n` : ""}${outlineBlock ? `${outlineBlock}\n` : ""}${worldStateBlock ? `${worldStateBlock}\n` : ""}${lastSummaryBlock ? `${lastSummaryBlock}\n` : ""}
+
 SCENE DIRECTIVE:
 - Setting: ${chapter.setting}
 - Mood: ${chapter.mood ?? "COZY"}
 - Goal: ${chapter.goal}
 - Conflict: ${chapter.conflict}
 - Outcome: ${chapter.outcome}
+- Progress: ${chapter.progressDelta ?? "must be clear"}
+- New info: ${chapter.newInformation ?? "must be clear"}
+- Cost/Tradeoff: ${chapter.costOrTradeoff ?? "must be clear"}
+- Hook: ${chapter.carryOverHook ?? "must leave an open loop"}
 - Characters on stage (must include all):
 ${characterSummaries}
 ${artifactLine}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
+${continuityBlock ? `\n${continuityBlock}\n` : ""}
 
 Allowed names (use exactly): ${allowedNames || "none"}
 
@@ -108,7 +144,9 @@ STRICT RULES:
 7) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 8) Avatars and supporting characters must be actively involved, not just present.
 9) End with a gentle forward-looking line (except final chapter).
-${strict ? "10) Do not include any instruction text or meta commentary in the output." : ""}
+10) If CONTINUITY MUST includes ENTRY/EXIT, include a sentence that explains it.
+11) Each chapter must touch the core goal or mystery.
+${strict ? "12) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
@@ -156,8 +194,11 @@ export function buildStoryChapterRevisionPrompt(input: {
   stylePackText?: string;
   issues: string[];
   originalText: string;
+  storyBible?: StoryBible;
+  outlineChapter?: StoryOutline["chapters"][number];
+  worldState?: WorldState;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText, issues, originalText } = input;
+  const { chapter, cast, dna, language, ageRange, tone, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText, issues, originalText, storyBible, outlineChapter, worldState } = input;
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
@@ -167,12 +208,22 @@ export function buildStoryChapterRevisionPrompt(input: {
   const allowedNames = Array.from(new Set(characterNames)).join(", ");
 
   const issueList = issues.length > 0 ? issues.map(issue => `- ${issue}`).join("\n") : "- Keine";
+  const bibleBlock = storyBible
+    ? `STORY BIBLE:\n- Ziel: ${storyBible.coreGoal}\n- Problem: ${storyBible.coreProblem}\n- Mystery: ${storyBible.mysteryOrQuestion}`
+    : "";
+  const outlineBlock = outlineChapter
+    ? `OUTLINE:\n- Titel: ${outlineChapter.title}\n- Subgoal: ${outlineChapter.subgoal}\n- Reversal: ${outlineChapter.reversal}\n- Hook: ${outlineChapter.hook}`
+    : "";
+  const worldStateBlock = worldState ? `WORLD STATE (vorher):\n${JSON.stringify(worldState)}` : "";
+  const continuityBlock = chapter.continuityMust?.length ? `CONTINUITY MUST:\n- ${chapter.continuityMust.join("\n- ")}` : "";
 
   if (isGerman) {
     return `Ueberarbeite das folgende Kapitel, ohne den Inhalt zu verlieren, aber erfuelle alle Regeln.
 
 PROBLEME:
 ${issueList}
+
+${bibleBlock ? `${bibleBlock}\n` : ""}${outlineBlock ? `${outlineBlock}\n` : ""}${worldStateBlock ? `${worldStateBlock}\n` : ""}${continuityBlock ? `${continuityBlock}\n` : ""}
 
 SZENEN-VORGABE:
 - Setting: ${chapter.setting}
@@ -193,6 +244,7 @@ REGELN:
 5) Keine Meta-Aussagen ueber Zugehoerigkeit; vermeide "gehoeren seit jeher" und "ganz selbstverstaendlich dabei".
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze.
 7) Stil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreich.
+8) Wenn CONTINUITY MUST ENTRY/EXIT enthaelt, ergaenze einen Satz dazu.
 
 ORIGINALTEXT:
 ${originalText}
@@ -205,6 +257,8 @@ Gib JSON zurueck:
 
 ISSUES:
 ${issueList}
+
+${bibleBlock ? `${bibleBlock}\n` : ""}${outlineBlock ? `${outlineBlock}\n` : ""}${worldStateBlock ? `${worldStateBlock}\n` : ""}${continuityBlock ? `${continuityBlock}\n` : ""}
 
 SCENE DIRECTIVE:
 - Setting: ${chapter.setting}
@@ -225,6 +279,7 @@ RULES:
 5) Do not state belonging explicitly; avoid phrases like "always been part of this tale".
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 7) Children's-book style: vivid, rhythmic, varied sentence starts.
+8) If CONTINUITY MUST includes ENTRY/EXIT, add a sentence that explains it.
 
 ORIGINAL TEXT:
 ${originalText}

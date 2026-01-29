@@ -5,7 +5,7 @@ import type {
   Chapter,
   StylePresetKey,
 } from "./generate";
-import type { Avatar, AvatarVisualProfile } from "../avatar/avatar";
+import type { Avatar, AvatarVisualProfile, PersonalityTraits } from "../avatar/avatar";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -1446,7 +1446,7 @@ function validateGeneratedStory(
   }
 
   if (config?.ageGroup) {
-    const sentences = fullText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+    const sentences = fullText.split(/[.!?]+/).map((s: string) => s.trim()).filter(Boolean);
     const wordCount = fullText.trim().split(/\s+/).filter(Boolean).length;
     const avgSentenceLength = sentences.length > 0 ? wordCount / sentences.length : wordCount;
     const range = QUALITY_CONFIG.AVG_SENTENCE_LENGTH[config.ageGroup as keyof typeof QUALITY_CONFIG.AVG_SENTENCE_LENGTH];
@@ -1464,12 +1464,25 @@ function validateGeneratedStory(
   };
 }
 
-function getCharacterVoice(traits: Record<string, number> | undefined): string {
+type TraitInput = PersonalityTraits | Record<string, number>;
+
+function getTraitValue(traits: TraitInput | undefined, key: string, fallback = 50): number {
+  if (!traits) return fallback;
+  const raw = (traits as Record<string, unknown>)[key];
+  if (typeof raw === "number") return raw;
+  if (raw && typeof raw === "object" && "value" in raw) {
+    const value = (raw as { value?: unknown }).value;
+    if (typeof value === "number") return value;
+  }
+  return fallback;
+}
+
+function getCharacterVoice(traits: TraitInput | undefined): string {
   if (!traits) return "spricht freundlich und neugierig";
 
-  const courage = traits.courage || 50;
-  const humor = traits.humor || 50;
-  const intelligence = traits.intelligence || 50;
+  const courage = getTraitValue(traits, "courage", 50);
+  const humor = getTraitValue(traits, "humor", getTraitValue(traits, "creativity", 50));
+  const intelligence = getTraitValue(traits, "intelligence", getTraitValue(traits, "knowledge", 50));
 
   const voice: string[] = [];
   if (courage > 70) voice.push("spricht mutig und direkt");
@@ -1567,8 +1580,16 @@ function buildEnhancedUserPrompt(
   const characterProfiles = avatars.map((avatar, index) => {
     const role = index === 0 ? "HAUPTCHARAKTER" : index === 1 ? "WICHTIGER NEBENCHARAKTER" : "UNTERSTUETZENDER CHARAKTER";
     const personalityTraits = avatar.personalityTraits || {};
-    const topTraits = Object.entries(personalityTraits)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
+    const topTraits = Object.entries(personalityTraits as unknown as Record<string, unknown>)
+      .map(([trait, value]) => {
+        const numericValue = typeof value === "number"
+          ? value
+          : value && typeof value === "object" && "value" in value && typeof (value as { value?: unknown }).value === "number"
+            ? (value as { value: number }).value
+            : 0;
+        return [trait, numericValue] as const;
+      })
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
       .map(([trait, value]) => `${trait} (${value}/100)`)
       .join(", ");

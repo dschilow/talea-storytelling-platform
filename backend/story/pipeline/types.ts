@@ -107,6 +107,68 @@ export interface StoryBlueprintBase {
   scenes: SceneBeat[];
 }
 
+export interface StoryBibleChapterArc {
+  chapter: number;
+  subgoal: string;
+  reversal: string;
+  progressDelta: string;
+  newInformation: string;
+  costOrTradeoff: string;
+  carryOverHook: string;
+}
+
+export interface StoryBible {
+  coreGoal: string;
+  coreProblem: string;
+  stakes: string;
+  promise: string;
+  mysteryOrQuestion: string;
+  chapterArcs: StoryBibleChapterArc[];
+  characterMotivations: Record<string, string>;
+  entryContracts: Record<string, { chapter: number; reason: string; introLine?: string }>;
+  exitContracts: Record<string, { chapter?: number; reason?: string; allowReturn?: boolean }>;
+  artifactArc?: {
+    introduceChapter: number;
+    attemptChapter: number;
+    decisiveChapter: number;
+    failureNote?: string;
+    successNote?: string;
+  };
+}
+
+export interface WorldState {
+  chapter: number;
+  location: string;
+  timeOfDay?: string;
+  inventory?: string[];
+  artifactState?: string;
+  characterState: Record<string, { status: "onStage" | "offStage" | "left"; lastSeenChapter: number; reasonIfOffStage?: string }>;
+  openLoops: string[];
+  resolvedLoops?: string[];
+  summary?: string;
+}
+
+export interface StoryOutlineChapter {
+  chapter: number;
+  title: string;
+  subgoal: string;
+  reversal: string;
+  hook: string;
+  entryNotes?: string[];
+  exitNotes?: string[];
+  artifactBeat?: string;
+}
+
+export interface StoryOutline {
+  chapters: StoryOutlineChapter[];
+  artifactArc?: {
+    introduceChapter: number;
+    attemptChapter: number;
+    decisiveChapter: number;
+    note?: string;
+  };
+}
+
 export interface NormalizedRequest {
   storyId: string;
   userId: string;
@@ -199,6 +261,13 @@ export interface ChapterIntegration {
   canonSafeguard: string;
   canonAnchorLine: string;
   artifactMoment?: string;
+  characterBeats?: Record<string, {
+    roleThisChapter: string;
+    relationshipBeat?: string;
+    continuityLine?: string;
+    entryReason?: string;
+    exitReason?: string;
+  }>;
 }
 
 export interface IntegrationPlan {
@@ -219,6 +288,14 @@ export interface SceneDirective {
   dialogCues?: string[];
   imageMustShow: string[];
   imageAvoid: string[];
+  recapBullet?: string;
+  continuityMust?: string[];
+  openLoopsToAddress?: string[];
+  openLoopsToCreate?: string[];
+  progressDelta?: string;
+  newInformation?: string;
+  costOrTradeoff?: string;
+  carryOverHook?: string;
 }
 
 export interface ImageSpec {
@@ -260,6 +337,9 @@ export interface StoryWriter {
     cast: CastSet;
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
+    storyBible?: StoryBible;
+    outline?: StoryOutline;
+    initialWorldState?: WorldState;
     strict?: boolean;
     stylePackText?: string;
   }) => Promise<{ draft: StoryDraft; usage?: TokenUsage }>;

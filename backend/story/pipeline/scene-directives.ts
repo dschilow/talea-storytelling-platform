@@ -1,4 +1,4 @@
-﻿import type { CastSet, IntegrationPlan, NormalizedRequest, SceneBeat, SceneDirective, StoryBlueprintBase, StoryVariantPlan } from "./types";
+import type { CastSet, IntegrationPlan, NormalizedRequest, SceneBeat, SceneDirective, StoryBible, StoryOutline, StoryBlueprintBase, StoryVariantPlan } from "./types";
 import { REQUIRED_IMAGE_AVOIDS } from "./constants";
 import { validateSceneDirective } from "./schema-validator";
 
@@ -8,8 +8,10 @@ export function buildSceneDirectives(input: {
   integrationPlan: IntegrationPlan;
   variantPlan: StoryVariantPlan;
   cast: CastSet;
+  storyBible?: StoryBible;
+  outline?: StoryOutline | null;
 }): SceneDirective[] {
-  const { blueprint, integrationPlan, variantPlan, cast, normalized } = input;
+  const { blueprint, integrationPlan, variantPlan, cast, normalized, storyBible, outline } = input;
   const isGerman = normalized.language === "de";
 
   return blueprint.scenes.map(scene => {
@@ -40,6 +42,19 @@ export function buildSceneDirectives(input: {
     const imageMustShow = buildImageMustShow(scene, plan, cast, override?.imageMustShowAdd);
     const imageAvoid = buildImageAvoid(scene, override?.imageAvoidAdd);
 
+    const arc = storyBible?.chapterArcs?.find(a => a.chapter === scene.sceneNumber);
+    const prevArc = storyBible?.chapterArcs?.find(a => a.chapter === scene.sceneNumber - 1);
+    const outlineChapter = outline?.chapters?.find(ch => ch.chapter === scene.sceneNumber);
+
+    const recapBullet = buildRecapBullet(scene.sceneNumber, prevArc, isGerman);
+    const { openLoopsToAddress, openLoopsToCreate } = buildOpenLoops(prevArc, arc, storyBible);
+    const continuityMust = buildContinuityMust({
+      storyBible,
+      outlineChapter,
+      plan,
+      isGerman,
+    });
+
     const directive: SceneDirective = {
       chapter: scene.sceneNumber,
       setting,
@@ -53,6 +68,14 @@ export function buildSceneDirectives(input: {
       dialogCues: [],
       imageMustShow,
       imageAvoid,
+      recapBullet,
+      continuityMust,
+      openLoopsToAddress,
+      openLoopsToCreate,
+      progressDelta: arc?.progressDelta,
+      newInformation: arc?.newInformation,
+      costOrTradeoff: arc?.costOrTradeoff,
+      carryOverHook: arc?.carryOverHook,
     };
 
     enforceDirectiveRules(directive, scene);
@@ -64,6 +87,72 @@ export function buildSceneDirectives(input: {
 
     return directive;
   });
+}
+
+function buildRecapBullet(
+  chapter: number,
+  prevArc: StoryBible["chapterArcs"][number] | undefined,
+  isGerman: boolean
+): string {
+  if (chapter <= 1) {
+    return isGerman ? "Die Geschichte beginnt." : "The story begins.";
+  }
+  if (prevArc) {
+    return isGerman
+      ? `Kurz davor: ${prevArc.progressDelta}`
+      : `Previously: ${prevArc.progressDelta}`;
+  }
+  return isGerman ? "Kurz davor: Das Abenteuer ging weiter." : "Previously: The adventure continued.";
+}
+
+function buildOpenLoops(
+  prevArc: StoryBible["chapterArcs"][number] | undefined,
+  arc: StoryBible["chapterArcs"][number] | undefined,
+  storyBible?: StoryBible
+): { openLoopsToAddress: string[]; openLoopsToCreate: string[] } {
+  const openLoopsToAddress: string[] = [];
+  const openLoopsToCreate: string[] = [];
+
+  if (prevArc?.carryOverHook) openLoopsToAddress.push(prevArc.carryOverHook);
+  else if (storyBible?.mysteryOrQuestion) openLoopsToAddress.push(storyBible.mysteryOrQuestion);
+
+  if (arc?.carryOverHook) openLoopsToCreate.push(arc.carryOverHook);
+
+  return {
+    openLoopsToAddress: openLoopsToAddress.slice(0, 2),
+    openLoopsToCreate: openLoopsToCreate.slice(0, 1),
+  };
+}
+
+function buildContinuityMust(input: {
+  storyBible?: StoryBible;
+  outlineChapter?: StoryOutline["chapters"][number];
+  plan: IntegrationPlan["chapters"][number];
+  isGerman: boolean;
+}): string[] {
+  const { storyBible, outlineChapter, plan, isGerman } = input;
+  const items: string[] = [];
+  if (storyBible?.coreGoal) {
+    items.push(isGerman ? `KERNZIEL: ${storyBible.coreGoal}` : `CORE GOAL: ${storyBible.coreGoal}`);
+  }
+  if (storyBible?.coreProblem) {
+    items.push(isGerman ? `KERNPROBLEM: ${storyBible.coreProblem}` : `CORE PROBLEM: ${storyBible.coreProblem}`);
+  }
+  if (outlineChapter?.subgoal) {
+    items.push(isGerman ? `TEILZIEL: ${outlineChapter.subgoal}` : `SUBGOAL: ${outlineChapter.subgoal}`);
+  }
+
+  const beats = plan.characterBeats || {};
+  Object.entries(beats).forEach(([name, beat]) => {
+    if (beat.entryReason) {
+      items.push(`ENTRY: ${name} - ${beat.entryReason}`);
+    }
+    if (beat.exitReason) {
+      items.push(`EXIT: ${name} - ${beat.exitReason}`);
+    }
+  });
+
+  return items.slice(0, 6);
 }
 
 function buildImageMustShow(

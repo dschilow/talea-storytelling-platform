@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS story_world_states CASCADE;
+DROP TABLE IF EXISTS story_outlines CASCADE;
+DROP TABLE IF EXISTS story_bibles CASCADE;
