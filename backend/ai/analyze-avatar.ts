@@ -4,6 +4,7 @@ import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { translateVisualProfile } from "./translate";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -37,8 +38,19 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
     const startTime = Date.now();
     console.log("🔬 Analyzing avatar image with STABLE analysis...");
 
+    // Resolve bucket:// URLs to HTTP URLs before sending to OpenAI
+    const resolvedImageUrl = await resolveImageUrlForClient(req.imageUrl);
+    if (!resolvedImageUrl) {
+      console.error("❌ Could not resolve image URL:", req.imageUrl);
+      return {
+        success: false,
+        visualProfile: null,
+        processingTime: Date.now() - startTime,
+      };
+    }
+
     // Check if the image is an SVG placeholder (unsupported by OpenAI)
-    if (req.imageUrl.startsWith("data:image/svg+xml")) {
+    if (resolvedImageUrl.startsWith("data:image/svg+xml")) {
       console.warn("⚠️ Cannot analyze SVG placeholder images - skipping analysis");
       return {
         success: false,
@@ -143,7 +155,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
           role: "user",
           content: [
             { type: "text", text: `${userText}\n${hintsText}`.trim() },
-            { type: "image_url", image_url: { url: req.imageUrl } }
+            { type: "image_url", image_url: { url: resolvedImageUrl } }
           ]
         }
       ],
@@ -173,6 +185,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         request: {
           model: (payload as any).model,
           imageUrl: req.imageUrl,
+          resolvedImageUrl: resolvedImageUrl,
           hints: req.hints,
           systemPrompt: system,
           userPrompt: userText,
@@ -203,6 +216,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         request: {
           model: (payload as any).model,
           imageUrl: req.imageUrl,
+          resolvedImageUrl: resolvedImageUrl,
           hints: req.hints,
           systemPrompt: system,
           userPrompt: userText,
@@ -236,6 +250,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         request: {
           model: (payload as any).model,
           imageUrl: req.imageUrl,
+          resolvedImageUrl: resolvedImageUrl,
           hints: req.hints,
           systemPrompt: system,
           userPrompt: userText,
@@ -274,6 +289,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         request: {
           model: (payload as any).model,
           imageUrl: req.imageUrl,
+          resolvedImageUrl: resolvedImageUrl,
           hints: req.hints,
           systemPrompt: system,
           userPrompt: userText,
@@ -317,6 +333,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         request: {
           model: (payload as any).model,
           imageUrl: req.imageUrl,
+          resolvedImageUrl: resolvedImageUrl,
           hints: req.hints,
           systemPrompt: system,
           userPrompt: userText,

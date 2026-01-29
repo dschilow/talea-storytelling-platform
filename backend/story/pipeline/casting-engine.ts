@@ -5,6 +5,7 @@ import type { AvatarDetail, CastSet, CharacterSheet, MatchScore, NormalizedReque
 import { createSeededRandom } from "./utils";
 import { buildInvariantsFromVisualProfile, formatInvariantsForPrompt } from "../character-invariants";
 import { scoreCandidate } from "./matching-score";
+import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 
 interface CharacterPoolRow {
   id: string;
@@ -53,7 +54,7 @@ export async function buildCastSet(input: {
   const used = new Set<string>();
   const matchScores: MatchScore[] = [];
 
-  const avatarSheets = buildAvatarSheets(avatars);
+  const avatarSheets = await buildAvatarSheets(avatars);
   avatarSheets.forEach(sheet => used.add(sheet.characterId));
 
   const poolSheets: CharacterSheet[] = [];
@@ -68,7 +69,7 @@ export async function buildCastSet(input: {
     if (slot.roleType === "ARTIFACT") continue;
     if (!slot.required && poolSheets.length >= 5) continue;
 
-    const candidate = selectCandidateForSlot(slot, pool, used, rng, matchScores);
+    const candidate = await selectCandidateForSlot(slot, pool, used, rng, matchScores);
     if (!candidate) {
       if (slot.required) {
         throw new Error(`No suitable character found for required slot ${slot.slotKey}. Update character_pool or slot constraints.`);
@@ -114,8 +115,8 @@ export async function buildCastSet(input: {
   };
 }
 
-function buildAvatarSheets(avatars: AvatarDetail[]): CharacterSheet[] {
-  return avatars.map((avatar, index) => {
+async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterSheet[]> {
+  return Promise.all(avatars.map(async (avatar, index) => {
     const invariants = avatar.visualProfile
       ? buildInvariantsFromVisualProfile(avatar.name, avatar.visualProfile, avatar.description)
       : null;
@@ -143,6 +144,9 @@ function buildAvatarSheets(avatars: AvatarDetail[]): CharacterSheet[] {
       ...(invariants?.forbiddenFeatures || []),
     ].filter(Boolean) as string[];
 
+    // Resolve bucket:// URLs to HTTP URLs for reference images
+    const resolvedImageUrl = avatar.imageUrl ? await resolveImageUrlForClient(avatar.imageUrl) : undefined;
+
     return {
       characterId: avatar.id,
       displayName: avatar.name,
@@ -154,20 +158,20 @@ function buildAvatarSheets(avatars: AvatarDetail[]): CharacterSheet[] {
       outfitLock: outfitLock.length > 0 ? outfitLock : ["consistent outfit"],
       faceLock: faceLock.length > 0 ? faceLock : undefined,
       forbidden: forbidden.length > 0 ? forbidden : ["adult proportions"],
-      refKey: avatar.imageUrl ? `ref_image_${index + 1}` : undefined,
-      referenceImageId: avatar.imageUrl ? avatar.id : undefined,
-      imageUrl: avatar.imageUrl ?? undefined,
+      refKey: resolvedImageUrl ? `ref_image_${index + 1}` : undefined,
+      referenceImageId: resolvedImageUrl ? avatar.id : undefined,
+      imageUrl: resolvedImageUrl,
     };
-  });
+  }));
 }
 
-function selectCandidateForSlot(
+async function selectCandidateForSlot(
   slot: RoleSlot,
   pool: CharacterPoolRow[],
   used: Set<string>,
   rng: ReturnType<typeof createSeededRandom>,
   matchScores: MatchScore[]
-): CharacterSheet | null {
+): Promise<CharacterSheet | null> {
   const candidates = pool.filter(candidate => !used.has(candidate.id) && passesHardConstraints(slot, candidate));
 
   if (candidates.length === 0) return null;
@@ -191,7 +195,7 @@ function selectCandidateForSlot(
 
   if (!picked) return null;
 
-  return buildPoolCharacterSheet(picked, slot.slotKey, slot.roleType);
+  return await buildPoolCharacterSheet(picked, slot.slotKey, slot.roleType);
 }
 
 function passesHardConstraints(slot: RoleSlot, candidate: CharacterPoolRow): boolean {
@@ -235,11 +239,14 @@ function passesHardConstraints(slot: RoleSlot, candidate: CharacterPoolRow): boo
   return true;
 }
 
-function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: string, roleType: RoleSlot["roleType"]): CharacterSheet {
+async function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: string, roleType: RoleSlot["roleType"]): Promise<CharacterSheet> {
   const visualProfile = candidate.visual_profile || {};
   const signature = [visualProfile.description, visualProfile.species].filter(Boolean) as string[];
   const outfit = [candidate.physical_description].filter(Boolean) as string[];
   const forbidden = ["duplicate character", "extra limbs"];
+
+  // Resolve bucket:// URLs to HTTP URLs for reference images
+  const resolvedImageUrl = candidate.image_url ? await resolveImageUrlForClient(candidate.image_url) : undefined;
 
   return {
     characterId: candidate.id,
@@ -252,8 +259,8 @@ function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: string, r
     outfitLock: outfit.length > 0 ? outfit.slice(0, 4) : ["consistent outfit"],
     forbidden,
     refKey: undefined,
-    referenceImageId: candidate.image_url ? candidate.id : undefined,
-    imageUrl: candidate.image_url ?? undefined,
+    referenceImageId: resolvedImageUrl ? candidate.id : undefined,
+    imageUrl: resolvedImageUrl,
   };
 }
 
