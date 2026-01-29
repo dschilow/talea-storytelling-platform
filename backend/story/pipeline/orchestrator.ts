@@ -352,18 +352,31 @@ export class StoryPipelineOrchestrator {
         }
       }
 
+      // Only block on critical issues, not soft validation failures
+      const criticalCodes = ["INSTRUCTION_LEAK", "CANON_REPETITION"];
+      const criticalIssues = storyValidation.issues.filter(i => criticalCodes.includes(i.code));
+      const warningIssues = storyValidation.issues.filter(i => !criticalCodes.includes(i.code));
+      
       const storyGate = {
         phase: "phase6-story",
-        success: storyValidation.issues.length === 0,
-        schemaValid: storyValidation.issues.length === 0,
+        success: criticalIssues.length === 0,
+        schemaValid: criticalIssues.length === 0,
         attempts: storyAttempts || 1,
-        issues: storyValidation.issues.map(issue => ({ severity: "ERROR", ...issue })),
+        issues: [
+          ...criticalIssues.map(issue => ({ severity: "ERROR", ...issue })),
+          ...warningIssues.map(issue => ({ severity: "WARNING", ...issue })),
+        ],
       };
       phaseGates.push(storyGate);
-      if (storyValidation.issues.length > 0) {
+      
+      if (warningIssues.length > 0) {
+        console.log(`[pipeline] Story generated with ${warningIssues.length} warnings:`, warningIssues.map(i => i.code).join(", "));
+      }
+      
+      if (criticalIssues.length > 0) {
         validationReport = { gates: phaseGates, story: storyValidation, images: [] };
         await saveValidationReport(normalized.storyId, validationReport);
-        throw new Error(`Story validation failed: ${storyValidation.issues.map(i => i.code).join(", ")}`);
+        throw new Error(`Story validation failed: ${criticalIssues.map(i => i.code).join(", ")}`);
       }
 
       const phase7Start = Date.now();
