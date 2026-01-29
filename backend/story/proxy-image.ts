@@ -7,10 +7,14 @@
 
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
 import {
   extractBucketKeyForUrl,
   resolveImageUrlForBucketKey
 } from "../helpers/bucket-storage";
+import { storyDB } from "./db";
+
+const avatarDB = SQLDatabase.named("avatar");
 
 interface ProxyImageRequest {
   imageUrl: string;
@@ -26,6 +30,19 @@ interface ProxyImageResponse {
 interface ProxyImageGetRequest {
   key?: string;
   url?: string;
+}
+
+interface StoryChapterImageRequest {
+  id: string;
+  chapter: string | number;
+}
+
+interface AvatarImageRequest {
+  id: string;
+}
+
+interface ArtifactImageRequest {
+  id: string;
 }
 
 /**
@@ -119,37 +136,110 @@ export const proxyImage = api<ProxyImageRequest, ProxyImageResponse>(
 export const proxyImageStream = api<ProxyImageGetRequest, Response>(
   { expose: true, method: "GET", path: "/story/image", auth: false },
   async (req): Promise<Response> => {
-    const rawKey = typeof req.key === "string" ? req.key.trim() : "";
-    const keyFromUrl = req.url ? await extractBucketKeyForUrl(req.url) : null;
-    const key = (rawKey || keyFromUrl || "").replace(/^\/+/, "");
+    return await streamByKeyOrUrl(req.key, req.url);
+  }
+);
 
-    if (!key) {
-      return new Response("Missing image key", { status: 400 });
+export const proxyStoryChapterImage = api<StoryChapterImageRequest, Response>(
+  { expose: true, method: "GET", path: "/story/image/story/:id/chapter/:chapter", auth: false },
+  async (req): Promise<Response> => {
+    const chapterNumber = Number(req.chapter);
+    if (!Number.isFinite(chapterNumber) || chapterNumber < 1) {
+      return new Response("Invalid chapter", { status: 400 });
     }
 
-    if (key.includes("..")) {
-      return new Response("Invalid image key", { status: 400 });
-    }
+    const row = await storyDB.queryRow<{ image_url: string | null }>`
+      SELECT image_url FROM chapters
+      WHERE story_id = ${req.id} AND chapter_order = ${chapterNumber}
+    `;
 
-    const signedUrl = await resolveImageUrlForBucketKey(key);
-    if (!signedUrl) {
+    if (!row?.image_url) {
       return new Response("Image not found", { status: 404 });
     }
 
-    const response = await fetch(signedUrl);
-    if (!response.ok) {
-      return new Response("Failed to fetch image", { status: 502 });
-    }
-
-    const contentType = response.headers.get("content-type") || "application/octet-stream";
-    const arrayBuffer = await response.arrayBuffer();
-
-    return new Response(arrayBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600"
-      }
-    });
+    return await streamFromImageUrl(row.image_url);
   }
 );
+
+export const proxyAvatarImage = api<AvatarImageRequest, Response>(
+  { expose: true, method: "GET", path: "/story/image/avatar/:id", auth: false },
+  async (req): Promise<Response> => {
+    const row = await avatarDB.queryRow<{ image_url: string | null }>`
+      SELECT image_url FROM avatars WHERE id = ${req.id}
+    `;
+
+    if (!row?.image_url) {
+      return new Response("Image not found", { status: 404 });
+    }
+
+    return await streamFromImageUrl(row.image_url);
+  }
+);
+
+export const proxyArtifactImage = api<ArtifactImageRequest, Response>(
+  { expose: true, method: "GET", path: "/story/image/artifact/:id", auth: false },
+  async (req): Promise<Response> => {
+    const row = await storyDB.queryRow<{ image_url: string | null }>`
+      SELECT image_url FROM artifact_pool WHERE id = ${req.id}
+    `;
+
+    if (!row?.image_url) {
+      return new Response("Image not found", { status: 404 });
+    }
+
+    return await streamFromImageUrl(row.image_url);
+  }
+);
+
+async function streamByKeyOrUrl(keyValue?: string, urlValue?: string): Promise<Response> {
+  const rawKey = typeof keyValue === "string" ? keyValue.trim() : "";
+  const keyFromUrl = urlValue ? await extractBucketKeyForUrl(urlValue) : null;
+  const key = (rawKey || keyFromUrl || "").replace(/^\/+/, "");
+
+  if (!key) {
+    return new Response("Missing image key", { status: 400 });
+  }
+
+  if (key.includes("..")) {
+    return new Response("Invalid image key", { status: 400 });
+  }
+
+  const signedUrl = await resolveImageUrlForBucketKey(key);
+  if (!signedUrl) {
+    return new Response("Image not found", { status: 404 });
+  }
+
+  return await streamFromSignedUrl(signedUrl);
+}
+
+async function streamFromImageUrl(imageUrl: string): Promise<Response> {
+  const key = await extractBucketKeyForUrl(imageUrl);
+  if (!key) {
+    return new Response("Image not found", { status: 404 });
+  }
+
+  const signedUrl = await resolveImageUrlForBucketKey(key);
+  if (!signedUrl) {
+    return new Response("Image not found", { status: 404 });
+  }
+
+  return await streamFromSignedUrl(signedUrl);
+}
+
+async function streamFromSignedUrl(signedUrl: string): Promise<Response> {
+  const response = await fetch(signedUrl);
+  if (!response.ok) {
+    return new Response("Failed to fetch image", { status: 502 });
+  }
+
+  const contentType = response.headers.get("content-type") || "application/octet-stream";
+  const arrayBuffer = await response.arrayBuffer();
+
+  return new Response(arrayBuffer, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=3600"
+    }
+  });
+}
