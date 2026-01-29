@@ -2,6 +2,7 @@
 import { DEFAULT_CHAPTER_COUNT, MAX_CHAPTERS, MIN_CHAPTERS, STORY_CATEGORIES, SUPPORTED_LANGUAGES } from "./constants";
 import type { NormalizedRequest } from "./types";
 import { clampNumber, hashRequest, normalizeCategory } from "./utils";
+import { computeWordBudget } from "./word-budget";
 
 const AGE_GROUP_MAP: Record<string, { min: number; max: number }> = {
   "3-5": { min: 3, max: 5 },
@@ -49,6 +50,11 @@ export function normalizeRequest(input: {
   const ageRange = AGE_GROUP_MAP[config.ageGroup] ?? { min: 6, max: 8 };
   const chapterCount = resolveChapterCount(config);
   const avatarCount = clampNumber(avatarIds.length, 1, 2);
+  const wordBudget = computeWordBudget({
+    lengthHint: config.length,
+    chapterCount,
+    pacing: config.pacing ?? "balanced",
+  });
 
   if (avatarCount < 1 || avatarCount > 2) {
     throw new Error(`avatarCount must be 1-2, got ${avatarCount}`);
@@ -76,6 +82,7 @@ export function normalizeRequest(input: {
     avatarIds,
     avatarCount,
     lengthHint: config.length,
+    wordBudget,
     emotionProfile: {
       tone: config.tone,
       suspenseLevel: config.suspenseLevel,

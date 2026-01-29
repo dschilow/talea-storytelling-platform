@@ -1,6 +1,7 @@
 ﻿import type { StoryConfig, StoryLanguage } from "../generate";
 import type { Avatar } from "../../avatar/avatar";
 import type { StoryCategory } from "./constants";
+import type { PipelineConfig } from "./pipeline-config";
 
 export type SlotKey = string;
 
@@ -117,6 +118,7 @@ export interface NormalizedRequest {
   avatarIds: string[];
   avatarCount: number;
   lengthHint?: string;
+  wordBudget?: import("./word-budget").WordBudget;
   emotionProfile?: Record<string, any>;
   variantSeed?: number;
   taleId?: string;
@@ -259,6 +261,7 @@ export interface StoryWriter {
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
     strict?: boolean;
+    stylePackText?: string;
   }) => Promise<{ draft: StoryDraft; usage?: TokenUsage }>;
 }
 
@@ -276,6 +279,7 @@ export interface ImageGenerator {
     cast: CastSet;
     directives: SceneDirective[];
     imageSpecs: ImageSpec[];
+    pipelineConfig?: PipelineConfig;
   }) => Promise<Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>>;
 }
 

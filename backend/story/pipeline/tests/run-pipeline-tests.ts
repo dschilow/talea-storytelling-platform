@@ -3,6 +3,8 @@ import { createVariantPlan } from "../variant-planner";
 import { scoreCandidate } from "../matching-score";
 import { validateAndFixImageSpecs } from "../image-prompt-validator";
 import { TemplateImageDirector } from "../image-director";
+import { computeWordBudget, buildLengthTargetsFromBudget } from "../word-budget";
+import { validateStoryDraft } from "../story-validator";
 import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryDNA } from "../types";
 
 function buildNormalized(seed: number): NormalizedRequest {
@@ -137,10 +139,11 @@ function testImageSpecValidation() {
     finalPromptText: "A story scene.",
   };
 
-  const result = validateAndFixImageSpecs({ specs: [spec], cast, directives: [directive] });
+  const result = validateAndFixImageSpecs({ specs: [spec], cast, directives: [directive], maxPropsVisible: 7 });
   const fixed = result.specs[0];
   assert.ok(fixed.finalPromptText?.toLowerCase().includes("exactly"), "Prompt should enforce exact count");
   assert.ok(fixed.finalPromptText?.toLowerCase().includes("full body") || fixed.finalPromptText?.toLowerCase().includes("head-to-toe"), "Prompt should enforce full body");
+  assert.ok(!(fixed.finalPromptText || "").toLowerCase().includes("negative prompt"), "Prompt should not contain negative section");
 }
 
 async function testIntegrationWithMocks() {
@@ -190,14 +193,86 @@ async function testIntegrationWithMocks() {
     directives: [directive],
   });
 
-  const fixed = validateAndFixImageSpecs({ specs, cast, directives: [directive] });
+  const fixed = validateAndFixImageSpecs({ specs, cast, directives: [directive], maxPropsVisible: 7 });
   assert.ok(fixed.specs[0].finalPromptText, "Image prompt should be generated");
+}
+
+function testWordBudget() {
+  const budget = computeWordBudget({ lengthHint: "medium", chapterCount: 5, wpm: 140, pacing: "balanced" });
+  const targets = buildLengthTargetsFromBudget(budget);
+  assert.ok(budget.targetWords > 0, "Word budget target should be > 0");
+  assert.ok(targets.wordMin < targets.wordMax, "Word targets should have min < max");
+}
+
+function testForbiddenCanonPhrase() {
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "Helps navigate",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: {
+      SLOT_AVATAR_1: "a1",
+      SLOT_ARTIFACT_1: "art1",
+    },
+  };
+
+  const directive: SceneDirective = {
+    chapter: 1,
+    setting: "forest",
+    mood: "WONDER",
+    charactersOnStage: ["SLOT_AVATAR_1", "SLOT_ARTIFACT_1"],
+    goal: "find the path",
+    conflict: "fog",
+    outcome: "continue",
+    artifactUsage: "artifact glows",
+    canonAnchorLine: "Lena belongs here.",
+    imageMustShow: ["forest", "Glitzerstein"],
+    imageAvoid: ["looking at camera"],
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "Kapitel 1",
+        text: "Lena gehoert seit jeher zu diesem Maerchen und ist ganz selbstverstaendlich dabei.",
+      },
+    ],
+  };
+
+  const result = validateStoryDraft({
+    draft,
+    directives: [directive],
+    cast,
+    language: "de",
+    lengthTargets: { wordMin: 10, wordMax: 200 },
+  });
+
+  assert.ok(result.issues.some(issue => issue.code === "CANON_REPETITION"), "Forbidden canon phrase should be detected");
 }
 
 async function run() {
   testVariantDeterminism();
   testMatchingScore();
   testImageSpecValidation();
+  testWordBudget();
+  testForbiddenCanonPhrase();
   await testIntegrationWithMocks();
   console.log("Pipeline tests passed.");
 }

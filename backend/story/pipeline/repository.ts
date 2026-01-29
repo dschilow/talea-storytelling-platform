@@ -9,6 +9,9 @@ export async function upsertStoryInstance(input: {
   ageMin: number;
   ageMax: number;
   lengthHint?: string;
+  selectedMinutes?: number;
+  targetWords?: number;
+  wordBudget?: any;
   emotionProfile?: any;
   variantSeed: number;
   variantChoices: any;
@@ -19,10 +22,12 @@ export async function upsertStoryInstance(input: {
   await storyDB.exec`
     INSERT INTO story_instances (
       id, created_at, category, tale_id, language, age_min, age_max, length_hint, emotion_profile,
+      selected_minutes, target_words, word_budget,
       variant_seed, variant_choices, request_hash, status, error, updated_at
     ) VALUES (
       ${input.id}, NOW(), ${input.category}, ${input.taleId}, ${input.language}, ${input.ageMin}, ${input.ageMax},
       ${input.lengthHint ?? null}, ${JSON.stringify(input.emotionProfile ?? {})},
+      ${input.selectedMinutes ?? null}, ${input.targetWords ?? null}, ${JSON.stringify(input.wordBudget ?? {})},
       ${input.variantSeed}, ${JSON.stringify(input.variantChoices ?? {})}, ${input.requestHash},
       ${input.status}, ${input.error ?? null}, NOW()
     )
@@ -34,6 +39,9 @@ export async function upsertStoryInstance(input: {
       age_max = EXCLUDED.age_max,
       length_hint = EXCLUDED.length_hint,
       emotion_profile = EXCLUDED.emotion_profile,
+      selected_minutes = EXCLUDED.selected_minutes,
+      target_words = EXCLUDED.target_words,
+      word_budget = EXCLUDED.word_budget,
       variant_seed = EXCLUDED.variant_seed,
       variant_choices = EXCLUDED.variant_choices,
       request_hash = EXCLUDED.request_hash,

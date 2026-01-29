@@ -272,7 +272,7 @@ function findName(cast: CastSet, slotKey: string): string {
 }
 
 function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
-  const maxItems = 10;
+  const maxItems = 7;
   const rawItems = directive.imageMustShow || [];
   const artifactName = cast.artifact?.name;
   const requiresArtifact = directive.charactersOnStage.includes("SLOT_ARTIFACT_1");

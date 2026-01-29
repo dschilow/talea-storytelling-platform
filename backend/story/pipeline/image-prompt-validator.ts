@@ -14,70 +14,97 @@ export function validateAndFixImageSpecs(input: {
   specs: ImageSpec[];
   cast: CastSet;
   directives: SceneDirective[];
+  maxPropsVisible?: number;
 }): { specs: ImageSpec[]; issues: ImageValidationIssue[] } {
   const { cast, directives } = input;
+  const maxPropsVisible = input.maxPropsVisible ?? 7;
   const issues: ImageValidationIssue[] = [];
 
   const fixedSpecs = input.specs.map((spec) => {
     const directive = directives.find(d => d.chapter === spec.chapter);
-    const requiredRefs = expectedRefs(spec, cast);
-
-    const schemaResult = validateImageSpec(spec);
-    if (!schemaResult.valid) {
-      issues.push({ chapter: spec.chapter, code: "SCHEMA", message: schemaResult.errors.join("; ") });
+    if (directive) {
+      spec.onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
     }
-
-    const lintIssues = lintPrompt(spec, cast);
-    lintIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
-
-    const refIssues = validateRefs(spec, requiredRefs);
-    refIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
-
-    const shouldFix = !schemaResult.valid || lintIssues.length > 0 || refIssues.length > 0;
-    if (shouldFix) {
-      spec.negatives = Array.from(new Set([...(spec.negatives || []), ...GLOBAL_IMAGE_NEGATIVES]));
-      const artifactName = cast.artifact?.name;
-      const requiresArtifact = directive?.charactersOnStage?.includes("SLOT_ARTIFACT_1");
-      if (requiresArtifact && artifactName) {
-        spec.propsVisible = Array.from(new Set([artifactName, ...(spec.propsVisible || [])]));
-      }
-      if (spec.propsVisible && spec.propsVisible.length > 10) {
-        spec.propsVisible = spec.propsVisible.slice(0, 10);
-      }
-      if (directive) {
-        spec.onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
-      }
-      spec.refs = requiredRefs;
+    spec.negatives = Array.from(new Set([...(spec.negatives || []), ...GLOBAL_IMAGE_NEGATIVES]));
+    if (!spec.finalPromptText) {
       spec.finalPromptText = buildFinalPromptText(spec, cast);
     }
 
-    return spec;
+    const applyFixes = (current: ImageSpec) => {
+      const artifactName = cast.artifact?.name;
+      const requiresArtifact = directive?.charactersOnStage?.includes("SLOT_ARTIFACT_1");
+      const hasBird = containsBirdToken([current.actions, current.blocking, ...(current.propsVisible || [])].join(" "));
+      const extraNegatives = hasBird ? ["extra birds", "multiple birds", "two birds"] : [];
+
+      current.negatives = Array.from(new Set([...(current.negatives || []), ...GLOBAL_IMAGE_NEGATIVES, ...extraNegatives]));
+      if (requiresArtifact && artifactName) {
+        current.propsVisible = Array.from(new Set([artifactName, ...(current.propsVisible || [])]));
+      }
+      if (current.propsVisible && current.propsVisible.length > maxPropsVisible) {
+        current.propsVisible = current.propsVisible.slice(0, maxPropsVisible);
+      }
+
+      current.refs = expectedRefs(current, cast);
+      current.finalPromptText = buildFinalPromptText(current, cast);
+      return current;
+    };
+
+    let current = spec;
+    let check = collectIssues(current, cast, maxPropsVisible);
+    if (check.length > 0) {
+      current = applyFixes(current);
+    }
+    const finalIssues = collectIssues(current, cast, maxPropsVisible);
+    finalIssues.forEach(issue => issues.push(issue));
+    return current;
   });
 
   return { specs: fixedSpecs, issues };
 }
 
+function collectIssues(spec: ImageSpec, cast: CastSet, maxPropsVisible: number): ImageValidationIssue[] {
+  const issues: ImageValidationIssue[] = [];
+  const schemaResult = validateImageSpec(spec);
+  if (!schemaResult.valid) {
+    issues.push({ chapter: spec.chapter, code: "SCHEMA", message: schemaResult.errors.join("; ") });
+  }
+
+  const lintIssues = lintPrompt(spec, cast);
+  lintIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
+
+  const refIssues = validateRefs(spec, expectedRefs(spec, cast));
+  refIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
+
+  if ((spec.propsVisible || []).length > maxPropsVisible) {
+    issues.push({ chapter: spec.chapter, code: "TOO_MANY_PROPS", message: `propsVisible exceeds ${maxPropsVisible}` });
+  }
+
+  return issues;
+}
+
 function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
   const issues: ImageValidationIssue[] = [];
   const fullPrompt = (spec.finalPromptText || "").toLowerCase();
-  const positivePrompt = fullPrompt.split("avoid (negative prompt):")[0] || fullPrompt;
 
-  if (!positivePrompt.includes("exactly")) {
+  if (!fullPrompt.includes("exactly")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_EXACT_COUNT", message: "Prompt missing exact character count" });
   }
-  if (!positivePrompt.includes("full body") && !positivePrompt.includes("head-to-toe")) {
+  if (!fullPrompt.includes("full body") && !fullPrompt.includes("head-to-toe")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_FULL_BODY", message: "Prompt missing full body requirement" });
   }
-  if (positivePrompt.includes("portrait") || positivePrompt.includes("selfie") || positivePrompt.includes("close-up")) {
+  if (fullPrompt.includes("portrait") || fullPrompt.includes("selfie") || fullPrompt.includes("close-up")) {
     issues.push({ chapter: spec.chapter, code: "FORBIDDEN_PORTRAIT", message: "Prompt includes portrait-like phrasing" });
   }
-  if (!positivePrompt.includes("not looking at camera") && !(spec.negatives || []).some(n => n.toLowerCase().includes("looking at camera"))) {
+  if (!fullPrompt.includes("not at camera") && !fullPrompt.includes("not looking at camera")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_NO_CAMERA", message: "Prompt missing 'no looking at camera'" });
+  }
+  if (fullPrompt.includes("avoid (negative") || fullPrompt.includes("negative prompt:")) {
+    issues.push({ chapter: spec.chapter, code: "NEGATIVE_IN_POSITIVE", message: "Negative prompt mixed into positive prompt" });
   }
 
   const artifactName = cast.artifact?.name?.toLowerCase() ?? "";
   if (artifactName && (spec.propsVisible || []).some(item => item.toLowerCase().includes(artifactName))) {
-    if (!positivePrompt.includes(artifactName)) {
+    if (!fullPrompt.includes(artifactName)) {
       issues.push({ chapter: spec.chapter, code: "MISSING_ARTIFACT", message: "Prompt missing artifact visibility" });
     }
   }
@@ -106,4 +133,9 @@ function validateRefs(spec: ImageSpec, expected: Record<string, string>): ImageV
   }
 
   return issues;
+}
+
+function containsBirdToken(text: string): boolean {
+  const value = text.toLowerCase();
+  return ["bird", "sparrow", "spatz", "vogel"].some(token => value.includes(token));
 }

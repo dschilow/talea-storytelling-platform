@@ -1,5 +1,6 @@
 ﻿import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
 import { buildStoryChapterPrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
+import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 
 export class LlmStoryWriter implements StoryWriter {
@@ -9,17 +10,20 @@ export class LlmStoryWriter implements StoryWriter {
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
     strict?: boolean;
+    stylePackText?: string;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage }> {
-    const { normalizedRequest, cast, dna, directives, strict } = input;
+    const { normalizedRequest, cast, dna, directives, strict, stylePackText } = input;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
     const systemPrompt = normalizedRequest.language === "de"
       ? "Du bist eine erfahrene Kinderbuchautorin. Schreibe warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern."
       : "You are an experienced children's book author. Write warm, vivid, rhythmic, and clear prose.";
-    const lengthTargets = resolveLengthTargets({
-      lengthHint: normalizedRequest.lengthHint,
-      ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-      pacing: normalizedRequest.rawConfig?.pacing,
-    });
+    const lengthTargets = normalizedRequest.wordBudget
+      ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
+      : resolveLengthTargets({
+          lengthHint: normalizedRequest.lengthHint,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          pacing: normalizedRequest.rawConfig?.pacing,
+        });
 
     const chapters = [] as StoryDraft["chapters"];
     let totalUsage: TokenUsage | undefined;
@@ -41,6 +45,8 @@ export class LlmStoryWriter implements StoryWriter {
         tone: normalizedRequest.requestedTone,
         lengthHint: normalizedRequest.lengthHint,
         pacing: normalizedRequest.rawConfig?.pacing,
+        lengthTargets,
+        stylePackText,
         strict,
       }) + finalLine;
 
@@ -78,6 +84,8 @@ export class LlmStoryWriter implements StoryWriter {
           tone: normalizedRequest.requestedTone,
           lengthHint: normalizedRequest.lengthHint,
           pacing: normalizedRequest.rawConfig?.pacing,
+          lengthTargets,
+          stylePackText,
           issues,
           originalText: text,
         }) + finalLine;
@@ -111,6 +119,78 @@ export class LlmStoryWriter implements StoryWriter {
 
       if (result.usage) {
         totalUsage = mergeUsage(totalUsage, result.usage, model);
+      }
+    }
+
+    if (normalizedRequest.wordBudget) {
+      const totalWords = chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+      const budget = normalizedRequest.wordBudget;
+      if (totalWords < budget.minWords || totalWords > budget.maxWords) {
+        const adjustMode = totalWords < budget.minWords ? "expand" : "trim";
+        const factorRaw = budget.targetWords / Math.max(1, totalWords);
+        const factor = adjustMode === "expand"
+          ? Math.min(1.3, Math.max(1.05, factorRaw))
+          : Math.max(0.75, Math.min(0.95, factorRaw));
+
+        const adjustedTargets = scaleLengthTargets(lengthTargets, factor);
+
+        const revisedChapters: StoryDraft["chapters"] = [];
+        for (const directive of directives) {
+          const current = chapters.find(ch => ch.chapter === directive.chapter);
+          if (!current) continue;
+
+          const issues = [
+            adjustMode === "expand"
+              ? (normalizedRequest.language === "de"
+                ? "Kapitel zu kurz, erweitere mit sinnlichen Details und Dialog"
+                : "Chapter too short, expand with sensory detail and dialogue")
+              : (normalizedRequest.language === "de"
+                ? "Kapitel zu lang, straffe ohne Plotverlust"
+                : "Chapter too long, trim without losing plot"),
+          ];
+
+          const revisionPrompt = buildStoryChapterRevisionPrompt({
+            chapter: directive,
+            cast,
+            dna,
+            language: normalizedRequest.language,
+            ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+            tone: normalizedRequest.requestedTone,
+            lengthHint: normalizedRequest.lengthHint,
+            pacing: normalizedRequest.rawConfig?.pacing,
+            lengthTargets: adjustedTargets,
+            stylePackText,
+            issues,
+            originalText: current.text,
+          });
+
+          const revisionResult = await callChatCompletion({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: revisionPrompt },
+            ],
+            responseFormat: "json_object",
+            maxTokens: 2600,
+            temperature: 0.4,
+            context: "story-writer-length-adjust",
+          });
+
+          const parsed = safeJson(revisionResult.content);
+          revisedChapters.push({
+            chapter: current.chapter,
+            title: parsed?.title || current.title,
+            text: parsed?.text || current.text,
+          });
+
+          if (revisionResult.usage) {
+            totalUsage = mergeUsage(totalUsage, revisionResult.usage, model);
+          }
+        }
+
+        if (revisedChapters.length === chapters.length) {
+          chapters.splice(0, chapters.length, ...revisedChapters);
+        }
       }
     }
 
@@ -220,6 +300,21 @@ function validateChapterText(input: {
 function findCharacterName(cast: CastSet, slotKey: string): string | null {
   const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
   return sheet?.displayName ?? null;
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function scaleLengthTargets(
+  targets: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number },
+  factor: number
+): { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number } {
+  const wordMin = Math.max(80, Math.round(targets.wordMin * factor));
+  const wordMax = Math.max(wordMin + 40, Math.round(targets.wordMax * factor));
+  const sentenceMin = Math.max(6, Math.round(wordMin / 18));
+  const sentenceMax = Math.max(sentenceMin + 2, Math.round(wordMax / 14));
+  return { wordMin, wordMax, sentenceMin, sentenceMax };
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {

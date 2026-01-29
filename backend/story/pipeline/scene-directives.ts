@@ -72,7 +72,7 @@ function buildImageMustShow(
   cast: CastSet,
   additions?: string[]
 ): string[] {
-  const maxItems = 10;
+  const maxItems = 7;
   const items: string[] = [];
   const seen = new Set<string>();
   const add = (value?: string | null) => {
@@ -85,7 +85,6 @@ function buildImageMustShow(
   };
 
   add(scene.setting);
-  add(scene.sceneTitle);
 
   for (const slot of plan.charactersOnStage) {
     const sheet = findCharacterBySlot(cast, slot);

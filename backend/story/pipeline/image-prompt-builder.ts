@@ -6,6 +6,10 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
     .filter(Boolean);
   const count = characterNames.length;
   const namesLine = characterNames.join(" + ");
+  const characterDetails = spec.onStageExact
+    .map(slot => buildCharacterDetail(cast, slot))
+    .filter(Boolean)
+    .join("\n");
 
   const refLines = Object.entries(spec.refs || {})
     .map(([key, value]) => `${key} = ${value}`)
@@ -16,7 +20,10 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
     ? `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for identity. Ignore backgrounds.`
     : "";
 
-  // Enhanced constraints with explicit action/gaze directions
+  const hasBird = containsBirdToken([spec.actions, spec.blocking, ...(spec.propsVisible || [])].join(" "));
+  const birdLock = hasBird ? "- if any bird appears: exactly 1 bird total" : "";
+
+  // Constraints with explicit action/gaze directions
   const constraints = `CORE CONSTRAINTS:
 - EXACTLY ${count} characters: ${namesLine}
 - each character appears exactly once
@@ -24,7 +31,8 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
 - characters engaged in ACTION, interacting with scene
 - characters looking at each other or at objects in scene, NOT at camera
 - candid moment, natural poses, dynamic movement
-- no extra people, no background crowds`;
+- no extra people or animals, no background crowds
+${birdLock}`.trim();
 
   // Scene composition with blocking
   const sceneBlock = `SCENE COMPOSITION: ${spec.composition}. ${spec.blocking}`;
@@ -39,22 +47,9 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
 
   const lightingBlock = `LIGHTING AND ATMOSPHERE: ${spec.lighting}`;
 
-  // Enhanced negatives
-  const enhancedNegatives = [
-    ...(spec.negatives || []),
-    "posed for photo",
-    "looking at viewer",
-    "staring at camera",
-    "facing camera directly",
-    "group photo",
-    "passport photo",
-    "mugshot",
-    "standing still stiffly",
-  ];
-  const uniqueNegatives = Array.from(new Set(enhancedNegatives));
-  const negativesBlock = `AVOID (NEGATIVE PROMPT): ${uniqueNegatives.join(", ")}`;
+  const characterBlock = characterDetails ? `CHARACTER DETAILS:\n${characterDetails}` : "";
 
-  return [styleBlock, refBlock, constraints, sceneBlock, actionBlock, propsBlock, lightingBlock, negativesBlock]
+  return [styleBlock, refBlock, constraints, characterBlock, sceneBlock, actionBlock, propsBlock, lightingBlock]
     .filter(Boolean)
     .join("\n\n");
 }
@@ -62,4 +57,22 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
 function findCharacterName(cast: CastSet, slotKey: string): string | null {
   const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
   return sheet?.displayName ?? null;
+}
+
+function buildCharacterDetail(cast: CastSet, slotKey: string): string | null {
+  const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
+  if (!sheet) return null;
+  const items = [
+    ...(sheet.visualSignature || []),
+    ...(sheet.outfitLock || []),
+    ...(sheet.faceLock || []),
+  ].filter(Boolean);
+  const unique = Array.from(new Set(items)).slice(0, 6);
+  const detail = unique.length > 0 ? unique.join(", ") : "distinct appearance";
+  return `${sheet.displayName}: ${detail}`;
+}
+
+function containsBirdToken(text: string): boolean {
+  const value = text.toLowerCase();
+  return ["bird", "sparrow", "spatz", "vogel"].some(token => value.includes(token));
 }

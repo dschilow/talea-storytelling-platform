@@ -71,6 +71,8 @@ function detectInstructionLeak(textLower: string, language?: string): string | n
     "tie the scene",
     "without breaking canon",
     "canon anchor line",
+    "kanonischer hinweis",
+    "canon hint",
     "walking the same path in chapter",
     "have always been part of this tale",
     "scene directive",

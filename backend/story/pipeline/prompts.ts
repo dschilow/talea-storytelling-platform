@@ -9,18 +9,25 @@ export function buildStoryChapterPrompt(input: {
   tone?: string;
   lengthHint?: string;
   pacing?: string;
+  lengthTargets?: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number };
+  stylePackText?: string;
   strict?: boolean;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, strict, lengthHint, pacing } = input;
+  const { chapter, cast, dna, language, ageRange, tone, strict, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText } = input;
   const isGerman = language === "de";
-  const lengthTargets = resolveLengthTargets({ lengthHint, ageRange, pacing });
+  const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
+  const personalityLabel = isGerman ? "Persoenlichkeit" : "Personality";
+  const speechLabel = isGerman ? "Sprachstil" : "Speech style";
   const characterSummaries = chapter.charactersOnStage
     .map(slot => {
       const sheet = findCharacterBySlot(cast, slot);
       if (!sheet) return null;
       const signature = sheet.visualSignature?.length ? sheet.visualSignature.join(", ") : "distinct look";
-      return `${sheet.displayName} (${sheet.roleType}) - ${signature}`;
+      const personality = sheet.personalityTags?.length ? `${personalityLabel}: ${sheet.personalityTags.slice(0, 4).join(", ")}` : "";
+      const speech = sheet.speechStyleHints?.length ? `${speechLabel}: ${sheet.speechStyleHints.slice(0, 2).join(", ")}` : "";
+      const extras = [personality, speech].filter(Boolean).join("; ");
+      return `${sheet.displayName} (${sheet.roleType}) - ${signature}${extras ? `; ${extras}` : ""}`;
     })
     .filter(Boolean)
     .join("\n");
@@ -49,10 +56,10 @@ SZENEN-VORGABE:
 - Ziel: ${chapter.goal}
 - Konflikt: ${chapter.conflict}
 - Ausgang: ${chapter.outcome}
-- Kanonischer Hinweis (als Subtext, NICHT wortwoertlich, nicht wiederholen): ${chapter.canonAnchorLine}
 - Figuren auf der Buehne (alle muessen vorkommen):
 ${characterSummaries}
 ${artifactLine}
+${stylePackText ? `\n${stylePackText}\n` : ""}
 
 ERLAUBTE NAMEN (exakt so schreiben): ${allowedNames || "keine"}
 
@@ -64,7 +71,7 @@ STRICTE REGELN:
 5) Erwaehne das Artefakt, wenn es gefordert ist (mit Namen).
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze, kindgerecht.
 7) Schreibstil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreiche Satzanfaenge, gelegentlich direkte Rede.
-8) Vermeide wiederholte Standard-Saetze wie "gehoeren seit jeher" oder "ganz selbstverstaendlich dabei".
+8) Keine Meta-Aussagen ueber Zugehoerigkeit; zeige Zugehoerigkeit nur durch Handlung. Vermeide Phrasen wie "gehoeren seit jeher" oder "ganz selbstverstaendlich dabei".
 9) Avatare und Nebenfiguren muessen aktiv ins Geschehen eingebunden sein, nicht nur am Rand stehen.
 10) Beende mit einem sanften Ausblick (ausser im letzten Kapitel).
 ${strict ? "11) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
@@ -84,10 +91,10 @@ SCENE DIRECTIVE:
 - Goal: ${chapter.goal}
 - Conflict: ${chapter.conflict}
 - Outcome: ${chapter.outcome}
-- Canon hint (subtext only, NOT verbatim, do not repeat): ${chapter.canonAnchorLine}
 - Characters on stage (must include all):
 ${characterSummaries}
 ${artifactLine}
+${stylePackText ? `\n${stylePackText}\n` : ""}
 
 Allowed names (use exactly): ${allowedNames || "none"}
 
@@ -98,7 +105,7 @@ STRICT RULES:
 4) Mention the artifact if required (by name).
 5) Write ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences, age-appropriate.
 6) Children's-book style: vivid imagery, rhythmic flow, varied sentence starts, occasional dialogue.
-7) Avoid repetitive stock lines like "always been part of this tale" or "naturally belongs here".
+7) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 8) Avatars and supporting characters must be actively involved, not just present.
 9) End with a gentle forward-looking line (except final chapter).
 ${strict ? "10) Do not include any instruction text or meta commentary in the output." : ""}
@@ -145,12 +152,14 @@ export function buildStoryChapterRevisionPrompt(input: {
   tone?: string;
   lengthHint?: string;
   pacing?: string;
+  lengthTargets?: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number };
+  stylePackText?: string;
   issues: string[];
   originalText: string;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthHint, pacing, issues, originalText } = input;
+  const { chapter, cast, dna, language, ageRange, tone, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText, issues, originalText } = input;
   const isGerman = language === "de";
-  const lengthTargets = resolveLengthTargets({ lengthHint, ageRange, pacing });
+  const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
@@ -171,17 +180,17 @@ SZENEN-VORGABE:
 - Ziel: ${chapter.goal}
 - Konflikt: ${chapter.conflict}
 - Ausgang: ${chapter.outcome}
-- Kanonischer Hinweis (Subtext, NICHT wortwoertlich): ${chapter.canonAnchorLine}
 - Figuren (muessen vorkommen): ${allowedNames || "keine"}
 - Artefakt: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} muss genannt werden)` : ""}
 - Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+${stylePackText ? `\n${stylePackText}\n` : ""}
 
 REGELN:
 1) Nur diese Namen verwenden: ${allowedNames || "keine"}.
 2) Keine neuen Eigennamen.
 3) Keine Meta-Texte oder Anweisungen.
 4) Jede Figur muss handeln oder sprechen.
-5) Vermeide die Phrasen "gehoeren seit jeher" und "ganz selbstverstaendlich dabei".
+5) Keine Meta-Aussagen ueber Zugehoerigkeit; vermeide "gehoeren seit jeher" und "ganz selbstverstaendlich dabei".
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze.
 7) Stil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreich.
 
@@ -203,17 +212,17 @@ SCENE DIRECTIVE:
 - Goal: ${chapter.goal}
 - Conflict: ${chapter.conflict}
 - Outcome: ${chapter.outcome}
-- Canon hint (subtext only): ${chapter.canonAnchorLine}
 - Characters (must appear): ${allowedNames || "none"}
 - Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names.
 3) No meta-instructions.
 4) Every character must act or speak.
-5) Avoid phrases like "always been part of this tale" or "naturally belongs here".
+5) Do not state belonging explicitly; avoid phrases like "always been part of this tale".
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 7) Children's-book style: vivid, rhythmic, varied sentence starts.
 
