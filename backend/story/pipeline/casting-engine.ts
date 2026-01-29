@@ -98,6 +98,7 @@ export async function buildCastSet(input: {
   );
 
   slotAssignments["SLOT_ARTIFACT_1"] = artifact.id;
+  const trimmedScores = trimMatchScores(matchScores);
 
   return {
     avatars: avatarSheets,
@@ -111,7 +112,7 @@ export async function buildCastSet(input: {
       rarity: artifact.rarity?.toUpperCase() as any,
     },
     slotAssignments,
-    matchScores,
+    matchScores: trimmedScores,
   };
 }
 
@@ -154,7 +155,7 @@ async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterShee
       slotKey: `SLOT_AVATAR_${index + 1}`,
       personalityTags: Object.keys(avatar.personalityTraits || {}).slice(0, 6),
       speechStyleHints: [],
-      visualSignature: visualSignature.length > 0 ? visualSignature : ["distinct child"],
+      visualSignature: ensureMinSignature(visualSignature, ["distinct child", "clear facial features"]),
       outfitLock: outfitLock.length > 0 ? outfitLock : ["consistent outfit"],
       faceLock: faceLock.length > 0 ? faceLock : undefined,
       forbidden: forbidden.length > 0 ? forbidden : ["adult proportions"],
@@ -255,7 +256,7 @@ async function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: str
     slotKey,
     personalityTags: candidate.personality_keywords || [],
     speechStyleHints: [],
-    visualSignature: signature.length > 0 ? signature.slice(0, 6) : ["distinct supporting character"],
+    visualSignature: ensureMinSignature(signature.slice(0, 6), ["distinct supporting character", "recognizable outfit"]),
     outfitLock: outfit.length > 0 ? outfit.slice(0, 4) : ["consistent outfit"],
     forbidden,
     refKey: undefined,
@@ -301,4 +302,18 @@ function buildArtifactRequirement(variantPlan: StoryVariantPlan): ArtifactRequir
     usageChapter: 4,
     importance: "high",
   };
+}
+
+function trimMatchScores(scores: MatchScore[]): MatchScore[] {
+  if (scores.length <= 40) return scores;
+  return [...scores]
+    .sort((a, b) => b.finalScore - a.finalScore)
+    .slice(0, 40);
+}
+
+function ensureMinSignature(signature: string[], fallback: string[]): string[] {
+  const cleaned = signature.filter(Boolean);
+  if (cleaned.length >= 2) return cleaned.slice(0, 6);
+  const merged = [...cleaned, ...fallback].filter(Boolean);
+  return merged.slice(0, 2);
 }

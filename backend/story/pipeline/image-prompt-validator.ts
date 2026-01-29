@@ -36,6 +36,14 @@ export function validateAndFixImageSpecs(input: {
     const shouldFix = !schemaResult.valid || lintIssues.length > 0 || refIssues.length > 0;
     if (shouldFix) {
       spec.negatives = Array.from(new Set([...(spec.negatives || []), ...GLOBAL_IMAGE_NEGATIVES]));
+      const artifactName = cast.artifact?.name;
+      const requiresArtifact = directive?.charactersOnStage?.includes("SLOT_ARTIFACT_1");
+      if (requiresArtifact && artifactName) {
+        spec.propsVisible = Array.from(new Set([artifactName, ...(spec.propsVisible || [])]));
+      }
+      if (spec.propsVisible && spec.propsVisible.length > 10) {
+        spec.propsVisible = spec.propsVisible.slice(0, 10);
+      }
       if (directive) {
         spec.onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
       }
@@ -51,24 +59,25 @@ export function validateAndFixImageSpecs(input: {
 
 function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
   const issues: ImageValidationIssue[] = [];
-  const prompt = (spec.finalPromptText || "").toLowerCase();
+  const fullPrompt = (spec.finalPromptText || "").toLowerCase();
+  const positivePrompt = fullPrompt.split("avoid (negative prompt):")[0] || fullPrompt;
 
-  if (!prompt.includes("exactly")) {
+  if (!positivePrompt.includes("exactly")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_EXACT_COUNT", message: "Prompt missing exact character count" });
   }
-  if (!prompt.includes("full body") && !prompt.includes("head-to-toe")) {
+  if (!positivePrompt.includes("full body") && !positivePrompt.includes("head-to-toe")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_FULL_BODY", message: "Prompt missing full body requirement" });
   }
-  if (prompt.includes("portrait") || prompt.includes("selfie") || prompt.includes("close-up")) {
+  if (positivePrompt.includes("portrait") || positivePrompt.includes("selfie") || positivePrompt.includes("close-up")) {
     issues.push({ chapter: spec.chapter, code: "FORBIDDEN_PORTRAIT", message: "Prompt includes portrait-like phrasing" });
   }
-  if (!prompt.includes("not looking at camera") && !(spec.negatives || []).some(n => n.toLowerCase().includes("looking at camera"))) {
+  if (!positivePrompt.includes("not looking at camera") && !(spec.negatives || []).some(n => n.toLowerCase().includes("looking at camera"))) {
     issues.push({ chapter: spec.chapter, code: "MISSING_NO_CAMERA", message: "Prompt missing 'no looking at camera'" });
   }
 
   const artifactName = cast.artifact?.name?.toLowerCase() ?? "";
   if (artifactName && (spec.propsVisible || []).some(item => item.toLowerCase().includes(artifactName))) {
-    if (!prompt.includes(artifactName)) {
+    if (!positivePrompt.includes(artifactName)) {
       issues.push({ chapter: spec.chapter, code: "MISSING_ARTIFACT", message: "Prompt missing artifact visibility" });
     }
   }

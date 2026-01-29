@@ -42,7 +42,7 @@ export function buildIntegrationPlan(input: {
     }
 
     const canonSafeguard = buildCanonSafeguard(blueprint, scene.sceneNumber);
-    const canonAnchorLine = buildCanonAnchorLine(normalized, cast);
+    const canonAnchorLine = buildCanonAnchorLine(normalized, cast, scene.sceneNumber);
 
     return {
       chapter: scene.sceneNumber,
@@ -73,17 +73,36 @@ function buildCanonSafeguard(blueprint: StoryBlueprintBase, chapter: number): st
   return rules[chapter % Math.max(1, rules.length)] || "Keep tone consistent and safe.";
 }
 
-function buildCanonAnchorLine(normalized: NormalizedRequest, cast: CastSet): string {
+function buildCanonAnchorLine(normalized: NormalizedRequest, cast: CastSet, chapter: number): string {
   const isGerman = normalized.language === "de";
   const avatars = cast.avatars.map(a => a.displayName).join(isGerman ? " und " : " and ") || (isGerman ? "die Helden" : "the heroes");
-  if (normalized.category === "Klassische Märchen") {
-    return isGerman
-      ? `${avatars} gehören seit jeher zu diesem Märchen und sind ganz selbstverständlich dabei.`
-      : `${avatars} have always belonged to this tale and feel like a natural part of it.`;
-  }
-  return isGerman
-    ? `${avatars} sind fest in dieser Welt verankert und wirken selbstverständlich dabei.`
-    : `${avatars} feel at home in this world and belong in this moment.`;
+  const variantsDe = normalized.category === "Klassische Märchen"
+    ? [
+        `Zeige subtil, dass ${avatars} in diesem Märchen längst zuhause sind; keine erklärende Aussage.`,
+        `Lass ${avatars} selbstverständlich handeln, ohne ihre Zugehörigkeit zu behaupten.`,
+        `Verankere ${avatars} beiläufig im Märchen; vermeide die Formulierung "seit jeher".`,
+      ]
+    : [
+        `Zeige, dass ${avatars} hier vertraut sind; keine explizite Behauptung ihrer Zugehörigkeit.`,
+        `Lass ${avatars} natürlich in der Welt agieren, ohne es zu erklären.`,
+        `Verankere ${avatars} still im Geschehen; keine Meta-Aussage.`,
+      ];
+
+  const variantsEn = normalized.category === "Klassische Märchen"
+    ? [
+        `Subtly show that ${avatars} belong in this tale; do not state it outright.`,
+        `Let ${avatars} act naturally in the story without explaining their presence.`,
+        `Ground ${avatars} in the tale quietly; avoid "always been part of it" phrasing.`,
+      ]
+    : [
+        `Show that ${avatars} feel at home here; do not say it explicitly.`,
+        `Let ${avatars} blend into the world naturally without explanation.`,
+        `Anchor ${avatars} in the moment quietly; avoid meta statements.`,
+      ];
+
+  const variants = isGerman ? variantsDe : variantsEn;
+  const index = Math.max(0, (chapter - 1) % variants.length);
+  return variants[index];
 }
 
 function buildAvatarFunction(beatType: SceneBeat["beatType"], language: string): string {

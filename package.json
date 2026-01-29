@@ -8,6 +8,8 @@
     "frontend"
   ],
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.89",
+    "pdfjs-dist": "^5.4.530",
     "pg": "^8.16.3",
     "postgres": "^3.4.8"
   }

@@ -11,8 +11,9 @@ export function validateStoryDraft(input: {
   directives: SceneDirective[];
   cast: CastSet;
   language?: string;
+  lengthTargets?: { wordMin: number; wordMax: number };
 }): { issues: StoryValidationIssue[]; score: number } {
-  const { draft, directives, cast, language } = input;
+  const { draft, directives, cast, language, lengthTargets } = input;
   const issues: StoryValidationIssue[] = [];
 
   for (const directive of directives) {
@@ -20,6 +21,7 @@ export function validateStoryDraft(input: {
     if (!chapter) continue;
 
     const textLower = chapter.text.toLowerCase();
+    const wordCount = countWords(chapter.text);
     const characterSlots = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
 
     for (const slot of characterSlots) {
@@ -40,6 +42,18 @@ export function validateStoryDraft(input: {
     const leak = detectInstructionLeak(textLower, language);
     if (leak) {
       issues.push({ chapter: directive.chapter, code: "INSTRUCTION_LEAK", message: leak });
+    }
+
+    if (hasBannedCanonPhrase(textLower, language)) {
+      issues.push({ chapter: directive.chapter, code: "CANON_REPETITION", message: "Canon integration phrasing too explicit/repetitive" });
+    }
+
+    if (lengthTargets) {
+      if (wordCount < lengthTargets.wordMin) {
+        issues.push({ chapter: directive.chapter, code: "TOO_SHORT", message: `Chapter too short (${wordCount} words)` });
+      } else if (wordCount > lengthTargets.wordMax) {
+        issues.push({ chapter: directive.chapter, code: "TOO_LONG", message: `Chapter too long (${wordCount} words)` });
+      }
     }
   }
 
@@ -73,4 +87,26 @@ function detectInstructionLeak(textLower: string, language?: string): string | n
   }
 
   return null;
+}
+
+function hasBannedCanonPhrase(textLower: string, language?: string): boolean {
+  const bannedGerman = [
+    "gehoeren seit jeher",
+    "gehören seit jeher",
+    "ganz selbstverstaendlich dabei",
+    "ganz selbstverständlich dabei",
+    "gehören seit jeher zu diesem märchen",
+  ];
+  const bannedEnglish = [
+    "have always been part of this tale",
+    "always been part of this tale",
+    "naturally belong here",
+  ];
+
+  const list = language === "de" ? bannedGerman : bannedEnglish;
+  return list.some(phrase => textLower.includes(phrase));
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }

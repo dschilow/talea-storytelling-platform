@@ -13,6 +13,7 @@ import { SimpleVisionValidator } from "./vision-validator";
 import { validateAndFixImageSpecs } from "./image-prompt-validator";
 import { validateCastSet } from "./schema-validator";
 import { validateStoryDraft } from "./story-validator";
+import { resolveLengthTargets } from "./prompts";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
@@ -143,6 +144,11 @@ export class StoryPipelineOrchestrator {
     await logPhase("phase5-directives", { storyId: normalized.storyId }, { chapters: directives.length, durationMs: Date.now() - phase5Start, moods: directives.map(d => d.mood) });
 
     const phase6Start = Date.now();
+    const lengthTargets = resolveLengthTargets({
+      lengthHint: normalized.lengthHint,
+      ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+      pacing: normalized.rawConfig?.pacing,
+    });
     let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
     let tokenUsage: any;
     const storedText = await loadStoryText(normalized.storyId);
@@ -175,6 +181,7 @@ export class StoryPipelineOrchestrator {
         directives,
         cast: castSet,
         language: normalized.language,
+        lengthTargets,
       });
 
       const shouldRetry = shouldRetryStory(storyValidation.issues);
@@ -193,6 +200,7 @@ export class StoryPipelineOrchestrator {
           directives,
           cast: castSet,
           language: normalized.language,
+          lengthTargets,
         });
       }
 
@@ -210,22 +218,27 @@ export class StoryPipelineOrchestrator {
 
     const phase7Start = Date.now();
     let imageSpecs = await loadImageSpecs(normalized.storyId);
-    if (imageSpecs.length === 0) {
+    const createdImageSpecs = imageSpecs.length === 0;
+    if (createdImageSpecs) {
       imageSpecs = await this.imageDirector.createImageSpecs({
         normalizedRequest: normalized,
         cast: castSet,
         directives,
       });
-      const validation = validateAndFixImageSpecs({ specs: imageSpecs, cast: castSet, directives });
-      imageSpecs = validation.specs;
+    }
+    const validation = validateAndFixImageSpecs({ specs: imageSpecs, cast: castSet, directives });
+    imageSpecs = validation.specs;
+    const uniqueCharacters = new Set(imageSpecs.flatMap(s => s.onStageExact || []));
+    const hasArtifacts = directives.some(d => d.charactersOnStage.includes("SLOT_ARTIFACT_1"));
+    if (createdImageSpecs || validation.issues.length > 0) {
       await saveImageSpecs(normalized.storyId, imageSpecs);
       await logPhase("phase7-imagespec", { storyId: normalized.storyId }, {
         specs: imageSpecs.length,
         issues: validation.issues.length,
         issueDetails: validation.issues,
         durationMs: Date.now() - phase7Start,
-        characters: imageSpecs.flatMap(s => s.characters || []).filter((v, i, a) => a.indexOf(v) === i).length,
-        hasArtifacts: imageSpecs.some(s => s.artifactInScene),
+        characters: uniqueCharacters.size,
+        hasArtifacts,
       });
     }
 
@@ -250,7 +263,13 @@ export class StoryPipelineOrchestrator {
     }
 
     let validationReport: any | undefined;
-    const storyValidation = validateStoryDraft({ draft: storyDraft, directives, cast: castSet, language: normalized.language });
+    const storyValidation = validateStoryDraft({
+      draft: storyDraft,
+      directives,
+      cast: castSet,
+      language: normalized.language,
+      lengthTargets,
+    });
     validationReport = { story: storyValidation, images: [] as any[] };
     if (input.enableVisionValidation) {
       const phase10Start = Date.now();
@@ -353,6 +372,13 @@ async function fetchArtifactMeta(artifactId?: string | null): Promise<any | null
 }
 
 function shouldRetryStory(issues: Array<{ code: string }>): boolean {
-  const retryCodes = new Set(["MISSING_CHARACTER", "MISSING_ARTIFACT", "INSTRUCTION_LEAK"]);
+  const retryCodes = new Set([
+    "MISSING_CHARACTER",
+    "MISSING_ARTIFACT",
+    "INSTRUCTION_LEAK",
+    "CANON_REPETITION",
+    "TOO_SHORT",
+    "TOO_LONG",
+  ]);
   return issues.some(issue => retryCodes.has(issue.code));
 }

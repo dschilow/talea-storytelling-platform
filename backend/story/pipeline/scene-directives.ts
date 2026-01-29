@@ -72,26 +72,41 @@ function buildImageMustShow(
   cast: CastSet,
   additions?: string[]
 ): string[] {
-  const items = new Set<string>();
+  const maxItems = 10;
+  const items: string[] = [];
+  const seen = new Set<string>();
+  const add = (value?: string | null) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    if (items.length >= maxItems) return;
+    seen.add(trimmed);
+    items.push(trimmed);
+  };
 
-  items.add(scene.setting);
-  items.add(scene.sceneTitle);
+  add(scene.setting);
+  add(scene.sceneTitle);
 
   for (const slot of plan.charactersOnStage) {
     const sheet = findCharacterBySlot(cast, slot);
-    if (sheet) {
-      items.add(sheet.displayName);
-      sheet.visualSignature.forEach(sig => items.add(sig));
-    }
+    if (!sheet) continue;
+    add(sheet.displayName);
   }
 
   if (scene.artifactPolicy?.requiresArtifact) {
-    items.add(cast.artifact.name);
+    add(cast.artifact.name);
   }
 
-  (additions || []).forEach(item => items.add(item));
+  for (const slot of plan.charactersOnStage) {
+    if (items.length >= maxItems) break;
+    const sheet = findCharacterBySlot(cast, slot);
+    const signature = sheet?.visualSignature?.[0];
+    add(signature);
+  }
 
-  return Array.from(items).slice(0, 20);
+  (additions || []).forEach(item => add(item));
+
+  return items;
 }
 
 function buildImageAvoid(scene: SceneBeat, additions?: string[]): string[] {

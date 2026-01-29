@@ -15,14 +15,8 @@ export class TemplateImageDirector implements ImageDirector {
       const onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
       const refSlots = selectReferenceSlots(onStageExact, cast);
       const refs = buildRefsForSlots(refSlots, cast);
-      const propsVisible = directive.imageMustShow.filter(item => !item.includes("extra characters"));
+      const propsVisible = limitPropsVisible(directive, cast);
       const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...directive.imageAvoid]));
-
-      // Add artifact name to props if present
-      const artifactName = cast.artifact?.name;
-      if (artifactName && !propsVisible.includes(artifactName)) {
-        propsVisible.push(artifactName);
-      }
 
       const spec: ImageSpec = {
         chapter: directive.chapter,
@@ -275,4 +269,36 @@ function mapLighting(mood?: SceneDirective["mood"]): string {
 function findName(cast: CastSet, slotKey: string): string {
   const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
   return sheet?.displayName ?? slotKey;
+}
+
+function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
+  const maxItems = 10;
+  const rawItems = directive.imageMustShow || [];
+  const artifactName = cast.artifact?.name;
+  const requiresArtifact = directive.charactersOnStage.includes("SLOT_ARTIFACT_1");
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  const add = (value?: string | null) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    if (result.length >= maxItems) return;
+    seen.add(trimmed);
+    result.push(trimmed);
+  };
+
+  if (requiresArtifact && artifactName) add(artifactName);
+
+  for (const item of rawItems) {
+    if (typeof item !== "string") continue;
+    if (item.toLowerCase().includes("extra characters")) continue;
+    add(item);
+  }
+
+  if (requiresArtifact && artifactName && !seen.has(artifactName) && result.length < maxItems) {
+    add(artifactName);
+  }
+
+  return result;
 }
