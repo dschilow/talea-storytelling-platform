@@ -62,19 +62,23 @@ export async function callChatCompletion(input: {
   seed?: number;
   context?: string;
 }): Promise<ChatCompletionResult> {
+  const isReasoningModel = input.model.includes("gpt-5") || input.model.includes("o4");
+  
   const payload: any = {
     model: input.model,
     messages: input.messages,
     max_completion_tokens: input.maxTokens ?? 2000,
   };
 
-  if (input.responseFormat === "json_object") {
+  // Reasoning models don't support json_object response format
+  // They need plain text and we parse the JSON from the response
+  if (input.responseFormat === "json_object" && !isReasoningModel) {
     payload.response_format = { type: "json_object" };
   }
 
-  const isReasoningModel = input.model.includes("gpt-5") || input.model.includes("o4");
   if (isReasoningModel) {
     payload.reasoning_effort = input.reasoningEffort ?? "low";
+    console.log(`[${input.context}] Using reasoning model with effort: ${payload.reasoning_effort}`);
   } else {
     payload.temperature = input.temperature ?? 0.7;
     payload.top_p = 0.95;
