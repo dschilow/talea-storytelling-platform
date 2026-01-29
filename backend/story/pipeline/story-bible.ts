@@ -188,7 +188,14 @@ export async function createStoryBible(input: {
     context: "story-bible",
   });
 
+  console.log("[StoryBible] AI Response length:", result.content.length);
+  console.log("[StoryBible] AI Response preview:", result.content.substring(0, 500));
+  
   let parsed = safeJson(result.content);
+  if (!parsed) {
+    console.error("[StoryBible] JSON parsing failed! Raw content:", result.content);
+  }
+  
   let validation = validateStoryBible(parsed, chapterCount, cast);
   if (!validation.valid) {
     const repairPrompt = `${prompt}\n\nFEHLER:\n${validation.errors.join("\n")}\n\nBitte korrigieren und nur korrektes JSON liefern.`;
@@ -205,8 +212,13 @@ export async function createStoryBible(input: {
       context: "story-bible-repair",
     });
     parsed = safeJson(repaired.content);
+    if (!parsed) {
+      console.error("[StoryBible] Repair JSON parsing also failed! Raw content:", repaired.content);
+    }
     validation = validateStoryBible(parsed, chapterCount, cast);
     if (!validation.valid) {
+      console.error("[StoryBible] Validation still failed after repair:", validation.errors);
+      console.error("[StoryBible] Parsed object:", JSON.stringify(parsed, null, 2));
       throw new Error(`StoryBible validation failed: ${validation.errors.join("; ")}`);
     }
   }
