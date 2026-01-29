@@ -206,6 +206,72 @@ const extractBucketKey = (value: string, config: BucketConfig): string | null =>
   return null;
 };
 
+const pickProxyBaseUrl = async (): Promise<string | undefined> => {
+  const fromSecret = await getEnv("ImageProxyBaseUrl");
+  if (fromSecret) return fromSecret;
+  return syncEnv("IMAGE_PROXY_BASE_URL") || syncEnv("BACKEND_PUBLIC_URL");
+};
+
+export async function extractBucketKeyForUrl(
+  imageUrl: string | undefined
+): Promise<string | null> {
+  if (!imageUrl) return null;
+  const config = await pickConfig();
+  if (!config) return null;
+  return extractBucketKey(imageUrl, config);
+}
+
+export async function buildProxyUrlForKey(key: string): Promise<string | null> {
+  if (!key) return null;
+  const base = await pickProxyBaseUrl();
+  if (!base) return null;
+  const trimmedBase = base.replace(/\/+$/, "");
+  return `${trimmedBase}/story/image?key=${encodeURIComponent(key)}`;
+}
+
+export async function resolveImageUrlForProxyAccess(
+  imageUrl: string | undefined,
+  ttlSeconds?: number
+): Promise<string | undefined> {
+  if (!imageUrl) return undefined;
+  const config = await pickConfig();
+  if (!config) return imageUrl;
+
+  const key = extractBucketKey(imageUrl, config);
+  if (!key) return imageUrl;
+
+  if (config.accessMode === "public") {
+    return buildPublicUrl(config, key);
+  }
+
+  try {
+    return await signObjectUrl(config, key, ttlSeconds);
+  } catch (error) {
+    console.warn("[Bucket] Failed to sign URL:", error);
+    return imageUrl;
+  }
+}
+
+export async function resolveImageUrlForBucketKey(
+  key: string,
+  ttlSeconds?: number
+): Promise<string | null> {
+  if (!key) return null;
+  const config = await pickConfig();
+  if (!config) return null;
+
+  if (config.accessMode === "public") {
+    return buildPublicUrl(config, key);
+  }
+
+  try {
+    return await signObjectUrl(config, key, ttlSeconds);
+  } catch (error) {
+    console.warn("[Bucket] Failed to sign URL:", error);
+    return null;
+  }
+}
+
 const signObjectUrl = async (
   config: BucketConfig,
   key: string,
@@ -339,6 +405,12 @@ export async function resolveImageUrlForClient(
 
   const key = extractBucketKey(imageUrl, config);
   if (!key) return imageUrl;
+
+  const proxyBaseUrl = await pickProxyBaseUrl();
+  if (proxyBaseUrl) {
+    const trimmedBase = proxyBaseUrl.replace(/\/+$/, "");
+    return `${trimmedBase}/story/image?key=${encodeURIComponent(key)}`;
+  }
 
   if (config.accessMode === "public") {
     return buildPublicUrl(config, key);
