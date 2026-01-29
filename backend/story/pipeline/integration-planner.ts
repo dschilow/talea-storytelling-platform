@@ -180,10 +180,10 @@ function enrichEntryExitReasons(
         const contract = entryContracts[name];
         if (contract && chapters[i].characterBeats?.[name]) {
           if (contract.chapter === chapters[i].chapter) {
-            chapters[i].characterBeats[name].entryReason = contract.reason;
+            chapters[i].characterBeats![name].entryReason = contract.reason;
           }
         } else if (chapters[i].characterBeats?.[name]) {
-          chapters[i].characterBeats[name].entryReason = isGerman
+          chapters[i].characterBeats![name].entryReason = isGerman
             ? `${name} kommt passend zur Szene hinzu.`
             : `${name} joins naturally for this moment.`;
         }

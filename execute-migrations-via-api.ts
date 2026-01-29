@@ -166,7 +166,7 @@ async function main() {
   console.log(`Mode: ${modeArg}\n`);
 
   const selected = migrations.filter(m => modeArg === "all" || m.group === modeArg);
-  const migrationsDir = join(import.meta.dir, "backend", "story", "migrations");
+  const migrationsDir = join(import.meta.dirname!, "backend", "story", "migrations");
 
   await testConnection();
 
