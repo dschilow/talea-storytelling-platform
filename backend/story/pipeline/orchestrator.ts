@@ -215,7 +215,7 @@ export class StoryPipelineOrchestrator {
         integrationPlan = buildIntegrationPlan({ normalized, blueprint, cast: castSet, storyBible });
         await saveIntegrationPlan(normalized.storyId, integrationPlan);
       }
-      await logPhase("phase4-integration", { storyId: normalized.storyId }, { chapters: integrationPlan.chapters.length, durationMs: Date.now() - phase4Start, avatarPresenceRatio: integrationPlan.avatarPresenceRatio });
+      await logPhase("phase4-integration", { storyId: normalized.storyId }, { chapters: integrationPlan.chapters.length, durationMs: Date.now() - phase4Start, avatarPresenceRatio: integrationPlan.avatarsPresenceRatio });
 
       const phase5Start = Date.now();
       let directives = await loadSceneDirectives(normalized.storyId);
