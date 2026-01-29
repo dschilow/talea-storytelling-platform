@@ -16,3 +16,4 @@ import "./test-artifacts";
 import "./show-artifacts";
 import "./debug-last-error";
 import "./debug-recent-stories";
+import "./proxy-image";

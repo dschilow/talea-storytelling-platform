@@ -78,11 +78,11 @@ export class StoryPipelineOrchestrator {
     const variantSeed = normalized.variantSeed ?? crypto.randomInt(0, 2_147_483_647);
     const phase1Start = Date.now();
     const blueprint = await loadStoryBlueprintBase({ normalized, variantSeed });
-    await logPhase("phase1-dna", { storyId: normalized.storyId }, { durationMs: Date.now() - phase1Start });
+    await logPhase("phase1-dna", { storyId: normalized.storyId, taleId: "taleId" in blueprint.dna ? blueprint.dna.taleId : (blueprint.dna as any).templateId }, { durationMs: Date.now() - phase1Start, roleCount: blueprint.roles.length, sceneCount: blueprint.scenes.length, title: "title" in blueprint.dna ? blueprint.dna.title : "Template-based" });
 
     const phase2Start = Date.now();
     const variantPlan = createVariantPlan({ normalized: { ...normalized, variantSeed }, blueprint });
-    await logPhase("phase2-variant", { storyId: normalized.storyId }, { durationMs: Date.now() - phase2Start });
+    await logPhase("phase2-variant", { storyId: normalized.storyId, variantSeed }, { durationMs: Date.now() - phase2Start, variantChoices: variantPlan.variantChoices, overrideCount: variantPlan.sceneOverrides?.length || 0 });
 
     await upsertStoryInstance({
       id: normalized.storyId,
@@ -100,7 +100,7 @@ export class StoryPipelineOrchestrator {
       error: null,
     });
 
-    await logPhase("phase0-normalization", { storyId: normalized.storyId, category: normalized.category }, { ok: true, durationMs: Date.now() - phase0Start });
+    await logPhase("phase0-normalization", { storyId: normalized.storyId, category: normalized.category, language: normalized.language, chapterCount: normalized.chapterCount }, { ok: true, durationMs: Date.now() - phase0Start, avatarCount: normalized.avatarCount, ageMin: normalized.ageMin, ageMax: normalized.ageMax });
 
     const phase3Start = Date.now();
     let castSet = await loadCastSet(normalized.storyId);
@@ -115,10 +115,10 @@ export class StoryPipelineOrchestrator {
     }
     const castValidation = validateCastSet(castSet);
     if (!castValidation.valid) {
-      await logPhase("phase3-casting-validation", { storyId: normalized.storyId }, { errors: castValidation.errors });
+      await logPhase("phase3-casting-validation", { storyId: normalized.storyId }, { valid: false, errors: castValidation.errors });
     }
     const artifactMeta = await fetchArtifactMeta(castSet.artifact?.artifactId);
-    await logPhase("phase3-casting", { storyId: normalized.storyId }, { slots: Object.keys(castSet.slotAssignments).length, durationMs: Date.now() - phase3Start });
+    await logPhase("phase3-casting", { storyId: normalized.storyId }, { slots: Object.keys(castSet.slotAssignments).length, durationMs: Date.now() - phase3Start, avatarCount: castSet.avatars.length, poolCharacterCount: castSet.poolCharacters.length, artifactId: castSet.artifact?.artifactId, artifactName: castSet.artifact?.name });
 
     const phase4Start = Date.now();
     let integrationPlan = await loadIntegrationPlan(normalized.storyId);
@@ -126,7 +126,7 @@ export class StoryPipelineOrchestrator {
       integrationPlan = buildIntegrationPlan({ normalized, blueprint, cast: castSet });
       await saveIntegrationPlan(normalized.storyId, integrationPlan);
     }
-    await logPhase("phase4-integration", { storyId: normalized.storyId }, { chapters: integrationPlan.chapters.length, durationMs: Date.now() - phase4Start });
+    await logPhase("phase4-integration", { storyId: normalized.storyId }, { chapters: integrationPlan.chapters.length, durationMs: Date.now() - phase4Start, avatarPresenceRatio: integrationPlan.avatarPresenceRatio });
 
     const phase5Start = Date.now();
     let directives = await loadSceneDirectives(normalized.storyId);
@@ -140,7 +140,7 @@ export class StoryPipelineOrchestrator {
       });
       await saveSceneDirectives(normalized.storyId, directives);
     }
-    await logPhase("phase5-directives", { storyId: normalized.storyId }, { chapters: directives.length, durationMs: Date.now() - phase5Start });
+    await logPhase("phase5-directives", { storyId: normalized.storyId }, { chapters: directives.length, durationMs: Date.now() - phase5Start, moods: directives.map(d => d.mood) });
 
     const phase6Start = Date.now();
     let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
@@ -197,12 +197,14 @@ export class StoryPipelineOrchestrator {
       }
 
       await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({ chapter: ch.chapter, title: ch.title, text: ch.text })));
-      await logPhase("phase6-story", { storyId: normalized.storyId }, {
+      await logPhase("phase6-story", { storyId: normalized.storyId, title: storyDraft.title }, {
         chapters: storyDraft.chapters.length,
         durationMs: Date.now() - phase6Start,
         tokens: tokenUsage,
         retry: shouldRetry,
         issues: storyValidation.issues.length,
+        issueDetails: storyValidation.issues.map(i => ({ code: i.code, chapter: i.chapter, message: i.message })),
+        wordCount: storyDraft.chapters.reduce((sum, ch) => sum + (ch.text?.split(/\s+/).length || 0), 0),
       });
     }
 
@@ -217,7 +219,14 @@ export class StoryPipelineOrchestrator {
       const validation = validateAndFixImageSpecs({ specs: imageSpecs, cast: castSet, directives });
       imageSpecs = validation.specs;
       await saveImageSpecs(normalized.storyId, imageSpecs);
-      await logPhase("phase7-imagespec", { storyId: normalized.storyId }, { issues: validation.issues.length, durationMs: Date.now() - phase7Start });
+      await logPhase("phase7-imagespec", { storyId: normalized.storyId }, {
+        specs: imageSpecs.length,
+        issues: validation.issues.length,
+        issueDetails: validation.issues,
+        durationMs: Date.now() - phase7Start,
+        characters: imageSpecs.flatMap(s => s.characters || []).filter((v, i, a) => a.indexOf(v) === i).length,
+        hasArtifacts: imageSpecs.some(s => s.artifactInScene),
+      });
     }
 
     const phase9Start = Date.now();
@@ -230,7 +239,14 @@ export class StoryPipelineOrchestrator {
         imageSpecs,
       });
       await saveStoryImages(normalized.storyId, images);
-      await logPhase("phase9-imagegen", { storyId: normalized.storyId }, { images: images.length, durationMs: Date.now() - phase9Start });
+      await logPhase("phase9-imagegen", { storyId: normalized.storyId }, {
+        images: images.length,
+        durationMs: Date.now() - phase9Start,
+        providers: images.map(img => img.provider).filter((v, i, a) => a.indexOf(v) === i),
+        successfulImages: images.filter(img => img.imageUrl).length,
+        failedImages: images.filter(img => !img.imageUrl).length,
+        chapters: images.map(img => img.chapter),
+      });
     }
 
     let validationReport: any | undefined;
@@ -273,7 +289,14 @@ export class StoryPipelineOrchestrator {
         }
       }
 
-      await logPhase("phase10-vision", { storyId: normalized.storyId }, { chapters: Object.keys(vision.retryAdvice).length, durationMs: Date.now() - phase10Start });
+      await logPhase("phase10-vision", { storyId: normalized.storyId }, {
+        validatedChapters: images.length,
+        chaptersNeedingRetry: Object.keys(vision.retryAdvice || {}).length,
+        retryAdvice: vision.retryAdvice,
+        durationMs: Date.now() - phase10Start,
+        imagesRetried: retryChapters.length,
+        visionIssues: validationReport.images.length,
+      });
     }
 
     if (validationReport) {

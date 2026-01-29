@@ -20,11 +20,22 @@ interface ImageLoadResult {
 /**
  * Load an image from URL and convert to data URL for embedding.
  * Uses multiple strategies to handle CORS restrictions:
- * 1. fetch + blob → object URL → canvas (avoids CORS canvas taint)
- * 2. fetch + FileReader → base64 directly (no canvas needed)
- * 3. Image element with crossOrigin → canvas (classic approach)
+ * 1. Backend proxy (for bucket/signed URLs with CORS issues)
+ * 2. fetch + blob → object URL → canvas (avoids CORS canvas taint)
+ * 3. fetch + FileReader → base64 directly (no canvas needed)
+ * 4. Image element with crossOrigin → canvas (classic approach)
  */
 async function loadImageAsDataUrl(url: string): Promise<ImageLoadResult> {
+  // Strategy 0: Backend proxy for bucket images (bypasses CORS entirely)
+  if (url.includes('storage.railway.app') || url.includes('X-Amz-Signature')) {
+    try {
+      const result = await loadImageViaBackendProxy(url);
+      if (result.success) return result;
+    } catch (error) {
+      console.warn('[PDF] Backend proxy strategy failed for:', url, error);
+    }
+  }
+
   // Strategy 1: fetch as blob → object URL → canvas (most reliable for cross-origin)
   try {
     const result = await loadImageViaFetch(url);
@@ -51,6 +62,71 @@ async function loadImageAsDataUrl(url: string): Promise<ImageLoadResult> {
 
   console.error('[PDF] All image loading strategies failed for:', url);
   return { success: false, error: 'All image loading strategies failed' };
+}
+
+/**
+ * Load image via backend proxy endpoint.
+ * This bypasses all CORS restrictions by fetching server-side.
+ */
+async function loadImageViaBackendProxy(url: string): Promise<ImageLoadResult> {
+  // Get backend URL from environment
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://backend-2-production-3de1.up.railway.app';
+
+  // Get auth token from Clerk
+  let authToken: string | null = null;
+  try {
+    // Try to get auth token from window.__clerk if available
+    const clerk = (window as any).__clerk;
+    if (clerk?.session) {
+      authToken = await clerk.session.getToken();
+    }
+  } catch {
+    console.warn('[PDF] Could not get auth token for proxy request');
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+
+  const response = await fetch(`${backendUrl}/story/proxy-image`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ imageUrl: url }),
+  });
+
+  if (!response.ok) {
+    return { success: false, error: `Proxy request failed: ${response.status}` };
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !data.imageData) {
+    return { success: false, error: data.error || 'Proxy returned no image data' };
+  }
+
+  // Get dimensions from the data URL
+  const objectUrl = data.imageData;
+  const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+    };
+    img.onerror = () => {
+      resolve({ width: 1024, height: 1024 });
+    };
+    img.src = objectUrl;
+  });
+
+  return {
+    success: true,
+    dataUrl: data.imageData,
+    width: dimensions.width,
+    height: dimensions.height,
+  };
 }
 
 /**
