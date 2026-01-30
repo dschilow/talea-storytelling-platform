@@ -25,7 +25,7 @@ export function computeWordBudget(input: {
 }): WordBudget {
   const lengthKey = input.lengthHint || "medium";
   const minutes = LENGTH_MINUTES[lengthKey] ?? LENGTH_MINUTES.medium;
-  const wpm = input.wpm ?? 140;
+  const wpm = input.wpm ?? 150;
   const pacingFactor = input.pacing === "fast" ? 0.9 : input.pacing === "slow" ? 1.1 : 1;
 
   const selectedMinutes = Math.round((minutes.min + minutes.max) / 2);

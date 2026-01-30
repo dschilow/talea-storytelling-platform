@@ -1,7 +1,10 @@
-﻿import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
-import { buildStoryChapterPrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
+import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
+import { buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
+import { runQualityGates, buildRewriteInstructions } from "./quality-gates";
+
+const MAX_REWRITE_PASSES = 2;
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -11,12 +14,13 @@ export class LlmStoryWriter implements StoryWriter {
     directives: SceneDirective[];
     strict?: boolean;
     stylePackText?: string;
-  }): Promise<{ draft: StoryDraft; usage?: TokenUsage }> {
+  }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText } = input;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
     const systemPrompt = normalizedRequest.language === "de"
-      ? "Du bist eine erfahrene Kinderbuchautorin. Schreibe warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern."
-      : "You are an experienced children's book author. Write warm, vivid, rhythmic, and clear prose.";
+      ? "Du bist eine preisgekroente Kinderbuchautorin. Du schreibst ganze Geschichten am Stueck - warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern. Jedes Kapitel baut auf dem vorherigen auf. Deine Charaktere erinnern sich, entwickeln sich weiter, und der rote Faden zieht sich durch die gesamte Geschichte."
+      : "You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story.";
+
     const lengthTargets = normalizedRequest.wordBudget
       ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
       : resolveLengthTargets({
@@ -25,216 +29,220 @@ export class LlmStoryWriter implements StoryWriter {
           pacing: normalizedRequest.rawConfig?.pacing,
         });
 
-    const chapters = [] as StoryDraft["chapters"];
+    const totalWordTarget = normalizedRequest.wordBudget?.targetWords ?? (lengthTargets.wordMin + lengthTargets.wordMax) / 2 * directives.length;
+    const totalWordMin = normalizedRequest.wordBudget?.minWords ?? lengthTargets.wordMin * directives.length;
+    const totalWordMax = normalizedRequest.wordBudget?.maxWords ?? lengthTargets.wordMax * directives.length;
+
     let totalUsage: TokenUsage | undefined;
 
-    for (const directive of directives) {
-      const isFinal = directive.chapter === directives[directives.length - 1]?.chapter;
-      const finalLine = isFinal
-        ? (normalizedRequest.language === "de"
-          ? "\nLetztes Kapitel: Kein Cliffhanger, ein sanfter Abschluss."
-          : "\nFinal chapter: do NOT end on a cliffhanger.")
-        : "";
+    // ─── Phase A: Generate full story in one call ────────────────────────────
+    const prompt = buildFullStoryPrompt({
+      directives,
+      cast,
+      dna,
+      language: normalizedRequest.language,
+      ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+      tone: normalizedRequest.requestedTone,
+      totalWordTarget: Math.round(totalWordTarget),
+      totalWordMin: Math.round(totalWordMin),
+      totalWordMax: Math.round(totalWordMax),
+      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+      stylePackText,
+      strict,
+    });
 
-      const prompt = buildStoryChapterPrompt({
-        chapter: directive,
+    const maxOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));
+
+    const result = await callChatCompletion({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+      responseFormat: "json_object",
+      maxTokens: Math.min(maxOutputTokens, 16000),
+      temperature: strict ? 0.4 : 0.7,
+      context: "story-writer-full",
+    });
+
+    if (result.usage) {
+      totalUsage = mergeUsage(totalUsage, result.usage, model);
+    }
+
+    let parsed = safeJson(result.content);
+    let draft = extractDraft(parsed, directives, normalizedRequest.language);
+
+    // ─── Phase B: Quality Gates + Rewrite Passes ─────────────────────────────
+    let qualityReport = runQualityGates({
+      draft,
+      directives,
+      cast,
+      language: normalizedRequest.language,
+      wordBudget: normalizedRequest.wordBudget,
+    });
+
+    let rewriteAttempt = 0;
+    while (qualityReport.failedGates.length > 0 && rewriteAttempt < MAX_REWRITE_PASSES) {
+      rewriteAttempt++;
+      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${MAX_REWRITE_PASSES} - failed gates: ${qualityReport.failedGates.join(", ")}`);
+
+      const errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+      const rewriteInstructions = buildRewriteInstructions(errorIssues, normalizedRequest.language);
+
+      const rewritePrompt = buildFullStoryRewritePrompt({
+        originalDraft: draft,
+        directives,
         cast,
         dna,
         language: normalizedRequest.language,
         ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         tone: normalizedRequest.requestedTone,
-        lengthHint: normalizedRequest.lengthHint,
-        pacing: normalizedRequest.rawConfig?.pacing,
-        lengthTargets,
+        totalWordMin: Math.round(totalWordMin),
+        totalWordMax: Math.round(totalWordMax),
+        wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+        qualityIssues: rewriteInstructions,
         stylePackText,
-        strict,
-      }) + finalLine;
+      });
 
-      const result = await callChatCompletion({
+      const rewriteResult = await callChatCompletion({
         model,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
+          { role: "user", content: rewritePrompt },
         ],
         responseFormat: "json_object",
-        maxTokens: 2000,
-        temperature: strict ? 0.4 : 0.7,
-        context: "story-writer",
+        maxTokens: Math.min(maxOutputTokens, 16000),
+        temperature: 0.4,
+        context: `story-writer-rewrite-${rewriteAttempt}`,
       });
 
-      let parsed = safeJson(result.content);
-      let title = parsed?.title || `Kapitel ${directive.chapter}`;
-      let text = parsed?.text || result.content;
+      if (rewriteResult.usage) {
+        totalUsage = mergeUsage(totalUsage, rewriteResult.usage, model);
+      }
 
-      const issues = validateChapterText({
-        directive,
+      parsed = safeJson(rewriteResult.content);
+      const revisedDraft = extractDraft(parsed, directives, normalizedRequest.language);
+
+      const revisedReport = runQualityGates({
+        draft: revisedDraft,
+        directives,
         cast,
-        text,
         language: normalizedRequest.language,
-        lengthTargets,
+        wordBudget: normalizedRequest.wordBudget,
       });
 
-      if (issues.length > 0) {
-        const revisionPrompt = buildStoryChapterRevisionPrompt({
-          chapter: directive,
-          cast,
-          dna,
-          language: normalizedRequest.language,
-          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-          tone: normalizedRequest.requestedTone,
-          lengthHint: normalizedRequest.lengthHint,
-          pacing: normalizedRequest.rawConfig?.pacing,
-          lengthTargets,
-          stylePackText,
-          issues,
-          originalText: text,
-        }) + finalLine;
+      if (revisedReport.score >= qualityReport.score) {
+        draft = revisedDraft;
+        qualityReport = revisedReport;
+      } else {
+        console.log(`[story-writer] Rewrite pass ${rewriteAttempt} scored lower (${revisedReport.score} vs ${qualityReport.score}), keeping original`);
+        break;
+      }
 
-        const revisionResult = await callChatCompletion({
+      if (qualityReport.failedGates.length === 0) {
+        console.log(`[story-writer] All quality gates passed after rewrite pass ${rewriteAttempt}`);
+        break;
+      }
+    }
+
+    // ─── Phase C: Title generation (if AI didn't return a good one) ──────────
+    if (!draft.title || draft.title.length < 3) {
+      const storyText = draft.chapters.map(ch => `${ch.title}\n${ch.text}`).join("\n\n");
+      try {
+        const titleSystem = normalizedRequest.language === "de"
+          ? "Du fasst Kindergeschichten knapp zusammen."
+          : "You summarize children's stories.";
+        const titlePrompt = buildStoryTitlePrompt({ storyText, language: normalizedRequest.language });
+        const titleResult = await callChatCompletion({
           model,
           messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: revisionPrompt },
+            { role: "system", content: titleSystem },
+            { role: "user", content: titlePrompt },
           ],
           responseFormat: "json_object",
-          maxTokens: 2400,
-          temperature: 0.4,
-          context: "story-writer-revision",
+          maxTokens: 800,
+          temperature: 0.6,
+          context: "story-title",
         });
+        const titleParsed = safeJson(titleResult.content);
+        if (titleParsed?.title) draft.title = titleParsed.title;
+        if (titleParsed?.description) draft.description = titleParsed.description;
 
-        parsed = safeJson(revisionResult.content);
-        title = parsed?.title || title;
-        text = parsed?.text || text;
-
-        if (revisionResult.usage) {
-          totalUsage = mergeUsage(totalUsage, revisionResult.usage, model);
+        if (titleResult.usage) {
+          totalUsage = mergeUsage(totalUsage, titleResult.usage, model);
         }
+      } catch (error) {
+        console.warn("[story-writer] Failed to generate story title", error);
       }
-
-      chapters.push({
-        chapter: directive.chapter,
-        title,
-        text,
-      });
-
-      if (result.usage) {
-        totalUsage = mergeUsage(totalUsage, result.usage, model);
-      }
-    }
-
-    if (normalizedRequest.wordBudget) {
-      const totalWords = chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
-      const budget = normalizedRequest.wordBudget;
-      if (totalWords < budget.minWords || totalWords > budget.maxWords) {
-        const adjustMode = totalWords < budget.minWords ? "expand" : "trim";
-        const factorRaw = budget.targetWords / Math.max(1, totalWords);
-        const factor = adjustMode === "expand"
-          ? Math.min(1.3, Math.max(1.05, factorRaw))
-          : Math.max(0.75, Math.min(0.95, factorRaw));
-
-        const adjustedTargets = scaleLengthTargets(lengthTargets, factor);
-
-        const revisedChapters: StoryDraft["chapters"] = [];
-        for (const directive of directives) {
-          const current = chapters.find(ch => ch.chapter === directive.chapter);
-          if (!current) continue;
-
-          const issues = [
-            adjustMode === "expand"
-              ? (normalizedRequest.language === "de"
-                ? "Kapitel zu kurz, erweitere mit sinnlichen Details und Dialog"
-                : "Chapter too short, expand with sensory detail and dialogue")
-              : (normalizedRequest.language === "de"
-                ? "Kapitel zu lang, straffe ohne Plotverlust"
-                : "Chapter too long, trim without losing plot"),
-          ];
-
-          const revisionPrompt = buildStoryChapterRevisionPrompt({
-            chapter: directive,
-            cast,
-            dna,
-            language: normalizedRequest.language,
-            ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-            tone: normalizedRequest.requestedTone,
-            lengthHint: normalizedRequest.lengthHint,
-            pacing: normalizedRequest.rawConfig?.pacing,
-            lengthTargets: adjustedTargets,
-            stylePackText,
-            issues,
-            originalText: current.text,
-          });
-
-          const revisionResult = await callChatCompletion({
-            model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: revisionPrompt },
-            ],
-            responseFormat: "json_object",
-            maxTokens: 2600,
-            temperature: 0.4,
-            context: "story-writer-length-adjust",
-          });
-
-          const parsed = safeJson(revisionResult.content);
-          revisedChapters.push({
-            chapter: current.chapter,
-            title: parsed?.title || current.title,
-            text: parsed?.text || current.text,
-          });
-
-          if (revisionResult.usage) {
-            totalUsage = mergeUsage(totalUsage, revisionResult.usage, model);
-          }
-        }
-
-        if (revisedChapters.length === chapters.length) {
-          chapters.splice(0, chapters.length, ...revisedChapters);
-        }
-      }
-    }
-
-    const storyText = chapters.map(ch => `${ch.title}\n${ch.text}`).join("\n\n");
-
-    const titlePrompt = buildStoryTitlePrompt({ storyText, language: normalizedRequest.language });
-    let storyTitle = chapters[0]?.title || "Neue Geschichte";
-    let storyDescription = chapters[0]?.text?.slice(0, 140) || "";
-
-    try {
-      const titleSystem = normalizedRequest.language === "de"
-        ? "Du fasst Kindergeschichten knapp zusammen."
-        : "You summarize children's stories.";
-      const titleResult = await callChatCompletion({
-        model,
-        messages: [
-          { role: "system", content: titleSystem },
-          { role: "user", content: titlePrompt },
-        ],
-        responseFormat: "json_object",
-        maxTokens: 800,
-        temperature: 0.6,
-        context: "story-title",
-      });
-      const parsed = safeJson(titleResult.content);
-      storyTitle = parsed?.title || storyTitle;
-      storyDescription = parsed?.description || storyDescription;
-
-      if (titleResult.usage) {
-        totalUsage = mergeUsage(totalUsage, titleResult.usage, model);
-      }
-    } catch (error) {
-      console.warn("[pipeline] Failed to generate story title", error);
     }
 
     return {
-      draft: {
-        title: storyTitle,
-        description: storyDescription,
-        chapters,
-      },
+      draft,
       usage: totalUsage,
+      qualityReport: {
+        score: qualityReport.score,
+        passedGates: qualityReport.passedGates,
+        failedGates: qualityReport.failedGates,
+        issueCount: qualityReport.issues.length,
+        errorCount: qualityReport.issues.filter(i => i.severity === "ERROR").length,
+        warningCount: qualityReport.issues.filter(i => i.severity === "WARNING").length,
+        rewriteAttempts: rewriteAttempt,
+        issues: qualityReport.issues.map(i => ({
+          gate: i.gate,
+          chapter: i.chapter,
+          code: i.code,
+          message: i.message,
+          severity: i.severity,
+        })),
+      },
     };
   }
+}
+
+function extractDraft(
+  parsed: any,
+  directives: SceneDirective[],
+  language: string,
+): StoryDraft {
+  if (!parsed) {
+    return {
+      title: language === "de" ? "Neue Geschichte" : "New Story",
+      description: "",
+      chapters: directives.map(d => ({
+        chapter: d.chapter,
+        title: `${language === "de" ? "Kapitel" : "Chapter"} ${d.chapter}`,
+        text: "",
+      })),
+    };
+  }
+
+  const title = parsed.title || (language === "de" ? "Neue Geschichte" : "New Story");
+  const description = parsed.description || "";
+
+  let chapters: StoryDraft["chapters"] = [];
+
+  if (Array.isArray(parsed.chapters)) {
+    chapters = parsed.chapters.map((ch: any, idx: number) => ({
+      chapter: ch.chapter ?? idx + 1,
+      title: ch.title || `${language === "de" ? "Kapitel" : "Chapter"} ${ch.chapter ?? idx + 1}`,
+      text: ch.text || "",
+    }));
+  }
+
+  if (chapters.length < directives.length) {
+    for (const d of directives) {
+      if (!chapters.find(ch => ch.chapter === d.chapter)) {
+        chapters.push({
+          chapter: d.chapter,
+          title: `${language === "de" ? "Kapitel" : "Chapter"} ${d.chapter}`,
+          text: "",
+        });
+      }
+    }
+    chapters.sort((a, b) => a.chapter - b.chapter);
+  }
+
+  return { title, description, chapters };
 }
 
 function safeJson(text: string) {
@@ -243,78 +251,6 @@ function safeJson(text: string) {
   } catch {
     return null;
   }
-}
-
-function validateChapterText(input: {
-  directive: SceneDirective;
-  cast: CastSet;
-  text: string;
-  language: string;
-  lengthTargets: { wordMin: number; wordMax: number };
-}): string[] {
-  const { directive, cast, text, language, lengthTargets } = input;
-  const textLower = text.toLowerCase();
-  const issues: string[] = [];
-
-  const characterSlots = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
-  for (const slot of characterSlots) {
-    const name = findCharacterName(cast, slot);
-    if (!name) continue;
-    if (!textLower.includes(name.toLowerCase())) {
-      issues.push(language === "de"
-        ? `Figur fehlt: ${name}`
-        : `Missing character: ${name}`);
-    }
-  }
-
-  if (directive.charactersOnStage.some(slot => slot.includes("ARTIFACT"))) {
-    const artifactName = cast.artifact?.name?.toLowerCase();
-    if (artifactName && !textLower.includes(artifactName)) {
-      issues.push(language === "de" ? "Artefaktname fehlt" : "Artifact name missing");
-    }
-  }
-
-  const banned = language === "de"
-    ? ["gehoeren seit jeher", "ganz selbstverstaendlich dabei", "gehören seit jeher", "ganz selbstverständlich dabei"]
-    : ["have always been part of this tale", "always been part of this tale", "naturally belongs here"];
-  if (banned.some(phrase => textLower.includes(phrase))) {
-    issues.push(language === "de"
-      ? "Verbotene Kanon-Formulierung verwendet"
-      : "Forbidden canon phrasing used");
-  }
-
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  if (wordCount < lengthTargets.wordMin) {
-    issues.push(language === "de"
-      ? `Kapitel zu kurz (${wordCount} Woerter)`
-      : `Chapter too short (${wordCount} words)`);
-  } else if (wordCount > lengthTargets.wordMax) {
-    issues.push(language === "de"
-      ? `Kapitel zu lang (${wordCount} Woerter)`
-      : `Chapter too long (${wordCount} words)`);
-  }
-
-  return issues;
-}
-
-function findCharacterName(cast: CastSet, slotKey: string): string | null {
-  const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
-  return sheet?.displayName ?? null;
-}
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function scaleLengthTargets(
-  targets: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number },
-  factor: number
-): { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number } {
-  const wordMin = Math.max(80, Math.round(targets.wordMin * factor));
-  const wordMax = Math.max(wordMin + 40, Math.round(targets.wordMax * factor));
-  const sentenceMin = Math.max(6, Math.round(wordMin / 18));
-  const sentenceMax = Math.max(sentenceMin + 2, Math.round(wordMax / 14));
-  return { wordMin, wordMax, sentenceMin, sentenceMax };
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {

@@ -13,9 +13,8 @@ import { RunwareImageGenerator } from "./image-generator";
 import { SimpleVisionValidator } from "./vision-validator";
 import { validateAndFixImageSpecs } from "./image-prompt-validator";
 import { validateCastSet } from "./schema-validator";
-import { validateStoryDraft } from "./story-validator";
-import { resolveLengthTargets } from "./prompts";
-import { computeWordBudget, buildLengthTargetsFromBudget } from "./word-budget";
+import { runQualityGates } from "./quality-gates";
+import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
@@ -184,20 +183,11 @@ export class StoryPipelineOrchestrator {
       await logPhase("phase5-directives", { storyId: normalized.storyId }, { chapters: directives.length, durationMs: Date.now() - phase5Start, moods: directives.map(d => d.mood) });
 
       const phase6Start = Date.now();
-      const lengthTargets = normalized.wordBudget
-        ? buildLengthTargetsFromBudget(normalized.wordBudget)
-        : resolveLengthTargets({
-            lengthHint: normalized.lengthHint,
-            ageRange: { min: normalized.ageMin, max: normalized.ageMax },
-            pacing: normalized.rawConfig?.pacing,
-          });
       let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
       let tokenUsage: any;
+      let qualityReport: any;
       const storedText = await loadStoryText(normalized.storyId);
-      let storyValidation = { issues: [] as any[], score: 0 };
-      let storyAttempts = 0;
-      const maxStoryAttempts = Math.max(1, (pipelineConfig.storyRetryMax ?? 0) + 1);
-      let shouldRetry = false;
+
       if (storedText.length === directives.length) {
         storyDraft = {
           title: "",
@@ -212,78 +202,64 @@ export class StoryPipelineOrchestrator {
           storyDraft.title = storyDraft.chapters[0]?.title || "Neue Geschichte";
           storyDraft.description = (storyDraft.chapters[0]?.text || "").slice(0, 180);
         }
-        storyValidation = validateStoryDraft({
+        const cachedQuality = runQualityGates({
           draft: storyDraft,
           directives,
           cast: castSet,
           language: normalized.language,
-          lengthTargets,
+          wordBudget: normalized.wordBudget,
         });
+        qualityReport = {
+          score: cachedQuality.score,
+          passedGates: cachedQuality.passedGates,
+          failedGates: cachedQuality.failedGates,
+          issueCount: cachedQuality.issues.length,
+          errorCount: cachedQuality.issues.filter(i => i.severity === "ERROR").length,
+          warningCount: cachedQuality.issues.filter(i => i.severity === "WARNING").length,
+          rewriteAttempts: 0,
+          issues: cachedQuality.issues,
+        };
       } else {
-        do {
-          const writeResult = await this.storyWriter.writeStory({
-            normalizedRequest: normalized,
-            cast: castSet,
-            dna: blueprint.dna,
-            directives,
-            strict: storyAttempts > 0,
-            stylePackText,
-          });
-          storyDraft = writeResult.draft;
-          tokenUsage = writeResult.usage ?? tokenUsage;
-          storyValidation = validateStoryDraft({
-            draft: storyDraft,
-            directives,
-            cast: castSet,
-            language: normalized.language,
-            lengthTargets,
-          });
-          shouldRetry = shouldRetryStory(storyValidation.issues);
-          storyAttempts += 1;
-        } while (shouldRetry && storyAttempts < maxStoryAttempts);
+        const writeResult = await this.storyWriter.writeStory({
+          normalizedRequest: normalized,
+          cast: castSet,
+          dna: blueprint.dna,
+          directives,
+          stylePackText,
+        });
+        storyDraft = writeResult.draft;
+        tokenUsage = writeResult.usage ?? tokenUsage;
+        qualityReport = writeResult.qualityReport;
 
         await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({ chapter: ch.chapter, title: ch.title, text: ch.text })));
         await logPhase("phase6-story", { storyId: normalized.storyId, title: storyDraft.title }, {
           chapters: storyDraft.chapters.length,
           durationMs: Date.now() - phase6Start,
           tokens: tokenUsage,
-          retry: shouldRetry,
-          attempts: storyAttempts,
-          issues: storyValidation.issues.length,
-          issueDetails: storyValidation.issues.map(i => ({ code: i.code, chapter: i.chapter, message: i.message })),
+          qualityScore: qualityReport?.score,
+          passedGates: qualityReport?.passedGates,
+          failedGates: qualityReport?.failedGates,
+          rewriteAttempts: qualityReport?.rewriteAttempts,
+          errorCount: qualityReport?.errorCount,
+          warningCount: qualityReport?.warningCount,
+          issues: qualityReport?.issues?.map((i: any) => ({ gate: i.gate, code: i.code, chapter: i.chapter, message: i.message, severity: i.severity })),
           wordCount: storyDraft.chapters.reduce((sum, ch) => sum + (ch.text?.split(/\s+/).length || 0), 0),
         });
       }
 
-      if (normalized.wordBudget) {
-        const totalWords = storyDraft.chapters.reduce((sum, ch) => sum + (ch.text?.split(/\s+/).length || 0), 0);
-        if (totalWords < normalized.wordBudget.minWords) {
-          storyValidation.issues.push({
-            chapter: 0,
-            code: "TOTAL_TOO_SHORT",
-            message: `Story too short (${totalWords} words)`,
-          });
-        } else if (totalWords > normalized.wordBudget.maxWords) {
-          storyValidation.issues.push({
-            chapter: 0,
-            code: "TOTAL_TOO_LONG",
-            message: `Story too long (${totalWords} words)`,
-          });
-        }
-      }
-
+      const storyErrors = qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [];
       const storyGate = {
         phase: "phase6-story",
-        success: storyValidation.issues.length === 0,
-        schemaValid: storyValidation.issues.length === 0,
-        attempts: storyAttempts || 1,
-        issues: storyValidation.issues.map(issue => ({ severity: "ERROR", ...issue })),
+        success: storyErrors.length === 0,
+        schemaValid: storyErrors.length === 0,
+        attempts: (qualityReport?.rewriteAttempts ?? 0) + 1,
+        issues: storyErrors.map((issue: any) => ({ severity: "ERROR", ...issue })),
       };
       phaseGates.push(storyGate);
-      if (storyValidation.issues.length > 0) {
-        validationReport = { gates: phaseGates, story: storyValidation, images: [] };
+      if (storyErrors.length > 0) {
+        validationReport = { gates: phaseGates, story: qualityReport, images: [] };
         await saveValidationReport(normalized.storyId, validationReport);
-        throw new Error(`Story validation failed: ${storyValidation.issues.map(i => i.code).join(", ")}`);
+        throw new Error(`Story quality gates failed: ${storyErrors.map((i: any) => i.code).join(", ")}`);
       }
 
       const phase7Start = Date.now();
@@ -335,7 +311,7 @@ export class StoryPipelineOrchestrator {
       };
       phaseGates.push(imageGate);
       if (imageIssues.length > 0) {
-        validationReport = { gates: phaseGates, story: storyValidation, images: imageIssues };
+        validationReport = { gates: phaseGates, story: qualityReport, images: imageIssues };
         await saveValidationReport(normalized.storyId, validationReport);
         throw new Error(`ImageSpec validation failed: ${imageIssues.map(i => i.code).join(", ")}`);
       }
@@ -361,7 +337,7 @@ export class StoryPipelineOrchestrator {
         });
       }
 
-      validationReport = { gates: phaseGates, story: storyValidation, images: [] as any[] };
+      validationReport = { gates: phaseGates, story: qualityReport, images: [] as any[] };
       if (input.enableVisionValidation) {
         const phase10Start = Date.now();
         const vision = await this.visionValidator.validateImages({
@@ -474,14 +450,3 @@ async function fetchArtifactMeta(artifactId?: string | null): Promise<any | null
   }
 }
 
-function shouldRetryStory(issues: Array<{ code: string }>): boolean {
-  const retryCodes = new Set([
-    "MISSING_CHARACTER",
-    "MISSING_ARTIFACT",
-    "INSTRUCTION_LEAK",
-    "CANON_REPETITION",
-    "TOO_SHORT",
-    "TOO_LONG",
-  ]);
-  return issues.some(issue => retryCodes.has(issue.code));
-}

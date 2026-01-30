@@ -233,6 +233,270 @@ Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
 }
 
+// ─── Full Story Prompt (all chapters in one call) ───────────────────────────
+export function buildFullStoryPrompt(input: {
+  directives: SceneDirective[];
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+  totalWordTarget: number;
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  stylePackText?: string;
+  strict?: boolean;
+}): string {
+  const { directives, cast, dna, language, ageRange, tone, totalWordTarget, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, strict } = input;
+  const isGerman = language === "de";
+  const artifactName = cast.artifact?.name?.trim();
+  const personalityLabel = isGerman ? "Persoenlichkeit" : "Personality";
+  const speechLabel = isGerman ? "Sprachstil" : "Speech style";
+
+  const allCharacters = new Set<string>();
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  for (const slot of allSlots) {
+    const sheet = findCharacterBySlot(cast, slot);
+    if (sheet) allCharacters.add(sheet.displayName);
+  }
+  const allowedNames = Array.from(allCharacters).join(", ");
+
+  const characterProfiles = Array.from(allSlots)
+    .map(slot => {
+      const sheet = findCharacterBySlot(cast, slot);
+      if (!sheet || slot.includes("ARTIFACT")) return null;
+      const signature = sheet.visualSignature?.length ? sheet.visualSignature.join(", ") : "";
+      const personality = sheet.personalityTags?.length ? `${personalityLabel}: ${sheet.personalityTags.slice(0, 4).join(", ")}` : "";
+      const speech = sheet.speechStyleHints?.length ? `${speechLabel}: ${sheet.speechStyleHints.slice(0, 2).join(", ")}` : "";
+      const extras = [personality, speech].filter(Boolean).join("; ");
+      return `- ${sheet.displayName} (${sheet.roleType})${signature ? ` - ${signature}` : ""}${extras ? `; ${extras}` : ""}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  const chapterBlocks = directives.map((d, idx) => {
+    const chOnStage = d.charactersOnStage
+      .filter(s => !s.includes("ARTIFACT"))
+      .map(s => findCharacterBySlot(cast, s)?.displayName)
+      .filter(Boolean)
+      .join(", ");
+
+    const artifactLine = d.artifactUsage && !d.artifactUsage.toLowerCase().includes("nicht genutzt") && !d.artifactUsage.toLowerCase().includes("not used")
+      ? (isGerman ? `  Artefakt: ${d.artifactUsage}` : `  Artifact: ${d.artifactUsage}`)
+      : "";
+
+    const isFirst = idx === 0;
+    const isLast = idx === directives.length - 1;
+    const isMidPeak = idx === directives.length - 2;
+
+    let arcHint = "";
+    if (isGerman) {
+      if (isFirst) arcHint = "  Bogen: Setup + erstes Raetsel";
+      else if (idx === 1) arcHint = "  Bogen: Problem wird groesser";
+      else if (idx === 2 && directives.length >= 5) arcHint = "  Bogen: Fehler/Irrweg (Twist)";
+      else if (isMidPeak) arcHint = "  Bogen: Schwerster Moment, fast verloren (Hoehepunkt!)";
+      else if (isLast) arcHint = "  Bogen: Loesung + Payoff + warmes Ende";
+    } else {
+      if (isFirst) arcHint = "  Arc: Setup + first mystery";
+      else if (idx === 1) arcHint = "  Arc: Problem escalates";
+      else if (idx === 2 && directives.length >= 5) arcHint = "  Arc: Mistake/false lead (twist)";
+      else if (isMidPeak) arcHint = "  Arc: Darkest moment, nearly lost (climax!)";
+      else if (isLast) arcHint = "  Arc: Resolution + payoff + warm ending";
+    }
+
+    return isGerman
+      ? `KAPITEL ${d.chapter}:
+  Setting: ${d.setting}
+  Stimmung: ${d.mood ?? "COZY"}
+  Ziel: ${d.goal}
+  Konflikt: ${d.conflict}
+  Ausgang: ${d.outcome}
+  Figuren: ${chOnStage}
+${artifactLine}
+${arcHint}`
+      : `CHAPTER ${d.chapter}:
+  Setting: ${d.setting}
+  Mood: ${d.mood ?? "COZY"}
+  Goal: ${d.goal}
+  Conflict: ${d.conflict}
+  Outcome: ${d.outcome}
+  Characters: ${chOnStage}
+${artifactLine}
+${arcHint}`;
+  }).join("\n\n");
+
+  if (isGerman) {
+    return `Du bist eine preisgekroente Kinderbuchautorin. Schreibe eine VOLLSTAENDIGE Geschichte mit ${directives.length} Kapiteln auf Deutsch.
+Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre.
+Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+
+FIGURENVERZEICHNIS (NUR diese Figuren verwenden!):
+${characterProfiles}
+${artifactName ? `\nARTEFAKT: ${artifactName} (${cast.artifact?.storyUseRule || "wichtiger Gegenstand"})` : ""}
+
+KAPITELPLAN:
+${chapterBlocks}
+${stylePackText ? `\nSTIL-VORGABEN:\n${stylePackText}` : ""}
+
+LAENGEN-VORGABE:
+- Gesamte Geschichte: ${totalWordMin}-${totalWordMax} Woerter (Ziel: ~${totalWordTarget})
+- Pro Kapitel: ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter
+
+QUALITAETS-ANFORDERUNGEN:
+1) ROTER FADEN: Die gesamte Geschichte muss einen durchgehenden Erzaehlstrang haben. Charaktere erinnern sich an vorherige Ereignisse. Handlungen bauen aufeinander auf.
+2) KAPITELSTRUKTUR: Jedes Kapitel braucht: 1 klare Szene (Ort + Stimmung), 1 Mini-Ziel, 1 Hindernis, 1 sichtbare Handlung (nicht nur Gedanken), 1 Mini-Aufloesung, 1 Hook-Satz am Ende (ausser letztes Kapitel).
+3) DIALOG: Mindestens 2 und maximal 6 Dialogzeilen pro Kapitel. Dialog zeigt Charakter, erklaert nicht.
+4) AKTIVE CHARAKTERE: Jede genannte Figur MUSS eine konkrete Handlung ausfuehren (Verb + Objekt) und den Plot beeinflussen (Entscheidung/Idee/Fehler/Mutmoment). Keine passive Anwesenheit.
+5) CAST-SPERRE: Ausschliesslich die gelisteten Namen verwenden. Keine neuen Eigennamen. Hintergrundfiguren nur unbenannt ("einige Stimmen in der Ferne").
+6) ANTI-WIEDERHOLUNG: Keine fast identischen Saetze in verschiedenen Kapiteln. "Ploetzlich"/"auf einmal" maximal 3x in der ganzen Geschichte. Keine wiederkehrenden Standardmetaphern.
+7) BILDHAFTE SPRACHE: Max 2 Vergleiche/Metaphern pro Kapitel. Konkrete Sinnesdetails bevorzugen (Geraeusche, Gerueche, Temperaturen, kleine Bewegungen) statt poetischer Ueberladung.
+8) SPANNUNGSKURVE: Kapitel 1=Setup, 2=Eskalation, 3=Twist/Irrweg, vorletztes=Hoehepunkt (schwerster Moment), letztes=Loesung+warmes Ende.
+9) ARTEFAKT-ARC:${artifactName ? ` ${artifactName} muss in Kapitel 1-2 eingefuehrt werden, in Kapitel 2-3 scheitern oder missverstanden werden, und in Kapitel 4-5 entscheidend helfen. Mindestens 2 aktive Szenen.` : " Kein Artefakt in dieser Geschichte."}
+10) ENDE: Letztes Kapitel loest den Konflikt, zeigt eine kleine Lehre (nicht predigen), endet mit einem warmen Abschlussbild (z.B. Heimweg, Lachen, Abendlicht). Optional 1 Mini-Teaser (1 Satz).
+11) VERBOTEN: Meta-Saetze ("gehoeren seit jeher", "ganz selbstverstaendlich dabei"), Regieanweisungen, englische Woerter, Anweisungstexte im Output.
+${strict ? "12) EXTRA STRENG: Doppelt pruefen dass kein Anweisungstext in den Output gelangt." : ""}
+
+ERLAUBTE NAMEN: ${allowedNames || "keine"}
+
+Gib JSON zurueck:
+{
+  "title": "Kurzer Geschichtstitel",
+  "description": "1-2 Saetze Beschreibung",
+  "chapters": [
+    { "chapter": 1, "title": "Kapiteltitel", "text": "Kapiteltext..." },
+    { "chapter": 2, "title": "Kapiteltitel", "text": "Kapiteltext..." }
+  ]
+}`;
+  }
+
+  return `You are an award-winning children's book author. Write a COMPLETE story with ${directives.length} chapters in ${language}.
+Target audience: ${ageRange.min}-${ageRange.max} years old.
+Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+
+CHARACTER DIRECTORY (use ONLY these characters!):
+${characterProfiles}
+${artifactName ? `\nARTIFACT: ${artifactName} (${cast.artifact?.storyUseRule || "important object"})` : ""}
+
+CHAPTER PLAN:
+${chapterBlocks}
+${stylePackText ? `\nSTYLE DIRECTIVES:\n${stylePackText}` : ""}
+
+LENGTH REQUIREMENTS:
+- Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
+- Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
+
+QUALITY REQUIREMENTS:
+1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
+2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
+3) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
+4) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
+5) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
+6) ANTI-REPETITION: No near-identical sentences across chapters. "Suddenly"/"all of a sudden" max 3x total. No recurring stock metaphors.
+7) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
+8) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
+9) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
+10) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
+11) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
+${strict ? "12) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+
+ALLOWED NAMES: ${allowedNames || "none"}
+
+Return JSON:
+{
+  "title": "Short story title",
+  "description": "1-2 sentence description",
+  "chapters": [
+    { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
+    { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." }
+  ]
+}`;
+}
+
+// ─── Full Story Rewrite Prompt ──────────────────────────────────────────────────
+export function buildFullStoryRewritePrompt(input: {
+  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; title: string; text: string }> };
+  directives: SceneDirective[];
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  qualityIssues: string;
+  stylePackText?: string;
+}): string {
+  const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText } = input;
+  const isGerman = language === "de";
+  const artifactName = cast.artifact?.name?.trim();
+
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const allowedNames = Array.from(allSlots)
+    .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+    .filter(Boolean)
+    .join(", ");
+
+  const originalText = originalDraft.chapters
+    .map(ch => `--- Kapitel ${ch.chapter}: ${ch.title} ---\n${ch.text}`)
+    .join("\n\n");
+
+  if (isGerman) {
+    return `Ueberarbeite die folgende Kindergeschichte. Behalte Plot und Handlung bei, aber behebe ALLE aufgelisteten Probleme.
+
+${qualityIssues}
+
+REGELN (unveraenderlich):
+- Erlaubte Namen: ${allowedNames || "keine"}
+- Keine neuen Eigennamen
+- Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt, ${wordsPerChapter.min}-${wordsPerChapter.max} pro Kapitel
+- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+- Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre
+${artifactName ? `- Artefakt "${artifactName}" muss aktiv verwendet werden` : ""}
+${stylePackText ? `\n${stylePackText}\n` : ""}
+
+ORIGINALTEXT:
+${originalText}
+
+Gib die KOMPLETTE ueberarbeitete Geschichte als JSON zurueck:
+{
+  "title": "Geschichtstitel",
+  "description": "1-2 Saetze",
+  "chapters": [
+    { "chapter": 1, "title": "...", "text": "..." },
+    ...
+  ]
+}`;
+  }
+
+  return `Revise the following children's story. Keep the plot and action, but fix ALL listed problems.
+
+${qualityIssues}
+
+RULES (unchangeable):
+- Allowed names: ${allowedNames || "none"}
+- No new proper names
+- Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
+- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+- Audience: ${ageRange.min}-${ageRange.max} years
+${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
+${stylePackText ? `\n${stylePackText}\n` : ""}
+
+ORIGINAL TEXT:
+${originalText}
+
+Return the COMPLETE revised story as JSON:
+{
+  "title": "Story title",
+  "description": "1-2 sentences",
+  "chapters": [
+    { "chapter": 1, "title": "...", "text": "..." },
+    ...
+  ]
+}`;
+}
+
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
   if (input.language === "de") {
     return `Erstelle einen kurzen Titel und eine Beschreibung fuer die folgende Kindergeschichte auf Deutsch.
