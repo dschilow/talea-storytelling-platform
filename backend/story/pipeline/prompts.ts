@@ -247,8 +247,9 @@ export function buildFullStoryPrompt(input: {
   wordsPerChapter: { min: number; max: number };
   stylePackText?: string;
   strict?: boolean;
+  fusionSections?: Map<number, string>;
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordTarget, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, strict } = input;
+  const { directives, cast, dna, language, ageRange, tone, totalWordTarget, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, strict, fusionSections } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
   const personalityLabel = isGerman ? "Persoenlichkeit" : "Personality";
@@ -269,7 +270,23 @@ export function buildFullStoryPrompt(input: {
       const signature = sheet.visualSignature?.length ? sheet.visualSignature.join(", ") : "";
       const personality = sheet.personalityTags?.length ? `${personalityLabel}: ${sheet.personalityTags.slice(0, 4).join(", ")}` : "";
       const speech = sheet.speechStyleHints?.length ? `${speechLabel}: ${sheet.speechStyleHints.slice(0, 2).join(", ")}` : "";
-      const extras = [personality, speech].filter(Boolean).join("; ");
+
+      // V2: Enhanced personality details for recognizable characters
+      const ep = sheet.enhancedPersonality;
+      const catchphraseHint = ep?.catchphrase
+        ? (isGerman ? `Catchphrase (max 1x!): "${ep.catchphrase}"` : `Catchphrase (max 1x!): "${ep.catchphrase}"`)
+        : "";
+      const dialogStyle = ep?.dialogueStyle
+        ? (isGerman ? `Dialogstil: ${ep.dialogueStyle}` : `Dialogue style: ${ep.dialogueStyle}`)
+        : "";
+      const triggers = ep?.emotionalTriggers?.length
+        ? (isGerman ? `Reagiert auf: ${ep.emotionalTriggers.slice(0, 2).join(", ")}` : `Reacts to: ${ep.emotionalTriggers.slice(0, 2).join(", ")}`)
+        : "";
+      const quirkHint = ep?.quirk
+        ? (isGerman ? `Eigenart: ${ep.quirk}` : `Quirk: ${ep.quirk}`)
+        : "";
+
+      const extras = [personality, speech, catchphraseHint, dialogStyle, triggers, quirkHint].filter(Boolean).join("; ");
       return `- ${sheet.displayName} (${sheet.roleType})${signature ? ` - ${signature}` : ""}${extras ? `; ${extras}` : ""}`;
     })
     .filter(Boolean)
@@ -305,6 +322,12 @@ export function buildFullStoryPrompt(input: {
       else if (isLast) arcHint = "  Arc: Resolution + payoff + warm ending";
     }
 
+    // V2: Canon-Fusion section for this chapter (character entry/exit, dialogue cues, catchphrases)
+    const fusionBlock = fusionSections?.get(d.chapter);
+    const fusionLine = fusionBlock
+      ? (isGerman ? `  FIGUREN-INTEGRATION:\n${fusionBlock.split("\n").map(l => `    ${l}`).join("\n")}` : `  CHARACTER INTEGRATION:\n${fusionBlock.split("\n").map(l => `    ${l}`).join("\n")}`)
+      : "";
+
     return isGerman
       ? `KAPITEL ${d.chapter}:
   Setting: ${d.setting}
@@ -314,7 +337,8 @@ export function buildFullStoryPrompt(input: {
   Ausgang: ${d.outcome}
   Figuren: ${chOnStage}
 ${artifactLine}
-${arcHint}`
+${arcHint}
+${fusionLine}`
       : `CHAPTER ${d.chapter}:
   Setting: ${d.setting}
   Mood: ${d.mood ?? "COZY"}
@@ -323,7 +347,8 @@ ${arcHint}`
   Outcome: ${d.outcome}
   Characters: ${chOnStage}
 ${artifactLine}
-${arcHint}`;
+${arcHint}
+${fusionLine}`;
   }).join("\n\n");
 
   if (isGerman) {

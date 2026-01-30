@@ -214,6 +214,7 @@ export function buildEnhancedPersonality(pool: PoolCharacterV2): EnhancedPersona
     speechPatterns: p.speechStyle,
     emotionalTriggers: p.triggers,
     dialogueStyle,
+    quirk: p.quirk,
   };
 }
 

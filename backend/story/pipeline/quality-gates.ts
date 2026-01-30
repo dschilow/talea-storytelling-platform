@@ -1,4 +1,4 @@
-import type { CastSet, SceneDirective, StoryDraft, StoryChapterText, ArtifactArcPlan, CanonFusionPlanV2 } from "./types";
+import type { CastSet, SceneDirective, StoryDraft, ArtifactArcPlan } from "./types";
 import type { WordBudget } from "./word-budget";
 import { ALL_BANNED_PHRASES } from "./canon-fusion";
 
@@ -528,6 +528,208 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
   return issues;
 }
 
+// ─── Gate 12: Canon Fusion Check ────────────────────────────────────────────────
+function gateCanonFusion(draft: StoryDraft, cast: CastSet, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  for (const chapter of draft.chapters) {
+    const textLower = chapter.text.toLowerCase();
+    for (const phrase of ALL_BANNED_PHRASES) {
+      if (textLower.includes(phrase.toLowerCase())) {
+        issues.push({
+          gate: "CANON_FUSION",
+          chapter: chapter.chapter,
+          code: "META_PHRASE_DETECTED",
+          message: isDE
+            ? `Verbotene Meta-Phrase: "${phrase}"`
+            : `Forbidden meta-phrase: "${phrase}"`,
+          severity: "ERROR",
+        });
+      }
+    }
+  }
+
+  // Extra regex patterns for belonging language
+  const extraPatterns = isDE
+    ? [
+        /als\s+(?:ob|wäre|hätte)\s+(?:er|sie|es)\s+schon\s+immer/gi,
+        /geh[öo]r(?:te|en)\s+(?:schon|seit)\s+(?:immer|jeher|langem)/gi,
+      ]
+    : [
+        /as\s+(?:if|though)\s+(?:they|he|she)\s+had\s+always/gi,
+        /belonged?\s+here\s+(?:since|from\s+the\s+start)/gi,
+      ];
+
+  for (const chapter of draft.chapters) {
+    for (const pattern of extraPatterns) {
+      pattern.lastIndex = 0;
+      if (pattern.test(chapter.text)) {
+        issues.push({
+          gate: "CANON_FUSION",
+          chapter: chapter.chapter,
+          code: "META_BELONGING_PATTERN",
+          message: isDE
+            ? `Meta-Zugehoerigkeitsmuster in Kapitel ${chapter.chapter} erkannt`
+            : `Meta-belonging pattern in chapter ${chapter.chapter}`,
+          severity: "WARNING",
+        });
+        break;
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ─── Gate 13: Active Character Presence ─────────────────────────────────────────
+function gateActivePresence(
+  draft: StoryDraft,
+  directives: SceneDirective[],
+  cast: CastSet,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  const actionVerbsDE = [
+    "sagte", "rief", "fragte", "flüsterte", "lachte", "nickte",
+    "griff", "nahm", "hob", "legte", "stellte", "drehte", "sprang",
+    "rannte", "ging", "lief", "schaute", "blickte", "lächelte",
+    "stand", "setzte", "zog", "drückte", "öffnete", "schloss",
+    "warf", "fing", "hielt", "gab", "zeigte", "kletterte",
+    "seufzte", "brummte", "kicherte", "jubelte", "staunte",
+    "beschloss", "entschied", "entdeckte", "bemerkte", "sang",
+    "tanzte", "hüpfte", "stolperte", "schrie",
+  ];
+
+  const actionVerbsEN = [
+    "said", "called", "asked", "whispered", "laughed", "nodded",
+    "grabbed", "took", "lifted", "placed", "turned", "jumped",
+    "ran", "walked", "looked", "smiled", "stood", "sat", "pulled",
+    "pushed", "opened", "closed", "threw", "caught", "held",
+    "gave", "showed", "climbed", "sighed", "grumbled", "giggled",
+    "cheered", "decided", "discovered", "noticed", "sang", "danced",
+    "hopped", "stumbled", "shouted",
+  ];
+
+  const actionVerbs = isDE ? actionVerbsDE : actionVerbsEN;
+
+  for (const directive of directives) {
+    const ch = draft.chapters.find(c => c.chapter === directive.chapter);
+    if (!ch) continue;
+
+    const characterSlots = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
+
+    for (const slot of characterSlots) {
+      const name = findCharacterName(cast, slot);
+      if (!name) continue;
+
+      const textLower = ch.text.toLowerCase();
+      if (!textLower.includes(name.toLowerCase())) continue;
+
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const hasAction = actionVerbs.some(verb => {
+        const pattern = new RegExp(`${escapedName}[^.!?]{0,40}${verb}`, "i");
+        return pattern.test(ch.text);
+      });
+
+      const dialoguePattern = new RegExp(
+        `[""„‟»«][^""„‟»«]{3,}[""„‟»«][^.!?]{0,30}${escapedName}|${escapedName}[^.!?]{0,30}[""„‟»«]`,
+        "i"
+      );
+      const hasDialogue = dialoguePattern.test(ch.text);
+
+      if (!hasAction && !hasDialogue) {
+        issues.push({
+          gate: "ACTIVE_PRESENCE",
+          chapter: ch.chapter,
+          code: "PASSIVE_CHARACTER",
+          message: isDE
+            ? `${name} in Kapitel ${ch.chapter}: keine aktive Handlung und kein Dialog`
+            : `${name} in chapter ${ch.chapter}: no active action and no dialogue`,
+          severity: "WARNING",
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ─── Gate 14: Artifact Mini-Arc ─────────────────────────────────────────────────
+function gateArtifactMiniArc(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+  artifactArc?: ArtifactArcPlan,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const artifactName = cast.artifact?.name?.toLowerCase();
+
+  if (!artifactName || !artifactArc) return issues;
+
+  const chapterMentions: Map<number, number> = new Map();
+  for (const ch of draft.chapters) {
+    const count = countOccurrences(ch.text.toLowerCase(), artifactName);
+    if (count > 0) chapterMentions.set(ch.chapter, count);
+  }
+
+  const totalMentions = Array.from(chapterMentions.values()).reduce((a, b) => a + b, 0);
+
+  if (!chapterMentions.has(artifactArc.discoveryChapter)) {
+    issues.push({
+      gate: "ARTIFACT_MINI_ARC",
+      chapter: artifactArc.discoveryChapter,
+      code: "MISSING_DISCOVERY",
+      message: isDE
+        ? `Artefakt "${cast.artifact.name}" fehlt in Entdeckungs-Kapitel ${artifactArc.discoveryChapter}`
+        : `Artifact "${cast.artifact.name}" missing from discovery chapter ${artifactArc.discoveryChapter}`,
+      severity: "WARNING",
+    });
+  }
+
+  if (!chapterMentions.has(artifactArc.successChapter)) {
+    issues.push({
+      gate: "ARTIFACT_MINI_ARC",
+      chapter: artifactArc.successChapter,
+      code: "MISSING_SUCCESS",
+      message: isDE
+        ? `Artefakt "${cast.artifact.name}" fehlt in Erfolgs-Kapitel ${artifactArc.successChapter}`
+        : `Artifact "${cast.artifact.name}" missing from success chapter ${artifactArc.successChapter}`,
+      severity: "WARNING",
+    });
+  }
+
+  const activeAppearances = artifactArc.activeChapters.filter(ch => chapterMentions.has(ch));
+  if (activeAppearances.length < 2) {
+    issues.push({
+      gate: "ARTIFACT_MINI_ARC",
+      chapter: 0,
+      code: "INSUFFICIENT_ACTIVE_CHAPTERS",
+      message: isDE
+        ? `Artefakt nur in ${activeAppearances.length} aktiven Kapiteln (mind. 2)`
+        : `Artifact only in ${activeAppearances.length} active chapters (need 2+)`,
+      severity: "WARNING",
+    });
+  }
+
+  if (totalMentions < 3) {
+    issues.push({
+      gate: "ARTIFACT_MINI_ARC",
+      chapter: 0,
+      code: "ARTIFACT_UNDERMENTIONED",
+      message: isDE
+        ? `Artefakt nur ${totalMentions}x erwaehnt (mind. 3 fuer Mini-Arc)`
+        : `Artifact only ${totalMentions}x mentioned (need 3+ for mini-arc)`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 // ─── Main Runner ────────────────────────────────────────────────────────────────
 export function runQualityGates(input: {
   draft: StoryDraft;
@@ -535,8 +737,9 @@ export function runQualityGates(input: {
   cast: CastSet;
   language: string;
   wordBudget?: WordBudget;
+  artifactArc?: ArtifactArcPlan;
 }): QualityReport {
-  const { draft, directives, cast, language, wordBudget } = input;
+  const { draft, directives, cast, language, wordBudget, artifactArc } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -550,6 +753,10 @@ export function runQualityGates(input: {
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
     { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, language) },
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
+    // V2 Quality Gates
+    { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
+    { name: "ACTIVE_PRESENCE", fn: () => gateActivePresence(draft, directives, cast, language) },
+    { name: "ARTIFACT_MINI_ARC", fn: () => gateArtifactMiniArc(draft, cast, language, artifactArc) },
   ];
 
   const allIssues: QualityIssue[] = [];

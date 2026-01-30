@@ -14,8 +14,9 @@ export class LlmStoryWriter implements StoryWriter {
     directives: SceneDirective[];
     strict?: boolean;
     stylePackText?: string;
+    fusionSections?: Map<number, string>;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
-    const { normalizedRequest, cast, dna, directives, strict, stylePackText } = input;
+    const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
     const systemPrompt = normalizedRequest.language === "de"
       ? "Du bist eine preisgekroente Kinderbuchautorin. Du schreibst ganze Geschichten am Stueck - warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern. Jedes Kapitel baut auf dem vorherigen auf. Deine Charaktere erinnern sich, entwickeln sich weiter, und der rote Faden zieht sich durch die gesamte Geschichte."
@@ -49,6 +50,7 @@ export class LlmStoryWriter implements StoryWriter {
       wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
       stylePackText,
       strict,
+      fusionSections,
     });
 
     const maxOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));

@@ -376,7 +376,7 @@ export function createCanonFusionPlanV2(input: {
                 dominant: personality.dominant,
                 catchphrase,
                 speechStyle: personality.speechPatterns || [],
-                quirk: undefined, // Filled from PoolCharacterV2 if available
+                quirk: personality.quirk,
             },
             entryPoint,
             activeChapters,
@@ -816,6 +816,11 @@ export function fusionPlanToPromptSections(
         entryLines.push(isGerman
             ? `  Aktion: ${ci.entryPoint.concreteAction}`
             : `  Action: ${ci.entryPoint.concreteAction}`);
+        if (ci.personalityProfile.quirk) {
+            entryLines.push(isGerman
+                ? `  Eigenart: ${ci.personalityProfile.quirk}`
+                : `  Quirk: ${ci.personalityProfile.quirk}`);
+        }
 
         appendToSection(sections, entryChapter, entryLines.join("\n"));
 

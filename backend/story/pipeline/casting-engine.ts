@@ -1,11 +1,12 @@
 ﻿import { storyDB } from "../db";
 import type { ArtifactRequirement } from "../types";
 import { artifactMatcher, recordStoryArtifact } from "../artifact-matcher";
-import type { AvatarDetail, CastSet, CharacterSheet, MatchScore, NormalizedRequest, RoleSlot, StoryVariantPlan } from "./types";
+import type { AvatarDetail, CastSet, CharacterSheet, EnhancedPersonality, MatchScore, NormalizedRequest, RoleSlot, StoryVariantPlan } from "./types";
 import { createSeededRandom } from "./utils";
 import { buildInvariantsFromVisualProfile, formatInvariantsForPrompt } from "../character-invariants";
 import { scoreCandidate } from "./matching-score";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
+import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
 
 interface CharacterPoolRow {
   id: string;
@@ -26,6 +27,14 @@ interface CharacterPoolRow {
   backstory?: string | null;
   recent_usage_count?: number | null;
   total_usage_count?: number | null;
+  // V2 personality fields for unique, recognizable characters
+  dominant_personality?: string | null;
+  secondary_traits?: string[] | null;
+  catchphrase?: string | null;
+  catchphrase_context?: string | null;
+  speech_style?: string[] | null;
+  emotional_triggers?: string[] | null;
+  quirk?: string | null;
 }
 
 const ARTIFACT_ABILITY_MAP: Record<string, string> = {
@@ -250,13 +259,44 @@ async function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: str
   // Resolve bucket:// URLs to HTTP URLs for reference images
   const resolvedImageUrl = candidate.image_url ? await resolveImageUrlForClient(candidate.image_url) : undefined;
 
+  // Build enhanced personality from DB fields (V2)
+  const dominant = candidate.dominant_personality
+    || candidate.personality_keywords?.[0]
+    || "neugierig";
+  const secondary = candidate.secondary_traits
+    || candidate.personality_keywords?.slice(1)
+    || [];
+  const speechStyle = candidate.speech_style || suggestSpeechStyles(dominant);
+  const catchphrase = candidate.catchphrase || undefined;
+  const quirk = candidate.quirk || undefined;
+
+  const dialogueStyleMap: Record<string, EnhancedPersonality["dialogueStyle"]> = {
+    "direkt": "casual", "bestimmt": "casual", "warmherzig": "casual",
+    "förmlich": "formal", "bedacht": "wise", "ruhig": "wise",
+    "verspielt": "playful", "witzig": "playful", "schnippisch": "playful",
+    "knapp": "grumpy", "brummig": "grumpy",
+  };
+  const dialogueStyle = dialogueStyleMap[speechStyle[0]] || "casual";
+
+  const enhancedPersonality: EnhancedPersonality = {
+    dominant,
+    secondary,
+    catchphrase,
+    speechPatterns: speechStyle,
+    emotionalTriggers: candidate.emotional_triggers || [],
+    dialogueStyle,
+    quirk,
+  };
+
   return {
     characterId: candidate.id,
     displayName: candidate.name,
     roleType,
     slotKey,
-    personalityTags: candidate.personality_keywords || [],
-    speechStyleHints: [],
+    personalityTags: [dominant, ...secondary].slice(0, 6),
+    speechStyleHints: speechStyle.slice(0, 3),
+    enhancedPersonality,
+    catchphrase,
     visualSignature: ensureMinSignature(signature.slice(0, 6), ["distinct supporting character", "recognizable outfit"]),
     outfitLock: outfit.length > 0 ? outfit.slice(0, 4) : ["consistent outfit"],
     forbidden,

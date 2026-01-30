@@ -154,6 +154,7 @@ export interface EnhancedPersonality {
   speechPatterns: string[];             // "spricht in Reimen", "stottert wenn aufgeregt"
   emotionalTriggers: string[];          // Situations that cause reactions
   dialogueStyle: "formal" | "casual" | "playful" | "wise" | "grumpy";
+  quirk?: string;                       // Unique mannerism: "räuspert sich immer", "zwirbelt am Bart"
 }
 
 // Integration plan for organic character entry/exit
@@ -308,6 +309,7 @@ export interface StoryWriter {
     directives: SceneDirective[];
     strict?: boolean;
     stylePackText?: string;
+    fusionSections?: Map<number, string>;
   }) => Promise<{ draft: StoryDraft; usage?: TokenUsage }>;
 }
 

@@ -9,8 +9,8 @@ import type {
   ArtifactVisualProfile,
   ArtifactCard,
   ArtifactArcPlan,
-  StoryCategory,
 } from "../types";
+import type { StoryCategory } from "../constants";
 
 // ─── Default Values ────────────────────────────────────────────────────────
 

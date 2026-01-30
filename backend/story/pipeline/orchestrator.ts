@@ -7,6 +7,7 @@ import { buildCastSet } from "./casting-engine";
 import { repairCastSet } from "./castset-normalizer";
 import { buildIntegrationPlan } from "./integration-planner";
 import { buildSceneDirectives } from "./scene-directives";
+import { createCanonFusionPlanV2, fusionPlanToPromptSections } from "./canon-fusion";
 import { LlmStoryWriter } from "./story-writer";
 import { TemplateImageDirector } from "./image-director";
 import { RunwareImageGenerator } from "./image-generator";
@@ -49,6 +50,7 @@ export interface PipelineRunResult {
   validationReport?: any;
   tokenUsage?: any;
   artifactMeta?: any;
+  canonFusionPlan?: any;
 }
 
 export class StoryPipelineOrchestrator {
@@ -182,6 +184,24 @@ export class StoryPipelineOrchestrator {
       }
       await logPhase("phase5-directives", { storyId: normalized.storyId }, { chapters: directives.length, durationMs: Date.now() - phase5Start, moods: directives.map(d => d.mood) });
 
+      // ─── Phase 5.5: Canon-Fusion V2 ──────────────────────────────────────
+      const phase55Start = Date.now();
+      const canonFusionPlan = createCanonFusionPlanV2({
+        cast: castSet,
+        directives,
+        language: normalized.language,
+        totalChapters: directives.length,
+      });
+      const fusionSections = fusionPlanToPromptSections(canonFusionPlan, normalized.language);
+      await logPhase("phase5.5-canon-fusion", { storyId: normalized.storyId }, {
+        durationMs: Date.now() - phase55Start,
+        characterCount: canonFusionPlan.fusionSummary.characterCount,
+        artifactActive: canonFusionPlan.fusionSummary.artifactActive,
+        catchphraseChapters: canonFusionPlan.fusionSummary.chaptersWithCatchphrases,
+        totalDialogueCues: canonFusionPlan.fusionSummary.totalDialogueCues,
+        bannedPhraseCount: canonFusionPlan.bannedPhrases.length,
+      });
+
       const phase6Start = Date.now();
       let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
       let tokenUsage: any;
@@ -208,6 +228,7 @@ export class StoryPipelineOrchestrator {
           cast: castSet,
           language: normalized.language,
           wordBudget: normalized.wordBudget,
+          artifactArc: canonFusionPlan.artifactArc,
         });
         qualityReport = {
           score: cachedQuality.score,
@@ -226,6 +247,7 @@ export class StoryPipelineOrchestrator {
           dna: blueprint.dna,
           directives,
           stylePackText,
+          fusionSections,
         });
         storyDraft = writeResult.draft;
         tokenUsage = writeResult.usage ?? tokenUsage;
@@ -409,6 +431,7 @@ export class StoryPipelineOrchestrator {
         validationReport,
         tokenUsage,
         artifactMeta,
+        canonFusionPlan,
       };
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error);

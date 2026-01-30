@@ -5,6 +5,7 @@
  * Usage:
  *   bun run execute-migrations-via-api.ts artifact
  *   bun run execute-migrations-via-api.ts pipeline
+ *   bun run execute-migrations-via-api.ts personality
  *   bun run execute-migrations-via-api.ts all
  */
 
@@ -15,7 +16,7 @@ import { join } from "path";
 const BACKEND_URL = "https://backend-2-production-3de1.up.railway.app";
 const API_ENDPOINT = `${BACKEND_URL}/story/run-migration-sql`;
 
-type MigrationGroup = "artifact" | "pipeline";
+type MigrationGroup = "artifact" | "pipeline" | "personality";
 
 const migrations: Array<{ file: string; name: string; group: MigrationGroup }> = [
   { file: "9_create_artifact_pool.up.sql", name: "9_create_artifact_pool", group: "artifact" },
@@ -25,6 +26,8 @@ const migrations: Array<{ file: string; name: string; group: MigrationGroup }> =
   { file: "15_seed_story_dna_templates.up.sql", name: "15_seed_story_dna_templates", group: "pipeline" },
   { file: "16_seed_tale_dna_base.up.sql", name: "16_seed_tale_dna_base", group: "pipeline" },
   { file: "18_add_pipeline_quality_gates.up.sql", name: "18_add_pipeline_quality_gates", group: "pipeline" },
+  { file: "19_add_character_personality_v2.up.sql", name: "19_add_character_personality_v2", group: "personality" },
+  { file: "20_seed_character_personality_v2.up.sql", name: "20_seed_character_personality_v2", group: "personality" },
 ];
 
 async function runMigration(migrationPath: string, migrationName: string): Promise<boolean> {
@@ -153,11 +156,36 @@ async function verifyPipeline(): Promise<void> {
   }
 }
 
+async function verifyPersonality(): Promise<void> {
+  console.log("\nVerifying character personality V2 data...");
+  try {
+    const verifySQL = "SELECT COUNT(*)::int as total, COUNT(dominant_personality)::int as with_personality, COUNT(catchphrase)::int as with_catchphrase, COUNT(quirk)::int as with_quirk FROM character_pool WHERE is_active = TRUE;";
+    const verifyResponse = await fetch(API_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql: verifySQL,
+        migrationName: "verify_personality_v2",
+      }),
+    });
+
+    if (verifyResponse.ok) {
+      console.log("  OK: Character personality V2 verification query sent.");
+      console.log("  Run this SQL to inspect:");
+      console.log("     SELECT name, dominant_personality, catchphrase, quirk FROM character_pool WHERE dominant_personality IS NOT NULL LIMIT 10;");
+    }
+  } catch (error: any) {
+    console.log(`  WARN: Verification query failed: ${error.message}`);
+  }
+}
+
 async function main() {
   const modeArg = (process.argv[2] || "artifact").toLowerCase();
-  const allowed = new Set(["artifact", "pipeline", "all"]);
+  const allowed = new Set(["artifact", "pipeline", "personality", "all"]);
   if (!allowed.has(modeArg)) {
-    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | all`);
+    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | all`);
     process.exit(1);
   }
 
@@ -195,6 +223,9 @@ async function main() {
     if (modeArg === "pipeline" || modeArg === "all") {
       console.log("\nStory pipeline v2 tables and DNA seeds are now available.");
     }
+    if (modeArg === "personality" || modeArg === "all") {
+      console.log("\nCharacter personality V2 system is now set up.");
+    }
   } else {
     console.log(`\nWarning: Only ${successCount}/${selected.length} migrations completed.`);
   }
@@ -204,6 +235,9 @@ async function main() {
   }
   if (modeArg === "pipeline" || modeArg === "all") {
     await verifyPipeline();
+  }
+  if (modeArg === "personality" || modeArg === "all") {
+    await verifyPersonality();
   }
 }
 
