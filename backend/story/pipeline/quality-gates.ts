@@ -1,5 +1,6 @@
-import type { CastSet, SceneDirective, StoryDraft, StoryChapterText } from "./types";
+import type { CastSet, SceneDirective, StoryDraft, StoryChapterText, ArtifactArcPlan, CanonFusionPlanV2 } from "./types";
 import type { WordBudget } from "./word-budget";
+import { ALL_BANNED_PHRASES } from "./canon-fusion";
 
 export interface QualityIssue {
   gate: string;

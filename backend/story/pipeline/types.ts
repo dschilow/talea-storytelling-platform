@@ -146,6 +146,49 @@ export interface StoryVariantPlan {
   category?: StoryCategory;
 }
 
+// Enhanced Personality for recognizable characters
+export interface EnhancedPersonality {
+  dominant: string;                     // Primary trait: "mutig", "neugierig", "schüchtern"
+  secondary: string[];                  // Supporting traits
+  catchphrase?: string;                 // Iconic phrase (use max 1x per story!)
+  speechPatterns: string[];             // "spricht in Reimen", "stottert wenn aufgeregt"
+  emotionalTriggers: string[];          // Situations that cause reactions
+  dialogueStyle: "formal" | "casual" | "playful" | "wise" | "grumpy";
+}
+
+// Integration plan for organic character entry/exit
+export interface CharacterIntegrationPoint {
+  chapter: number;
+  narrativeHook: string;                // "trifft sie am Brunnen"
+  motivation: string;                   // Why is character there?
+  concreteAction: string;               // What do they DO (verb + object)
+  plotInfluence: string;                // How does this affect the story?
+}
+
+export interface CanonFusionPlan {
+  characterIntegrations: Array<{
+    characterId: string;
+    displayName: string;
+    entryPoint: CharacterIntegrationPoint;
+    activeChapters: CharacterIntegrationPoint[];
+    exitPoint?: {
+      chapter: number;
+      farewell: string;
+    };
+  }>;
+
+  artifactArc?: {
+    discoveryChapter: number;
+    discoveryMethod: string;
+    failureChapter?: number;
+    failureReason?: string;
+    successChapter: number;
+    successMethod: string;
+  };
+
+  bannedPhrases: string[];
+}
+
 export interface CharacterSheet {
   characterId: string;
   displayName: string;
@@ -153,6 +196,9 @@ export interface CharacterSheet {
   slotKey: SlotKey;
   personalityTags?: string[];
   speechStyleHints?: string[];
+  // NEW: Enhanced personality for recognizable characters
+  enhancedPersonality?: EnhancedPersonality;
+  catchphrase?: string;                 // Shortcut for quick access
   visualSignature: string[];
   outfitLock: string[];
   faceLock?: string[];
@@ -304,3 +350,220 @@ export interface TokenUsage {
 }
 
 export type AvatarDetail = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "createdAt" | "updatedAt">;
+
+// ─── Pool-Schema V2: Enhanced Character Pool ───────────────────────────────
+export type Archetype =
+  | "ADVENTURER"
+  | "MENTOR"
+  | "TRICKSTER"
+  | "GUARDIAN"
+  | "HEALER"
+  | "SCHOLAR"
+  | "REBEL"
+  | "INNOCENT"
+  | "EXPLORER"
+  | "JESTER";
+
+export interface PoolCharacterMatchingProfile {
+  archetypes: Archetype[];
+  roleCompatibility: RoleType[];
+  themeAffinity: string[];              // ["Freundschaft", "Mut", "Natur"]
+  ageRange: { min: number; max: number };
+  conflictPotential: string[];          // Abilities usable in conflicts
+}
+
+export interface PoolCharacterPersonality {
+  dominant: string;                     // "mutig", "ängstlich", "neugierig"
+  secondary: string[];
+  catchphrase?: string;                 // Use max 1x per story!
+  catchphraseContext?: string;          // When to use it: "wenn sie Angst hat"
+  speechStyle: string[];                // "förmlich", "direkt", "verspielt"
+  triggers: string[];                   // Situations that cause strong reactions
+  quirk?: string;                       // A unique mannerism: "räuspert sich immer"
+}
+
+export interface PoolCharacterVisualProfile {
+  species: string;                      // human_child, animal_bird, cosmic_being
+  imagePrompt: string;                  // Detailed image generation prompt
+  colorPalette: string[];               // Dominant colors
+  consistencyMarkers: string[];         // "runde Brille", "blaues Tuch"
+  forbidden: string[];                  // Things that must NEVER appear
+}
+
+export interface PoolCharacterStoryBinding {
+  canonSettings: string[];              // Settings where character fits
+  availableChapters?: number[];         // Which chapters usable (null = all)
+  maxScreenTime: number;                // Max % of story (0.0-1.0)
+  introStyle: "gradual" | "dramatic" | "casual" | "mysterious";
+}
+
+export interface PoolCharacterV2 {
+  id: string;
+  name: string;
+  matchingProfile: PoolCharacterMatchingProfile;
+  personality: PoolCharacterPersonality;
+  visualProfile: PoolCharacterVisualProfile;
+  storyBinding: PoolCharacterStoryBinding;
+}
+
+// ─── Pool-Schema V2: Enhanced Artifact Pool ────────────────────────────────
+export interface ArtifactMiniArc {
+  introduction: string;                 // How it's introduced
+  failureMode: string;                  // How it first fails/is misunderstood
+  triumphMode: string;                  // How it helps in the end
+  activeChapters: number[];             // Min 2-4 chapters active
+}
+
+export interface ArtifactStoryFunctions {
+  abilities: string[];                  // "leuchtet im Dunkeln", "spricht"
+  useRule: string;                      // When/how it works
+  miniArc: ArtifactMiniArc;
+  plotInfluence: "CLUE" | "TOOL" | "GIFT" | "CHALLENGE";
+}
+
+export interface ArtifactGenreAffinity {
+  fairytale: number;                    // 0-100
+  adventure: number;
+  scifi: number;
+  modern: number;
+  magic: number;
+  animals: number;
+}
+
+export interface ArtifactVisualProfile {
+  imagePrompt: string;
+  mustShowWhen: string[];               // "wenn es aktiviert wird"
+  style: string;                        // "magisch glühend", "alt und mysteriös"
+}
+
+export interface ArtifactV2 {
+  id: string;
+  name: string;
+  storyFunctions: ArtifactStoryFunctions;
+  genreAffinity: ArtifactGenreAffinity;
+  visualProfile: ArtifactVisualProfile;
+}
+
+// ─── Pool-Schema V2: Enhanced Tale Pool DNA ────────────────────────────────
+export type EmotionType =
+  | "spielerisch"
+  | "verzweifelt"
+  | "erlöst"
+  | "spannend"
+  | "geborgen"
+  | "traurig"
+  | "hoffnungsvoll"
+  | "lustig"
+  | "ängstlich"
+  | "mutig"
+  | "neugierig";
+
+export interface VariantChoice {
+  dimension: string;                    // "setting", "encounter", "twist", "rescue"
+  options: string[];                    // Available variants
+  defaultIndex: number;                 // Default variant index
+}
+
+export interface TalePoolEntry {
+  taleId: string;
+  title: string;
+
+  // DNA for semantic matching
+  dna: {
+    coreConflict: string;               // "Versprechen vs Eigennutz"
+    moralLesson: string;                // "Halte deine Versprechen"
+    emotionalArc: EmotionType[];        // ["spielerisch", "verzweifelt", "erlöst"]
+    themeTags: string[];                // ["Verwandlung", "Versprechen", "Königtum"]
+    iconicBeats: string[];              // Key moments that must remain
+    flexibleElements: string[];         // Elements that can vary
+  };
+
+  // Casting
+  roleSlots: RoleSlot[];
+  sceneBeats: SceneBeat[];
+
+  // Variation Control
+  variationSeed?: number;
+  variantChoices: VariantChoice[];
+}
+
+// ─── Enhanced Canon-Fusion Plan V2 ─────────────────────────────────────────
+export interface CharacterIntegrationV2 {
+  characterId: string;
+  displayName: string;
+
+  // Personality-driven integration
+  personalityProfile: {
+    dominant: string;
+    catchphrase?: string;
+    speechStyle: string[];
+    quirk?: string;
+  };
+
+  entryPoint: CharacterIntegrationPoint & {
+    introStyle: "gradual" | "dramatic" | "casual" | "mysterious";
+  };
+
+  activeChapters: Array<CharacterIntegrationPoint & {
+    dialogueCue?: string;               // Suggested dialogue line
+    catchphraseUse?: boolean;           // Should catchphrase appear here?
+    emotionalBeat?: string;             // "zeigt Angst", "wird mutig"
+  }>;
+
+  exitPoint?: {
+    chapter: number;
+    farewell: string;
+    emotionalNote: string;              // "traurig aber hoffnungsvoll"
+  };
+}
+
+export interface ArtifactArcPlan {
+  artifactId: string;
+  artifactName: string;
+  discoveryChapter: number;
+  discoveryMethod: string;
+  failureChapter: number;
+  failureReason: string;
+  successChapter: number;
+  successMethod: string;
+  activeChapters: number[];
+}
+
+export interface CanonFusionPlanV2 {
+  characterIntegrations: CharacterIntegrationV2[];
+  artifactArc?: ArtifactArcPlan;
+  bannedPhrases: string[];
+
+  // Summary for prompt injection
+  fusionSummary: {
+    characterCount: number;
+    artifactActive: boolean;
+    chaptersWithCatchphrases: number[];
+    totalDialogueCues: number;
+  };
+}
+
+// ─── Pipeline Output Bundle ────────────────────────────────────────────────
+export interface PipelineOutput {
+  story: StoryDraft;
+  castSet: CastSet;
+  castLock: string[];
+  sceneDirectives: SceneDirective[];
+  images: Array<{
+    chapter: number;
+    imageSpec: ImageSpec;
+    finalPrompt: string;
+    imageUrl: string;
+    validationReport?: any;
+  }>;
+  qualityReport: any;
+  canonFusionPlan?: CanonFusionPlanV2;
+  debugBundle: {
+    normalizedRequest: NormalizedRequest;
+    matchingScores: MatchScore[];
+    integrationPlan: any;
+    variantPlan?: StoryVariantPlan;
+    tokenUsage?: TokenUsage;
+    warnings: string[];
+  };
+}
