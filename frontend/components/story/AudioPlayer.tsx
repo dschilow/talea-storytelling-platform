@@ -1,110 +1,90 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Loader, Pause } from 'lucide-react';
+import { Loader, AlertCircle } from 'lucide-react';
 import { useBackend } from '../../hooks/useBackend';
 
 interface AudioPlayerProps {
     text: string;
     className?: string;
-    autoPlay?: boolean;
 }
 
-export const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, className = '', autoPlay = false }) => {
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, className = '' }) => {
     const backend = useBackend();
     const [isLoading, setIsLoading] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
     const [audioSrc, setAudioSrc] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    // Reset when text changes
     useEffect(() => {
-        // Reset state when text changes
-        stop();
         setAudioSrc(null);
-        if (autoPlay) {
-            // Give a small delay to allow UI to settle?
-            // handlePlay(); // Auto-play might be annoying if navigating quickly, maybe explicit action is better.
-        }
-
-        return () => {
-            stop();
-        }
+        setError(null);
     }, [text]);
 
-    const handlePlay = async (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent navigation clicks if nested
-
-        if (isPlaying) {
-            pause();
-            return;
-        }
-
-        if (audioSrc) {
-            play();
-            return;
-        }
-
+    const loadAudio = async () => {
+        if (audioSrc) return; // Already loaded
         if (!text) return;
 
         try {
             setIsLoading(true);
-            // Calls the TTS service
-            // @ts-ignore - ignoring potential type mismatch if client not fully updated in IDE context
+            setError(null);
+
+            // @ts-ignore
             const response = await backend.tts.generateSpeech({ text });
 
             if (response && response.audioData) {
-                const src = response.audioData;
-                setAudioSrc(src);
-
-                const audio = new Audio(src);
-                audioRef.current = audio;
-
-                audio.onended = () => setIsPlaying(false);
-                audio.onpause = () => setIsPlaying(false);
-                audio.onplay = () => setIsPlaying(true);
-
-                await audio.play();
+                // Create a Blob from the base64 data to avoid huge strings in memory/DOM
+                const fetchRes = await fetch(response.audioData);
+                const blob = await fetchRes.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                setAudioSrc(objectUrl);
+            } else {
+                throw new Error("Keine Audiodaten empfangen");
             }
-        } catch (error) {
-            console.error("Failed to play audio:", error);
-            // Optional: Show toast error?
+        } catch (err) {
+            console.error("Failed to load audio:", err);
+            setError("Fehler beim Laden");
         } finally {
             setIsLoading(false);
         }
     };
 
-    const play = () => {
-        if (audioRef.current) {
-            audioRef.current.play().catch(e => console.error("Play error:", e));
-        }
-    };
-
-    const pause = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-        }
-    };
-
-    const stop = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-        setIsPlaying(false);
-    };
-
     return (
-        <button
-            onClick={handlePlay}
-            disabled={isLoading || !text}
-            className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center ${className}`}
-            title={isPlaying ? "Pause" : "Vorlesen"}
-        >
-            {isLoading ? (
-                <Loader className="w-6 h-6 animate-spin text-blue-500" />
-            ) : isPlaying ? (
-                <Pause className="w-6 h-6 text-blue-500" />
-            ) : (
-                <Volume2 className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+        <div className={`flex items-center gap-2 ${className}`}>
+            {!audioSrc && !isLoading && !error && (
+                <button
+                    onClick={loadAudio}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-colors shadow-sm"
+                >
+                    <span className="text-lg">🔊</span> Vorlesen
+                </button>
             )}
-        </button>
+
+            {isLoading && (
+                <div className="flex items-center gap-2 text-blue-400 px-3 py-1">
+                    <Loader className="w-4 h-4 animate-spin" />
+                    <span className="text-xs">Generiere Audio...</span>
+                </div>
+            )}
+
+            {error && (
+                <div className="flex items-center gap-2 text-red-400 px-3 py-1" title={error}>
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-xs">Fehler</span>
+                </div>
+            )}
+
+            {audioSrc && (
+                <audio
+                    ref={audioRef}
+                    controls
+                    autoPlay
+                    src={audioSrc}
+                    className="h-10 w-full max-w-[300px] outline-none rounded-full shadow-md"
+                    title="Audio Player"
+                >
+                    Ihr Browser unterstützt dieses Audio-Element nicht.
+                </audio>
+            )}
+        </div>
     );
 };
