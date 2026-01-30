@@ -65,9 +65,10 @@ export async function buildCastSet(input: {
   }
 
   for (const slot of roles) {
-    if (slot.roleType === "AVATAR") continue;
-    if (slot.roleType === "ARTIFACT") continue;
-    if (!slot.required && poolSheets.length >= 5) continue;
+  if (slot.roleType === "AVATAR") continue;
+  if (slot.roleType === "ARTIFACT") continue;
+  // Limit non-required pool characters to maximum 2 to avoid overcrowding scenes
+  if (!slot.required && poolSheets.length >= 2) continue;
 
     const candidate = await selectCandidateForSlot(slot, pool, used, rng, matchScores);
     if (!candidate) {
