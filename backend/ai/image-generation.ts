@@ -107,9 +107,9 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     model: req.model || "runware:400@4",
     numberResults: 1,
     outputType: ["URL"],  // Use URL output for faster response
-    outputFormat: req.outputFormat || "JPEG",
-    width: normalizeToMultiple64(req.width ?? 1024),
-    height: normalizeToMultiple64(req.height ?? 1024),
+    outputFormat: req.outputFormat || "WEBP",
+    width: normalizeToMultiple64(req.width ?? 1280),
+    height: normalizeToMultiple64(req.height ?? 832),
     steps: req.steps ?? 4,  // runware:400@4 uses fewer steps
     CFGScale: req.CFGScale ?? 4,
     includeCost: true,
@@ -290,11 +290,11 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       model: img.model || "runware:400@4",
       numberResults: 1,
       outputType: ["URL"],  // Use URL output for faster response
-      outputFormat: img.outputFormat || "JPEG",
+      outputFormat: img.outputFormat || "WEBP",
       positivePrompt: enhancePromptForRunware(img.prompt),
       ...(img.negativePrompt && img.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(img.negativePrompt) } : {}),
-      width: normalizeToMultiple64(img.width || 1024),
-      height: normalizeToMultiple64(img.height || 1024),
+      width: normalizeToMultiple64(img.width || 1280),
+      height: normalizeToMultiple64(img.height || 832),
       steps: img.steps ?? 4,  // runware:400@4 uses fewer steps
       CFGScale: img.CFGScale ?? 4,
       seed: img.seed ?? Math.floor(Math.random() * 2147483647),

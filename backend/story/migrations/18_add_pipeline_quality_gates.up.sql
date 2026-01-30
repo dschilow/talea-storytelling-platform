@@ -20,8 +20,8 @@ VALUES (
   'default',
   '{
     "wpm": 140,
-    "runwareSteps": 28,
-    "runwareCfgScale": 6.5,
+    "runwareSteps": 4,
+    "runwareCfgScale": 4,
     "storyRetryMax": 2,
     "imageRetryMax": 2,
     "maxPropsVisible": 7
