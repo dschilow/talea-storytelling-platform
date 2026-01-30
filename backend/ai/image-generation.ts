@@ -74,10 +74,11 @@ export interface BatchGenerationResponse {
   };
 }
 
-// Internal helper that actually calls Runware and returns the parsed image.
+// Internal helper that actually calls Runware and returns the parsed image with retry logic
 // Use this helper for intra-service calls to avoid HTTP overhead.
 // OPTIMIZATION v4.0: Now supports MULTIPLE reference images for runware:400@4
-export async function runwareGenerateImage(req: ImageGenerationRequest): Promise<ImageGenerationResponse> {
+// OPTIMIZATION v4.1: Added exponential backoff retry for 504 timeouts
+export async function runwareGenerateImage(req: ImageGenerationRequest, retryCount = 0, maxRetries = 3): Promise<ImageGenerationResponse> {
   const startTime = Date.now();
 
   // Process reference images - runware:400@4 supports multiple reference images as URLs
@@ -127,7 +128,9 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
   }
 
   try {
-    console.log(`[Runware] Generating image ${hasReferences ? `WITH ${refImages.length}` : 'without'} reference images`);
+    const retryInfo = retryCount > 0 ? ` (retry ${retryCount}/${maxRetries})` : '';
+    console.log(`[Runware] Generating image ${hasReferences ? `WITH ${refImages.length}` : 'without'} reference images${retryInfo}`);
+    
     // Sanitize request for logging (don't log full URLs)
     const sanitizedRequest = {
       ...requestBody,
@@ -136,41 +139,66 @@ export async function runwareGenerateImage(req: ImageGenerationRequest): Promise
     debugInfo.requestSent = sanitizedRequest;
     console.log("[Runware] Request (sanitized):", JSON.stringify(sanitizedRequest, null, 2));
 
-    const res = await fetch("https://api.runware.ai/v1", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${runwareApiKey()}`,
-      },
-      body: JSON.stringify([requestBody]),
-    });
-
-    debugInfo.responseStatus = res.status;
-    const responseText = await res.text();
+    // Extended timeout for complex image generation (3 minutes)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
 
     let data: any;
     try {
-      data = JSON.parse(responseText);
-    } catch (e) {
-      data = { error: "Failed to parse JSON response", response: responseText };
-    }
+      const res = await fetch("https://api.runware.ai/v1", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${runwareApiKey()}`,
+        },
+        body: JSON.stringify([requestBody]),
+        signal: controller.signal,
+      });
 
-    await publishWithTimeout(logTopic, {
-      source: 'runware-single-image',
-      timestamp: new Date(),
-      request: requestBody,
-      response: data,
-    });
+      clearTimeout(timeoutId);
+      debugInfo.responseStatus = res.status;
+      const responseText = await res.text();
 
-    if (!res.ok) {
-      debugInfo.errorMessage = `HTTP ${res.status}: ${responseText}`;
-      debugInfo.processingTime = Date.now() - startTime;
-      console.error("[Runware] API error:", debugInfo.errorMessage);
-      return {
-        imageUrl: generatePlaceholderImage(req.prompt),
-        seed: requestBody.seed,
-        debugInfo,
-      };
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        data = { error: "Failed to parse JSON response", response: responseText };
+      }
+
+      await publishWithTimeout(logTopic, {
+        source: 'runware-single-image',
+        timestamp: new Date(),
+        request: requestBody,
+        response: data,
+      });
+
+      // Handle 504 Gateway Timeout with retry logic
+      if (res.status === 504 && retryCount < maxRetries) {
+        const waitTime = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+        console.warn(`[Runware] Got 504 timeout, retrying in ${waitTime}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return runwareGenerateImage(req, retryCount + 1, maxRetries);
+      }
+
+      if (!res.ok) {
+        debugInfo.errorMessage = `HTTP ${res.status}: ${responseText}`;
+        debugInfo.processingTime = Date.now() - startTime;
+        console.error("[Runware] API error:", debugInfo.errorMessage);
+        return {
+          imageUrl: generatePlaceholderImage(req.prompt),
+          seed: requestBody.seed,
+          debugInfo,
+        };
+      }
+    } catch (abortErr: any) {
+      clearTimeout(timeoutId);
+      if (abortErr.name === 'AbortError' && retryCount < maxRetries) {
+        const waitTime = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        console.warn(`[Runware] Request timeout, retrying in ${waitTime}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return runwareGenerateImage(req, retryCount + 1, maxRetries);
+      }
+      throw abortErr;
     }
 
     debugInfo.responseReceived = data;
