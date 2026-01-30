@@ -87,6 +87,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
 
   const hasReferences = refImages.length > 0;
 
+     
   const debugInfo: DebugInfo = {
     requestSent: null,
     responseReceived: null,
