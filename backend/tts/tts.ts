@@ -18,10 +18,17 @@ export const generateSpeech = api(
         }
 
         try {
-            const url = `${TTS_SERVICE_URL}/?text=${encodeURIComponent(text)}`;
-            log.info(`Requesting TTS from ${url} for text length ${text.length}`);
+            // Use POST to send text in body to avoid URL length limits
+            const url = `${TTS_SERVICE_URL}/`;
+            log.info(`Requesting TTS from ${url} (POST) for text length ${text.length}`);
 
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ text }),
+            });
 
             if (!response.ok) {
                 const errText = await response.text();
@@ -44,3 +51,4 @@ export const generateSpeech = api(
 
     }
 );
+
