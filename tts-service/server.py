@@ -14,6 +14,10 @@ PIPER_BINARY = os.environ.get('PIPER_BINARY', "/usr/local/bin/piper_bin/piper")
 if not os.path.exists(MODEL_PATH):
     print(f"WARNING: Model not found at {MODEL_PATH}", file=sys.stderr)
 
+@app.route('/health', methods=['GET'])
+def health():
+    return "ok", 200
+
 @app.route('/', methods=['GET', 'POST'])
 def generate_tts():
     # Support both GET (query param) and POST (json or form)
@@ -68,6 +72,4 @@ def generate_tts():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting TTS Server on port {port}...", file=sys.stderr)
-    # Threaded=True might help with concurrent requests, but Piper is heavy CPU.
-    # We kept it single-threaded effectively if not specified, usually fine for single worker.
     app.run(host='0.0.0.0', port=port)

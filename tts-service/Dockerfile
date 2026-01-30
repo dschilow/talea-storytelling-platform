@@ -48,4 +48,4 @@ RUN pip install -r requirements.txt
 
 COPY server.py .
 
-CMD ["python3", "server.py"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --timeout 120 --workers 1 server:app"]
