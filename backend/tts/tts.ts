@@ -1,9 +1,8 @@
 import { api } from "encore.dev/api";
 import log from "encore.dev/log";
 
-// URL of the TTS Service (configured via environment variable or default to local)
-// In Railway, services are often accessible by their name, e.g. http://tts-service:5000
-// Use 'TTS_SERVICE_URL' environment variable in Railway.
+// URL of the TTS Service
+// Railway private networking uses <service>.railway.internal with the PORT the service listens on
 const TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
 
 export interface TTSResponse {
@@ -22,13 +21,19 @@ export const generateSpeech = api(
             const url = `${TTS_SERVICE_URL}/`;
             log.info(`Requesting TTS from ${url} (POST) for text length ${text.length}`);
 
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 120_000); // 120s timeout for long texts
+
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({ text }),
+                signal: controller.signal,
             });
+
+            clearTimeout(timeout);
 
             if (!response.ok) {
                 const errText = await response.text();
