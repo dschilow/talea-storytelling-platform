@@ -178,7 +178,7 @@ export async function createStoryBible(input: {
   // Reasoning models (gpt-5, o4) use many tokens for internal reasoning
   // so we need to allocate more tokens for them to have room for the actual response
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
-  const maxTokens = isReasoningModel ? 4000 : 1800;
+  const maxTokens = isReasoningModel ? 2000 : 1500;
 
   const result = await callChatCompletion({
     model,
@@ -186,7 +186,7 @@ export async function createStoryBible(input: {
       { role: "system", content: normalized.language === "de" ? "Du planst Kinderbuch-Geschichten strukturiert." : "You plan children's stories structurally." },
       { role: "user", content: prompt },
     ],
-    responseFormat: "json_object",
+    responseFormat: isReasoningModel ? undefined : "json_object",
     maxTokens,
     temperature: 0.3,
     seed: normalized.variantSeed,

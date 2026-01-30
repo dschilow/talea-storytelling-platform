@@ -89,8 +89,8 @@ export class LlmStoryWriter implements StoryWriter {
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        responseFormat: "json_object",
-        maxTokens: isReasoningModel ? 5000 : 2000,
+        responseFormat: isReasoningModel ? undefined : "json_object",
+        maxTokens: isReasoningModel ? 2500 : 1800,
         temperature: strict ? 0.4 : 0.7,
         context: "story-writer",
       });
@@ -132,8 +132,8 @@ export class LlmStoryWriter implements StoryWriter {
             { role: "system", content: systemPrompt },
             { role: "user", content: revisionPrompt },
           ],
-          responseFormat: "json_object",
-          maxTokens: isReasoningModel ? 6000 : 2400,
+          responseFormat: isReasoningModel ? undefined : "json_object",
+          maxTokens: isReasoningModel ? 2800 : 2000,
           temperature: 0.4,
           context: "story-writer-revision",
         });
@@ -226,8 +226,8 @@ export class LlmStoryWriter implements StoryWriter {
               { role: "system", content: systemPrompt },
               { role: "user", content: revisionPrompt },
             ],
-            responseFormat: "json_object",
-            maxTokens: isReasoningModel ? 6500 : 2600,
+            responseFormat: isReasoningModel ? undefined : "json_object",
+            maxTokens: isReasoningModel ? 3000 : 2200,
             temperature: 0.4,
             context: "story-writer-length-adjust",
           });
@@ -278,8 +278,8 @@ export class LlmStoryWriter implements StoryWriter {
           { role: "system", content: titleSystem },
           { role: "user", content: titlePrompt },
         ],
-        responseFormat: "json_object",
-        maxTokens: isReasoningModel ? 2000 : 800,
+        responseFormat: isReasoningModel ? undefined : "json_object",
+        maxTokens: isReasoningModel ? 800 : 600,
         temperature: 0.6,
         context: "story-title",
       });
@@ -491,7 +491,7 @@ Return JSON:
     ],
     // Reasoning models don't support json_object response format
     responseFormat: isReasoningModel ? undefined : "json_object",
-    maxTokens: isReasoningModel ? 5500 : 2200,
+    maxTokens: isReasoningModel ? 2500 : 2000,
     temperature: 0.3,
     context: "story-cohesion",
   });

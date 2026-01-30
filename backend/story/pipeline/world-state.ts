@@ -166,7 +166,7 @@ export async function updateWorldStateFromChapter(input: {
   const prompt = buildWorldStatePrompt({ normalized, storyBible, directive, previousState, chapterText });
 
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
-  const maxTokens = isReasoningModel ? 2500 : 1000;
+  const maxTokens = isReasoningModel ? 1200 : 800;
 
   const result = await callChatCompletion({
     model,
@@ -174,7 +174,7 @@ export async function updateWorldStateFromChapter(input: {
       { role: "system", content: normalized.language === "de" ? "Du bist ein strenger Kontinuitaets-Tracker." : "You are a strict continuity tracker." },
       { role: "user", content: prompt },
     ],
-    responseFormat: "json_object",
+    responseFormat: isReasoningModel ? undefined : "json_object",
     maxTokens,
     temperature: 0.2,
     context: "world-state-update",

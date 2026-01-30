@@ -108,7 +108,7 @@ export async function createStoryOutline(input: {
   const prompt = buildOutlinePrompt({ normalized, storyBible, cast, chapterCount });
 
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
-  const maxTokens = isReasoningModel ? 3500 : 1400;
+  const maxTokens = isReasoningModel ? 1800 : 1200;
 
   const result = await callChatCompletion({
     model,
@@ -116,7 +116,7 @@ export async function createStoryOutline(input: {
       { role: "system", content: normalized.language === "de" ? "Du planst Kapitel strukturiert." : "You structure chapter outlines." },
       { role: "user", content: prompt },
     ],
-    responseFormat: "json_object",
+    responseFormat: isReasoningModel ? undefined : "json_object",
     maxTokens,
     temperature: 0.3,
     seed: normalized.variantSeed,
