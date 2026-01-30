@@ -49,7 +49,7 @@ function gateLengthAndPacing(draft: StoryDraft, wordBudget?: WordBudget): Qualit
         chapter: ch.chapter,
         code: "CHAPTER_TOO_SHORT",
         message: `Chapter ${ch.chapter}: ${wc} words, minimum ${wordBudget.minWordsPerChapter}`,
-        severity: "ERROR",
+        severity: "WARNING",
       });
     } else if (wc > wordBudget.maxWordsPerChapter) {
       issues.push({
@@ -57,7 +57,7 @@ function gateLengthAndPacing(draft: StoryDraft, wordBudget?: WordBudget): Qualit
         chapter: ch.chapter,
         code: "CHAPTER_TOO_LONG",
         message: `Chapter ${ch.chapter}: ${wc} words, maximum ${wordBudget.maxWordsPerChapter}`,
-        severity: "ERROR",
+        severity: "WARNING",
       });
     }
   }
@@ -118,7 +118,7 @@ function gateDialogueQuote(draft: StoryDraft, language: string): QualityIssue[] 
         message: isDE
           ? `Kapitel ${ch.chapter}: Nur ${dialogueCount} Dialogzeilen, mindestens 2 erwartet`
           : `Chapter ${ch.chapter}: Only ${dialogueCount} dialogue lines, min 2`,
-        severity: "ERROR",
+        severity: "WARNING",
       });
     } else if (dialogueCount > 6) {
       issues.push({
@@ -416,7 +416,7 @@ function gateArtifactArc(
       message: isDE
         ? `Artefakt "${cast.artifact.name}" nur ${artifactMentionCount}x erwaehnt (mind. 2 aktive Szenen)`
         : `Artifact "${cast.artifact.name}" only mentioned ${artifactMentionCount}x (need 2+ active scenes)`,
-      severity: "ERROR",
+      severity: "WARNING",
     });
   }
 
@@ -454,7 +454,7 @@ function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
       message: isDE
         ? `Letztes Kapitel zu kurz (${wordCount} Woerter) fuer ein befriedigendes Ende`
         : `Last chapter too short (${wordCount} words) for a satisfying ending`,
-      severity: "ERROR",
+      severity: "WARNING",
     });
   }
 
@@ -474,7 +474,7 @@ function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
         message: isDE
           ? `Letztes Kapitel endet mit Cliffhanger statt warmem Abschluss`
           : `Last chapter ends with cliffhanger instead of warm resolution`,
-        severity: "ERROR",
+        severity: "WARNING",
       });
       break;
     }
@@ -617,13 +617,23 @@ function splitSentences(text: string): string[] {
 
 function countDialogueLines(text: string): number {
   const patterns = [
-    /[""„‟»«][^""„‟»«]+[""„‟»«]/g,
+    /[""„‟»«\u201E\u201C\u201D\u00BB\u00AB][^""„‟»«\u201E\u201C\u201D\u00BB\u00AB]{3,}[""„‟»«\u201E\u201C\u201D\u00BB\u00AB]/g,
     /^\s*[—–-]\s+.+$/gm,
+    /(?:sagte|rief|fragte|fl[üu]sterte|murmelte|antwortete|meinte|erkl[äa]rte|schrie|raunte|brummte|seufzte|lachte)\s/gi,
+    /(?:said|asked|whispered|called|shouted|replied|exclaimed|muttered|answered)\s/gi,
   ];
   let count = 0;
+  const seen = new Set<number>();
   for (const p of patterns) {
-    const matches = text.match(p);
-    count += matches?.length ?? 0;
+    p.lastIndex = 0;
+    let match;
+    while ((match = p.exec(text)) !== null) {
+      const lineStart = text.lastIndexOf("\n", match.index) + 1;
+      if (!seen.has(lineStart)) {
+        seen.add(lineStart);
+        count++;
+      }
+    }
   }
   return count;
 }

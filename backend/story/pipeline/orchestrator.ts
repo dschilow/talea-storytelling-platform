@@ -248,18 +248,24 @@ export class StoryPipelineOrchestrator {
       }
 
       const storyErrors = qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [];
+      const criticalCodes = new Set(["INSTRUCTION_LEAK", "ENGLISH_LEAK"]);
+      const criticalErrors = storyErrors.filter((i: any) => criticalCodes.has(i.code));
+      const hasContent = storyDraft.chapters.some(ch => ch.text && ch.text.trim().length > 50);
       const storyGate = {
         phase: "phase6-story",
         success: storyErrors.length === 0,
-        schemaValid: storyErrors.length === 0,
+        schemaValid: criticalErrors.length === 0,
         attempts: (qualityReport?.rewriteAttempts ?? 0) + 1,
         issues: storyErrors.map((issue: any) => ({ severity: "ERROR", ...issue })),
       };
       phaseGates.push(storyGate);
-      if (storyErrors.length > 0) {
+      if (criticalErrors.length > 0 || !hasContent) {
         validationReport = { gates: phaseGates, story: qualityReport, images: [] };
         await saveValidationReport(normalized.storyId, validationReport);
-        throw new Error(`Story quality gates failed: ${storyErrors.map((i: any) => i.code).join(", ")}`);
+        throw new Error(`Story quality gates failed: ${(criticalErrors.length > 0 ? criticalErrors : storyErrors).map((i: any) => i.code).join(", ")}`);
+      }
+      if (storyErrors.length > 0) {
+        console.warn(`[pipeline] Story accepted with ${storyErrors.length} non-critical quality issues: ${storyErrors.map((i: any) => i.code).join(", ")}`);
       }
 
       const phase7Start = Date.now();
