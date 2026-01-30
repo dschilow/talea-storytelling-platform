@@ -43,6 +43,7 @@ export class Client {
     public readonly log: log.ServiceClient
     public readonly story: story.ServiceClient
     public readonly tavi: tavi.ServiceClient
+    public readonly tts: tts.ServiceClient
     public readonly user: user.ServiceClient
     private readonly options: ClientOptions
     private readonly target: string
@@ -68,6 +69,7 @@ export class Client {
         this.log = new log.ServiceClient(base)
         this.story = new story.ServiceClient(base)
         this.tavi = new tavi.ServiceClient(base)
+        this.tts = new tts.ServiceClient(base)
         this.user = new user.ServiceClient(base)
     }
 
@@ -116,6 +118,7 @@ export interface ClientOptions {
  */
 import { listAvatarsAdmin as api_admin_avatars_list_listAvatarsAdmin } from "~backend/admin/avatars_list";
 import { updateAvatarAdmin as api_admin_avatars_update_updateAvatarAdmin } from "~backend/admin/avatars_update";
+import { migrateImages as api_admin_migrate_images_migrateImages } from "~backend/admin/migrate-images";
 import { promoteToAdmin as api_admin_promote_promoteToAdmin } from "~backend/admin/promote";
 import { getStats as api_admin_stats_getStats } from "~backend/admin/stats";
 import { deleteUser as api_admin_users_delete_deleteUser } from "~backend/admin/users_delete";
@@ -133,6 +136,7 @@ export namespace admin {
             this.getStats = this.getStats.bind(this)
             this.listAvatarsAdmin = this.listAvatarsAdmin.bind(this)
             this.listUsers = this.listUsers.bind(this)
+            this.migrateImages = this.migrateImages.bind(this)
             this.promoteToAdmin = this.promoteToAdmin.bind(this)
             this.updateAvatarAdmin = this.updateAvatarAdmin.bind(this)
             this.updateUser = this.updateUser.bind(this)
@@ -187,6 +191,12 @@ export namespace admin {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/admin/users`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_users_list_listUsers>
+        }
+
+        public async migrateImages(params: RequestType<typeof api_admin_migrate_images_migrateImages>): Promise<ResponseType<typeof api_admin_migrate_images_migrateImages>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/migrate-images`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_admin_migrate_images_migrateImages>
         }
 
         /**
@@ -245,6 +255,7 @@ export namespace admin {
 import { analyzeAvatarImage as api_ai_analyze_avatar_analyzeAvatarImage } from "~backend/ai/analyze-avatar";
 import { analyzePersonalityDevelopment as api_ai_analyze_personality_analyzePersonalityDevelopment } from "~backend/ai/analyze-personality";
 import { generateAvatarImage as api_ai_avatar_generation_generateAvatarImage } from "~backend/ai/avatar-generation";
+import { generateVisualProfile as api_ai_generate_visual_profile_generateVisualProfile } from "~backend/ai/generate-visual-profile";
 import {
     generateImage as api_ai_image_generation_generateImage,
     generateImagesBatch as api_ai_image_generation_generateImagesBatch
@@ -268,6 +279,7 @@ export namespace ai {
             this.generateAvatarImage = this.generateAvatarImage.bind(this)
             this.generateImage = this.generateImage.bind(this)
             this.generateImagesBatch = this.generateImagesBatch.bind(this)
+            this.generateVisualProfile = this.generateVisualProfile.bind(this)
             this.getPersonalityHistory = this.getPersonalityHistory.bind(this)
             this.trackPersonalityUpdate = this.trackPersonalityUpdate.bind(this)
         }
@@ -328,6 +340,21 @@ export namespace ai {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/ai/generate-images-batch`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_image_generation_generateImagesBatch>
+        }
+
+        /**
+         * Generate Visual Profile from Structured Avatar Data
+         * 
+         * This endpoint converts structured avatar data into a complete visual profile
+         * that can be used for consistent image generation across story chapters.
+         * 
+         * CRITICAL: This ensures age, height, and other explicit data are preserved
+         * and used in image generation, solving the Adrian/Alexander age consistency issue.
+         */
+        public async generateVisualProfile(params: RequestType<typeof api_ai_generate_visual_profile_generateVisualProfile>): Promise<ResponseType<typeof api_ai_generate_visual_profile_generateVisualProfile>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-visual-profile`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_generate_visual_profile_generateVisualProfile>
         }
 
         /**
@@ -958,7 +985,10 @@ export namespace fairytales {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
-import { evaluateStoryRewards as api_gamification_item_system_evaluateStoryRewards } from "~backend/gamification/item-system";
+import {
+    addArtifactToInventory as api_gamification_item_system_addArtifactToInventory,
+    evaluateStoryRewards as api_gamification_item_system_evaluateStoryRewards
+} from "~backend/gamification/item-system";
 
 export namespace gamification {
 
@@ -967,7 +997,14 @@ export namespace gamification {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.addArtifactToInventory = this.addArtifactToInventory.bind(this)
             this.evaluateStoryRewards = this.evaluateStoryRewards.bind(this)
+        }
+
+        public async addArtifactToInventory(params: RequestType<typeof api_gamification_item_system_addArtifactToInventory>): Promise<ResponseType<typeof api_gamification_item_system_addArtifactToInventory>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/gamification/add-artifact`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_gamification_item_system_addArtifactToInventory>
         }
 
         public async evaluateStoryRewards(params: RequestType<typeof api_gamification_item_system_evaluateStoryRewards>): Promise<ResponseType<typeof api_gamification_item_system_evaluateStoryRewards>> {
@@ -1195,7 +1232,6 @@ export namespace log {
 import { generateStoryContent as api_story_ai_generation_generateStoryContent } from "~backend/story/ai-generation";
 import { analyzeStory as api_story_analyze_phase_logs_analyzeStory } from "~backend/story/analyze-phase-logs";
 import { analyzeRecentStories as api_story_analyze_recent_stories_analyzeRecentStories } from "~backend/story/analyze-recent-stories";
-import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/story/auto-test-endpoint";
 import {
     addArtifact as api_story_artifact_pool_api_addArtifact,
     batchRegenerateArtifactImages as api_story_artifact_pool_api_batchRegenerateArtifactImages,
@@ -1207,6 +1243,7 @@ import {
     listArtifacts as api_story_artifact_pool_api_listArtifacts,
     updateArtifact as api_story_artifact_pool_api_updateArtifact
 } from "~backend/story/artifact-pool-api";
+import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/story/auto-test-endpoint";
 import {
     addCharacter as api_story_character_pool_api_addCharacter,
     batchRegenerateCharacterImages as api_story_character_pool_api_batchRegenerateCharacterImages,
@@ -1221,6 +1258,8 @@ import {
     seedPool as api_story_character_pool_api_seedPool,
     updateCharacter as api_story_character_pool_api_updateCharacter
 } from "~backend/story/character-pool-api";
+import { debugLastError as api_story_debug_last_error_debugLastError } from "~backend/story/debug-last-error";
+import { debugRecentStories as api_story_debug_recent_stories_debugRecentStories } from "~backend/story/debug-recent-stories";
 import { deleteStory as api_story_delete_deleteStory } from "~backend/story/delete";
 import { generate as api_story_generate_generate } from "~backend/story/generate";
 import {
@@ -1230,6 +1269,10 @@ import {
 import { get as api_story_get_get } from "~backend/story/get";
 import { list as api_story_list_list } from "~backend/story/list";
 import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
+import { proxyImage as api_story_proxy_image_proxyImage } from "~backend/story/proxy-image";
+import { runMigrationSQL as api_story_run_migration_sql_runMigrationSQL } from "~backend/story/run-migration-sql";
+import { showArtifacts as api_story_show_artifacts_showArtifacts } from "~backend/story/show-artifacts";
+import { testArtifacts as api_story_test_artifacts_testArtifacts } from "~backend/story/test-artifacts";
 import {
     listTestConfigs as api_story_test_story_generation_listTestConfigs,
     runBatchTests as api_story_test_story_generation_runBatchTests,
@@ -1238,8 +1281,6 @@ import {
 import { update as api_story_update_update } from "~backend/story/update";
 
 export namespace story {
-    export type CharacterTemplate = import("~backend/story/types").CharacterTemplate
-    export type ArtifactTemplate = import("~backend/story/types").ArtifactTemplate
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -1253,6 +1294,8 @@ export namespace story {
             this.autoTest = this.autoTest.bind(this)
             this.batchRegenerateArtifactImages = this.batchRegenerateArtifactImages.bind(this)
             this.batchRegenerateCharacterImages = this.batchRegenerateCharacterImages.bind(this)
+            this.debugLastError = this.debugLastError.bind(this)
+            this.debugRecentStories = this.debugRecentStories.bind(this)
             this.deleteArtifact = this.deleteArtifact.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
@@ -1271,15 +1314,23 @@ export namespace story {
             this.importArtifacts = this.importArtifacts.bind(this)
             this.importCharacters = this.importCharacters.bind(this)
             this.list = this.list.bind(this)
-            this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this)
             this.listArtifacts = this.listArtifacts.bind(this)
+            this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this)
             this.listCharacters = this.listCharacters.bind(this)
             this.listTestConfigs = this.listTestConfigs.bind(this)
             this.markRead = this.markRead.bind(this)
+            this.proxyArtifactImage = this.proxyArtifactImage.bind(this)
+            this.proxyAvatarImage = this.proxyAvatarImage.bind(this)
+            this.proxyImage = this.proxyImage.bind(this)
+            this.proxyImageStream = this.proxyImageStream.bind(this)
+            this.proxyStoryChapterImage = this.proxyStoryChapterImage.bind(this)
             this.resetRecentUsage = this.resetRecentUsage.bind(this)
             this.runBatchTests = this.runBatchTests.bind(this)
+            this.runMigrationSQL = this.runMigrationSQL.bind(this)
             this.runTest = this.runTest.bind(this)
             this.seedPool = this.seedPool.bind(this)
+            this.showArtifacts = this.showArtifacts.bind(this)
+            this.testArtifacts = this.testArtifacts.bind(this)
             this.update = this.update.bind(this)
             this.updateArtifact = this.updateArtifact.bind(this)
             this.updateCharacter = this.updateCharacter.bind(this)
@@ -1326,10 +1377,28 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_auto_test_endpoint_autoTest>
         }
 
-        public async deleteCharacter(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_deleteCharacter>> {
+        public async batchRegenerateArtifactImages(): Promise<ResponseType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_deleteCharacter>
+            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/batch-regenerate-images`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>
+        }
+
+        public async batchRegenerateCharacterImages(): Promise<ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/batch-regenerate-images`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>
+        }
+
+        public async debugLastError(params: RequestType<typeof api_story_debug_last_error_debugLastError>): Promise<ResponseType<typeof api_story_debug_last_error_debugLastError>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/debug-last-error`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_debug_last_error_debugLastError>
+        }
+
+        public async debugRecentStories(params: RequestType<typeof api_story_debug_recent_stories_debugRecentStories>): Promise<ResponseType<typeof api_story_debug_recent_stories_debugRecentStories>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/debug-recent-stories`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_debug_recent_stories_debugRecentStories>
         }
 
         public async deleteArtifact(params: { id: string }): Promise<ResponseType<typeof api_story_artifact_pool_api_deleteArtifact>> {
@@ -1338,20 +1407,17 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_deleteArtifact>
         }
 
+        public async deleteCharacter(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_deleteCharacter>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_deleteCharacter>
+        }
+
         /**
          * Deletes a story and all its chapters.
          */
         public async deleteStory(params: { id: string }): Promise<void> {
             await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
-        }
-
-        /**
-         * ===== EXPORT CHARACTERS =====
-         */
-        public async exportCharacters(): Promise<ResponseType<typeof api_story_character_pool_api_exportCharacters>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_exportCharacters>
         }
 
         /**
@@ -1364,21 +1430,12 @@ export namespace story {
         }
 
         /**
-         * ===== BATCH REGENERATE ARTIFACT IMAGES =====
+         * ===== EXPORT CHARACTERS =====
          */
-        public async batchRegenerateArtifactImages(params: RequestType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>): Promise<ResponseType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>> {
+        public async exportCharacters(): Promise<ResponseType<typeof api_story_character_pool_api_exportCharacters>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/batch-regenerate-images`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_batchRegenerateArtifactImages>
-        }
-
-        /**
-         * ===== BATCH REGENERATE CHARACTER IMAGES =====
-         */
-        public async batchRegenerateCharacterImages(params: RequestType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>): Promise<ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/batch-regenerate-images`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/export`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_exportCharacters>
         }
 
         /**
@@ -1390,17 +1447,6 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_generate_generate>
         }
 
-        public async generateCharacterImage(params: RequestType<typeof api_story_character_pool_api_generateCharacterImage>): Promise<ResponseType<typeof api_story_character_pool_api_generateCharacterImage>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                style: params.style,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_generateCharacterImage>
-        }
-
         public async generateArtifactImage(params: RequestType<typeof api_story_artifact_pool_api_generateArtifactImage>): Promise<ResponseType<typeof api_story_artifact_pool_api_generateArtifactImage>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -1410,6 +1456,17 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_generateArtifactImage>
+        }
+
+        public async generateCharacterImage(params: RequestType<typeof api_story_character_pool_api_generateCharacterImage>): Promise<ResponseType<typeof api_story_character_pool_api_generateCharacterImage>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                style: params.style,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_generateCharacterImage>
         }
 
         /**
@@ -1490,19 +1547,19 @@ export namespace story {
         }
 
         /**
-         * Get list of available fairy tales for story selection
-         */
-        public async listAvailableFairyTales(): Promise<void> {
-            await this.baseClient.callTypedAPI(`/story/available-fairytales`, {method: "GET", body: undefined})
-        }
-
-        /**
          * ===== GET ALL ARTIFACTS =====
          */
         public async listArtifacts(): Promise<ResponseType<typeof api_story_artifact_pool_api_listArtifacts>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_pool_api_listArtifacts>
+        }
+
+        /**
+         * Get list of available fairy tales for story selection
+         */
+        public async listAvailableFairyTales(): Promise<void> {
+            await this.baseClient.callTypedAPI(`/story/available-fairytales`, {method: "GET", body: undefined})
         }
 
         /**
@@ -1532,6 +1589,40 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_markRead_markRead>
         }
 
+        public async proxyArtifactImage(params: { id: string }, options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
+            options.method ||= "GET";
+            return this.baseClient.callAPI(`/story/image/artifact/${encodeURIComponent(params.id)}`, options)
+        }
+
+        public async proxyAvatarImage(params: { id: string }, options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
+            options.method ||= "GET";
+            return this.baseClient.callAPI(`/story/image/avatar/${encodeURIComponent(params.id)}`, options)
+        }
+
+        /**
+         * Proxy an image URL and return it as base64 data URL.
+         * This bypasses CORS restrictions by fetching server-side.
+         */
+        public async proxyImage(params: RequestType<typeof api_story_proxy_image_proxyImage>): Promise<ResponseType<typeof api_story_proxy_image_proxyImage>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/proxy-image`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_proxy_image_proxyImage>
+        }
+
+        /**
+         * Proxy an image by bucket key and stream it directly.
+         * Useful for short, stable image URLs in the UI.
+         */
+        public async proxyImageStream(options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
+            options.method ||= "GET";
+            return this.baseClient.callAPI(`/story/image`, options)
+        }
+
+        public async proxyStoryChapterImage(params: { path: string[] }, options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
+            options.method ||= "GET";
+            return this.baseClient.callAPI(`/story/image/story/${params.path.map(encodeURIComponent).join("/")}`, options)
+        }
+
         /**
          * ===== RESET RECENT USAGE COUNTS =====
          * This should be run periodically (e.g., monthly) to give all characters fresh chances
@@ -1546,6 +1637,16 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/test/batch`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_test_story_generation_runBatchTests>
+        }
+
+        /**
+         * Emergency endpoint to run raw SQL migrations when Docker container doesn't have migration files.
+         * IMPORTANT: This endpoint has no authentication for emergency access.
+         */
+        public async runMigrationSQL(params: RequestType<typeof api_story_run_migration_sql_runMigrationSQL>): Promise<ResponseType<typeof api_story_run_migration_sql_runMigrationSQL>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_run_migration_sql_runMigrationSQL>
         }
 
         /**
@@ -1565,6 +1666,25 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/seed`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_seedPool>
+        }
+
+        /**
+         * Show comprehensive artifact pool data
+         * Public endpoint (no auth) to verify database contents
+         */
+        public async showArtifacts(): Promise<ResponseType<typeof api_story_show_artifacts_showArtifacts>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/show-artifacts`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_show_artifacts_showArtifacts>
+        }
+
+        /**
+         * Test endpoint to verify artifact_pool table exists and has data
+         */
+        public async testArtifacts(): Promise<ResponseType<typeof api_story_test_artifacts_testArtifacts>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/test-artifacts`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_test_artifacts_testArtifacts>
         }
 
         /**
@@ -1633,6 +1753,34 @@ export namespace tavi {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { generateSpeech as api_tts_tts_generateSpeech } from "~backend/tts/tts";
+
+export namespace tts {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.generateSpeech = this.generateSpeech.bind(this)
+        }
+
+        public async generateSpeech(params: RequestType<typeof api_tts_tts_generateSpeech>): Promise<ResponseType<typeof api_tts_tts_generateSpeech>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                text: params.text,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/generate`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateSpeech>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
 import {
     create as api_user_profile_create,
     get as api_user_profile_get,
@@ -1640,6 +1788,7 @@ import {
     updateLanguage as api_user_profile_updateLanguage,
     updateTheme as api_user_profile_updateTheme
 } from "~backend/user/profile";
+import { runMigrationSql as api_user_run_migration_sql_runMigrationSql } from "~backend/user/run-migration-sql";
 
 export namespace user {
 
@@ -1651,6 +1800,7 @@ export namespace user {
             this.create = this.create.bind(this)
             this.get = this.get.bind(this)
             this.me = this.me.bind(this)
+            this.runMigrationSql = this.runMigrationSql.bind(this)
             this.updateLanguage = this.updateLanguage.bind(this)
             this.updateTheme = this.updateTheme.bind(this)
         }
@@ -1681,6 +1831,16 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/me`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_me>
+        }
+
+        /**
+         * Emergency endpoint to run raw SQL migrations
+         * Used when migration files aren't copied to Railway container
+         */
+        public async runMigrationSql(params: RequestType<typeof api_user_run_migration_sql_runMigrationSql>): Promise<ResponseType<typeof api_user_run_migration_sql_runMigrationSql>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_run_migration_sql_runMigrationSql>
         }
 
         /**

@@ -14,6 +14,7 @@ import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gam
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { AudioPlayer } from '../../components/story/AudioPlayer';
 
 
 const StoryReaderScreen: React.FC = () => {
@@ -154,13 +155,13 @@ const StoryReaderScreen: React.FC = () => {
   };
 
   const goToChapter = async (index: number) => {
-    console.log('🔄 goToChapter called:', { 
-      index, 
-      totalChapters: story?.chapters?.length, 
+    console.log('🔄 goToChapter called:', {
+      index,
+      totalChapters: story?.chapters?.length,
       storyCompleted,
       isLastChapter: story?.chapters ? index === story.chapters.length - 1 : false
     });
-    
+
     if (!story || index < 0 || index >= story.chapters!.length) return;
 
     setAnimationDirection(index > currentChapterIndex ? 1 : -1);
@@ -297,14 +298,14 @@ const StoryReaderScreen: React.FC = () => {
           length: result.personalityChanges?.length || 0,
           updatedAvatars: result.updatedAvatars
         });
-        
+
         if (result.personalityChanges && result.personalityChanges.length > 0) {
           const { showPersonalityUpdateToast, showSuccessToast } = await import('../../utils/toastUtils');
-          
+
           // First show the completion message immediately
           console.log('🎉 Showing completion toast for', result.updatedAvatars, 'avatars');
           showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
-          
+
           // Then show individual personality updates for each avatar with a delay
           result.personalityChanges.forEach((avatarChange: any, index: number) => {
             console.log(`🔔 Avatar ${index + 1} changes:`, {
@@ -313,7 +314,7 @@ const StoryReaderScreen: React.FC = () => {
               changesLength: avatarChange.changes?.length || 0,
               changes: avatarChange.changes
             });
-            
+
             if (avatarChange.changes && avatarChange.changes.length > 0) {
               setTimeout(() => {
                 console.log(`🔔 Showing personality toast for ${avatarChange.avatarName}:`, avatarChange.changes);
@@ -511,6 +512,11 @@ const StoryReaderScreen: React.FC = () => {
                 >
                   <ChevronLeft className="w-8 h-8" />
                 </motion.button>
+
+                {/* Audio Player */}
+                {currentChapter && (
+                  <AudioPlayer text={currentChapter.content} className="mr-2" />
+                )}
 
                 <div className="flex-1 flex flex-col items-center">
                   <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
