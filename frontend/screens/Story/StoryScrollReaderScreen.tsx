@@ -8,6 +8,8 @@ import { useBackend } from '../../hooks/useBackend';
 import { TracingBeam } from '../../components/ui/tracing-beam';
 import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Story, Chapter } from '../../types/story';
+import { AudioPlayer } from '../../components/story/AudioPlayer';
+
 
 const StoryScrollReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -18,7 +20,7 @@ const StoryScrollReaderScreen: React.FC = () => {
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [isReading, setIsReading] = useState(false);
   const [storyCompleted, setStoryCompleted] = useState(false);
 
@@ -180,14 +182,14 @@ const StoryScrollReaderScreen: React.FC = () => {
       {/* Header with back button */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => isReading ? setIsReading(false) : navigate('/stories')} 
+          <button
+            onClick={() => isReading ? setIsReading(false) : navigate('/stories')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Zurück</span>
           </button>
-          
+
           {isReading && (
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <BookOpen className="w-5 h-5" />
@@ -207,9 +209,9 @@ const StoryScrollReaderScreen: React.FC = () => {
             exit={{ opacity: 0 }}
             className="min-h-screen flex flex-col items-center justify-center p-8 pt-24 text-center"
           >
-            <motion.img 
-              src={story.coverImageUrl || '/placeholder-story.jpg'} 
-              alt={story.title} 
+            <motion.img
+              src={story.coverImageUrl || '/placeholder-story.jpg'}
+              alt={story.title}
               className="w-64 h-64 md:w-80 md:h-80 rounded-2xl shadow-2xl mb-8 object-cover"
               layoutId={`story-cover-${story.id}`}
             />
@@ -219,8 +221,8 @@ const StoryScrollReaderScreen: React.FC = () => {
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mb-10 leading-relaxed">
               {story.summary}
             </p>
-            <motion.button 
-              onClick={startReading} 
+            <motion.button
+              onClick={startReading}
               className="px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transition-all"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -247,10 +249,12 @@ const StoryScrollReaderScreen: React.FC = () => {
                         Kapitel {index + 1}
                       </div>
 
-                      {/* Chapter Title */}
-                      <h2 className="text-3xl md:text-4xl mb-6 font-bold text-gray-800 dark:text-white">
-                        {chapter.title}
-                      </h2>
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">
+                          {chapter.title}
+                        </h2>
+                        <AudioPlayer text={chapter.content} className="ml-4" />
+                      </div>
 
                       {/* Chapter Image */}
                       {chapter.imageUrl && (
@@ -267,7 +271,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                         {chapter.content.split('\n').map((paragraph, pIndex) => (
                           paragraph.trim() && (
                             <div key={`p-${index}-${pIndex}`} className="mb-6">
-                              <TextGradientScroll 
+                              <TextGradientScroll
                                 text={paragraph}
                                 type="word"
                                 textOpacity="soft"
@@ -282,21 +286,20 @@ const StoryScrollReaderScreen: React.FC = () => {
 
                   {/* Completion Button */}
                   <div className="flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600">
-                    <motion.button 
+                    <motion.button
                       onClick={handleStoryCompletion}
                       disabled={storyCompleted}
-                      className={`px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${
-                        storyCompleted 
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 cursor-default' 
-                          : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-purple-500/50 hover:scale-105'
-                      }`}
-                      whileHover={!storyCompleted ? { scale: 1.05 } : {}} 
+                      className={`px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${storyCompleted
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 cursor-default'
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-purple-500/50 hover:scale-105'
+                        }`}
+                      whileHover={!storyCompleted ? { scale: 1.05 } : {}}
                       whileTap={!storyCompleted ? { scale: 0.95 } : {}}
                     >
                       {storyCompleted ? '🎉 Geschichte abgeschlossen!' : '🏁 Geschichte abschließen'}
                     </motion.button>
                     {storyCompleted && (
-                      <motion.p 
+                      <motion.p
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-4 text-gray-600 dark:text-gray-300 text-center"

@@ -12,6 +12,7 @@ import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gam
 import type { Story, Chapter } from '../../types/story';
 import type { InventoryItem, Skill } from '../../types/avatar';
 import { cn } from '../../lib/utils';
+import { AudioPlayer } from '../../components/story/AudioPlayer';
 
 const CinematicStoryViewer: React.FC = () => {
     const { storyId } = useParams<{ storyId: string }>();
@@ -26,7 +27,7 @@ const CinematicStoryViewer: React.FC = () => {
     const [started, setStarted] = useState(false);
     const [storyCompleted, setStoryCompleted] = useState(false);
     const [participants, setParticipants] = useState<any[]>([]);
-    
+
     // Artifact reward display queue
     const [artifactQueue, setArtifactQueue] = useState<{ item: InventoryItem; isUpgrade: boolean }[]>([]);
     const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
@@ -479,7 +480,11 @@ const ChapterSection: React.FC<{
             {/* Chapter Content */}
             <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-16 pb-64">
                 <div className="max-w-3xl mx-auto">
+                    <div className="flex justify-end mb-4">
+                        <AudioPlayer text={chapter.content} className="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md" />
+                    </div>
                     <CinematicText text={chapter.content} />
+
 
                     {onComplete && (
                         <div className="mt-32 flex justify-center">
