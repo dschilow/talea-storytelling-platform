@@ -37,9 +37,10 @@ export const generateSpeech = api(
                 audioData: `data:audio/wav;base64,${base64}`,
             };
 
-        } catch (error) {
-            log.error("Error generating speech", error);
+        } catch (error: any) {
+            log.error("Error generating speech", { error: error.message, cause: error.cause, stack: error.stack });
             throw error;
         }
+
     }
 );
