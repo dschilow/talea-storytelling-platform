@@ -50,7 +50,8 @@ export const generateSpeech = api(
             };
 
         } catch (error: any) {
-            log.error("Error generating speech", { error: error.message, cause: error.cause, stack: error.stack });
+            const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
+            log.error(`TTS fetch failed: ${error.message} | cause: ${causeMsg} | code: ${error.code || "none"} | url: ${TTS_SERVICE_URL}`);
             throw error;
         }
 
