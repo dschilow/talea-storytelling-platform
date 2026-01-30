@@ -76,8 +76,8 @@ export async function buildCastSet(input: {
   for (const slot of roles) {
   if (slot.roleType === "AVATAR") continue;
   if (slot.roleType === "ARTIFACT") continue;
-  // Limit non-required pool characters to maximum 2 to avoid overcrowding scenes
-  if (!slot.required && poolSheets.length >= 2) continue;
+  // Limit non-required pool characters to maximum 4
+  if (!slot.required && poolSheets.length >= 4) continue;
 
     const candidate = await selectCandidateForSlot(slot, pool, used, rng, matchScores);
     if (!candidate) {
@@ -260,15 +260,22 @@ async function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: str
   const resolvedImageUrl = candidate.image_url ? await resolveImageUrlForClient(candidate.image_url) : undefined;
 
   // Build enhanced personality from DB fields (V2)
+  // Priority: V2 columns > emotional_nature JSON > personality_keywords > defaults
+  const emotionalNature = candidate.emotional_nature || {};
   const dominant = candidate.dominant_personality
+    || emotionalNature.dominant
     || candidate.personality_keywords?.[0]
     || "neugierig";
   const secondary = candidate.secondary_traits
+    || emotionalNature.secondary
     || candidate.personality_keywords?.slice(1)
     || [];
   const speechStyle = candidate.speech_style || suggestSpeechStyles(dominant);
   const catchphrase = candidate.catchphrase || undefined;
   const quirk = candidate.quirk || undefined;
+  const emotionalTriggers = candidate.emotional_triggers
+    || emotionalNature.triggers
+    || [];
 
   const dialogueStyleMap: Record<string, EnhancedPersonality["dialogueStyle"]> = {
     "direkt": "casual", "bestimmt": "casual", "warmherzig": "casual",
@@ -283,7 +290,7 @@ async function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: str
     secondary,
     catchphrase,
     speechPatterns: speechStyle,
-    emotionalTriggers: candidate.emotional_triggers || [],
+    emotionalTriggers,
     dialogueStyle,
     quirk,
   };
