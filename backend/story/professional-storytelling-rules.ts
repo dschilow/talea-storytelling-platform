@@ -124,7 +124,7 @@ export const AGE_GROUP_RULES: Record<string, AgeGroupRules> = {
     forbiddenConcepts: ['death', 'war', 'blood', 'violence', 'murder'],
     vocabularyLevel: 'basic',
     abstractionAllowed: false,
-    maxMetaphorsPerChapter: 1,
+    maxMetaphorsPerChapter: 0,
     dialogueMinimum: 2,
   },
   '6-8': {
@@ -136,7 +136,7 @@ export const AGE_GROUP_RULES: Record<string, AgeGroupRules> = {
     forbiddenConcepts: ['explicit violence', 'war', 'horror'],
     vocabularyLevel: 'intermediate',
     abstractionAllowed: false,
-    maxMetaphorsPerChapter: 2,
+    maxMetaphorsPerChapter: 1,
     dialogueMinimum: 3,
   },
   '9-12': {
@@ -148,7 +148,7 @@ export const AGE_GROUP_RULES: Record<string, AgeGroupRules> = {
     forbiddenConcepts: ['explicit violence', 'horror'],
     vocabularyLevel: 'advanced',
     abstractionAllowed: true,
-    maxMetaphorsPerChapter: 4,
+    maxMetaphorsPerChapter: 1,
     dialogueMinimum: 3,
   },
 };
@@ -811,9 +811,12 @@ VERBOTEN fÃ¼r ${rules.ageGroup} Jahre:
 ${rules.abstractionAllowed ? '' : 'â€¢ Keine abstrakten Metaphern wie "Mut ist ein kÃ¼hler Stein"'}
 â€¢ Keine WÃ¶rter Ã¼ber ${rules.maxWordsPerSentence} pro Satz
 â€¢ Maximal ${rules.maxMetaphorsPerChapter} Metaphern pro Kapitel
+â€¢ KEINE poetischen Floskeln (z.B. "Sonne glitt wie Honig", "Worte wie Nebel")
+â€¢ KEINE unnÃ¶tigen Geruchsbeschreibungen ("roch nach...", "duftete nach...")
 ${rules.forbiddenConcepts.map(c => `â€¢ Kein Thema: ${c}`).join('\n')}
 
 PFLICHT:
+â€¢ Konkrete, bodenstÃ¤ndige Sprache ohne SchnÃ¶rkel
 â€¢ Mindestens ${rules.dialogueMinimum} Dialoge pro Kapitel
 â€¢ Konkrete Aktionen statt innerer Monolog
 â€¢ WÃ¶rter die ${rules.ageGroup}-JÃ¤hrige kennen
@@ -927,7 +930,7 @@ LETZTER SATZ jedes Kapitels (1-4) - SPANNUNG:
 PFLICHT pro Kapitel:
    â€¢ Mindestens 1x "plÃ¶tzlich" oder "auf einmal" oder "im nÃ¤chsten Moment"
    â€¢ Mindestens 1x unerwartete Wendung
-   â€¢ Mindestens 3 sensorische Details (EINGEWOBEN, nicht gelistet!)
+   â€¢ Maximal 1 sensorisches Detail (nur wenn absolut notwendig für die Szene!)
 `;
 }
 
@@ -1056,9 +1059,12 @@ FORBIDDEN for ${rules.ageGroup} years:
 ${rules.abstractionAllowed ? '' : 'â€¢ No abstract metaphors like "Courage is a cool stone"'}
 â€¢ No sentences over ${rules.maxWordsPerSentence} words
 â€¢ Maximum ${rules.maxMetaphorsPerChapter} metaphors per chapter
+â€¢ NO poetic flourishes (e.g., "sun like honey", "words like fog")
+â€¢ NO unnecessary sensory/smell descriptions (e.g., "smelled of...", "fragrance of...")
 ${rules.forbiddenConcepts.map(c => `â€¢ No topic: ${c}`).join('\n')}
 
 REQUIRED:
+â€¢ Sincere, grounded language without unnecessary flourishes
 â€¢ At least ${rules.dialogueMinimum} dialogues per chapter
 â€¢ Concrete actions instead of inner monologue
 â€¢ Words that ${rules.ageGroup}-year-olds understand
@@ -1145,7 +1151,7 @@ LAST SENTENCE of each chapter (1-4) - TENSION:
 REQUIRED per chapter:
    â€¢ At least 1x "suddenly" or "all at once" or "in the next moment"
    â€¢ At least 1x unexpected turn
-   â€¢ At least 3 sensory details (WOVEN IN, not listed!)
+   â€¢ Maximum 1 sensory detail (only if absolutely necessary for the scene!)
 `;
 }
 

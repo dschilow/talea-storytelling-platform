@@ -60,6 +60,38 @@ encore db shell avatar
 # Database migrations are automatically run on startup via backend/health/init-migrations.ts
 ```
 
+**⚠️ IMPORTANT: Updating Database on Railway Production**
+
+When you need to modify database values directly on Railway (e.g., config updates, data fixes):
+
+**DO NOT** manually connect to Railway Postgres. **ALWAYS** use the API-based migration endpoint:
+
+```powershell
+# PowerShell command to update database on Railway
+$sql = @"
+YOUR SQL STATEMENT HERE;
+"@
+$body = @{ sql = $sql; migrationName = "descriptive_name" } | ConvertTo-Json
+Invoke-RestMethod -Uri "https://backend-2-production-3de1.up.railway.app/story/run-migration-sql" -Method Post -Body $body -ContentType "application/json"
+```
+
+**Example:**
+```powershell
+$sql = @"
+UPDATE pipeline_config SET value = jsonb_set(value, '{runwareSteps}', '4'), updated_at = CURRENT_TIMESTAMP WHERE key = 'default';
+"@
+$body = @{ sql = $sql; migrationName = "update_runware_steps" } | ConvertTo-Json
+Invoke-RestMethod -Uri "https://backend-2-production-3de1.up.railway.app/story/run-migration-sql" -Method Post -Body $body -ContentType "application/json"
+```
+
+**Why this pattern:**
+- ✅ Safe: Properly handles transactions and errors
+- ✅ Logged: All executions are logged for audit trail
+- ✅ Idempotent: Can run multiple times without issues
+- ✅ No credentials needed: Uses internal API endpoint
+
+See [DatabaseMigrationDoku.md](DatabaseMigrationDoku.md:1) for detailed guide.
+
 ## Architecture
 
 ### Backend Services (Encore.ts Microservices)
