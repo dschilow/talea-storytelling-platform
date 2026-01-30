@@ -489,15 +489,38 @@ Return JSON:
       { role: "system", content: isGerman ? "Du bist eine strenge Lektorin fuer Kontinuitaet." : "You are a strict cohesion editor." },
       { role: "user", content: prompt },
     ],
-    responseFormat: "json_object",
+    // Reasoning models don't support json_object response format
+    responseFormat: isReasoningModel ? undefined : "json_object",
     maxTokens: isReasoningModel ? 5500 : 2200,
     temperature: 0.3,
     context: "story-cohesion",
   });
 
   const parsed = safeJson(result.content);
-  if (!parsed || !Array.isArray(parsed.chapters) || parsed.chapters.length !== chapters.length) {
-    throw new Error("Cohesion pass failed: invalid chapter count");
+  
+  // Log for debugging
+  console.log(`[runCohesionPass] AI response length: ${result.content?.length || 0}`);
+  console.log(`[runCohesionPass] Parsed chapters count: ${parsed?.chapters?.length || 0}, expected: ${chapters.length}`);
+  
+  if (!parsed || !Array.isArray(parsed.chapters)) {
+    console.warn(`[runCohesionPass] Failed to parse cohesion response, returning original chapters`);
+    console.log(`[runCohesionPass] Response preview: ${result.content?.substring(0, 500) || "empty"}`);
+    return chapters; // Return original instead of failing
+  }
+  
+  // If chapter count doesn't match, try to handle gracefully
+  if (parsed.chapters.length !== chapters.length) {
+    console.warn(`[runCohesionPass] Chapter count mismatch: got ${parsed.chapters.length}, expected ${chapters.length}`);
+    
+    // If we got fewer chapters, it might have combined some - return original
+    if (parsed.chapters.length < chapters.length) {
+      console.log(`[runCohesionPass] Returning original chapters due to fewer chapters returned`);
+      return chapters;
+    }
+    
+    // If we got more chapters, take only the expected number
+    console.log(`[runCohesionPass] Taking first ${chapters.length} chapters from response`);
+    parsed.chapters = parsed.chapters.slice(0, chapters.length);
   }
   const normalized = parsed.chapters.map((ch: any, idx: number) => ({
     chapter: typeof ch.chapter === "number" ? ch.chapter : idx + 1,
