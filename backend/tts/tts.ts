@@ -22,7 +22,7 @@ export const generateSpeech = api(
             log.info(`Requesting TTS from ${url} (POST) for text length ${text.length}`);
 
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 120_000); // 120s timeout for long texts
+            const timeout = setTimeout(() => controller.abort(), 300_000); // 5min timeout for long texts
 
             const response = await fetch(url, {
                 method: "POST",

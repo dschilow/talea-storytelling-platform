@@ -15,8 +15,8 @@ RUN pip install piper-tts>=1.2.0
 RUN curl -L "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/de/de_DE/thorsten/high/de_DE-thorsten-high.onnx?download=true" -o /app/model.onnx
 RUN curl -L "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/de/de_DE/thorsten/high/de_DE-thorsten-high.onnx.json?download=true" -o /app/model.onnx.json
 
-# Expose port
-EXPOSE 5000
+# Expose port (Railway sets PORT=8080 dynamically)
+EXPOSE 8080
 
 # Run Piper HTTP server
 # Note: piper-tts module might not have http_server directly exposable via -m in all versions, 
@@ -48,4 +48,4 @@ RUN pip install -r requirements.txt
 
 COPY server.py .
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --timeout 120 --workers 1 server:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 300 --workers 1 server:app"]
