@@ -673,7 +673,7 @@ function resolveEmotionalBeat(
             lustig: "tanzt vor Freude",
             default: "ist erleichtert und glücklich",
         },
-        COZY: { default: undefined },
+        COZY: { default: "fühlt sich wohl" },
         WONDER: { default: "staunt" },
         MYSTERIOUS: { default: "horcht auf" },
         SCARY_LIGHT: {
@@ -692,7 +692,7 @@ function resolveEmotionalBeat(
         FUNNY: { default: "laughs along" },
         SAD: { default: "is moved" },
         TRIUMPH: { default: "is relieved and happy" },
-        COZY: { default: undefined },
+        COZY: { default: "feels cozy" },
         WONDER: { default: "is amazed" },
         MYSTERIOUS: { default: "listens carefully" },
         SCARY_LIGHT: { default: "feels nervous" },
