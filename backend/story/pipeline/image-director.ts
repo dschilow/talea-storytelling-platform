@@ -1,4 +1,4 @@
-﻿import type { CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
+import type { AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { buildRefsForSlots, selectReferenceSlots } from "./reference-images";
@@ -8,33 +8,32 @@ export class TemplateImageDirector implements ImageDirector {
     normalizedRequest: NormalizedRequest;
     cast: CastSet;
     directives: SceneDirective[];
+    aiSceneDescriptions?: AISceneDescription[];
   }): Promise<ImageSpec[]> {
-    const { cast, directives } = input;
+    const { cast, directives, aiSceneDescriptions } = input;
+
+    // Build a lookup map for AI descriptions by chapter number
+    const aiDescMap = new Map<number, AISceneDescription>();
+    if (aiSceneDescriptions) {
+      for (const desc of aiSceneDescriptions) {
+        aiDescMap.set(desc.chapter, desc);
+      }
+    }
 
     return directives.map((directive) => {
       const onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
       const refSlots = selectReferenceSlots(onStageExact, cast);
       const refs = buildRefsForSlots(refSlots, cast);
-      const propsVisible = limitPropsVisible(directive, cast);
       const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...directive.imageAvoid]));
-
       const beatType = inferBeatType(directive);
 
-      const spec: ImageSpec = {
-        chapter: directive.chapter,
-        style: buildStyle(directive, beatType),
-        composition: buildComposition(directive, beatType),
-        blocking: buildBlocking(directive, cast),
-        actions: buildActions(directive, cast),
-        propsVisible,
-        lighting: mapLighting(directive.mood),
-        setting: directive.setting || "",
-        sceneDescription: directive.goal || "",
-        refs,
-        negatives,
-        onStageExact,
-        finalPromptText: "",
-      };
+      const aiDesc = aiDescMap.get(directive.chapter);
+
+      // If AI description is available, use it for dynamic prompts
+      // Otherwise fall back to template-based prompts
+      const spec: ImageSpec = aiDesc
+        ? buildAISpec(directive, cast, aiDesc, onStageExact, refs, negatives)
+        : buildTemplateSpec(directive, cast, beatType, onStageExact, refs, negatives);
 
       spec.finalPromptText = buildFinalPromptText(spec, cast);
 
@@ -42,6 +41,92 @@ export class TemplateImageDirector implements ImageDirector {
     });
   }
 }
+
+// ─── AI-Powered Spec Builder ──────────────────────────────────────────────
+
+function buildAISpec(
+  directive: SceneDirective,
+  cast: CastSet,
+  aiDesc: AISceneDescription,
+  onStageExact: string[],
+  refs: Record<string, string>,
+  negatives: string[],
+): ImageSpec {
+  const propsFromAI = aiDesc.keyProps.slice(0, 7);
+  const propsVisible = mergeProps(propsFromAI, limitPropsVisible(directive, cast));
+
+  // Build blocking from AI character actions
+  const blockingParts = aiDesc.characterActions.map((charAction) => {
+    const name = findName(cast, charAction.slotKey);
+    return `${name} ${charAction.bodyLanguage}, ${charAction.expression}`;
+  });
+  const blocking = blockingParts.join(". ") + ".";
+
+  // Build actions from AI character actions
+  const actionParts = aiDesc.characterActions.map((charAction) => {
+    const name = findName(cast, charAction.slotKey);
+    return `${name} ${charAction.action}`;
+  });
+
+  // Add artifact action if relevant
+  const artifactAction = getArtifactAction(directive, cast, directive.mood || "COZY");
+  if (artifactAction) actionParts.push(artifactAction);
+  const actions = actionParts.join(". ") + ".";
+
+  // Use AI environment for style, with mood texture overlay
+  const mood = directive.mood || "COZY";
+  const texture = getMoodTexture(mood, "CONFLICT");
+  const style = `high-quality children's storybook illustration, ${texture}, ${aiDesc.environment}`;
+
+  // Use AI camera angle for composition, ensure full-body constraint
+  let composition = aiDesc.cameraAngle;
+  if (!composition.toLowerCase().includes("full body") && !composition.toLowerCase().includes("head-to-toe")) {
+    composition += ", full body visible head-to-toe";
+  }
+
+  return {
+    chapter: directive.chapter,
+    style,
+    composition,
+    blocking,
+    actions,
+    propsVisible,
+    lighting: aiDesc.lighting || mapLighting(mood),
+    setting: directive.setting || "",
+    sceneDescription: aiDesc.keyMoment || directive.goal || "",
+    refs,
+    negatives,
+    onStageExact,
+  };
+}
+
+// ─── Template-Based Spec Builder (original fallback) ──────────────────────
+
+function buildTemplateSpec(
+  directive: SceneDirective,
+  cast: CastSet,
+  beatType: string,
+  onStageExact: string[],
+  refs: Record<string, string>,
+  negatives: string[],
+): ImageSpec {
+  return {
+    chapter: directive.chapter,
+    style: buildStyle(directive, beatType),
+    composition: buildComposition(directive, beatType),
+    blocking: buildBlocking(directive, cast),
+    actions: buildActions(directive, cast),
+    propsVisible: limitPropsVisible(directive, cast),
+    lighting: mapLighting(directive.mood),
+    setting: directive.setting || "",
+    sceneDescription: directive.goal || "",
+    refs,
+    negatives,
+    onStageExact,
+  };
+}
+
+// ─── Template Helper Functions (unchanged) ────────────────────────────────
 
 function buildStyle(directive: SceneDirective, beatType: string): string {
   const base = "high-quality children's storybook illustration";
@@ -75,35 +160,35 @@ function buildStyle(directive: SceneDirective, beatType: string): string {
   } else if (setting.includes("lichtung") || setting.includes("clearing") || setting.includes("wiese") || setting.includes("meadow")) {
     environment = "open forest clearing bathed in sunlight";
   } else if (setting) {
-    // Use the setting text directly as environment hint
     environment = setting;
   }
 
-  // Determine texture style based on mood and beat
-  let texture = "watercolor texture, soft lighting";
-  if (mood === "TENSE" || mood === "SCARY_LIGHT") {
-    texture = "dramatic ink wash style, moody shadows";
-  } else if (mood === "MYSTERIOUS") {
-    texture = "ethereal watercolor with glowing highlights, misty edges";
-  } else if (mood === "TRIUMPH") {
-    texture = "vibrant watercolor with golden highlights, celebratory tones";
-  } else if (mood === "FUNNY") {
-    texture = "bright cheerful watercolor, playful cartoon-like details";
-  } else if (mood === "SAD") {
-    texture = "muted watercolor palette, gentle blue-grey tones";
-  } else if (beatType === "CLIMAX") {
-    texture = "dynamic watercolor with bold contrast and vivid colors";
-  }
-
+  const texture = getMoodTexture(mood, beatType);
   const parts = [base, texture];
   if (environment) parts.push(environment);
   return parts.join(", ");
 }
 
+function getMoodTexture(mood: string, beatType: string): string {
+  if (mood === "TENSE" || mood === "SCARY_LIGHT") {
+    return "dramatic ink wash style, moody shadows";
+  } else if (mood === "MYSTERIOUS") {
+    return "ethereal watercolor with glowing highlights, misty edges";
+  } else if (mood === "TRIUMPH") {
+    return "vibrant watercolor with golden highlights, celebratory tones";
+  } else if (mood === "FUNNY") {
+    return "bright cheerful watercolor, playful cartoon-like details";
+  } else if (mood === "SAD") {
+    return "muted watercolor palette, gentle blue-grey tones";
+  } else if (beatType === "CLIMAX") {
+    return "dynamic watercolor with bold contrast and vivid colors";
+  }
+  return "watercolor texture, soft lighting";
+}
+
 function buildComposition(directive: SceneDirective, beatType: string): string {
   const mood = directive.mood || "COZY";
 
-  // Vary camera angle and framing based on beat type
   const compositions: Record<string, string> = {
     SETUP: "wide establishing shot, eye-level, full-body characters visible, environment prominently shown",
     INCITING: "medium-wide shot, slight low angle, characters discovering something, environment partly visible",
@@ -114,7 +199,6 @@ function buildComposition(directive: SceneDirective, beatType: string): string {
 
   let comp = compositions[beatType] || "wide shot, eye-level, full-body characters visible head-to-toe";
 
-  // Mood-specific adjustments
   if (mood === "MYSTERIOUS") {
     comp += ", partially obscured elements, atmospheric depth";
   } else if (mood === "TENSE") {
@@ -138,7 +222,6 @@ function buildBlocking(directive: SceneDirective, cast: CastSet): string {
     return `${name} ${pose} ${position}`;
   });
 
-  // Add interaction direction - characters looking at each other or at a point of interest
   const gazeDirection = getGazeDirection(slots.length, mood, beatType);
 
   return positions.join(", ") + ". " + gazeDirection;
@@ -149,26 +232,21 @@ function buildActions(directive: SceneDirective, cast: CastSet): string {
   const mood = directive.mood || "COZY";
   const beatType = inferBeatType(directive);
 
-  // Get character names
   const characters = slots.map(slot => findName(cast, slot));
   const primary = characters[0];
   const others = characters.slice(1);
 
-  // Build action verbs based on mood and beat type
   const primaryAction = getPrimaryAction(primary, mood, beatType);
   const secondaryActions = others.map((name, idx) => getSecondaryAction(name, idx, mood, beatType));
 
-  // Add artifact interaction if relevant
   const artifactAction = getArtifactAction(directive, cast, mood);
 
-  // Build complete action description
   const allActions = [primaryAction, ...secondaryActions, artifactAction].filter(Boolean);
 
   return allActions.join(" ");
 }
 
 function inferBeatType(directive: SceneDirective): string {
-  // Infer beat type from scene characteristics
   const setting = directive.setting?.toLowerCase() || "";
   const chapter = directive.chapter;
 
@@ -190,9 +268,7 @@ function getDynamicPose(index: number, _total: number, _mood: string, beatType: 
   };
 
   const poseSet = poses[beatType] || poses.CONFLICT;
-  const pose = poseSet[index % poseSet.length];
-
-  return pose;
+  return poseSet[index % poseSet.length];
 }
 
 function getGazeDirection(characterCount: number, _mood: string, beatType: string): string {
@@ -218,7 +294,6 @@ function getGazeDirection(characterCount: number, _mood: string, beatType: strin
     return options[beatType] || "Characters looking at each other.";
   }
 
-  // 3+ characters
   const options: Record<string, string> = {
     SETUP: "The group faces the same direction, ready to begin.",
     INCITING: "All eyes turn toward a new discovery.",
@@ -309,7 +384,6 @@ function getArtifactAction(directive: SceneDirective, cast: CastSet, mood: strin
   const artifactName = cast.artifact?.name;
   if (!artifactName) return "";
 
-  // Check if artifact is required in this scene
   const hasArtifact = directive.charactersOnStage.includes("SLOT_ARTIFACT_1") ||
     directive.artifactUsage?.toLowerCase().includes("rolle") ||
     directive.artifactUsage?.toLowerCase().includes("relevant") ||
@@ -317,7 +391,6 @@ function getArtifactAction(directive: SceneDirective, cast: CastSet, mood: strin
 
   if (!hasArtifact) return "";
 
-  // Generate artifact-specific action
   const artifactActions = [
     `The ${artifactName} glows with magical energy nearby.`,
     `${artifactName} is visible and plays a key role in the scene.`,
@@ -325,7 +398,6 @@ function getArtifactAction(directive: SceneDirective, cast: CastSet, mood: strin
     `${artifactName} helps guide the way forward.`,
   ];
 
-  // Pick based on mood
   const idx = mood === "TRIUMPH" ? 3 : mood === "TENSE" ? 1 : mood === "MYSTERIOUS" ? 0 : 2;
   return artifactActions[idx % artifactActions.length];
 }
@@ -385,6 +457,22 @@ function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
 
   if (requiresArtifact && artifactName && !seen.has(artifactName) && result.length < maxItems) {
     add(artifactName);
+  }
+
+  return result;
+}
+
+function mergeProps(aiProps: string[], templateProps: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  const maxItems = 7;
+
+  for (const prop of [...aiProps, ...templateProps]) {
+    const trimmed = prop.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    if (result.length >= maxItems) break;
+    seen.add(trimmed);
+    result.push(trimmed);
   }
 
   return result;

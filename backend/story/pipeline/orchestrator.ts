@@ -1,5 +1,5 @@
 ﻿import crypto from "crypto";
-import type { AvatarDetail, CastSet, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan } from "./types";
+import type { AvatarDetail, CastSet, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan, AISceneDescription } from "./types";
 import { normalizeRequest } from "./normalizer";
 import { loadStoryBlueprintBase } from "./dna-loader";
 import { createVariantPlan } from "./variant-planner";
@@ -18,6 +18,8 @@ import { runQualityGates } from "./quality-gates";
 import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
+import { generateSceneDescriptions } from "./scene-prompt-generator";
+import { FairyTaleSelector } from "../fairy-tale-selector";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
@@ -93,6 +95,27 @@ export class StoryPipelineOrchestrator {
     let validationReport: any | undefined;
 
     try {
+      // ─── Phase 0.5: Fairy Tale Selection (diversity fix) ───────────────
+      if (normalized.category === "Klassische Märchen" && !normalized.taleId) {
+        try {
+          const selector = new FairyTaleSelector();
+          const selectedTale = await selector.selectBestMatch(input.config, input.avatars.length);
+          if (selectedTale) {
+            normalized.taleId = selectedTale.tale.id;
+            await logPhase("phase0.5-fairy-tale-selection", { storyId: normalized.storyId }, {
+              selectedTaleId: selectedTale.tale.id,
+              selectedTitle: selectedTale.tale.title,
+              matchScore: selectedTale.matchScore,
+              matchReason: selectedTale.matchReason,
+            });
+          } else {
+            console.warn("[pipeline] FairyTaleSelector returned no match, falling back to default tale");
+          }
+        } catch (selectorError) {
+          console.warn("[pipeline] FairyTaleSelector failed, falling back to default tale:", selectorError);
+        }
+      }
+
       const variantSeed = normalized.variantSeed ?? crypto.randomInt(0, 2_147_483_647);
       const phase1Start = Date.now();
       const blueprint = await loadStoryBlueprintBase({ normalized, variantSeed });
@@ -290,6 +313,35 @@ export class StoryPipelineOrchestrator {
         console.warn(`[pipeline] Story accepted with ${storyErrors.length} non-critical quality issues: ${storyErrors.map((i: any) => i.code).join(", ")}`);
       }
 
+      // ─── Phase 6.5: AI Scene Description Generator ───────────────────
+      const phase65Start = Date.now();
+      let aiSceneDescriptions: (AISceneDescription | null)[] = [];
+      try {
+        const sceneResult = await generateSceneDescriptions({
+          chapters: storyDraft.chapters,
+          directives,
+          cast: castSet,
+          language: normalized.language,
+        });
+        aiSceneDescriptions = sceneResult.descriptions;
+        const successCount = aiSceneDescriptions.filter(Boolean).length;
+        await logPhase("phase6.5-scene-prompts", { storyId: normalized.storyId }, {
+          durationMs: Date.now() - phase65Start,
+          totalChapters: storyDraft.chapters.length,
+          aiGenerated: successCount,
+          fallbackToTemplate: storyDraft.chapters.length - successCount,
+        });
+      } catch (sceneGenError) {
+        console.warn("[pipeline] Phase 6.5 failed entirely, all chapters will use default template prompts:", sceneGenError);
+        await logPhase("phase6.5-scene-prompts", { storyId: normalized.storyId }, {
+          durationMs: Date.now() - phase65Start,
+          error: String((sceneGenError as Error)?.message || sceneGenError),
+          fallbackToTemplate: storyDraft.chapters.length,
+        });
+      }
+
+      const validAiDescriptions = aiSceneDescriptions.filter(Boolean) as AISceneDescription[];
+
       const phase7Start = Date.now();
       let imageSpecs = await loadImageSpecs(normalized.storyId);
       const createdImageSpecs = imageSpecs.length === 0;
@@ -298,6 +350,7 @@ export class StoryPipelineOrchestrator {
           normalizedRequest: normalized,
           cast: castSet,
           directives,
+          aiSceneDescriptions: validAiDescriptions.length > 0 ? validAiDescriptions : undefined,
         });
       }
 

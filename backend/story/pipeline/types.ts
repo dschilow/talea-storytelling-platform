@@ -320,6 +320,7 @@ export interface ImageDirector {
     normalizedRequest: NormalizedRequest;
     cast: CastSet;
     directives: SceneDirective[];
+    aiSceneDescriptions?: AISceneDescription[];
   }) => Promise<ImageSpec[]>;
 }
 
@@ -545,6 +546,25 @@ export interface CanonFusionPlanV2 {
     chaptersWithCatchphrases: number[];
     totalDialogueCues: number;
   };
+}
+
+// ─── AI Scene Description (Phase 6.5) ─────────────────────────────────────
+export interface AICharacterAction {
+  slotKey: string;
+  action: string;              // "kneels carefully and reaches toward the glowing stone"
+  expression: string;          // "wide-eyed with wonder, mouth slightly open"
+  bodyLanguage: string;        // "crouching low, one hand extended, other hand on knee"
+}
+
+export interface AISceneDescription {
+  chapter: number;
+  keyMoment: string;           // most visually striking moment from the chapter text
+  characterActions: AICharacterAction[];
+  environment: string;         // detailed environment/background description
+  cameraAngle: string;         // suggested camera angle/framing
+  keyProps: string[];           // important objects visible in scene
+  lighting: string;            // lighting and atmosphere
+  emotionalTone: string;       // emotional quality of the moment
 }
 
 // ─── Pipeline Output Bundle ────────────────────────────────────────────────
