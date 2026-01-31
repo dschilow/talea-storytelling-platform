@@ -80,6 +80,13 @@ function buildAISpec(
 
   // Use AI camera angle for composition, ensure full-body constraint
   let composition = aiDesc.cameraAngle;
+
+  // Sanitize forbidden keywords that cause validation failures
+  const forbidden = ["portrait", "selfie", "close-up", "closeup"];
+  if (forbidden.some(word => composition.toLowerCase().includes(word))) {
+    composition = "medium shot";
+  }
+
   if (!composition.toLowerCase().includes("full body") && !composition.toLowerCase().includes("head-to-toe")) {
     composition += ", full body visible head-to-toe";
   }

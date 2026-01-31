@@ -90,7 +90,7 @@ ${truncatedText}
 Characters: ${characterList}
 
 Return JSON with these exact fields (keep values short, 5-15 words each):
-{"keyMoment":"...", "characterActions":[{"slotKey":"EXACT_SLOT","action":"physical verb phrase","expression":"face","bodyLanguage":"pose"}], "environment":"scene background","cameraAngle":"angle","keyProps":["obj1","obj2"],"lighting":"light desc","emotionalTone":"mood"}
+{"keyMoment":"...", "characterActions":[{"slotKey":"EXACT_SLOT","action":"physical verb phrase","expression":"face","bodyLanguage":"pose"}], "environment":"scene background","cameraAngle":"angle (wide/medium shot only, NO portraits/close-ups)","keyProps":["obj1","obj2"],"lighting":"light desc","emotionalTone":"mood"}
 
 Use exactly these slotKeys: ${slotList}. One entry per character.`;
 
