@@ -276,6 +276,8 @@ export interface ImageSpec {
   actions: string;
   propsVisible: string[];
   lighting: string;
+  setting?: string;
+  sceneDescription?: string;
   refs: Record<string, string>;
   negatives: string[];
   onStageExact: SlotKey[];

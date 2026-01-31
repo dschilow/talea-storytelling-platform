@@ -18,14 +18,18 @@ export class TemplateImageDirector implements ImageDirector {
       const propsVisible = limitPropsVisible(directive, cast);
       const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...directive.imageAvoid]));
 
+      const beatType = inferBeatType(directive);
+
       const spec: ImageSpec = {
         chapter: directive.chapter,
-        style: "high-quality children's storybook illustration, watercolor texture, soft lighting",
-        composition: "wide shot, eye-level, full-body characters visible head-to-toe",
+        style: buildStyle(directive, beatType),
+        composition: buildComposition(directive, beatType),
         blocking: buildBlocking(directive, cast),
         actions: buildActions(directive, cast),
         propsVisible,
         lighting: mapLighting(directive.mood),
+        setting: directive.setting || "",
+        sceneDescription: directive.goal || "",
         refs,
         negatives,
         onStageExact,
@@ -37,6 +41,89 @@ export class TemplateImageDirector implements ImageDirector {
       return spec;
     });
   }
+}
+
+function buildStyle(directive: SceneDirective, beatType: string): string {
+  const base = "high-quality children's storybook illustration";
+  const setting = (directive.setting || "").toLowerCase();
+  const mood = directive.mood || "COZY";
+
+  // Determine environment-specific style keywords
+  let environment = "";
+  if (setting.includes("wald") || setting.includes("forest") || setting.includes("wood")) {
+    environment = "lush forest background with tall trees and foliage";
+  } else if (setting.includes("nebel") || setting.includes("fog") || setting.includes("mist")) {
+    environment = "thick fog and misty atmosphere, limited visibility";
+  } else if (setting.includes("schloss") || setting.includes("burg") || setting.includes("castle") || setting.includes("palace")) {
+    environment = "castle interior with stone walls and arched windows";
+  } else if (setting.includes("garten") || setting.includes("garden")) {
+    environment = "colorful garden with flowers and greenery";
+  } else if (setting.includes("brunnen") || setting.includes("well") || setting.includes("fountain")) {
+    environment = "old stone well or fountain as centerpiece";
+  } else if (setting.includes("speisesaal") || setting.includes("hall") || setting.includes("dining")) {
+    environment = "grand dining hall with long tables and candlelight";
+  } else if (setting.includes("zimmer") || setting.includes("room") || setting.includes("chamber") || setting.includes("schlafgemach")) {
+    environment = "cozy room interior with furniture and warm candlelight";
+  } else if (setting.includes("berg") || setting.includes("mountain") || setting.includes("höhle") || setting.includes("cave")) {
+    environment = "rugged mountain landscape or dark cave entrance";
+  } else if (setting.includes("meer") || setting.includes("see") || setting.includes("sea") || setting.includes("lake") || setting.includes("strand") || setting.includes("beach")) {
+    environment = "water landscape with waves or a calm lake shore";
+  } else if (setting.includes("nacht") || setting.includes("night") || setting.includes("dunkel") || setting.includes("dark")) {
+    environment = "nighttime scene with moonlight and stars";
+  } else if (setting.includes("winter") || setting.includes("schnee") || setting.includes("snow")) {
+    environment = "snowy winter landscape with frost-covered trees";
+  } else if (setting.includes("lichtung") || setting.includes("clearing") || setting.includes("wiese") || setting.includes("meadow")) {
+    environment = "open forest clearing bathed in sunlight";
+  } else if (setting) {
+    // Use the setting text directly as environment hint
+    environment = setting;
+  }
+
+  // Determine texture style based on mood and beat
+  let texture = "watercolor texture, soft lighting";
+  if (mood === "TENSE" || mood === "SCARY_LIGHT") {
+    texture = "dramatic ink wash style, moody shadows";
+  } else if (mood === "MYSTERIOUS") {
+    texture = "ethereal watercolor with glowing highlights, misty edges";
+  } else if (mood === "TRIUMPH") {
+    texture = "vibrant watercolor with golden highlights, celebratory tones";
+  } else if (mood === "FUNNY") {
+    texture = "bright cheerful watercolor, playful cartoon-like details";
+  } else if (mood === "SAD") {
+    texture = "muted watercolor palette, gentle blue-grey tones";
+  } else if (beatType === "CLIMAX") {
+    texture = "dynamic watercolor with bold contrast and vivid colors";
+  }
+
+  const parts = [base, texture];
+  if (environment) parts.push(environment);
+  return parts.join(", ");
+}
+
+function buildComposition(directive: SceneDirective, beatType: string): string {
+  const mood = directive.mood || "COZY";
+
+  // Vary camera angle and framing based on beat type
+  const compositions: Record<string, string> = {
+    SETUP: "wide establishing shot, eye-level, full-body characters visible, environment prominently shown",
+    INCITING: "medium-wide shot, slight low angle, characters discovering something, environment partly visible",
+    CONFLICT: "medium shot, dynamic angle, characters in motion, tense body language",
+    CLIMAX: "dramatic medium-close shot, low angle looking up at characters, intense action moment",
+    RESOLUTION: "wide shot pulling back, warm and open framing, characters together peacefully",
+  };
+
+  let comp = compositions[beatType] || "wide shot, eye-level, full-body characters visible head-to-toe";
+
+  // Mood-specific adjustments
+  if (mood === "MYSTERIOUS") {
+    comp += ", partially obscured elements, atmospheric depth";
+  } else if (mood === "TENSE") {
+    comp += ", tight framing, characters close together";
+  } else if (mood === "TRIUMPH") {
+    comp += ", open expansive framing, upward energy";
+  }
+
+  return comp;
 }
 
 function buildBlocking(directive: SceneDirective, cast: CastSet): string {

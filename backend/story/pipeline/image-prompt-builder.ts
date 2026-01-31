@@ -34,6 +34,16 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
 - no extra people or animals, no background crowds
 ${birdLock}`.trim();
 
+  // Scene setting and environment - critical for unique backgrounds
+  const settingBlock = spec.setting
+    ? `SCENE SETTING AND ENVIRONMENT: ${spec.setting}. The background MUST depict this specific location. Do NOT use a generic garden or park background.`
+    : "";
+
+  // Scene description for narrative context
+  const sceneDescBlock = spec.sceneDescription
+    ? `SCENE NARRATIVE: ${spec.sceneDescription}. The illustration must capture this specific moment and action.`
+    : "";
+
   // Scene composition with blocking
   const sceneBlock = `SCENE COMPOSITION: ${spec.composition}. ${spec.blocking}`;
 
@@ -49,7 +59,7 @@ ${birdLock}`.trim();
 
   const characterBlock = characterDetails ? `CHARACTER DETAILS:\n${characterDetails}` : "";
 
-  return [styleBlock, refBlock, constraints, characterBlock, sceneBlock, actionBlock, propsBlock, lightingBlock]
+  return [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, sceneBlock, actionBlock, propsBlock, lightingBlock]
     .filter(Boolean)
     .join("\n\n");
 }
