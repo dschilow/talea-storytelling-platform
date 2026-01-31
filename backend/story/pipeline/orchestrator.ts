@@ -19,7 +19,6 @@ import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
-import { FairyTaleSelector } from "../fairy-tale-selector";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
@@ -96,23 +95,31 @@ export class StoryPipelineOrchestrator {
 
     try {
       // ─── Phase 0.5: Fairy Tale Selection (diversity fix) ───────────────
+      // Pick a random tale_dna entry directly for story diversity.
+      // The FairyTaleSelector picks from fairy_tales (50 entries) but tale_dna only has ~10,
+      // causing mismatches where the selected tale has no DNA and falls back to Froschkönig.
+      // Solution: pick directly from available tale_dna entries with random rotation.
       if (normalized.category === "Klassische Märchen" && !normalized.taleId) {
         try {
-          const selector = new FairyTaleSelector();
-          const selectedTale = await selector.selectBestMatch(input.config, input.avatars.length);
-          if (selectedTale) {
-            normalized.taleId = selectedTale.tale.id;
+          const randomTale = await storyDB.queryRow<{ tale_id: string; title: string }>`
+            SELECT tale_id, tale_dna->'tale'->>'title' as title
+            FROM tale_dna
+            ORDER BY RANDOM()
+            LIMIT 1
+          `;
+          if (randomTale) {
+            normalized.taleId = randomTale.tale_id;
+            console.log(`[pipeline] Phase 0.5: Selected random TaleDNA: "${randomTale.title}" (${randomTale.tale_id})`);
             await logPhase("phase0.5-fairy-tale-selection", { storyId: normalized.storyId }, {
-              selectedTaleId: selectedTale.tale.id,
-              selectedTitle: selectedTale.tale.title,
-              matchScore: selectedTale.matchScore,
-              matchReason: selectedTale.matchReason,
+              selectedTaleId: randomTale.tale_id,
+              selectedTitle: randomTale.title,
+              method: "random-from-tale-dna",
             });
           } else {
-            console.warn("[pipeline] FairyTaleSelector returned no match, falling back to default tale");
+            console.warn("[pipeline] No tale_dna entries found, using default");
           }
         } catch (selectorError) {
-          console.warn("[pipeline] FairyTaleSelector failed, falling back to default tale:", selectorError);
+          console.warn("[pipeline] Phase 0.5 failed, falling back to default tale:", selectorError);
         }
       }
 

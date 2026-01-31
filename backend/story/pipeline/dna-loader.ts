@@ -89,11 +89,14 @@ async function loadTaleDna(taleId?: string): Promise<{ tale: TaleDNA; roles: Rol
         taleCache.set(taleId, parsed);
         return parsed;
       }
+      // Selected tale has no DNA entry - log this clearly
+      console.warn(`[pipeline] TaleDNA not found for selected tale "${taleId}", picking random from available tale_dna entries`);
     }
 
-    const defaultRow = await storyDB.queryRow<{ tale_dna: any }>`
-      SELECT tale_dna FROM tale_dna
-      ORDER BY tale_id
+    // Fallback: pick a RANDOM tale_dna entry (not always the first one)
+    const defaultRow = await storyDB.queryRow<{ tale_id: string; tale_dna: any }>`
+      SELECT tale_id, tale_dna FROM tale_dna
+      ORDER BY RANDOM()
       LIMIT 1
     `;
     if (defaultRow?.tale_dna) {
@@ -101,6 +104,7 @@ async function loadTaleDna(taleId?: string): Promise<{ tale: TaleDNA; roles: Rol
       if (!parsed) {
         throw new Error("Failed to parse default tale_dna JSON");
       }
+      console.log(`[pipeline] Loaded random fallback TaleDNA: "${parsed?.tale?.title || defaultRow.tale_id}"`);
       if (parsed?.tale?.taleId) {
         taleCache.set(parsed.tale.taleId, parsed);
       }
