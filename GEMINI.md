@@ -57,3 +57,12 @@ The backend's build process will automatically include the built frontend.
 *   Authentication is handled by Clerk.
 *   Database migrations are managed by Encore.
 *   Pub/Sub is used for event-driven analytics and logging.
+
+## User Preferences
+
+*   **Language**: ALWAYS respond in German unless explicitly asked otherwise.
+*   **TTS Integration**:
+    *   TTS Service: Piper (Thorsten Voice) via `tts-service` Docker container.
+    *   Deployment: Railway (Docker + Encore Backend).
+    *   Default Speed: 1.1 (Slower).
+

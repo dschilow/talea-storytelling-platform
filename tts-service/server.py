@@ -155,6 +155,12 @@ def generate_tts():
         else:
             text = request.form.get('text')
             # form handling for params if needed, but JSON is main use case
+            if request.form.get('length_scale'):
+                length_scale = float(request.form.get('length_scale'))
+            if request.form.get('noise_scale'):
+                noise_scale = float(request.form.get('noise_scale'))
+            if request.form.get('noise_w'):
+                noise_w = float(request.form.get('noise_w'))
 
     if not text:
         text = request.args.get('text')

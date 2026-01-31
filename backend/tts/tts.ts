@@ -29,9 +29,15 @@ export const generateSpeech = api(
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ text }),
+                body: JSON.stringify({
+                    text,
+                    length_scale: 1.1, // Slower speed (default is 1.0)
+                    noise_scale: 0.667,
+                    noise_w: 0.8
+                }),
                 signal: controller.signal,
             });
+
 
             clearTimeout(timeout);
 
