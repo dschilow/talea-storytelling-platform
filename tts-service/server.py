@@ -53,9 +53,17 @@ def split_text_into_chunks(text, max_chars=MAX_CHUNK_CHARS):
 
     return chunks
 
-def generate_wav_chunk(text):
+def generate_wav_chunk(text, length_scale=1.0, noise_scale=0.667, noise_w=0.8):
     """Generate WAV audio for a single text chunk using Piper."""
-    cmd = [PIPER_BINARY, "--model", MODEL_PATH, "--output_file", "-"]
+    cmd = [
+        PIPER_BINARY,
+        "--model", MODEL_PATH,
+        "--output_file", "-",
+        "--length_scale", str(length_scale),
+        "--noise_scale", str(noise_scale),
+        "--noise_w", str(noise_w)
+    ]
+
     proc = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE,
@@ -133,20 +141,36 @@ def health():
 def generate_tts():
     # Support both GET (query param) and POST (json or form)
     text = None
+    length_scale = 1.0
+    noise_scale = 0.667
+    noise_w = 0.8
+
     if request.method == 'POST':
         if request.is_json:
-            text = request.json.get('text')
+            data = request.json
+            text = data.get('text')
+            length_scale = float(data.get('length_scale', 1.0))
+            noise_scale = float(data.get('noise_scale', 0.667))
+            noise_w = float(data.get('noise_w', 0.8))
         else:
             text = request.form.get('text')
+            # form handling for params if needed, but JSON is main use case
 
     if not text:
         text = request.args.get('text')
+        # query params also possible
+        if request.args.get('length_scale'):
+            length_scale = float(request.args.get('length_scale'))
+        if request.args.get('noise_scale'):
+            noise_scale = float(request.args.get('noise_scale'))
+        if request.args.get('noise_w'):
+            noise_w = float(request.args.get('noise_w'))
 
     if not text:
         print("Error: No text provided in request", file=sys.stderr)
         return "No text provided", 400
 
-    print(f"Received request for {len(text)} characters", file=sys.stderr)
+    print(f"Request: len={len(text)}, speed={length_scale}, noise={noise_scale}, noise_w={noise_w}", file=sys.stderr)
     start_time = time.time()
 
     try:
@@ -156,7 +180,7 @@ def generate_tts():
         wav_chunks = []
         for i, chunk in enumerate(chunks):
             chunk_start = time.time()
-            wav_data = generate_wav_chunk(chunk)
+            wav_data = generate_wav_chunk(chunk, length_scale, noise_scale, noise_w)
             chunk_time = time.time() - chunk_start
             print(f"  Chunk {i+1}/{len(chunks)}: {len(chunk)} chars -> {len(wav_data)} bytes ({chunk_time:.1f}s)", file=sys.stderr)
             wav_chunks.append(wav_data)
