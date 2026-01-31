@@ -1,8 +1,8 @@
 import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText } from "./types";
 import { callChatCompletion } from "./llm-client";
 
-const MODEL = "gpt-5-nano";
-const MAX_CHAPTER_WORDS = 400;
+const MODEL = "gpt-5-mini";
+const MAX_CHAPTER_WORDS = 300;
 const MAX_RETRIES = 2;
 
 export async function generateSceneDescriptions(input: {
@@ -74,47 +74,25 @@ async function extractSceneDescription(input: {
   onStageNames: string[];
   language: string;
 }): Promise<AISceneDescription> {
-  const { chapter, onStageSlots, onStageNames, language } = input;
+  const { chapter, onStageSlots, onStageNames } = input;
 
   const truncatedText = truncateText(chapter.text, MAX_CHAPTER_WORDS);
-  const characterList = onStageNames.map((name, i) => `${onStageSlots[i]}: ${name}`).join("\n");
+  const characterList = onStageNames.map((name, idx) => `${onStageSlots[idx]}: ${name}`).join(", ");
 
-  const systemPrompt = `You are a visual scene extractor for children's storybook illustrations. Given a story chapter text, extract the single most visually interesting and dynamic moment. Focus on physical actions, body positions, and facial expressions. All output must be in English (for image generation), regardless of the story language.
+  const systemPrompt = `Extract the single most dynamic visual moment from a children's story chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Be concise.`;
 
-IMPORTANT RULES:
-- Characters must be doing something SPECIFIC and PHYSICAL (not just standing/sitting)
-- Each character needs a UNIQUE pose and action (no two characters doing the same thing)
-- Environment must be SPECIFIC to this scene (not generic)
-- Camera angle should enhance the drama of the moment
-- Return valid JSON only, no markdown`;
+  const slotList = onStageSlots.map((s, i) => `"${s}"`).join(", ");
 
-  const userPrompt = `Story chapter ${chapter.chapter}: "${chapter.title}"
+  const userPrompt = `Chapter ${chapter.chapter}: "${chapter.title}"
 
-TEXT (${language}):
 ${truncatedText}
 
-CHARACTERS ON STAGE:
-${characterList}
+Characters: ${characterList}
 
-Extract the most visually striking moment from this chapter text. Return JSON:
-{
-  "keyMoment": "one-sentence description of the key visual moment",
-  "characterActions": [
-    {
-      "slotKey": "SLOT_KEY",
-      "action": "specific physical action verb phrase",
-      "expression": "facial expression description",
-      "bodyLanguage": "full body pose description"
-    }
-  ],
-  "environment": "detailed background/setting description for this specific scene",
-  "cameraAngle": "camera angle and framing suggestion",
-  "keyProps": ["important visible objects"],
-  "lighting": "lighting and atmosphere description",
-  "emotionalTone": "emotional quality word or phrase"
-}
+Return JSON with these exact fields (keep values short, 5-15 words each):
+{"keyMoment":"...", "characterActions":[{"slotKey":"EXACT_SLOT","action":"physical verb phrase","expression":"face","bodyLanguage":"pose"}], "environment":"scene background","cameraAngle":"angle","keyProps":["obj1","obj2"],"lighting":"light desc","emotionalTone":"mood"}
 
-Return one entry per character in characterActions. Use the exact slotKey values provided.`;
+Use exactly these slotKeys: ${slotList}. One entry per character.`;
 
   const result = await callChatCompletion({
     messages: [
@@ -123,12 +101,18 @@ Return one entry per character in characterActions. Use the exact slotKey values
     ],
     model: MODEL,
     responseFormat: "json_object",
-    maxTokens: 800,
+    maxTokens: 1500,
     temperature: 0.6,
     context: "scene-prompt-generator",
   });
 
-  const parsed = JSON.parse(result.content);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(result.content);
+  } catch (parseError) {
+    console.error(`[scene-prompt-generator] Chapter ${chapter.chapter}: JSON parse failed. Raw response (first 500 chars): ${result.content?.substring(0, 500)}`);
+    throw parseError;
+  }
 
   // Ensure characterActions has correct slotKeys
   const characterActions: AICharacterAction[] = onStageSlots.map((slot, i) => {
