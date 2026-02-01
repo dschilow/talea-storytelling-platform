@@ -76,35 +76,52 @@ function buildAISpec(
   // Use AI environment for style, with mood texture overlay
   const mood = directive.mood || "COZY";
   const texture = getMoodTexture(mood, "CONFLICT");
-  const style = `high-quality children's storybook illustration, ${texture}, ${aiDesc.environment}`;
+  
+  // Sanitize environment to remove forbidden portrait-like terms
+  const sanitizedEnvironment = sanitizeForbiddenTerms(aiDesc.environment);
+  const style = `high-quality children's storybook illustration, ${texture}, ${sanitizedEnvironment}`;
 
   // Use AI camera angle for composition, ensure full-body constraint
-  let composition = aiDesc.cameraAngle;
-
-  // Sanitize forbidden keywords that cause validation failures
-  const forbidden = ["portrait", "selfie", "close-up", "closeup"];
-  if (forbidden.some(word => composition.toLowerCase().includes(word))) {
-    composition = "medium shot";
-  }
+  let composition = sanitizeForbiddenTerms(aiDesc.cameraAngle);
 
   if (!composition.toLowerCase().includes("full body") && !composition.toLowerCase().includes("head-to-toe")) {
     composition += ", full body visible head-to-toe";
   }
 
+  // Sanitize all AI-generated text fields to avoid validation failures
+  const sanitizedLighting = sanitizeForbiddenTerms(aiDesc.lighting || mapLighting(mood));
+  const sanitizedKeyMoment = sanitizeForbiddenTerms(aiDesc.keyMoment || directive.goal || "");
+
   return {
     chapter: directive.chapter,
     style,
     composition,
-    blocking,
-    actions,
+    blocking: sanitizeForbiddenTerms(blocking),
+    actions: sanitizeForbiddenTerms(actions),
     propsVisible,
-    lighting: aiDesc.lighting || mapLighting(mood),
+    lighting: sanitizedLighting,
     setting: directive.setting || "",
-    sceneDescription: aiDesc.keyMoment || directive.goal || "",
+    sceneDescription: sanitizedKeyMoment,
     refs,
     negatives,
     onStageExact,
   };
+}
+
+// Removes forbidden portrait-like terms from AI-generated text
+function sanitizeForbiddenTerms(text: string): string {
+  if (!text) return text;
+  const forbidden = ["portrait", "selfie", "close-up", "closeup"];
+  let result = text;
+  for (const word of forbidden) {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    result = result.replace(regex, "medium shot");
+  }
+  // If the entire string was just a forbidden word, return a safe default
+  if (forbidden.some(word => result.toLowerCase().trim() === word)) {
+    return "medium shot";
+  }
+  return result;
 }
 
 // ─── Template-Based Spec Builder (original fallback) ──────────────────────
