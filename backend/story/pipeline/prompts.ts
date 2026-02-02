@@ -72,9 +72,10 @@ STRICTE REGELN:
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze, kindgerecht.
 7) Schreibstil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreiche Satzanfaenge, gelegentlich direkte Rede.
 8) Keine Meta-Aussagen ueber Zugehoerigkeit; zeige Zugehoerigkeit nur durch Handlung. Vermeide Phrasen wie "gehoeren seit jeher" oder "ganz selbstverstaendlich dabei".
-9) Avatare und Nebenfiguren muessen aktiv ins Geschehen eingebunden sein, nicht nur am Rand stehen.
-10) Beende mit einem sanften Ausblick (ausser im letzten Kapitel).
-${strict ? "11) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
+9) Vermeide Standardfloskeln wie "trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Faehigkeit", "spuert die Anspannung".
+10) Avatare und Nebenfiguren muessen aktiv ins Geschehen eingebunden sein, nicht nur am Rand stehen.
+11) Beende mit einem sanften Ausblick (ausser im letzten Kapitel).
+${strict ? "12) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
 
 Gib JSON zurueck:
 { "title": "Kurzer Kapiteltitel", "text": "Kapiteltext" }`;
@@ -106,9 +107,10 @@ STRICT RULES:
 5) Write ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences, age-appropriate.
 6) Children's-book style: vivid imagery, rhythmic flow, varied sentence starts, occasional dialogue.
 7) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
-8) Avatars and supporting characters must be actively involved, not just present.
-9) End with a gentle forward-looking line (except final chapter).
-${strict ? "10) Do not include any instruction text or meta commentary in the output." : ""}
+8) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension".
+9) Avatars and supporting characters must be actively involved, not just present.
+10) End with a gentle forward-looking line (except final chapter).
+${strict ? "11) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
@@ -191,8 +193,9 @@ REGELN:
 3) Keine Meta-Texte oder Anweisungen.
 4) Jede Figur muss handeln oder sprechen.
 5) Keine Meta-Aussagen ueber Zugehoerigkeit; vermeide "gehoeren seit jeher" und "ganz selbstverstaendlich dabei".
-6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze.
-7) Stil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreich.
+6) Vermeide Standardfloskeln wie "trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Faehigkeit", "spuert die Anspannung".
+7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze.
+8) Stil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreich.
 
 ORIGINALTEXT:
 ${originalText}
@@ -223,8 +226,9 @@ RULES:
 3) No meta-instructions.
 4) Every character must act or speak.
 5) Do not state belonging explicitly; avoid phrases like "always been part of this tale".
-6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
-7) Children's-book style: vivid, rhythmic, varied sentence starts.
+6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension".
+7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
+8) Children's-book style: vivid, rhythmic, varied sentence starts.
 
 ORIGINAL TEXT:
 ${originalText}
@@ -376,11 +380,12 @@ QUALITAETS-ANFORDERUNGEN:
 5) CAST-SPERRE: Ausschliesslich die gelisteten Namen verwenden. Keine neuen Eigennamen. Hintergrundfiguren nur unbenannt ("einige Stimmen in der Ferne").
 6) ANTI-WIEDERHOLUNG: Keine fast identischen Saetze in verschiedenen Kapiteln. "Ploetzlich"/"auf einmal" maximal 3x in der ganzen Geschichte. Keine wiederkehrenden Standardmetaphern.
 7) BILDHAFTE SPRACHE: Max 2 Vergleiche/Metaphern pro Kapitel. Konkrete Sinnesdetails bevorzugen (Geraeusche, Gerueche, Temperaturen, kleine Bewegungen) statt poetischer Ueberladung.
-8) SPANNUNGSKURVE: Kapitel 1=Setup, 2=Eskalation, 3=Twist/Irrweg, vorletztes=Hoehepunkt (schwerster Moment), letztes=Loesung+warmes Ende.
-9) ARTEFAKT-ARC:${artifactName ? ` ${artifactName} muss in Kapitel 1-2 eingefuehrt werden, in Kapitel 2-3 scheitern oder missverstanden werden, und in Kapitel 4-5 entscheidend helfen. Mindestens 2 aktive Szenen.` : " Kein Artefakt in dieser Geschichte."}
-10) ENDE: Letztes Kapitel loest den Konflikt, zeigt eine kleine Lehre (nicht predigen), endet mit einem warmen Abschlussbild (z.B. Heimweg, Lachen, Abendlicht). Optional 1 Mini-Teaser (1 Satz).
-11) VERBOTEN: Meta-Saetze ("gehoeren seit jeher", "ganz selbstverstaendlich dabei"), Regieanweisungen, englische Woerter, Anweisungstexte im Output.
-${strict ? "12) EXTRA STRENG: Doppelt pruefen dass kein Anweisungstext in den Output gelangt." : ""}
+8) INTEGRATIONSHINWEISE: FIGUREN-INTEGRATION ist nur Leitplanke. Formuliere Handlungen natuerlich und abwechslungsreich, kopiere keine Hinweise wortwoertlich. Vermeide Standardfloskeln wie "trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Faehigkeit", "spuert die Anspannung", "traurig, aber hoffnungsvoll".
+9) SPANNUNGSKURVE: Kapitel 1=Setup, 2=Eskalation, 3=Twist/Irrweg, vorletztes=Hoehepunkt (schwerster Moment), letztes=Loesung+warmes Ende.
+10) ARTEFAKT-ARC:${artifactName ? ` ${artifactName} muss in Kapitel 1-2 eingefuehrt werden, in Kapitel 2-3 scheitern oder missverstanden werden, und in Kapitel 4-5 entscheidend helfen. Mindestens 2 aktive Szenen.` : " Kein Artefakt in dieser Geschichte."}
+11) ENDE: Letztes Kapitel loest den Konflikt, zeigt eine kleine Lehre (nicht predigen), endet mit einem warmen Abschlussbild (z.B. Heimweg, Lachen, Abendlicht). Optional 1 Mini-Teaser (1 Satz).
+12) VERBOTEN: Meta-Saetze ("gehoeren seit jeher", "ganz selbstverstaendlich dabei"), Regieanweisungen, englische Woerter, Anweisungstexte im Output.
+${strict ? "13) EXTRA STRENG: Doppelt pruefen dass kein Anweisungstext in den Output gelangt." : ""}
 
 ERLAUBTE NAMEN: ${allowedNames || "keine"}
 
@@ -419,11 +424,12 @@ QUALITY REQUIREMENTS:
 5) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
 6) ANTI-REPETITION: No near-identical sentences across chapters. "Suddenly"/"all of a sudden" max 3x total. No recurring stock metaphors.
 7) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
-8) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
-9) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
-10) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
-11) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
-${strict ? "12) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+8) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "sad but hopeful".
+9) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
+10) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
+11) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
+12) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
+${strict ? "13) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
 

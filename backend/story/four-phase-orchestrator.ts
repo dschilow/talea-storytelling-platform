@@ -1978,7 +1978,7 @@ export class FourPhaseOrchestrator {
       const avatarNamesLower = avatarDetails.map(a => this.normalizeNameKey(a.name));
       const supportingCharacters = Array.from(characterAssignments.values())
         .filter(c => !avatarNamesLower.includes(this.normalizeNameKey(c.name))) // Exclude avatars
-        .slice(0, 2) // Include up to 2 main supporting characters
+        .slice(0, 4) // Include up to 4 main supporting characters
         .map(c => this.formatDisplayName(c.name))
         .join(" and ");
 

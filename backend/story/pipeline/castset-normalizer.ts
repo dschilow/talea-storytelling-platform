@@ -18,8 +18,8 @@ const CHARACTER_KEYS = new Set([
 
 export function repairCastSet(input: CastSet): CastSet {
   const avatars = input.avatars.map(sheet => sanitizeCharacterSheet(sheet));
-  // Enforce maximum of 2 pool characters for consistency
-  const poolCharacters = (input.poolCharacters || []).slice(0, 2).map(sheet => sanitizeCharacterSheet(sheet));
+  // Enforce maximum of 4 pool characters for consistency
+  const poolCharacters = (input.poolCharacters || []).slice(0, 4).map(sheet => sanitizeCharacterSheet(sheet));
   const matchScores = sanitizeMatchScores(input.matchScores || []);
 
   return {

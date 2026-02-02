@@ -105,14 +105,14 @@ const ACTION_TEMPLATES_DE: Record<string, Record<string, string[]>> = {
         frech: ["hat einen besonders frechen Plan", "grinst und dreht den Spieß um"],
     },
     PROTAGONIST: {
-        default: ["trifft eine wichtige Entscheidung", "führt die Gruppe an", "löst das Rätsel"],
-        mutig: ["stellt sich der größten Gefahr", "gibt nicht auf, auch wenn es schwer wird"],
-        neugierig: ["entdeckt den entscheidenden Hinweis", "stellt die Frage, die alles verändert"],
+        default: ["setzt einen klaren Schritt in Richtung Lösung", "übernimmt die Führung für einen Moment", "lenkt die Gruppe auf einen wichtigen Hinweis"],
+        mutig: ["stellt sich der größten Gefahr", "geht voran, obwohl es schwer wird"],
+        neugierig: ["spürt einen entscheidenden Hinweis auf", "stellt die Frage, die den Knoten löst"],
     },
     AVATAR: {
-        default: ["trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Fähigkeit"],
+        default: ["setzt eine kleine Idee sofort in Bewegung", "probiert etwas aus und beobachtet die Reaktion", "greift beherzt ein und bringt Bewegung in die Szene"],
         mutig: ["springt mutig ein", "beschützt einen Freund"],
-        neugierig: ["entdeckt etwas Erstaunliches", "probiert etwas Neues aus"],
+        neugierig: ["entdeckt etwas Erstaunliches", "testet etwas Ungewöhnliches"],
         hilfsbereit: ["hilft einem Freund in Not", "teilt großzügig"],
     },
 };
@@ -133,10 +133,10 @@ const ACTION_TEMPLATES_EN: Record<string, Record<string, string[]>> = {
         default: ["plays a trick", "secretly swaps something", "confuses the opponent with a ruse"],
     },
     PROTAGONIST: {
-        default: ["makes a crucial decision", "leads the group", "solves the riddle"],
+        default: ["takes a clear step toward the solution", "briefly leads the group", "points out a key clue"],
     },
     AVATAR: {
-        default: ["makes an important decision", "has a special idea", "shows a new ability"],
+        default: ["puts a small idea into action", "tries something and watches the result", "steps in and moves things forward"],
     },
 };
 
@@ -474,44 +474,44 @@ function createExitPointV2(
 
     const farewellsDE: Record<string, string[]> = {
         mutig: [
-            `${character.displayName} winkt entschlossen und geht weiter`,
-            `${character.displayName} nickt zum Abschied und macht sich auf den Weg`,
+            `${character.displayName} winkt entschlossen und schaut den Weg entlang`,
+            `${character.displayName} nickt zum Abschied und macht sich bereit`,
         ],
         schüchtern: [
-            `${character.displayName} lächelt schüchtern und verschwindet leise`,
-            `${character.displayName} winkt ganz kurz und huscht davon`,
+            `${character.displayName} lächelt schüchtern und bleibt einen Moment stehen`,
+            `${character.displayName} winkt ganz kurz und tritt zur Seite`,
         ],
         lustig: [
-            `${character.displayName} macht noch einen letzten Witz und hüpft davon`,
-            `${character.displayName} ruft lachend "Bis bald!" und ist weg`,
+            `${character.displayName} macht noch einen letzten Witz und klatscht in die Hände`,
+            `${character.displayName} ruft lachend "Bis bald!" und bleibt noch kurz dabei`,
         ],
         grummelig: [
-            `${character.displayName} brummt "Na dann" und trottet davon`,
-            `${character.displayName} dreht sich ohne ein Wort um, hebt aber kurz die Hand`,
+            `${character.displayName} brummt "Na dann" und hebt kurz die Hand`,
+            `${character.displayName} bleibt wortkarg, nickt aber knapp`,
         ],
         default: [
             `${character.displayName} winkt zum Abschied`,
-            `${character.displayName} muss weiter, verspricht aber wiederzukommen`,
-            `${character.displayName} verschwindet leise in der Ferne`,
+            `${character.displayName} muss bald weiter, bleibt aber noch einen Moment`,
+            `${character.displayName} verabschiedet sich und schaut kurz zurück`,
         ],
     };
 
     const farewellsEN: Record<string, string[]> = {
         brave: [
-            `${character.displayName} waves determinedly and moves on`,
+            `${character.displayName} waves determinedly and looks down the path`,
         ],
         shy: [
-            `${character.displayName} smiles shyly and slips away quietly`,
+            `${character.displayName} smiles shyly and lingers for a moment`,
         ],
         funny: [
-            `${character.displayName} cracks one last joke and bounces away`,
+            `${character.displayName} cracks one last joke and claps`,
         ],
         grumpy: [
-            `${character.displayName} grunts "Well then" and trudges off`,
+            `${character.displayName} grunts "Well then" and lifts a hand`,
         ],
         default: [
             `${character.displayName} waves goodbye`,
-            `${character.displayName} has to go, but promises to return`,
+            `${character.displayName} has to go soon, but lingers for a beat`,
         ],
     };
 
@@ -522,8 +522,8 @@ function createExitPointV2(
     const farewell = pool[Math.floor(Math.random() * pool.length)];
 
     const emotionalNotes: Record<string, string> = isGerman
-        ? { mutig: "entschlossen", schüchtern: "leise hoffnungsvoll", lustig: "fröhlich", grummelig: "verborgen warmherzig", default: "traurig aber hoffnungsvoll" }
-        : { brave: "determined", shy: "quietly hopeful", funny: "cheerful", grumpy: "secretly warm", default: "sad but hopeful" };
+        ? { mutig: "entschlossen", schüchtern: "leise zuversichtlich", lustig: "fröhlich", grummelig: "verborgen warmherzig", default: "nachdenklich, aber warm" }
+        : { brave: "determined", shy: "quietly hopeful", funny: "cheerful", grumpy: "secretly warm", default: "thoughtful but warm" };
 
     return {
         chapter,
@@ -654,49 +654,49 @@ function resolveEmotionalBeat(
             mutig: "überwindet die Angst",
             schüchtern: "zittert, aber bleibt standhaft",
             ängstlich: "klammert sich an, findet dann Mut",
-            default: "spürt die Anspannung",
+            default: "hält kurz den Atem an",
         },
         FUNNY: {
             lustig: "ist in seinem Element",
             grummelig: "kann ein Schmunzeln nicht unterdrücken",
-            default: "lacht mit",
+            default: "kichert und schaut zu den anderen",
         },
         SAD: {
             hilfsbereit: "tröstet einen anderen",
             ängstlich: "weint leise",
             mutig: "hält die Tränen zurück",
-            default: "ist betroffen",
+            default: "senkt kurz den Blick",
         },
         TRIUMPH: {
             mutig: "jubelt laut",
             schüchtern: "lächelt still und zufrieden",
             lustig: "tanzt vor Freude",
-            default: "ist erleichtert und glücklich",
+            default: "atmet erleichtert auf",
         },
-        COZY: { default: "fühlt sich wohl" },
-        WONDER: { default: "staunt" },
-        MYSTERIOUS: { default: "horcht auf" },
+        COZY: { default: "entspannt die Schultern" },
+        WONDER: { default: "staunt mit großen Augen" },
+        MYSTERIOUS: { default: "horcht auf und schaut sich um" },
         SCARY_LIGHT: {
             mutig: "stellt sich der Angst",
             ängstlich: "versteckt sich hinter einem Freund",
-            default: "ist nervös",
+            default: "zuckt kurz zusammen, bleibt aber da",
         },
         SCARY_HEAVY: {
             mutig: "schützt die anderen",
-            default: "hat Angst, gibt aber nicht auf",
+            default: "klammert sich kurz fest und hält durch",
         },
     };
 
     const beatsEN: Record<string, Record<string, string>> = {
-        TENSE: { default: "feels the tension" },
-        FUNNY: { default: "laughs along" },
-        SAD: { default: "is moved" },
-        TRIUMPH: { default: "is relieved and happy" },
-        COZY: { default: "feels cozy" },
-        WONDER: { default: "is amazed" },
-        MYSTERIOUS: { default: "listens carefully" },
-        SCARY_LIGHT: { default: "feels nervous" },
-        SCARY_HEAVY: { default: "is scared but doesn't give up" },
+        TENSE: { default: "holds their breath for a beat" },
+        FUNNY: { default: "giggles and glances at the others" },
+        SAD: { default: "lowers their gaze for a moment" },
+        TRIUMPH: { default: "lets out a relieved breath" },
+        COZY: { default: "relaxes their shoulders" },
+        WONDER: { default: "stares wide-eyed in wonder" },
+        MYSTERIOUS: { default: "listens and scans the scene" },
+        SCARY_LIGHT: { default: "flinches, but stays put" },
+        SCARY_HEAVY: { default: "clings briefly and pushes on" },
     };
 
     const beats = isGerman ? beatsDE : beatsEN;
@@ -993,7 +993,7 @@ function generateConcreteActionV1(
             case "HELPER": return "gibt einen wertvollen Tipp";
             case "MENTOR": return "zeigt den richtigen Weg";
             case "COMIC_RELIEF": return "bringt alle zum Lachen";
-            case "PROTAGONIST": case "AVATAR": return "trifft eine wichtige Entscheidung";
+            case "PROTAGONIST": case "AVATAR": return "setzt einen klaren Schritt in Richtung Lösung";
             default: return "tut etwas Sichtbares";
         }
     } else {
@@ -1001,7 +1001,7 @@ function generateConcreteActionV1(
             case "HELPER": return "provides a valuable hint";
             case "MENTOR": return "shows the right path";
             case "COMIC_RELIEF": return "makes everyone laugh";
-            case "PROTAGONIST": case "AVATAR": return "makes an important decision";
+            case "PROTAGONIST": case "AVATAR": return "takes a clear step toward the solution";
             default: return "does something visible";
         }
     }
@@ -1010,8 +1010,8 @@ function generateConcreteActionV1(
 function generateFarewellDE(character: CharacterSheet): string {
     const templates = [
         `${character.displayName} winkt zum Abschied`,
-        `${character.displayName} muss weiter, verspricht aber wiederzukommen`,
-        `${character.displayName} verschwindet leise in der Ferne`,
+        `${character.displayName} muss bald weiter, bleibt aber noch kurz`,
+        `${character.displayName} verabschiedet sich und schaut kurz zurück`,
     ];
     return templates[Math.floor(Math.random() * templates.length)];
 }
@@ -1019,8 +1019,8 @@ function generateFarewellDE(character: CharacterSheet): string {
 function generateFarewellEN(character: CharacterSheet): string {
     const templates = [
         `${character.displayName} waves goodbye`,
-        `${character.displayName} has to go, but promises to return`,
-        `${character.displayName} quietly disappears into the distance`,
+        `${character.displayName} has to go soon, but lingers for a beat`,
+        `${character.displayName} says goodbye and glances back`,
     ];
     return templates[Math.floor(Math.random() * templates.length)];
 }

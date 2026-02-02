@@ -2,7 +2,9 @@ import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, St
 import { callChatCompletion } from "./llm-client";
 
 const MODEL = "gpt-5-mini";
-const MAX_CHAPTER_WORDS = 300;
+const MAX_CHAPTER_WORDS = 360;
+const LEAD_WORDS = 200;
+const TAIL_WORDS = 180;
 const MAX_RETRIES = 2;
 
 export async function generateSceneDescriptions(input: {
@@ -27,6 +29,7 @@ export async function generateSceneDescriptions(input: {
 
       return await extractWithRetry({
         chapter,
+        directive,
         onStageSlots,
         onStageNames,
         language,
@@ -43,6 +46,7 @@ export async function generateSceneDescriptions(input: {
 
 async function extractWithRetry(input: {
   chapter: StoryChapterText;
+  directive: SceneDirective;
   onStageSlots: string[];
   onStageNames: string[];
   language: string;
@@ -70,22 +74,32 @@ async function extractWithRetry(input: {
 
 async function extractSceneDescription(input: {
   chapter: StoryChapterText;
+  directive: SceneDirective;
   onStageSlots: string[];
   onStageNames: string[];
   language: string;
 }): Promise<AISceneDescription> {
-  const { chapter, onStageSlots, onStageNames } = input;
+  const { chapter, directive, onStageSlots, onStageNames } = input;
 
-  const truncatedText = truncateText(chapter.text, MAX_CHAPTER_WORDS);
+  const truncatedText = buildSceneSnippet(chapter.text, MAX_CHAPTER_WORDS, LEAD_WORDS, TAIL_WORDS);
   const characterList = onStageNames.map((name, idx) => `${onStageSlots[idx]}: ${name}`).join(", ");
+  const mustShow = (directive.imageMustShow || []).slice(0, 8).join(", ");
 
-  const systemPrompt = `Extract the single most dynamic visual moment from a children's story chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Be concise.`;
+  const systemPrompt = `Extract the single most dynamic visual moment from a children's story chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters. Be concise.`;
 
   const slotList = onStageSlots.map((s, i) => `"${s}"`).join(", ");
 
   const userPrompt = `Chapter ${chapter.chapter}: "${chapter.title}"
 
 ${truncatedText}
+
+Setting: ${directive.setting}
+Mood: ${directive.mood ?? "COZY"}
+Goal: ${directive.goal}
+Conflict: ${directive.conflict}
+Outcome: ${directive.outcome}
+Artifact usage: ${directive.artifactUsage}
+Must show (visual hints): ${mustShow || "none"}
 
 Characters: ${characterList}
 
@@ -146,10 +160,13 @@ Use exactly these slotKeys: ${slotList}. One entry per character.`;
   };
 }
 
-function truncateText(text: string, maxWords: number): string {
-  const words = text.split(/\s+/);
+function buildSceneSnippet(text: string, maxWords: number, leadWords: number, tailWords: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
   if (words.length <= maxWords) return text;
-  return words.slice(0, maxWords).join(" ") + "...";
+
+  const lead = words.slice(0, leadWords).join(" ");
+  const tail = words.slice(Math.max(leadWords, words.length - tailWords)).join(" ");
+  return `${lead} ... ${tail}`;
 }
 
 function buildCharacterMap(cast: CastSet): Map<string, string> {

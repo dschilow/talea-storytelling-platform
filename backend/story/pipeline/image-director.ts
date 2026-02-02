@@ -76,10 +76,12 @@ function buildAISpec(
   // Use AI environment for style, with mood texture overlay
   const mood = directive.mood || "COZY";
   const texture = getMoodTexture(mood, "CONFLICT");
-  
+
   // Sanitize environment to remove forbidden portrait-like terms
   const sanitizedEnvironment = sanitizeForbiddenTerms(aiDesc.environment);
-  const style = `high-quality children's storybook illustration, ${texture}, ${sanitizedEnvironment}`;
+  const environmentParts = [sanitizedEnvironment, directive.setting].filter(Boolean);
+  const environmentLine = environmentParts.length > 0 ? `, ${environmentParts.join(", ")}` : "";
+  const style = `high-quality children's storybook illustration, ${texture}${environmentLine}`;
 
   // Use AI camera angle for composition, ensure full-body constraint
   let composition = sanitizeForbiddenTerms(aiDesc.cameraAngle);
@@ -90,7 +92,9 @@ function buildAISpec(
 
   // Sanitize all AI-generated text fields to avoid validation failures
   const sanitizedLighting = sanitizeForbiddenTerms(aiDesc.lighting || mapLighting(mood));
-  const sanitizedKeyMoment = sanitizeForbiddenTerms(aiDesc.keyMoment || directive.goal || "");
+  const sanitizedKeyMoment = sanitizeForbiddenTerms(
+    aiDesc.keyMoment || directive.goal || directive.conflict || directive.outcome || ""
+  );
 
   return {
     chapter: directive.chapter,
