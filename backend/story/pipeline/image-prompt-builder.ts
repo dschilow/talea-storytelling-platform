@@ -15,14 +15,22 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const refEntries = Object.entries(spec.refs || {});
   const isCollageMode = refEntries.length > 0 && refEntries.some(([key]) => key.startsWith("position_"));
 
-  const styleBlock = `STYLE: ${spec.style}`;
+  const styleBlock = isCollageMode
+    ? `STYLE: ${spec.style}, no text, no letters, no words, no watermark, no frames, no borders`
+    : `STYLE: ${spec.style}, no text, no letters, no words, no watermark`;
   let refBlock = "";
   if (isCollageMode) {
     const positionLines = refEntries
       .map(([_key, value]) => value)
-      .map((desc, idx) => `Position ${idx + 1} (${desc})`)
+      .map((desc, idx) => `(${idx + 1}) ${desc}`)
       .join("\n");
-    refBlock = `CHARACTER REFERENCE SPRITE (single image, left-to-right):\n${positionLines}\nThe reference image is a horizontal collage. Match each character ONLY by their framed position. Ignore collage backgrounds.`;
+    refBlock = [
+      `REFERENCE IMAGE (IDENTITY ONLY): The reference is a single horizontal strip with ${refEntries.length} portraits ordered LEFT to RIGHT:`,
+      positionLines,
+      `Use the reference ONLY to match each identity (face, hair, signature outfit cues). Ignore the strip layout entirely.`,
+      `Do NOT copy the strip composition. Do NOT make a collage, panels, frames, borders, quadrants, or split-screen.`,
+      `The colored borders in the reference are identification markers only — do NOT reproduce any colored frames, rectangles, or borders in the output image.`,
+    ].join("\n");
   } else if (refEntries.length > 0) {
     const refLines = refEntries.map(([key, value]) => `${key} = ${value}`).join("\n");
     refBlock = `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for face identity. Ignore backgrounds.`;
@@ -36,7 +44,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   // Constraints with explicit action/gaze directions
   const identityLock = refEntries.length > 0
     ? isCollageMode
-      ? "- do not swap identities; match each character to their colored frame position in the reference sprite"
+      ? "- do not swap identities; match each character to their position in the reference strip\n- do NOT draw any frames, borders, rectangles, or colored outlines around or behind characters"
       : "- do not swap identities; match each character to its reference image"
     : "";
 
@@ -48,6 +56,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
 - characters looking at each other or at objects in scene, NOT at camera
 - candid moment, natural poses, dynamic movement
 - no extra people, no background crowds
+- absolutely no text, no letters, no words, no titles, no captions anywhere in the image
 ${hasBird ? "- exactly 1 bird total, no other animals" : "- no extra animals"}
 ${identityLock}`.trim();
 

@@ -1,5 +1,5 @@
 import type { AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective, StoryDraft } from "./types";
-import { GLOBAL_IMAGE_NEGATIVES, MAX_ON_STAGE_CHARACTERS } from "./constants";
+import { COLLAGE_MODE_NEGATIVES, GLOBAL_IMAGE_NEGATIVES, MAX_ON_STAGE_CHARACTERS } from "./constants";
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { buildCollageReference, buildCollageRefsForSlots, buildRefsForSlots, selectReferenceSlots } from "./reference-images";
 import type { CollageResult } from "./sprite-collage";
@@ -40,7 +40,10 @@ export class TemplateImageDirector implements ImageDirector {
         ? buildCollageRefsForSlots(collageResult)
         : buildRefsForSlots(refSlots, cast);
 
-      const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...directive.imageAvoid]));
+      const baseNegatives = collageResult
+        ? [...GLOBAL_IMAGE_NEGATIVES, ...COLLAGE_MODE_NEGATIVES]
+        : GLOBAL_IMAGE_NEGATIVES;
+      const negatives = Array.from(new Set([...baseNegatives, ...directive.imageAvoid]));
       const beatType = inferBeatType(directive);
 
       const aiDesc = aiDescMap.get(directive.chapter);
@@ -83,7 +86,10 @@ export async function buildCoverSpec(input: {
   const refs = collageResult
     ? buildCollageRefsForSlots(collageResult)
     : buildRefsForSlots(refSlots, cast);
-  const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...(directive?.imageAvoid || [])]));
+  const baseCoverNegatives = collageResult
+    ? [...GLOBAL_IMAGE_NEGATIVES, ...COLLAGE_MODE_NEGATIVES]
+    : GLOBAL_IMAGE_NEGATIVES;
+  const negatives = Array.from(new Set([...baseCoverNegatives, ...(directive?.imageAvoid || [])]));
 
   const propsVisible = directive ? limitPropsVisible(directive, cast) : [];
   const artifactName = cast.artifact?.name;

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
@@ -452,6 +452,23 @@ export async function uploadBufferToBucket(
   const config = await pickConfig();
   if (!config || config.uploadMode === "off") return null;
   return await uploadBuffer(config, buffer, contentType, options);
+}
+
+export async function deleteFromBucket(storedUrl: string): Promise<boolean> {
+  if (!storedUrl) return false;
+  const config = await pickConfig();
+  if (!config) return false;
+  const key = extractBucketKey(storedUrl, config);
+  if (!key) return false;
+  try {
+    const client = getClient(config);
+    await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
+    console.log(`[Bucket] Deleted ${key}`);
+    return true;
+  } catch (err) {
+    console.warn("[Bucket] Delete failed:", err);
+    return false;
+  }
 }
 
 export async function isBucketImageUrl(imageUrl: string | undefined): Promise<boolean> {

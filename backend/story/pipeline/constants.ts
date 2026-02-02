@@ -31,8 +31,30 @@ export const GLOBAL_IMAGE_NEGATIVES = [
   "clone",
   "cropped body",
   "text",
+  "letters",
+  "words",
+  "title",
+  "caption",
+  "typography",
   "watermark",
   "logo",
+];
+
+export const COLLAGE_MODE_NEGATIVES = [
+  "collage",
+  "grid",
+  "strip layout",
+  "panels",
+  "storyboard",
+  "split screen",
+  "quadrants",
+  "frame",
+  "border",
+  "multiple images",
+  "colored rectangles",
+  "colored borders",
+  "colored outlines",
+  "picture frame",
 ];
 
 export const REQUIRED_IMAGE_AVOIDS = [

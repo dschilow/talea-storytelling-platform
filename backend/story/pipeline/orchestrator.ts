@@ -13,6 +13,7 @@ import { TemplateImageDirector, buildCoverSpec } from "./image-director";
 import { RunwareImageGenerator } from "./image-generator";
 import { SimpleVisionValidator } from "./vision-validator";
 import { validateAndFixImageSpecs } from "./image-prompt-validator";
+import { cleanupCollages } from "./sprite-collage";
 import { validateCastSet } from "./schema-validator";
 import { runQualityGates } from "./quality-gates";
 import { computeWordBudget } from "./word-budget";
@@ -503,6 +504,11 @@ export class StoryPipelineOrchestrator {
       if (validationReport) {
         await saveValidationReport(normalized.storyId, validationReport);
       }
+
+      // Clean up temporary collage images from bucket storage
+      await cleanupCollages(imageSpecs).catch(err =>
+        console.warn("[pipeline] Collage cleanup failed (non-critical):", err)
+      );
 
       await updateStoryInstanceStatus(normalized.storyId, "complete", null);
 

@@ -1,5 +1,6 @@
 import sharp from "sharp";
-import { uploadBufferToBucket } from "../../helpers/bucket-storage";
+import { uploadBufferToBucket, deleteFromBucket } from "../../helpers/bucket-storage";
+import type { ImageSpec } from "./types";
 
 export const FRAME_COLORS: Array<{ name: string; hex: string }> = [
   { name: "purple", hex: "#8B5CF6" },
@@ -134,6 +135,24 @@ async function createFramedCell(imageBuffer: Buffer, borderColorHex: string): Pr
     .composite([{ input: imageBuffer, left: BORDER_WIDTH, top: BORDER_WIDTH }])
     .png()
     .toBuffer();
+}
+
+/**
+ * Deletes all collage images referenced by the given ImageSpecs from bucket storage.
+ * Call this after all image generation (including retries) is complete.
+ */
+export async function cleanupCollages(specs: ImageSpec[]): Promise<void> {
+  const urls = new Set<string>();
+  for (const spec of specs) {
+    if (spec.collageUrl) urls.add(spec.collageUrl);
+  }
+  if (urls.size === 0) return;
+
+  const results = await Promise.allSettled(
+    [...urls].map(url => deleteFromBucket(url))
+  );
+  const deleted = results.filter(r => r.status === "fulfilled" && r.value).length;
+  console.log(`[sprite-collage] Cleaned up ${deleted}/${urls.size} collage images`);
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
