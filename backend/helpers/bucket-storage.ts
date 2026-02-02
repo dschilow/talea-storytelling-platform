@@ -24,7 +24,7 @@ let cachedClient: S3Client | null | undefined;
 const safeSecret = async (name: string): Promise<string | undefined> => {
   try {
     const { secret } = await import("encore.dev/config");
-    const value = secret(name)();
+    const value = (secret as (key: string) => () => string | undefined)(name)();
     return value ? value.trim() : undefined;
   } catch {
     return undefined;
