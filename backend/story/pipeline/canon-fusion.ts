@@ -56,7 +56,7 @@ const MOTIVATION_MAP_DE: Record<string, string[]> = {
     neugierig: ["will unbedingt wissen, was hier passiert", "kann es kaum erwarten, das Geheimnis zu lüften", "stellt sofort tausend Fragen"],
     mutig: ["will das Abenteuer bestehen", "stellt sich der Herausforderung", "geht als Erste voran"],
     hilfsbereit: ["möchte den anderen helfen", "sieht sofort, wo Hilfe gebraucht wird", "springt ein, ohne zu zögern"],
-    schüchtern: ["beobachtet erst einmal aus der Ferne", "traut sich langsam näher", "flüstert einen wichtigen Hinweis"],
+    schüchtern: ["beobachtet erst einmal aus der Ferne", "traut sich langsam näher", "flüstert, dass sie eine Kerbe entdeckt hat"],
     frech: ["mischt sich ungefragt ein", "hat direkt eine freche Idee", "grinst und prescht vor"],
     weise: ["erkennt sofort das wahre Problem", "wartet geduldig auf den richtigen Moment", "teilt eine alte Weisheit"],
     ängstlich: ["zittert, geht aber trotzdem mit", "klammert sich an einen Freund", "findet Mut in der Gruppe"],
@@ -71,7 +71,7 @@ const MOTIVATION_MAP_EN: Record<string, string[]> = {
     curious: ["wants to know what's happening", "can't wait to uncover the secret", "asks a dozen questions at once"],
     brave: ["wants to face the adventure", "steps forward without hesitation", "leads the way"],
     helpful: ["sees where help is needed", "jumps in without being asked", "reaches out a helping hand"],
-    shy: ["watches from a distance first", "slowly dares to come closer", "whispers an important clue"],
+    shy: ["watches from a distance first", "slowly dares to come closer", "whispers what they noticed on the floor"],
     cheeky: ["barges in uninvited", "has a bold idea right away", "grins and rushes ahead"],
     wise: ["sees the real problem immediately", "waits patiently for the right moment", "shares ancient wisdom"],
     fearful: ["trembles but still comes along", "clings to a friend for support", "finds courage in the group"],
@@ -86,10 +86,10 @@ const MOTIVATION_MAP_EN: Record<string, string[]> = {
 
 const ACTION_TEMPLATES_DE: Record<string, Record<string, string[]>> = {
     HELPER: {
-        default: ["gibt einen wertvollen Tipp", "reicht eine helfende Hand", "zeigt einen versteckten Weg"],
-        neugierig: ["entdeckt einen Hinweis und teilt ihn", "findet ein verstecktes Detail"],
+        default: ["zeigt eine verborgene Spur", "reicht eine helfende Hand", "zeigt einen versteckten Weg"],
+        neugierig: ["entdeckt eine Spur und zeigt sie", "findet ein verstecktes Detail"],
         mutig: ["stellt sich schützend vor die anderen", "geht voran, um den Weg zu prüfen"],
-        schüchtern: ["flüstert einen entscheidenden Hinweis", "zeigt still auf die Lösung"],
+        schüchtern: ["flüstert und deutet auf eine Kerbe", "zeigt still auf die Lösung"],
     },
     MENTOR: {
         default: ["zeigt den richtigen Weg", "erzählt eine alte Weisheit", "stellt die richtige Frage"],
@@ -105,9 +105,9 @@ const ACTION_TEMPLATES_DE: Record<string, Record<string, string[]>> = {
         frech: ["hat einen besonders frechen Plan", "grinst und dreht den Spieß um"],
     },
     PROTAGONIST: {
-        default: ["setzt einen klaren Schritt in Richtung Lösung", "übernimmt die Führung für einen Moment", "lenkt die Gruppe auf einen wichtigen Hinweis"],
+        default: ["setzt einen klaren Schritt in Richtung Lösung", "übernimmt die Führung für einen Moment", "lenkt die Gruppe auf ein verborgenes Detail"],
         mutig: ["stellt sich der größten Gefahr", "geht voran, obwohl es schwer wird"],
-        neugierig: ["spürt einen entscheidenden Hinweis auf", "stellt die Frage, die den Knoten löst"],
+        neugierig: ["spürt eine frische Spur im Staub auf", "stellt eine Frage, die alle auf das gleiche Detail schauen lässt"],
     },
     AVATAR: {
         default: ["setzt eine kleine Idee sofort in Bewegung", "probiert etwas aus und beobachtet die Reaktion", "greift beherzt ein und bringt Bewegung in die Szene"],
@@ -119,8 +119,8 @@ const ACTION_TEMPLATES_DE: Record<string, Record<string, string[]>> = {
 
 const ACTION_TEMPLATES_EN: Record<string, Record<string, string[]>> = {
     HELPER: {
-        default: ["provides a valuable hint", "offers a helping hand", "shows a hidden path"],
-        curious: ["discovers a clue and shares it", "notices a hidden detail"],
+        default: ["points to a hidden trace", "offers a helping hand", "shows a hidden path"],
+        curious: ["spots a trace and shows it", "notices a hidden detail"],
         brave: ["stands protectively in front of others", "goes ahead to check the path"],
     },
     MENTOR: {
@@ -133,7 +133,7 @@ const ACTION_TEMPLATES_EN: Record<string, Record<string, string[]>> = {
         default: ["plays a trick", "secretly swaps something", "confuses the opponent with a ruse"],
     },
     PROTAGONIST: {
-        default: ["takes a clear step toward the solution", "briefly leads the group", "points out a key clue"],
+        default: ["takes a clear step toward the solution", "briefly leads the group", "points out a hidden detail"],
     },
     AVATAR: {
         default: ["puts a small idea into action", "tries something and watches the result", "steps in and moves things forward"],

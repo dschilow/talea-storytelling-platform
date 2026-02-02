@@ -26,9 +26,7 @@ export function validateAndFixImageSpecs(input: {
       spec.onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
     }
     spec.negatives = Array.from(new Set([...(spec.negatives || []), ...GLOBAL_IMAGE_NEGATIVES]));
-    if (!spec.finalPromptText) {
-      spec.finalPromptText = buildFinalPromptText(spec, cast);
-    }
+    spec.finalPromptText = buildFinalPromptText(spec, cast, { forceEnglish: true });
 
     const applyFixes = (current: ImageSpec) => {
       const artifactName = cast.artifact?.name;
@@ -45,7 +43,7 @@ export function validateAndFixImageSpecs(input: {
       }
 
       current.refs = expectedRefs(current, cast);
-      current.finalPromptText = buildFinalPromptText(current, cast);
+      current.finalPromptText = buildFinalPromptText(current, cast, { forceEnglish: true });
       return current;
     };
 

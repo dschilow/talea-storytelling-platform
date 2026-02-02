@@ -1,8 +1,9 @@
 import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
-import { buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, buildTemplatePhraseRewritePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { runQualityGates, buildRewriteInstructions } from "./quality-gates";
+import { findTemplatePhraseMatches } from "./template-phrases";
 
 const MAX_REWRITE_PASSES = 2;
 
@@ -20,6 +21,7 @@ export class LlmStoryWriter implements StoryWriter {
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
     const targetLanguage = normalizedRequest.language === "de" ? "German" : normalizedRequest.language;
     const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.`;
+    const editSystemPrompt = "You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.";
 
     const lengthTargets = normalizedRequest.wordBudget
       ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
@@ -82,6 +84,101 @@ export class LlmStoryWriter implements StoryWriter {
       wordBudget: normalizedRequest.wordBudget,
     });
 
+    const applyTargetedEdits = async (draftInput: StoryDraft): Promise<{ draft: StoryDraft; usage?: TokenUsage; changed: boolean }> => {
+      const hardMin = getHardMinChapterWords(draftInput, normalizedRequest.wordBudget);
+      const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
+      let changed = false;
+      let usage: TokenUsage | undefined;
+
+      for (let i = 0; i < updatedChapters.length; i++) {
+        const chapter = updatedChapters[i];
+        const directive = directives.find(d => d.chapter === chapter.chapter);
+        if (!directive) continue;
+
+        const wordCount = countWords(chapter.text);
+        const sentenceCount = splitSentences(chapter.text).length;
+        const templateMatches = findTemplatePhraseMatches(chapter.text, normalizedRequest.language);
+        const needsExpand = Boolean((hardMin && wordCount < hardMin) || sentenceCount < 3);
+        const needsTemplateFix = templateMatches.length > 0;
+        if (!needsExpand && !needsTemplateFix) continue;
+
+        const prevContext = i > 0 ? getEdgeContext(updatedChapters[i - 1]?.text || "", "end") : "";
+        const nextContext = i < updatedChapters.length - 1 ? getEdgeContext(updatedChapters[i + 1]?.text || "", "start") : "";
+
+        const prompt = needsExpand
+          ? buildChapterExpansionPrompt({
+              chapter: directive,
+              cast,
+              dna,
+              language: normalizedRequest.language,
+              ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+              tone: normalizedRequest.requestedTone,
+              lengthTargets,
+              stylePackText,
+              originalText: chapter.text,
+              previousContext: prevContext,
+              nextContext,
+            })
+          : buildTemplatePhraseRewritePrompt({
+              chapter: directive,
+              cast,
+              dna,
+              language: normalizedRequest.language,
+              ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+              tone: normalizedRequest.requestedTone,
+              lengthTargets,
+              stylePackText,
+              originalText: chapter.text,
+              phraseLabels: templateMatches.map(m => m.label),
+            });
+
+        const maxTokens = Math.min(2000, Math.round(Math.max(600, lengthTargets.wordMax * 2.5)));
+        try {
+          const result = await callChatCompletion({
+            model,
+            messages: [
+              { role: "system", content: editSystemPrompt },
+              { role: "user", content: prompt },
+            ],
+            responseFormat: "json_object",
+            maxTokens,
+            temperature: 0.4,
+            context: needsExpand ? `story-writer-expand-chapter-${chapter.chapter}` : `story-writer-template-fix-${chapter.chapter}`,
+          });
+
+          if (result.usage) {
+            usage = mergeUsage(usage, result.usage, model);
+          }
+
+          const parsed = safeJson(result.content);
+          if (parsed?.text) {
+            chapter.text = String(parsed.text);
+            if (parsed.title) chapter.title = String(parsed.title);
+            changed = true;
+          }
+        } catch (error) {
+          console.warn(`[story-writer] Targeted edit failed for chapter ${chapter.chapter}`, error);
+        }
+      }
+
+      return { draft: { ...draftInput, chapters: updatedChapters }, usage, changed };
+    };
+
+    const targetedBefore = await applyTargetedEdits(draft);
+    if (targetedBefore.changed) {
+      draft = targetedBefore.draft;
+      if (targetedBefore.usage) {
+        totalUsage = mergeUsage(totalUsage, targetedBefore.usage, model);
+      }
+      qualityReport = runQualityGates({
+        draft,
+        directives,
+        cast,
+        language: normalizedRequest.language,
+        wordBudget: normalizedRequest.wordBudget,
+      });
+    }
+
     let rewriteAttempt = 0;
     while (qualityReport.failedGates.length > 0 && rewriteAttempt < MAX_REWRITE_PASSES) {
       rewriteAttempt++;
@@ -143,6 +240,26 @@ export class LlmStoryWriter implements StoryWriter {
       if (qualityReport.failedGates.length === 0) {
         console.log(`[story-writer] All quality gates passed after rewrite pass ${rewriteAttempt}`);
         break;
+      }
+    }
+
+    const needsFinalTargeted = qualityReport.issues.some(issue =>
+      issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "TEMPLATE_PHRASE"
+    );
+    if (needsFinalTargeted) {
+      const targetedAfter = await applyTargetedEdits(draft);
+      if (targetedAfter.changed) {
+        draft = targetedAfter.draft;
+        if (targetedAfter.usage) {
+          totalUsage = mergeUsage(totalUsage, targetedAfter.usage, model);
+        }
+        qualityReport = runQualityGates({
+          draft,
+          directives,
+          cast,
+          language: normalizedRequest.language,
+          wordBudget: normalizedRequest.wordBudget,
+        });
       }
     }
 
@@ -272,4 +389,29 @@ function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, mode
     outputCostUSD: costs.outputCostUSD,
     totalCostUSD: costs.totalCostUSD,
   };
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function splitSentences(text: string): string[] {
+  return text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+}
+
+function getEdgeContext(text: string, edge: "start" | "end", maxSentences = 1): string {
+  const sentences = splitSentences(text);
+  if (sentences.length === 0) return "";
+  if (edge === "start") {
+    return sentences.slice(0, maxSentences).join(" ");
+  }
+  return sentences.slice(Math.max(0, sentences.length - maxSentences)).join(" ");
+}
+
+function getHardMinChapterWords(draft: StoryDraft, wordBudget?: import("./word-budget").WordBudget): number | null {
+  if (!wordBudget) return null;
+  const chapterCount = draft.chapters.length;
+  const isMediumOrLong = wordBudget.minMinutes >= 8;
+  if (chapterCount === 5 && isMediumOrLong) return 180;
+  return null;
 }

@@ -1,6 +1,7 @@
 import type { CastSet, SceneDirective, StoryDraft, ArtifactArcPlan } from "./types";
 import type { WordBudget } from "./word-budget";
 import { ALL_BANNED_PHRASES } from "./canon-fusion";
+import { findTemplatePhraseMatches } from "./template-phrases";
 
 export interface QualityIssue {
   gate: string;
@@ -23,6 +24,7 @@ function gateLengthAndPacing(draft: StoryDraft, wordBudget?: WordBudget): Qualit
   if (!wordBudget) return issues;
 
   const totalWords = draft.chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+  const hardMin = getHardMinChapterWords(draft, wordBudget);
 
   if (totalWords < wordBudget.minWords) {
     issues.push({
@@ -44,7 +46,15 @@ function gateLengthAndPacing(draft: StoryDraft, wordBudget?: WordBudget): Qualit
 
   for (const ch of draft.chapters) {
     const wc = countWords(ch.text);
-    if (wc < wordBudget.minWordsPerChapter) {
+    if (hardMin && wc < hardMin) {
+      issues.push({
+        gate: "LENGTH_PACING",
+        chapter: ch.chapter,
+        code: "CHAPTER_TOO_SHORT_HARD",
+        message: `Chapter ${ch.chapter}: ${wc} words, hard minimum ${hardMin}`,
+        severity: "ERROR",
+      });
+    } else if (wc < wordBudget.minWordsPerChapter) {
       issues.push({
         gate: "LENGTH_PACING",
         chapter: ch.chapter,
@@ -75,7 +85,17 @@ function gateChapterStructure(draft: StoryDraft, language: string): QualityIssue
     const text = ch.text;
     const sentences = splitSentences(text);
 
-    if (sentences.length < 5) {
+    if (sentences.length < 3) {
+      issues.push({
+        gate: "CHAPTER_STRUCTURE",
+        chapter: ch.chapter,
+        code: "CHAPTER_PLACEHOLDER",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Nur ${sentences.length} Saetze, Kapitel wirkt wie Platzhalter`
+          : `Chapter ${ch.chapter}: Only ${sentences.length} sentences, chapter reads like a placeholder`,
+        severity: "ERROR",
+      });
+    } else if (sentences.length < 5) {
       issues.push({
         gate: "CHAPTER_STRUCTURE",
         chapter: ch.chapter,
@@ -245,14 +265,15 @@ function gateCastLock(
       const parts = name.split(/\s+/);
       if (parts.some(p => allowedNames.has(p))) continue;
 
+      const isActor = isLikelyCharacterAction(ch.text, match[1]);
       issues.push({
         gate: "CAST_LOCK",
         chapter: ch.chapter,
-        code: "UNLOCKED_CHARACTER",
+        code: isActor ? "UNLOCKED_CHARACTER_ACTOR" : "UNLOCKED_CHARACTER",
         message: isDE
           ? `Neuer Eigenname "${match[1]}" nicht in der erlaubten Figurenliste`
           : `New proper name "${match[1]}" not in allowed character list`,
-        severity: "WARNING",
+        severity: isActor ? "ERROR" : "WARNING",
       });
     }
   }
@@ -313,6 +334,29 @@ function gateRepetitionLimiter(draft: StoryDraft, language: string): QualityIssu
         break;
       }
     }
+  }
+
+  return issues;
+}
+
+// Gate 7.5: Template Phrase Ban
+function gateTemplatePhrases(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  for (const ch of draft.chapters) {
+    const matches = findTemplatePhraseMatches(ch.text, language);
+    if (matches.length === 0) continue;
+    const labels = matches.map(m => m.label).join(", ");
+    issues.push({
+      gate: "TEMPLATE_PHRASES",
+      chapter: ch.chapter,
+      code: "TEMPLATE_PHRASE",
+      message: isDE
+        ? `Template-Phrasen gefunden: ${labels}`
+        : `Template phrases detected: ${labels}`,
+      severity: "ERROR",
+    });
   }
 
   return issues;
@@ -748,6 +792,7 @@ export function runQualityGates(input: {
     { name: "CHARACTER_INTEGRATION", fn: () => gateCharacterIntegration(draft, directives, cast, language) },
     { name: "CAST_LOCK", fn: () => gateCastLock(draft, cast, language) },
     { name: "REPETITION_LIMITER", fn: () => gateRepetitionLimiter(draft, language) },
+    { name: "TEMPLATE_PHRASES", fn: () => gateTemplatePhrases(draft, language) },
     { name: "IMAGERY_BALANCE", fn: () => gateImageryBalance(draft, language) },
     { name: "TENSION_ARC", fn: () => gateTensionArc(draft, language) },
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
@@ -819,6 +864,14 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function getHardMinChapterWords(draft: StoryDraft, wordBudget?: WordBudget): number | null {
+  if (!wordBudget) return null;
+  const chapterCount = draft.chapters.length;
+  const isMediumOrLong = wordBudget.minMinutes >= 8;
+  if (chapterCount === 5 && isMediumOrLong) return 180;
+  return null;
+}
+
 function splitSentences(text: string): string[] {
   return text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
 }
@@ -856,6 +909,21 @@ function checkCharacterHasAction(text: string, name: string): boolean {
   ];
 
   return actionPatterns.some(p => p.test(text));
+}
+
+function isLikelyCharacterAction(text: string, name: string): boolean {
+  if (!text || !name) return false;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const verbs = [
+    "sagte", "rief", "fragte", "antwortete", "meinte", "fluest", "flÃ¼sterte", "murmelte", "schrie", "lachte", "nickte",
+    "said", "asked", "replied", "answered", "called", "whispered", "muttered", "shouted", "laughed", "nodded",
+  ].join("|");
+
+  const actionPattern = new RegExp(`${escaped}[^.!?]{0,40}\\b(${verbs})\\b|\\b(${verbs})\\b[^.!?]{0,40}${escaped}`, "i");
+  if (actionPattern.test(text)) return true;
+
+  const quotePattern = new RegExp(`[""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB][^""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB]{0,120}${escaped}|${escaped}[^""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB]{0,120}[""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB]`, "i");
+  return quotePattern.test(text);
 }
 
 function findCharacterName(cast: CastSet, slotKey: string): string | null {

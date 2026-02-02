@@ -85,8 +85,8 @@ function buildAISpec(
 
   // Sanitize environment to remove forbidden portrait-like terms
   const sanitizedEnvironment = sanitizeForbiddenTerms(aiDesc.environment);
-  const includeSetting = language === "en";
-  const environmentParts = includeSetting ? [sanitizedEnvironment, directive.setting].filter(Boolean) : [sanitizedEnvironment].filter(Boolean);
+  const normalizedSetting = directive.setting ? toEnglish(directive.setting) : "";
+  const environmentParts = [sanitizedEnvironment, normalizedSetting].filter(Boolean);
   const environmentLine = environmentParts.length > 0 ? `, ${environmentParts.join(", ")}` : "";
   const style = `high-quality children's storybook illustration, ${texture}${environmentLine}`;
 
@@ -111,7 +111,7 @@ function buildAISpec(
     actions: sanitizeForbiddenTerms(actions),
     propsVisible,
     lighting: sanitizedLighting,
-    setting: language === "en" ? (directive.setting || "") : sanitizedEnvironment,
+    setting: normalizedSetting || sanitizedEnvironment,
     sceneDescription: sanitizedKeyMoment,
     refs,
     negatives,
@@ -149,6 +149,7 @@ function buildTemplateSpec(
   const fallbackDescription = language === "en"
     ? directive.goal || directive.conflict || directive.outcome || ""
     : buildEnglishFallbackDescription(directive, cast);
+  const normalizedSetting = directive.setting ? toEnglish(directive.setting) : "";
 
   return {
     chapter: directive.chapter,
@@ -158,7 +159,7 @@ function buildTemplateSpec(
     actions: buildActions(directive, cast),
     propsVisible: limitPropsVisible(directive, cast),
     lighting: mapLighting(directive.mood),
-    setting: language === "en" ? (directive.setting || "") : "",
+    setting: normalizedSetting,
     sceneDescription: fallbackDescription,
     refs,
     negatives,
@@ -170,7 +171,7 @@ function buildTemplateSpec(
 
 function buildStyle(directive: SceneDirective, beatType: string): string {
   const base = "high-quality children's storybook illustration";
-  const setting = (directive.setting || "").toLowerCase();
+  const setting = toEnglish(directive.setting || "").toLowerCase();
   const mood = directive.mood || "COZY";
 
   // Determine environment-specific style keywords
@@ -372,7 +373,7 @@ function getPrimaryAction(name: string, mood: string, beatType: string): string 
       FUNNY: `${name} gets into a comical situation`,
     },
     CLIMAX: {
-      COZY: `${name} makes an important decision`,
+      COZY: `${name} steps forward to try a new plan`,
       TENSE: `${name} confronts the biggest challenge`,
       MYSTERIOUS: `${name} discovers the truth`,
       TRIUMPH: `${name} achieves a breakthrough`,
@@ -545,8 +546,10 @@ function toEnglish(text: string): string {
   let result = text;
 
   // Normalize common German umlauts to ASCII
-  result = result.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+  result = result.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/gi, "ue").replace(/ß/g, "ss");
   result = result.replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue");
+  result = result.replace(/\u00e4/g, "ae").replace(/\u00f6/g, "oe").replace(/\u00fc/gi, "ue").replace(/\u00df/g, "ss");
+  result = result.replace(/\u00c4/g, "Ae").replace(/\u00d6/g, "Oe").replace(/\u00dc/g, "Ue");
 
   const replacements: Array<[RegExp, string]> = [
     [/\bkinderzimmer\b/gi, "nursery"],
@@ -566,7 +569,11 @@ function toEnglish(text: string): string {
     [/\bnebelwald\b/gi, "misty forest"],
     [/\bwinterwald\b/gi, "winter forest"],
     [/\bherbstwald\b/gi, "autumn forest"],
+    [/\bherbst\b/gi, "autumn"],
     [/\bschloss\b/gi, "castle"],
+    [/\bburg\b/gi, "castle"],
+    [/\bunterwasserpalast\b/gi, "underwater palace"],
+    [/\bpalast\b/gi, "palace"],
     [/\bthronsaal\b/gi, "throne hall"],
     [/\bstrasse\b/gi, "street"],
     [/\bhauptstrasse\b/gi, "main street"],
@@ -576,7 +583,18 @@ function toEnglish(text: string): string {
     [/\bwind\b/gi, "wind"],
     [/\bnacht\b/gi, "night"],
     [/\btag\b/gi, "day"],
+    [/\bsturmstrand\b/gi, "stormy beach"],
     [/\bsturm\b/gi, "storm"],
+    [/\bstrand\b/gi, "beach"],
+    [/\bkueste\b/gi, "coast"],
+    [/\bk\u00fcste\b/gi, "coast"],
+    [/\bmeer\b/gi, "sea"],
+    [/\bunterwasser\b/gi, "underwater"],
+    [/\bhoehle\b/gi, "cave"],
+    [/\bh\u00f6hle\b/gi, "cave"],
+    [/\bklippe\b/gi, "cliff"],
+    [/\binsel\b/gi, "island"],
+    [/\bzauberstab\b/gi, "magic wand"],
   ];
 
   for (const [pattern, replacement] of replacements) {
@@ -596,3 +614,5 @@ function buildEnglishFallbackDescription(directive: SceneDirective, cast: CastSe
   const setting = directive.setting ? `in ${toEnglish(directive.setting)}` : "in the scene";
   return `A key moment ${setting} with ${characterNames} acting together.`;
 }
+
+

@@ -85,7 +85,7 @@ async function extractSceneDescription(input: {
   const characterList = onStageNames.map((name, idx) => `${onStageSlots[idx]}: ${name}`).join(", ");
   const mustShow = (directive.imageMustShow || []).slice(0, 8).join(", ");
 
-  const systemPrompt = `Extract the single most dynamic visual moment from a children's story chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters. Be concise.`;
+  const systemPrompt = `Extract the single most dynamic visual moment from a children's story chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters. Use only details explicitly present in the chapter text or directives. If "Must show" items are provided, include them in keyProps or environment. Be concise.`;
 
   const slotList = onStageSlots.map((s, i) => `"${s}"`).join(", ");
 
