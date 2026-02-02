@@ -25,7 +25,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
       .map((desc, idx) => `(${idx + 1}) ${desc}`)
       .join("\n");
     refBlock = [
-      `REFERENCE IMAGE (IDENTITY ONLY): The reference is a single horizontal strip with ${refEntries.length} portraits ordered LEFT to RIGHT:`,
+      `REFERENCE IMAGE (IDENTITY ONLY): The reference is a single horizontal strip with ${refEntries.length} faces ordered LEFT to RIGHT:`,
       positionLines,
       `Use the reference ONLY to match each identity (face, hair, signature outfit cues). Ignore the strip layout entirely.`,
       `Do NOT copy the strip composition. Do NOT make a collage, panels, frames, borders, quadrants, or split-screen.`,
@@ -90,9 +90,11 @@ ${identityLock}`.trim();
     ? "LANGUAGE: All prompt text must be interpreted as English. If any non-English word appears, translate it to English before rendering."
     : "";
 
-  return [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, stagingOrder, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard]
+  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, stagingOrder, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard]
     .filter(Boolean)
     .join("\n\n");
+
+  return sanitizeForbiddenTerms(combined);
 }
 
 function findCharacterName(cast: CastSet, slotKey: string): string | null {
@@ -116,4 +118,15 @@ function buildCharacterDetail(cast: CastSet, slotKey: string): string | null {
 function containsBirdToken(text: string): boolean {
   const value = text.toLowerCase();
   return ["bird", "sparrow", "spatz", "vogel"].some(token => value.includes(token));
+}
+
+function sanitizeForbiddenTerms(text: string): string {
+  if (!text) return text;
+  const forbidden = ["portrait", "selfie", "close-up", "closeup"];
+  let result = text;
+  for (const word of forbidden) {
+    const regex = new RegExp(word, "gi");
+    result = result.replace(regex, "medium shot");
+  }
+  return result;
 }
