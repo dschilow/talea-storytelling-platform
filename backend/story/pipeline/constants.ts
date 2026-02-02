@@ -54,6 +54,17 @@ export const COLLAGE_MODE_NEGATIVES = [
   "colored rectangles",
   "colored borders",
   "colored outlines",
+  "colored halo",
+  "halo",
+  "face badge",
+  "head badge",
+  "avatar frame",
+  "profile badge",
+  "floating head",
+  "headshot",
+  "face bubble",
+  "colored shape behind head",
+  "color label",
   "picture frame",
 ];
 

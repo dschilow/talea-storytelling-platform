@@ -70,7 +70,7 @@ export function buildCollageRefsForSlots(
   const refs: Record<string, string> = {};
   for (const pos of collageResult.positions) {
     const key = `position_${pos.index + 1}`;
-    refs[key] = `${pos.color.name} frame — match face identity ONLY of ${pos.displayName}`;
+    refs[key] = `${pos.color.name} marker (reference only) — match face identity ONLY of ${pos.displayName}`;
   }
   return refs;
 }
@@ -78,3 +78,4 @@ export function buildCollageRefsForSlots(
 function getSheet(cast: CastSet, slotKey: string) {
   return cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
 }
+

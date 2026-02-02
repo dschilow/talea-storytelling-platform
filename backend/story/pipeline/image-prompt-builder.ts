@@ -28,8 +28,8 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
       `REFERENCE IMAGE (IDENTITY ONLY): The reference is a single horizontal strip with ${refEntries.length} faces ordered LEFT to RIGHT:`,
       positionLines,
       `Use the reference ONLY to match each identity (face, hair, signature outfit cues). Ignore the strip layout entirely.`,
-      `Do NOT copy the strip composition. Do NOT make a collage, panels, frames, borders, quadrants, or split-screen.`,
-      `The colored borders in the reference are identification markers only — do NOT reproduce any colored frames, rectangles, or borders in the output image.`,
+      `Do NOT copy the strip composition. Do NOT make a collage, panels, split-screen, or multi-image layout.`,
+      `Any colored guides in the reference are identification markers only — do NOT reproduce any guides, shapes, halos, badges, or overlays in the output image.`,
     ].join("\n");
   } else if (refEntries.length > 0) {
     const refLines = refEntries.map(([key, value]) => `${key} = ${value}`).join("\n");
@@ -44,7 +44,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   // Constraints with explicit action/gaze directions
   const identityLock = refEntries.length > 0
     ? isCollageMode
-      ? "- do not swap identities; match each character to their position in the reference strip\n- do NOT draw any frames, borders, rectangles, or colored outlines around or behind characters"
+      ? "- do not swap identities; match each character to their position in the reference strip\n- NO overlays: no frames, borders, colored halos, badges, boxes, or shapes around faces or behind characters"
       : "- do not swap identities; match each character to its reference image"
     : "";
 
