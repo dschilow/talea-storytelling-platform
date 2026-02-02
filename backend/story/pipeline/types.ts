@@ -31,7 +31,18 @@ export interface RoleSlot {
 }
 
 export type BeatType = "SETUP" | "INCITING" | "CONFLICT" | "TWIST" | "CLIMAX" | "RESOLUTION" | "EPILOGUE";
-export type Mood = "COZY" | "WONDER" | "FUNNY" | "TENSE" | "MYSTERIOUS" | "SAD" | "TRIUMPH" | "SCARY_LIGHT" | "SCARY_HEAVY";
+export type Mood =
+  | "COZY"
+  | "WONDER"
+  | "FUNNY"
+  | "TENSE"
+  | "MYSTERIOUS"
+  | "SAD"
+  | "TRIUMPH"
+  | "SCARY_LIGHT"
+  | "SCARY_HEAVY"
+  | "MAGICAL"
+  | "BITTERSWEET";
 
 export interface SceneBeat {
   sceneId?: string;

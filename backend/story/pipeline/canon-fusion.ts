@@ -259,7 +259,7 @@ export function createCanonFusionPlan(input: {
 
         const totalChapters = directives.length;
         let exitPoint: CanonFusionPlan["characterIntegrations"][0]["exitPoint"];
-        if (lastChapter < totalChapters) {
+        if (character.roleType !== "AVATAR" && lastChapter < totalChapters) {
             exitPoint = {
                 chapter: lastChapter,
                 farewell: isGerman ? generateFarewellDE(character) : generateFarewellEN(character)
@@ -365,7 +365,7 @@ export function createCanonFusionPlanV2(input: {
 
         // Create exit point with emotional note
         let exitPoint: CharacterIntegrationV2["exitPoint"];
-        if (lastChapter < totalChapters) {
+        if (character.roleType !== "AVATAR" && lastChapter < totalChapters) {
             exitPoint = createExitPointV2(character, lastChapter, isGerman);
         }
 

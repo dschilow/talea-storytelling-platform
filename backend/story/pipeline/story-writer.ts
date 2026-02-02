@@ -18,9 +18,8 @@ export class LlmStoryWriter implements StoryWriter {
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
     const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
-    const systemPrompt = normalizedRequest.language === "de"
-      ? "Du bist eine preisgekroente Kinderbuchautorin. Du schreibst ganze Geschichten am Stueck - warm, bildhaft, rhythmisch und klar, wie in hochwertigen Kinderbuechern. Jedes Kapitel baut auf dem vorherigen auf. Deine Charaktere erinnern sich, entwickeln sich weiter, und der rote Faden zieht sich durch die gesamte Geschichte."
-      : "You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story.";
+    const targetLanguage = normalizedRequest.language === "de" ? "German" : normalizedRequest.language;
+    const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.`;
 
     const lengthTargets = normalizedRequest.wordBudget
       ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
@@ -151,9 +150,7 @@ export class LlmStoryWriter implements StoryWriter {
     if (!draft.title || draft.title.length < 3) {
       const storyText = draft.chapters.map(ch => `${ch.title}\n${ch.text}`).join("\n\n");
       try {
-        const titleSystem = normalizedRequest.language === "de"
-          ? "Du fasst Kindergeschichten knapp zusammen."
-          : "You summarize children's stories.";
+        const titleSystem = `You summarize children's stories in ${targetLanguage}.`;
         const titlePrompt = buildStoryTitlePrompt({ storyText, language: normalizedRequest.language });
         const titleResult = await callChatCompletion({
           model,

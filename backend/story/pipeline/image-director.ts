@@ -10,7 +10,8 @@ export class TemplateImageDirector implements ImageDirector {
     directives: SceneDirective[];
     aiSceneDescriptions?: AISceneDescription[];
   }): Promise<ImageSpec[]> {
-    const { cast, directives, aiSceneDescriptions } = input;
+    const { cast, directives, aiSceneDescriptions, normalizedRequest } = input;
+    const forceEnglish = true;
 
     // Build a lookup map for AI descriptions by chapter number
     const aiDescMap = new Map<number, AISceneDescription>();
@@ -31,11 +32,15 @@ export class TemplateImageDirector implements ImageDirector {
 
       // If AI description is available, use it for dynamic prompts
       // Otherwise fall back to template-based prompts
-      const spec: ImageSpec = aiDesc
-        ? buildAISpec(directive, cast, aiDesc, onStageExact, refs, negatives)
-        : buildTemplateSpec(directive, cast, beatType, onStageExact, refs, negatives);
+      let spec: ImageSpec = aiDesc
+        ? buildAISpec(directive, cast, aiDesc, onStageExact, refs, negatives, normalizedRequest.language)
+        : buildTemplateSpec(directive, cast, beatType, onStageExact, refs, negatives, normalizedRequest.language);
 
-      spec.finalPromptText = buildFinalPromptText(spec, cast);
+      if (forceEnglish) {
+        spec = normalizeSpecToEnglish(spec);
+      }
+
+      spec.finalPromptText = buildFinalPromptText(spec, cast, { forceEnglish });
 
       return spec;
     });
@@ -51,6 +56,7 @@ function buildAISpec(
   onStageExact: string[],
   refs: Record<string, string>,
   negatives: string[],
+  language: string,
 ): ImageSpec {
   const propsFromAI = aiDesc.keyProps.slice(0, 7);
   const propsVisible = mergeProps(propsFromAI, limitPropsVisible(directive, cast));
@@ -79,7 +85,8 @@ function buildAISpec(
 
   // Sanitize environment to remove forbidden portrait-like terms
   const sanitizedEnvironment = sanitizeForbiddenTerms(aiDesc.environment);
-  const environmentParts = [sanitizedEnvironment, directive.setting].filter(Boolean);
+  const includeSetting = language === "en";
+  const environmentParts = includeSetting ? [sanitizedEnvironment, directive.setting].filter(Boolean) : [sanitizedEnvironment].filter(Boolean);
   const environmentLine = environmentParts.length > 0 ? `, ${environmentParts.join(", ")}` : "";
   const style = `high-quality children's storybook illustration, ${texture}${environmentLine}`;
 
@@ -104,7 +111,7 @@ function buildAISpec(
     actions: sanitizeForbiddenTerms(actions),
     propsVisible,
     lighting: sanitizedLighting,
-    setting: directive.setting || "",
+    setting: language === "en" ? (directive.setting || "") : sanitizedEnvironment,
     sceneDescription: sanitizedKeyMoment,
     refs,
     negatives,
@@ -137,7 +144,12 @@ function buildTemplateSpec(
   onStageExact: string[],
   refs: Record<string, string>,
   negatives: string[],
+  language: string,
 ): ImageSpec {
+  const fallbackDescription = language === "en"
+    ? directive.goal || directive.conflict || directive.outcome || ""
+    : buildEnglishFallbackDescription(directive, cast);
+
   return {
     chapter: directive.chapter,
     style: buildStyle(directive, beatType),
@@ -146,8 +158,8 @@ function buildTemplateSpec(
     actions: buildActions(directive, cast),
     propsVisible: limitPropsVisible(directive, cast),
     lighting: mapLighting(directive.mood),
-    setting: directive.setting || "",
-    sceneDescription: directive.goal || "",
+    setting: language === "en" ? (directive.setting || "") : "",
+    sceneDescription: fallbackDescription,
     refs,
     negatives,
     onStageExact,
@@ -202,12 +214,16 @@ function getMoodTexture(mood: string, beatType: string): string {
     return "dramatic ink wash style, moody shadows";
   } else if (mood === "MYSTERIOUS") {
     return "ethereal watercolor with glowing highlights, misty edges";
+  } else if (mood === "MAGICAL") {
+    return "luminous watercolor with soft glow, sparkling details";
   } else if (mood === "TRIUMPH") {
     return "vibrant watercolor with golden highlights, celebratory tones";
   } else if (mood === "FUNNY") {
     return "bright cheerful watercolor, playful cartoon-like details";
   } else if (mood === "SAD") {
     return "muted watercolor palette, gentle blue-grey tones";
+  } else if (mood === "BITTERSWEET") {
+    return "soft watercolor with warm light and gentle melancholy";
   } else if (beatType === "CLIMAX") {
     return "dynamic watercolor with bold contrast and vivid colors";
   }
@@ -444,10 +460,14 @@ function mapLighting(mood?: SceneDirective["mood"]): string {
       return "dramatic lighting with soft shadows";
     case "MYSTERIOUS":
       return "misty, glowing light";
+    case "MAGICAL":
+      return "glowing, enchanted light with gentle sparkles";
     case "TRIUMPH":
       return "bright, celebratory light";
     case "FUNNY":
       return "cheerful, sunny light";
+    case "BITTERSWEET":
+      return "soft warm light with a hint of dusk";
     default:
       return "warm, gentle light";
   }
@@ -504,4 +524,75 @@ function mergeProps(aiProps: string[], templateProps: string[]): string[] {
   }
 
   return result;
+}
+
+function normalizeSpecToEnglish(spec: ImageSpec): ImageSpec {
+  return {
+    ...spec,
+    style: toEnglish(spec.style),
+    composition: toEnglish(spec.composition),
+    blocking: toEnglish(spec.blocking),
+    actions: toEnglish(spec.actions),
+    lighting: toEnglish(spec.lighting),
+    setting: toEnglish(spec.setting || ""),
+    sceneDescription: toEnglish(spec.sceneDescription || ""),
+    propsVisible: (spec.propsVisible || []).map(item => toEnglish(item)),
+  };
+}
+
+function toEnglish(text: string): string {
+  if (!text) return text;
+  let result = text;
+
+  // Normalize common German umlauts to ASCII
+  result = result.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+  result = result.replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue");
+
+  const replacements: Array<[RegExp, string]> = [
+    [/\bkinderzimmer\b/gi, "nursery"],
+    [/\bfensterbrett\b/gi, "windowsill"],
+    [/\bfenster\b/gi, "window"],
+    [/\bteppich\b/gi, "carpet"],
+    [/\bbett\b/gi, "bed"],
+    [/\bzimmer\b/gi, "room"],
+    [/\bschatten\b/gi, "shadow"],
+    [/\bnadel\b/gi, "needle"],
+    [/\bgarn\b/gi, "thread"],
+    [/\bmaerchenbuch\b/gi, "storybook"],
+    [/\bmaerchen\b/gi, "fairy tale"],
+    [/\bnebel\b/gi, "mist"],
+    [/\bnebelhexe\b/gi, "mist witch"],
+    [/\bwald\b/gi, "forest"],
+    [/\bnebelwald\b/gi, "misty forest"],
+    [/\bwinterwald\b/gi, "winter forest"],
+    [/\bherbstwald\b/gi, "autumn forest"],
+    [/\bschloss\b/gi, "castle"],
+    [/\bthronsaal\b/gi, "throne hall"],
+    [/\bstrasse\b/gi, "street"],
+    [/\bhauptstrasse\b/gi, "main street"],
+    [/\bmarkt\b/gi, "market"],
+    [/\bplatz\b/gi, "square"],
+    [/\blicht\b/gi, "light"],
+    [/\bwind\b/gi, "wind"],
+    [/\bnacht\b/gi, "night"],
+    [/\btag\b/gi, "day"],
+    [/\bsturm\b/gi, "storm"],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    result = result.replace(pattern, replacement);
+  }
+
+  return result;
+}
+
+function buildEnglishFallbackDescription(directive: SceneDirective, cast: CastSet): string {
+  const characterNames = directive.charactersOnStage
+    .filter(slot => !slot.includes("ARTIFACT"))
+    .map(slot => findName(cast, slot))
+    .filter(Boolean)
+    .join(", ");
+
+  const setting = directive.setting ? `in ${toEnglish(directive.setting)}` : "in the scene";
+  return `A key moment ${setting} with ${characterNames} acting together.`;
 }

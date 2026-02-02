@@ -45,40 +45,40 @@ export function buildStoryChapterPrompt(input: {
     : "";
 
   if (isGerman) {
-    return `Du bist eine professionelle Autorin fuer Kinderbuecher.
+    return `You are a professional children's story author.
 
-Schreibe Kapitel ${chapter.chapter} fuer ein Publikum von ${ageRange.min}-${ageRange.max} Jahren auf Deutsch.
-Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+Write Chapter ${chapter.chapter} for a ${ageRange.min}-${ageRange.max} year old audience in German.
+Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
 
-SZENEN-VORGABE:
+SCENE DIRECTIVE:
 - Setting: ${chapter.setting}
-- Stimmung: ${chapter.mood ?? "COZY"}
-- Ziel: ${chapter.goal}
-- Konflikt: ${chapter.conflict}
-- Ausgang: ${chapter.outcome}
-- Figuren auf der Buehne (alle muessen vorkommen):
+- Mood: ${chapter.mood ?? "COZY"}
+- Goal: ${chapter.goal}
+- Conflict: ${chapter.conflict}
+- Outcome: ${chapter.outcome}
+- Characters on stage (must include all):
 ${characterSummaries}
 ${artifactLine}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
-ERLAUBTE NAMEN (exakt so schreiben): ${allowedNames || "keine"}
+Allowed names (use exactly): ${allowedNames || "none"}
 
-STRICTE REGELN:
-1) Verwende ausschliesslich die gelisteten Namen. Keine neuen Eigennamen.
-2) Keine zusaetzlichen Figuren oder Tiere mit Namen. Wenn unbedingt, dann nur unbenannt (z.B. \"einige Dorfbewohner\").
-3) Keine Regieanweisungen, keine Meta-Saetze, keine englischen Anweisungen.
-4) Jede Figur muss eine konkrete Handlung oder kurze Rede erhalten; keine Namensliste.
-5) Erwaehne das Artefakt, wenn es gefordert ist (mit Namen).
-6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze, kindgerecht.
-7) Schreibstil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreiche Satzanfaenge, gelegentlich direkte Rede.
-8) Keine Meta-Aussagen ueber Zugehoerigkeit; zeige Zugehoerigkeit nur durch Handlung. Vermeide Phrasen wie "gehoeren seit jeher" oder "ganz selbstverstaendlich dabei".
-9) Vermeide Standardfloskeln wie "trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Faehigkeit", "spuert die Anspannung".
-10) Avatare und Nebenfiguren muessen aktiv ins Geschehen eingebunden sein, nicht nur am Rand stehen.
-11) Beende mit einem sanften Ausblick (ausser im letzten Kapitel).
-${strict ? "12) Doppelt pruefen: Kein englischer Satz darf im Text erscheinen." : ""}
+STRICT RULES:
+1) Use only the listed character names exactly as given. No extra named characters.
+2) Do not introduce any additional named characters or animals; if absolutely needed, keep them unnamed.
+3) No stage directions, no meta commentary, no English text in the output.
+4) Each character must have a concrete action or short line; no name lists.
+5) Mention the artifact if required (by name).
+6) Write ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences, age-appropriate.
+7) Children's-book style: vivid imagery, rhythmic flow, varied sentence starts, occasional dialogue.
+8) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
+9) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension".
+10) Avatars and supporting characters must be actively involved, not just present.
+11) End with a gentle forward-looking line (except final chapter).
+${strict ? "12) Double-check that no English sentence appears in the German output." : ""}
 
-Gib JSON zurueck:
-{ "title": "Kurzer Kapiteltitel", "text": "Kapiteltext" }`;
+Return JSON:
+{ "title": "Short chapter title", "text": "Chapter text" }`;
   }
 
   return `You are a professional children's story author.
@@ -171,37 +171,37 @@ export function buildStoryChapterRevisionPrompt(input: {
   const issueList = issues.length > 0 ? issues.map(issue => `- ${issue}`).join("\n") : "- Keine";
 
   if (isGerman) {
-    return `Ueberarbeite das folgende Kapitel, ohne den Inhalt zu verlieren, aber erfuelle alle Regeln.
+    return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in German.
 
-PROBLEME:
+ISSUES:
 ${issueList}
 
-SZENEN-VORGABE:
+SCENE DIRECTIVE:
 - Setting: ${chapter.setting}
-- Stimmung: ${chapter.mood ?? "COZY"}
-- Ziel: ${chapter.goal}
-- Konflikt: ${chapter.conflict}
-- Ausgang: ${chapter.outcome}
-- Figuren (muessen vorkommen): ${allowedNames || "keine"}
-- Artefakt: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} muss genannt werden)` : ""}
-- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+- Mood: ${chapter.mood ?? "COZY"}
+- Goal: ${chapter.goal}
+- Conflict: ${chapter.conflict}
+- Outcome: ${chapter.outcome}
+- Characters (must appear): ${allowedNames || "none"}
+- Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
+- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
-REGELN:
-1) Nur diese Namen verwenden: ${allowedNames || "keine"}.
-2) Keine neuen Eigennamen.
-3) Keine Meta-Texte oder Anweisungen.
-4) Jede Figur muss handeln oder sprechen.
-5) Keine Meta-Aussagen ueber Zugehoerigkeit; vermeide "gehoeren seit jeher" und "ganz selbstverstaendlich dabei".
-6) Vermeide Standardfloskeln wie "trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Faehigkeit", "spuert die Anspannung".
-7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} Woerter, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} Saetze.
-8) Stil wie hochwertige Kinderbuecher: bildhaft, rhythmisch, abwechslungsreich.
+RULES:
+1) Use only these names: ${allowedNames || "none"}.
+2) No new proper names.
+3) No meta text or instructions in the output.
+4) Every character must act or speak.
+5) Do not state belonging explicitly; avoid "always been part of this tale".
+6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension".
+7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
+8) Children's-book style: vivid, rhythmic, varied sentence starts.
 
-ORIGINALTEXT:
+ORIGINAL TEXT:
 ${originalText}
 
-Gib JSON zurueck:
-{ "title": "Kurzer Kapiteltitel", "text": "Kapiteltext" }`;
+Return JSON:
+{ "title": "Short chapter title", "text": "Chapter text" }`;
   }
 
   return `Revise the chapter below to satisfy the rules without losing the plot.
@@ -356,46 +356,47 @@ ${fusionLine}`;
   }).join("\n\n");
 
   if (isGerman) {
-    return `Du bist eine preisgekroente Kinderbuchautorin. Schreibe eine VOLLSTAENDIGE Geschichte mit ${directives.length} Kapiteln auf Deutsch.
-Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre.
-Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+    return `You are an award-winning children's book author. Write a COMPLETE story with ${directives.length} chapters in German.
+Target audience: ${ageRange.min}-${ageRange.max} years old.
+Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
 
-FIGURENVERZEICHNIS (NUR diese Figuren verwenden!):
+CHARACTER DIRECTORY (use ONLY these characters!):
 ${characterProfiles}
-${artifactName ? `\nARTEFAKT: ${artifactName} (${cast.artifact?.storyUseRule || "wichtiger Gegenstand"})` : ""}
+${artifactName ? `\nARTIFACT: ${artifactName} (${cast.artifact?.storyUseRule || "important object"})` : ""}
 
-KAPITELPLAN:
+CHAPTER PLAN:
 ${chapterBlocks}
-${stylePackText ? `\nSTIL-VORGABEN:\n${stylePackText}` : ""}
+${stylePackText ? `\nSTYLE DIRECTIVES:\n${stylePackText}` : ""}
 
-LAENGEN-VORGABE:
-- Gesamte Geschichte: ${totalWordMin}-${totalWordMax} Woerter (Ziel: ~${totalWordTarget})
-- Pro Kapitel: ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter
+LENGTH REQUIREMENTS:
+- Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
+- Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
 
-QUALITAETS-ANFORDERUNGEN:
-1) ROTER FADEN: Die gesamte Geschichte muss einen durchgehenden Erzaehlstrang haben. Charaktere erinnern sich an vorherige Ereignisse. Handlungen bauen aufeinander auf.
-2) KAPITELSTRUKTUR: Jedes Kapitel braucht: 1 klare Szene (Ort + Stimmung), 1 Mini-Ziel, 1 Hindernis, 1 sichtbare Handlung (nicht nur Gedanken), 1 Mini-Aufloesung, 1 Hook-Satz am Ende (ausser letztes Kapitel).
-3) DIALOG: Mindestens 2 und maximal 6 Dialogzeilen pro Kapitel. Dialog zeigt Charakter, erklaert nicht.
-4) AKTIVE CHARAKTERE: Jede genannte Figur MUSS eine konkrete Handlung ausfuehren (Verb + Objekt) und den Plot beeinflussen (Entscheidung/Idee/Fehler/Mutmoment). Keine passive Anwesenheit.
-5) CAST-SPERRE: Ausschliesslich die gelisteten Namen verwenden. Keine neuen Eigennamen. Hintergrundfiguren nur unbenannt ("einige Stimmen in der Ferne").
-6) ANTI-WIEDERHOLUNG: Keine fast identischen Saetze in verschiedenen Kapiteln. "Ploetzlich"/"auf einmal" maximal 3x in der ganzen Geschichte. Keine wiederkehrenden Standardmetaphern.
-7) BILDHAFTE SPRACHE: Max 2 Vergleiche/Metaphern pro Kapitel. Konkrete Sinnesdetails bevorzugen (Geraeusche, Gerueche, Temperaturen, kleine Bewegungen) statt poetischer Ueberladung.
-8) INTEGRATIONSHINWEISE: FIGUREN-INTEGRATION ist nur Leitplanke. Formuliere Handlungen natuerlich und abwechslungsreich, kopiere keine Hinweise wortwoertlich. Vermeide Standardfloskeln wie "trifft eine wichtige Entscheidung", "hat eine besondere Idee", "zeigt eine neue Faehigkeit", "spuert die Anspannung", "traurig, aber hoffnungsvoll".
-9) SPANNUNGSKURVE: Kapitel 1=Setup, 2=Eskalation, 3=Twist/Irrweg, vorletztes=Hoehepunkt (schwerster Moment), letztes=Loesung+warmes Ende.
-10) ARTEFAKT-ARC:${artifactName ? ` ${artifactName} muss in Kapitel 1-2 eingefuehrt werden, in Kapitel 2-3 scheitern oder missverstanden werden, und in Kapitel 4-5 entscheidend helfen. Mindestens 2 aktive Szenen.` : " Kein Artefakt in dieser Geschichte."}
-11) ENDE: Letztes Kapitel loest den Konflikt, zeigt eine kleine Lehre (nicht predigen), endet mit einem warmen Abschlussbild (z.B. Heimweg, Lachen, Abendlicht). Optional 1 Mini-Teaser (1 Satz).
-12) VERBOTEN: Meta-Saetze ("gehoeren seit jeher", "ganz selbstverstaendlich dabei"), Regieanweisungen, englische Woerter, Anweisungstexte im Output.
-${strict ? "13) EXTRA STRENG: Doppelt pruefen dass kein Anweisungstext in den Output gelangt." : ""}
+QUALITY REQUIREMENTS:
+1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
+2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
+3) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
+4) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
+5) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
+6) ANTI-REPETITION: No near-identical sentences across chapters. "Suddenly"/"all of a sudden" max 3x total. No recurring stock metaphors.
+7) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
+8) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "sad but hopeful".
+9) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
+10) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
+11) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
+12) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
+13) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
+${strict ? "14) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
-ERLAUBTE NAMEN: ${allowedNames || "keine"}
+ALLOWED NAMES: ${allowedNames || "none"}
 
-Gib JSON zurueck:
+Return JSON:
 {
-  "title": "Kurzer Geschichtstitel",
-  "description": "1-2 Saetze Beschreibung",
+  "title": "Short story title",
+  "description": "1-2 sentence description",
   "chapters": [
-    { "chapter": 1, "title": "Kapiteltitel", "text": "Kapiteltext..." },
-    { "chapter": 2, "title": "Kapiteltitel", "text": "Kapiteltext..." }
+    { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
+    { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." }
   ]
 }`;
   }
@@ -425,11 +426,12 @@ QUALITY REQUIREMENTS:
 6) ANTI-REPETITION: No near-identical sentences across chapters. "Suddenly"/"all of a sudden" max 3x total. No recurring stock metaphors.
 7) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
 8) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "sad but hopeful".
-9) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
-10) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
-11) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
-12) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
-${strict ? "13) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+9) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
+10) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
+11) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
+12) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
+13) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
+${strict ? "14) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
 
@@ -474,26 +476,26 @@ export function buildFullStoryRewritePrompt(input: {
     .join("\n\n");
 
   if (isGerman) {
-    return `Ueberarbeite die folgende Kindergeschichte. Behalte Plot und Handlung bei, aber behebe ALLE aufgelisteten Probleme.
+    return `Revise the following children's story. Keep the plot and action, but fix ALL listed problems. Write the output in German.
 
 ${qualityIssues}
 
-REGELN (unveraenderlich):
-- Erlaubte Namen: ${allowedNames || "keine"}
-- Keine neuen Eigennamen
-- Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt, ${wordsPerChapter.min}-${wordsPerChapter.max} pro Kapitel
-- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
-- Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre
-${artifactName ? `- Artefakt "${artifactName}" muss aktiv verwendet werden` : ""}
+RULES (unchangeable):
+- Allowed names: ${allowedNames || "none"}
+- No new proper names
+- Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
+- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+- Audience: ${ageRange.min}-${ageRange.max} years
+${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
-ORIGINALTEXT:
+ORIGINAL TEXT:
 ${originalText}
 
-Gib die KOMPLETTE ueberarbeitete Geschichte als JSON zurueck:
+Return the COMPLETE revised story as JSON:
 {
-  "title": "Geschichtstitel",
-  "description": "1-2 Saetze",
+  "title": "Story title",
+  "description": "1-2 sentences",
   "chapters": [
     { "chapter": 1, "title": "...", "text": "..." },
     ...
@@ -530,11 +532,11 @@ Return the COMPLETE revised story as JSON:
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
   if (input.language === "de") {
-    return `Erstelle einen kurzen Titel und eine Beschreibung fuer die folgende Kindergeschichte auf Deutsch.
-Gib JSON zurueck:
+    return `Create a short title and description for the following children's story in German.
+Return JSON:
 { "title": "...", "description": "..." }
 
-Geschichte:
+Story:
 ${input.storyText}`;
   }
 

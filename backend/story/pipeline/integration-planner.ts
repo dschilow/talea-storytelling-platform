@@ -56,6 +56,20 @@ export function buildIntegrationPlan(input: {
     };
   });
 
+  extendSupportingCharactersPresence({
+    chapters,
+    scenes: blueprint.scenes,
+    avatarSlots,
+    maxCharacters: MAX_ON_STAGE_CHARACTERS,
+  });
+
+  ensureAvatarsInFinalChapter({
+    chapters,
+    scenes: blueprint.scenes,
+    avatarSlots,
+    maxCharacters: MAX_ON_STAGE_CHARACTERS,
+  });
+
   return {
     chapters,
     avatarsPresenceRatio: targetPresence,
@@ -165,4 +179,94 @@ function trimOnStage(input: {
   }
 
   return Array.from(finalSlots);
+}
+
+function extendSupportingCharactersPresence(input: {
+  chapters: IntegrationPlan["chapters"];
+  scenes: StoryBlueprintBase["scenes"];
+  avatarSlots: string[];
+  maxCharacters: number;
+}) {
+  const { chapters, scenes, avatarSlots, maxCharacters } = input;
+  const artifactSlot = "SLOT_ARTIFACT_1";
+  const counts = new Map<string, number>();
+  const indexBySlot = new Map<string, number>();
+
+  chapters.forEach((ch, idx) => {
+    for (const slot of ch.charactersOnStage) {
+      if (slot === artifactSlot || avatarSlots.includes(slot)) continue;
+      counts.set(slot, (counts.get(slot) ?? 0) + 1);
+      indexBySlot.set(slot, idx);
+    }
+  });
+
+  const countNonArtifact = (slots: string[]) => slots.filter(s => s !== artifactSlot).length;
+
+  for (const [slot, count] of counts) {
+    if (count !== 1 || !isSupportingSlot(slot)) continue;
+    const idx = indexBySlot.get(slot);
+    if (idx === undefined) continue;
+
+    const targetIndexes = [idx + 1, idx - 1].filter(i => i >= 0 && i < chapters.length);
+    for (const targetIdx of targetIndexes) {
+      const target = chapters[targetIdx];
+      if (!target || target.charactersOnStage.includes(slot)) continue;
+      if (countNonArtifact(target.charactersOnStage) >= maxCharacters) continue;
+      target.charactersOnStage = [...target.charactersOnStage, slot];
+      counts.set(slot, 2);
+      break;
+    }
+  }
+}
+
+function isSupportingSlot(slot: string): boolean {
+  const value = slot.toUpperCase();
+  return (
+    value.includes("HELPER") ||
+    value.includes("MENTOR") ||
+    value.includes("COMIC_RELIEF") ||
+    value.includes("GUARDIAN") ||
+    value.includes("TRICKSTER")
+  );
+}
+
+function ensureAvatarsInFinalChapter(input: {
+  chapters: IntegrationPlan["chapters"];
+  scenes: StoryBlueprintBase["scenes"];
+  avatarSlots: string[];
+  maxCharacters: number;
+}) {
+  const { chapters, scenes, avatarSlots, maxCharacters } = input;
+  if (chapters.length === 0 || scenes.length === 0 || avatarSlots.length === 0) return;
+
+  const lastIndex = Math.min(chapters.length, scenes.length) - 1;
+  const lastChapter = chapters[lastIndex];
+  const lastScene = scenes[lastIndex];
+
+  if (!lastChapter || !lastScene) return;
+
+  const artifactSlot = "SLOT_ARTIFACT_1";
+  const mustInclude = new Set(lastScene.mustIncludeSlots || []);
+  const finalSlots = new Set(lastChapter.charactersOnStage);
+
+  const countNonArtifact = (set: Set<string>) => Array.from(set).filter(slot => slot !== artifactSlot).length;
+
+  for (const avatarSlot of avatarSlots) {
+    if (finalSlots.has(avatarSlot)) continue;
+
+    if (countNonArtifact(finalSlots) < maxCharacters) {
+      finalSlots.add(avatarSlot);
+      continue;
+    }
+
+    const removable = Array.from(finalSlots).filter(slot =>
+      slot !== artifactSlot && !mustInclude.has(slot) && !avatarSlots.includes(slot)
+    );
+    if (removable.length > 0) {
+      finalSlots.delete(removable[0]);
+      finalSlots.add(avatarSlot);
+    }
+  }
+
+  lastChapter.charactersOnStage = Array.from(finalSlots);
 }

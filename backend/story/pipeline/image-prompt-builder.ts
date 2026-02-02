@@ -1,6 +1,7 @@
 ﻿import type { CastSet, ImageSpec } from "./types";
 
-export function buildFinalPromptText(spec: ImageSpec, cast: CastSet): string {
+export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: { forceEnglish?: boolean }): string {
+  const forceEnglish = options?.forceEnglish ?? false;
   const characterNames = spec.onStageExact
     .map(slot => findCharacterName(cast, slot))
     .filter(Boolean);
@@ -59,7 +60,11 @@ ${birdLock}`.trim();
 
   const characterBlock = characterDetails ? `CHARACTER DETAILS:\n${characterDetails}` : "";
 
-  return [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, sceneBlock, actionBlock, propsBlock, lightingBlock]
+  const languageGuard = forceEnglish
+    ? "LANGUAGE: All prompt text must be interpreted as English. If any non-English word appears, translate it to English before rendering."
+    : "";
+
+  return [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard]
     .filter(Boolean)
     .join("\n\n");
 }

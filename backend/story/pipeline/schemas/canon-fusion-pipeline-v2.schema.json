@@ -62,7 +62,7 @@
       ]
     },
     "BeatType": { "type": "string", "enum": ["SETUP", "INCITING", "CONFLICT", "TWIST", "CLIMAX", "RESOLUTION", "EPILOGUE"] },
-    "Mood": { "type": "string", "enum": ["COZY", "WONDER", "FUNNY", "TENSE", "MYSTERIOUS", "SAD", "TRIUMPH", "SCARY_LIGHT", "SCARY_HEAVY"] },
+    "Mood": { "type": "string", "enum": ["COZY", "WONDER", "FUNNY", "TENSE", "MYSTERIOUS", "SAD", "TRIUMPH", "SCARY_LIGHT", "SCARY_HEAVY", "MAGICAL", "BITTERSWEET"] },
     "ShotType": { "type": "string", "enum": ["WIDE", "MEDIUM", "CLOSEUP", "DETAIL"] },
     "CameraAngle": { "type": "string", "enum": ["EYE_LEVEL", "LOW_ANGLE", "HIGH_ANGLE", "OVER_SHOULDER", "DUTCH", "TOP_DOWN"] },
     "Distance": { "type": "string", "enum": ["FULL_BODY", "THREE_QUARTER", "BUST", "FACE"] },

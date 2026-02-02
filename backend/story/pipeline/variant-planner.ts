@@ -58,6 +58,7 @@ export function createVariantPlan(input: {
   const rng = createSeededRandom(seed);
 
   const isFairy = normalized.category === "Klassische Märchen";
+  const isClassicTale = isFairy && "taleId" in blueprint.dna;
   const variantSource = isFairy ? FAIRY_VARIANTS : (CATEGORY_VARIANTS[normalized.category] ?? FAIRY_VARIANTS);
 
   const variantChoices: Record<string, string> = {
@@ -69,7 +70,9 @@ export function createVariantPlan(input: {
   };
 
   const baseScenes = blueprint.scenes;
-  const sceneOverrides = buildSceneOverrides(baseScenes, variantChoices, rng, normalized.language);
+  const sceneOverrides = buildSceneOverrides(baseScenes, variantChoices, rng, normalized.language, {
+    isClassicTale,
+  });
 
   const plan: StoryVariantPlan = {
     storyInstanceId: normalized.storyId,
@@ -92,7 +95,8 @@ function buildSceneOverrides(
   scenes: SceneBeat[],
   variantChoices: Record<string, string>,
   rng: ReturnType<typeof createSeededRandom>,
-  language: string
+  language: string,
+  options?: { isClassicTale?: boolean }
 ): StoryVariantPlan["sceneOverrides"] {
   if (scenes.length === 0) return [];
 
@@ -105,14 +109,21 @@ function buildSceneOverrides(
   const twistLabel = labelVariant(variantChoices.twistVariant, language);
 
   const overrideChapters = rng.shuffle(scenes.map(s => s.sceneNumber)).slice(0, Math.min(3, scenes.length));
+  const classic = options?.isClassicTale ?? false;
+  const settingOverrideChapters = classic
+    ? new Set(rng.shuffle(overrideChapters).slice(0, 1))
+    : new Set(overrideChapters);
 
   for (const chapter of overrideChapters) {
     const base = scenes.find(s => s.sceneNumber === chapter);
     if (!base) continue;
 
+    const allowSettingOverride = settingOverrideChapters.has(chapter) && shouldApplySettingVariant(base.setting, classic);
+    const setting = allowSettingOverride ? `${base.setting}, ${settingLabel}` : base.setting;
+
     overrides.push({
       chapter,
-      setting: `${base.setting}, ${settingLabel}`,
+      setting,
       goal: language === "de"
         ? `Die Szene dreht sich um ${encounterLabel}.`
         : `Advance the story with a focus on ${encounterLabel}.`,
@@ -138,6 +149,22 @@ function labelVariant(token: string, language: string): string {
     return VARIANT_LABELS_DE[token] ?? token.replace(/_/g, " ").toLowerCase();
   }
   return token.replace(/_/g, " ").toLowerCase();
+}
+
+function shouldApplySettingVariant(setting: string, isClassicTale: boolean): boolean {
+  if (!setting) return false;
+  if (!isClassicTale) return true;
+
+  const value = setting.toLowerCase();
+  const allowed = [
+    "wald", "forest", "grove", "lichtung", "clearing",
+    "garten", "garden", "wiese", "meadow",
+    "berg", "mountain", "gebirge", "cave", "höhle", "hoehle",
+    "see", "lake", "meer", "sea", "strand", "beach",
+    "insel", "island", "fluss", "river",
+  ];
+
+  return allowed.some(token => value.includes(token));
 }
 
 const VARIANT_LABELS_DE: Record<string, string> = {
