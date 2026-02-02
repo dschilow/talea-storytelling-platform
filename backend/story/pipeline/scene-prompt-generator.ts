@@ -5,7 +5,7 @@ const MODEL = "gpt-5-mini";
 const MAX_CHAPTER_WORDS = 360;
 const LEAD_WORDS = 200;
 const TAIL_WORDS = 180;
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 1;
 
 export async function generateSceneDescriptions(input: {
   chapters: StoryChapterText[];
@@ -17,8 +17,8 @@ export async function generateSceneDescriptions(input: {
 
   const characterMap = buildCharacterMap(cast);
 
-  const results = await Promise.all(
-    chapters.map(async (chapter) => {
+  const chapterInputs = chapters
+    .map((chapter) => {
       const directive = directives.find(d => d.chapter === chapter.chapter);
       if (!directive) return null;
 
@@ -27,72 +27,91 @@ export async function generateSceneDescriptions(input: {
         .map(slot => characterMap.get(slot))
         .filter(Boolean) as string[];
 
-      return await extractWithRetry({
+      return {
         chapter,
         directive,
         onStageSlots,
         onStageNames,
-        language,
-      });
+      };
     })
-  );
+    .filter(Boolean) as Array<{
+      chapter: StoryChapterText;
+      directive: SceneDirective;
+      onStageSlots: string[];
+      onStageNames: string[];
+    }>;
+
+  const batchResult = await extractBatchWithRetry({
+    chapterInputs,
+    language,
+  });
+
+  const results = chapterInputs.map((inputEntry) => {
+    const match = batchResult.find(item => item.chapter === inputEntry.chapter.chapter);
+    return normalizeSceneDescription({
+      chapter: inputEntry.chapter,
+      directive: inputEntry.directive,
+      onStageSlots: inputEntry.onStageSlots,
+      onStageNames: inputEntry.onStageNames,
+      parsed: match,
+    });
+  });
 
   const successCount = results.filter(Boolean).length;
   const failCount = results.length - successCount;
-  console.log(`[scene-prompt-generator] Completed: ${successCount}/${results.length} chapters (${failCount} fallback to templates)`);
+  console.log(`[scene-prompt-generator] Completed: ${successCount}/${results.length} chapters in single batch (${failCount} fallback to templates)`);
 
   return { descriptions: results };
 }
 
-async function extractWithRetry(input: {
-  chapter: StoryChapterText;
-  directive: SceneDirective;
-  onStageSlots: string[];
-  onStageNames: string[];
+async function extractBatchWithRetry(input: {
+  chapterInputs: Array<{
+    chapter: StoryChapterText;
+    directive: SceneDirective;
+    onStageSlots: string[];
+    onStageNames: string[];
+  }>;
   language: string;
-}): Promise<AISceneDescription | null> {
+}): Promise<Array<any>> {
+  const { chapterInputs } = input;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     try {
-      return await extractSceneDescription(input);
+      return await extractBatchSceneDescriptions(chapterInputs);
     } catch (error) {
       const isLastAttempt = attempt > MAX_RETRIES;
       if (isLastAttempt) {
         console.warn(
-          `[scene-prompt-generator] Chapter ${input.chapter.chapter}: all ${MAX_RETRIES + 1} attempts failed, using default template prompts.`,
+          `[scene-prompt-generator] Batch failed after ${MAX_RETRIES + 1} attempts, using default template prompts.`,
           (error as Error)?.message || error
         );
-        return null;
+        return [];
       }
       console.warn(
-        `[scene-prompt-generator] Chapter ${input.chapter.chapter}: attempt ${attempt}/${MAX_RETRIES + 1} failed, retrying...`,
+        `[scene-prompt-generator] Batch attempt ${attempt}/${MAX_RETRIES + 1} failed, retrying...`,
         (error as Error)?.message || error
       );
     }
   }
-  return null;
+  return [];
 }
 
-async function extractSceneDescription(input: {
+async function extractBatchSceneDescriptions(chapterInputs: Array<{
   chapter: StoryChapterText;
   directive: SceneDirective;
   onStageSlots: string[];
   onStageNames: string[];
-  language: string;
-}): Promise<AISceneDescription> {
-  const { chapter, directive, onStageSlots, onStageNames } = input;
+}>): Promise<Array<any>> {
+  const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters. Use only details explicitly present in the chapter text or directives. If "Must show" items are provided, include them in keyProps or environment. Be concise.`;
 
-  const truncatedText = buildSceneSnippet(chapter.text, MAX_CHAPTER_WORDS, LEAD_WORDS, TAIL_WORDS);
-  const characterList = onStageNames.map((name, idx) => `${onStageSlots[idx]}: ${name}`).join(", ");
-  const mustShow = (directive.imageMustShow || []).slice(0, 8).join(", ");
+  const chapterBlocks = chapterInputs.map((input) => {
+    const { chapter, directive, onStageSlots, onStageNames } = input;
+    const truncatedText = buildSceneSnippet(chapter.text, MAX_CHAPTER_WORDS, LEAD_WORDS, TAIL_WORDS);
+    const characterList = onStageNames.map((name, idx) => `${onStageSlots[idx]}: ${name}`).join(", ");
+    const mustShow = (directive.imageMustShow || []).slice(0, 8).join(", ");
+    const slotList = onStageSlots.map((s) => `"${s}"`).join(", ");
 
-  const systemPrompt = `Extract the single most dynamic visual moment from a children's story chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters. Use only details explicitly present in the chapter text or directives. If "Must show" items are provided, include them in keyProps or environment. Be concise.`;
-
-  const slotList = onStageSlots.map((s, i) => `"${s}"`).join(", ");
-
-  const userPrompt = `Chapter ${chapter.chapter}: "${chapter.title}"
-
+    return `CHAPTER ${chapter.chapter}: "${chapter.title}"
 ${truncatedText}
-
 Setting: ${directive.setting}
 Mood: ${directive.mood ?? "COZY"}
 Goal: ${directive.goal}
@@ -100,13 +119,29 @@ Conflict: ${directive.conflict}
 Outcome: ${directive.outcome}
 Artifact usage: ${directive.artifactUsage}
 Must show (visual hints): ${mustShow || "none"}
-
 Characters: ${characterList}
+Use exactly these slotKeys: ${slotList}`;
+  }).join("\n\n---\n\n");
 
-Return JSON with these exact fields (keep values short, 5-15 words each):
-{"keyMoment":"...", "characterActions":[{"slotKey":"EXACT_SLOT","action":"physical verb phrase","expression":"face","bodyLanguage":"pose"}], "environment":"scene background","cameraAngle":"angle (wide/medium shot only, NO portraits/close-ups)","keyProps":["obj1","obj2"],"lighting":"light desc","emotionalTone":"mood"}
+  const userPrompt = `${chapterBlocks}
 
-Use exactly these slotKeys: ${slotList}. One entry per character.`;
+Return JSON with this exact structure:
+{
+  "chapters": [
+    {
+      "chapter": number,
+      "keyMoment": "...",
+      "characterActions": [
+        { "slotKey": "EXACT_SLOT", "action": "physical verb phrase", "expression": "face", "bodyLanguage": "pose" }
+      ],
+      "environment": "scene background",
+      "cameraAngle": "angle (wide/medium shot only, NO portraits/close-ups)",
+      "keyProps": ["obj1", "obj2"],
+      "lighting": "light desc",
+      "emotionalTone": "mood"
+    }
+  ]
+}`;
 
   const result = await callChatCompletion({
     messages: [
@@ -115,20 +150,34 @@ Use exactly these slotKeys: ${slotList}. One entry per character.`;
     ],
     model: MODEL,
     responseFormat: "json_object",
-    maxTokens: 1500,
+    maxTokens: 4000,
     temperature: 0.6,
-    context: "scene-prompt-generator",
+    context: "scene-prompt-generator-batch",
   });
 
   let parsed: any;
   try {
     parsed = JSON.parse(result.content);
   } catch (parseError) {
-    console.error(`[scene-prompt-generator] Chapter ${chapter.chapter}: JSON parse failed. Raw response (first 500 chars): ${result.content?.substring(0, 500)}`);
+    console.error(`[scene-prompt-generator] Batch JSON parse failed. Raw response (first 800 chars): ${result.content?.substring(0, 800)}`);
     throw parseError;
   }
 
-  // Ensure characterActions has correct slotKeys
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed?.chapters)) return parsed.chapters;
+  return [];
+}
+
+function normalizeSceneDescription(input: {
+  chapter: StoryChapterText;
+  directive: SceneDirective;
+  onStageSlots: string[];
+  onStageNames: string[];
+  parsed?: any;
+}): AISceneDescription | null {
+  const { chapter, onStageSlots, onStageNames, parsed } = input;
+  if (!parsed) return null;
+
   const characterActions: AICharacterAction[] = onStageSlots.map((slot, i) => {
     const found = parsed.characterActions?.find((a: any) => a.slotKey === slot);
     if (found) {
@@ -139,7 +188,6 @@ Use exactly these slotKeys: ${slotList}. One entry per character.`;
         bodyLanguage: String(found.bodyLanguage || "standing"),
       };
     }
-    // Fallback if AI didn't return this character
     return {
       slotKey: slot,
       action: `${onStageNames[i] || "character"} participates in the scene`,

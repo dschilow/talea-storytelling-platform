@@ -51,6 +51,14 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     created_at: Date;
     updated_at: Date;
     is_active: boolean;
+    // V2 personality fields (Migration 19)
+    dominant_personality: string | null;
+    secondary_traits: string[] | null;
+    catchphrase: string | null;
+    catchphrase_context: string | null;
+    speech_style: string[] | null;
+    emotional_triggers: string[] | null;
+    quirk: string | null;
   }>`
     SELECT * FROM character_pool ORDER BY name
   `;
@@ -72,6 +80,14 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isActive: row.is_active,
+    // V2 personality fields
+    dominantPersonality: row.dominant_personality || undefined,
+    secondaryTraits: row.secondary_traits || undefined,
+    catchphrase: row.catchphrase || undefined,
+    catchphraseContext: row.catchphrase_context || undefined,
+    speechStyle: row.speech_style || undefined,
+    emotionalTriggers: row.emotional_triggers || undefined,
+    quirk: row.quirk || undefined,
   }));
 }
 
@@ -188,7 +204,9 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
         id, name, role, archetype, emotional_nature, visual_profile, image_url,
         max_screen_time, available_chapters, canon_settings,
         recent_usage_count, total_usage_count, is_active,
-        created_at, updated_at
+        created_at, updated_at,
+        dominant_personality, secondary_traits, catchphrase, catchphrase_context,
+        speech_style, emotional_triggers, quirk
       ) VALUES (
         ${id},
         ${req.character.name},
@@ -204,7 +222,14 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
         0,
         ${req.character.isActive ?? true},
         ${now},
-        ${now}
+        ${now},
+        ${req.character.dominantPersonality || null},
+        ${req.character.secondaryTraits || []},
+        ${req.character.catchphrase || null},
+        ${req.character.catchphraseContext || null},
+        ${req.character.speechStyle || []},
+        ${req.character.emotionalTriggers || []},
+        ${req.character.quirk || null}
       )
     `;
 
@@ -281,6 +306,28 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
     }
     if (req.updates.isActive !== undefined) {
       await storyDB.exec`UPDATE character_pool SET is_active = ${req.updates.isActive}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    // V2 personality fields
+    if (req.updates.dominantPersonality !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET dominant_personality = ${req.updates.dominantPersonality || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    if (req.updates.secondaryTraits !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET secondary_traits = ${req.updates.secondaryTraits || []}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    if (req.updates.catchphrase !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET catchphrase = ${req.updates.catchphrase || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    if (req.updates.catchphraseContext !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET catchphrase_context = ${req.updates.catchphraseContext || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    if (req.updates.speechStyle !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET speech_style = ${req.updates.speechStyle || []}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    if (req.updates.emotionalTriggers !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET emotional_triggers = ${req.updates.emotionalTriggers || []}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    if (req.updates.quirk !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET quirk = ${req.updates.quirk || null}, updated_at = ${now} WHERE id = ${req.id}`;
     }
 
     console.log("[CharacterPool] Character updated:", req.id);
@@ -637,7 +684,9 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
             id, name, role, archetype, emotional_nature, visual_profile, image_url,
             max_screen_time, available_chapters, canon_settings,
             recent_usage_count, total_usage_count, last_used_at,
-            is_active, created_at, updated_at
+            is_active, created_at, updated_at,
+            dominant_personality, secondary_traits, catchphrase, catchphrase_context,
+            speech_style, emotional_triggers, quirk
           ) VALUES (
             ${character.id},
             ${character.name},
@@ -654,7 +703,14 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
             ${character.lastUsedAt || null},
             ${character.isActive},
             ${character.createdAt},
-            ${character.updatedAt}
+            ${character.updatedAt},
+            ${character.dominantPersonality || null},
+            ${character.secondaryTraits || []},
+            ${character.catchphrase || null},
+            ${character.catchphraseContext || null},
+            ${character.speechStyle || []},
+            ${character.emotionalTriggers || []},
+            ${character.quirk || null}
           )
         `;
       }

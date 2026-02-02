@@ -259,11 +259,13 @@ function gateCastLock(
   for (const ch of draft.chapters) {
     const matches = ch.text.matchAll(properNameRegex);
     for (const match of matches) {
+      const matchIndex = typeof match.index === "number" ? match.index : 0;
       const name = match[1].toLowerCase();
       if (isCommonWord(name, language)) continue;
       if (allowedNames.has(name)) continue;
       const parts = name.split(/\s+/);
       if (parts.some(p => allowedNames.has(p))) continue;
+      if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
 
       const isActor = isLikelyCharacterAction(ch.text, match[1]);
       issues.push({
@@ -989,7 +991,9 @@ function isCommonWord(word: string, language: string): boolean {
     "mama", "papa", "kind", "freund", "freundin", "bruder", "schwester",
     "koenig", "koenigin", "prinz", "prinzessin", "ritter", "hexe", "drache",
     "könig", "königin",
-    "platz", "markt", "garten", "turm", "schloss", "burg",
+    "platz", "markt", "garten", "turm", "schloss", "burg", "fenster",
+    "treppe", "stufe", "saal", "thron", "kissen", "samtkissen", "tagebuch",
+    "brief", "zettel", "note", "seil", "treppenhaus", "zimmer", "hof",
   ]);
   const commonEN = new Set([
     "the", "and", "but", "for", "not", "you", "all", "can", "had", "her",
@@ -1007,4 +1011,27 @@ function isCommonWord(word: string, language: string): boolean {
 
   const set = language === "de" ? commonDE : commonEN;
   return set.has(word);
+}
+
+function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
+  const windowStart = Math.max(0, matchIndex - 40);
+  const prefix = text.slice(windowStart, matchIndex).toLowerCase();
+  const tokens = prefix.split(/[^a-zÃ¤Ã¶Ã¼ÃŸ]+/).filter(Boolean);
+  const prev = tokens[tokens.length - 1];
+  if (!prev) return false;
+
+  const articles = new Set([
+    "der", "die", "das", "den", "dem", "des",
+    "ein", "eine", "einen", "einem", "einer", "eines",
+    "mein", "meine", "meinen", "meinem", "meiner", "meines",
+    "sein", "seine", "seinen", "seinem", "seiner", "seines",
+    "ihr", "ihre", "ihren", "ihrem", "ihrer", "ihres",
+    "unser", "unsere", "unseren", "unserem", "unserer", "unseres",
+    "euer", "eure", "euren", "eurem", "eurer", "eures",
+    "dieser", "diese", "dieses", "diesen", "diesem",
+    "jeder", "jede", "jedes", "jeden", "jedem",
+    "mancher", "manche", "manches", "manchen", "manchem",
+  ]);
+
+  return articles.has(prev);
 }

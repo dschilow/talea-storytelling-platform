@@ -33,6 +33,15 @@ export interface CharacterTemplate {
   physical_description?: string;
   backstory?: string;
 
+  // V2 Personality (Migration 19/20) - character voice & behavior
+  dominantPersonality?: string; // Primary personality trait: "hilfsbereit", "mutig", "weise"
+  secondaryTraits?: string[]; // Supporting traits: ["fröhlich", "großzügig"]
+  catchphrase?: string; // Iconic phrase (max 1x per story)
+  catchphraseContext?: string; // When to use the catchphrase
+  speechStyle?: string[]; // Speech patterns: ["warmherzig", "einladend"]
+  emotionalTriggers?: string[]; // Situations causing strong reactions
+  quirk?: string; // Unique mannerism: "wischt sich die Hände an der Schürze"
+
   // Screen Time & Availability
   maxScreenTime: number; // 0-100 percentage
   availableChapters: number[]; // [1,2,3,4,5]

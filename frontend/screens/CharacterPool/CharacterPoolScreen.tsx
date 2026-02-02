@@ -8,9 +8,43 @@ import { useBackend } from '../../hooks/useBackend';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import type { story } from '../../client';
-
-type CharacterTemplate = story.CharacterTemplate;
+// CharacterTemplate with V2 personality fields
+// Backend sends these from character_pool DB via the API
+interface CharacterTemplate {
+  id: string;
+  name: string;
+  role: string;
+  archetype: string;
+  emotionalNature: {
+    dominant: string;
+    secondary: string[];
+    triggers?: string[];
+  };
+  visualProfile: {
+    description: string;
+    imagePrompt?: string;
+    species: string;
+    colorPalette: string[];
+  };
+  imageUrl?: string;
+  maxScreenTime: number;
+  availableChapters: number[];
+  canonSettings?: string[];
+  recentUsageCount?: number;
+  totalUsageCount?: number;
+  lastUsedAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+  isActive?: boolean;
+  // V2 personality fields (Migration 19/20)
+  dominantPersonality?: string;
+  secondaryTraits?: string[];
+  catchphrase?: string;
+  catchphraseContext?: string;
+  speechStyle?: string[];
+  emotionalTriggers?: string[];
+  quirk?: string;
+}
 
 type CharacterIdentifier = string | CharacterTemplate | { id?: string } | { value?: string } | null | undefined;
 
@@ -52,6 +86,14 @@ interface CharacterFormState {
   canonSettings: string;
   isActive: boolean;
   imageUrl?: string;
+  // V2 personality fields
+  dominantPersonality: string;
+  secondaryTraits: string;
+  speechStyle: string;
+  catchphrase: string;
+  catchphraseContext: string;
+  quirk: string;
+  emotionalTriggers: string;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -451,7 +493,7 @@ const CharacterPoolScreen: React.FC = () => {
       setBatchRegenerating(true);
       toast.info(`Starte Regenerierung von ${activeCount} Charakterbildern...`);
 
-      const response = await backend.story.batchRegenerateCharacterImages({});
+      const response = await backend.story.batchRegenerateCharacterImages();
 
       if (response.success) {
         toast.success(
@@ -627,27 +669,6 @@ const CharacterPoolScreen: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div style={twoColumnStyle}>
-                    <div>
-                      <label style={inputLabelStyle} htmlFor="maxScreenTime">Screen Time (%)</label>
-                      <input
-                        id="maxScreenTime"
-                        style={inputBaseStyle}
-                        value={formState.maxScreenTime}
-                        onChange={(event) => setFormState({ ...formState, maxScreenTime: event.target.value })}
-                        inputMode="numeric"
-                      />
-                    </div>
-                    <div>
-                      <label style={inputLabelStyle} htmlFor="availableChapters">Kapitel (kommagetrennt)</label>
-                      <input
-                        id="availableChapters"
-                        style={inputBaseStyle}
-                        value={formState.availableChapters}
-                        onChange={(event) => setFormState({ ...formState, availableChapters: event.target.value })}
-                      />
-                    </div>
-                  </div>
                   <div>
                     <label style={inputLabelStyle} htmlFor="canonSettings">Canon Settings (kommagetrennt)</label>
                     <input
@@ -659,7 +680,85 @@ const CharacterPoolScreen: React.FC = () => {
                   </div>
 
                   <div>
-                    <span style={sectionTitleStyle}>Emotionen</span>
+                    <span style={sectionTitleStyle}>Charakter-Persoenlichkeit</span>
+                    <div style={twoColumnStyle}>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="dominantPersonality">Persoenlichkeit (dominant)</label>
+                        <input
+                          id="dominantPersonality"
+                          style={inputBaseStyle}
+                          value={formState.dominantPersonality}
+                          onChange={(event) => setFormState({ ...formState, dominantPersonality: event.target.value })}
+                          placeholder="z.B. hilfsbereit, mutig, weise"
+                        />
+                      </div>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="secondaryTraits">Sekundaere Eigenschaften (kommagetrennt)</label>
+                        <input
+                          id="secondaryTraits"
+                          style={inputBaseStyle}
+                          value={formState.secondaryTraits}
+                          onChange={(event) => setFormState({ ...formState, secondaryTraits: event.target.value })}
+                          placeholder="z.B. froehlich, grosszuegig, gemuetlich"
+                        />
+                      </div>
+                    </div>
+                    <div style={twoColumnStyle}>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="speechStyle">Sprachstil (kommagetrennt)</label>
+                        <input
+                          id="speechStyle"
+                          style={inputBaseStyle}
+                          value={formState.speechStyle}
+                          onChange={(event) => setFormState({ ...formState, speechStyle: event.target.value })}
+                          placeholder="z.B. warmherzig, einladend, gemuetlich"
+                        />
+                      </div>
+                      <div>
+                        <label style={inputLabelStyle} htmlFor="emotionalTriggers">Emotionale Trigger (kommagetrennt)</label>
+                        <input
+                          id="emotionalTriggers"
+                          style={inputBaseStyle}
+                          value={formState.emotionalTriggers}
+                          onChange={(event) => setFormState({ ...formState, emotionalTriggers: event.target.value })}
+                          placeholder="z.B. hungrige Kinder, Feste"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="catchphrase">Spruch</label>
+                      <input
+                        id="catchphrase"
+                        style={inputBaseStyle}
+                        value={formState.catchphrase}
+                        onChange={(event) => setFormState({ ...formState, catchphrase: event.target.value })}
+                        placeholder="z.B. Kommt, probiert mal! Frisch aus dem Ofen!"
+                      />
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="catchphraseContext">Spruch-Kontext</label>
+                      <input
+                        id="catchphraseContext"
+                        style={inputBaseStyle}
+                        value={formState.catchphraseContext}
+                        onChange={(event) => setFormState({ ...formState, catchphraseContext: event.target.value })}
+                        placeholder="z.B. wenn er jemanden troesten moechte"
+                      />
+                    </div>
+                    <div>
+                      <label style={inputLabelStyle} htmlFor="quirk">Eigenart / Quirk</label>
+                      <input
+                        id="quirk"
+                        style={inputBaseStyle}
+                        value={formState.quirk}
+                        onChange={(event) => setFormState({ ...formState, quirk: event.target.value })}
+                        placeholder="z.B. wischt sich die Haende an der Schuerze ab"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={sectionTitleStyle}>Emotionen (Legacy)</span>
                     <div style={twoColumnStyle}>
                       <div>
                         <label style={inputLabelStyle} htmlFor="dominantEmotion">Dominant</label>
@@ -820,6 +919,14 @@ function mapCharacterToForm(character: CharacterTemplate): CharacterFormState {
     canonSettings: (character.canonSettings ?? []).join(', '),
     isActive: character.isActive ?? true,
     imageUrl: character.imageUrl,
+    // V2 personality fields
+    dominantPersonality: character.dominantPersonality ?? '',
+    secondaryTraits: (character.secondaryTraits ?? []).join(', '),
+    speechStyle: (character.speechStyle ?? []).join(', '),
+    catchphrase: character.catchphrase ?? '',
+    catchphraseContext: character.catchphraseContext ?? '',
+    quirk: character.quirk ?? '',
+    emotionalTriggers: (character.emotionalTriggers ?? []).join(', '),
   };
 }
 
@@ -840,6 +947,14 @@ function createEmptyFormState(): CharacterFormState {
     canonSettings: '',
     isActive: true,
     imageUrl: undefined,
+    // V2 personality fields
+    dominantPersonality: '',
+    secondaryTraits: '',
+    speechStyle: '',
+    catchphrase: '',
+    catchphraseContext: '',
+    quirk: '',
+    emotionalTriggers: '',
   };
 }
 
@@ -892,6 +1007,14 @@ function buildCreatePayload(form: CharacterFormState): Omit<CharacterTemplate, "
     availableChapters: availableChapters.length > 0 ? availableChapters : [1, 2, 3, 4, 5],
     canonSettings: parseCommaList(form.canonSettings),
     isActive: form.isActive,
+    // V2 personality fields
+    dominantPersonality: form.dominantPersonality.trim() || undefined,
+    secondaryTraits: parseCommaList(form.secondaryTraits),
+    speechStyle: parseCommaList(form.speechStyle),
+    catchphrase: form.catchphrase.trim() || undefined,
+    catchphraseContext: form.catchphraseContext.trim() || undefined,
+    quirk: form.quirk.trim() || undefined,
+    emotionalTriggers: parseCommaList(form.emotionalTriggers),
   };
 }
 
@@ -954,6 +1077,42 @@ function buildUpdatePayload(original: CharacterTemplate, form: CharacterFormStat
 
   if ((original.isActive ?? true) !== form.isActive) {
     updates.isActive = form.isActive;
+  }
+
+  // V2 personality fields
+  const newDominantPersonality = form.dominantPersonality.trim();
+  if (newDominantPersonality !== (original.dominantPersonality ?? '')) {
+    updates.dominantPersonality = newDominantPersonality || undefined;
+  }
+
+  const newSecondaryTraits = parseCommaList(form.secondaryTraits);
+  if (JSON.stringify(newSecondaryTraits) !== JSON.stringify(original.secondaryTraits ?? [])) {
+    updates.secondaryTraits = newSecondaryTraits;
+  }
+
+  const newSpeechStyle = parseCommaList(form.speechStyle);
+  if (JSON.stringify(newSpeechStyle) !== JSON.stringify(original.speechStyle ?? [])) {
+    updates.speechStyle = newSpeechStyle;
+  }
+
+  const newCatchphrase = form.catchphrase.trim();
+  if (newCatchphrase !== (original.catchphrase ?? '')) {
+    updates.catchphrase = newCatchphrase || undefined;
+  }
+
+  const newCatchphraseContext = form.catchphraseContext.trim();
+  if (newCatchphraseContext !== (original.catchphraseContext ?? '')) {
+    updates.catchphraseContext = newCatchphraseContext || undefined;
+  }
+
+  const newQuirk = form.quirk.trim();
+  if (newQuirk !== (original.quirk ?? '')) {
+    updates.quirk = newQuirk || undefined;
+  }
+
+  const newEmotionalTriggers = parseCommaList(form.emotionalTriggers);
+  if (JSON.stringify(newEmotionalTriggers) !== JSON.stringify(original.emotionalTriggers ?? [])) {
+    updates.emotionalTriggers = newEmotionalTriggers;
   }
 
   return updates;
