@@ -73,8 +73,9 @@ STRICT RULES:
 9) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 10) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 11) Avatars and supporting characters must be actively involved, not just present.
-12) End with a gentle forward-looking line (except final chapter).
-${strict ? "13) Double-check that no English sentence appears in the German output." : ""}
+12) Chapter title must be a curiosity hook, not "Chapter X".
+13) End with a gentle forward-looking line (except final chapter).
+${strict ? "14) Double-check that no English sentence appears in the German output." : ""}
 
 Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
@@ -109,8 +110,9 @@ STRICT RULES:
 8) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 9) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 10) Avatars and supporting characters must be actively involved, not just present.
-11) End with a gentle forward-looking line (except final chapter).
-${strict ? "12) Do not include any instruction text or meta commentary in the output." : ""}
+11) Chapter title must be a curiosity hook, not "Chapter X".
+12) End with a gentle forward-looking line (except final chapter).
+${strict ? "13) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
@@ -196,7 +198,8 @@ RULES:
 6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 8) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
-9) Children's-book style: vivid, rhythmic, varied sentence starts.
+9) Chapter title must be a curiosity hook, not "Chapter X".
+10) Children's-book style: vivid, rhythmic, varied sentence starts.
 
 ORIGINAL TEXT:
 ${originalText}
@@ -230,7 +233,8 @@ RULES:
 6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 8) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
-9) Children's-book style: vivid, rhythmic, varied sentence starts.
+9) Chapter title must be a curiosity hook, not "Chapter X".
+10) Children's-book style: vivid, rhythmic, varied sentence starts.
 
 ORIGINAL TEXT:
 ${originalText}
@@ -443,11 +447,25 @@ ${artifactLine}
 ${arcHint}
 ${fusionLine}`;
   }).join("\n\n");
+  const structureMap = buildStructureMap(directives.length);
 
   if (isGerman) {
     return `You are an award-winning children's book author. Write a COMPLETE story with ${directives.length} chapters in German.
 Target audience: ${ageRange.min}-${ageRange.max} years old.
 Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+
+STYLE TARGETS (do NOT mention these directly):
+- Page-turning momentum with short, vivid scenes and frequent hooks
+- Warm humor + real stakes, never cynical
+- Cinematic clarity: strong visuals, clear staging, cause -> effect
+- Poetic depth in small doses (1-2 standout images per chapter)
+- Distinct character voices; dialogue carries meaning
+
+AGE ADAPTATION:
+- 3-5: very short sentences, gentle repetition, 1 main problem, safe resolution
+- 6-8: more dialogue, small riddles, playful tension, clear hooks
+- 9-12: stronger motives, sharper twists, deeper emotion, still kid-safe
+- 12-14: denser style, moral nuance, bigger turns (age-appropriate)
 
 CHARACTER DIRECTORY (use ONLY these characters!):
 ${characterProfiles}
@@ -461,6 +479,9 @@ LENGTH REQUIREMENTS:
 - Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
 - Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
 
+STRUCTURE MAP:
+${structureMap}
+
 QUALITY REQUIREMENTS:
 1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
@@ -468,22 +489,24 @@ QUALITY REQUIREMENTS:
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
 6) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
-7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "sehr", "ganz", "irgendwie". No recurring stock metaphors.
+7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "very", "quite", "somehow". No recurring stock metaphors.
 8) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
 9) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot", "sad but hopeful".
 10) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
 11) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
 12) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
-13) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), includes a concrete on-scene moment with dialogue + action (no summary-only wrap-up), and ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
-14) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
-${strict ? "15) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+13) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), includes a concrete on-scene moment with dialogue + action (no summary-only wrap-up), and ends with a warm closing image (e.g. homeward path, laughter, evening light). Add a short epilogue paragraph + optional 1-sentence spark for a next adventure.
+14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
+15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
+16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
+${strict ? "17) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
 
 Return JSON:
 {
-  "title": "Short story title",
-  "description": "1-2 sentence description",
+  "title": "Short story title (max 7 words)",
+  "description": "1-sentence teaser hook",
   "chapters": [
     { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
     { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." }
@@ -495,6 +518,19 @@ Return JSON:
 Target audience: ${ageRange.min}-${ageRange.max} years old.
 Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
 
+STYLE TARGETS (do NOT mention these directly):
+- Page-turning momentum with short, vivid scenes and frequent hooks
+- Warm humor + real stakes, never cynical
+- Cinematic clarity: strong visuals, clear staging, cause -> effect
+- Poetic depth in small doses (1-2 standout images per chapter)
+- Distinct character voices; dialogue carries meaning
+
+AGE ADAPTATION:
+- 3-5: very short sentences, gentle repetition, 1 main problem, safe resolution
+- 6-8: more dialogue, small riddles, playful tension, clear hooks
+- 9-12: stronger motives, sharper twists, deeper emotion, still kid-safe
+- 12-14: denser style, moral nuance, bigger turns (age-appropriate)
+
 CHARACTER DIRECTORY (use ONLY these characters!):
 ${characterProfiles}
 ${artifactName ? `\nARTIFACT: ${artifactName} (${cast.artifact?.storyUseRule || "important object"})` : ""}
@@ -507,6 +543,9 @@ LENGTH REQUIREMENTS:
 - Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
 - Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
 
+STRUCTURE MAP:
+${structureMap}
+
 QUALITY REQUIREMENTS:
 1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
@@ -514,22 +553,24 @@ QUALITY REQUIREMENTS:
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
 6) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
-7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "sehr", "ganz", "irgendwie". No recurring stock metaphors.
+7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "very", "quite", "somehow". No recurring stock metaphors.
 8) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
 9) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot", "sad but hopeful".
 10) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
 11) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
 12) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
-13) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), includes a concrete on-scene moment with dialogue + action (no summary-only wrap-up), and ends with a warm closing image (e.g. homeward path, laughter, evening light). Optional 1 mini-teaser (1 sentence).
-14) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text in output.
-${strict ? "15) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+13) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), includes a concrete on-scene moment with dialogue + action (no summary-only wrap-up), and ends with a warm closing image (e.g. homeward path, laughter, evening light). Add a short epilogue paragraph + optional 1-sentence spark for a next adventure.
+14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
+15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
+16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
+${strict ? "17) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
 
 Return JSON:
 {
-  "title": "Short story title",
-  "description": "1-2 sentence description",
+  "title": "Short story title (max 7 words)",
+  "description": "1-sentence teaser hook",
   "chapters": [
     { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
     { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." }
@@ -571,6 +612,10 @@ export function buildFullStoryRewritePrompt(input: {
 
 ${qualityIssues}
 
+STYLE TARGETS (do NOT mention these directly):
+- Page-turning momentum, warm humor, cinematic clarity
+- Poetic depth in small doses, distinct character voices
+
 RULES (unchangeable):
 - Allowed names: ${allowedNames || "none"}
 - No new proper names
@@ -580,6 +625,9 @@ RULES (unchangeable):
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
+- Chapter titles must be curiosity hooks (not "Chapter X")
+- Description must be a 1-sentence teaser hook
+- Last chapter ends with a short epilogue paragraph + optional 1-sentence spark for next adventure
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 ORIGINAL TEXT:
@@ -600,6 +648,10 @@ Return the COMPLETE revised story as JSON:
 
 ${qualityIssues}
 
+STYLE TARGETS (do NOT mention these directly):
+- Page-turning momentum, warm humor, cinematic clarity
+- Poetic depth in small doses, distinct character voices
+
 RULES (unchangeable):
 - Allowed names: ${allowedNames || "none"}
 - No new proper names
@@ -609,6 +661,9 @@ RULES (unchangeable):
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
+- Chapter titles must be curiosity hooks (not "Chapter X")
+- Description must be a 1-sentence teaser hook
+- Last chapter ends with a short epilogue paragraph + optional 1-sentence spark for next adventure
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 ORIGINAL TEXT:
@@ -627,7 +682,7 @@ Return the COMPLETE revised story as JSON:
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
   if (input.language === "de") {
-    return `Create a short title and description for the following children's story in German.
+    return `Create a short title (max 7 words) and a 1-sentence teaser hook for the following children's story in German.
 Return JSON:
 { "title": "...", "description": "..." }
 
@@ -635,12 +690,70 @@ Story:
 ${input.storyText}`;
   }
 
-  return `Create a short story title and description for the following children's story in ${input.language}.
+  return `Create a short story title (max 7 words) and a 1-sentence teaser hook for the following children's story in ${input.language}.
 Return JSON:
 { "title": "...", "description": "..." }
 
 Story:
 ${input.storyText}`;
+}
+
+function buildStructureMap(chapterCount: number): string {
+  if (chapterCount >= 8) {
+    return [
+      "- Ch1: Setup + promise + first mini-mystery",
+      "- Ch2: First setback + rule of the world",
+      "- Ch3: False lead / unexpected ally",
+      "- Ch4: Midpoint twist (stakes widen)",
+      "- Ch5: Loss or mistake by protagonist",
+      "- Ch6: Plan + rising time pressure",
+      "- Ch7: Final confrontation + clever solution",
+      "- Ch8: Reward + warm resolution + short epilogue beat",
+    ].join("\n");
+  }
+  if (chapterCount === 7) {
+    return [
+      "- Ch1: Setup + promise",
+      "- Ch2: Setback + rule of the world",
+      "- Ch3: False lead / ally",
+      "- Ch4: Midpoint twist",
+      "- Ch5: Darkest moment",
+      "- Ch6: Final plan + confrontation",
+      "- Ch7: Resolution + short epilogue beat",
+    ].join("\n");
+  }
+  if (chapterCount === 6) {
+    return [
+      "- Ch1: Setup + promise",
+      "- Ch2: Setback + rule of the world",
+      "- Ch3: Twist / false lead",
+      "- Ch4: Darkest moment",
+      "- Ch5: Final plan + confrontation",
+      "- Ch6: Resolution + short epilogue beat",
+    ].join("\n");
+  }
+  if (chapterCount === 5) {
+    return [
+      "- Ch1: Setup + first mini-mystery",
+      "- Ch2: First setback + escalation",
+      "- Ch3: False lead / twist",
+      "- Ch4: Darkest moment (nearly lost)",
+      "- Ch5: Resolution + warm payoff + short epilogue beat",
+    ].join("\n");
+  }
+  if (chapterCount === 4) {
+    return [
+      "- Ch1: Setup + promise",
+      "- Ch2: Escalation + obstacle",
+      "- Ch3: Climax (darkest moment)",
+      "- Ch4: Resolution + short epilogue beat",
+    ].join("\n");
+  }
+  return [
+    "- Ch1: Setup + problem",
+    "- Ch2: Confrontation + turning point",
+    "- Ch3: Resolution + short epilogue beat",
+  ].join("\n");
 }
 
 export function buildImageSpecPrompt(input: {
