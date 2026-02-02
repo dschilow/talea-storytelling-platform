@@ -8,6 +8,66 @@ interface ImageUploadCameraProps {
   onClearImage?: () => void;
 }
 
+// Helper function to resize and compress image
+const resizeAndCompressImage = (file: File | string, maxSize: number = 1024): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+
+    img.onload = () => {
+      // Calculate new dimensions while maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+
+      // Create canvas and draw resized image
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Convert to JPEG with 0.85 quality for good compression
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      resolve(dataUrl);
+    };
+
+    img.onerror = () => {
+      reject(new Error('Failed to load image'));
+    };
+
+    // Handle both File objects and data URLs
+    if (typeof file === 'string') {
+      img.src = file;
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+};
+
 export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   onImageSelected,
   currentImage,
@@ -45,7 +105,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   };
 
   // Capture photo from camera
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
@@ -54,14 +114,23 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        onImageSelected(dataUrl);
+
+        // Resize and compress before passing to parent
+        try {
+          const compressedDataUrl = await resizeAndCompressImage(dataUrl);
+          onImageSelected(compressedDataUrl);
+        } catch (error) {
+          console.error('Error compressing camera image:', error);
+          onImageSelected(dataUrl); // Fallback to original if compression fails
+        }
+
         stopCamera();
       }
     }
   };
 
   // Handle file upload
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
@@ -69,12 +138,14 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        onImageSelected(dataUrl);
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Resize and compress the uploaded image
+        const compressedDataUrl = await resizeAndCompressImage(file);
+        onImageSelected(compressedDataUrl);
+      } catch (error) {
+        console.error('Error processing uploaded image:', error);
+        alert('Fehler beim Verarbeiten des Bildes. Bitte versuche es erneut.');
+      }
     }
   };
 
@@ -193,9 +264,12 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 bg-purple-50 rounded-lg p-2">
               <ImageIcon className="w-4 h-4 text-purple-500" />
-              <span>
-                Dieses Foto wird als Referenz für die AI-Bildgenerierung verwendet
-              </span>
+              <div className="flex-1">
+                <div>Dieses Foto wird als Referenz für die AI-Bildgenerierung verwendet</div>
+                <div className="text-purple-600 font-medium mt-0.5">
+                  Optimiert: max. 1024px, JPEG-Komprimierung
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
