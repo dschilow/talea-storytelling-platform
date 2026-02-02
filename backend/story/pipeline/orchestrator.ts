@@ -9,7 +9,7 @@ import { buildIntegrationPlan } from "./integration-planner";
 import { buildSceneDirectives } from "./scene-directives";
 import { createCanonFusionPlanV2, fusionPlanToPromptSections } from "./canon-fusion";
 import { LlmStoryWriter } from "./story-writer";
-import { TemplateImageDirector } from "./image-director";
+import { TemplateImageDirector, buildCoverSpec } from "./image-director";
 import { RunwareImageGenerator } from "./image-generator";
 import { SimpleVisionValidator } from "./vision-validator";
 import { validateAndFixImageSpecs } from "./image-prompt-validator";
@@ -48,6 +48,7 @@ export interface PipelineRunResult {
   storyDraft: StoryDraft;
   imageSpecs: any[];
   images: Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>;
+  coverImage?: { imageUrl?: string; prompt: string; provider?: string };
   validationReport?: any;
   tokenUsage?: any;
   artifactMeta?: any;
@@ -404,6 +405,31 @@ export class StoryPipelineOrchestrator {
         throw new Error(`ImageSpec validation failed: ${imageIssues.map(i => i.code).join(", ")}`);
       }
 
+      const phase8Start = Date.now();
+      let coverImage: { imageUrl?: string; prompt: string; provider?: string } | undefined;
+      try {
+        const coverSpec = buildCoverSpec({
+          normalizedRequest: normalized,
+          cast: castSet,
+          directives,
+          storyDraft,
+        });
+        const coverImages = await this.imageGenerator.generateImages({
+          normalizedRequest: normalized,
+          cast: castSet,
+          directives,
+          imageSpecs: [coverSpec],
+          pipelineConfig,
+        });
+        coverImage = coverImages[0];
+        await logPhase("phase8-cover", { storyId: normalized.storyId }, {
+          durationMs: Date.now() - phase8Start,
+          success: !!coverImage?.imageUrl,
+        });
+      } catch (coverError) {
+        console.warn("[pipeline] Cover image generation failed", coverError);
+      }
+
       const phase9Start = Date.now();
       let images = await loadStoryImages(normalized.storyId);
       if (images.length === 0) {
@@ -488,6 +514,7 @@ export class StoryPipelineOrchestrator {
         storyDraft,
         imageSpecs,
         images,
+        coverImage,
         validationReport,
         tokenUsage,
         artifactMeta,

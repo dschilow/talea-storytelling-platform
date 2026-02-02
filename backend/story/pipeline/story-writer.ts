@@ -18,7 +18,7 @@ export class LlmStoryWriter implements StoryWriter {
     fusionSections?: Map<number, string>;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
-    const model = normalizedRequest.rawConfig.aiModel || "gpt-5-mini";
+    const model = "gpt-5-mini";
     const targetLanguage = normalizedRequest.language === "de" ? "German" : normalizedRequest.language;
     const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.`;
     const editSystemPrompt = "You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.";

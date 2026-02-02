@@ -1,5 +1,5 @@
-import type { AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
-import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
+import type { AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective, StoryDraft } from "./types";
+import { GLOBAL_IMAGE_NEGATIVES, MAX_ON_STAGE_CHARACTERS } from "./constants";
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { buildRefsForSlots, selectReferenceSlots } from "./reference-images";
 
@@ -45,6 +45,68 @@ export class TemplateImageDirector implements ImageDirector {
       return spec;
     });
   }
+}
+
+export function buildCoverSpec(input: {
+  normalizedRequest: NormalizedRequest;
+  cast: CastSet;
+  directives: SceneDirective[];
+  storyDraft: StoryDraft;
+}): ImageSpec {
+  const { cast, directives, storyDraft } = input;
+  const coverChapter = storyDraft.chapters?.[0]?.chapter ?? 1;
+  const directive = directives.find(d => d.chapter === coverChapter) ?? directives[0];
+  const mood = directive?.mood || "COZY";
+  const setting = directive?.setting ? toEnglish(directive.setting) : "storybook cover scene";
+
+  const onStageExact = selectCoverSlots(cast, MAX_ON_STAGE_CHARACTERS);
+  const refSlots = selectReferenceSlots(onStageExact, cast);
+  const refs = buildRefsForSlots(refSlots, cast);
+  const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...(directive?.imageAvoid || [])]));
+
+  const propsVisible = directive ? limitPropsVisible(directive, cast) : [];
+  const artifactName = cast.artifact?.name;
+  if (artifactName && !propsVisible.includes(artifactName)) {
+    propsVisible.unshift(artifactName);
+  }
+
+  const title = storyDraft.title || "Story";
+  const desc = storyDraft.description ? ` ${storyDraft.description}` : "";
+  const sceneDescription = `Book cover illustration for "${title}".${desc}`.trim();
+
+  const style = `storybook cover illustration, ${getMoodTexture(mood, "SETUP")}${setting ? `, ${setting}` : ""}`;
+  const composition = "storybook cover, title space at top, wide shot, full body visible head-to-toe";
+  const blocking = "Characters arranged in a clear, cover-friendly grouping, interacting with the scene.";
+  const actions = artifactName
+    ? `Characters engage with the ${artifactName} and each other in a key moment.`
+    : "Characters engage with each other in a key moment.";
+  const lighting = mapLighting(mood);
+
+  const spec: ImageSpec = {
+    chapter: coverChapter,
+    style,
+    composition,
+    blocking,
+    actions,
+    propsVisible,
+    lighting,
+    setting,
+    sceneDescription,
+    refs,
+    negatives,
+    onStageExact,
+  };
+
+  spec.finalPromptText = buildFinalPromptText(spec, cast, { forceEnglish: true });
+  return spec;
+}
+
+function selectCoverSlots(cast: CastSet, maxCharacters: number): string[] {
+  const slots = [
+    ...cast.avatars.map(a => a.slotKey),
+    ...cast.poolCharacters.map(c => c.slotKey),
+  ].filter(Boolean);
+  return slots.slice(0, Math.max(1, maxCharacters));
 }
 
 // ─── AI-Powered Spec Builder ──────────────────────────────────────────────

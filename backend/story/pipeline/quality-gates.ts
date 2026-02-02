@@ -275,7 +275,7 @@ function gateCastLock(
         message: isDE
           ? `Neuer Eigenname "${match[1]}" nicht in der erlaubten Figurenliste`
           : `New proper name "${match[1]}" not in allowed character list`,
-        severity: isActor ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }

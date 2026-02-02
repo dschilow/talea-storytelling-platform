@@ -478,6 +478,7 @@ ${stylePackText ? `\nSTYLE DIRECTIVES:\n${stylePackText}` : ""}
 LENGTH REQUIREMENTS:
 - Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
 - Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
+- Aim for the upper half of the per-chapter range; no 1-2 sentence teaser chapters.
 
 STRUCTURE MAP:
 ${structureMap}
@@ -485,6 +486,8 @@ ${structureMap}
 QUALITY REQUIREMENTS:
 1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
+2b) HARD BEATS PER CHAPTER (must be clearly present in the text): Szene (Ort + Stimmung, 1-2 Saetze), Ziel, Hindernis, Action, Mini-Aufloesung, Hook.
+2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by explicitly adding these 6 beats.
 3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
@@ -492,6 +495,7 @@ QUALITY REQUIREMENTS:
 7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "very", "quite", "somehow". No recurring stock metaphors.
 8) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
 9) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot", "sad but hopeful".
+9b) SHOW, DON'T TELL: Avoid sentences like "Er traf eine wichtige Entscheidung" or "Sie entdeckten den entscheidenden Hinweis." Replace with concrete action + short dialogue.
 10) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
 11) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
 12) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
@@ -499,6 +503,7 @@ QUALITY REQUIREMENTS:
 14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
 15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
 16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
+16b) MINI-PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts).
 ${strict ? "17) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
@@ -542,6 +547,7 @@ ${stylePackText ? `\nSTYLE DIRECTIVES:\n${stylePackText}` : ""}
 LENGTH REQUIREMENTS:
 - Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
 - Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
+- Aim for the upper half of the per-chapter range; no 1-2 sentence teaser chapters.
 
 STRUCTURE MAP:
 ${structureMap}
@@ -549,6 +555,8 @@ ${structureMap}
 QUALITY REQUIREMENTS:
 1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
+2b) HARD BEATS PER CHAPTER (must be clearly present in the text): Scene (place + mood, 1-2 sentences), Goal, Obstacle, Action, Mini-resolution, Hook.
+2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by explicitly adding these 6 beats.
 3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
@@ -556,6 +564,7 @@ QUALITY REQUIREMENTS:
 7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "very", "quite", "somehow". No recurring stock metaphors.
 8) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
 9) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot", "sad but hopeful".
+9b) SHOW, DON'T TELL: Avoid sentences like "He made an important decision" or "They discovered the decisive clue." Replace with concrete action + short dialogue.
 10) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
 11) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
 12) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
@@ -563,6 +572,7 @@ QUALITY REQUIREMENTS:
 14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
 15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
 16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
+16b) MINI-PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts).
 ${strict ? "17) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
@@ -622,6 +632,10 @@ RULES (unchangeable):
 - Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
 - No placeholder chapters; if a chapter is short, expand with a concrete action sequence + 2-3 short dialogue lines
 - Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension"
+- Each chapter must explicitly contain these beats: Szene (Ort + Stimmung, 1-2 Saetze), Ziel, Hindernis, Action, Mini-Aufloesung, Hook
+- If any chapter has 1-2 sentences, AUTO-EXPAND using the 6 beats above
+- Each chapter must include a small extra mini-problem (something slips, is too heavy, is misunderstood, or distracts)
+- Avoid sentences like "Er traf eine wichtige Entscheidung" or "Sie entdeckten den entscheidenden Hinweis"; replace with concrete action + short dialogue
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
@@ -658,6 +672,10 @@ RULES (unchangeable):
 - Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
 - No placeholder chapters; if a chapter is short, expand with a concrete action sequence + 2-3 short dialogue lines
 - Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension"
+- Each chapter must explicitly contain these beats: Scene (place + mood, 1-2 sentences), Goal, Obstacle, Action, Mini-resolution, Hook
+- If any chapter has 1-2 sentences, AUTO-EXPAND using the 6 beats above
+- Each chapter must include a small extra mini-problem (something slips, is too heavy, is misunderstood, or distracts)
+- Avoid sentences like "He made an important decision" or "They discovered the decisive clue"; replace with concrete action + short dialogue
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}

@@ -447,17 +447,18 @@ export const generate = api<GenerateStoryRequest, Story>(
           characterName: character.displayName,
         }));
 
+        const coverImageUrl = pipelineResult.coverImage?.imageUrl || imageByChapter.get(1);
         generatedStory = {
           title: pipelineResult.storyDraft.title,
           description: pipelineResult.storyDraft.description,
-          coverImageUrl: imageByChapter.get(1),
+          coverImageUrl,
           chapters,
           avatarDevelopments: [],
           pendingArtifact,
           metadata: {
             tokensUsed: tokenUsage,
             model: tokenUsage.modelUsed,
-            imagesGenerated: pipelineResult.images.length,
+            imagesGenerated: pipelineResult.images.length + (pipelineResult.coverImage?.imageUrl ? 1 : 0),
             characterPoolUsed,
           },
         };

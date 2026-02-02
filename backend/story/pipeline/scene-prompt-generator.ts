@@ -1,7 +1,7 @@
 import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText } from "./types";
 import { callChatCompletion } from "./llm-client";
 
-const MODEL = "gpt-5-mini";
+const MODEL = "gpt-5-nano";
 const MAX_CHAPTER_WORDS = 360;
 const LEAD_WORDS = 200;
 const TAIL_WORDS = 180;

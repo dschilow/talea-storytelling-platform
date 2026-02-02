@@ -393,7 +393,7 @@
         "refs": {
           "type": "object",
           "additionalProperties": false,
-          "minProperties": 1,
+          "minProperties": 0,
           "patternProperties": { "^ref_image_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 } }
         },
 

@@ -9,6 +9,7 @@ export function buildIntegrationPlan(input: {
   const { normalized, blueprint, cast } = input;
   const avatarSlots = cast.avatars.map(a => a.slotKey);
   const artifactSlot = "SLOT_ARTIFACT_1";
+  const countNonArtifact = (set: Set<string>) => Array.from(set).filter(slot => slot !== artifactSlot).length;
 
   const targetPresence = DEFAULT_AVATAR_PRESENCE_RATIO;
   const totalChapters = blueprint.scenes.length;
@@ -27,6 +28,14 @@ export function buildIntegrationPlan(input: {
 
     if (ensureAvatar) {
       avatarSlots.forEach(slot => onStage.add(slot));
+    }
+
+    const optionalSlots = (scene.optionalSlots || []).filter(slot => !slot.includes("ARTIFACT"));
+    if (optionalSlots.length > 0) {
+      for (const slot of optionalSlots) {
+        if (countNonArtifact(onStage) >= MAX_ON_STAGE_CHARACTERS) break;
+        onStage.add(slot);
+      }
     }
 
     const trimmed = trimOnStage({

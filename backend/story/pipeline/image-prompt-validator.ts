@@ -34,6 +34,22 @@ export function validateAndFixImageSpecs(input: {
       const hasBird = containsBirdToken([current.actions, current.blocking, ...(current.propsVisible || [])].join(" "));
       const extraNegatives = hasBird ? ["extra birds", "multiple birds", "two birds"] : [];
 
+      if (!current.style || current.style.length < 5) {
+        current.style = "high-quality children's storybook illustration";
+      }
+      if (!current.composition || current.composition.length < 5) {
+        current.composition = "wide shot, eye-level, full body visible head-to-toe";
+      }
+      if (!current.blocking || current.blocking.length < 5) {
+        current.blocking = "Characters positioned together in the scene.";
+      }
+      if (!current.actions || current.actions.length < 5) {
+        current.actions = "Characters act together in the scene.";
+      }
+      if (!current.lighting || current.lighting.length < 3) {
+        current.lighting = "soft light";
+      }
+
       current.negatives = Array.from(new Set([...(current.negatives || []), ...GLOBAL_IMAGE_NEGATIVES, ...extraNegatives]));
       if (requiresArtifact && artifactName) {
         current.propsVisible = Array.from(new Set([artifactName, ...(current.propsVisible || [])]));
