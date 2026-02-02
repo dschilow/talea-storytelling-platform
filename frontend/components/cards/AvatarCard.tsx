@@ -229,7 +229,7 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({ avatar, onUse, onDelete 
       <div style={imageContainerStyle} onClick={handleViewDetails}>
         {avatar.imageUrl ? (
           <img
-            src={avatar.imageUrl}
+            src={`${avatar.imageUrl}${avatar.imageUrl.includes('?') ? '&' : '?'}t=${avatar.updatedAt || Date.now()}`}
             alt={avatar.name}
             style={imageStyle}
           />

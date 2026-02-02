@@ -29,6 +29,16 @@ const AvatarsScreen: React.FC = () => {
     loadAvatars();
   }, [user]);
 
+  // Reload avatars when returning from edit/create (to show updated images)
+  useEffect(() => {
+    // Check if we're coming back from a navigation (state indicates refresh needed)
+    if (location.state?.refresh) {
+      loadAvatars();
+      // Clear the state to avoid repeated reloads
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const loadAvatars = async () => {
     try {
       setIsLoading(true);

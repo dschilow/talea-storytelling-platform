@@ -342,7 +342,8 @@ const EditAvatarScreen: React.FC = () => {
         showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich aktualisiert!`);
       });
 
-      navigate('/');
+      // Navigate back with refresh flag to reload avatar list with new image
+      navigate('/', { state: { refresh: true } });
     } catch (error) {
       console.error('Error updating avatar:', error);
       alert('Avatar konnte nicht aktualisiert werden. Bitte versuche es erneut.');

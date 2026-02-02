@@ -152,8 +152,8 @@ const AvatarWizardScreen: React.FC = () => {
         showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich erstellt!`);
       });
 
-      // Navigate back
-      navigate('/avatar');
+      // Navigate back with refresh flag to reload avatar list with new image
+      navigate('/avatar', { state: { refresh: true } });
     } catch (error) {
       console.error('Error creating avatar:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {

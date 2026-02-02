@@ -82,13 +82,25 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
       });
       setStream(mediaStream);
       setShowCamera(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+
+      // Wait for next tick to ensure video element is rendered
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          // Explicitly play the video
+          videoRef.current.play().catch(err => {
+            console.error('Error playing video:', err);
+          });
+        }
+      }, 100);
     } catch (error) {
       console.error('Camera access denied:', error);
       alert('Kamera-Zugriff wurde verweigert. Bitte erlaube den Zugriff in deinen Browser-Einstellungen.');
@@ -207,7 +219,9 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
                 ref={videoRef}
                 autoPlay
                 playsInline
-                className="w-full h-auto max-h-96 object-cover"
+                muted
+                className="w-full h-auto max-h-96 object-cover mirror"
+                style={{ transform: 'scaleX(-1)' }}
               />
             </div>
             <div className="flex gap-3">
