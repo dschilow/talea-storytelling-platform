@@ -107,7 +107,7 @@ async function callVisionAPI(imageUrl: string, prompt: string): Promise<any> {
     throw new Error(`Vision API error ${response.status}: ${text}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.choices?.[0]?.message?.content ?? "{}";
   try {
     return JSON.parse(content);
