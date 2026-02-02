@@ -58,7 +58,7 @@ function buildAISpec(
   negatives: string[],
   language: string,
 ): ImageSpec {
-  const propsFromAI = aiDesc.keyProps.slice(0, 7);
+  const propsFromAI = filterPropsList(aiDesc.keyProps.slice(0, 7), cast, directive);
   const propsVisible = mergeProps(propsFromAI, limitPropsVisible(directive, cast));
 
   // Build blocking from AI character actions
@@ -86,7 +86,7 @@ function buildAISpec(
   // Sanitize environment to remove forbidden portrait-like terms
   const sanitizedEnvironment = sanitizeForbiddenTerms(aiDesc.environment);
   const normalizedSetting = directive.setting ? toEnglish(directive.setting) : "";
-  const environmentParts = [sanitizedEnvironment, normalizedSetting].filter(Boolean);
+  const environmentParts = dedupeEnvironmentParts([sanitizedEnvironment, normalizedSetting]);
   const environmentLine = environmentParts.length > 0 ? `, ${environmentParts.join(", ")}` : "";
   const style = `high-quality children's storybook illustration, ${texture}${environmentLine}`;
 
@@ -95,6 +95,9 @@ function buildAISpec(
 
   if (!composition.toLowerCase().includes("full body") && !composition.toLowerCase().includes("head-to-toe")) {
     composition += ", full body visible head-to-toe";
+  }
+  if (onStageExact.length >= 3) {
+    composition = "wide shot, eye-level, full body visible head-to-toe";
   }
 
   // Sanitize all AI-generated text fields to avoid validation failures
@@ -484,13 +487,32 @@ function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
   const rawItems = directive.imageMustShow || [];
   const artifactName = cast.artifact?.name;
   const requiresArtifact = directive.charactersOnStage.includes("SLOT_ARTIFACT_1");
+  const settingText = (directive.setting || "").toLowerCase();
+  const characterNames = [
+    ...cast.avatars.map(a => a.displayName),
+    ...cast.poolCharacters.map(c => c.displayName),
+    cast.artifact?.name,
+  ]
+    .filter(Boolean)
+    .map(name => String(name).toLowerCase());
   const seen = new Set<string>();
   const result: string[] = [];
+
+  const isCharacterName = (valueLower: string) => {
+    return characterNames.some(name => name && (valueLower === name || valueLower.includes(name)));
+  };
+
+  const isSettingLike = (valueLower: string) => {
+    if (!settingText) return false;
+    return valueLower === settingText || valueLower.includes(settingText) || settingText.includes(valueLower);
+  };
 
   const add = (value?: string | null) => {
     if (!value) return;
     const trimmed = value.trim();
     if (!trimmed || seen.has(trimmed)) return;
+    const lower = trimmed.toLowerCase();
+    if (isCharacterName(lower) || isSettingLike(lower)) return;
     if (result.length >= maxItems) return;
     seen.add(trimmed);
     result.push(trimmed);
@@ -509,6 +531,26 @@ function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
   }
 
   return result;
+}
+
+function filterPropsList(props: string[], cast: CastSet, directive: SceneDirective): string[] {
+  const settingText = (directive.setting || "").toLowerCase();
+  const characterNames = [
+    ...cast.avatars.map(a => a.displayName),
+    ...cast.poolCharacters.map(c => c.displayName),
+    cast.artifact?.name,
+  ]
+    .filter(Boolean)
+    .map(name => String(name).toLowerCase());
+
+  return props.filter((raw) => {
+    const value = String(raw || "").trim();
+    if (!value) return false;
+    const lower = value.toLowerCase();
+    if (characterNames.some(name => name && (lower === name || lower.includes(name)))) return false;
+    if (settingText && (lower === settingText || lower.includes(settingText) || settingText.includes(lower))) return false;
+    return true;
+  });
 }
 
 function mergeProps(aiProps: string[], templateProps: string[]): string[] {
@@ -601,6 +643,21 @@ function toEnglish(text: string): string {
     result = result.replace(pattern, replacement);
   }
 
+  return result;
+}
+
+function dedupeEnvironmentParts(parts: string[]): string[] {
+  const result: string[] = [];
+  for (const part of parts) {
+    const value = (part || "").trim();
+    if (!value) continue;
+    const lower = value.toLowerCase();
+    const isDuplicate = result.some(existing => {
+      const existingLower = existing.toLowerCase();
+      return existingLower === lower || existingLower.includes(lower) || lower.includes(existingLower);
+    });
+    if (!isDuplicate) result.push(value);
+  }
   return result;
 }
 

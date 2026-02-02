@@ -18,22 +18,27 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
 
   const styleBlock = `STYLE: ${spec.style}`;
   const refBlock = refLines
-    ? `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for identity. Ignore backgrounds.`
+    ? `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for face identity. Ignore backgrounds.`
     : "";
 
   const hasBird = containsBirdToken([spec.actions, spec.blocking, ...(spec.propsVisible || [])].join(" "));
-  const birdLock = hasBird ? "- if any bird appears: exactly 1 bird total" : "";
+  const shotLabel = spec.composition?.toLowerCase().includes("wide") || count >= 3
+    ? "wide shot"
+    : "medium-wide shot";
 
   // Constraints with explicit action/gaze directions
+  const identityLock = refLines ? "- do not swap identities; match each character to its reference image" : "";
+
   const constraints = `CORE CONSTRAINTS:
 - EXACTLY ${count} characters: ${namesLine}
 - each character appears exactly once
-- full body visible from head to toe, wide shot
+- full body visible from head to toe, ${shotLabel}
 - characters engaged in ACTION, interacting with scene
 - characters looking at each other or at objects in scene, NOT at camera
 - candid moment, natural poses, dynamic movement
-- no extra people or animals, no background crowds
-${birdLock}`.trim();
+- no extra people, no background crowds
+${hasBird ? "- exactly 1 bird total, no other animals" : "- no extra animals"}
+${identityLock}`.trim();
 
   // Scene setting and environment - critical for unique backgrounds
   const settingBlock = spec.setting
@@ -46,6 +51,7 @@ ${birdLock}`.trim();
     : "";
 
   // Scene composition with blocking
+  const stagingOrder = count > 1 ? `LEFT-TO-RIGHT STAGING: ${namesLine}` : "";
   const sceneBlock = `SCENE COMPOSITION: ${spec.composition}. ${spec.blocking}`;
 
   // Actions block with clear visual descriptions
@@ -64,7 +70,7 @@ ${birdLock}`.trim();
     ? "LANGUAGE: All prompt text must be interpreted as English. If any non-English word appears, translate it to English before rendering."
     : "";
 
-  return [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard]
+  return [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, stagingOrder, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard]
     .filter(Boolean)
     .join("\n\n");
 }
