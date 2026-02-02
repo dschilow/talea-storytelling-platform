@@ -1,6 +1,7 @@
 import { ai } from "~encore/clients";
 import type { CastSet, ImageGenerator, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
 import { buildReferenceImages, selectReferenceSlots } from "./reference-images";
+import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 
 export class RunwareImageGenerator implements ImageGenerator {
   async generateImages(input: {
@@ -15,7 +16,21 @@ export class RunwareImageGenerator implements ImageGenerator {
 
     for (const spec of input.imageSpecs) {
       const refSlots = selectReferenceSlots(spec.onStageExact, input.cast);
-      const referenceImages = buildReferenceImages(refSlots, input.cast);
+
+      // Use collage URL if available (set by image-director), otherwise fall back to individual references
+      let referenceImages: string[];
+      if (spec.collageUrl) {
+        const resolvedUrl = await resolveImageUrlForClient(spec.collageUrl);
+        if (resolvedUrl) {
+          referenceImages = [resolvedUrl];
+          console.log(`[pipeline] Using sprite collage reference for chapter ${spec.chapter}`);
+        } else {
+          referenceImages = buildReferenceImages(refSlots, input.cast);
+        }
+      } else {
+        referenceImages = buildReferenceImages(refSlots, input.cast);
+      }
+
       const prompt = spec.finalPromptText || "";
       const negativePrompt = (spec.negatives || []).join(", ");
 

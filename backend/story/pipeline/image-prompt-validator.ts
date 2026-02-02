@@ -58,7 +58,10 @@ export function validateAndFixImageSpecs(input: {
         current.propsVisible = current.propsVisible.slice(0, maxPropsVisible);
       }
 
-      current.refs = expectedRefs(current, cast);
+      const isCollageRefs = Object.keys(current.refs || {}).some(k => k.startsWith("position_"));
+      if (!isCollageRefs) {
+        current.refs = expectedRefs(current, cast);
+      }
       current.finalPromptText = buildFinalPromptText(current, cast, { forceEnglish: true });
       return current;
     };
@@ -86,8 +89,11 @@ function collectIssues(spec: ImageSpec, cast: CastSet, maxPropsVisible: number):
   const lintIssues = lintPrompt(spec, cast);
   lintIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
 
-  const refIssues = validateRefs(spec, expectedRefs(spec, cast));
-  refIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
+  const isCollageMode = Object.keys(spec.refs || {}).some(k => k.startsWith("position_"));
+  if (!isCollageMode) {
+    const refIssues = validateRefs(spec, expectedRefs(spec, cast));
+    refIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
+  }
 
   if ((spec.propsVisible || []).length > maxPropsVisible) {
     issues.push({ chapter: spec.chapter, code: "TOO_MANY_PROPS", message: `propsVisible exceeds ${maxPropsVisible}` });

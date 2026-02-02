@@ -394,13 +394,17 @@
           "type": "object",
           "additionalProperties": false,
           "minProperties": 0,
-          "patternProperties": { "^ref_image_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 } }
+          "patternProperties": {
+            "^ref_image_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 },
+            "^position_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 }
+          }
         },
 
         "negatives": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "type": "string", "minLength": 2, "maxLength": 120 } },
         "finalPromptText": { "type": "string", "maxLength": 6000 },
         "setting": { "type": "string", "maxLength": 500 },
-        "sceneDescription": { "type": "string", "maxLength": 1000 }
+        "sceneDescription": { "type": "string", "maxLength": 1000 },
+        "collageUrl": { "type": "string", "maxLength": 500 }
       }
     },
 

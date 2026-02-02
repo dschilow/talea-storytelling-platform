@@ -408,7 +408,7 @@ export class StoryPipelineOrchestrator {
       const phase8Start = Date.now();
       let coverImage: { imageUrl?: string; prompt: string; provider?: string } | undefined;
       try {
-        const coverSpec = buildCoverSpec({
+        const coverSpec = await buildCoverSpec({
           normalizedRequest: normalized,
           cast: castSet,
           directives,

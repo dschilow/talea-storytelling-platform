@@ -443,6 +443,17 @@ export async function normalizeImageUrlForStorage(
   return buildStoredUrl(config, key);
 }
 
+export async function uploadBufferToBucket(
+  buffer: Buffer,
+  contentType: string,
+  options: BucketUploadOptions = {}
+): Promise<BucketUploadResult | null> {
+  if (!buffer || buffer.length === 0) return null;
+  const config = await pickConfig();
+  if (!config || config.uploadMode === "off") return null;
+  return await uploadBuffer(config, buffer, contentType, options);
+}
+
 export async function isBucketImageUrl(imageUrl: string | undefined): Promise<boolean> {
   if (!imageUrl) return false;
   const config = await pickConfig();

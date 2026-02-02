@@ -12,14 +12,21 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     .filter(Boolean)
     .join("\n");
 
-  const refLines = Object.entries(spec.refs || {})
-    .map(([key, value]) => `${key} = ${value}`)
-    .join("\n");
+  const refEntries = Object.entries(spec.refs || {});
+  const isCollageMode = refEntries.length > 0 && refEntries.some(([key]) => key.startsWith("position_"));
 
   const styleBlock = `STYLE: ${spec.style}`;
-  const refBlock = refLines
-    ? `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for face identity. Ignore backgrounds.`
-    : "";
+  let refBlock = "";
+  if (isCollageMode) {
+    const positionLines = refEntries
+      .map(([_key, value]) => value)
+      .map((desc, idx) => `Position ${idx + 1} (${desc})`)
+      .join("\n");
+    refBlock = `CHARACTER REFERENCE SPRITE (single image, left-to-right):\n${positionLines}\nThe reference image is a horizontal collage. Match each character ONLY by their framed position. Ignore collage backgrounds.`;
+  } else if (refEntries.length > 0) {
+    const refLines = refEntries.map(([key, value]) => `${key} = ${value}`).join("\n");
+    refBlock = `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for face identity. Ignore backgrounds.`;
+  }
 
   const hasBird = containsBirdToken([spec.actions, spec.blocking, ...(spec.propsVisible || [])].join(" "));
   const shotLabel = spec.composition?.toLowerCase().includes("wide") || count >= 3
@@ -27,7 +34,11 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     : "medium-wide shot";
 
   // Constraints with explicit action/gaze directions
-  const identityLock = refLines ? "- do not swap identities; match each character to its reference image" : "";
+  const identityLock = refEntries.length > 0
+    ? isCollageMode
+      ? "- do not swap identities; match each character to their colored frame position in the reference sprite"
+      : "- do not swap identities; match each character to its reference image"
+    : "";
 
   const constraints = `CORE CONSTRAINTS:
 - EXACTLY ${count} characters: ${namesLine}

@@ -488,6 +488,7 @@ QUALITY REQUIREMENTS:
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
 2b) HARD BEATS PER CHAPTER (must be clearly present in the text): Szene (Ort + Stimmung, 1-2 Saetze), Ziel, Hindernis, Action, Mini-Aufloesung, Hook.
 2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by explicitly adding these 6 beats.
+2d) IMPORTANT: Do NOT render labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Mini-Aufloesung:", "Ausblick:", "Epilog:" in the chapter text. Those are internal only.
 3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
@@ -557,6 +558,7 @@ QUALITY REQUIREMENTS:
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
 2b) HARD BEATS PER CHAPTER (must be clearly present in the text): Scene (place + mood, 1-2 sentences), Goal, Obstacle, Action, Mini-resolution, Hook.
 2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by explicitly adding these 6 beats.
+2d) IMPORTANT: Do NOT render labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-resolution:", "Outlook:", "Epilogue:" in the chapter text. Those are internal only.
 3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
@@ -636,6 +638,7 @@ RULES (unchangeable):
 - If any chapter has 1-2 sentences, AUTO-EXPAND using the 6 beats above
 - Each chapter must include a small extra mini-problem (something slips, is too heavy, is misunderstood, or distracts)
 - Avoid sentences like "Er traf eine wichtige Entscheidung" or "Sie entdeckten den entscheidenden Hinweis"; replace with concrete action + short dialogue
+- Do NOT render labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Mini-Aufloesung:", "Ausblick:", "Epilog:" in the chapter text. Those are internal only.
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
@@ -676,6 +679,7 @@ RULES (unchangeable):
 - If any chapter has 1-2 sentences, AUTO-EXPAND using the 6 beats above
 - Each chapter must include a small extra mini-problem (something slips, is too heavy, is misunderstood, or distracts)
 - Avoid sentences like "He made an important decision" or "They discovered the decisive clue"; replace with concrete action + short dialogue
+- Do NOT render labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-resolution:", "Outlook:", "Epilogue:" in the chapter text. Those are internal only.
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}

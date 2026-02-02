@@ -1,7 +1,8 @@
 import type { AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective, StoryDraft } from "./types";
 import { GLOBAL_IMAGE_NEGATIVES, MAX_ON_STAGE_CHARACTERS } from "./constants";
 import { buildFinalPromptText } from "./image-prompt-builder";
-import { buildRefsForSlots, selectReferenceSlots } from "./reference-images";
+import { buildCollageReference, buildCollageRefsForSlots, buildRefsForSlots, selectReferenceSlots } from "./reference-images";
+import type { CollageResult } from "./sprite-collage";
 
 export class TemplateImageDirector implements ImageDirector {
   async createImageSpecs(input: {
@@ -21,10 +22,24 @@ export class TemplateImageDirector implements ImageDirector {
       }
     }
 
-    return directives.map((directive) => {
+    // Collage cache: reuse the same collage for identical character sets (stores Promises to avoid races)
+    const collageCache = new Map<string, Promise<CollageResult | null>>();
+
+    return Promise.all(directives.map(async (directive) => {
       const onStageExact = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
       const refSlots = selectReferenceSlots(onStageExact, cast);
-      const refs = buildRefsForSlots(refSlots, cast);
+
+      // Attempt collage with cache (uses Promise dedup to avoid parallel rebuilds)
+      const cacheKey = [...refSlots].sort().join("|");
+      if (!collageCache.has(cacheKey)) {
+        collageCache.set(cacheKey, buildCollageReference(refSlots, cast));
+      }
+      const collageResult = await collageCache.get(cacheKey)!;
+
+      const refs = collageResult
+        ? buildCollageRefsForSlots(collageResult)
+        : buildRefsForSlots(refSlots, cast);
+
       const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...directive.imageAvoid]));
       const beatType = inferBeatType(directive);
 
@@ -41,18 +56,21 @@ export class TemplateImageDirector implements ImageDirector {
       }
 
       spec.finalPromptText = buildFinalPromptText(spec, cast, { forceEnglish });
+      if (collageResult) {
+        spec.collageUrl = collageResult.collageUrl;
+      }
 
       return spec;
-    });
+    }));
   }
 }
 
-export function buildCoverSpec(input: {
+export async function buildCoverSpec(input: {
   normalizedRequest: NormalizedRequest;
   cast: CastSet;
   directives: SceneDirective[];
   storyDraft: StoryDraft;
-}): ImageSpec {
+}): Promise<ImageSpec> {
   const { cast, directives, storyDraft } = input;
   const coverChapter = storyDraft.chapters?.[0]?.chapter ?? 1;
   const directive = directives.find(d => d.chapter === coverChapter) ?? directives[0];
@@ -61,7 +79,10 @@ export function buildCoverSpec(input: {
 
   const onStageExact = selectCoverSlots(cast, MAX_ON_STAGE_CHARACTERS);
   const refSlots = selectReferenceSlots(onStageExact, cast);
-  const refs = buildRefsForSlots(refSlots, cast);
+  const collageResult = await buildCollageReference(refSlots, cast);
+  const refs = collageResult
+    ? buildCollageRefsForSlots(collageResult)
+    : buildRefsForSlots(refSlots, cast);
   const negatives = Array.from(new Set([...GLOBAL_IMAGE_NEGATIVES, ...(directive?.imageAvoid || [])]));
 
   const propsVisible = directive ? limitPropsVisible(directive, cast) : [];
@@ -98,6 +119,9 @@ export function buildCoverSpec(input: {
   };
 
   spec.finalPromptText = buildFinalPromptText(spec, cast, { forceEnglish: true });
+  if (collageResult) {
+    spec.collageUrl = collageResult.collageUrl;
+  }
   return spec;
 }
 

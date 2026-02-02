@@ -293,6 +293,8 @@ export interface ImageSpec {
   negatives: string[];
   onStageExact: SlotKey[];
   finalPromptText?: string;
+  /** URL of the sprite collage reference image (set when collage mode is active) */
+  collageUrl?: string;
 }
 
 export interface StoryChapterText {

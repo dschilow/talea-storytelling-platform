@@ -73,7 +73,7 @@ export class LlmStoryWriter implements StoryWriter {
     }
 
     let parsed = safeJson(result.content);
-    let draft = extractDraft(parsed, directives, normalizedRequest.language);
+    let draft = sanitizeDraft(extractDraft(parsed, directives, normalizedRequest.language));
 
     // ─── Phase B: Quality Gates + Rewrite Passes ─────────────────────────────
     let qualityReport = runQualityGates({
@@ -152,7 +152,7 @@ export class LlmStoryWriter implements StoryWriter {
 
           const parsed = safeJson(result.content);
           if (parsed?.text) {
-            chapter.text = String(parsed.text);
+            chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
             if (parsed.title) chapter.title = String(parsed.title);
             changed = true;
           }
@@ -219,7 +219,7 @@ export class LlmStoryWriter implements StoryWriter {
       }
 
       parsed = safeJson(rewriteResult.content);
-      const revisedDraft = extractDraft(parsed, directives, normalizedRequest.language);
+      const revisedDraft = sanitizeDraft(extractDraft(parsed, directives, normalizedRequest.language));
 
       const revisedReport = runQualityGates({
         draft: revisedDraft,
@@ -359,6 +359,43 @@ function extractDraft(
   }
 
   return { title, description, chapters };
+}
+
+function sanitizeDraft(draft: StoryDraft): StoryDraft {
+  return {
+    ...draft,
+    chapters: draft.chapters.map(ch => ({
+      ...ch,
+      text: sanitizeMetaStructureFromText(ch.text),
+    })),
+  };
+}
+
+function sanitizeMetaStructureFromText(text: string): string {
+  if (!text) return text;
+  const lines = text.split(/\r?\n/);
+  const cleaned = lines.map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return "";
+
+    const match = trimmed.match(/^(?:\d+[\).]\s*)?(?:[-•*]\s*)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Mini[- ]?Aufl(?:ö|oe)sung|Ausblick|Epilog|Scene|Mood|Goal|Obstacle|Action|Mini[- ]?resolution|Outlook|Epilogue)\s*[:\-–]\s*(.*)$/i);
+    if (!match) return line;
+
+    const label = match[1].toLowerCase();
+    const rest = (match[2] || "").trim();
+
+    if (label === "epilog" || label === "epilogue") {
+      return rest;
+    }
+
+    return "";
+  });
+
+  return cleaned
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
 }
 
 function safeJson(text: string) {
