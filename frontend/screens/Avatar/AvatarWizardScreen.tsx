@@ -35,7 +35,7 @@ const AvatarWizardScreen: React.FC = () => {
   }, []);
 
   // Generate preview image
-  const handleGeneratePreview = async (data: AvatarFormData) => {
+  const handleGeneratePreview = async (data: AvatarFormData, referenceImageUrl?: string) => {
     try {
       setIsGeneratingPreview(true);
 
@@ -49,6 +49,7 @@ const AvatarWizardScreen: React.FC = () => {
         appearance: description,
         personalityTraits: {},
         style: 'disney',
+        referenceImageUrl: referenceImageUrl,
       });
 
       setPreviewUrl(result.imageUrl);

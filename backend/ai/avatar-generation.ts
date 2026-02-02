@@ -9,6 +9,8 @@ interface GenerateAvatarImageRequest {
   appearance: string;
   personalityTraits: any; // Make this flexible to accept any personality trait structure
   style?: "realistic" | "disney" | "anime";
+  /** Optional reference image URL (uploaded photo/camera) for character consistency */
+  referenceImageUrl?: string;
 }
 
 interface GenerateAvatarImageResponse {
@@ -43,8 +45,10 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
     console.log("🎨 Appearance:", translatedAppearance);
     console.log("🧠 Personality traits:", JSON.stringify(req.personalityTraits, null, 2));
     console.log("🎭 Style:", req.style);
+    console.log("📷 Reference Image:", req.referenceImageUrl ? "YES" : "NO");
 
     // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
+    // FEATURE: Support reference image for character consistency
     const imageResult = await runwareGenerateImage({
       prompt,
       width: 1024,
@@ -52,6 +56,7 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
       steps: 4,  // runware:400@4 uses fewer steps
       CFGScale: 4,
       outputFormat: "WEBP",
+      referenceImages: req.referenceImageUrl ? [req.referenceImageUrl] : undefined,
     });
 
     console.log("🖼️ Image generation result:");

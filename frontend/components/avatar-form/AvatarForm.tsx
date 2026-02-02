@@ -8,6 +8,7 @@ import { GenderSelector } from './GenderSelector';
 import { BodyBuildSelector } from './BodyBuildSelector';
 import { HairColorSelector, HairStyleSelector, EyeColorSelector, SkinFurColorSelector } from './ColorSelector';
 import { SpecialFeaturesSelector } from './SpecialFeaturesSelector';
+import { ImageUploadCamera } from './ImageUploadCamera';
 
 import {
   AvatarFormData,
@@ -20,7 +21,7 @@ import {
 interface AvatarFormProps {
   initialData?: Partial<AvatarFormData>;
   onChange?: (data: AvatarFormData) => void;
-  onPreview?: (data: AvatarFormData) => void;
+  onPreview?: (data: AvatarFormData, referenceImageUrl?: string) => void;
   previewUrl?: string;
   isGeneratingPreview?: boolean;
   mode?: 'create' | 'edit';
@@ -46,9 +47,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
     appearance: true,
     features: !compact,
     description: false,
+    referenceImage: true,
   });
 
   const [showPreviewDescription, setShowPreviewDescription] = useState(false);
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | undefined>(undefined);
 
   // Sync with external changes
   useEffect(() => {
@@ -169,6 +172,21 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
             </div>
           )}
         </div>
+      </FormSection>
+
+      {/* Section: Reference Image Upload/Camera */}
+      <FormSection
+        title="Referenzbild"
+        icon="📷"
+        isExpanded={expandedSections.referenceImage}
+        onToggle={() => toggleSection('referenceImage')}
+        optional
+      >
+        <ImageUploadCamera
+          onImageSelected={(dataUrl) => setReferenceImageUrl(dataUrl)}
+          currentImage={referenceImageUrl}
+          onClearImage={() => setReferenceImageUrl(undefined)}
+        />
       </FormSection>
 
       {/* Section: Appearance (Hair, Eyes, Skin/Fur) */}
@@ -305,7 +323,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onPreview(formData)}
+              onClick={() => onPreview(formData, referenceImageUrl)}
               disabled={isGeneratingPreview || !formData.name.trim()}
               className={`
                 flex items-center gap-2 px-6 py-3 rounded-xl font-semibold
@@ -324,7 +342,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
               ) : (
                 <>
                   <Wand2 className="w-5 h-5" />
-                  <span>Bild generieren</span>
+                  <span>Bild generieren {referenceImageUrl && '📷'}</span>
                 </>
               )}
             </motion.button>
