@@ -384,29 +384,41 @@ export function buildFullStoryPrompt(input: {
       const sheet = findCharacterBySlot(cast, slot);
       if (!sheet || slot.includes("ARTIFACT")) return null;
       const signature = sheet.visualSignature?.length ? sheet.visualSignature.join(", ") : "";
-      const personality = sheet.personalityTags?.length ? `${personalityLabel}: ${sheet.personalityTags.slice(0, 4).join(", ")}` : "";
-      const speech = sheet.speechStyleHints?.length ? `${speechLabel}: ${sheet.speechStyleHints.slice(0, 2).join(", ")}` : "";
-
-      // V2: Enhanced personality details for recognizable characters
       const ep = sheet.enhancedPersonality;
-      const catchphraseHint = ep?.catchphrase
-        ? `Catchphrase (max 1x!): "${ep.catchphrase}"`
-        : "";
-      const dialogStyle = ep?.dialogueStyle
-        ? `Dialogue style: ${ep.dialogueStyle}`
-        : "";
-      const triggers = ep?.emotionalTriggers?.length
-        ? `Reacts to: ${ep.emotionalTriggers.slice(0, 2).join(", ")}`
-        : "";
-      const quirkHint = ep?.quirk
-        ? `Quirk: ${ep.quirk}`
-        : "";
 
-      const extras = [personality, speech, catchphraseHint, dialogStyle, triggers, quirkHint].filter(Boolean).join("; ");
-      return `- ${sheet.displayName} (${sheet.roleType})${signature ? ` - ${signature}` : ""}${extras ? `; ${extras}` : ""}`;
+      // Build multi-line character profile block for better AI comprehension
+      const lines: string[] = [];
+      lines.push(`■ ${sheet.displayName} (${sheet.roleType})${signature ? ` - ${signature}` : ""}`);
+
+      // Personality traits
+      if (sheet.personalityTags?.length) {
+        lines.push(`  ${isGerman ? "Persoenlichkeit" : personalityLabel}: ${sheet.personalityTags.slice(0, 5).join(", ")}`);
+      }
+
+      // Speech style - critical for unique character voice
+      if (sheet.speechStyleHints?.length) {
+        lines.push(`  ${isGerman ? "Sprachstil" : speechLabel}: ${sheet.speechStyleHints.slice(0, 3).join(", ")}`);
+      }
+
+      // Catchphrase
+      if (ep?.catchphrase) {
+        lines.push(`  ${isGerman ? "Spruch (genau 1x benutzen!)" : "Catchphrase (use exactly 1x!)"}: "${ep.catchphrase}"`);
+      }
+
+      // Quirk - unique mannerism to show in scenes
+      if (ep?.quirk) {
+        lines.push(`  ${isGerman ? "Eigenart (mind. 1x zeigen!)" : "Quirk (show at least 1x!)"}: ${ep.quirk}`);
+      }
+
+      // Emotional triggers
+      if (ep?.emotionalTriggers?.length) {
+        lines.push(`  ${isGerman ? "Reagiert auf" : "Reacts to"}: ${ep.emotionalTriggers.slice(0, 3).join(", ")}`);
+      }
+
+      return lines.join("\n");
     })
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
 
   const chapterBlocks = directives.map((d, idx) => {
     const chOnStage = d.charactersOnStage
@@ -505,7 +517,13 @@ QUALITY REQUIREMENTS:
 15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
 16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
 16b) MINI-PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts).
-${strict ? "17) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+17) CHARACTER VOICE: Every character MUST have a unique, recognizable voice in dialogue.
+  a) Dialogue MUST reflect the character's defined Sprachstil. A "polternd" character speaks rough and loud. A "piepsig" character speaks in a squeaky voice. A "reimend" character rhymes. A "knurrend" character growls. NEVER let two characters sound the same.
+  b) Show each character's Eigenart (quirk) at least ONCE through a concrete physical action (not narration). Example: "Er wischte sich die Haende an der Schuerze ab" instead of "Er hatte die Eigenart, sich die Haende abzuwischen."
+  c) When a character encounters one of their emotional triggers (Reagiert auf), show a visible physical or emotional reaction (eyes widen, voice changes, freezes, etc.).
+  d) Catchphrases (Spruch) must be used EXACTLY once per story, woven naturally into dialogue at the marked chapter. Never paraphrase - use the EXACT words.
+  e) Each character's personality (Persoenlichkeit) must influence their ACTIONS, not just their words. A "frech" character acts boldly, a "schuechtern" character hesitates, a "hilfsbereit" character helps without being asked.
+${strict ? "18) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
 
@@ -575,7 +593,13 @@ QUALITY REQUIREMENTS:
 15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
 16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
 16b) MINI-PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts).
-${strict ? "17) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+17) CHARACTER VOICE: Every character MUST have a unique, recognizable voice in dialogue.
+  a) Dialogue MUST reflect the character's defined Sprachstil. A "polternd" character speaks rough and loud. A "piepsig" character speaks in a squeaky voice. A "reimend" character rhymes. A "knurrend" character growls. NEVER let two characters sound the same.
+  b) Show each character's Eigenart (quirk) at least ONCE through a concrete physical action (not narration). Example: "Er wischte sich die Haende an der Schuerze ab" instead of "Er hatte die Eigenart, sich die Haende abzuwischen."
+  c) When a character encounters one of their emotional triggers (Reagiert auf), show a visible physical or emotional reaction (eyes widen, voice changes, freezes, etc.).
+  d) Catchphrases (Spruch) must be used EXACTLY once per story, woven naturally into dialogue at the marked chapter. Never paraphrase - use the EXACT words.
+  e) Each character's personality (Persoenlichkeit) must influence their ACTIONS, not just their words. A "frech" character acts boldly, a "schuechtern" character hesitates, a "hilfsbereit" character helps without being asked.
+${strict ? "18) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
 
 ALLOWED NAMES: ${allowedNames || "none"}
 

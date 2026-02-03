@@ -589,6 +589,7 @@ function generateDialogueCue(
 
     const style = personality.dialogueStyle || "casual";
     const dominant = personality.dominant;
+    const speechHints = character.speechStyleHints?.slice(0, 3) || personality.speechPatterns?.slice(0, 3) || [];
 
     // Generate a dialogue cue hint based on personality
     const cuesDE: Record<string, Record<string, string>> = {
@@ -597,23 +598,36 @@ function generateDialogueCue(
             mutig: "macht einen entschlossenen Vorschlag",
             hilfsbereit: "bietet freundlich Hilfe an",
             frech: "macht eine freche Bemerkung",
+            treu: "zeigt Loyalität durch eine treue Zusicherung",
+            hyperaktiv: "platzt aufgeregt mit einer Beobachtung heraus",
+            schüchtern: "flüstert scheu eine Idee",
+            logisch: "analysiert die Situation nüchtern",
+            machtgierig: "fordert etwas mit Nachdruck",
+            listig: "macht eine zweideutige Bemerkung",
+            wild: "ruft trotzig etwas dazwischen",
+            liebevoll: "tröstet mit warmherzigen Worten",
             default: "sagt etwas Passendes zur Situation",
         },
         formal: {
             weise: "gibt einen bedachten Rat",
+            gerecht: "fällt ein ausgewogenes Urteil",
+            belehrend: "erklärt etwas mit erhobenem Zeigefinger",
             default: "spricht förmlich und klar",
         },
         playful: {
             lustig: "macht einen Witz über die Lage",
             frech: "neckt jemanden liebevoll",
+            hyperaktiv: "hüpft aufgeregt und ruft etwas",
             default: "sagt etwas Verspieltes",
         },
         wise: {
             weise: "teilt eine bedeutungsvolle Erkenntnis",
+            naturverbunden: "zieht einen Vergleich aus der Natur",
             default: "gibt einen weisen Hinweis",
         },
         grumpy: {
             grummelig: "brummt etwas Unzufriedenes, das aber hilft",
+            mürrisch: "knurrt eine knappe Antwort",
             default: "antwortet knapp aber treffend",
         },
     };
@@ -624,6 +638,10 @@ function generateDialogueCue(
             brave: "makes a determined suggestion",
             helpful: "kindly offers help",
             cheeky: "makes a cheeky remark",
+            loyal: "pledges loyalty with conviction",
+            hyperactive: "blurts out an excited observation",
+            shy: "whispers a shy idea",
+            logical: "analyzes the situation calmly",
             default: "says something fitting",
         },
         formal: { default: "speaks formally and clearly" },
@@ -634,7 +652,15 @@ function generateDialogueCue(
 
     const cues = isGerman ? cuesDE : cuesEN;
     const styleCues = cues[style] || cues.casual;
-    return styleCues[dominant] || styleCues.default;
+    const baseCue = styleCues[dominant] || styleCues.default;
+
+    // Enrich with speech style hints so the AI knows HOW the character speaks
+    if (speechHints.length > 0) {
+        const voiceTag = `(Stimme: ${speechHints.join(", ")})`;
+        return `${baseCue} ${voiceTag}`;
+    }
+
+    return baseCue;
 }
 
 // ─── Emotional Beat Resolution ─────────────────────────────────────────────
@@ -804,6 +830,13 @@ export function fusionPlanToPromptSections(
     const sections = new Map<number, string>();
 
     for (const ci of plan.characterIntegrations) {
+        // Build voice tag for this character (used in entry + active chapters)
+        const voiceTag = ci.personalityProfile.speechStyle?.length
+            ? (isGerman
+                ? `  Stimme: ${ci.personalityProfile.speechStyle.join(", ")}`
+                : `  Voice: ${ci.personalityProfile.speechStyle.join(", ")}`)
+            : "";
+
         // Entry chapter
         const entryChapter = ci.entryPoint.chapter;
         const entryLines: string[] = [];
@@ -816,6 +849,9 @@ export function fusionPlanToPromptSections(
         entryLines.push(isGerman
             ? `  Aktion: ${ci.entryPoint.concreteAction}`
             : `  Action: ${ci.entryPoint.concreteAction}`);
+        if (voiceTag) {
+            entryLines.push(voiceTag);
+        }
         if (ci.personalityProfile.quirk) {
             entryLines.push(isGerman
                 ? `  Eigenart: ${ci.personalityProfile.quirk}`
@@ -831,6 +867,9 @@ export function fusionPlanToPromptSections(
                 ? `${ci.displayName}: ${ac.concreteAction}`
                 : `${ci.displayName}: ${ac.concreteAction}`);
 
+            if (voiceTag) {
+                lines.push(voiceTag);
+            }
             if (ac.dialogueCue) {
                 lines.push(isGerman
                     ? `  Dialog-Hinweis: ${ac.dialogueCue}`
