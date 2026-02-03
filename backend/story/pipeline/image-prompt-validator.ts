@@ -107,7 +107,7 @@ function collectIssues(spec: ImageSpec, cast: CastSet, maxPropsVisible: number):
 
 function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
   const issues: ImageValidationIssue[] = [];
-  const fullPrompt = (spec.finalPromptText || "").toLowerCase();
+  const fullPrompt = stripNegativeBlock(spec.finalPromptText || "").toLowerCase();
 
   if (!fullPrompt.includes("exactly")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_EXACT_COUNT", message: "Prompt missing exact character count" });
@@ -133,6 +133,13 @@ function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
   }
 
   return issues;
+}
+
+function stripNegativeBlock(text: string): string {
+  if (!text) return text;
+  const lines = text.split(/\r?\n/);
+  const filtered = lines.filter(line => !line.trim().toLowerCase().startsWith("negative"));
+  return filtered.join("\n");
 }
 
 function expectedRefs(spec: ImageSpec, cast: CastSet): Record<string, string> {
