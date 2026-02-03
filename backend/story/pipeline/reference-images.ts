@@ -19,7 +19,8 @@ export function buildRefsForSlots(refSlots: string[], cast: CastSet): Record<str
     if (!sheet?.imageUrl) continue;
 
     const refKey = `ref_image_${refIndex}`;
-    refs[refKey] = `IDENTITY ONLY — match ONLY ${sheet.displayName}`;
+    const raw = `IDENTITY ONLY — match ONLY ${sheet.displayName}`;
+    refs[refKey] = truncateRefValue(raw, 120);
     sheet.refKey = refKey;
     refIndex += 1;
   }
@@ -74,7 +75,8 @@ export function buildCollageRefsForSlots(
     const key = `slot_${slotNum}`;
     const brief = getCharacterBrief(cast, pos.displayName);
     const briefTag = brief ? ` (${brief})` : "";
-    refs[key] = `${pos.displayName.toUpperCase()}${briefTag} — match ONLY the identity from slot-${slotNum}`;
+    const raw = `${pos.displayName.toUpperCase()}${briefTag} — match ONLY the identity from slot-${slotNum}`;
+    refs[key] = truncateRefValue(raw, 200);
   }
   return refs;
 }
@@ -90,3 +92,7 @@ function getSheet(cast: CastSet, slotKey: string) {
   return cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
 }
 
+function truncateRefValue(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return value.slice(0, Math.max(0, maxLength - 1)).trimEnd() + "…";
+}
