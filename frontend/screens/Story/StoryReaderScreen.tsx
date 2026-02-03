@@ -485,11 +485,13 @@ const StoryReaderScreen: React.FC = () => {
                 className="w-full h-full flex flex-col pt-20 pb-32 absolute inset-0"
               >
                 <div className="text-center px-4">
-                  <img
-                    src={currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`}
-                    alt={currentChapter?.title || ''}
-                    className="w-full max-w-4xl max-h-[40vh] object-cover rounded-lg shadow-lg mx-auto mb-4"
-                  />
+                  <div className="w-full max-w-4xl mx-auto mb-4 rounded-lg shadow-lg bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                    <img
+                      src={currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`}
+                      alt={currentChapter?.title || ''}
+                      className="w-full h-auto max-h-[40vh] object-contain"
+                    />
+                  </div>
                   <h2 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6">{currentChapter?.title}</h2>
                 </div>
                 <div ref={contentRef} className="flex-1 overflow-y-auto px-4 md:px-12">

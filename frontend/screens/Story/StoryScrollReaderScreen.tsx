@@ -258,12 +258,13 @@ const StoryScrollReaderScreen: React.FC = () => {
 
                       {/* Chapter Image */}
                       {chapter.imageUrl && (
-                        <img
-                          src={chapter.imageUrl}
-                          alt={chapter.title}
-                          className="rounded-2xl mb-8 w-full object-cover shadow-2xl"
-                          style={{ maxHeight: '500px' }}
-                        />
+                        <div className="rounded-2xl mb-8 w-full shadow-2xl bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                          <img
+                            src={chapter.imageUrl}
+                            alt={chapter.title}
+                            className="w-full h-auto max-h-[60vh] object-contain"
+                          />
+                        </div>
                       )}
 
                       {/* Chapter Content with Gradient Scroll Effect */}

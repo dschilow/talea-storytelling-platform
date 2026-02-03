@@ -47,6 +47,25 @@ const TEMPLATE_PHRASE_PATTERNS_EN: Array<{ label: string; pattern: RegExp }> = [
   { label: "felt the tension", pattern: /\bfelt\s+the\s+tension\b/i },
   { label: "sad but hopeful", pattern: /\bsad\s+but\s+hopeful\b/i },
   { label: "like a magnet", pattern: /\blike\s+a\s+magnet\b/i },
+  // Heroic stock phrases
+  { label: "grabbed courageously", pattern: /\bgrabbed\s+courageously\b/i },
+  { label: "put idea into action", pattern: /\bput\s+(?:the\s+|an\s+)?idea\s+(?:immediately\s+)?into\s+action\b/i },
+  { label: "gathered courage", pattern: /\bgathered\s+(?:(?:his|her|their)\s+)?courage\b/i },
+  { label: "took matters into hands", pattern: /\btook\s+matters\s+into\s+(?:his|her|their)\s+(?:own\s+)?hands\b/i },
+  { label: "showed true courage", pattern: /\bshowed\s+(?:true|real|great)\s+courage\b/i },
+  { label: "without hesitation", pattern: /\bwithout\s+(?:a\s+moment'?s?\s+)?hesitation\b/i },
+  // Emotional stock phrases
+  { label: "heart beat faster", pattern: /\bheart\s+(?:beat|raced|pounded)\s+faster\b/i },
+  { label: "eyes lit up with joy", pattern: /\beyes\s+lit\s+up\s+(?:with\s+)?(?:joy|happiness|delight)\b/i },
+  { label: "deep joy", pattern: /\bdeep\s+(?:sense\s+of\s+)?joy\b/i },
+  { label: "endless gratitude", pattern: /\bendless\s+gratitude\b/i },
+  // Narration stock phrases
+  { label: "in that moment knew", pattern: /\bin\s+that\s+(?:very\s+)?moment[,]?\s+(?:knew|understood|realized)\b/i },
+  { label: "as if by magic", pattern: /\bas\s+if\s+by\s+magic\b/i },
+  { label: "with combined forces", pattern: /\bwith\s+(?:their\s+)?combined\s+(?:forces|strength|efforts)\b/i },
+  { label: "suddenly had an idea", pattern: /\bsuddenly\s+had\s+an\s+idea\b/i },
+  { label: "it was done", pattern: /\bit\s+was\s+(?:finally\s+)?done\b/i },
+  { label: "a smile crept", pattern: /\ba\s+smile\s+crept\s+(?:across|onto|over)\b/i },
 ];
 
 export function findTemplatePhraseMatches(text: string, language: string): TemplatePhraseMatch[] {
