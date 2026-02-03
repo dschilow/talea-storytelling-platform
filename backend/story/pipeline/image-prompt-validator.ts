@@ -62,7 +62,10 @@ export function validateAndFixImageSpecs(input: {
       if (!isCollageRefs) {
         current.refs = expectedRefs(current, cast);
       }
+
+      normalizeForSchema(current, maxPropsVisible);
       current.finalPromptText = buildFinalPromptText(current, cast, { forceEnglish: true });
+      current.finalPromptText = clampText(current.finalPromptText, 6000);
       return current;
     };
 
@@ -158,4 +161,46 @@ function validateRefs(spec: ImageSpec, expected: Record<string, string>): ImageV
 function containsBirdToken(text: string): boolean {
   const value = text.toLowerCase();
   return ["bird", "sparrow", "spatz", "vogel"].some(token => value.includes(token));
+}
+
+function normalizeForSchema(spec: ImageSpec, maxPropsVisible: number): void {
+  spec.style = clampText(spec.style, 500);
+  spec.composition = clampText(spec.composition, 500);
+  spec.blocking = clampText(spec.blocking, 500);
+  spec.actions = clampText(spec.actions, 500);
+  spec.lighting = clampText(spec.lighting, 200);
+  if (spec.setting) spec.setting = clampText(spec.setting, 500);
+  if (spec.sceneDescription) spec.sceneDescription = clampText(spec.sceneDescription, 1000);
+
+  spec.propsVisible = clampStringArray(spec.propsVisible, 80, Math.min(10, maxPropsVisible));
+  spec.negatives = clampStringArray(spec.negatives, 120, 50);
+  spec.refs = clampRefs(spec.refs);
+}
+
+function clampText(value: string | undefined, maxLen: number): string {
+  const text = (value ?? "").toString();
+  if (text.length <= maxLen) return text;
+  return text.slice(0, Math.max(0, maxLen - 3)).trimEnd() + "...";
+}
+
+function clampStringArray(values: string[] | undefined, maxItemLen: number, maxItems: number): string[] {
+  if (!values || values.length === 0) return [];
+  const trimmed = values
+    .map(item => (item ?? "").toString().trim())
+    .filter(item => item.length > 0)
+    .map(item => (item.length > maxItemLen ? item.slice(0, Math.max(0, maxItemLen - 3)).trimEnd() + "..." : item));
+  return trimmed.slice(0, maxItems);
+}
+
+function clampRefs(refs: Record<string, string> | undefined): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!refs) return result;
+  for (const [key, value] of Object.entries(refs)) {
+    if (key.startsWith("ref_image_")) {
+      result[key] = clampText(value, 120);
+    } else if (key.startsWith("slot_")) {
+      result[key] = clampText(value, 200);
+    }
+  }
+  return result;
 }
