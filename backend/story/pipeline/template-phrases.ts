@@ -11,6 +11,29 @@ const TEMPLATE_PHRASE_PATTERNS_DE: Array<{ label: string; pattern: RegExp }> = [
   { label: "spuerte Anspannung", pattern: /\bsp(u|\u00fc)rte[n]?\s+die\s+anspannung\b/i },
   { label: "traurig aber hoffnungsvoll", pattern: /\btraurig,\s*aber\s*hoffnungsvoll\b/i },
   { label: "wie ein Magnet", pattern: /\bwie\s+ein\s+magnet\b/i },
+  // Heroic stock phrases
+  { label: "griff beherzt", pattern: /\bgriff\s+beherzt\b/i },
+  { label: "setzte Idee um", pattern: /\bsetzte\s+(?:die\s+|eine\s+)?idee\s+(?:sofort\s+)?um\b/i },
+  { label: "fasste Mut", pattern: /\bfasste\s+(?:neuen?\s+)?mut\b/i },
+  { label: "raffte sich auf", pattern: /\braffte\s+sich\s+auf\b/i },
+  { label: "nahm Sache in die Hand", pattern: /\bnahm\s+(?:die\s+)?sache\s+(?:selbst\s+)?in\s+die\s+hand\b/i },
+  { label: "bewies Mut", pattern: /\bbewies\s+(?:gro(?:ss|\u00df)en\s+)?mut\b/i },
+  { label: "ueberlegte nicht lange", pattern: /\b(u|\u00fc)berlegte\s+nicht\s+lange\b/i },
+  { label: "zeigte wahre Groesse", pattern: /\bzeigte\s+(?:seine|ihre)?\s*wahre\s+gr(oe|\u00f6)(ss|\u00df)e\b/i },
+  // Emotional stock phrases
+  { label: "Herz schlug schneller", pattern: /\bherz\s+schlug\s+(?:ihm\s+|ihr\s+)?schneller\b/i },
+  { label: "Augen leuchteten", pattern: /\baugen\s+leuchteten\s+(?:vor\s+)?(?:freude|gl(u|\u00fc)ck|begeisterung)\b/i },
+  { label: "tiefe Freude", pattern: /\btiefe\s+freude\b/i },
+  { label: "unendliche Dankbarkeit", pattern: /\bunendliche\s+dankbarkeit\b/i },
+  // Narration stock phrases
+  { label: "in diesem Moment", pattern: /\bin\s+diesem\s+(?:einen\s+)?moment\s+(?:wusste|verstand|erkannte)\b/i },
+  { label: "da wusste er/sie", pattern: /\bda\s+wusste\s+(?:er|sie),?\s+(?:dass|was)\b/i },
+  { label: "ohne zu zoegern", pattern: /\bohne\s+zu\s+z(oe|\u00f6)gern\b/i },
+  { label: "mit vereinten Kraeften", pattern: /\bmit\s+vereinten\s+kr(ae|\u00e4)ften\b/i },
+  { label: "wie durch ein Wunder", pattern: /\bwie\s+durch\s+ein\s+wunder\b/i },
+  { label: "ploetzlich hatte er/sie eine Idee", pattern: /\bpl(oe|\u00f6)tzlich\s+hatte\s+(?:er|sie)\s+eine\s+idee\b/i },
+  { label: "es war geschafft", pattern: /\bes\s+war\s+(?:endlich\s+)?geschafft\b/i },
+  { label: "ein Laecheln stahl sich", pattern: /\bein\s+l(ae|\u00e4)cheln\s+stahl\s+sich\b/i },
 ];
 
 const TEMPLATE_PHRASE_PATTERNS_EN: Array<{ label: string; pattern: RegExp }> = [

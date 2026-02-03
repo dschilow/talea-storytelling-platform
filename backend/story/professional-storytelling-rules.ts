@@ -37,6 +37,21 @@ export const FORBIDDEN_OUTPUT_PATTERNS = [
   /^Setting:\s*/gm,
   /^Stimmung:\s*/gm,
   /^Handlung:\s*/gm,
+  /^Ort:\s*/gm,
+  /^Ziel:\s*/gm,
+  /^Szene\s*[\(:]/gm,
+  /^Thema:\s*/gm,
+  /^Motivation:\s*/gm,
+  /^Charakter(?:entwicklung)?:\s*/gm,
+  /^Spannung:\s*/gm,
+  /^Aufl[oö]sung:\s*/gm,
+  /^Atmosphäre:\s*/gm,
+  /^Lerneffekt:\s*/gm,
+  /^Beschreibung:\s*/gm,
+  /^Ergebnis:\s*/gm,
+  /^Zusammenfassung:\s*/gm,
+  /^Figur(?:en)?:\s*/gm,
+  /^Kapitel(?:\s*\d+)?:\s+/gm,
   /^\s*Die Phrase\b.*$/gmi,
   /^\s*The phrase\b.*$/gmi,
   /\([^)]*\bPhrase\b[^)]*\)/gi,
@@ -54,6 +69,18 @@ export const FORBIDDEN_OUTPUT_PATTERNS = [
   /^Plot:\s*/gm,
   /^Mood:\s*/gm,
   /^Action:\s*/gm,
+  /^Location:\s*/gm,
+  /^Goal:\s*/gm,
+  /^Scene\s*[\(:]/gm,
+  /^Theme:\s*/gm,
+  /^Character\s*(?:development|arc)?:\s*/gm,
+  /^Tension:\s*/gm,
+  /^Resolution:\s*/gm,
+  /^Atmosphere:\s*/gm,
+  /^Learning\s*(?:effect|goal)?:\s*/gm,
+  /^Description:\s*/gm,
+  /^Result:\s*/gm,
+  /^Summary:\s*/gm,
 
   // Meta-instruction labels (RUSSIAN)
   /^Ð”Ð¸Ð°Ð»Ð¾Ð³Ð¸?:\s*/gm,
@@ -774,6 +801,9 @@ NIEMALS Meta-Labels im Story-Text ausgeben:
 âŒ "Gefahr: Die Hexe nÃ¤hert sich..."
 âŒ "Sinne: warm, weich, sÃ¼ÃŸ..."
 âŒ "Moral: Man soll ehrlich sein..."
+âŒ "Stimmung: geheimnisvoll" / "Ort: Wald" / "Ziel: Schatz finden"
+âŒ "Szene (1):" / "Thema:" / "Motivation:" / "Spannung:"
+âŒ "Beschreibung:" / "Ergebnis:" / "Zusammenfassung:"
 
 Diese Informationen mÃ¼ssen IN DIE GESCHICHTE EINGEWOBEN werden:
 
@@ -991,6 +1021,9 @@ NEVER output meta-labels in the story text:
 âŒ "Danger: The witch approaches..."
 âŒ "Senses: warm, soft, sweet..."
 âŒ "Moral: One should be honest..."
+âŒ "Mood: mysterious" / "Location: forest" / "Goal: find treasure"
+âŒ "Scene (1):" / "Theme:" / "Motivation:" / "Tension:"
+âŒ "Description:" / "Result:" / "Summary:"
 
 These elements MUST BE WOVEN INTO THE NARRATIVE:
 
