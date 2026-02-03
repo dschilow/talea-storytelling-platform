@@ -871,5 +871,13 @@ function sanitizeCharacter(character: CharacterTemplate, index: number, now: Dat
     isActive: character.isActive ?? true,
     createdAt,
     updatedAt,
+    // V2 personality fields
+    dominantPersonality: character.dominantPersonality || undefined,
+    secondaryTraits: character.secondaryTraits || undefined,
+    catchphrase: character.catchphrase || undefined,
+    catchphraseContext: character.catchphraseContext || undefined,
+    speechStyle: character.speechStyle || undefined,
+    emotionalTriggers: character.emotionalTriggers || undefined,
+    quirk: character.quirk || undefined,
   };
 }
