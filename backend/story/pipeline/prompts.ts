@@ -193,6 +193,7 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names.
 3) No meta text or instructions in the output.
+3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:".
 4) Every character must act or speak.
 5) Do not state belonging explicitly; avoid "always been part of this tale".
 6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
@@ -228,6 +229,7 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names.
 3) No meta-instructions.
+3b) Do NOT output headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:".
 4) Every character must act or speak.
 5) Do not state belonging explicitly; avoid phrases like "always been part of this tale".
 6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
@@ -285,6 +287,7 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names or new characters.
 3) No meta text or instructions.
+3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:".
 4) Add a concrete action sequence + 2-3 short dialogue lines.
 5) Keep the original plot beats and setting; just expand the scene.
 6) Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension".
@@ -339,6 +342,7 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names or new characters.
 3) Replace template phrases with concrete action + short dialogue lines.
+3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:".
 4) Keep the chapter length within ${lengthTargets.wordMin}-${lengthTargets.wordMax} words.
 5) Do not change the plot beats, only the wording.
 
@@ -498,9 +502,9 @@ ${structureMap}
 QUALITY REQUIREMENTS:
 1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
-2b) HARD BEATS PER CHAPTER (must be clearly present in the text): Szene (Ort + Stimmung, 1-2 Saetze), Ziel, Hindernis, Action, Mini-Aufloesung, Hook.
+2b) CONTENT BEATS PER CHAPTER (in prose, no headings): include a clear scene (place + mood, 1-2 sentences), a goal, an obstacle, a visible action, a mini-resolution, and a hook sentence.
 2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by explicitly adding these 6 beats.
-2d) IMPORTANT: Do NOT render labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Mini-Aufloesung:", "Ausblick:", "Epilog:" in the chapter text. Those are internal only.
+2d) IMPORTANT: Do NOT render headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:" in the chapter text. Those are internal only.
 3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
@@ -516,7 +520,7 @@ QUALITY REQUIREMENTS:
 14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
 15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
 16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
-16b) MINI-PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts).
+16b) SMALL EXTRA PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts). Do not label it.
 17) CHARACTER VOICE: Every character MUST have a unique, recognizable voice in dialogue.
   a) Dialogue MUST reflect the character's defined Sprachstil. A "polternd" character speaks rough and loud. A "piepsig" character speaks in a squeaky voice. A "reimend" character rhymes. A "knurrend" character growls. NEVER let two characters sound the same.
   b) Show each character's Eigenart (quirk) at least ONCE through a concrete physical action (not narration). Example: "Er wischte sich die Haende an der Schuerze ab" instead of "Er hatte die Eigenart, sich die Haende abzuwischen."
@@ -574,9 +578,9 @@ ${structureMap}
 QUALITY REQUIREMENTS:
 1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
 2) CHAPTER STRUCTURE: Each chapter needs: 1 clear scene (place + mood), 1 mini-goal, 1 obstacle, 1 visible action (not just thoughts), 1 mini-resolution, 1 hook sentence at the end (except last chapter).
-2b) HARD BEATS PER CHAPTER (must be clearly present in the text): Scene (place + mood, 1-2 sentences), Goal, Obstacle, Action, Mini-resolution, Hook.
+2b) CONTENT BEATS PER CHAPTER (in prose, no headings): include a clear scene (place + mood, 1-2 sentences), a goal, an obstacle, a visible action, a mini-resolution, and a hook sentence.
 2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by explicitly adding these 6 beats.
-2d) IMPORTANT: Do NOT render labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-resolution:", "Outlook:", "Epilogue:" in the chapter text. Those are internal only.
+2d) IMPORTANT: Do NOT render headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:" in the chapter text. Those are internal only.
 3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
 4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
 5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
@@ -592,7 +596,7 @@ QUALITY REQUIREMENTS:
 14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
 15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
 16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
-16b) MINI-PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts).
+16b) SMALL EXTRA PROBLEM: Every chapter includes one small extra problem (something slips, is too heavy, is misunderstood, or distracts). Do not label it.
 17) CHARACTER VOICE: Every character MUST have a unique, recognizable voice in dialogue.
   a) Dialogue MUST reflect the character's defined Sprachstil. A "polternd" character speaks rough and loud. A "piepsig" character speaks in a squeaky voice. A "reimend" character rhymes. A "knurrend" character growls. NEVER let two characters sound the same.
   b) Show each character's Eigenart (quirk) at least ONCE through a concrete physical action (not narration). Example: "Er wischte sich die Haende an der Schuerze ab" instead of "Er hatte die Eigenart, sich die Haende abzuwischen."
@@ -658,11 +662,11 @@ RULES (unchangeable):
 - Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
 - No placeholder chapters; if a chapter is short, expand with a concrete action sequence + 2-3 short dialogue lines
 - Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension"
-- Each chapter must explicitly contain these beats: Szene (Ort + Stimmung, 1-2 Saetze), Ziel, Hindernis, Action, Mini-Aufloesung, Hook
+- Each chapter must explicitly contain these beats in prose (no headings): a clear scene (place + mood, 1-2 sentences), a goal, an obstacle, a visible action, a mini-resolution, and a hook sentence
 - If any chapter has 1-2 sentences, AUTO-EXPAND using the 6 beats above
 - Each chapter must include a small extra mini-problem (something slips, is too heavy, is misunderstood, or distracts)
 - Avoid sentences like "Er traf eine wichtige Entscheidung" or "Sie entdeckten den entscheidenden Hinweis"; replace with concrete action + short dialogue
-- Do NOT render labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Mini-Aufloesung:", "Ausblick:", "Epilog:" in the chapter text. Those are internal only.
+- Do NOT render headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:" in the chapter text. Those are internal only.
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
@@ -699,11 +703,11 @@ RULES (unchangeable):
 - Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
 - No placeholder chapters; if a chapter is short, expand with a concrete action sequence + 2-3 short dialogue lines
 - Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension"
-- Each chapter must explicitly contain these beats: Scene (place + mood, 1-2 sentences), Goal, Obstacle, Action, Mini-resolution, Hook
+- Each chapter must explicitly contain these beats in prose (no headings): a clear scene (place + mood, 1-2 sentences), a goal, an obstacle, a visible action, a mini-resolution, and a hook sentence
 - If any chapter has 1-2 sentences, AUTO-EXPAND using the 6 beats above
 - Each chapter must include a small extra mini-problem (something slips, is too heavy, is misunderstood, or distracts)
 - Avoid sentences like "He made an important decision" or "They discovered the decisive clue"; replace with concrete action + short dialogue
-- Do NOT render labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-resolution:", "Outlook:", "Epilogue:" in the chapter text. Those are internal only.
+- Do NOT render headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:" in the chapter text. Those are internal only.
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}

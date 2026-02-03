@@ -374,11 +374,14 @@ function sanitizeDraft(draft: StoryDraft): StoryDraft {
 function sanitizeMetaStructureFromText(text: string): string {
   if (!text) return text;
   const lines = text.split(/\r?\n/);
+  const labelPattern = /^(?:\d+[\).]\s*)?(?:[-\u2022*]\s*)?(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\\-\\u2013\\u2014]\s*(.*)$/i;
+  const sentenceLabelPattern = /^(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\\-\\u2013\\u2014]/i;
+
   const cleaned = lines.map(line => {
     const trimmed = line.trim();
     if (!trimmed) return "";
 
-    const match = trimmed.match(/^(?:\d+[\).]\s*)?(?:[-•*]\s*)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Mini[- ]?Aufl(?:ö|oe)sung|Ausblick|Epilog|Scene|Mood|Goal|Obstacle|Action|Mini[- ]?resolution|Outlook|Epilogue)\s*[:\-–]\s*(.*)$/i);
+    const match = trimmed.match(labelPattern);
     if (!match) return line;
 
     const label = match[1].toLowerCase();
@@ -391,7 +394,18 @@ function sanitizeMetaStructureFromText(text: string): string {
     return "";
   });
 
-  return cleaned
+  const sentenceCleaned = cleaned.map(line => {
+    if (!line.trim()) return "";
+    const parts = line.split(/(?<=[.!?])\s+/);
+    const kept = parts.filter(part => {
+      const trimmed = part.trim();
+      if (!trimmed) return false;
+      return !sentenceLabelPattern.test(trimmed);
+    });
+    return kept.join(" ").trim();
+  });
+
+  return sentenceCleaned
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+\n/g, "\n")
@@ -452,3 +466,5 @@ function getHardMinChapterWords(draft: StoryDraft, wordBudget?: import("./word-b
   if (chapterCount === 5 && isMediumOrLong) return 180;
   return null;
 }
+
+
