@@ -101,7 +101,7 @@ async function extractBatchSceneDescriptions(chapterInputs: Array<{
   onStageSlots: string[];
   onStageNames: string[];
 }>): Promise<Array<any>> {
-  const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters. Use only details explicitly present in the chapter text or directives. If "Must show" items are provided, include them in keyProps or environment. Be concise.`;
+  const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Actions/bodyLanguage/expressions must be verb phrases only (no names, no pronouns, no other characters). Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters or background people. Use only details explicitly present in the chapter text or directives. If "Must show" items are provided, include them in keyProps or environment. Be concise.`;
 
   const chapterBlocks = chapterInputs.map((input) => {
     const { chapter, directive, onStageSlots, onStageNames } = input;

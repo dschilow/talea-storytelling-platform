@@ -152,18 +152,24 @@ function buildAISpec(
 ): ImageSpec {
   const propsFromAI = filterPropsList(aiDesc.keyProps.slice(0, 7), cast, directive);
   const propsVisible = mergeProps(propsFromAI, limitPropsVisible(directive, cast));
+  const characterNames = onStageExact
+    .map(slot => findName(cast, slot))
+    .filter(Boolean);
 
   // Build blocking from AI character actions
   const blockingParts = aiDesc.characterActions.map((charAction) => {
     const name = findName(cast, charAction.slotKey);
-    return `${name} ${charAction.bodyLanguage}, ${charAction.expression}`;
+    const bodyLanguage = sanitizeActionPhrase(charAction.bodyLanguage, characterNames) || "active stance";
+    const expression = sanitizeActionPhrase(charAction.expression, characterNames) || "engaged expression";
+    return `${name} ${bodyLanguage}, ${expression}`;
   });
   const blocking = blockingParts.join(". ") + ".";
 
   // Build actions from AI character actions
   const actionParts = aiDesc.characterActions.map((charAction) => {
     const name = findName(cast, charAction.slotKey);
-    return `${name} ${charAction.action}`;
+    const action = sanitizeActionPhrase(charAction.action, characterNames) || "moves in the scene";
+    return `${name} ${action}`;
   });
 
   // Add artifact action if relevant
@@ -604,7 +610,7 @@ function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
     const trimmed = value.trim();
     if (!trimmed || seen.has(trimmed)) return;
     const lower = trimmed.toLowerCase();
-    if (isCharacterName(lower) || isSettingLike(lower)) return;
+    if (isCharacterName(lower) || isSettingLike(lower) || isPersonLike(lower) || isLocationLike(lower)) return;
     if (result.length >= maxItems) return;
     seen.add(trimmed);
     result.push(trimmed);
@@ -641,8 +647,115 @@ function filterPropsList(props: string[], cast: CastSet, directive: SceneDirecti
     const lower = value.toLowerCase();
     if (characterNames.some(name => name && (lower === name || lower.includes(name)))) return false;
     if (settingText && (lower === settingText || lower.includes(settingText) || settingText.includes(lower))) return false;
+    if (isPersonLike(lower) || isLocationLike(lower)) return false;
     return true;
   });
+}
+
+const PERSON_LIKE_TOKENS = [
+  "human",
+  "person",
+  "people",
+  "child",
+  "boy",
+  "girl",
+  "man",
+  "woman",
+  "adult",
+  "teen",
+  "teenager",
+  "stranger",
+  "villager",
+  "bystander",
+  "crowd",
+  "family",
+  "parent",
+  "mother",
+  "father",
+  "friend",
+  "partner",
+  "helper",
+  "fremder",
+  "fremde",
+  "kind",
+  "junge",
+  "maedchen",
+  "mann",
+  "frau",
+  "menschen",
+  "leute",
+  "helfer",
+  "familie",
+];
+
+const LOCATION_TOKENS = [
+  "forest",
+  "woods",
+  "village",
+  "town",
+  "city",
+  "barn",
+  "stable",
+  "castle",
+  "palace",
+  "cave",
+  "mountain",
+  "beach",
+  "sea",
+  "lake",
+  "river",
+  "meadow",
+  "garden",
+  "park",
+  "street",
+  "market",
+  "square",
+  "room",
+  "house",
+  "home",
+  "school",
+  "yard",
+  "farm",
+  "field",
+  "valley",
+  "cliff",
+  "island",
+  "desert",
+  "forest",
+  "barn",
+  "sunset",
+  "sunrise",
+  "night",
+  "dusk",
+  "dawn",
+  "wald",
+  "dorf",
+  "stadt",
+  "scheune",
+  "burg",
+  "schloss",
+  "hoehle",
+  "hoehl",
+  "meer",
+  "see",
+  "strand",
+  "berg",
+  "wiese",
+  "garten",
+  "park",
+  "strasse",
+  "markt",
+  "platz",
+  "zimmer",
+  "haus",
+];
+
+function isPersonLike(valueLower: string): boolean {
+  return PERSON_LIKE_TOKENS.some(token => valueLower.includes(token));
+}
+
+function isLocationLike(valueLower: string): boolean {
+  return LOCATION_TOKENS.some(token => valueLower.includes(token));
 }
 
 function mergeProps(aiProps: string[], templateProps: string[]): string[] {
@@ -659,6 +772,26 @@ function mergeProps(aiProps: string[], templateProps: string[]): string[] {
   }
 
   return result;
+}
+
+function sanitizeActionPhrase(text: string, names: string[]): string {
+  if (!text) return "";
+  let result = text.trim();
+  if (!result) return "";
+
+  for (const name of names) {
+    if (!name) continue;
+    const pattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, "gi");
+    result = result.replace(pattern, " ").replace(/\s{2,}/g, " ").trim();
+  }
+
+  result = result.replace(/^('s|\\u2019s)\\s+/i, "").trim();
+  result = result.replace(/^[,.:;\\-]+\\s*/g, "").trim();
+  return result;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeSpecToEnglish(spec: ImageSpec): ImageSpec {
@@ -729,6 +862,15 @@ function toEnglish(text: string): string {
     [/\bklippe\b/gi, "cliff"],
     [/\binsel\b/gi, "island"],
     [/\bzauberstab\b/gi, "magic wand"],
+    [/\bhilfsbereiter\s+fremder\b/gi, "helpful stranger"],
+    [/\bfremder\b/gi, "stranger"],
+    [/\bdrachenauge\b/gi, "dragon-eye gem"],
+    [/\btopf\b/gi, "pot"],
+    [/\bscheune\b/gi, "barn"],
+    [/\bbrief\b/gi, "letter"],
+    [/\bbriefe\b/gi, "letters"],
+    [/\bglas\b/gi, "glass"],
+    [/\bsonnenuntergang\b/gi, "sunset"],
   ];
 
   for (const [pattern, replacement] of replacements) {
@@ -763,5 +905,3 @@ function buildEnglishFallbackDescription(directive: SceneDirective, cast: CastSe
   const setting = directive.setting ? `in ${toEnglish(directive.setting)}` : "in the scene";
   return `A key moment ${setting} with ${characterNames} acting together.`;
 }
-
-
