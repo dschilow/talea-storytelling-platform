@@ -141,6 +141,14 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       created_at: Date;
       updated_at: Date;
       is_active: boolean;
+      // V2 personality fields
+      dominant_personality: string | null;
+      secondary_traits: string[] | null;
+      catchphrase: string | null;
+      catchphrase_context: string | null;
+      speech_style: string[] | null;
+      emotional_triggers: string[] | null;
+      quirk: string | null;
     }>`
       SELECT * FROM character_pool WHERE id = ${req.id}
     `;
@@ -166,6 +174,14 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isActive: row.is_active,
+      // V2 personality fields
+      dominantPersonality: row.dominant_personality || undefined,
+      secondaryTraits: row.secondary_traits || undefined,
+      catchphrase: row.catchphrase || undefined,
+      catchphraseContext: row.catchphrase_context || undefined,
+      speechStyle: row.speech_style || undefined,
+      emotionalTriggers: row.emotional_triggers || undefined,
+      quirk: row.quirk || undefined,
     };
 
     return await resolveCharacterForClient(character);
