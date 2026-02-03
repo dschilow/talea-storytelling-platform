@@ -27,9 +27,11 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
       })
       .join("\n");
     refBlock = [
-      `REFERENCE IMAGE (IDENTITY ONLY): single horizontal strip with ${refEntries.length} portraits ordered LEFT\u2192RIGHT.`,
+      `REFERENCE IMAGE (IDENTITY ONLY): a single combined reference image with ${refEntries.length} faces, ordered LEFT to RIGHT for identity matching only.`,
       slotLines,
-      `Use the reference ONLY for identity. Ignore the strip layout entirely. Do NOT copy the strip composition. Do NOT make a collage/panels/frames/borders/quadrants/split-screen. Ignore any colored guides/frames/labels in the reference and do NOT reproduce them as halos, badges, boxes, outlines, or overlays.`,
+      `Use the reference ONLY for identity. Ignore the strip layout entirely.`,
+      `Do NOT copy the strip composition. Do NOT make a collage, panels, split-screen, or multi-image layout.`,
+      `Any colored guides in the reference are identification markers only — do NOT reproduce guides, shapes, halos, badges, boxes, outlines, or overlays.`,
     ].join("\n");
   } else if (refEntries.length > 0) {
     const refLines = refEntries.map(([key, value]) => `${key} = ${value}`).join("\n");
@@ -56,6 +58,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
 - characters engaged in ACTION, interacting with scene
 - characters looking at each other or at objects in scene, NOT at camera
 - candid moment, natural poses, dynamic movement
+- single continuous scene (NOT divided): no panels, no split-screen, no triptych/diptych, no gutters
 - absolutely no text, no letters, no words, no titles, no captions anywhere in the image
 ${hasBird ? "- exactly 1 bird total, no other animals" : "- no extra animals"}
 ${identityLock}`.trim();
