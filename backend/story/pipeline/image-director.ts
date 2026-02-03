@@ -97,13 +97,12 @@ export async function buildCoverSpec(input: {
     propsVisible.unshift(artifactName);
   }
 
-  const title = storyDraft.title || "Story";
   const desc = storyDraft.description ? ` ${storyDraft.description}` : "";
-  const sceneDescription = `Book cover illustration for "${title}".${desc}`.trim();
+  const sceneDescription = `Illustration for the story.${desc}`.trim();
 
-  const style = `storybook cover illustration, ${getMoodTexture(mood, "SETUP")}${setting ? `, ${setting}` : ""}`;
-  const composition = "storybook cover, title space at top, wide shot, full body visible head-to-toe";
-  const blocking = "Characters arranged in a clear, cover-friendly grouping, interacting with the scene.";
+  const style = `high-quality children's storybook illustration, ${getMoodTexture(mood, "SETUP")}${setting ? `, ${setting}` : ""}`;
+  const composition = "wide shot, eye-level, full body visible head-to-toe, balanced composition";
+  const blocking = "Characters arranged in a clear grouping, interacting with the scene.";
   const actions = artifactName
     ? `Characters engage with the ${artifactName} and each other in a key moment.`
     : "Characters engage with each other in a key moment.";

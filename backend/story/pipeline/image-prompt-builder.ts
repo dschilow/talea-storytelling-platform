@@ -53,9 +53,14 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
       : "- Do NOT swap identities; match each character to its reference image"
     : "";
 
-  const nonHumanRule = nonHumanInfo.nonHumanNames.length > 0
-    ? `- NON-HUMAN RULE: ${nonHumanInfo.nonHumanNames.join(", ")} must remain non-human characters; full body on the ground with non-human anatomy (e.g., frog legs/hands). No human body, no upright human stance, no human clothing.`
+  // Separate rules for animal characters vs humanoid fantasy creatures (fairy, elf, dwarf, goblin)
+  const animalRule = nonHumanInfo.animalNames.length > 0
+    ? `- ANIMAL RULE: ${nonHumanInfo.animalNames.join(", ")} must remain fully animal; non-human anatomy (e.g., paws, fur, snout, tail). No human body, no upright human stance, no human clothing.`
     : "";
+  const humanoidFantasyRule = nonHumanInfo.humanoidFantasyNames.length > 0
+    ? `- FANTASY CREATURE RULE: ${nonHumanInfo.humanoidFantasyNames.join(", ")} ${nonHumanInfo.humanoidFantasyNames.length === 1 ? "is a" : "are"} humanoid fantasy creature${nonHumanInfo.humanoidFantasyNames.length !== 1 ? "s" : ""} — ${buildHumanoidFantasyHint(nonHumanInfo.humanoidFantasyKinds)}. They have a humanoid body shape and can wear clothing. Do NOT give them green skin, animal parts, frog legs, or non-human anatomy. They look like stylized humans with fantastical features.`
+    : "";
+  const nonHumanRule = [animalRule, humanoidFantasyRule].filter(Boolean).join("\n") || "";
 
   const constraints = [
     "ABSOLUTE HARD RULES (MUST FOLLOW):",
@@ -67,7 +72,9 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     "- NO other people anywhere (no background people, silhouettes, reflections, faces in posters/paintings)",
     `- FULL body visible head-to-toe for all (feet visible), ${shotLabel}`,
     "- No cropping or occlusion; no one hidden behind objects or other characters",
-    "- Characters interact with each other or props; NOT looking at camera",
+    "- Characters MUST perform their described actions (running, kneeling, reaching, climbing) — NOT just standing idle",
+    "- Characters interact with each other or props; NOT looking at camera; NOT posing for a photo",
+    "- NO static group poses — each character must have a DIFFERENT body position and action",
     "- Single continuous scene; no panels, split-screen, collage, or multi-image layout",
     "- No written text or typography; no watermarks or logos",
     hasBird ? "- EXACTLY 1 bird total (if present), no other animals" : "- No extra animals",
@@ -83,7 +90,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const sceneBlock = `SHOT / COMPOSITION: ${normalizedComposition}${blockingText ? `. ${blockingText}` : ""}${lightingText ? `. Lighting: ${lightingText}` : ""}`;
 
   const stagingLine = count > 1 ? buildStagingLine(namesLine, refEntries, isCollageMode) : "";
-  const actionText = mergeActionText(spec.sceneDescription, spec.actions) || "Characters act together in a dynamic moment.";
+  const actionText = mergeActionText(spec.sceneDescription, spec.actions) || "Characters actively interact with each other and their surroundings in a dynamic moment — each with a different pose and action.";
   const propsText = (spec.propsVisible || []).filter(Boolean).join(", ");
   const actionBlock = `ACTION (DO NOT SWAP): ${stagingLine ? `${stagingLine}. ` : ""}${actionText}${propsText ? ` Key props: ${propsText}.` : ""}`;
 
@@ -209,9 +216,20 @@ function normalizeSentence(value?: string): string {
   return `${text}.`;
 }
 
-function classifyNonHumans(cast: CastSet, slots: string[]): { nonHumanNames: string[]; nonHumanKinds: string[] } {
+function classifyNonHumans(cast: CastSet, slots: string[]): {
+  nonHumanNames: string[];
+  nonHumanKinds: string[];
+  animalNames: string[];
+  animalKinds: string[];
+  humanoidFantasyNames: string[];
+  humanoidFantasyKinds: string[];
+} {
   const nonHumanNames: string[] = [];
   const nonHumanKinds: string[] = [];
+  const animalNames: string[] = [];
+  const animalKinds: string[] = [];
+  const humanoidFantasyNames: string[] = [];
+  const humanoidFantasyKinds: string[] = [];
   for (const slot of slots) {
     const sheet = cast.avatars.find(a => a.slotKey === slot) || cast.poolCharacters.find(c => c.slotKey === slot);
     if (!sheet) continue;
@@ -220,9 +238,23 @@ function classifyNonHumans(cast: CastSet, slots: string[]): { nonHumanNames: str
     if (kind) {
       nonHumanNames.push(sheet.displayName);
       nonHumanKinds.push(kind);
+      if (HUMANOID_FANTASY_KINDS.has(kind)) {
+        humanoidFantasyNames.push(sheet.displayName);
+        humanoidFantasyKinds.push(kind);
+      } else {
+        animalNames.push(sheet.displayName);
+        animalKinds.push(kind);
+      }
     }
   }
-  return { nonHumanNames: Array.from(new Set(nonHumanNames)), nonHumanKinds: Array.from(new Set(nonHumanKinds)) };
+  return {
+    nonHumanNames: Array.from(new Set(nonHumanNames)),
+    nonHumanKinds: Array.from(new Set(nonHumanKinds)),
+    animalNames: Array.from(new Set(animalNames)),
+    animalKinds: Array.from(new Set(animalKinds)),
+    humanoidFantasyNames: Array.from(new Set(humanoidFantasyNames)),
+    humanoidFantasyKinds: Array.from(new Set(humanoidFantasyKinds)),
+  };
 }
 
 function getCharacterProfileText(sheet: { displayName: string; visualSignature?: string[]; outfitLock?: string[]; faceLock?: string[] }): string {
@@ -234,6 +266,12 @@ function getCharacterProfileText(sheet: { displayName: string; visualSignature?:
   ];
   return parts.filter(Boolean).join(" ");
 }
+
+/**
+ * Humanoid fantasy creatures that look like humans with minor fantastical features
+ * (wings, pointed ears, small size). They should NOT get the strict "non-human anatomy" rule.
+ */
+const HUMANOID_FANTASY_KINDS = new Set(["fairy", "elf", "dwarf", "giant", "gnome", "pixie", "goblin"]);
 
 const NON_HUMAN_PATTERNS: Array<{ kind: string; pattern: RegExp }> = [
   { kind: "frog", pattern: /\bfrog\b/i },
@@ -261,9 +299,16 @@ const NON_HUMAN_PATTERNS: Array<{ kind: string; pattern: RegExp }> = [
   { kind: "golem", pattern: /\bgolem\b/i },
   { kind: "ghost", pattern: /\bghost\b/i },
   { kind: "fairy", pattern: /\bfairy\b/i },
+  { kind: "fairy", pattern: /\bfee\b/i },
   { kind: "elf", pattern: /\belf\b/i },
   { kind: "dwarf", pattern: /\bdwarf\b/i },
+  { kind: "dwarf", pattern: /\bzwerg\b/i },
   { kind: "giant", pattern: /\bgiant\b/i },
+  { kind: "giant", pattern: /\briese\b/i },
+  { kind: "goblin", pattern: /\bgoblin\b/i },
+  { kind: "goblin", pattern: /\bkobold\b/i },
+  { kind: "gnome", pattern: /\bgnome?\b/i },
+  { kind: "pixie", pattern: /\bpixie\b/i },
 ];
 
 function matchNonHumanKind(text: string): string | null {
@@ -271,6 +316,20 @@ function matchNonHumanKind(text: string): string | null {
     if (entry.pattern.test(text)) return entry.kind;
   }
   return null;
+}
+
+function buildHumanoidFantasyHint(kinds: string[]): string {
+  const hints: Record<string, string> = {
+    fairy: "with delicate wings on back, glowing aura, normal human skin tone",
+    pixie: "tiny with butterfly wings, glowing aura, normal human skin tone",
+    elf: "with pointed ears, slender build, normal human skin tone",
+    dwarf: "short and stocky with a beard, normal human skin tone",
+    giant: "very tall and large, normal human skin tone",
+    goblin: "small with pointed ears and a mischievous grin, may have green skin",
+    gnome: "very small with a pointy hat, normal human skin tone",
+  };
+  const unique = Array.from(new Set(kinds));
+  return unique.map(k => hints[k] || "humanoid with fantastical features").join("; ");
 }
 
 function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] }): string[] {
@@ -288,6 +347,10 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     "swapped identity",
     "wrong slot",
     "looking at camera",
+    "staring at viewer",
+    "static pose",
+    "standing idle",
+    "group photo",
     "portrait",
     "selfie",
     "close-up",
@@ -304,10 +367,17 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     items.push("extra bird", "multiple birds");
   }
 
-  if (input.nonHumanKinds.includes("frog")) {
+  // Only add animal-specific negatives for actual animals, not humanoid fantasy creatures
+  const animalKinds = input.nonHumanKinds.filter(k => !HUMANOID_FANTASY_KINDS.has(k));
+  if (animalKinds.includes("frog")) {
     items.push("anthropomorphic frog", "frog becomes boy", "human-like frog", "frog stands upright like a human");
-  } else if (input.nonHumanKinds.length > 0) {
+  } else if (animalKinds.length > 0) {
     items.push("anthropomorphic animal", "animal becomes human", "human-like animal");
+  }
+  // For humanoid fantasy creatures, prevent the model from making them look like animals
+  const fantasyKinds = input.nonHumanKinds.filter(k => HUMANOID_FANTASY_KINDS.has(k));
+  if (fantasyKinds.length > 0) {
+    items.push("green hands on humans", "green feet on humans", "frog legs on humans", "animal parts on humans");
   }
 
   return Array.from(new Set(items));

@@ -541,6 +541,8 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
     "have always been part of this tale", "scene directive", "return json",
     "final chapter:", "strict rules", "stricte regeln", "szenen-vorgabe",
     "erlaubte namen", "gib json", "kapiteltext",
+    "sichtbare aktion:", "sichtbare handlung:", "aktion fortgesetzt:",
+    "visible action:", "action continued:",
   ];
 
   for (const ch of draft.chapters) {
@@ -554,6 +556,25 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
           message: isDE
             ? `Anweisungstext im Kapitel ${ch.chapter} gefunden`
             : `Instruction text leaked into chapter ${ch.chapter}`,
+          severity: "ERROR",
+        });
+        break;
+      }
+    }
+
+    // Check for meta-narration sentence starters (structural beat labels as prose)
+    const metaNarrationPatterns = isDE
+      ? [/\b(?:Ihr|Das|Ein)\s+(?:Ziel|Hindernis)\s+war\b/i, /\bMini-Problem:/i]
+      : [/\b(?:Her|The|An)\s+(?:goal|obstacle)\s+was\b/i, /\bMini-problem:/i];
+    for (const pattern of metaNarrationPatterns) {
+      if (pattern.test(ch.text)) {
+        issues.push({
+          gate: "INSTRUCTION_LEAK",
+          chapter: ch.chapter,
+          code: "META_NARRATION",
+          message: isDE
+            ? `Meta-Erzählung in Kapitel ${ch.chapter}: Strukturelle Labels als Prosa`
+            : `Meta-narration in chapter ${ch.chapter}: structural labels as prose`,
           severity: "ERROR",
         });
         break;
@@ -870,7 +891,8 @@ function getHardMinChapterWords(draft: StoryDraft, wordBudget?: WordBudget): num
   if (!wordBudget) return null;
   const chapterCount = draft.chapters.length;
   const isMediumOrLong = wordBudget.minMinutes >= 8;
-  if (chapterCount === 5 && isMediumOrLong) return 180;
+  if (chapterCount >= 4 && isMediumOrLong) return 220;
+  if (chapterCount >= 3) return 160;
   return null;
 }
 

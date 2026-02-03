@@ -101,7 +101,21 @@ async function extractBatchSceneDescriptions(chapterInputs: Array<{
   onStageSlots: string[];
   onStageNames: string[];
 }>): Promise<Array<any>> {
-  const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only. Each character must have a UNIQUE physical action and pose. Actions/bodyLanguage/expressions must be verb phrases only (no names, no pronouns, no other characters). Choose a moment where ALL listed characters are present at the same time. Do NOT add new characters or background people. Use only details explicitly present in the chapter text or directives. If "Must show" items are provided, include them in keyProps or environment. Be concise.`;
+  const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only.
+
+CRITICAL ACTION RULES:
+- Each character MUST have a UNIQUE, SPECIFIC physical action — NOT just "standing" or "looking".
+- Actions must be DYNAMIC VERBS showing movement or interaction: "kneels and reaches toward", "climbs over a wall", "runs with arms outstretched", "crouches behind a bush peering out", "leans forward pointing at a map", "swings from a branch".
+- FORBIDDEN actions: "stands", "looks", "watches", "is present", "participates". These are too static.
+- Characters must interact with EACH OTHER or with PROPS — not pose for a camera.
+- bodyLanguage must describe a SPECIFIC POSE, not just "standing": "crouching low", "leaning forward", "arms raised", "one knee on ground", "back turned halfway".
+- expression must show EMOTION: "wide-eyed with wonder", "frowning with concentration", "grinning mischievously".
+- Actions/bodyLanguage/expressions must be verb phrases only (no names, no pronouns, no other characters).
+- Choose a moment where ALL listed characters are present at the same time.
+- Do NOT add new characters or background people.
+- Use only details explicitly present in the chapter text or directives.
+- If "Must show" items are provided, include them in keyProps or environment.
+- Be concise.`;
 
   const chapterBlocks = chapterInputs.map((input) => {
     const { chapter, directive, onStageSlots, onStageNames } = input;
@@ -183,16 +197,16 @@ function normalizeSceneDescription(input: {
     if (found) {
       return {
         slotKey: slot,
-        action: String(found.action || "stands in scene"),
-        expression: String(found.expression || "neutral expression"),
-        bodyLanguage: String(found.bodyLanguage || "standing"),
+        action: sanitizeStaticAction(String(found.action || "reaches toward something nearby")),
+        expression: String(found.expression || "curious expression"),
+        bodyLanguage: sanitizeStaticPose(String(found.bodyLanguage || "leaning forward")),
       };
     }
     return {
       slotKey: slot,
-      action: `${onStageNames[i] || "character"} participates in the scene`,
-      expression: "engaged expression",
-      bodyLanguage: "active stance",
+      action: `gestures and moves through the scene`,
+      expression: "curious expression",
+      bodyLanguage: "leaning forward with one hand extended",
     };
   });
 
@@ -215,6 +229,37 @@ function buildSceneSnippet(text: string, maxWords: number, leadWords: number, ta
   const lead = words.slice(0, leadWords).join(" ");
   const tail = words.slice(Math.max(leadWords, words.length - tailWords)).join(" ");
   return `${lead} ... ${tail}`;
+}
+
+/** Replace overly static action verbs with dynamic alternatives */
+function sanitizeStaticAction(action: string): string {
+  const staticPatterns: Array<[RegExp, string]> = [
+    [/^stands?\s*(in|at|near|by)?\s*/i, "moves through "],
+    [/^looks?\s*(at|toward)?\s*/i, "peers closely at "],
+    [/^watches?\s*/i, "leans forward observing "],
+    [/^is\s+present\s*/i, "reaches toward something nearby"],
+    [/^participates?\s*/i, "gestures actively"],
+  ];
+  for (const [pattern, replacement] of staticPatterns) {
+    if (pattern.test(action)) {
+      return action.replace(pattern, replacement);
+    }
+  }
+  return action;
+}
+
+/** Replace overly static pose descriptions with dynamic ones */
+function sanitizeStaticPose(pose: string): string {
+  const staticPoses: Array<[RegExp, string]> = [
+    [/^standing(\s+still)?$/i, "leaning forward with weight shifted"],
+    [/^standing\s+upright$/i, "turned sideways with one arm extended"],
+    [/^idle$/i, "crouching slightly with hands active"],
+    [/^neutral$/i, "mid-gesture with expressive body language"],
+  ];
+  for (const [pattern, replacement] of staticPoses) {
+    if (pattern.test(pose)) return replacement;
+  }
+  return pose;
 }
 
 function buildCharacterMap(cast: CastSet): Map<string, string> {

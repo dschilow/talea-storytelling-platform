@@ -374,8 +374,8 @@ function sanitizeDraft(draft: StoryDraft): StoryDraft {
 function sanitizeMetaStructureFromText(text: string): string {
   if (!text) return text;
   const lines = text.split(/\r?\n/);
-  const labelPattern = /^(?:\d+[\).]\s*)?(?:[-\u2022*]\s*)?(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\\-\\u2013\\u2014]\s*(.*)$/i;
-  const sentenceLabelPattern = /^(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\\-\\u2013\\u2014]/i;
+  const labelPattern = /^(?:\d+[\).]\s*)?(?:[-\u2022*]\s*)?(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]\s*(.*)$/i;
+  const sentenceLabelPattern = /^(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]/i;
 
   const cleaned = lines.map(line => {
     const trimmed = line.trim();
@@ -389,6 +389,11 @@ function sanitizeMetaStructureFromText(text: string): string {
 
     if (label === "epilog" || label === "epilogue") {
       return rest;
+    }
+
+    // For label-prefix patterns, keep the content after the label
+    if (rest.length > 10) {
+      return rest.charAt(0).toUpperCase() + rest.slice(1);
     }
 
     return "";
@@ -405,10 +410,42 @@ function sanitizeMetaStructureFromText(text: string): string {
     return kept.join(" ").trim();
   });
 
-  return sentenceCleaned
+  // Strip inline meta-label prefixes within sentences
+  let result = sentenceCleaned
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+\n/g, "\n")
+    .trim();
+
+  // Remove inline label prefixes (keep content after the colon)
+  const inlineLabelPrefixes = [
+    /Sichtbare Aktion:\s*/gi,
+    /Sichtbare Handlung:\s*/gi,
+    /Aktion fortgesetzt:\s*/gi,
+    /Visible action:\s*/gi,
+    /Action continued:\s*/gi,
+    /Mini-Problem:\s*/gi,
+    /Mini-Aufl(?:oe|ö)sung:\s*/gi,
+  ];
+  for (const pattern of inlineLabelPrefixes) {
+    result = result.replace(pattern, "");
+  }
+
+  // Remove meta-narration sentences that describe story beats instead of telling the story
+  const metaSentencePatterns = [
+    /(?:^|(?<=\.\s))(?:Ihr|Das|Ein) (?:Ziel|Hindernis) war[^.!?]*[.!?]/gm,
+    /(?:^|(?<=\.\s))(?:Her|The|An) (?:goal|obstacle) was[^.!?]*[.!?]/gm,
+  ];
+  for (const pattern of metaSentencePatterns) {
+    result = result.replace(pattern, "");
+  }
+
+  return result
+    .replace(/\.\s*\.\s*/g, ". ")
+    .replace(/^\.\s*/, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/  +/g, " ")
     .trim();
 }
 
@@ -463,7 +500,8 @@ function getHardMinChapterWords(draft: StoryDraft, wordBudget?: import("./word-b
   if (!wordBudget) return null;
   const chapterCount = draft.chapters.length;
   const isMediumOrLong = wordBudget.minMinutes >= 8;
-  if (chapterCount === 5 && isMediumOrLong) return 180;
+  if (chapterCount >= 4 && isMediumOrLong) return 220;
+  if (chapterCount >= 3) return 160;
   return null;
 }
 

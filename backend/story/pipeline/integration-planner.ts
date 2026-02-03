@@ -79,6 +79,12 @@ export function buildIntegrationPlan(input: {
     maxCharacters: MAX_ON_STAGE_CHARACTERS,
   });
 
+  ensureAllCharactersEarlyPresence({
+    chapters,
+    cast,
+    maxCharacters: MAX_ON_STAGE_CHARACTERS,
+  });
+
   return {
     chapters,
     avatarsPresenceRatio: targetPresence,
@@ -237,6 +243,48 @@ function isSupportingSlot(slot: string): boolean {
     value.includes("GUARDIAN") ||
     value.includes("TRICKSTER")
   );
+}
+
+/**
+ * Ensure ALL characters (avatars + pool) appear in at least the first 2 chapters
+ * so they are introduced early and the reader meets everyone from the start.
+ */
+function ensureAllCharactersEarlyPresence(input: {
+  chapters: IntegrationPlan["chapters"];
+  cast: CastSet;
+  maxCharacters: number;
+}) {
+  const { chapters, cast, maxCharacters } = input;
+  if (chapters.length < 2) return;
+
+  const artifactSlot = "SLOT_ARTIFACT_1";
+  const allCharacterSlots = [
+    ...cast.avatars.map(a => a.slotKey),
+    ...cast.poolCharacters.map(c => c.slotKey),
+  ].filter(s => s !== artifactSlot);
+
+  const countNonArtifact = (slots: string[]) =>
+    slots.filter(s => s !== artifactSlot).length;
+
+  // Ensure every character appears in chapter 1
+  const firstChapter = chapters[0];
+  const firstSlots = new Set(firstChapter.charactersOnStage);
+  for (const slot of allCharacterSlots) {
+    if (firstSlots.has(slot)) continue;
+    if (countNonArtifact(Array.from(firstSlots)) >= maxCharacters) break;
+    firstSlots.add(slot);
+  }
+  firstChapter.charactersOnStage = Array.from(firstSlots);
+
+  // Ensure every character also appears in chapter 2
+  const secondChapter = chapters[1];
+  const secondSlots = new Set(secondChapter.charactersOnStage);
+  for (const slot of allCharacterSlots) {
+    if (secondSlots.has(slot)) continue;
+    if (countNonArtifact(Array.from(secondSlots)) >= maxCharacters) break;
+    secondSlots.add(slot);
+  }
+  secondChapter.charactersOnStage = Array.from(secondSlots);
 }
 
 function ensureAvatarsInFinalChapter(input: {
