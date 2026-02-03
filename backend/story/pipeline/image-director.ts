@@ -37,7 +37,7 @@ export class TemplateImageDirector implements ImageDirector {
       const collageResult = await collageCache.get(cacheKey)!;
 
       const refs = collageResult
-        ? buildCollageRefsForSlots(collageResult)
+        ? buildCollageRefsForSlots(collageResult, cast)
         : buildRefsForSlots(refSlots, cast);
 
       const baseNegatives = collageResult
@@ -84,7 +84,7 @@ export async function buildCoverSpec(input: {
   const refSlots = selectReferenceSlots(onStageExact, cast);
   const collageResult = await buildCollageReference(refSlots, cast);
   const refs = collageResult
-    ? buildCollageRefsForSlots(collageResult)
+    ? buildCollageRefsForSlots(collageResult, cast)
     : buildRefsForSlots(refSlots, cast);
   const baseCoverNegatives = collageResult
     ? [...GLOBAL_IMAGE_NEGATIVES, ...COLLAGE_MODE_NEGATIVES]

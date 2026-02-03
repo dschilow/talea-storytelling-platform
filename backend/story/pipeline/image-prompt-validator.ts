@@ -58,7 +58,7 @@ export function validateAndFixImageSpecs(input: {
         current.propsVisible = current.propsVisible.slice(0, maxPropsVisible);
       }
 
-      const isCollageRefs = Object.keys(current.refs || {}).some(k => k.startsWith("position_"));
+      const isCollageRefs = Object.keys(current.refs || {}).some(k => k.startsWith("slot_"));
       if (!isCollageRefs) {
         current.refs = expectedRefs(current, cast);
       }
@@ -89,7 +89,7 @@ function collectIssues(spec: ImageSpec, cast: CastSet, maxPropsVisible: number):
   const lintIssues = lintPrompt(spec, cast);
   lintIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));
 
-  const isCollageMode = Object.keys(spec.refs || {}).some(k => k.startsWith("position_"));
+  const isCollageMode = Object.keys(spec.refs || {}).some(k => k.startsWith("slot_"));
   if (!isCollageMode) {
     const refIssues = validateRefs(spec, expectedRefs(spec, cast));
     refIssues.forEach(issue => issues.push({ chapter: spec.chapter, code: issue.code, message: issue.message }));

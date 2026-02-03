@@ -13,23 +13,23 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     .join("\n");
 
   const refEntries = Object.entries(spec.refs || {});
-  const isCollageMode = refEntries.length > 0 && refEntries.some(([key]) => key.startsWith("position_"));
+  const isCollageMode = refEntries.length > 0 && refEntries.some(([key]) => key.startsWith("slot_"));
 
   const styleBlock = isCollageMode
     ? `STYLE: ${spec.style}, no text, no letters, no words, no watermark, no frames, no borders`
     : `STYLE: ${spec.style}, no text, no letters, no words, no watermark`;
   let refBlock = "";
   if (isCollageMode) {
-    const positionLines = refEntries
-      .map(([_key, value]) => value)
-      .map((desc, idx) => `(${idx + 1}) ${desc}`)
+    const slotLines = refEntries
+      .map(([key, value]) => {
+        const slotNum = key.replace("slot_", "");
+        return `Slot-${slotNum} = ${value}.`;
+      })
       .join("\n");
     refBlock = [
-      `REFERENCE IMAGE (IDENTITY ONLY): The reference is a single horizontal strip with ${refEntries.length} faces ordered LEFT to RIGHT:`,
-      positionLines,
-      `Use the reference ONLY to match each identity (face, hair, signature outfit cues). Ignore the strip layout entirely.`,
-      `Do NOT copy the strip composition. Do NOT make a collage, panels, split-screen, or multi-image layout.`,
-      `Any colored guides in the reference are identification markers only — do NOT reproduce any guides, shapes, halos, badges, or overlays in the output image.`,
+      `REFERENCE IMAGE (IDENTITY ONLY): single horizontal strip with ${refEntries.length} portraits ordered LEFT\u2192RIGHT.`,
+      slotLines,
+      `Use the reference ONLY for identity. Ignore the strip layout entirely. Do NOT copy the strip composition. Do NOT make a collage/panels/frames/borders/quadrants/split-screen. Ignore any colored guides/frames/labels in the reference and do NOT reproduce them as halos, badges, boxes, outlines, or overlays.`,
     ].join("\n");
   } else if (refEntries.length > 0) {
     const refLines = refEntries.map(([key, value]) => `${key} = ${value}`).join("\n");
@@ -44,18 +44,18 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   // Constraints with explicit action/gaze directions
   const identityLock = refEntries.length > 0
     ? isCollageMode
-      ? "- do not swap identities; match each character to their position in the reference strip\n- NO overlays: no frames, borders, colored halos, badges, boxes, or shapes around faces or behind characters"
+      ? "- Do NOT swap identities; each character MUST match their slot identity from the reference strip"
       : "- do not swap identities; match each character to its reference image"
     : "";
 
-  const constraints = `CORE CONSTRAINTS:
-- EXACTLY ${count} characters: ${namesLine}
-- each character appears exactly once
-- full body visible from head to toe, ${shotLabel}
+  const constraints = `CORE CONSTRAINTS (STRICT, MUST FOLLOW):
+- EXACTLY ${count === 1 ? "ONE" : count === 2 ? "TWO" : count === 3 ? "THREE" : count === 4 ? "FOUR" : String(count)} character${count !== 1 ? "s" : ""} total, no more, no less: ${namesLine}
+- EACH character appears EXACTLY ONCE (no duplicates, no twins, no clones)
+- NO other people anywhere (no background people, no silhouettes, no reflections, no faces on posters/paintings)
+- ALL faces visible AND full bodies visible (head-to-toe, feet included, not cropped), ${shotLabel}
 - characters engaged in ACTION, interacting with scene
 - characters looking at each other or at objects in scene, NOT at camera
 - candid moment, natural poses, dynamic movement
-- no extra people, no background crowds
 - absolutely no text, no letters, no words, no titles, no captions anywhere in the image
 ${hasBird ? "- exactly 1 bird total, no other animals" : "- no extra animals"}
 ${identityLock}`.trim();
@@ -90,7 +90,11 @@ ${identityLock}`.trim();
     ? "LANGUAGE: All prompt text must be interpreted as English. If any non-English word appears, translate it to English before rendering."
     : "";
 
-  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, stagingOrder, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard]
+  const repairRule = isCollageMode
+    ? `REPAIR RULE (STRICT):\nIf any extra person appears OR if any slot identity is wrong OR if anyone is missing/duplicated OR if anyone looks at the camera, RECOMPOSE the scene until exactly these ${count} appear once each with the correct identities and positions.`
+    : "";
+
+  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneDescBlock, characterBlock, stagingOrder, sceneBlock, actionBlock, propsBlock, lightingBlock, languageGuard, repairRule]
     .filter(Boolean)
     .join("\n\n");
 

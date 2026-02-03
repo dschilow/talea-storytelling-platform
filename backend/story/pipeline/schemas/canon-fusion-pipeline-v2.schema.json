@@ -396,7 +396,7 @@
           "minProperties": 0,
           "patternProperties": {
             "^ref_image_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 },
-            "^position_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 120 }
+            "^slot_[0-9]+$": { "type": "string", "minLength": 3, "maxLength": 200 }
           }
         },
 

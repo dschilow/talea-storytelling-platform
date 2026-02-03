@@ -62,17 +62,28 @@ export async function buildCollageReference(
 
 /**
  * Build the refs map for collage mode.
- * Uses position_N keys with color info instead of ref_image_N.
+ * Uses slot_N keys with character descriptions for identity matching.
  */
 export function buildCollageRefsForSlots(
-  collageResult: CollageResult
+  collageResult: CollageResult,
+  cast: CastSet
 ): Record<string, string> {
   const refs: Record<string, string> = {};
   for (const pos of collageResult.positions) {
-    const key = `position_${pos.index + 1}`;
-    refs[key] = `${pos.color.name} marker (reference only) — match face identity ONLY of ${pos.displayName}`;
+    const slotNum = pos.index + 1;
+    const key = `slot_${slotNum}`;
+    const brief = getCharacterBrief(cast, pos.displayName);
+    const briefTag = brief ? ` (${brief})` : "";
+    refs[key] = `${pos.displayName.toUpperCase()}${briefTag} — match ONLY the identity from slot-${slotNum}`;
   }
   return refs;
+}
+
+function getCharacterBrief(cast: CastSet, displayName: string): string {
+  const sheet = [...cast.avatars, ...cast.poolCharacters].find(s => s.displayName === displayName);
+  if (!sheet) return "";
+  const items = [...(sheet.visualSignature || []), ...(sheet.faceLock || [])].filter(Boolean);
+  return items.slice(0, 2).join(", ");
 }
 
 function getSheet(cast: CastSet, slotKey: string) {
