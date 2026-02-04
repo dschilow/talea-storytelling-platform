@@ -211,6 +211,7 @@ export interface CharacterSheet {
   // NEW: Enhanced personality for recognizable characters
   enhancedPersonality?: EnhancedPersonality;
   catchphrase?: string;                 // Shortcut for quick access
+  catchphraseContext?: string;          // When to use it: "when excited", "bei Gefahr"
   visualSignature: string[];
   outfitLock: string[];
   faceLock?: string[];
