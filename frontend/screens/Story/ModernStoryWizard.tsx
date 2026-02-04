@@ -45,7 +45,7 @@ interface WizardState {
   customWish: string;
 
   // AI Model Selection
-  aiModel: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-2.0-flash';
+  aiModel: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-3.0-flash';
 }
 
 
@@ -99,7 +99,7 @@ export default function ModernStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: '',
-    aiModel: 'gemini-2.0-flash' // Default to Gemini (free)
+    aiModel: 'gemini-3.0-flash' // Default to Gemini (free)
   });
 
   const updateState = (updates: Partial<WizardState>) => {

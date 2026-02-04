@@ -8,7 +8,7 @@ Talea is an AI-powered storytelling platform where avatars with evolving persona
 
 ## Tech Stack
 
-**Backend:** Encore.ts, PostgreSQL (multiple databases per service), OpenAI GPT, Google Gemini 2.0 Flash, Clerk authentication
+**Backend:** Encore.ts, PostgreSQL (multiple databases per service), OpenAI GPT, Google Gemini 3.0 Flash, Clerk authentication
 **Frontend:** React, TypeScript, Tailwind CSS v4, Redux Toolkit, Clerk React
 **Package Manager:** Bun (required for this project)
 
@@ -209,14 +209,14 @@ encore gen client --target leap
 ```bash
 ClerkSecretKey=sk_test_...
 OpenAIKey=sk-...
-GeminiAPIKey=...  # For Google Gemini 2.0 Flash story generation
+GeminiAPIKey=...  # For Google Gemini 3.0 Flash story generation
 RunwareApiKey=...  # Optional: for image generation
 MCPServerAPIKey=...  # For MCP validator integration
 ```
 
 Set via Encore dashboard or local `encore.dev/config`.
 
-**Note:** See [GEMINI_SETUP.md](GEMINI_SETUP.md:1) for detailed Google Gemini 2.0 Flash setup instructions.
+**Note:** See [GEMINI_SETUP.md](GEMINI_SETUP.md:1) for detailed Google Gemini 3.0 Flash setup instructions.
 
 ### Frontend
 
@@ -239,9 +239,9 @@ When updating avatar personality traits, you MUST:
 ### Story Generation
 
 **AI Model Selection:**
-- Users can choose between OpenAI GPT models and Google Gemini 2.0 Flash in the Story Wizard
+- Users can choose between OpenAI GPT models and Google Gemini 3.0 Flash in the Story Wizard
 - Model selection affects cost and generation quality
-- Gemini 2.0 Flash is **free** during preview phase and optimized for creative storytelling
+- Gemini 3.0 Flash is **free** during preview phase and optimized for creative storytelling
 - Default model: `gpt-5-mini` (balanced quality/cost)
 - See [backend/story/ai-generation.ts](backend/story/ai-generation.ts:230) for model configurations
 

@@ -1,10 +1,10 @@
-# Google Gemini 2.0 Flash Integration
+# Google Gemini 3.0 Flash Integration
 
 ## Übersicht
 
-Die Talea Plattform unterstützt jetzt **Google Gemini 2.0 Flash** als Alternative zu OpenAI-Modellen für die Story-Generierung. Gemini 2.0 Flash ist während der Preview-Phase **kostenlos** und bietet hochwertige, kreative Geschichten.
+Die Talea Plattform unterstützt jetzt **Google Gemini 3.0 Flash** als Alternative zu OpenAI-Modellen für die Story-Generierung. Gemini 3.0 Flash ist während der Preview-Phase **kostenlos** und bietet hochwertige, kreative Geschichten.
 
-## Vorteile von Gemini 2.0 Flash
+## Vorteile von Gemini 3.0 Flash
 
 - 🆓 **Kostenlos** während der Preview-Phase
 - ⚡ **Schnell** - Optimiert für niedrige Latenz
@@ -52,7 +52,7 @@ Alternativ über das Encore Dashboard:
 
 1. Öffne den **Story Wizard** im Frontend
 2. Navigiere zum **Parameters Step**
-3. Wähle **"Gemini 2.0 Flash"** als AI Model
+3. Wähle **"Gemini 3.0 Flash"** als AI Model
 4. Das Modell wird automatisch verwendet, wenn der API Key konfiguriert ist
 
 ## Technische Details
@@ -60,8 +60,8 @@ Alternativ über das Encore Dashboard:
 ### Model-Konfiguration
 
 ```typescript
-"gemini-2.0-flash": {
-  name: "gemini-2.0-flash-exp",
+"gemini-3.0-flash": {
+  name: "gemini-3.0-flash",
   inputCostPer1M: 0.00,       // FREE während Preview
   outputCostPer1M: 0.00,      // FREE während Preview
   maxCompletionTokens: 8192,
@@ -72,7 +72,7 @@ Alternativ über das Encore Dashboard:
 ### API-Endpunkt
 
 ```
-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent
+https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent
 ```
 
 ### Safety Settings
@@ -107,7 +107,7 @@ responseMimeType: "application/json"
 
 1. Erstelle einen neuen Avatar
 2. Starte den Story Wizard
-3. Wähle "Gemini 2.0 Flash" als Model
+3. Wähle "Gemini 3.0 Flash" als Model
 4. Generiere eine Geschichte
 5. Prüfe die Qualität und Konsistenz
 
@@ -171,7 +171,7 @@ Die Preise werden automatisch in der `MODEL_CONFIGS` aktualisiert, sobald bekann
 
 - [Google AI Studio](https://aistudio.google.com/)
 - [Gemini API Documentation](https://ai.google.dev/gemini-api/docs)
-- [Gemini 2.0 Flash Announcement](https://blog.google/technology/ai/google-gemini-ai-update-december-2024/)
+- [Gemini 3.0 Flash Announcement](https://blog.google/technology/ai/google-gemini-ai-update-december-2024/)
 
 ## Support
 

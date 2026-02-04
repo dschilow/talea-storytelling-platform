@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
-type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-2.0-flash';
+type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-3.0-flash';
 
 interface Props {
   state: {
@@ -90,8 +90,8 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
 
   const AI_MODELS = [
     {
-      id: 'gemini-2.0-flash',
-      title: '🔥 Gemini 2.0 Flash',
+      id: 'gemini-3.0-flash',
+      title: '🔥 Gemini 3.0 Flash',
       description: 'KOSTENLOS - Google AI',
       cost: 'FREE',
       recommended: true,
