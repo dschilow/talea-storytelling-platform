@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
 
-type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-2.0-flash';
+type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-3.0-flash';
 
 interface StoryParametersStepProps {
   length: 'short' | 'medium' | 'long';
@@ -99,7 +99,7 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   ];
 
   const aiModelOptions = [
-    { key: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', icon: '🔥', description: 'KOSTENLOS - Google AI (Experimental)', cost: 'FREE', recommended: true },
+    { key: 'gemini-3.0-flash', label: 'Gemini 3.0 Flash', icon: '🔥', description: 'KOSTENLOS - Google AI (Experimental)', cost: 'FREE', recommended: true },
     { key: 'gpt-5-nano', label: 'GPT-5 Nano', icon: '⚡', description: '$0.05/1M - Schnell & günstig', cost: '$0.05' },
     { key: 'gpt-5-mini', label: 'GPT-5 Mini', icon: '✨', description: '$0.25/1M - Bewährt', cost: '$0.25' },
     { key: 'gpt-5.2', label: 'GPT-5.2', icon: '🌟', description: '$1.25/1M - Beste Qualität', cost: '$1.25' },
