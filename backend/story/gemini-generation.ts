@@ -8,6 +8,31 @@
 import { secret } from "encore.dev/config";
 
 const geminiApiKey = secret("GeminiAPIKey", { optional: true });
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1500;
+const MAX_RETRY_DELAY_MS = 15000;
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parseRetryDelayMs(errorText: string, response: Response): number | null {
+  const header = response.headers.get("retry-after");
+  if (header) {
+    const headerSeconds = Number(header);
+    if (!Number.isNaN(headerSeconds)) return headerSeconds * 1000;
+  }
+
+  const match = errorText.match(/"retryDelay"\s*:\s*"(\d+)(s|ms)"/);
+  if (match) {
+    const value = Number(match[1]);
+    if (!Number.isNaN(value)) {
+      return match[2] === "ms" ? value : value * 1000;
+    }
+  }
+
+  return null;
+}
 
 function resolveGeminiApiKey(): string | null {
   const fromEnv =
@@ -103,31 +128,54 @@ export async function generateWithGemini(
     ]
   };
 
-  console.log("[gemini-generation] Calling Gemini API...");
-  const startTime = Date.now();
+  let response: Response | null = null;
+  let data: any = null;
+  let responseTime = 0;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+    console.log(`[gemini-generation] Calling Gemini API (attempt ${attempt}/${MAX_RETRIES})...`);
+    const startTime = Date.now();
 
-  const responseTime = Date.now() - startTime;
-  console.log(`[gemini-generation] Response received in ${responseTime}ms`);
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (!response.ok) {
+    responseTime = Date.now() - startTime;
+    console.log(`[gemini-generation] Response received in ${responseTime}ms`);
+
+    if (response.ok) {
+      data = await response.json();
+      break;
+    }
+
     const errorText = await response.text();
     console.error("[gemini-generation] Gemini API error:", {
       status: response.status,
       statusText: response.statusText,
       body: errorText
     });
+
+    const retryable = response.status === 429 || response.status === 503 || response.status === 500;
+    if (retryable && attempt < MAX_RETRIES) {
+      const delay = Math.min(
+        parseRetryDelayMs(errorText, response) ?? INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1),
+        MAX_RETRY_DELAY_MS
+      );
+      console.warn(`[gemini-generation] Retryable error (${response.status}); waiting ${delay}ms before retry`);
+      await sleep(delay);
+      continue;
+    }
+
     throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
+  if (!data) {
+    throw new Error("Gemini API error: failed to receive response after retries");
+  }
 
   // Extract content from Gemini response
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text;

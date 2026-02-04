@@ -257,8 +257,9 @@ export function buildChapterExpansionPrompt(input: {
   originalText: string;
   previousContext?: string;
   nextContext?: string;
+  requiredCharacters?: string[];
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, stylePackText, originalText, previousContext, nextContext } = input;
+  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, stylePackText, originalText, previousContext, nextContext, requiredCharacters } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
   const characterNames = chapter.charactersOnStage
@@ -268,6 +269,9 @@ export function buildChapterExpansionPrompt(input: {
 
   const prev = previousContext ? `PREVIOUS CHAPTER CONTEXT:\n${previousContext}\n` : "";
   const next = nextContext ? `NEXT CHAPTER CONTEXT:\n${nextContext}\n` : "";
+  const missingLine = requiredCharacters?.length
+    ? `MISSING CHARACTERS (MUST INSERT): ${requiredCharacters.join(", ")}.\nEach missing character must be named, perform a concrete action, and speak at least one short line of dialogue.`
+    : "";
 
   return `Expand the chapter below without changing the plot. Keep continuity with adjacent chapters. Write the output in ${isGerman ? "German" : language}.
 
@@ -292,6 +296,7 @@ RULES:
 5) Keep the original plot beats and setting; just expand the scene.
 6) Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension".
 7) Target ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
+${missingLine ? `8) ${missingLine}\n` : ""}
 
 ${prev}${next}
 ORIGINAL TEXT:
@@ -312,14 +317,18 @@ export function buildTemplatePhraseRewritePrompt(input: {
   stylePackText?: string;
   originalText: string;
   phraseLabels: string[];
+  requiredCharacters?: string[];
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, stylePackText, originalText, phraseLabels } = input;
+  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, stylePackText, originalText, phraseLabels, requiredCharacters } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
   const allowedNames = Array.from(new Set(characterNames)).join(", ");
+  const missingLine = requiredCharacters?.length
+    ? `MISSING CHARACTERS (MUST INSERT): ${requiredCharacters.join(", ")}.\nEach missing character must be named, perform a concrete action, and speak at least one short line of dialogue.`
+    : "";
 
   return `Edit the chapter below to remove template phrases while keeping the plot. Write the output in ${isGerman ? "German" : language}.
 
@@ -345,6 +354,7 @@ RULES:
 3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
 4) Keep the chapter length within ${lengthTargets.wordMin}-${lengthTargets.wordMax} words.
 5) Do not change the plot beats, only the wording.
+${missingLine ? `6) ${missingLine}\n` : ""}
 
 ORIGINAL TEXT:
 ${originalText}

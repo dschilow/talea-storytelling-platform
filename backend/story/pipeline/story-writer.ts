@@ -21,6 +21,8 @@ export class LlmStoryWriter implements StoryWriter {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
     const model = normalizedRequest.rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
+    const allowPostEdits = !isGeminiModel;
+    const maxRewritePasses = allowPostEdits ? MAX_REWRITE_PASSES : 0;
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
     const languageGuard = isGerman
@@ -152,9 +154,11 @@ export class LlmStoryWriter implements StoryWriter {
         const wordCount = countWords(chapter.text);
         const sentenceCount = splitSentences(chapter.text).length;
         const templateMatches = findTemplatePhraseMatches(chapter.text, normalizedRequest.language);
-        const needsExpand = Boolean((hardMin && wordCount < hardMin) || sentenceCount < 3);
-        const needsTemplateFix = templateMatches.length > 0;
-        if (!needsExpand && !needsTemplateFix) continue;
+        const missingCharacters = findMissingCharacters(chapter.text, directive, cast);
+        const needsMissingFix = missingCharacters.length > 0;
+        const needsExpand = Boolean((hardMin && wordCount < hardMin) || sentenceCount < 3 || needsMissingFix);
+        const needsTemplateFix = templateMatches.length > 0 && !needsExpand;
+        if (!needsExpand && !needsTemplateFix && !needsMissingFix) continue;
 
         const prevContext = i > 0 ? getEdgeContext(updatedChapters[i - 1]?.text || "", "end") : "";
         const nextContext = i < updatedChapters.length - 1 ? getEdgeContext(updatedChapters[i + 1]?.text || "", "start") : "";
@@ -172,6 +176,7 @@ export class LlmStoryWriter implements StoryWriter {
               originalText: chapter.text,
               previousContext: prevContext,
               nextContext,
+              requiredCharacters: missingCharacters,
             })
           : buildTemplatePhraseRewritePrompt({
               chapter: directive,
@@ -184,6 +189,7 @@ export class LlmStoryWriter implements StoryWriter {
               stylePackText,
               originalText: chapter.text,
               phraseLabels: templateMatches.map(m => m.label),
+              requiredCharacters: missingCharacters,
             });
 
         const maxTokens = Math.min(2000, Math.round(Math.max(600, lengthTargets.wordMax * 2.5)));
@@ -217,25 +223,27 @@ export class LlmStoryWriter implements StoryWriter {
       return { draft: { ...draftInput, chapters: updatedChapters }, usage, changed };
     };
 
-    const targetedBefore = await applyTargetedEdits(draft);
-    if (targetedBefore.changed) {
-      draft = targetedBefore.draft;
-      if (targetedBefore.usage) {
-        totalUsage = mergeUsage(totalUsage, targetedBefore.usage, model);
+    if (allowPostEdits) {
+      const targetedBefore = await applyTargetedEdits(draft);
+      if (targetedBefore.changed) {
+        draft = targetedBefore.draft;
+        if (targetedBefore.usage) {
+          totalUsage = mergeUsage(totalUsage, targetedBefore.usage, model);
+        }
+        qualityReport = runQualityGates({
+          draft,
+          directives,
+          cast,
+          language: normalizedRequest.language,
+          wordBudget: normalizedRequest.wordBudget,
+        });
       }
-      qualityReport = runQualityGates({
-        draft,
-        directives,
-        cast,
-        language: normalizedRequest.language,
-        wordBudget: normalizedRequest.wordBudget,
-      });
     }
 
     let rewriteAttempt = 0;
-    while (qualityReport.failedGates.length > 0 && rewriteAttempt < MAX_REWRITE_PASSES) {
+    while (qualityReport.failedGates.length > 0 && rewriteAttempt < maxRewritePasses) {
       rewriteAttempt++;
-      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${MAX_REWRITE_PASSES} - failed gates: ${qualityReport.failedGates.join(", ")}`);
+      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - failed gates: ${qualityReport.failedGates.join(", ")}`);
 
       const errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
       const rewriteInstructions = buildRewriteInstructions(errorIssues, normalizedRequest.language);
@@ -255,18 +263,27 @@ export class LlmStoryWriter implements StoryWriter {
         stylePackText,
       });
 
-      const rewriteResult = await callStoryModel({
-        systemPrompt,
-        userPrompt: rewritePrompt,
-        responseFormat: "json_object",
-        maxTokens: Math.min(maxOutputTokens, 16000),
-        temperature: 0.4,
-        context: `story-writer-rewrite-${rewriteAttempt}`,
-        logSource: "phase6-story-llm",
-        logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt },
-      });
+      let rewriteResult;
+      try {
+        rewriteResult = await callStoryModel({
+          systemPrompt,
+          userPrompt: rewritePrompt,
+          responseFormat: "json_object",
+          maxTokens: Math.min(maxOutputTokens, 16000),
+          temperature: 0.4,
+          context: `story-writer-rewrite-${rewriteAttempt}`,
+          logSource: "phase6-story-llm",
+          logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt },
+        });
+      } catch (error) {
+        if (isGeminiModel) {
+          console.warn(`[story-writer] Rewrite pass ${rewriteAttempt} failed for Gemini model, keeping current draft`, error);
+          break;
+        }
+        throw error;
+      }
 
-      if (rewriteResult.usage) {
+      if (rewriteResult?.usage) {
         totalUsage = mergeUsage(totalUsage, rewriteResult.usage, model);
       }
 
@@ -295,23 +312,25 @@ export class LlmStoryWriter implements StoryWriter {
       }
     }
 
-    const needsFinalTargeted = qualityReport.issues.some(issue =>
-      issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "TEMPLATE_PHRASE"
-    );
-    if (needsFinalTargeted) {
-      const targetedAfter = await applyTargetedEdits(draft);
-      if (targetedAfter.changed) {
-        draft = targetedAfter.draft;
-        if (targetedAfter.usage) {
-          totalUsage = mergeUsage(totalUsage, targetedAfter.usage, model);
+    if (allowPostEdits) {
+      const needsFinalTargeted = qualityReport.issues.some(issue =>
+        issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "TEMPLATE_PHRASE" || issue.code === "MISSING_CHARACTER"
+      );
+      if (needsFinalTargeted) {
+        const targetedAfter = await applyTargetedEdits(draft);
+        if (targetedAfter.changed) {
+          draft = targetedAfter.draft;
+          if (targetedAfter.usage) {
+            totalUsage = mergeUsage(totalUsage, targetedAfter.usage, model);
+          }
+          qualityReport = runQualityGates({
+            draft,
+            directives,
+            cast,
+            language: normalizedRequest.language,
+            wordBudget: normalizedRequest.wordBudget,
+          });
         }
-        qualityReport = runQualityGates({
-          draft,
-          directives,
-          cast,
-          language: normalizedRequest.language,
-          wordBudget: normalizedRequest.wordBudget,
-        });
       }
     }
 
@@ -319,6 +338,29 @@ export class LlmStoryWriter implements StoryWriter {
     if (!draft.title || draft.title.length < 3) {
       const storyText = draft.chapters.map(ch => `${ch.title}\n${ch.text}`).join("\n\n");
       try {
+        if (!allowPostEdits) {
+          draft.title = normalizedRequest.language === "de" ? "Neue Geschichte" : "New Story";
+          return {
+            draft,
+            usage: totalUsage,
+            qualityReport: {
+              score: qualityReport.score,
+              passedGates: qualityReport.passedGates,
+              failedGates: qualityReport.failedGates,
+              issueCount: qualityReport.issues.length,
+              errorCount: qualityReport.issues.filter(i => i.severity === "ERROR").length,
+              warningCount: qualityReport.issues.filter(i => i.severity === "WARNING").length,
+              rewriteAttempts: rewriteAttempt,
+              issues: qualityReport.issues.map(i => ({
+                gate: i.gate,
+                chapter: i.chapter,
+                code: i.code,
+                message: i.message,
+                severity: i.severity,
+              })),
+            },
+          };
+        }
         const titleSystem = `You summarize children's stories in ${targetLanguage}.`;
         const titlePrompt = buildStoryTitlePrompt({ storyText, language: normalizedRequest.language });
         const titleResult = await callStoryModel({
@@ -524,6 +566,21 @@ function safeJson(text: string) {
     }
     return null;
   }
+}
+
+function findMissingCharacters(text: string, directive: SceneDirective, cast: CastSet): string[] {
+  const textLower = text.toLowerCase();
+  const names = directive.charactersOnStage
+    .filter(slot => !slot.includes("ARTIFACT"))
+    .map(slot => findCharacterDisplayName(cast, slot))
+    .filter((name): name is string => Boolean(name));
+
+  return names.filter(name => !textLower.includes(name.toLowerCase()));
+}
+
+function findCharacterDisplayName(cast: CastSet, slotKey: string): string | null {
+  const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
+  return sheet?.displayName ?? null;
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {
