@@ -107,6 +107,9 @@ export async function generateWithGemini(
       temperature: request.temperature ?? 1.0,
       maxOutputTokens: request.maxTokens,
       responseMimeType: "application/json",
+      thinkingConfig: {
+        thinkingLevel: "minimal",
+      },
     },
     safetySettings: [
       {
@@ -133,7 +136,7 @@ export async function generateWithGemini(
   let responseTime = 0;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
-    console.log(`[gemini-generation] Calling Gemini API (attempt ${attempt}/${MAX_RETRIES})...`);
+    console.log(`[gemini-generation] Calling Gemini API (attempt ${attempt}/${MAX_RETRIES}), maxOutputTokens=${request.maxTokens}...`);
     const startTime = Date.now();
 
     response = await fetch(url, {
@@ -192,6 +195,7 @@ export async function generateWithGemini(
     completionTokens: usageMetadata.candidatesTokenCount || 0,
     totalTokens: usageMetadata.totalTokenCount || 0,
   };
+  const thoughtsTokenCount = usageMetadata.thoughtsTokenCount || 0;
 
   const finishReason = data.candidates?.[0]?.finishReason || "STOP";
 
@@ -199,8 +203,10 @@ export async function generateWithGemini(
     contentLength: content.length,
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
+    thoughtsTokens: thoughtsTokenCount,
     totalTokens: usage.totalTokens,
     finishReason,
+    maxOutputTokensRequested: request.maxTokens,
     responseTimeMs: responseTime
   });
 
