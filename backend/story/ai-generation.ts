@@ -292,8 +292,8 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 16384,
     supportsReasoningEffort: true,
   },
-  "gemini-2.0-flash": {
-    name: "gemini-2.0-flash",
+  "gemini-3.0-flash": {
+    name: "gemini-3.0-flash",
     inputCostPer1M: 0.00,       // FREE during preview
     outputCostPer1M: 0.00,      // FREE during preview
     maxCompletionTokens: 8192,
@@ -2032,7 +2032,7 @@ You MUST implement this style consistently in ALL chapters!`
   let content: string;
 
   // Check if using Gemini model
-  const isGeminiModel = modelKey === "gemini-2.0-flash";
+  const isGeminiModel = modelKey === "gemini-3.0-flash";
 
   if (isGeminiModel) {
     // Use Gemini API
@@ -2040,7 +2040,7 @@ You MUST implement this style consistently in ALL chapters!`
       throw new Error("Gemini API is not configured. Please set GeminiAPIKey secret.");
     }
 
-    console.log(`[ai-generation] 🤖 Using Google Gemini 2.0 Flash`);
+    console.log(`[ai-generation] 🤖 Using Google Gemini 3.0 Flash`);
 
     try {
       const geminiResponse = await generateWithGemini({
