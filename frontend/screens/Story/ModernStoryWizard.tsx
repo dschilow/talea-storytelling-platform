@@ -43,6 +43,9 @@ interface WizardState {
   happyEnd: boolean;
   surpriseEnd: boolean;
   customWish: string;
+
+  // AI Model Selection
+  aiModel: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-pro' | 'gpt-4.1-nano' | 'gpt-4.1-mini' | 'gpt-4.1' | 'o4-mini' | 'gemini-2.0-flash';
 }
 
 
@@ -95,7 +98,8 @@ export default function ModernStoryWizard() {
     famousCharacters: false,
     happyEnd: true,
     surpriseEnd: false,
-    customWish: ''
+    customWish: '',
+    aiModel: 'gemini-2.0-flash' // Default to Gemini (free)
   });
 
   const updateState = (updates: Partial<WizardState>) => {
@@ -418,6 +422,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',  // All supported languages
+    aiModel: state.aiModel, // Pass selected AI model
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic'
     }
