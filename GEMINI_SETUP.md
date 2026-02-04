@@ -61,7 +61,7 @@ Alternativ über das Encore Dashboard:
 
 ```typescript
 "gemini-3.0-flash": {
-  name: "gemini-3.0-flash-exp",
+  name: "gemini-3.0-flash",
   inputCostPer1M: 0.00,       // FREE während Preview
   outputCostPer1M: 0.00,      // FREE während Preview
   maxCompletionTokens: 8192,
@@ -72,7 +72,7 @@ Alternativ über das Encore Dashboard:
 ### API-Endpunkt
 
 ```
-https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash-exp:generateContent
+https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent
 ```
 
 ### Safety Settings
