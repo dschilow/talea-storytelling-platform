@@ -1,7 +1,7 @@
 /**
- * Google Gemini 2.0 Flash Story Generation
+ * Google Gemini Story Generation
  *
- * This module handles story generation using Google's Gemini 2.0 Flash model.
+ * This module handles story generation using Google's Gemini API.
  * Provides high-quality, creative story generation with cost-effective pricing.
  */
 
@@ -75,7 +75,7 @@ interface GeminiGenerationResponse {
 }
 
 /**
- * Generate story content using Google Gemini 2.0 Flash
+ * Generate story content using Google Gemini API
  */
 export async function generateWithGemini(
   request: GeminiGenerationRequest
@@ -90,21 +90,21 @@ export async function generateWithGemini(
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
-  // Combine system and user prompts for Gemini
-  const combinedPrompt = `${request.systemPrompt}\n\n${request.userPrompt}`;
-
   const payload = {
+    systemInstruction: {
+      parts: [{ text: request.systemPrompt }]
+    },
     contents: [
       {
         parts: [
           {
-            text: combinedPrompt
+            text: request.userPrompt
           }
         ]
       }
     ],
     generationConfig: {
-      temperature: request.temperature ?? 0.9,
+      temperature: request.temperature ?? 1.0,
       maxOutputTokens: request.maxTokens,
       responseMimeType: "application/json",
     },

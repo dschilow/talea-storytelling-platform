@@ -296,7 +296,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     name: "gemini-3-flash-preview",
     inputCostPer1M: 0.00,       // FREE during preview
     outputCostPer1M: 0.00,      // FREE during preview
-    maxCompletionTokens: 8192,
+    maxCompletionTokens: 65536,
     supportsReasoningEffort: false,
   },
 };
