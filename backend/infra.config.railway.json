@@ -73,6 +73,9 @@
     "MCPServerAPIKey": {
       "$env": "MCP_SERVER_API_KEY"
     },
+    "GeminiAPIKey": {
+      "$env": "GEMINI_API_KEY"
+    },
     "BucketEndpoint": {
       "$env": "BUCKET_ENDPOINT"
     },
