@@ -7,6 +7,7 @@ import {
   maybeUploadImageUrlToBucket,
   resolveImageUrlForClient,
   resolveObjectUrlForClient,
+  createPresignedUploadUrl,
   uploadBufferToBucket,
 } from "../helpers/bucket-storage";
 
@@ -46,6 +47,16 @@ interface ListAudioDokusResponse {
   hasMore: boolean;
 }
 
+interface CreateAudioUploadUrlRequest {
+  filename: string;
+  contentType: string;
+}
+
+interface CreateAudioUploadUrlResponse {
+  uploadUrl: string;
+  audioUrl: string;
+}
+
 const parseDataUrl = (dataUrl: string): { contentType: string; buffer: Buffer } | null => {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return null;
@@ -70,6 +81,35 @@ const buildCoverPrompt = (description: string, title: string): string => {
   const normalized = normalizeLanguage(description || title);
   return `Modern educational cover art for an audio documentary: ${normalized}. Soft gradients, friendly illustration, clean composition, no text in the image.`;
 };
+
+export const createAudioUploadUrl = api<CreateAudioUploadUrlRequest, CreateAudioUploadUrlResponse>(
+  { expose: true, method: "POST", path: "/audio-dokus/upload-url", auth: true },
+  async (req) => {
+    const contentType = req.contentType?.trim();
+    const filename = req.filename?.trim();
+
+    if (!filename) {
+      throw APIError.invalidArgument("Filename is required.");
+    }
+    if (!contentType || !contentType.startsWith("audio/")) {
+      throw APIError.invalidArgument("Invalid audio content type.");
+    }
+
+    const presigned = await createPresignedUploadUrl(contentType, {
+      prefix: "audio/dokus",
+      filenameHint: sanitizeTitle(inferTitleFromFilename(filename) || filename),
+    });
+
+    if (!presigned) {
+      throw APIError.failedPrecondition("Audio upload not available (bucket not configured).");
+    }
+
+    return {
+      uploadUrl: presigned.uploadUrl,
+      audioUrl: presigned.storedUrl,
+    };
+  }
+);
 
 export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
   { expose: true, method: "POST", path: "/audio-dokus", auth: true },

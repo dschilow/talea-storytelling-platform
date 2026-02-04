@@ -17,15 +17,6 @@ import type { AudioDoku } from '../../types/audio-doku';
 const UNSPLASH_PLACEHOLDER =
   'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=1200&q=80';
 
-const fileToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
-
 const formatFileSize = (bytes: number): string => {
   if (!Number.isFinite(bytes)) return '';
   if (bytes < 1024) return `${bytes} B`;
@@ -44,6 +35,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [description, setDescription] = useState('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdAudio, setCreatedAudio] = useState<AudioDoku | null>(null);
@@ -64,6 +56,7 @@ const CreateAudioDokuScreen: React.FC = () => {
 
   const handleFileSelected = (file: File | null) => {
     setAudioFile(file);
+    setUploadedAudioUrl(null);
     if (file && !title.trim()) {
       setTitle(file.name.replace(/\.[^/.]+$/, ''));
     }
@@ -88,12 +81,28 @@ const CreateAudioDokuScreen: React.FC = () => {
 
     try {
       setCreating(true);
-      const audioDataUrl = await fileToDataUrl(audioFile);
+      const upload = await backend.doku.createAudioUploadUrl({
+        filename: audioFile.name,
+        contentType: audioFile.type || 'audio/mpeg',
+      });
+
+      const uploadResponse = await fetch(upload.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': audioFile.type || 'audio/mpeg',
+        },
+        body: audioFile,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
+      setUploadedAudioUrl(upload.audioUrl);
+
       const response = await backend.doku.createAudioDoku({
         title: title.trim() || undefined,
         description: description.trim(),
         coverDescription: coverDescription.trim(),
-        audioDataUrl,
+        audioUrl: upload.audioUrl,
         filename: audioFile.name,
         isPublic: true,
       });

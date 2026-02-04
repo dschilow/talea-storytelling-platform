@@ -364,6 +364,7 @@ Return JSON:
 }
 
 // ─── Full Story Prompt (all chapters in one call) ───────────────────────────
+// OPTIMIZED V2: More compact, uses full character properties from DB
 export function buildFullStoryPrompt(input: {
   directives: SceneDirective[];
   cast: CastSet;
@@ -379,253 +380,203 @@ export function buildFullStoryPrompt(input: {
   strict?: boolean;
   fusionSections?: Map<number, string>;
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordTarget, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, strict, fusionSections } = input;
+  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, fusionSections } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
-  const personalityLabel = "Personality";
-  const speechLabel = "Speech style";
+  const artifactRule = cast.artifact?.storyUseRule || "important object";
 
-  const allCharacters = new Set<string>();
+  // Collect all unique character names
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const allowedNames: string[] = [];
+
+  // Build compact character profiles with full DB properties
+  const characterLines: string[] = [];
   for (const slot of allSlots) {
     const sheet = findCharacterBySlot(cast, slot);
-    if (sheet) allCharacters.add(sheet.displayName);
+    if (!sheet || slot.includes("ARTIFACT")) continue;
+    allowedNames.push(sheet.displayName);
+
+    const ep = sheet.enhancedPersonality;
+    const personality = sheet.personalityTags?.slice(0, 4).join(", ") || ep?.dominant || "neugierig";
+    const speechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || "normal";
+
+    // Compact one-line format: Name (age?): personality; spricht speechStyle.
+    let line = `- ${sheet.displayName}`;
+    if (sheet.roleType === "AVATAR") {
+      line += ` (Kind)`;
+    }
+    line += `: ${personality}; spricht ${speechStyle}.`;
+
+    // Add catchphrase with context if available
+    if (ep?.catchphrase) {
+      const context = (sheet as any).catchphraseContext || ep.emotionalTriggers?.[0] || "";
+      line += ` Spruch: „${ep.catchphrase}"${context ? ` (${context})` : ""}.`;
+    }
+
+    // Add quirk if available
+    if (ep?.quirk) {
+      line += ` Marotte: ${ep.quirk}.`;
+    }
+
+    characterLines.push(line);
   }
-  const allowedNames = Array.from(allCharacters).join(", ");
 
-  const characterProfiles = Array.from(allSlots)
-    .map(slot => {
-      const sheet = findCharacterBySlot(cast, slot);
-      if (!sheet || slot.includes("ARTIFACT")) return null;
-      const signature = sheet.visualSignature?.length ? sheet.visualSignature.join(", ") : "";
-      const ep = sheet.enhancedPersonality;
-
-      // Build multi-line character profile block for better AI comprehension
-      const lines: string[] = [];
-      lines.push(`■ ${sheet.displayName} (${sheet.roleType})${signature ? ` - ${signature}` : ""}`);
-
-      // Personality traits
-      if (sheet.personalityTags?.length) {
-        lines.push(`  ${isGerman ? "Persoenlichkeit" : personalityLabel}: ${sheet.personalityTags.slice(0, 5).join(", ")}`);
-      }
-
-      // Speech style - critical for unique character voice
-      if (sheet.speechStyleHints?.length) {
-        lines.push(`  ${isGerman ? "Sprachstil" : speechLabel}: ${sheet.speechStyleHints.slice(0, 3).join(", ")}`);
-      }
-
-      // Catchphrase
-      if (ep?.catchphrase) {
-        lines.push(`  ${isGerman ? "Spruch (genau 1x benutzen!)" : "Catchphrase (use exactly 1x!)"}: "${ep.catchphrase}"`);
-      }
-
-      // Quirk - unique mannerism to show in scenes
-      if (ep?.quirk) {
-        lines.push(`  ${isGerman ? "Eigenart (mind. 1x zeigen!)" : "Quirk (show at least 1x!)"}: ${ep.quirk}`);
-      }
-
-      // Emotional triggers
-      if (ep?.emotionalTriggers?.length) {
-        lines.push(`  ${isGerman ? "Reagiert auf" : "Reacts to"}: ${ep.emotionalTriggers.slice(0, 3).join(", ")}`);
-      }
-
-      return lines.join("\n");
-    })
-    .filter(Boolean)
-    .join("\n\n");
-
-  const chapterBlocks = directives.map((d, idx) => {
-    const chOnStage = d.charactersOnStage
+  // Build compact chapter outline (Setting + Hook only)
+  const chapterOutlines = directives.map((d, idx) => {
+    const charsOnStage = d.charactersOnStage
       .filter(s => !s.includes("ARTIFACT"))
       .map(s => findCharacterBySlot(cast, s)?.displayName)
       .filter(Boolean)
       .join(", ");
 
-    const artifactLine = d.artifactUsage && !d.artifactUsage.toLowerCase().includes("nicht genutzt") && !d.artifactUsage.toLowerCase().includes("not used")
-      ? `  Artifact: ${d.artifactUsage}`
-      : "";
-
-    const isFirst = idx === 0;
     const isLast = idx === directives.length - 1;
-    const isMidPeak = idx === directives.length - 2;
 
-    let arcHint = "";
-    if (isFirst) arcHint = "  Arc: Setup + first mystery";
-    else if (idx === 1) arcHint = "  Arc: Problem escalates";
-    else if (idx === 2 && directives.length >= 5) arcHint = "  Arc: Mistake/false lead (twist)";
-    else if (isMidPeak) arcHint = "  Arc: Darkest moment, nearly lost (climax!)";
-    else if (isLast) arcHint = "  Arc: Resolution + payoff + warm ending";
+    // Compact format: Chapter N (Setting): Goal. Hook: ...
+    let outline = `${idx + 1}. ${d.setting}: ${d.goal}`;
+    if (d.artifactUsage && !d.artifactUsage.toLowerCase().includes("nicht genutzt")) {
+      outline += ` [${artifactName}]`;
+    }
+    outline += ` Figuren: ${charsOnStage}.`;
+    if (!isLast && d.outcome) {
+      outline += ` Hook: ${d.outcome.substring(0, 60)}...`;
+    }
 
-    // V2: Canon-Fusion section for this chapter (character entry/exit, dialogue cues, catchphrases)
+    // Add fusion hints if available (compact)
     const fusionBlock = fusionSections?.get(d.chapter);
-    const fusionLine = fusionBlock
-      ? `  CHARACTER INTEGRATION:\n${fusionBlock.split("\n").map(l => `    ${l}`).join("\n")}`
-      : "";
+    if (fusionBlock) {
+      const compactFusion = fusionBlock.split("\n").slice(0, 2).join("; ");
+      outline += ` [${compactFusion}]`;
+    }
 
-    return `CHAPTER ${d.chapter}:
-  Setting: ${d.setting}
-  Mood: ${d.mood ?? "COZY"}
-  Goal: ${d.goal}
-  Conflict: ${d.conflict}
-  Outcome: ${d.outcome}
-  Characters: ${chOnStage}
-${artifactLine}
-${arcHint}
-${fusionLine}`;
-  }).join("\n\n");
-  const structureMap = buildStructureMap(directives.length);
+    return outline;
+  }).join("\n");
 
-  if (isGerman) {
-    return `You are an award-winning children's book author. Write a COMPLETE story with ${directives.length} chapters in German.
-Target audience: ${ageRange.min}-${ageRange.max} years old.
-Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
-
-STYLE TARGETS (do NOT mention these directly):
-- Page-turning momentum with short, vivid scenes and frequent hooks
-- Warm humor + real stakes, never cynical
-- Cinematic clarity: strong visuals, clear staging, cause -> effect
-- Poetic depth in small doses (1-2 standout images per chapter)
-- Distinct character voices; dialogue carries meaning
-
-AGE ADAPTATION:
-- 3-5: very short sentences, gentle repetition, 1 main problem, safe resolution
-- 6-8: more dialogue, small riddles, playful tension, clear hooks
-- 9-12: stronger motives, sharper twists, deeper emotion, still kid-safe
-- 12-14: denser style, moral nuance, bigger turns (age-appropriate)
-
-CHARACTER DIRECTORY (use ONLY these characters!):
-${characterProfiles}
-${artifactName ? `\nARTIFACT: ${artifactName} (${cast.artifact?.storyUseRule || "important object"})` : ""}
-
-CHAPTER PLAN:
-${chapterBlocks}
-${stylePackText ? `\nSTYLE DIRECTIVES:\n${stylePackText}` : ""}
-
-LENGTH REQUIREMENTS:
-- Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
-- Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
-- Aim for the upper half of the per-chapter range; no 1-2 sentence teaser chapters.
-
-STRUCTURE MAP:
-${structureMap}
-
-QUALITY REQUIREMENTS:
-1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
-2) CHAPTER STRUCTURE: Each chapter needs: a clear setting (place + mood), a purpose the characters pursue, a difficulty they face, a concrete physical action (not just thoughts), a small step forward, and a forward-looking closing line (except last chapter).
-2b) CONTENT BEATS (woven naturally into prose, never as headings or labels): setting (1-2 sentences), purpose, difficulty, concrete action, progress, closing hook.
-2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by adding these beats as natural prose.
-2d) CRITICAL: Do NOT use ANY structural labels, headings, or beat markers in the chapter text. Forbidden patterns include: "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Sichtbare Handlung:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also NEVER start sentences with "Ihr Ziel war", "Das Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was". These are internal planning terms — show don't tell.
-3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
-4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
-5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
-6) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
-7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "very", "quite", "somehow". No recurring stock metaphors.
-8) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
-9) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot", "sad but hopeful".
-9b) SHOW, DON'T TELL: Avoid sentences like "Er traf eine wichtige Entscheidung" or "Sie entdeckten den entscheidenden Hinweis." Replace with concrete action + short dialogue.
-10) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
-11) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
-12) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
-13) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), includes a concrete on-scene moment with dialogue + action (no summary-only wrap-up), and ends with a warm closing image (e.g. homeward path, laughter, evening light). Add a short epilogue paragraph + optional 1-sentence spark for a next adventure.
-14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
-15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
-16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
-16b) Every chapter includes one small extra complication (something slips, is too heavy, is misunderstood, or distracts). Weave it naturally into the action — never label or announce it.
-17) CHARACTER VOICE: Every character MUST have a unique, recognizable voice in dialogue.
-  a) Dialogue MUST reflect the character's defined Sprachstil. A "polternd" character speaks rough and loud. A "piepsig" character speaks in a squeaky voice. A "reimend" character rhymes. A "knurrend" character growls. NEVER let two characters sound the same.
-  b) Show each character's Eigenart (quirk) at least ONCE through a concrete physical action (not narration). Example: "Er wischte sich die Haende an der Schuerze ab" instead of "Er hatte die Eigenart, sich die Haende abzuwischen."
-  c) When a character encounters one of their emotional triggers (Reagiert auf), show a visible physical or emotional reaction (eyes widen, voice changes, freezes, etc.).
-  d) Catchphrases (Spruch) must be used EXACTLY once per story, woven naturally into dialogue at the marked chapter. Never paraphrase - use the EXACT words.
-  e) Each character's personality (Persoenlichkeit) must influence their ACTIONS, not just their words. A "frech" character acts boldly, a "schuechtern" character hesitates, a "hilfsbereit" character helps without being asked.
-${strict ? "18) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
-
-ALLOWED NAMES: ${allowedNames || "none"}
-
-Return JSON:
-{
-  "title": "Short story title (max 7 words)",
-  "description": "1-sentence teaser hook",
-  "chapters": [
-    { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
-    { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." }
-  ]
-}`;
+  // Build recurring motifs from character quirks/catchphrases
+  const motifs: string[] = [];
+  for (const slot of allSlots) {
+    const sheet = findCharacterBySlot(cast, slot);
+    if (!sheet) continue;
+    const ep = sheet.enhancedPersonality;
+    if (ep?.quirk && motifs.length < 3) {
+      motifs.push(`- ${sheet.displayName} ${ep.quirk} (spielerisch, wiederkehrend)`);
+    }
   }
 
-  return `You are an award-winning children's book author. Write a COMPLETE story with ${directives.length} chapters in ${language}.
-Target audience: ${ageRange.min}-${ageRange.max} years old.
-Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
+  // Determine age-specific style
+  const ageStyle = ageRange.max <= 5
+    ? "Sehr kurze Sätze, sanfte Wiederholung, 1 Hauptproblem, sichere Auflösung."
+    : ageRange.max <= 8
+      ? "Mehr Dialog, kleine Rätsel, spielerische Spannung, klare Hooks."
+      : ageRange.max <= 12
+        ? "Stärkere Motive, schärfere Wendungen, tiefere Emotionen, kindgerecht."
+        : "Dichterer Stil, moralische Nuancen, größere Wendungen.";
 
-STYLE TARGETS (do NOT mention these directly):
-- Page-turning momentum with short, vivid scenes and frequent hooks
-- Warm humor + real stakes, never cynical
-- Cinematic clarity: strong visuals, clear staging, cause -> effect
-- Poetic depth in small doses (1-2 standout images per chapter)
-- Distinct character voices; dialogue carries meaning
+  if (isGerman) {
+    return `# Rolle und Zielsetzung
+- Du bist: Preisgekrönter Kinderbuchautor.
+- Ziel: Verfasse eine vollständige Kinderbuchgeschichte auf Deutsch. Nur JSON-Output.
 
-AGE ADAPTATION:
-- 3-5: very short sentences, gentle repetition, 1 main problem, safe resolution
-- 6-8: more dialogue, small riddles, playful tension, clear hooks
-- 9-12: stronger motives, sharper twists, deeper emotion, still kid-safe
-- 12-14: denser style, moral nuance, bigger turns (age-appropriate)
+# Zielgruppe
+- ${ageRange.min}–${ageRange.max} Jahre
+- Stil: ${ageStyle}
 
-CHARACTER DIRECTORY (use ONLY these characters!):
-${characterProfiles}
-${artifactName ? `\nARTIFACT: ${artifactName} (${cast.artifact?.storyUseRule || "important object"})` : ""}
+# Tonfall
+- ${tone || dna.toneBounds?.targetTone || "Warm"}, witzig, spannend – niemals zynisch.
 
-CHAPTER PLAN:
-${chapterBlocks}
-${stylePackText ? `\nSTYLE DIRECTIVES:\n${stylePackText}` : ""}
+# Stilregeln
+- Kurze, klare Absätze; lebendige Bilder; klare Ursache–Wirkung
+- Handlung wird durch Dialog vorangetrieben (2–6 Dialogzeilen pro Kapitel)
+- Pro Kapitel max. 1–2 poetische Bilder/Vergleiche
 
-LENGTH REQUIREMENTS:
-- Total story: ${totalWordMin}-${totalWordMax} words (target: ~${totalWordTarget})
-- Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words
-- Aim for the upper half of the per-chapter range; no 1-2 sentence teaser chapters.
+# Harte Regeln (Quality-Gates)
+1. **Sprache**: Alle Textfelder ausschließlich auf Deutsch. Keine englischen Wörter.
+2. **Länge**: Gesamt: ${totalWordMin}–${totalWordMax} Wörter. Pro Kapitel: ${wordsPerChapter.min}–${wordsPerChapter.max} Wörter (obere Hälfte bevorzugt). Keine Mini-Kapitel.
+3. **Kapitelbau**: Jedes Kapitel enthält in Prosa: (a) Ort+Stimmung, (b) klares Vorhaben, (c) Schwierigkeit, (d) sichtbare Handlung (Verb+Objekt), (e) Fortschritt, (f) letzter Satz = sanfter Hook (außer letztes Kapitel).
+4. **Keine Labels**: Im Kapiteltext keine Begriffe wie „Ort:", „Ziel:", „Hook:" – nur Erzählprosa.
+5. **Cast-Lock**: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren. Hintergrundfiguren unbenannt.
+6. **Kontinuität**: Roter Faden. Entscheidungen wirken nach. Keine abrupten Ortswechsel ohne Übergangssatz.
+7. **Aktive Figuren**: Jede Figur nimmt aktiv Einfluss. Mind. 3–4 Figuren agieren pro Kapitel sichtbar.
+8. **Wiederholungsschutz**: Keine identischen Sätze über Kapitel. Keine Füllwörter („plötzlich", „irgendwie"). Keine Floskeln wie „entscheidender Hinweis" – zeigen statt sagen.
+9. **Charakter-Stimmen**: Jede Figur hat eine einzigartige Stimme im Dialog (gemäß Sprachstil). Sprüche genau 1x verwenden. Marotten zeigen.
+${artifactName ? `10. **Artefakt-Bogen**: ${artifactName} wird in Kap 1–2 eingeführt, führt in Kap 2–3 fehl, hilft in Kap 4–5 entscheidend. Mind. 2 aktive Szenen.` : ""}
+11. **Ende**: Letztes Kapitel löst Konflikt durch Szene (Dialog+Handlung), zeigt kleine Lektion ohne Predigt, endet mit warmem Schlussbild + kurzem Epilog (2–4 Sätze).
 
-STRUCTURE MAP:
-${structureMap}
+# Figuren (nur diese erlauben)
+${characterLines.join("\n")}
+${artifactName ? `\n# Artefakt\n- ${artifactName}: ${artifactRule}` : ""}
 
-QUALITY REQUIREMENTS:
-1) RED THREAD: The entire story must have a continuous narrative thread. Characters remember previous events. Actions build on each other.
-2) CHAPTER STRUCTURE: Each chapter needs: a clear setting (place + mood), a purpose the characters pursue, a difficulty they face, a concrete physical action (not just thoughts), a small step forward, and a forward-looking closing line (except last chapter).
-2b) CONTENT BEATS (woven naturally into prose, never as headings or labels): setting (1-2 sentences), purpose, difficulty, concrete action, progress, closing hook.
-2c) If a chapter has only 1-2 sentences, AUTO-EXPAND by adding these beats as natural prose.
-2d) CRITICAL: Do NOT use ANY structural labels, headings, or beat markers in the chapter text. Forbidden patterns include: "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Visible action:", "Action continued:", "Sichtbare Aktion:", "Aktion fortgesetzt:". Also NEVER start sentences with "Her goal was", "The goal was", "An obstacle was", "Ihr Ziel war", "Ein Hindernis war". These are internal planning terms — show don't tell.
-3) NO PLACEHOLDERS: Every chapter must be fully written and within the word range. If a chapter would be short, expand with a concrete action sequence + 2-3 short dialogue lines.
-4) DIALOGUE: At least 2, max 6 dialogue lines per chapter. Dialogue shows character, doesn't explain.
-5) ACTIVE CHARACTERS: Every named character MUST perform a concrete action (verb + object) and influence the plot (decision/idea/mistake/courage). No passive presence.
-6) CAST LOCK: Use ONLY the listed names. No new proper names. Background figures only unnamed ("voices in the distance").
-7) ANTI-REPETITION: No near-identical sentences across chapters. Avoid filler words like "suddenly", "all of a sudden", "very", "quite", "somehow". No recurring stock metaphors.
-8) IMAGERY: Max 2 similes/metaphors per chapter. Prefer concrete sensory details (sounds, smells, temperatures, small movements) over poetic overload.
-9) INTEGRATION HINTS: CHARACTER INTEGRATION is guidance only. Write actions naturally and vary phrasing; do not copy hint lines verbatim. Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot", "sad but hopeful".
-9b) SHOW, DON'T TELL: Avoid sentences like "He made an important decision" or "They discovered the decisive clue." Replace with concrete action + short dialogue.
-10) SETTING COHERENCE: Each location shift needs a clear transition line (how/why they get there). No abrupt setting swaps without motivation. If multiple settings appear, use a recurring thread (book, map, flight) to tie them together.
-11) TENSION ARC: Ch1=setup, Ch2=escalation, Ch3=twist/false lead, penultimate=climax (darkest moment), last=resolution+warm ending.
-12) ARTIFACT ARC:${artifactName ? ` ${artifactName} must be introduced in ch 1-2, fail or be misunderstood in ch 2-3, and help decisively in ch 4-5. At least 2 active scenes.` : " No artifact in this story."}
-13) ENDING: Last chapter resolves conflict, shows a small lesson (don't preach), includes a concrete on-scene moment with dialogue + action (no summary-only wrap-up), and ends with a warm closing image (e.g. homeward path, laughter, evening light). Add a short epilogue paragraph + optional 1-sentence spark for a next adventure.
-14) CHAPTER TITLES: Each chapter title must be a curiosity hook, not "Chapter X".
-15) QUALITY TURBO: Include at least 3 children's-book moments: (a) a recurring playful motif, (b) a tender poetic observation, (c) a clever solution kids could imitate.
-16) FORBIDDEN: Meta-sentences ("always been part of this tale"), stage directions, instruction text, lists or bullet points in the chapter text.
-16b) Every chapter includes one small extra complication (something slips, is too heavy, is misunderstood, or distracts). Weave it naturally into the action — never label or announce it.
-17) CHARACTER VOICE: Every character MUST have a unique, recognizable voice in dialogue.
-  a) Dialogue MUST reflect the character's defined Sprachstil. A "polternd" character speaks rough and loud. A "piepsig" character speaks in a squeaky voice. A "reimend" character rhymes. A "knurrend" character growls. NEVER let two characters sound the same.
-  b) Show each character's Eigenart (quirk) at least ONCE through a concrete physical action (not narration). Example: "Er wischte sich die Haende an der Schuerze ab" instead of "Er hatte die Eigenart, sich die Haende abzuwischen."
-  c) When a character encounters one of their emotional triggers (Reagiert auf), show a visible physical or emotional reaction (eyes widen, voice changes, freezes, etc.).
-  d) Catchphrases (Spruch) must be used EXACTLY once per story, woven naturally into dialogue at the marked chapter. Never paraphrase - use the EXACT words.
-  e) Each character's personality (Persoenlichkeit) must influence their ACTIONS, not just their words. A "frech" character acts boldly, a "schuechtern" character hesitates, a "hilfsbereit" character helps without being asked.
-${strict ? "18) EXTRA STRICT: Double-check no instruction text leaks into output." : ""}
+${motifs.length > 0 ? `# Wiederkehrende Motive\n${motifs.join("\n")}` : ""}
 
-ALLOWED NAMES: ${allowedNames || "none"}
+# Kapitelstruktur (Orientierung, NICHT wörtlich übernehmen)
+${chapterOutlines}
 
-Return JSON:
+# Output Format
+Gib ausschließlich gültiges JSON zurück:
+\`\`\`json
 {
-  "title": "Short story title (max 7 words)",
-  "description": "1-sentence teaser hook",
+  "title": "Kurzer Titel (max 7 Wörter)",
+  "description": "Ein Satz als Teaser",
+  "chapters": [
+    { "chapter": 1, "title": "Kapiteltitel", "text": "Kapiteltext..." },
+    { "chapter": 2, "title": "Kapiteltitel", "text": "Kapiteltext..." },
+    ...
+  ]
+}
+\`\`\``;
+  }
+
+  // English version
+  return `# Role and Goal
+- You are: Award-winning children's book author.
+- Goal: Write a complete children's story in ${language}. Only JSON output.
+
+# Target Audience
+- ${ageRange.min}–${ageRange.max} years old
+- Style: ${ageStyle}
+
+# Tone
+- ${tone || dna.toneBounds?.targetTone || "Warm"}, witty, exciting – never cynical.
+
+# Style Rules
+- Short, clear paragraphs; vivid imagery; clear cause-effect
+- Plot driven by dialogue (2–6 dialogue lines per chapter)
+- Max 1–2 poetic images/similes per chapter
+
+# Hard Rules (Quality Gates)
+1. **Language**: All text fields in ${language} only.
+2. **Length**: Total: ${totalWordMin}–${totalWordMax} words. Per chapter: ${wordsPerChapter.min}–${wordsPerChapter.max} words (upper half preferred). No mini-chapters.
+3. **Chapter Structure**: Each chapter in prose: (a) setting+mood, (b) clear goal, (c) difficulty, (d) visible action (verb+object), (e) progress, (f) last sentence = gentle hook (except final chapter).
+4. **No Labels**: No terms like "Setting:", "Goal:", "Hook:" in chapter text – only narrative prose.
+5. **Cast Lock**: Only these names: ${allowedNames.join(", ")}. No new characters. Background figures unnamed.
+6. **Continuity**: Red thread. Decisions carry over. No abrupt location changes without transition.
+7. **Active Characters**: Every character influences the plot actively. At least 3–4 characters act visibly per chapter.
+8. **Anti-Repetition**: No identical sentences across chapters. No filler words ("suddenly", "somehow"). No clichés like "decisive clue" – show don't tell.
+9. **Character Voices**: Each character has a unique voice in dialogue (per speech style). Use catchphrases exactly 1x. Show quirks.
+${artifactName ? `10. **Artifact Arc**: ${artifactName} introduced in ch 1–2, fails/misleads in ch 2–3, helps decisively in ch 4–5. At least 2 active scenes.` : ""}
+11. **Ending**: Final chapter resolves conflict through scene (dialogue+action), shows small lesson without preaching, ends with warm closing image + short epilogue (2–4 sentences).
+
+# Characters (only these allowed)
+${characterLines.join("\n")}
+${artifactName ? `\n# Artifact\n- ${artifactName}: ${artifactRule}` : ""}
+
+${motifs.length > 0 ? `# Recurring Motifs\n${motifs.join("\n")}` : ""}
+
+# Chapter Structure (guidance, NOT verbatim)
+${chapterOutlines}
+
+# Output Format
+Return only valid JSON:
+\`\`\`json
+{
+  "title": "Short title (max 7 words)",
+  "description": "One-sentence teaser",
   "chapters": [
     { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
-    { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." }
+    { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." },
+    ...
   ]
-}`;
+}
+\`\`\``;
 }
 
 // ─── Full Story Rewrite Prompt ──────────────────────────────────────────────────

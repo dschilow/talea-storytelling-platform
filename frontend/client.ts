@@ -612,7 +612,7 @@ export namespace avatar {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
-import { createAudioDoku as api_doku_audio_createAudioDoku, listAudioDokus as api_doku_audio_listAudioDokus } from "~backend/doku/audio-doku";
+import { createAudioDoku as api_doku_audio_createAudioDoku, listAudioDokus as api_doku_audio_listAudioDokus, createAudioUploadUrl as api_doku_audio_createAudioUploadUrl } from "~backend/doku/audio-doku";
 import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
 import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
@@ -642,6 +642,10 @@ export namespace doku {
         public async createAudioDoku(params: RequestType<typeof api_doku_audio_createAudioDoku>): Promise<ResponseType<typeof api_doku_audio_createAudioDoku>> {
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_createAudioDoku>
+        }
+        public async createAudioUploadUrl(params: RequestType<typeof api_doku_audio_createAudioUploadUrl>): Promise<ResponseType<typeof api_doku_audio_createAudioUploadUrl>> {
+            const resp = await this.baseClient.callTypedAPI(`/audio-dokus/upload-url`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_createAudioUploadUrl>
         }
 
         public async deleteDoku(params: { id: string }): Promise<void> {

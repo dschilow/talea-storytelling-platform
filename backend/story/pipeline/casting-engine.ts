@@ -74,10 +74,10 @@ export async function buildCastSet(input: {
   }
 
   for (const slot of roles) {
-  if (slot.roleType === "AVATAR") continue;
-  if (slot.roleType === "ARTIFACT") continue;
-  // Limit non-required pool characters to maximum 4
-  if (!slot.required && poolSheets.length >= 4) continue;
+    if (slot.roleType === "AVATAR") continue;
+    if (slot.roleType === "ARTIFACT") continue;
+    // Limit non-required pool characters to maximum 4
+    if (!slot.required && poolSheets.length >= 4) continue;
 
     const candidate = await selectCandidateForSlot(slot, pool, used, rng, matchScores);
     if (!candidate) {
@@ -304,6 +304,7 @@ async function buildPoolCharacterSheet(candidate: CharacterPoolRow, slotKey: str
     speechStyleHints: speechStyle.slice(0, 3),
     enhancedPersonality,
     catchphrase,
+    catchphraseContext: candidate.catchphrase_context || undefined,
     visualSignature: ensureMinSignature(signature.slice(0, 6), ["distinct supporting character", "recognizable outfit"]),
     outfitLock: outfit.length > 0 ? outfit.slice(0, 4) : ["consistent outfit"],
     forbidden,

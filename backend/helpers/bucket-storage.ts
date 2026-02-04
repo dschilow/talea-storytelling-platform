@@ -316,6 +316,12 @@ export type BucketUploadOptions = {
   uploadMode?: UploadMode;
 };
 
+export type BucketPresignedUpload = {
+  uploadUrl: string;
+  storedUrl: string;
+  key: string;
+};
+
 export async function maybeUploadImageUrlToBucket(
   imageUrl: string | undefined,
   options: BucketUploadOptions = {}
@@ -482,6 +488,32 @@ export async function uploadBufferToBucket(
   const config = await pickConfig();
   if (!config || config.uploadMode === "off") return null;
   return await uploadBuffer(config, buffer, contentType, options);
+}
+
+export async function createPresignedUploadUrl(
+  contentType: string,
+  options: BucketUploadOptions = {}
+): Promise<BucketPresignedUpload | null> {
+  const config = await pickConfig();
+  if (!config || config.uploadMode === "off") return null;
+
+  const client = getClient(config);
+  const prefix = (options.prefix || "uploads").replace(/^\/+|\/+$/g, "");
+  const ext = extFromContentType(contentType || "application/octet-stream");
+  const uuid = crypto.randomUUID();
+  const baseName = options.filenameHint ? options.filenameHint.replace(/[^a-z0-9-_]/gi, "") : uuid;
+  const key = `${prefix}/${baseName}-${uuid}.${ext}`.replace(/\/+/g, "/");
+
+  const command = new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    ContentType: contentType || "application/octet-stream",
+  });
+  const expiresIn = config.signedUrlTtlSeconds;
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  const storedUrl = buildStoredUrl(config, key);
+
+  return { uploadUrl, storedUrl, key };
 }
 
 export async function deleteFromBucket(storedUrl: string): Promise<boolean> {
