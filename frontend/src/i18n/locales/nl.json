@@ -341,11 +341,8 @@
     "noAudioDokus": "Nog geen audio-documenten beschikbaar",
     "audioPlay": "Afspelen",
     "audioLoading": "Audio wordt gemaakt...",
-    "title": "Documentatie",
-    "subtitle": "Leer met AI-gegenereerde content",
+    "createNew": "Nieuw Document",
     "create": "Document aanmaken",
-    "myDokus": "Mijn documenten",
-    "publicDokus": "Publieke documenten",
     "generating": "Document genereren...",
     "topic": "Onderwerp",
     "topicPlaceholder": "Waarover wil je leren?",
@@ -378,7 +375,6 @@
     "readDoku": "Document lezen",
     "sections": "Secties",
     "keyFacts": "Belangrijke feiten",
-    "noDokus": "Geen documenten",
     "generationError": "Generatiefout"
   },
   "chat": {

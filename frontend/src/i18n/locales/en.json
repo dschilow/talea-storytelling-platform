@@ -628,6 +628,7 @@
     "noAudioDokus": "No audio docs available yet",
     "audioPlay": "Play",
     "audioLoading": "Generating audio...",
+    "createNew": "New Doc",
     "wizard": {
       "title": "New Knowledge Doc",
       "subtitle": "Create an exciting doc with Tavi",

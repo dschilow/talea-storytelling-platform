@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { FlaskConical, Headphones, Play, X } from 'lucide-react';
+import { FlaskConical, Headphones, Play, Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,6 @@ import Button from '../../components/common/Button';
 import LottieLoader from '../../components/common/LottieLoader';
 import FadeInView from '../../components/animated/FadeInView';
 import { DokuCard } from '../../components/cards/DokuCard';
-import { DokuWizardDrawer } from '../../components/drawers/DokuWizardDrawer';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
@@ -517,7 +516,35 @@ const DokusScreen: React.FC = () => {
                   </div>
                   <div style={sectionSubtitleStyle}>{t('doku.myDokusSubtitle')} ({totalMy})</div>
                 </div>
-                <DokuWizardDrawer />
+                <button
+                  onClick={() => navigate('/doku/create')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 20px',
+                    borderRadius: `${radii.lg}px`,
+                    background: `linear-gradient(135deg, ${colors.primary[500]}, ${colors.primary[600]})`,
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '15px',
+                    boxShadow: shadows.md,
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = shadows.lg;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = shadows.md;
+                  }}
+                >
+                  <Plus size={20} />
+                  {t('doku.createNew')}
+                </button>
               </div>
 
               {loadingMy ? (

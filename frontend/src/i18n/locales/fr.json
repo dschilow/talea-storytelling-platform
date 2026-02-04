@@ -341,11 +341,8 @@
     "noAudioDokus": "Aucun doc audio disponible",
     "audioPlay": "Lire",
     "audioLoading": "Génération audio...",
-    "title": "Documentation",
-    "subtitle": "Apprenez avec du contenu IA",
+    "createNew": "Nouveau Doc",
     "create": "Créer un document",
-    "myDokus": "Mes documents",
-    "publicDokus": "Documents publics",
     "generating": "Génération du document...",
     "topic": "Sujet",
     "topicPlaceholder": "Sur quoi souhaitez-vous apprendre ?",
@@ -378,7 +375,6 @@
     "readDoku": "Lire le document",
     "sections": "Sections",
     "keyFacts": "Faits clés",
-    "noDokus": "Aucun document",
     "generationError": "Erreur de génération"
   },
   "chat": {

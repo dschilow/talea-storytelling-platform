@@ -628,6 +628,7 @@
     "noAudioDokus": "Noch keine Audio-Dokus verfügbar",
     "audioPlay": "Abspielen",
     "audioLoading": "Audio wird erstellt...",
+    "createNew": "Neue Doku",
     "wizard": {
       "title": "Neue Wissens-Doku",
       "subtitle": "Erstelle eine spannende Doku mit Tavi",
