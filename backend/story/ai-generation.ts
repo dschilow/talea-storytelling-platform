@@ -14,6 +14,7 @@ import { avatarDB } from "../avatar/db";
 import {
   type ValidationResult,
 } from "../helpers/mcpClient";
+import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import {
   normalizeAvatarIds,
   createFallbackProfile,
@@ -283,6 +284,13 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     outputCostPer1M: 16.00,     // $16.00/1M tokens
     maxCompletionTokens: 16384,
     supportsReasoningEffort: true,
+  },
+  "gemini-2.0-flash": {
+    name: "gemini-2.0-flash-exp",
+    inputCostPer1M: 0.00,       // FREE during preview
+    outputCostPer1M: 0.00,      // FREE during preview
+    maxCompletionTokens: 8192,
+    supportsReasoningEffort: false,
   },
 };
 
@@ -2014,79 +2022,115 @@ You MUST implement this style consistently in ALL chapters!`
   const usageTotals: UsageTotals = { prompt: 0, completion: 0, total: 0 };
   let finalRequest: any = null;
   let finalResponse: any = null;
+  let content: string;
 
-  const payload = {
-    model: modelConfig.name,
-    messages,
-    max_completion_tokens: modelConfig.maxCompletionTokens,
-    response_format: { type: "json_object" },
-    // Add reasoning_effort if supported by model
-    ...(modelConfig.supportsReasoningEffort ? { reasoning_effort: "medium" } : {}),
-  };
+  // Check if using Gemini model
+  const isGeminiModel = modelKey === "gemini-2.0-flash";
 
-  finalRequest = payload;
-
-  console.log(`[ai-generation] 🤖 Calling OpenAI API without tool calling`);
-  const openAITimeoutMs =
-    config.length === "long"
-      ? 360_000
-      : config.length === "medium"
-      ? 240_000
-      : 180_000;
-  const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => abortController.abort(), openAITimeoutMs);
-
-  let response: Response;
-  try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAIKey()}`,
-      },
-      body: JSON.stringify(payload),
-      signal: abortController.signal,
-    });
-  } catch (error) {
-    if ((error as any)?.name === "AbortError") {
-      throw new Error(`OpenAI request timed out after ${openAITimeoutMs / 1000}s`);
+  if (isGeminiModel) {
+    // Use Gemini API
+    if (!isGeminiConfigured()) {
+      throw new Error("Gemini API is not configured. Please set GeminiAPIKey secret.");
     }
-    throw error;
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-  }
 
-  const data = (await response.json()) as OpenAIResponse;
-  finalResponse = data;
+    console.log(`[ai-generation] 🤖 Using Google Gemini 2.0 Flash`);
 
-  if (data.usage) {
-    usageTotals.prompt = data.usage.prompt_tokens ?? 0;
-    usageTotals.completion = data.usage.completion_tokens ?? 0;
-    usageTotals.total = data.usage.total_tokens ?? 0;
-  }
+    try {
+      const geminiResponse = await generateWithGemini({
+        systemPrompt,
+        userPrompt,
+        maxTokens: modelConfig.maxCompletionTokens,
+        temperature: 0.9,
+      });
 
-  const choice = data.choices?.[0];
-  if (!choice?.message) {
-    throw new Error("Invalid response from OpenAI (no message in complete result).");
-  }
+      content = geminiResponse.content;
+      usageTotals.prompt = geminiResponse.usage.promptTokens;
+      usageTotals.completion = geminiResponse.usage.completionTokens;
+      usageTotals.total = geminiResponse.usage.totalTokens;
 
-  if (choice.finish_reason === "content_filter") {
-    throw new Error("The request was blocked by OpenAI's content filter.");
-  }
+      finalRequest = { model: modelConfig.name, systemPrompt, userPrompt };
+      finalResponse = { content, usage: geminiResponse.usage, finishReason: geminiResponse.finishReason };
 
-  if (choice.finish_reason === "length") {
-    throw new Error(
-      "Story generation was cut off due to token limit. Please try with shorter settings."
-    );
-  }
+      console.log(`[ai-generation] ✅ Gemini generation successful`);
+    } catch (error) {
+      console.error(`[ai-generation] ❌ Gemini generation failed:`, error);
+      throw new Error(`Gemini generation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else {
+    // Use OpenAI API
+    const payload = {
+      model: modelConfig.name,
+      messages,
+      max_completion_tokens: modelConfig.maxCompletionTokens,
+      response_format: { type: "json_object" },
+      // Add reasoning_effort if supported by model
+      ...(modelConfig.supportsReasoningEffort ? { reasoning_effort: "medium" } : {}),
+    };
 
-  const content = choice.message.content;
-  if (!content) {
-    throw new Error("Empty response received from OpenAI.");
+    finalRequest = payload;
+
+    console.log(`[ai-generation] 🤖 Calling OpenAI API without tool calling`);
+    const openAITimeoutMs =
+      config.length === "long"
+        ? 360_000
+        : config.length === "medium"
+        ? 240_000
+        : 180_000;
+    const abortController = new AbortController();
+    const timeoutHandle = setTimeout(() => abortController.abort(), openAITimeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify(payload),
+        signal: abortController.signal,
+      });
+    } catch (error) {
+      if ((error as any)?.name === "AbortError") {
+        throw new Error(`OpenAI request timed out after ${openAITimeoutMs / 1000}s`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = (await response.json()) as OpenAIResponse;
+    finalResponse = data;
+
+    if (data.usage) {
+      usageTotals.prompt = data.usage.prompt_tokens ?? 0;
+      usageTotals.completion = data.usage.completion_tokens ?? 0;
+      usageTotals.total = data.usage.total_tokens ?? 0;
+    }
+
+    const choice = data.choices?.[0];
+    if (!choice?.message) {
+      throw new Error("Invalid response from OpenAI (no message in complete result).");
+    }
+
+    if (choice.finish_reason === "content_filter") {
+      throw new Error("The request was blocked by OpenAI's content filter.");
+    }
+
+    if (choice.finish_reason === "length") {
+      throw new Error(
+        "Story generation was cut off due to token limit. Please try with shorter settings."
+      );
+    }
+
+    content = choice.message.content || "";
+    if (!content) {
+      throw new Error("Empty response received from OpenAI.");
+    }
   }
 
   let parsedStory: StoryToolOutcome["story"];

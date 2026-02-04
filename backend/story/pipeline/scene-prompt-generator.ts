@@ -12,8 +12,9 @@ export async function generateSceneDescriptions(input: {
   directives: SceneDirective[];
   cast: CastSet;
   language: string;
+  storyId?: string;
 }): Promise<{ descriptions: (AISceneDescription | null)[]; usage?: any }> {
-  const { chapters, directives, cast, language } = input;
+  const { chapters, directives, cast, language, storyId } = input;
 
   const characterMap = buildCharacterMap(cast);
 
@@ -44,6 +45,7 @@ export async function generateSceneDescriptions(input: {
   const batchResult = await extractBatchWithRetry({
     chapterInputs,
     language,
+    storyId,
   });
 
   const results = chapterInputs.map((inputEntry) => {
@@ -72,11 +74,12 @@ async function extractBatchWithRetry(input: {
     onStageNames: string[];
   }>;
   language: string;
+  storyId?: string;
 }): Promise<Array<any>> {
-  const { chapterInputs } = input;
+  const { chapterInputs, storyId } = input;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     try {
-      return await extractBatchSceneDescriptions(chapterInputs);
+      return await extractBatchSceneDescriptions(chapterInputs, storyId);
     } catch (error) {
       const isLastAttempt = attempt > MAX_RETRIES;
       if (isLastAttempt) {
@@ -95,12 +98,15 @@ async function extractBatchWithRetry(input: {
   return [];
 }
 
-async function extractBatchSceneDescriptions(chapterInputs: Array<{
-  chapter: StoryChapterText;
-  directive: SceneDirective;
-  onStageSlots: string[];
-  onStageNames: string[];
-}>): Promise<Array<any>> {
+async function extractBatchSceneDescriptions(
+  chapterInputs: Array<{
+    chapter: StoryChapterText;
+    directive: SceneDirective;
+    onStageSlots: string[];
+    onStageNames: string[];
+  }>,
+  storyId?: string
+): Promise<Array<any>> {
   const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only.
 
 CRITICAL ACTION RULES:
@@ -167,6 +173,8 @@ Return JSON with this exact structure:
     maxTokens: 4000,
     temperature: 0.6,
     context: "scene-prompt-generator-batch",
+    logSource: "phase6.5-scene-prompts-llm",
+    logMetadata: { storyId, chapters: chapterInputs.length },
   });
 
   let parsed: any;

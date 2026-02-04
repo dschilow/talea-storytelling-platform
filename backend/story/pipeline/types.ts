@@ -344,6 +344,7 @@ export interface ImageGenerator {
     directives: SceneDirective[];
     imageSpecs: ImageSpec[];
     pipelineConfig?: PipelineConfig;
+    logContext?: { storyId?: string; phase?: string };
   }) => Promise<Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>>;
 }
 

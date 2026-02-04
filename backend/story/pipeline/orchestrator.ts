@@ -331,6 +331,7 @@ export class StoryPipelineOrchestrator {
           directives,
           cast: castSet,
           language: normalized.language,
+          storyId: normalized.storyId,
         });
         aiSceneDescriptions = sceneResult.descriptions;
         const successCount = aiSceneDescriptions.filter(Boolean).length;
@@ -421,6 +422,7 @@ export class StoryPipelineOrchestrator {
           directives,
           imageSpecs: [coverSpec],
           pipelineConfig,
+          logContext: { storyId: normalized.storyId, phase: "phase8-cover" },
         });
         coverImage = coverImages[0];
         await logPhase("phase8-cover", { storyId: normalized.storyId }, {
@@ -440,6 +442,7 @@ export class StoryPipelineOrchestrator {
           directives,
           imageSpecs,
           pipelineConfig,
+          logContext: { storyId: normalized.storyId, phase: "phase9-imagegen" },
         });
         await saveStoryImages(normalized.storyId, images);
         await logPhase("phase9-imagegen", { storyId: normalized.storyId }, {
@@ -482,6 +485,7 @@ export class StoryPipelineOrchestrator {
             directives,
             imageSpecs: retrySpecs,
             pipelineConfig,
+            logContext: { storyId: normalized.storyId, phase: "phase10-vision-retry-imagegen" },
           });
 
           if (retryImages.length > 0) {

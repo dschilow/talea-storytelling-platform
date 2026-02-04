@@ -66,6 +66,8 @@ export class LlmStoryWriter implements StoryWriter {
       maxTokens: Math.min(maxOutputTokens, 16000),
       temperature: strict ? 0.4 : 0.7,
       context: "story-writer-full",
+      logSource: "phase6-story-llm",
+      logMetadata: { storyId: normalizedRequest.storyId, step: "full" },
     });
 
     if (result.usage) {
@@ -144,6 +146,8 @@ export class LlmStoryWriter implements StoryWriter {
             maxTokens,
             temperature: 0.4,
             context: needsExpand ? `story-writer-expand-chapter-${chapter.chapter}` : `story-writer-template-fix-${chapter.chapter}`,
+            logSource: "phase6-story-llm",
+            logMetadata: { storyId: normalizedRequest.storyId, step: needsExpand ? "expand" : "template-fix", chapter: chapter.chapter },
           });
 
           if (result.usage) {
@@ -212,6 +216,8 @@ export class LlmStoryWriter implements StoryWriter {
         maxTokens: Math.min(maxOutputTokens, 16000),
         temperature: 0.4,
         context: `story-writer-rewrite-${rewriteAttempt}`,
+        logSource: "phase6-story-llm",
+        logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt },
       });
 
       if (rewriteResult.usage) {
@@ -279,6 +285,8 @@ export class LlmStoryWriter implements StoryWriter {
           maxTokens: 800,
           temperature: 0.6,
           context: "story-title",
+          logSource: "phase6-story-llm",
+          logMetadata: { storyId: normalizedRequest.storyId, step: "title" },
         });
         const titleParsed = safeJson(titleResult.content);
         if (titleParsed?.title) draft.title = titleParsed.title;

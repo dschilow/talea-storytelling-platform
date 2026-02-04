@@ -84,7 +84,8 @@ export type AIModel =
   | "gpt-4.1-nano"
   | "gpt-4.1-mini"
   | "gpt-4.1"
-  | "o4-mini";
+  | "o4-mini"
+  | "gemini-2.0-flash";
 
 export interface StoryConfig {
   avatarIds: string[];

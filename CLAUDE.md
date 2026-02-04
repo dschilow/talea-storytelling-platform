@@ -8,7 +8,7 @@ Talea is an AI-powered storytelling platform where avatars with evolving persona
 
 ## Tech Stack
 
-**Backend:** Encore.ts, PostgreSQL (multiple databases per service), OpenAI GPT, Clerk authentication
+**Backend:** Encore.ts, PostgreSQL (multiple databases per service), OpenAI GPT, Google Gemini 2.0 Flash, Clerk authentication
 **Frontend:** React, TypeScript, Tailwind CSS v4, Redux Toolkit, Clerk React
 **Package Manager:** Bun (required for this project)
 
@@ -209,11 +209,14 @@ encore gen client --target leap
 ```bash
 ClerkSecretKey=sk_test_...
 OpenAIKey=sk-...
+GeminiAPIKey=...  # For Google Gemini 2.0 Flash story generation
 RunwareApiKey=...  # Optional: for image generation
 MCPServerAPIKey=...  # For MCP validator integration
 ```
 
 Set via Encore dashboard or local `encore.dev/config`.
+
+**Note:** See [GEMINI_SETUP.md](GEMINI_SETUP.md:1) for detailed Google Gemini 2.0 Flash setup instructions.
 
 ### Frontend
 
@@ -235,11 +238,24 @@ When updating avatar personality traits, you MUST:
 
 ### Story Generation
 
+**AI Model Selection:**
+- Users can choose between OpenAI GPT models and Google Gemini 2.0 Flash in the Story Wizard
+- Model selection affects cost and generation quality
+- Gemini 2.0 Flash is **free** during preview phase and optimized for creative storytelling
+- Default model: `gpt-5-mini` (balanced quality/cost)
+- See [backend/story/ai-generation.ts](backend/story/ai-generation.ts:230) for model configurations
+
+**Story Generation Flow:**
 - The AI generates `avatarDevelopments` with specific trait changes based on story content
 - ALL user avatars receive updates (not just story participants)
 - Participants get full trait points, readers get 50% points
 - Memory categorization determines cooldown periods for personality shifts
 - Cost tracking is logged to files, not stored in database
+
+**Implementation Files:**
+- [backend/story/generate.ts](backend/story/generate.ts:1) - Main story generation orchestrator
+- [backend/story/ai-generation.ts](backend/story/ai-generation.ts:1) - OpenAI integration
+- [backend/story/gemini-generation.ts](backend/story/gemini-generation.ts:1) - Google Gemini integration
 
 ### Adding New Services
 

@@ -1,4 +1,6 @@
 ﻿import { secret } from "encore.dev/config";
+import { publishWithTimeout } from "../../helpers/pubsubTimeout";
+import { logTopic } from "../../log/logger";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -61,6 +63,8 @@ export async function callChatCompletion(input: {
   reasoningEffort?: "low" | "medium" | "high";
   seed?: number;
   context?: string;
+  logSource?: string;
+  logMetadata?: Record<string, any>;
 }): Promise<ChatCompletionResult> {
   const payload: any = {
     model: input.model,
@@ -84,25 +88,52 @@ export async function callChatCompletion(input: {
     payload.seed = input.seed;
   }
 
-  const response = await fetchWithRetry(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAIKey()}`,
+  const requestPayload = { ...payload };
+  const logSource = resolveLogSource(input.logSource, input.context);
+  const logMetadata = buildLogMetadata(input.context, input.logMetadata);
+
+  let response: Response;
+  try {
+    response = await fetchWithRetry(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    },
-    input.context ?? "chat"
-  );
+      input.context ?? "chat"
+    );
+  } catch (error) {
+    await logLlmEvent({
+      source: logSource,
+      request: requestPayload,
+      response: { error: String((error as Error)?.message || error) },
+      metadata: logMetadata,
+    });
+    throw error;
+  }
 
   if (!response.ok) {
     const text = await response.text();
+    await logLlmEvent({
+      source: logSource,
+      request: requestPayload,
+      response: { status: response.status, error: text },
+      metadata: logMetadata,
+    });
     throw new Error(`OpenAI API error ${response.status}: ${text}`);
   }
 
   const data = await response.json();
+  await logLlmEvent({
+    source: logSource,
+    request: requestPayload,
+    response: data,
+    metadata: logMetadata,
+  });
   const content = data.choices?.[0]?.message?.content ?? "";
   const usage = data.usage
     ? {
@@ -115,6 +146,35 @@ export async function callChatCompletion(input: {
     : undefined;
 
   return { content, usage };
+}
+
+function resolveLogSource(explicitSource?: string, context?: string): string {
+  if (explicitSource) return explicitSource;
+  if (!context) return "openai-story-generation";
+  if (context.startsWith("scene-prompt-generator")) return "phase6.5-scene-prompts-llm";
+  if (context.startsWith("story-writer") || context === "story-title") return "phase6-story-llm";
+  if (context.startsWith("vision-validator")) return "phase10-vision-llm";
+  return "openai-story-generation";
+}
+
+function buildLogMetadata(context?: string, extra?: Record<string, any>) {
+  const base = context ? { context } : {};
+  return extra ? { ...base, ...extra } : base;
+}
+
+async function logLlmEvent(input: {
+  source: string;
+  request: any;
+  response: any;
+  metadata?: any;
+}) {
+  await publishWithTimeout(logTopic as any, {
+    source: input.source,
+    timestamp: new Date(),
+    request: input.request,
+    response: input.response,
+    metadata: input.metadata ?? null,
+  });
 }
 
 export function calculateTokenCosts(usage: { promptTokens: number; completionTokens: number; model?: string }) {
@@ -147,3 +207,6 @@ function outputPricePerMillion(model: string): number {
   if (model.includes("gpt-4")) return 10.0;
   return 0.3;
 }
+
+
+

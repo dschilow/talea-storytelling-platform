@@ -1,4 +1,6 @@
 ﻿import { secret } from "encore.dev/config";
+import { publishWithTimeout } from "../../helpers/pubsubTimeout";
+import { logTopic } from "../../log/logger";
 import type { CastSet, ImageSpec, NormalizedRequest, SceneDirective, VisionValidator } from "./types";
 import { buildVisionValidationPrompt } from "./prompts";
 
@@ -36,7 +38,7 @@ export class SimpleVisionValidator implements VisionValidator {
       ];
 
       const prompt = buildVisionValidationPrompt({ checklist });
-      const response = await callVisionAPI(image.imageUrl, prompt);
+      const response = await callVisionAPI(image.imageUrl, prompt, { storyId: input.normalizedRequest.storyId, chapter: image.chapter });
 
       const issues: any[] = [];
       const checks = {
@@ -79,35 +81,51 @@ export class SimpleVisionValidator implements VisionValidator {
   }
 }
 
-async function callVisionAPI(imageUrl: string, prompt: string): Promise<any> {
+async function callVisionAPI(imageUrl: string, prompt: string, metadata?: { storyId?: string; chapter?: number }): Promise<any> {
+  const payload = {
+    model: "gpt-5-mini",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+        ],
+      },
+    ],
+    max_tokens: 800,
+    response_format: { type: "json_object" },
+  };
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${openAIKey()}`,
     },
-    body: JSON.stringify({
-      model: "gpt-5-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-          ],
-        },
-      ],
-      max_tokens: 800,
-      response_format: { type: "json_object" },
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const text = await response.text();
+    await publishWithTimeout(logTopic as any, {
+      source: "phase10-vision-llm",
+      timestamp: new Date(),
+      request: payload,
+      response: { status: response.status, error: text },
+      metadata: metadata ?? null,
+    });
     throw new Error(`Vision API error ${response.status}: ${text}`);
   }
 
   const data = await response.json() as any;
+  await publishWithTimeout(logTopic as any, {
+    source: "phase10-vision-llm",
+    timestamp: new Date(),
+    request: payload,
+    response: data,
+    metadata: metadata ?? null,
+  });
   const content = data.choices?.[0]?.message?.content ?? "{}";
   try {
     return JSON.parse(content);
