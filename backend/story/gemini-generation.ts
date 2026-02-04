@@ -7,7 +7,7 @@
 
 import { secret } from "encore.dev/config";
 
-const geminiApiKey = secret("GeminiAPIKey");
+const geminiApiKey = secret("GeminiAPIKey", { optional: true });
 
 interface GeminiGenerationRequest {
   systemPrompt: string;
@@ -146,7 +146,7 @@ export async function generateWithGemini(
 export function isGeminiConfigured(): boolean {
   try {
     const key = geminiApiKey();
-    return Boolean(key && key.length > 0);
+    return Boolean(key && key.trim().length > 0);
   } catch {
     return false;
   }
