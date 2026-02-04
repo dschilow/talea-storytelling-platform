@@ -17,6 +17,15 @@ import type { AudioDoku } from '../../types/audio-doku';
 const UNSPLASH_PLACEHOLDER =
   'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=1200&q=80';
 
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 const formatFileSize = (bytes: number): string => {
   if (!Number.isFinite(bytes)) return '';
   if (bytes < 1024) return `${bytes} B`;
@@ -105,30 +114,41 @@ const CreateAudioDokuScreen: React.FC = () => {
 
     try {
       setCreating(true);
-      const upload = await backend.doku.createAudioUploadUrl({
-        filename: audioFile.name,
-        contentType: audioFile.type || 'audio/mpeg',
-      });
 
-      const uploadResponse = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': audioFile.type || 'audio/mpeg',
-        },
-        body: audioFile,
-      });
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      // Prefer direct-to-bucket upload (fast), but fall back to API upload if blocked by CORS.
+      let audioUrl: string | undefined;
+      try {
+        const upload = await backend.doku.createAudioUploadUrl({
+          filename: audioFile.name,
+          contentType: audioFile.type || 'audio/mpeg',
+        });
+
+        const uploadResponse = await fetch(upload.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': audioFile.type || 'audio/mpeg',
+          },
+          body: audioFile,
+        });
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed with status ${uploadResponse.status}`);
+        }
+
+        setUploadedAudioUrl(upload.audioUrl);
+        audioUrl = upload.audioUrl;
+      } catch (uploadErr) {
+        console.warn('[AudioDoku] Direct upload failed (CORS?), falling back to API upload.', uploadErr);
+        setUploadedAudioUrl(null);
       }
-      setUploadedAudioUrl(upload.audioUrl);
 
       const response = await backend.doku.createAudioDoku({
         title: title.trim() || undefined,
         description: description.trim(),
         coverDescription: coverDescription.trim(),
         coverImageUrl: coverImageUrl ?? undefined,
-        audioUrl: upload.audioUrl,
-        filename: audioFile.name,
+        ...(audioUrl
+          ? { audioUrl, filename: audioFile.name }
+          : { audioDataUrl: await fileToDataUrl(audioFile), filename: audioFile.name }),
         isPublic: true,
       });
       setCreatedAudio(response as AudioDoku);

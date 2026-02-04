@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
@@ -20,6 +20,7 @@ type BucketConfig = {
 
 let cachedConfig: BucketConfig | null | undefined;
 let cachedClient: S3Client | null | undefined;
+let corsEnsured: boolean | undefined;
 
 const safeSecret = async (name: string): Promise<string | undefined> => {
   try {
@@ -299,6 +300,33 @@ const signObjectUrl = async (
   return await getSignedUrl(client, command, { expiresIn });
 };
 
+const ensureBucketCorsOnce = async (config: BucketConfig): Promise<void> => {
+  if (corsEnsured !== undefined) return;
+  corsEnsured = true;
+
+  try {
+    const client = getClient(config);
+    await client.send(new PutBucketCorsCommand({
+      Bucket: config.bucket,
+      CORSConfiguration: {
+        CORSRules: [
+          {
+            AllowedHeaders: ["*"],
+            AllowedMethods: ["GET", "PUT", "POST", "HEAD"],
+            AllowedOrigins: ["*"],
+            ExposeHeaders: ["ETag"],
+            MaxAgeSeconds: 3600,
+          },
+        ],
+      },
+    }));
+    console.log("[Bucket] Ensured bucket CORS configuration.");
+  } catch (error) {
+    // Not all S3-compatible providers support CORS configuration via API.
+    console.warn("[Bucket] Failed to set bucket CORS configuration:", error);
+  }
+};
+
 const parseDataUrl = (dataUrl: string): { contentType: string; buffer: Buffer } | null => {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return null;
@@ -496,6 +524,9 @@ export async function createPresignedUploadUrl(
 ): Promise<BucketPresignedUpload | null> {
   const config = await pickConfig();
   if (!config || config.uploadMode === "off") return null;
+
+  // Try to enable browser uploads automatically where supported.
+  await ensureBucketCorsOnce(config);
 
   const client = getClient(config);
   const prefix = (options.prefix || "uploads").replace(/^\/+|\/+$/g, "");

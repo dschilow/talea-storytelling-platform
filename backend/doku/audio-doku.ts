@@ -122,7 +122,14 @@ export const createAudioUploadUrl = api<CreateAudioUploadUrlRequest, CreateAudio
 );
 
 export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
-  { expose: true, method: "POST", path: "/audio-dokus", auth: true },
+  {
+    expose: true,
+    method: "POST",
+    path: "/audio-dokus",
+    auth: true,
+    // Audio uploads may exceed Encore's default 2MiB body limit (esp. if sent as data URLs).
+    bodyLimit: 80 * 1024 * 1024,
+  },
   async (req) => {
     const auth = getAuthData()!;
     const description = req.description?.trim();
