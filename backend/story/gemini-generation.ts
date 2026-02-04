@@ -9,6 +9,27 @@ import { secret } from "encore.dev/config";
 
 const geminiApiKey = secret("GeminiAPIKey", { optional: true });
 
+function resolveGeminiApiKey(): string | null {
+  const fromEnv =
+    process.env.ENCORE_SECRET_GEMINIAPIKEY ||
+    process.env.GEMINI_API_KEY;
+
+  if (fromEnv && fromEnv.trim().length > 0) {
+    return fromEnv.trim();
+  }
+
+  try {
+    const key = geminiApiKey();
+    if (key && key.trim().length > 0) {
+      return key.trim();
+    }
+  } catch {
+    // Ignore secret resolution errors here; we'll throw a clearer message below.
+  }
+
+  return null;
+}
+
 interface GeminiGenerationRequest {
   systemPrompt: string;
   userPrompt: string;
@@ -34,10 +55,12 @@ interface GeminiGenerationResponse {
 export async function generateWithGemini(
   request: GeminiGenerationRequest
 ): Promise<GeminiGenerationResponse> {
-  const apiKey = geminiApiKey();
+  const apiKey = resolveGeminiApiKey();
 
   if (!apiKey) {
-    throw new Error("Gemini API key not configured. Please set GeminiAPIKey secret.");
+    throw new Error(
+      "Gemini API key not configured. Set ENCORE_SECRET_GEMINIAPIKEY or GEMINI_API_KEY."
+    );
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
@@ -144,10 +167,5 @@ export async function generateWithGemini(
  * Check if Gemini API is properly configured
  */
 export function isGeminiConfigured(): boolean {
-  try {
-    const key = geminiApiKey();
-    return Boolean(key && key.trim().length > 0);
-  } catch {
-    return false;
-  }
+  return Boolean(resolveGeminiApiKey());
 }
