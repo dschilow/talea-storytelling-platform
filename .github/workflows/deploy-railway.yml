@@ -91,6 +91,7 @@ jobs:
       - name: Build Encore Docker image
         env:
           MCP_SERVER_API_KEY: "mcp_sk_build_placeholder"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cd backend
           set +e
