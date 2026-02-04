@@ -21,9 +21,13 @@ export class LlmStoryWriter implements StoryWriter {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
     const model = normalizedRequest.rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
-    const targetLanguage = normalizedRequest.language === "de" ? "German" : normalizedRequest.language;
-    const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.`;
-    const editSystemPrompt = "You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.";
+    const isGerman = normalizedRequest.language === "de";
+    const targetLanguage = isGerman ? "German" : normalizedRequest.language;
+    const languageGuard = isGerman
+      ? "WICHTIG: Antworte ausschließlich auf Deutsch. Keine englischen Wörter oder Sätze."
+      : "";
+    const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.\n${languageGuard}`.trim();
+    const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.\n${languageGuard}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       return isGeminiModel ? Math.min(safeMax, 8192) : safeMax;
