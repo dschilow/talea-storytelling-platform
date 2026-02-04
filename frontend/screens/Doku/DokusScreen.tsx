@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { FlaskConical } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { FlaskConical, Headphones, Play, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
 import Card from '../../components/common/Card';
@@ -15,74 +14,136 @@ import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
+import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackControls';
 import type { Doku } from '../../types/doku';
 
+const MAX_AUDIO_CHARS = 2200;
 
 const DokusScreen: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const backend = useBackend();
+  const audioPlayer = useAudioPlayer();
+  const { isSignedIn, isLoaded } = useUser();
 
-  const [dokus, setDokus] = useState<Doku[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [total, setTotal] = useState(0);
-  const observerTarget = useRef<HTMLDivElement>(null);
+  const [myDokus, setMyDokus] = useState<Doku[]>([]);
+  const [publicDokus, setPublicDokus] = useState<Doku[]>([]);
+  const [loadingMy, setLoadingMy] = useState(true);
+  const [loadingPublic, setLoadingPublic] = useState(true);
+  const [loadingMoreMy, setLoadingMoreMy] = useState(false);
+  const [loadingMorePublic, setLoadingMorePublic] = useState(false);
+  const [hasMoreMy, setHasMoreMy] = useState(true);
+  const [hasMorePublic, setHasMorePublic] = useState(true);
+  const [totalMy, setTotalMy] = useState(0);
+  const [totalPublic, setTotalPublic] = useState(0);
+  const [isPaidUser, setIsPaidUser] = useState(false);
 
-  const loadDokus = async () => {
+  const [audioModalOpen, setAudioModalOpen] = useState(false);
+  const [selectedAudioDoku, setSelectedAudioDoku] = useState<Doku | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  const myObserverTarget = useRef<HTMLDivElement>(null);
+  const publicObserverTarget = useRef<HTMLDivElement>(null);
+  const audioCacheRef = useRef<Map<string, string>>(new Map());
+
+  const loadMyDokus = async () => {
     try {
-      setLoading(true);
+      setLoadingMy(true);
       const response = await backend.doku.listDokus({ limit: 10, offset: 0 });
-      setDokus(response.dokus as any[]);
-      setTotal(response.total);
-      setHasMore(response.hasMore);
+      setMyDokus(response.dokus as any[]);
+      setTotalMy(response.total);
+      setHasMoreMy(response.hasMore);
     } catch (error) {
       console.error('Error loading dokus:', error);
     } finally {
-      setLoading(false);
+      setLoadingMy(false);
     }
   };
 
-  const loadMoreDokus = useCallback(async () => {
-    if (loadingMore || !hasMore) {
-      console.log('Skipping load more dokus:', { loadingMore, hasMore });
-      return;
-    }
-
-    console.log('Starting to load more dokus. Current count:', dokus.length);
+  const loadPublicDokus = async () => {
     try {
-      setLoadingMore(true);
+      setLoadingPublic(true);
+      const response = await backend.doku.listPublicDokus({ limit: 12, offset: 0 });
+      setPublicDokus(response.dokus as any[]);
+      setTotalPublic(response.total);
+      setHasMorePublic(response.hasMore);
+    } catch (error) {
+      console.error('Error loading public dokus:', error);
+    } finally {
+      setLoadingPublic(false);
+    }
+  };
+
+  const loadMoreMyDokus = useCallback(async () => {
+    if (loadingMoreMy || !hasMoreMy) return;
+
+    try {
+      setLoadingMoreMy(true);
       const response = await backend.doku.listDokus({
         limit: 10,
-        offset: dokus.length
+        offset: myDokus.length
       });
-      console.log('Loaded more dokus:', response.dokus.length, 'hasMore:', response.hasMore);
-      setDokus(prev => [...prev, ...response.dokus as any[]]);
-      setHasMore(response.hasMore);
+      setMyDokus(prev => [...prev, ...response.dokus as any[]]);
+      setHasMoreMy(response.hasMore);
     } catch (error) {
       console.error('Error loading more dokus:', error);
     } finally {
-      setLoadingMore(false);
+      setLoadingMoreMy(false);
     }
-  }, [backend, dokus.length, hasMore, loadingMore, dokus]);
+  }, [backend, myDokus.length, hasMoreMy, loadingMoreMy]);
+
+  const loadMorePublicDokus = useCallback(async () => {
+    if (loadingMorePublic || !hasMorePublic) return;
+
+    try {
+      setLoadingMorePublic(true);
+      const response = await backend.doku.listPublicDokus({
+        limit: 12,
+        offset: publicDokus.length
+      });
+      setPublicDokus(prev => [...prev, ...response.dokus as any[]]);
+      setHasMorePublic(response.hasMore);
+    } catch (error) {
+      console.error('Error loading more public dokus:', error);
+    } finally {
+      setLoadingMorePublic(false);
+    }
+  }, [backend, publicDokus.length, hasMorePublic, loadingMorePublic]);
 
   useEffect(() => {
-    loadDokus();
-  }, []);
+    if (!isLoaded || !isSignedIn) return;
+    void loadMyDokus();
+    void loadPublicDokus();
+  }, [isLoaded, isSignedIn]);
 
-  // Infinite scroll observer
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const loadProfile = async () => {
+      try {
+        const profile = await backend.user.me();
+        setIsPaidUser(profile.subscription !== 'starter');
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+      }
+    };
+
+    void loadProfile();
+  }, [backend, isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          loadMoreDokus();
+        if (entries[0].isIntersecting && hasMoreMy && !loadingMoreMy && !loadingMy) {
+          loadMoreMyDokus();
         }
       },
       { threshold: 0.1 }
     );
 
-    const currentTarget = observerTarget.current;
+    const currentTarget = myObserverTarget.current;
     if (currentTarget) {
       observer.observe(currentTarget);
     }
@@ -92,22 +153,40 @@ const DokusScreen: React.FC = () => {
         observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, loadingMore, loading, loadMoreDokus]);
+  }, [hasMoreMy, loadingMoreMy, loadingMy, loadMoreMyDokus, isSignedIn]);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMorePublic && !loadingMorePublic && !loadingPublic) {
+          loadMorePublicDokus();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = publicObserverTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMorePublic, loadingMorePublic, loadingPublic, loadMorePublicDokus, isSignedIn]);
 
   const handleReadDoku = (doku: Doku) => {
-    console.log('Navigating to doku reader:', doku.id, `/doku-reader/${doku.id}`);
     navigate(`/doku-reader/${doku.id}`);
-  };
-
-  const handleEditDoku = (doku: Doku) => {
-    navigate(`/doku/${doku.id}/edit`);
   };
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (window.confirm(t('common.confirm') + ` "${dokuTitle}"?`)) {
       try {
         await backend.doku.deleteDoku({ id: dokuId });
-        setDokus(dokus.filter(d => d.id !== dokuId));
+        setMyDokus(myDokus.filter(d => d.id !== dokuId));
       } catch (error) {
         console.error('Error deleting doku:', error);
         alert(t('errors.generic'));
@@ -115,7 +194,89 @@ const DokusScreen: React.FC = () => {
     }
   };
 
+  const buildAudioText = async (doku: Doku) => {
+    let fullDoku = doku;
 
+    if (!doku.content?.sections?.length) {
+      try {
+        fullDoku = await backend.doku.getDoku({ id: doku.id }) as Doku;
+      } catch (error) {
+        console.error('Failed to load doku content for audio:', error);
+      }
+    }
+
+    const parts: string[] = [];
+    if (fullDoku.title) parts.push(fullDoku.title);
+    if (fullDoku.summary) parts.push(fullDoku.summary);
+
+    const sections = fullDoku.content?.sections || [];
+    for (const section of sections) {
+      if (section?.title) parts.push(section.title);
+      if (section?.content) parts.push(section.content);
+      if (parts.join(' ').length > MAX_AUDIO_CHARS) break;
+    }
+
+    let text = parts.join(' ');
+    if (!text.trim()) {
+      text = fullDoku.topic || fullDoku.title || '';
+    }
+
+    if (text.length > MAX_AUDIO_CHARS) {
+      text = text.slice(0, MAX_AUDIO_CHARS).trim();
+    }
+
+    return text;
+  };
+
+  const generateAudioUrl = async (doku: Doku) => {
+    const text = await buildAudioText(doku);
+    const response = await backend.tts.generateSpeech({ text });
+
+    if (!response?.audioData) {
+      throw new Error('No audio data received');
+    }
+
+    const fetchRes = await fetch(response.audioData);
+    const blob = await fetchRes.blob();
+    return URL.createObjectURL(blob);
+  };
+
+  const handleOpenAudioModal = (doku: Doku) => {
+    setSelectedAudioDoku(doku);
+    setAudioModalOpen(true);
+    setAudioError(null);
+  };
+
+  const handlePlayAudio = async (doku: Doku) => {
+    setAudioError(null);
+    setAudioLoading(true);
+
+    try {
+      let audioUrl = audioCacheRef.current.get(doku.id);
+      if (!audioUrl) {
+        audioUrl = await generateAudioUrl(doku);
+        audioCacheRef.current.set(doku.id, audioUrl);
+      }
+
+      audioPlayer.playTrack({
+        id: doku.id,
+        title: doku.title,
+        description: doku.summary || doku.topic,
+        coverImageUrl: doku.coverImageUrl,
+        audioUrl,
+      });
+    } catch (error) {
+      console.error('Audio generation failed:', error);
+      setAudioError(t('errors.generic'));
+    } finally {
+      setAudioLoading(false);
+    }
+  };
+
+  const audioDokus = useMemo(() => {
+    const source = publicDokus.length > 0 ? publicDokus : myDokus;
+    return source.filter(d => d.status === 'complete').slice(0, 6);
+  }, [publicDokus, myDokus]);
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -164,27 +325,45 @@ const DokusScreen: React.FC = () => {
     fontSize: '18px',
   };
 
-  const newDokuButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
-  };
-
   const contentStyle: React.CSSProperties = {
-    padding: `0 ${spacing.xl}px`,
-  };
-
-  const dokuGridStyle: React.CSSProperties = {
+    padding: `0 ${spacing.xl}px ${spacing.xxl}px`,
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: `${spacing.xl}px`,
-    justifyItems: 'center',
+    gap: spacing.xl,
   };
 
+  const sectionHeaderStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+    flexWrap: 'wrap',
+  };
+
+  const sectionTitleStyle: React.CSSProperties = {
+    ...typography.textStyles.headingMd,
+    color: colors.text.primary,
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.sm,
+  };
+
+  const sectionSubtitleStyle: React.CSSProperties = {
+    ...typography.textStyles.bodySm,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
+  };
+
+  const gridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: spacing.lg,
+  };
 
   const emptyStateStyle: React.CSSProperties = {
     textAlign: 'center' as const,
-    padding: `${spacing.xxl}px`,
+    padding: `${spacing.xl}px`,
+    color: colors.text.secondary,
   };
 
   const loadingStyle: React.CSSProperties = {
@@ -194,25 +373,91 @@ const DokusScreen: React.FC = () => {
     padding: `${spacing.xxl}px`,
   };
 
-  const topicBadgeStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
+  const audioCardStyle: React.CSSProperties = {
     background: colors.glass.background,
-    color: colors.text.primary,
-    padding: `${spacing.xs}px ${spacing.sm}px`,
+    border: `1px solid ${colors.border.light}`,
     borderRadius: `${radii.lg}px`,
-    fontSize: typography.textStyles.caption.fontSize,
-    fontWeight: typography.textStyles.label.fontWeight,
-    boxShadow: shadows.sm,
-    border: `1px solid ${colors.glass.border}`,
-    maxWidth: '60%',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    boxShadow: shadows.md,
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
   };
 
-  if (loading) {
+  const audioCardImageStyle: React.CSSProperties = {
+    position: 'relative',
+    height: 180,
+    overflow: 'hidden',
+    background: gradients.lavender,
+  };
+
+  const audioCardBodyStyle: React.CSSProperties = {
+    padding: `${spacing.md}px ${spacing.lg}px ${spacing.lg}px`,
+  };
+
+  const audioOverlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const audioPlayBadgeStyle: React.CSSProperties = {
+    background: colors.glass.background,
+    border: `1px solid ${colors.glass.border}`,
+    borderRadius: radii.pill,
+    padding: `${spacing.xs}px ${spacing.md}px`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    color: colors.text.primary,
+    fontWeight: 600,
+  };
+
+  const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(12, 10, 25, 0.75)',
+    backdropFilter: 'blur(8px)',
+    zIndex: 1200,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: `${spacing.xl}px`,
+  };
+
+  const modalContentStyle: React.CSSProperties = {
+    width: 'min(820px, 100%)',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    background: colors.glass.backgroundAlt,
+    borderRadius: `${radii.xl}px`,
+    border: `2px solid ${colors.border.light}`,
+    boxShadow: shadows.xl,
+    padding: `${spacing.xl}px`,
+  };
+
+  const modalHeaderStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  };
+
+  const modalCoverStyle: React.CSSProperties = {
+    width: 180,
+    height: 180,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    border: `1px solid ${colors.border.light}`,
+    background: colors.glass.backgroundAlt,
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+  };
+
+  if (isSignedIn && loadingMy && loadingPublic) {
     return (
       <div style={containerStyle}>
         <div style={loadingStyle}>
@@ -224,7 +469,6 @@ const DokusScreen: React.FC = () => {
 
   return (
     <div style={containerStyle}>
-      {/* Liquid background blobs */}
       <div style={{ ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: gradients.primary }} />
       <div style={{ ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: gradients.cool }} />
       <div style={{ ...glassBlob, width: 240, height: 240, bottom: -40, left: '50%', background: gradients.warm }} />
@@ -248,43 +492,45 @@ const DokusScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
-        {/* Header */}
         <FadeInView delay={0}>
           <div style={headerStyle}>
             <div style={headerCardStyle}>
               <div style={titleStyle}>
                 <FlaskConical size={36} style={{ color: colors.primary[500] }} />
-                {t('doku.myDokus')}
+                {t('doku.title')}
               </div>
               <div style={subtitleStyle}>
-                {t('doku.subtitle')} ({total} {t('doku.title')})
-              </div>
-
-              <div style={newDokuButtonStyle}>
-                <DokuWizardDrawer />
+                {t('doku.subtitle')} ({totalMy + totalPublic} {t('doku.title')})
               </div>
             </div>
           </div>
         </FadeInView>
 
-        {/* Dokus Grid */}
         <FadeInView delay={100}>
           <div style={contentStyle}>
-            {dokus.length === 0 ? (
-              <Card variant="glass" style={emptyStateStyle}>
-                <div style={{ fontSize: '64px', marginBottom: `${spacing.lg}px` }}>🧪</div>
-                <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
-                  {t('doku.noDokus')}
-                </div>
-                <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px`, fontSize: '16px' }}>
-                  {t('home.getStarted')}
+            <Card variant="glass" style={{ padding: spacing.xl }}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <div style={sectionTitleStyle}>
+                    <FlaskConical size={22} style={{ color: colors.primary[500] }} />
+                    {t('doku.myDokus')}
+                  </div>
+                  <div style={sectionSubtitleStyle}>{t('doku.myDokusSubtitle')} ({totalMy})</div>
                 </div>
                 <DokuWizardDrawer />
-              </Card>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {dokus.map((doku) => (
+              </div>
+
+              {loadingMy ? (
+                <div style={loadingStyle}>
+                  <LottieLoader message={t('common.loading')} size={120} />
+                </div>
+              ) : myDokus.length === 0 ? (
+                <div style={emptyStateStyle}>
+                  {t('doku.noDokus')}
+                </div>
+              ) : (
+                <div style={gridStyle}>
+                  {myDokus.map((doku) => (
                     <DokuCard
                       key={doku.id}
                       doku={doku}
@@ -293,29 +539,218 @@ const DokusScreen: React.FC = () => {
                     />
                   ))}
                 </div>
+              )}
 
-                {/* Infinite scroll trigger */}
-                {hasMore && (
-                  <div ref={observerTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
-                    {loadingMore && (
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          border: `3px solid rgba(255,255,255,0.6)`,
-                          borderTop: `3px solid ${colors.primary[500]}`,
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite',
-                          margin: '0 auto'
-                        }} />
+              {hasMoreMy && (
+                <div ref={myObserverTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
+                  {loadingMoreMy && (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        border: `3px solid rgba(255,255,255,0.6)`,
+                        borderTop: `3px solid ${colors.primary[500]}`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto'
+                      }} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            <Card variant="glass" style={{ padding: spacing.xl }}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <div style={sectionTitleStyle}>
+                    <FlaskConical size={22} style={{ color: colors.mint[600] }} />
+                    {t('doku.publicDokus')}
+                  </div>
+                  <div style={sectionSubtitleStyle}>{t('doku.publicDokusSubtitle')} ({totalPublic})</div>
+                </div>
+              </div>
+
+              {loadingPublic ? (
+                <div style={loadingStyle}>
+                  <LottieLoader message={t('common.loading')} size={120} />
+                </div>
+              ) : publicDokus.length === 0 ? (
+                <div style={emptyStateStyle}>
+                  {t('doku.noPublicDokus')}
+                </div>
+              ) : (
+                <div style={gridStyle}>
+                  {publicDokus.map((doku) => (
+                    <DokuCard
+                      key={doku.id}
+                      doku={doku}
+                      onRead={handleReadDoku}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {hasMorePublic && (
+                <div ref={publicObserverTarget} style={{ height: '20px', margin: `${spacing.lg}px 0` }}>
+                  {loadingMorePublic && (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        border: `3px solid rgba(255,255,255,0.6)`,
+                        borderTop: `3px solid ${colors.mint[500]}`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto'
+                      }} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            {isPaidUser && (
+              <Card variant="glass" style={{ padding: spacing.xl }}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <div style={sectionTitleStyle}>
+                      <Headphones size={22} style={{ color: colors.lavender[600] }} />
+                      {t('doku.audioDokus')}
+                    </div>
+                    <div style={sectionSubtitleStyle}>{t('doku.audioDokusSubtitle')}</div>
+                  </div>
+                </div>
+
+                {audioDokus.length === 0 ? (
+                  <div style={emptyStateStyle}>
+                    {t('doku.noAudioDokus')}
+                  </div>
+                ) : (
+                  <div style={gridStyle}>
+                    {audioDokus.map((doku) => (
+                      <div
+                        key={doku.id}
+                        style={audioCardStyle}
+                        onClick={() => handleOpenAudioModal(doku)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-6px)';
+                          e.currentTarget.style.boxShadow = shadows.xl;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = shadows.md;
+                        }}
+                      >
+                        <div style={audioCardImageStyle}>
+                          {doku.coverImageUrl ? (
+                            <img src={doku.coverImageUrl} alt={doku.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                              <Headphones size={48} style={{ color: colors.text.inverse, opacity: 0.8 }} />
+                            </div>
+                          )}
+                          <div style={audioOverlayStyle}>
+                            <div style={audioPlayBadgeStyle}>
+                              <Play size={14} />
+                              {t('doku.audioPlay')}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={audioCardBodyStyle}>
+                          <div style={{ ...typography.textStyles.headingSm, color: colors.text.primary, marginBottom: spacing.xs }}>
+                            {doku.title}
+                          </div>
+                          <div style={{ ...typography.textStyles.bodySm, color: colors.text.secondary }}>
+                            {doku.summary || doku.topic}
+                          </div>
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
                 )}
-              </>
+              </Card>
             )}
           </div>
         </FadeInView>
+
+        {audioModalOpen && selectedAudioDoku && (
+          <div style={modalOverlayStyle} onClick={() => setAudioModalOpen(false)}>
+            <div style={modalContentStyle} onClick={(event) => event.stopPropagation()}>
+              <div style={modalHeaderStyle}>
+                <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary }}>
+                  {selectedAudioDoku.title}
+                </div>
+                <button
+                  onClick={() => setAudioModalOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: colors.text.secondary,
+                  }}
+                  title={t('common.close')}
+                >
+                  <X size={22} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
+                <div style={modalCoverStyle}>
+                  {selectedAudioDoku.coverImageUrl ? (
+                    <img
+                      src={selectedAudioDoku.coverImageUrl}
+                      alt={selectedAudioDoku.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <Headphones size={48} style={{ color: colors.text.secondary }} />
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: spacing.md }}>
+                    {selectedAudioDoku.summary || selectedAudioDoku.topic}
+                  </div>
+                  <div style={{
+                    background: colors.glass.background,
+                    border: `1px solid ${colors.border.light}`,
+                    borderRadius: radii.lg,
+                    padding: spacing.md,
+                  }}>
+                    {audioError && (
+                      <div style={{ color: colors.semantic.error, marginBottom: spacing.sm }}>
+                        {audioError}
+                      </div>
+                    )}
+
+                    {audioLoading ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary }}>
+                        <div style={{
+                          width: 18,
+                          height: 18,
+                          border: `2px solid ${colors.border.light}`,
+                          borderTop: `2px solid ${colors.primary[500]}`,
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                        }} />
+                        {t('doku.audioLoading')}
+                      </div>
+                    ) : audioPlayer.track?.id === selectedAudioDoku.id ? (
+                      <AudioPlaybackControls variant="full" showClose />
+                    ) : (
+                      <Button
+                        title={t('doku.audioPlay')}
+                        onPress={() => handlePlayAudio(selectedAudioDoku)}
+                        variant="fun"
+                        icon={<Play size={16} />}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </SignedIn>
     </div>
   );

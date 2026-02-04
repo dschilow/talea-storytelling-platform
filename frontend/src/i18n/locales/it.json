@@ -1,5 +1,7 @@
 {
   "common": {
+    "loading": "Caricamento...",
+    "close": "Chiudi",
     "appName": "Talea",
     "loading": "Caricamento...",
     "error": "Errore",
@@ -326,6 +328,19 @@
     "generationError": "Errore di generazione"
   },
   "doku": {
+    "title": "Documenti di conoscenza",
+    "subtitle": "I tuoi documenti e la libreria della community",
+    "myDokus": "I miei documenti",
+    "myDokusSubtitle": "Documenti creati da te",
+    "publicDokus": "Documenti pubblici",
+    "publicDokusSubtitle": "Documenti pubblici generati da tutti",
+    "noDokus": "Nessun documento",
+    "noPublicDokus": "Nessun documento pubblico per ora",
+    "audioDokus": "Documenti audio",
+    "audioDokusSubtitle": "Ascolta i documenti in audio",
+    "noAudioDokus": "Nessun documento audio disponibile",
+    "audioPlay": "Riproduci",
+    "audioLoading": "Generazione audio...",
     "title": "Documentazione",
     "subtitle": "Impara con contenuti generati dall'IA",
     "create": "Crea documento",

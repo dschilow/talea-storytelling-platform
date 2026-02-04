@@ -27,7 +27,7 @@ import { colors } from './utils/constants/colors';
 import AuthScreen from './screens/Auth/AuthScreen';
 import AdminDashboard from './screens/Admin/AdminDashboard';
 import { clerkPublishableKey } from './config';
-import DokuWizardScreen from './screens/Doku/DokuWizardScreen';
+import ModernDokuWizard from './screens/Doku/ModernDokuWizard';
 import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
 import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
 import DokusScreen from './screens/Doku/DokusScreen';
@@ -36,6 +36,7 @@ import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
 
@@ -67,7 +68,7 @@ const RouterContent = () => {
           <Route path="/characters" element={<CharacterPoolScreen />} />
           <Route path="/artifacts" element={<ArtifactPoolScreen />} />
           <Route path="/fairytales" element={<FairyTalesScreen />} />
-          <Route path="/doku/create" element={<DokuWizardScreen />} />
+          <Route path="/doku/create" element={<ModernDokuWizard />} />
           <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
           <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
           <Route path="/auth" element={<AuthScreen />} />
@@ -178,7 +179,9 @@ export default function App() {
     <Provider store={store}>
       <ClerkProvider publishableKey={clerkPublishableKey}>
         <ThemeProvider>
-          <AppContent />
+          <AudioPlayerProvider>
+            <AppContent />
+          </AudioPlayerProvider>
         </ThemeProvider>
       </ClerkProvider>
     </Provider>

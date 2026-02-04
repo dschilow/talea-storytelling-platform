@@ -616,6 +616,7 @@ import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
 import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
 import { listDokus as api_doku_list_listDokus } from "~backend/doku/list";
+import { listPublicDokus as api_doku_listPublic_listPublicDokus } from "~backend/doku/list-public";
 import { markRead as api_doku_markRead_markRead } from "~backend/doku/markRead";
 import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
 
@@ -630,6 +631,7 @@ export namespace doku {
             this.generateDoku = this.generateDoku.bind(this)
             this.getDoku = this.getDoku.bind(this)
             this.listDokus = this.listDokus.bind(this)
+            this.listPublicDokus = this.listPublicDokus.bind(this)
             this.markRead = this.markRead.bind(this)
             this.updateDoku = this.updateDoku.bind(this)
         }
@@ -666,6 +668,21 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/dokus`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_list_listDokus>
+        }
+
+        /**
+         * Lists public dokus across all users with pagination.
+         */
+        public async listPublicDokus(params: RequestType<typeof api_doku_listPublic_listPublicDokus>): Promise<ResponseType<typeof api_doku_listPublic_listPublicDokus>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                offset: params.offset === undefined ? undefined : String(params.offset),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/dokus/public`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_listPublic_listPublicDokus>
         }
 
         /**

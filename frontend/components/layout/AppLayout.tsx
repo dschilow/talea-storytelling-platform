@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { SignedIn } from '@clerk/clerk-react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import { GlobalAudioPlayer } from '../audio/GlobalAudioPlayer';
 
 const AppLayout: React.FC = () => {
     return (
@@ -18,6 +19,8 @@ const AppLayout: React.FC = () => {
                     <Outlet />
                 </div>
             </main>
+
+            <GlobalAudioPlayer />
 
             {/* Mobile Bottom Navigation - Only visible when signed in */}
             <SignedIn>

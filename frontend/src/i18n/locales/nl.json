@@ -1,5 +1,7 @@
 {
   "common": {
+    "loading": "Bezig met laden...",
+    "close": "Sluiten",
     "appName": "Talea",
     "loading": "Laden...",
     "error": "Fout",
@@ -326,6 +328,19 @@
     "generationError": "Generatiefout"
   },
   "doku": {
+    "title": "Kennisdocumenten",
+    "subtitle": "Jouw documenten en de communitybibliotheek",
+    "myDokus": "Mijn documenten",
+    "myDokusSubtitle": "Documenten die jij hebt gemaakt",
+    "publicDokus": "Publieke documenten",
+    "publicDokusSubtitle": "Publieke documenten van iedereen",
+    "noDokus": "Nog geen documenten",
+    "noPublicDokus": "Nog geen publieke documenten",
+    "audioDokus": "Audio-documenten",
+    "audioDokusSubtitle": "Luister naar documenten als audio",
+    "noAudioDokus": "Nog geen audio-documenten beschikbaar",
+    "audioPlay": "Afspelen",
+    "audioLoading": "Audio wordt gemaakt...",
     "title": "Documentatie",
     "subtitle": "Leer met AI-gegenereerde content",
     "create": "Document aanmaken",

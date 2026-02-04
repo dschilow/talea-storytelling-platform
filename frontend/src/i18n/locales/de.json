@@ -1,5 +1,7 @@
 {
   "common": {
+    "loading": "Lädt...",
+    "close": "Schließen",
     "examples": "BEISPIELE:",
     "note": "💡 Hinweis:",
     "categoryNote": "Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine individuelle Geschichte erschaffen!",
@@ -613,6 +615,19 @@
     }
   },
   "doku": {
+    "title": "Wissens-Dokus",
+    "subtitle": "Deine Dokus und die Community-Bibliothek",
+    "myDokus": "Meine Dokus",
+    "myDokusSubtitle": "Von dir erstellte Dokus",
+    "publicDokus": "Community-Dokus",
+    "publicDokusSubtitle": "Öffentliche Dokus von allen Nutzern",
+    "noDokus": "Noch keine Dokus",
+    "noPublicDokus": "Noch keine öffentlichen Dokus",
+    "audioDokus": "Audio-Dokus",
+    "audioDokusSubtitle": "Höre Dokus als Audio",
+    "noAudioDokus": "Noch keine Audio-Dokus verfügbar",
+    "audioPlay": "Abspielen",
+    "audioLoading": "Audio wird erstellt...",
     "wizard": {
       "title": "Neue Wissens-Doku",
       "subtitle": "Erstelle eine spannende Doku mit Tavi",
