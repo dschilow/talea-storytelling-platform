@@ -286,7 +286,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     supportsReasoningEffort: true,
   },
   "gemini-2.0-flash": {
-    name: "gemini-2.0-flash-exp",
+    name: "gemini-2.0-flash",
     inputCostPer1M: 0.00,       // FREE during preview
     outputCostPer1M: 0.00,      // FREE during preview
     maxCompletionTokens: 8192,

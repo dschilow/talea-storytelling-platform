@@ -63,7 +63,7 @@ export async function generateWithGemini(
     );
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
   // Combine system and user prompts for Gemini
   const combinedPrompt = `${request.systemPrompt}\n\n${request.userPrompt}`;
