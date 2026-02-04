@@ -42,44 +42,7 @@ export function buildStoryChapterPrompt(input: {
     ? `Artifact usage: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}`
     : "";
 
-  if (isGerman) {
-    return `You are a professional children's story author.
 
-Write Chapter ${chapter.chapter} for a ${ageRange.min}-${ageRange.max} year old audience in German.
-Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
-
-SCENE DIRECTIVE:
-- Setting: ${chapter.setting}
-- Mood: ${chapter.mood ?? "COZY"}
-- Goal: ${chapter.goal}
-- Conflict: ${chapter.conflict}
-- Outcome: ${chapter.outcome}
-- Characters on stage (must include all):
-${characterSummaries}
-${artifactLine}
-${stylePackText ? `\n${stylePackText}\n` : ""}
-
-Allowed names (use exactly): ${allowedNames || "none"}
-
-STRICT RULES:
-1) Use only the listed character names exactly as given. No extra named characters.
-2) Do not introduce any additional named characters or animals; if absolutely needed, keep them unnamed.
-3) No stage directions, no meta commentary, no English text in the output.
-4) Each character must have a concrete action or short line; no name lists.
-5) Mention the artifact if required (by name).
-6) Write ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences, age-appropriate.
-7) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
-8) Children's-book style: vivid imagery, rhythmic flow, varied sentence starts, occasional dialogue.
-9) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
-10) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
-11) Avatars and supporting characters must be actively involved, not just present.
-12) Chapter title must be a curiosity hook, not "Chapter X".
-13) End with a gentle forward-looking line (except final chapter).
-${strict ? "14) Double-check that no English sentence appears in the German output." : ""}
-
-Return JSON:
-{ "title": "Short chapter title", "text": "Chapter text" }`;
-  }
 
   return `You are a professional children's story author.
 
@@ -172,44 +135,9 @@ export function buildStoryChapterRevisionPrompt(input: {
 
   const issueList = issues.length > 0 ? issues.map(issue => `- ${issue}`).join("\n") : "- Keine";
 
-  if (isGerman) {
-    return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in German.
 
-ISSUES:
-${issueList}
 
-SCENE DIRECTIVE:
-- Setting: ${chapter.setting}
-- Mood: ${chapter.mood ?? "COZY"}
-- Goal: ${chapter.goal}
-- Conflict: ${chapter.conflict}
-- Outcome: ${chapter.outcome}
-- Characters (must appear): ${allowedNames || "none"}
-- Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
-- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
-${stylePackText ? `\n${stylePackText}\n` : ""}
-
-RULES:
-1) Use only these names: ${allowedNames || "none"}.
-2) No new proper names.
-3) No meta text or instructions in the output.
-3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
-4) Every character must act or speak.
-5) Do not state belonging explicitly; avoid "always been part of this tale".
-6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
-7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
-8) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
-9) Chapter title must be a curiosity hook, not "Chapter X".
-10) Children's-book style: vivid, rhythmic, varied sentence starts.
-
-ORIGINAL TEXT:
-${originalText}
-
-Return JSON:
-{ "title": "Short chapter title", "text": "Chapter text" }`;
-  }
-
-  return `Revise the chapter below to satisfy the rules without losing the plot.
+  return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in ${isGerman ? "German" : language}.
 
 ISSUES:
 ${issueList}
@@ -471,64 +399,12 @@ export function buildFullStoryPrompt(input: {
         ? "Stärkere Motive, schärfere Wendungen, tiefere Emotionen, kindgerecht."
         : "Dichterer Stil, moralische Nuancen, größere Wendungen.";
 
-  if (isGerman) {
-    return `# Rolle und Zielsetzung
-- Du bist: Preisgekrönter Kinderbuchautor.
-- Ziel: Verfasse eine vollständige Kinderbuchgeschichte auf Deutsch. Nur JSON-Output.
 
-# Zielgruppe
-- ${ageRange.min}–${ageRange.max} Jahre
-- Stil: ${ageStyle}
-
-# Tonfall
-- ${tone || dna.toneBounds?.targetTone || "Warm"}, witzig, spannend – niemals zynisch.
-
-# Stilregeln
-- Kurze, klare Absätze; lebendige Bilder; klare Ursache–Wirkung
-- Handlung wird durch Dialog vorangetrieben (2–6 Dialogzeilen pro Kapitel)
-- Pro Kapitel max. 1–2 poetische Bilder/Vergleiche
-
-# Harte Regeln (Quality-Gates)
-1. **Sprache**: Alle Textfelder ausschließlich auf Deutsch. Keine englischen Wörter.
-2. **Länge**: Gesamt: ${totalWordMin}–${totalWordMax} Wörter. Pro Kapitel: ${wordsPerChapter.min}–${wordsPerChapter.max} Wörter (obere Hälfte bevorzugt). Keine Mini-Kapitel.
-3. **Kapitelbau**: Jedes Kapitel enthält in Prosa: (a) Ort+Stimmung, (b) klares Vorhaben, (c) Schwierigkeit, (d) sichtbare Handlung (Verb+Objekt), (e) Fortschritt, (f) letzter Satz = sanfter Hook (außer letztes Kapitel).
-4. **Keine Labels**: Im Kapiteltext keine Begriffe wie „Ort:", „Ziel:", „Hook:" – nur Erzählprosa.
-5. **Cast-Lock**: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren. Hintergrundfiguren unbenannt.
-6. **Kontinuität**: Roter Faden. Entscheidungen wirken nach. Keine abrupten Ortswechsel ohne Übergangssatz.
-7. **Aktive Figuren**: Jede Figur nimmt aktiv Einfluss. Mind. 3–4 Figuren agieren pro Kapitel sichtbar.
-8. **Wiederholungsschutz**: Keine identischen Sätze über Kapitel. Keine Füllwörter („plötzlich", „irgendwie"). Keine Floskeln wie „entscheidender Hinweis" – zeigen statt sagen.
-9. **Charakter-Stimmen**: Jede Figur hat eine einzigartige Stimme im Dialog (gemäß Sprachstil). Sprüche genau 1x verwenden. Marotten zeigen.
-${artifactName ? `10. **Artefakt-Bogen**: ${artifactName} wird in Kap 1–2 eingeführt, führt in Kap 2–3 fehl, hilft in Kap 4–5 entscheidend. Mind. 2 aktive Szenen.` : ""}
-11. **Ende**: Letztes Kapitel löst Konflikt durch Szene (Dialog+Handlung), zeigt kleine Lektion ohne Predigt, endet mit warmem Schlussbild + kurzem Epilog (2–4 Sätze).
-
-# Figuren (nur diese erlauben)
-${characterLines.join("\n")}
-${artifactName ? `\n# Artefakt\n- ${artifactName}: ${artifactRule}` : ""}
-
-${motifs.length > 0 ? `# Wiederkehrende Motive\n${motifs.join("\n")}` : ""}
-
-# Kapitelstruktur (Orientierung, NICHT wörtlich übernehmen)
-${chapterOutlines}
-
-# Output Format
-Gib ausschließlich gültiges JSON zurück:
-\`\`\`json
-{
-  "title": "Kurzer Titel (max 7 Wörter)",
-  "description": "Ein Satz als Teaser",
-  "chapters": [
-    { "chapter": 1, "title": "Kapiteltitel", "text": "Kapiteltext..." },
-    { "chapter": 2, "title": "Kapiteltitel", "text": "Kapiteltext..." },
-    ...
-  ]
-}
-\`\`\``;
-  }
 
   // English version
   return `# Role and Goal
 - You are: Award-winning children's book author.
-- Goal: Write a complete children's story in ${language}. Only JSON output.
+- Goal: Write a complete children's story in ${isGerman ? "German" : language}. Only JSON output.
 
 # Target Audience
 - ${ageRange.min}–${ageRange.max} years old
@@ -543,7 +419,7 @@ Gib ausschließlich gültiges JSON zurück:
 - Max 1–2 poetic images/similes per chapter
 
 # Hard Rules (Quality Gates)
-1. **Language**: All text fields in ${language} only.
+1. **Language**: All text fields in ${isGerman ? "German" : language} only.
 2. **Length**: Total: ${totalWordMin}–${totalWordMax} words. Per chapter: ${wordsPerChapter.min}–${wordsPerChapter.max} words (upper half preferred). No mini-chapters.
 3. **Chapter Structure**: Each chapter in prose: (a) setting+mood, (b) clear goal, (c) difficulty, (d) visible action (verb+object), (e) progress, (f) last sentence = gentle hook (except final chapter).
 4. **No Labels**: No terms like "Setting:", "Goal:", "Hook:" in chapter text – only narrative prose.
@@ -608,49 +484,9 @@ export function buildFullStoryRewritePrompt(input: {
     .map(ch => `--- Chapter ${ch.chapter}: ${ch.title} ---\n${ch.text}`)
     .join("\n\n");
 
-  if (isGerman) {
-    return `Revise the following children's story. Keep the plot and action, but fix ALL listed problems. Write the output in German.
 
-${qualityIssues}
 
-STYLE TARGETS (do NOT mention these directly):
-- Page-turning momentum, warm humor, cinematic clarity
-- Poetic depth in small doses, distinct character voices
-
-RULES (unchangeable):
-- Allowed names: ${allowedNames || "none"}
-- No new proper names
-- Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
-- No placeholder chapters; if a chapter is short, expand with a concrete action sequence + 2-3 short dialogue lines
-- Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension"
-- Each chapter must contain these beats woven naturally into prose (never as headings): a clear setting (place + mood, 1-2 sentences), a purpose, a difficulty, a concrete action, a step forward, and a closing hook
-- If any chapter has 1-2 sentences, AUTO-EXPAND using these beats as natural prose
-- Each chapter must include one small extra complication (something slips, is too heavy, is misunderstood, or distracts) — never label it
-- Avoid sentences like "Er traf eine wichtige Entscheidung" or "Sie entdeckten den entscheidenden Hinweis"; replace with concrete action + short dialogue
-- Do NOT render headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:" in the chapter text. Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was". These are internal only.
-- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
-- Audience: ${ageRange.min}-${ageRange.max} years
-${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
-- Chapter titles must be curiosity hooks (not "Chapter X")
-- Description must be a 1-sentence teaser hook
-- Last chapter ends with a short epilogue paragraph + optional 1-sentence spark for next adventure
-${stylePackText ? `\n${stylePackText}\n` : ""}
-
-ORIGINAL TEXT:
-${originalText}
-
-Return the COMPLETE revised story as JSON:
-{
-  "title": "Story title",
-  "description": "1-2 sentences",
-  "chapters": [
-    { "chapter": 1, "title": "...", "text": "..." },
-    ...
-  ]
-}`;
-  }
-
-  return `Revise the following children's story. Keep the plot and action, but fix ALL listed problems.
+  return `Revise the following children's story. Keep the plot and action, but fix ALL listed problems. Write the output in ${isGerman ? "German" : language}.
 
 ${qualityIssues}
 
@@ -692,16 +528,9 @@ Return the COMPLETE revised story as JSON:
 }
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
-  if (input.language === "de") {
-    return `Create a short title (max 7 words) and a 1-sentence teaser hook for the following children's story in German.
-Return JSON:
-{ "title": "...", "description": "..." }
 
-Story:
-${input.storyText}`;
-  }
 
-  return `Create a short story title (max 7 words) and a 1-sentence teaser hook for the following children's story in ${input.language}.
+  return `Create a short story title (max 7 words) and a 1-sentence teaser hook for the following children's story in ${input.language === "de" ? "German" : input.language}.
 Return JSON:
 { "title": "...", "description": "..." }
 
