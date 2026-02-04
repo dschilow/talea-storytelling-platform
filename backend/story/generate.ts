@@ -262,6 +262,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         length: req.config.length,
         complexity: req.config.complexity,
         ageGroup: req.config.ageGroup,
+        aiModel: req.config.aiModel ?? 'not-set',
         stylePreset: req.config.stylePreset,
         tone: req.config.tone,
         language: req.config.language,
