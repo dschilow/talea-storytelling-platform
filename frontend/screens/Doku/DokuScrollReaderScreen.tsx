@@ -259,9 +259,9 @@ const DokuScrollReaderScreen: React.FC = () => {
                           </h2>
 
                           {/* Section Image */}
-                          {doku.coverImageUrl && (
+                          {(section.imageUrl || doku.coverImageUrl) && (
                             <img
-                              src={doku.coverImageUrl}
+                              src={section.imageUrl || doku.coverImageUrl}
                               alt={section.title}
                               className="rounded-2xl mb-8 w-full object-cover shadow-2xl"
                               style={{ maxHeight: '500px' }}

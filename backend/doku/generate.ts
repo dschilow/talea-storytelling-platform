@@ -47,6 +47,8 @@ export interface DokuSection {
   content: string; // markdown/text
   keyFacts: string[];
   imageIdea?: string; // textual idea for possible image
+  sectionImagePrompt?: string; // English Runware-optimized prompt (AI-generated)
+  imageUrl?: string; // generated section image URL
   interactive?: DokuInteractive;
 }
 
@@ -173,6 +175,41 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         console.warn("Cover image generation failed:", imgErr);
       }
 
+      // === SECTION IMAGE GENERATION ===
+      // Generate images for each section in parallel using Promise.allSettled
+      const sectionImageResults = await Promise.allSettled(
+        parsed.sections.map(async (section, index) => {
+          const rawPrompt = section.sectionImagePrompt || section.imageIdea;
+          if (!rawPrompt) return { index, imageUrl: undefined };
+
+          try {
+            const normalizedPrompt = normalizeLanguage(rawPrompt);
+            const sectionPrompt = `Kid-friendly educational illustration: ${normalizedPrompt}. Axel Scheffler watercolor storybook style, joyful educational tone, clear composition, bright colors, child-friendly illustration, safe content, no text in the image.`;
+
+            const img = await ai.generateImage({
+              prompt: sectionPrompt,
+              width: 1280,
+              height: 832, // 16:10 landscape for section images
+              steps: 4,
+              CFGScale: 4,
+              outputFormat: "JPEG",
+            });
+            return { index, imageUrl: img.imageUrl };
+          } catch (err) {
+            console.warn(`Section ${index} image generation failed:`, err);
+            return { index, imageUrl: undefined };
+          }
+        })
+      );
+
+      // Attach imageUrl to each section
+      for (const result of sectionImageResults) {
+        if (result.status === "fulfilled" && result.value.imageUrl) {
+          parsed.sections[result.value.index].imageUrl = result.value.imageUrl;
+          imagesGenerated++;
+        }
+      }
+
       const processingTime = Date.now() - startTime;
       const tokensUsed = {
         prompt: data.usage?.prompt_tokens ?? 0,
@@ -271,13 +308,24 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
       const resolvedCoverImageUrl = await resolveImageUrlForClient(coverImageUrl);
 
+      // Resolve section image URLs for client response
+      const resolvedSections = await Promise.all(
+        parsed.sections.map(async (section) => {
+          if (section.imageUrl) {
+            const resolvedUrl = await resolveImageUrlForClient(section.imageUrl);
+            return { ...section, imageUrl: resolvedUrl || section.imageUrl };
+          }
+          return section;
+        })
+      );
+
       return {
         id,
         userId: req.userId,
         title: parsed.title,
         topic: req.config.topic,
         summary: parsed.summary,
-        content: { sections: parsed.sections },
+        content: { sections: resolvedSections },
         coverImageUrl: resolvedCoverImageUrl ?? coverImageUrl,
         isPublic: false,
         status: "complete",
@@ -319,14 +367,67 @@ function buildOpenAIPayload(config: DokuConfig) {
 }
 
 function getLanguagePrompts(language: DokuLanguage) {
+  // Shared JSON schema for sections (language-independent structure)
+  const sectionSchema = `{
+      "title": "Section title",
+      "content": "Flowing text (120-220 words)",
+      "keyFacts": ["Fact 1", "Fact 2", "Fact 3"],
+      "imageIdea": "Short description for illustration (in document language)",
+      "sectionImagePrompt": "English prompt for image generation: Kid-friendly watercolor illustration of [concrete visual scene from this section]. Axel Scheffler style, bright warm colors, educational, no text.",
+      "interactive": {
+        "quiz": {
+          "enabled": true,
+          "questions": [
+            {
+              "question": "Question?",
+              "options": ["A", "B", "C", "D"],
+              "answerIndex": 0,
+              "explanation": "Why is this correct?"
+            }
+          ]
+        },
+        "activities": {
+          "enabled": true,
+          "items": [
+            {
+              "title": "Activity title",
+              "description": "Child-friendly instructions",
+              "materials": ["Paper", "Pens"],
+              "durationMinutes": 10
+            }
+          ]
+        }
+      }
+    }`;
+
+  const imagePromptRules = `
+IMAGE PROMPT RULES (for "sectionImagePrompt" and "coverImagePrompt"):
+- MUST be written in ENGLISH regardless of document language.
+- Describe a CONCRETE visual scene that captures the section's core concept.
+- Style: "Axel Scheffler watercolor storybook style, bright warm colors, educational, joyful, child-friendly"
+- NO text in image, NO scary or dangerous scenes, NO human faces in close-up.
+- Max 2 sentences, visually descriptive. Example: "A curious child examining a giant magnifying glass over a colorful butterfly wing, Axel Scheffler watercolor storybook style, bright warm colors, educational."`;
+
   const prompts: Record<DokuLanguage, {
     system: string;
     user: (config: DokuConfig, sectionsCount: number, quizCount: number, activitiesCount: number) => string;
   }> = {
     de: {
-      system: `Du bist ein erfahrener Kinderwissens-Moderator im Stil von "Checker Tobi" bzw. Galileo Kids.
-Schreibe kindgerecht, spannend, präzise und korrekt. Nutze eine neugierige, positive Tonalität.
-KEINE gefährlichen, beängstigenden oder ungeeigneten Inhalte.`,
+      system: `Du bist ein erfahrener Kinderwissens-Moderator im Stil von "Checker Tobi" und "Galileo Kids".
+
+QUALITÄTSREGELN:
+1) Schreibe kindgerecht, spannend, präzise und wissenschaftlich korrekt.
+2) Nutze direkte Ansprache: "Stell dir vor...", "Wusstest du...?", "Hast du schon mal...?"
+3) Jeder Abschnitt erzählt eine kleine Wissensgeschichte mit konkreten Beispielen aus dem Kinderalltag.
+4) Nutze bildhafte Vergleiche die Kinder verstehen (z.B. "So schwer wie 10 Elefanten", "So schnell wie ein Rennwagen").
+5) ANTI-WIEDERHOLUNG: Jeder Abschnitt bringt NEUE Informationen und eine NEUE Perspektive. Keine Wiederholung von Fakten.
+6) SPANNUNGSBÖGEN: Beende jeden Abschnitt (außer den letzten) mit einer neugierig machenden Frage oder einem Cliffhanger zum nächsten Thema.
+7) KEINE generischen Sätze wie "Das ist sehr interessant", "Das ist wichtig", "Es gibt viele Beispiele" - IMMER konkret und spezifisch.
+8) KEINE gefährlichen, beängstigenden oder ungeeigneten Inhalte.
+9) Variiere Satzanfänge: Nie zwei aufeinanderfolgende Sätze mit dem gleichen Wort beginnen.
+10) Maximal 1 Ausrufezeichen pro Abschnitt.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Erzeuge ein strukturiertes Lern-Dossier (Doku-Modus) zum Thema: "${config.topic}".
 
 Zielgruppe: ${config.ageGroup}
@@ -339,54 +440,47 @@ Interaktion:
 - Quizfragen: ${config.includeInteractive ? quizCount : 0}
 - Hands-on Aktivitäten: ${config.includeInteractive ? activitiesCount : 0}
 
-Regeln:
-- Begriffe erklären, Beispiele aus Kinderwelt.
-- Jeder Abschnitt mit "keyFacts" in kurzen Punkten.
-- Wenn Interaktionen aktiv sind: sinnvolle Fragen/Antworten und Aktivitäten vorschlagen.
-- Antworte AUSSCHLIESSLICH als JSON-Objekt mit folgender Struktur:
+ALTERSGERECHTE ANPASSUNG:
+- 3-5: Sehr kurze Sätze, sanfte Wiederholung, einfache Wörter, 1 Hauptidee pro Abschnitt.
+- 6-8: Mehr Dialog-Elemente, kleine Rätsel, spielerische Spannung.
+- 9-12: Tiefere Zusammenhänge, überraschende Fakten, "Aha-Momente".
+- 13+: Komplexere Konzepte, kritisches Denken, Querverbindungen zu anderen Fachgebieten.
+
+INHALTSREGELN:
+- Begriffe kindgerecht erklären, dabei Beispiele aus der Lebenswelt der Zielgruppe nutzen.
+- Jeder Abschnitt mit 3-5 "keyFacts" als kurze, knackige Merkpunkte.
+- Jeder Abschnitt mit einem konkreten Einstieg (Szenario, Frage, oder "Stell dir vor...").
+- Der ROTE FADEN: Abschnitte bauen logisch aufeinander auf, jeder baut auf dem vorherigen auf.
+- Wenn Interaktionen aktiv sind: Quizfragen sollen zum Nachdenken anregen, nicht nur Fakten abfragen.
+- Aktivitäten sollen mit Alltagsmaterialien durchführbar sein.
+
+Antworte AUSSCHLIESSLICH als JSON-Objekt mit folgender Struktur:
 
 {
-  "title": "Kurzer, spannender Titel",
-  "summary": "1-3 Sätze kindgerechte Zusammenfassung",
+  "title": "Kurzer, spannender Titel (max 8 Wörter, neugierig machend)",
+  "summary": "1-3 Sätze kindgerechte Zusammenfassung die Lust auf mehr macht",
   "sections": [
-    {
-      "title": "Abschnittstitel",
-      "content": "Fließtext (120-220 Wörter) mit Beispielen, bildhaft, leicht verständlich.",
-      "keyFacts": ["Punkt 1", "Punkt 2", "Punkt 3"],
-      "imageIdea": "kurze Beschreibung für mögliche Illustration",
-      "interactive": {
-        "quiz": {
-          "enabled": true|false,
-          "questions": [
-            {
-              "question": "Frage?",
-              "options": ["A", "B", "C", "D"],
-              "answerIndex": 0,
-              "explanation": "Warum ist das richtig?"
-            }
-          ]
-        },
-        "activities": {
-          "enabled": true|false,
-          "items": [
-            {
-              "title": "Aktivität",
-              "description": "Kindgerechte Anleitung",
-              "materials": ["Papier", "Stifte"],
-              "durationMinutes": 10
-            }
-          ]
-        }
-      }
-    }
+    ${sectionSchema}
   ],
-  "coverImagePrompt": "Kurzer Prompt für eine freundliche Cover-Illustration ohne Text"
+  "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     en: {
-      system: `You are an experienced children's educational moderator in the style of educational shows.
-Write in a child-friendly, exciting, precise and correct manner. Use a curious, positive tone.
-NO dangerous, frightening or inappropriate content.`,
+      system: `You are an experienced children's educational moderator in the style of popular science shows for kids.
+
+QUALITY RULES:
+1) Write in a child-friendly, exciting, precise and scientifically correct manner.
+2) Use direct address: "Imagine...", "Did you know...?", "Have you ever...?"
+3) Each section tells a small knowledge story with concrete examples from children's everyday life.
+4) Use vivid comparisons children understand (e.g., "As heavy as 10 elephants", "As fast as a race car").
+5) ANTI-REPETITION: Each section brings NEW information and a NEW perspective. No repeating facts.
+6) TENSION ARCS: End each section (except the last) with a curiosity-sparking question or cliffhanger.
+7) NO generic sentences like "This is very interesting", "This is important" - ALWAYS be concrete and specific.
+8) NO dangerous, frightening or inappropriate content.
+9) Vary sentence starters: Never begin two consecutive sentences with the same word.
+10) Maximum 1 exclamation mark per section.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Create a structured learning document (Doku mode) on the topic: "${config.topic}".
 
 Target audience: ${config.ageGroup}
@@ -399,54 +493,45 @@ Interaction:
 - Quiz questions: ${config.includeInteractive ? quizCount : 0}
 - Hands-on activities: ${config.includeInteractive ? activitiesCount : 0}
 
-Rules:
-- Explain terms, use examples from children's world.
-- Each section with "keyFacts" in short points.
-- If interactions are active: suggest meaningful questions/answers and activities.
-- Respond EXCLUSIVELY as a JSON object with the following structure:
+AGE ADAPTATION:
+- 3-5: Very short sentences, gentle repetition, simple words, 1 main idea per section.
+- 6-8: More dialogue elements, small riddles, playful tension.
+- 9-12: Deeper connections, surprising facts, "aha moments".
+- 13+: Complex concepts, critical thinking, cross-references to other fields.
+
+CONTENT RULES:
+- Explain terms in a child-friendly way with examples from the target audience's life.
+- Each section with 3-5 "keyFacts" as short, punchy bullet points.
+- Each section starts with a concrete hook (scenario, question, or "Imagine...").
+- RED THREAD: Sections build logically on each other.
+- If interactions are active: Quiz questions should provoke thought, not just test facts.
+- Activities should use everyday materials.
+
+Respond EXCLUSIVELY as a JSON object with the following structure:
 
 {
-  "title": "Short, exciting title",
-  "summary": "1-3 sentences child-friendly summary",
+  "title": "Short, exciting title (max 8 words, curiosity-sparking)",
+  "summary": "1-3 sentences child-friendly summary that makes you want more",
   "sections": [
-    {
-      "title": "Section title",
-      "content": "Flowing text (120-220 words) with examples, vivid, easy to understand.",
-      "keyFacts": ["Point 1", "Point 2", "Point 3"],
-      "imageIdea": "short description for possible illustration",
-      "interactive": {
-        "quiz": {
-          "enabled": true|false,
-          "questions": [
-            {
-              "question": "Question?",
-              "options": ["A", "B", "C", "D"],
-              "answerIndex": 0,
-              "explanation": "Why is this correct?"
-            }
-          ]
-        },
-        "activities": {
-          "enabled": true|false,
-          "items": [
-            {
-              "title": "Activity",
-              "description": "Child-friendly instructions",
-              "materials": ["Paper", "Pens"],
-              "durationMinutes": 10
-            }
-          ]
-        }
-      }
-    }
+    ${sectionSchema}
   ],
-  "coverImagePrompt": "Short prompt for a friendly cover illustration without text"
+  "coverImagePrompt": "Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     fr: {
-      system: `Tu es un modérateur expérimenté de connaissances pour enfants.
-Écris de manière adaptée aux enfants, passionnante, précise et correcte. Utilise une tonalité curieuse et positive.
-AUCUN contenu dangereux, effrayant ou inapproprié.`,
+      system: `Tu es un modérateur expérimenté de connaissances pour enfants, dans le style des émissions éducatives populaires.
+
+RÈGLES DE QUALITÉ:
+1) Écris de manière adaptée aux enfants, passionnante, précise et scientifiquement correcte.
+2) Utilise l'adresse directe: "Imagine...", "Savais-tu...?", "As-tu déjà...?"
+3) Chaque section raconte une petite histoire de savoir avec des exemples concrets du quotidien des enfants.
+4) Utilise des comparaisons imagées que les enfants comprennent.
+5) ANTI-RÉPÉTITION: Chaque section apporte de NOUVELLES informations et une NOUVELLE perspective.
+6) ARCS DE TENSION: Termine chaque section (sauf la dernière) avec une question qui éveille la curiosité.
+7) PAS de phrases génériques - TOUJOURS concret et spécifique.
+8) AUCUN contenu dangereux, effrayant ou inapproprié.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Crée un dossier d'apprentissage structuré sur le sujet: "${config.topic}".
 
 Public cible: ${config.ageGroup}
@@ -459,22 +544,37 @@ Interaction:
 - Questions quiz: ${config.includeInteractive ? quizCount : 0}
 - Activités pratiques: ${config.includeInteractive ? activitiesCount : 0}
 
-Règles:
-- Expliquer les termes, utiliser des exemples du monde des enfants.
-- Chaque section avec "keyFacts" en points courts.
-- Répondre EXCLUSIVEMENT avec un objet JSON de la structure suivante:
+Règles de contenu:
+- Expliquer les termes avec des exemples du monde des enfants.
+- Chaque section avec 3-5 "keyFacts" en points courts.
+- Chaque section commence avec un accroche concrète.
+- FIL ROUGE: Les sections s'enchaînent logiquement.
+
+Réponds EXCLUSIVEMENT avec un objet JSON de la structure suivante:
 
 {
-  "title": "Titre court et passionnant",
+  "title": "Titre court et passionnant (max 8 mots)",
   "summary": "Résumé adapté aux enfants en 1-3 phrases",
-  "sections": [...],
-  "coverImagePrompt": "Prompt court pour une illustration de couverture amicale sans texte"
+  "sections": [
+    ${sectionSchema}
+  ],
+  "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     es: {
-      system: `Eres un moderador experimentado de conocimientos para niños.
-Escribe de manera adecuada para niños, emocionante, precisa y correcta. Usa un tono curioso y positivo.
-SIN contenido peligroso, aterrador o inapropiado.`,
+      system: `Eres un moderador experimentado de conocimientos para niños, al estilo de programas educativos populares.
+
+REGLAS DE CALIDAD:
+1) Escribe de manera adecuada para niños, emocionante, precisa y científicamente correcta.
+2) Usa la dirección directa: "Imagina...", "¿Sabías que...?", "¿Alguna vez has...?"
+3) Cada sección cuenta una pequeña historia de conocimiento con ejemplos concretos del día a día de los niños.
+4) Usa comparaciones vívidas que los niños entiendan.
+5) ANTI-REPETICIÓN: Cada sección aporta información NUEVA y una perspectiva NUEVA.
+6) ARCOS DE TENSIÓN: Termina cada sección (excepto la última) con una pregunta que despierte curiosidad.
+7) SIN frases genéricas - SIEMPRE concreto y específico.
+8) SIN contenido peligroso, aterrador o inapropiado.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documento de aprendizaje estructurado sobre el tema: "${config.topic}".
 
 Público objetivo: ${config.ageGroup}
@@ -487,22 +587,37 @@ Interacción:
 - Preguntas de quiz: ${config.includeInteractive ? quizCount : 0}
 - Actividades prácticas: ${config.includeInteractive ? activitiesCount : 0}
 
-Reglas:
-- Explicar términos, usar ejemplos del mundo de los niños.
-- Cada sección con "keyFacts" en puntos cortos.
-- Responder EXCLUSIVAMENTE como un objeto JSON con la siguiente estructura:
+Reglas de contenido:
+- Explicar términos con ejemplos del mundo de los niños.
+- Cada sección con 3-5 "keyFacts" en puntos cortos.
+- Cada sección comienza con un gancho concreto.
+- HILO CONDUCTOR: Las secciones se construyen lógicamente unas sobre otras.
+
+Responde EXCLUSIVAMENTE como un objeto JSON con la siguiente estructura:
 
 {
-  "title": "Título corto y emocionante",
+  "title": "Título corto y emocionante (máx 8 palabras)",
   "summary": "Resumen adaptado a niños en 1-3 frases",
-  "sections": [...],
-  "coverImagePrompt": "Prompt corto para una ilustración de portada amigable sin texto"
+  "sections": [
+    ${sectionSchema}
+  ],
+  "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     it: {
-      system: `Sei un moderatore esperto di conoscenze per bambini.
-Scrivi in modo adatto ai bambini, emozionante, preciso e corretto. Usa un tono curioso e positivo.
-NESSUN contenuto pericoloso, spaventoso o inappropriato.`,
+      system: `Sei un moderatore esperto di conoscenze per bambini, nello stile dei programmi educativi popolari.
+
+REGOLE DI QUALITÀ:
+1) Scrivi in modo adatto ai bambini, emozionante, preciso e scientificamente corretto.
+2) Usa l'indirizzo diretto: "Immagina...", "Sapevi che...?", "Hai mai...?"
+3) Ogni sezione racconta una piccola storia di conoscenza con esempi concreti dalla vita quotidiana dei bambini.
+4) Usa paragoni vividi che i bambini capiscono.
+5) ANTI-RIPETIZIONE: Ogni sezione porta informazioni NUOVE e una prospettiva NUOVA.
+6) ARCHI DI TENSIONE: Termina ogni sezione (tranne l'ultima) con una domanda che suscita curiosità.
+7) NESSUNA frase generica - SEMPRE concreto e specifico.
+8) NESSUN contenuto pericoloso, spaventoso o inappropriato.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documento di apprendimento strutturato sul tema: "${config.topic}".
 
 Pubblico target: ${config.ageGroup}
@@ -515,22 +630,37 @@ Interazione:
 - Domande quiz: ${config.includeInteractive ? quizCount : 0}
 - Attività pratiche: ${config.includeInteractive ? activitiesCount : 0}
 
-Regole:
-- Spiegare i termini, usare esempi dal mondo dei bambini.
-- Ogni sezione con "keyFacts" in punti brevi.
-- Rispondere ESCLUSIVAMENTE come un oggetto JSON con la seguente struttura:
+Regole di contenuto:
+- Spiegare i termini con esempi dal mondo dei bambini.
+- Ogni sezione con 3-5 "keyFacts" in punti brevi.
+- Ogni sezione inizia con un aggancio concreto.
+- FILO ROSSO: Le sezioni si costruiscono logicamente una sull'altra.
+
+Rispondi ESCLUSIVAMENTE come un oggetto JSON con la seguente struttura:
 
 {
-  "title": "Titolo breve ed emozionante",
+  "title": "Titolo breve ed emozionante (max 8 parole)",
   "summary": "Riassunto adatto ai bambini in 1-3 frasi",
-  "sections": [...],
-  "coverImagePrompt": "Prompt breve per un'illustrazione di copertina amichevole senza testo"
+  "sections": [
+    ${sectionSchema}
+  ],
+  "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     nl: {
-      system: `Je bent een ervaren kinderkennis-moderator.
-Schrijf kindvriendelijk, spannend, nauwkeurig en correct. Gebruik een nieuwsgierige, positieve toon.
-GEEN gevaarlijke, angstaanjagende of ongepaste inhoud.`,
+      system: `Je bent een ervaren kinderkennis-moderator, in de stijl van populaire educatieve programma's.
+
+KWALITEITSREGELS:
+1) Schrijf kindvriendelijk, spannend, nauwkeurig en wetenschappelijk correct.
+2) Gebruik directe aanspreking: "Stel je voor...", "Wist je dat...?", "Heb je ooit...?"
+3) Elke sectie vertelt een klein kennisverhaal met concrete voorbeelden uit het dagelijks leven van kinderen.
+4) Gebruik beeldende vergelijkingen die kinderen begrijpen.
+5) ANTI-HERHALING: Elke sectie brengt NIEUWE informatie en een NIEUW perspectief.
+6) SPANNINGSLIJNEN: Eindig elke sectie (behalve de laatste) met een nieuwsgierig makende vraag.
+7) GEEN generieke zinnen - ALTIJD concreet en specifiek.
+8) GEEN gevaarlijke, angstaanjagende of ongepaste inhoud.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Maak een gestructureerd leerdocument over het onderwerp: "${config.topic}".
 
 Doelgroep: ${config.ageGroup}
@@ -543,22 +673,37 @@ Interactie:
 - Quiz vragen: ${config.includeInteractive ? quizCount : 0}
 - Praktische activiteiten: ${config.includeInteractive ? activitiesCount : 0}
 
-Regels:
-- Termen uitleggen, voorbeelden uit de kinderwereld gebruiken.
-- Elke sectie met "keyFacts" in korte punten.
-- Reageer UITSLUITEND als een JSON-object met de volgende structuur:
+Inhoudsregels:
+- Termen uitleggen met voorbeelden uit de kinderwereld.
+- Elke sectie met 3-5 "keyFacts" in korte punten.
+- Elke sectie begint met een concrete haak.
+- RODE DRAAD: Secties bouwen logisch op elkaar voort.
+
+Reageer UITSLUITEND als een JSON-object met de volgende structuur:
 
 {
-  "title": "Korte, spannende titel",
+  "title": "Korte, spannende titel (max 8 woorden)",
   "summary": "Kindvriendelijke samenvatting in 1-3 zinnen",
-  "sections": [...],
-  "coverImagePrompt": "Korte prompt voor een vriendelijke omslag illustratie zonder tekst"
+  "sections": [
+    ${sectionSchema}
+  ],
+  "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     ru: {
-      system: `Вы опытный модератор детских образовательных программ.
-Пишите доступно для детей, увлекательно, точно и правильно. Используйте любознательный, позитивный тон.
-НИКАКОГО опасного, пугающего или неподходящего контента.`,
+      system: `Вы опытный модератор детских образовательных программ, в стиле популярных научных шоу для детей.
+
+ПРАВИЛА КАЧЕСТВА:
+1) Пишите доступно для детей, увлекательно, точно и научно правильно.
+2) Используйте прямое обращение: "Представь...", "Знал ли ты...?", "Ты когда-нибудь...?"
+3) Каждый раздел рассказывает маленькую историю знаний с конкретными примерами из повседневной жизни детей.
+4) Используйте яркие сравнения, понятные детям.
+5) АНТИ-ПОВТОРЕНИЕ: Каждый раздел несёт НОВУЮ информацию и НОВЫЙ взгляд.
+6) АРКИ НАПРЯЖЕНИЯ: Завершайте каждый раздел (кроме последнего) вопросом, пробуждающим любопытство.
+7) НИКАКИХ общих фраз - ВСЕГДА конкретно и специфично.
+8) НИКАКОГО опасного, пугающего или неподходящего контента.
+
+${imagePromptRules}`,
       user: (config, sectionsCount, quizCount, activitiesCount) => `Создайте структурированный обучающий документ на тему: "${config.topic}".
 
 Целевая аудитория: ${config.ageGroup}
@@ -571,16 +716,21 @@ Regels:
 - Вопросы викторины: ${config.includeInteractive ? quizCount : 0}
 - Практические активности: ${config.includeInteractive ? activitiesCount : 0}
 
-Правила:
-- Объясняйте термины, используйте примеры из детского мира.
-- Каждый раздел с "keyFacts" в коротких пунктах.
-- Отвечайте ИСКЛЮЧИТЕЛЬНО в виде JSON-объекта следующей структуры:
+Правила содержания:
+- Объясняйте термины с примерами из мира детей.
+- Каждый раздел с 3-5 "keyFacts" в коротких пунктах.
+- Каждый раздел начинается с конкретного захвата внимания.
+- КРАСНАЯ НИТЬ: Разделы логически строятся друг на друге.
+
+Отвечайте ИСКЛЮЧИТЕЛЬНО в виде JSON-объекта следующей структуры:
 
 {
-  "title": "Короткий, увлекательный заголовок",
+  "title": "Короткий, увлекательный заголовок (макс 8 слов)",
   "summary": "Резюме для детей в 1-3 предложениях",
-  "sections": [...],
-  "coverImagePrompt": "Короткий промпт для дружелюбной обложки без текста"
+  "sections": [
+    ${sectionSchema}
+  ],
+  "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
   };

@@ -58,13 +58,25 @@ export const getDoku = api<GetDokuParams, Doku>(
     const metadata = row.metadata ? safeParse(row.metadata) : undefined;
     const coverImageUrl = await resolveImageUrlForClient(row.cover_image_url || undefined);
 
+    // Resolve section image URLs for client (bucket storage -> public URL)
+    const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+    const resolvedSections = await Promise.all(
+      rawSections.map(async (section) => {
+        if (section.imageUrl) {
+          const resolvedUrl = await resolveImageUrlForClient(section.imageUrl);
+          return { ...section, imageUrl: resolvedUrl || section.imageUrl };
+        }
+        return section;
+      })
+    );
+
     return {
       id: row.id,
       userId: row.user_id,
       title: row.title || parsed.title || row.topic,
       topic: row.topic,
       summary: summary ?? "",
-      content: { sections: Array.isArray(parsed.sections) ? parsed.sections : [] },
+      content: { sections: resolvedSections },
       coverImageUrl,
       isPublic: row.is_public,
       status: row.status,

@@ -271,7 +271,7 @@ const DokuReaderScreen: React.FC = () => {
           <div className="w-full h-full flex flex-col pt-20 pb-32">
             <div className="text-center px-4">
               <img
-                src={doku?.coverImageUrl || '/placeholder-doku.jpg'}
+                src={section.originalSection.imageUrl || doku?.coverImageUrl || '/placeholder-doku.jpg'}
                 alt={section.originalSection.title || ''}
                 className="w-full max-w-4xl max-h-[40vh] object-cover rounded-lg shadow-lg mx-auto mb-4"
               />

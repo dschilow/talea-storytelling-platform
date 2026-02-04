@@ -24,6 +24,8 @@ export interface DokuSection {
   content: string; // markdown/text
   keyFacts: string[];
   imageIdea?: string; // textual idea for possible image
+  sectionImagePrompt?: string; // English Runware-optimized prompt (AI-generated)
+  imageUrl?: string; // generated section image URL
   interactive?: DokuInteractive;
 }
 
