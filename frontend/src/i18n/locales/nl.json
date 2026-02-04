@@ -2,6 +2,7 @@
   "common": {
     "loading": "Bezig met laden...",
     "close": "Sluiten",
+    "back": "Terug",
     "appName": "Talea",
     "loading": "Laden...",
     "error": "Fout",
@@ -181,7 +182,7 @@
         "generatingImage": "Afbeelding Genereren...",
         "createAvatar": "Avatar Maken",
         "creatingAvatar": "Avatar Maken...",
-        "imageGeneratedSuccess": "🎨 Avatar afbeelding gegenereerd!",
+        "imageGeneratedSuccess": "ðŸŽ¨ Avatar afbeelding gegenereerd!",
         "imageGenerationError": "Fout bij genereren afbeelding.",
         "avatarCreatedSuccess": "Avatar klaar!",
         "avatarCreationError": "Kon avatar niet maken."
@@ -340,8 +341,36 @@
     "audioDokusSubtitle": "Luister naar documenten als audio",
     "noAudioDokus": "Nog geen audio-documenten beschikbaar",
     "audioPlay": "Afspelen",
-    "audioLoading": "Audio wordt gemaakt...",
-    "createNew": "Nieuw Document",
+    
+        "audioLoading": "Generating audio...",
+    "audioCreateButton": "Create Audio Doc",
+    "audioCreate": {
+      "title": "Create Audio Doc",
+      "subtitle": "Upload an audio doc and generate a cover",
+      "signInRequired": "Please sign in to create an audio doc.",
+      "uploadTitle": "Upload audio",
+      "uploadDescription": "Drag & drop your audio file here",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Give your audio doc a title",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
+      "createButton": "Create Audio Doc",
+      "creating": "Creating...",
+      "previewTitle": "Cover preview",
+      "previewDescription": "The cover will be generated from your description.",
+      "previewReady": "Cover ready",
+      "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
+      "goToDokus": "Go to Dokus",
+      "createAnother": "Create another",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },"createNew": "Nieuw Document",
     "create": "Document aanmaken",
     "generating": "Document genereren...",
     "topic": "Onderwerp",
@@ -441,7 +470,7 @@
     "serverError": "Serverfout. Probeer het later opnieuw.",
     "validationError": "Ongeldige invoer",
     "formIncomplete": "Vul alle verplichte velden in",
-    "avatarRequired": "Selecteer minstens één avatar",
+    "avatarRequired": "Selecteer minstens Ã©Ã©n avatar",
     "topicRequired": "Voer een onderwerp in"
   },
   "validation": {
@@ -473,17 +502,17 @@
       "back": "Terug",
       "next": "Volgende",
       "create": "Maken",
-      "generate": "✨ Verhaal Maken! ✨"
+      "generate": "âœ¨ Verhaal Maken! âœ¨"
     },
     "common": {
       "examples": "VOORBEELDEN:",
-      "note": "💡 Opmerking:",
-      "categoryNote": "Elke categorie creëert een compleet nieuw verhaal!",
+      "note": "ðŸ’¡ Opmerking:",
+      "categoryNote": "Elke categorie creÃ«ert een compleet nieuw verhaal!",
       "wishesNote": "Alle wensen zijn optioneel. De AI doet haar best!",
       "summaryNote": "De AI maakt een verhaal op basis van je wensen. Dit duurt 60-90 seconden.",
       "selected": "geselecteerd",
       "notSelected": "Niet geselecteerd",
-      "customWish": "💬 Aangepaste wens (optioneel):",
+      "customWish": "ðŸ’¬ Aangepaste wens (optioneel):",
       "customWishPlaceholder": "bijv. 'Het verhaal moet in de ruimte spelen'",
       "chars": "tekens"
     },
@@ -501,7 +530,7 @@
       "magic": {
         "title": "Magische Werelden",
         "description": "Spreuken, magische krachten",
-        "examples": "Tovenaars, Feeën"
+        "examples": "Tovenaars, FeeÃ«n"
       },
       "animals": {
         "title": "Dierenwereld",
@@ -661,7 +690,7 @@
       "values": {
         "title": "Waarden Overbrengen",
         "subtitle": "De Waardetuin",
-        "description": "Vriendschap, moed en mededogen – in kindverhalen."
+        "description": "Vriendschap, moed en mededogen â€“ in kindverhalen."
       },
       "parents": {
         "title": "Volledige Controle",
@@ -684,7 +713,7 @@
       },
       "family": {
         "name": "Familie",
-        "price": "€9,99",
+        "price": "â‚¬9,99",
         "period": "/maand",
         "features": [
           "Onbeperkte verhalen",
@@ -697,7 +726,7 @@
       },
       "premium": {
         "name": "Premium",
-        "price": "€19,99",
+        "price": "â‚¬19,99",
         "period": "/maand",
         "features": [
           "Alles van Familie",
@@ -710,10 +739,13 @@
       }
     },
     "footer": {
-      "copyright": "Magische Verhalen voor Kinderen © 2025",
+      "copyright": "Magische Verhalen voor Kinderen Â© 2025",
       "privacy": "Privacy",
       "terms": "Voorwaarden",
       "contact": "Contact"
     }
   }
 }
+
+
+

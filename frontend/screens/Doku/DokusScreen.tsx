@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FlaskConical, Headphones, Play, Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
@@ -16,8 +16,7 @@ import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackControls';
 import type { Doku } from '../../types/doku';
-
-const MAX_AUDIO_CHARS = 2200;
+import type { AudioDoku } from '../../types/audio-doku';
 
 const DokusScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -36,16 +35,17 @@ const DokusScreen: React.FC = () => {
   const [hasMorePublic, setHasMorePublic] = useState(true);
   const [totalMy, setTotalMy] = useState(0);
   const [totalPublic, setTotalPublic] = useState(0);
-  const [isPaidUser, setIsPaidUser] = useState(false);
+
+  const [audioDokus, setAudioDokus] = useState<AudioDoku[]>([]);
+  const [loadingAudioDokus, setLoadingAudioDokus] = useState(true);
+  const [totalAudio, setTotalAudio] = useState(0);
 
   const [audioModalOpen, setAudioModalOpen] = useState(false);
-  const [selectedAudioDoku, setSelectedAudioDoku] = useState<Doku | null>(null);
-  const [audioLoading, setAudioLoading] = useState(false);
+  const [selectedAudioDoku, setSelectedAudioDoku] = useState<AudioDoku | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
 
   const myObserverTarget = useRef<HTMLDivElement>(null);
   const publicObserverTarget = useRef<HTMLDivElement>(null);
-  const audioCacheRef = useRef<Map<string, string>>(new Map());
 
   const loadMyDokus = async () => {
     try {
@@ -72,6 +72,19 @@ const DokusScreen: React.FC = () => {
       console.error('Error loading public dokus:', error);
     } finally {
       setLoadingPublic(false);
+    }
+  };
+
+  const loadAudioDokus = async () => {
+    try {
+      setLoadingAudioDokus(true);
+      const response = await backend.doku.listAudioDokus({ limit: 12, offset: 0 });
+      setAudioDokus(response.audioDokus as any[]);
+      setTotalAudio(response.total);
+    } catch (error) {
+      console.error('Error loading audio dokus:', error);
+    } finally {
+      setLoadingAudioDokus(false);
     }
   };
 
@@ -115,21 +128,8 @@ const DokusScreen: React.FC = () => {
     if (!isLoaded || !isSignedIn) return;
     void loadMyDokus();
     void loadPublicDokus();
+    void loadAudioDokus();
   }, [isLoaded, isSignedIn]);
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    const loadProfile = async () => {
-      try {
-        const profile = await backend.user.me();
-        setIsPaidUser(profile.subscription !== 'starter');
-      } catch (error) {
-        console.error('Failed to load user profile:', error);
-      }
-    };
-
-    void loadProfile();
-  }, [backend, isLoaded, isSignedIn]);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -193,89 +193,27 @@ const DokusScreen: React.FC = () => {
     }
   };
 
-  const buildAudioText = async (doku: Doku) => {
-    let fullDoku = doku;
-
-    if (!doku.content?.sections?.length) {
-      try {
-        fullDoku = await backend.doku.getDoku({ id: doku.id }) as Doku;
-      } catch (error) {
-        console.error('Failed to load doku content for audio:', error);
-      }
-    }
-
-    const parts: string[] = [];
-    if (fullDoku.title) parts.push(fullDoku.title);
-    if (fullDoku.summary) parts.push(fullDoku.summary);
-
-    const sections = fullDoku.content?.sections || [];
-    for (const section of sections) {
-      if (section?.title) parts.push(section.title);
-      if (section?.content) parts.push(section.content);
-      if (parts.join(' ').length > MAX_AUDIO_CHARS) break;
-    }
-
-    let text = parts.join(' ');
-    if (!text.trim()) {
-      text = fullDoku.topic || fullDoku.title || '';
-    }
-
-    if (text.length > MAX_AUDIO_CHARS) {
-      text = text.slice(0, MAX_AUDIO_CHARS).trim();
-    }
-
-    return text;
-  };
-
-  const generateAudioUrl = async (doku: Doku) => {
-    const text = await buildAudioText(doku);
-    const response = await backend.tts.generateSpeech({ text });
-
-    if (!response?.audioData) {
-      throw new Error('No audio data received');
-    }
-
-    const fetchRes = await fetch(response.audioData);
-    const blob = await fetchRes.blob();
-    return URL.createObjectURL(blob);
-  };
-
-  const handleOpenAudioModal = (doku: Doku) => {
+  const handleOpenAudioModal = (doku: AudioDoku) => {
     setSelectedAudioDoku(doku);
     setAudioModalOpen(true);
     setAudioError(null);
   };
 
-  const handlePlayAudio = async (doku: Doku) => {
+  const handlePlayAudio = (doku: AudioDoku) => {
     setAudioError(null);
-    setAudioLoading(true);
-
-    try {
-      let audioUrl = audioCacheRef.current.get(doku.id);
-      if (!audioUrl) {
-        audioUrl = await generateAudioUrl(doku);
-        audioCacheRef.current.set(doku.id, audioUrl);
-      }
-
-      audioPlayer.playTrack({
-        id: doku.id,
-        title: doku.title,
-        description: doku.summary || doku.topic,
-        coverImageUrl: doku.coverImageUrl,
-        audioUrl,
-      });
-    } catch (error) {
-      console.error('Audio generation failed:', error);
+    if (!doku.audioUrl) {
       setAudioError(t('errors.generic'));
-    } finally {
-      setAudioLoading(false);
+      return;
     }
-  };
 
-  const audioDokus = useMemo(() => {
-    const source = publicDokus.length > 0 ? publicDokus : myDokus;
-    return source.filter(d => d.status === 'complete').slice(0, 6);
-  }, [publicDokus, myDokus]);
+    audioPlayer.playTrack({
+      id: doku.id,
+      title: doku.title,
+      description: doku.description,
+      coverImageUrl: doku.coverImageUrl,
+      audioUrl: doku.audioUrl,
+    });
+  };
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -637,67 +575,98 @@ const DokusScreen: React.FC = () => {
               )}
             </Card>
 
-            {isPaidUser && (
-              <Card variant="glass" style={{ padding: spacing.xl }}>
-                <div style={sectionHeaderStyle}>
-                  <div>
-                    <div style={sectionTitleStyle}>
-                      <Headphones size={22} style={{ color: colors.lavender[600] }} />
-                      {t('doku.audioDokus')}
-                    </div>
-                    <div style={sectionSubtitleStyle}>{t('doku.audioDokusSubtitle')}</div>
+            <Card variant="glass" style={{ padding: spacing.xl }}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <div style={sectionTitleStyle}>
+                    <Headphones size={22} style={{ color: colors.lavender[600] }} />
+                    {t('doku.audioDokus')}
                   </div>
+                  <div style={sectionSubtitleStyle}>{t('doku.audioDokusSubtitle')} ({totalAudio})</div>
                 </div>
+                <button
+                  onClick={() => navigate('/createaudiodoku')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 18px',
+                    borderRadius: `${radii.lg}px`,
+                    background: `linear-gradient(135deg, ${colors.lavender[500]}, ${colors.lavender[600]})`,
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    boxShadow: shadows.md,
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = shadows.lg;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = shadows.md;
+                  }}
+                >
+                  <Plus size={18} />
+                  {t('doku.audioCreateButton')}
+                </button>
+              </div>
 
-                {audioDokus.length === 0 ? (
-                  <div style={emptyStateStyle}>
-                    {t('doku.noAudioDokus')}
-                  </div>
-                ) : (
-                  <div style={gridStyle}>
-                    {audioDokus.map((doku) => (
-                      <div
-                        key={doku.id}
-                        style={audioCardStyle}
-                        onClick={() => handleOpenAudioModal(doku)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-6px)';
-                          e.currentTarget.style.boxShadow = shadows.xl;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = shadows.md;
-                        }}
-                      >
-                        <div style={audioCardImageStyle}>
-                          {doku.coverImageUrl ? (
-                            <img src={doku.coverImageUrl} alt={doku.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
-                              <Headphones size={48} style={{ color: colors.text.inverse, opacity: 0.8 }} />
-                            </div>
-                          )}
-                          <div style={audioOverlayStyle}>
-                            <div style={audioPlayBadgeStyle}>
-                              <Play size={14} />
-                              {t('doku.audioPlay')}
-                            </div>
+              {loadingAudioDokus ? (
+                <div style={loadingStyle}>
+                  <LottieLoader message={t('common.loading')} size={120} />
+                </div>
+              ) : audioDokus.length === 0 ? (
+                <div style={emptyStateStyle}>
+                  {t('doku.noAudioDokus')}
+                </div>
+              ) : (
+                <div style={gridStyle}>
+                  {audioDokus.map((doku) => (
+                    <div
+                      key={doku.id}
+                      style={audioCardStyle}
+                      onClick={() => handleOpenAudioModal(doku)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-6px)';
+                        e.currentTarget.style.boxShadow = shadows.xl;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = shadows.md;
+                      }}
+                    >
+                      <div style={audioCardImageStyle}>
+                        {doku.coverImageUrl ? (
+                          <img src={doku.coverImageUrl} alt={doku.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                            <Headphones size={48} style={{ color: colors.text.inverse, opacity: 0.8 }} />
                           </div>
-                        </div>
-                        <div style={audioCardBodyStyle}>
-                          <div style={{ ...typography.textStyles.headingSm, color: colors.text.primary, marginBottom: spacing.xs }}>
-                            {doku.title}
-                          </div>
-                          <div style={{ ...typography.textStyles.bodySm, color: colors.text.secondary }}>
-                            {doku.summary || doku.topic}
+                        )}
+                        <div style={audioOverlayStyle}>
+                          <div style={audioPlayBadgeStyle}>
+                            <Play size={14} />
+                            {t('doku.audioPlay')}
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            )}
+                      <div style={audioCardBodyStyle}>
+                        <div style={{ ...typography.textStyles.headingSm, color: colors.text.primary, marginBottom: spacing.xs }}>
+                          {doku.title}
+                        </div>
+                        <div style={{ ...typography.textStyles.bodySm, color: colors.text.secondary }}>
+                          {doku.description}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </div>
         </FadeInView>
 
@@ -736,7 +705,7 @@ const DokusScreen: React.FC = () => {
                 </div>
                 <div style={{ flex: 1, minWidth: 240 }}>
                   <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: spacing.md }}>
-                    {selectedAudioDoku.summary || selectedAudioDoku.topic}
+                    {selectedAudioDoku.description}
                   </div>
                   <div style={{
                     background: colors.glass.background,
@@ -750,19 +719,7 @@ const DokusScreen: React.FC = () => {
                       </div>
                     )}
 
-                    {audioLoading ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary }}>
-                        <div style={{
-                          width: 18,
-                          height: 18,
-                          border: `2px solid ${colors.border.light}`,
-                          borderTop: `2px solid ${colors.primary[500]}`,
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite',
-                        }} />
-                        {t('doku.audioLoading')}
-                      </div>
-                    ) : audioPlayer.track?.id === selectedAudioDoku.id ? (
+                    {audioPlayer.track?.id === selectedAudioDoku.id ? (
                       <AudioPlaybackControls variant="full" showClose />
                     ) : (
                       <Button

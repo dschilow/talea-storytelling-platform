@@ -2,6 +2,7 @@
   "common": {
     "loading": "Loading...",
     "close": "Close",
+    "back": "Back",
     "examples": "EXAMPLES:",
     "note": "💡 Note:",
     "categoryNote": "Each category creates a completely new story specifically for your avatars. No pre-written story is told, but an individual story is created!",
@@ -628,6 +629,34 @@
     "noAudioDokus": "No audio docs available yet",
     "audioPlay": "Play",
     "audioLoading": "Generating audio...",
+    "audioCreateButton": "Create Audio Doc",
+    "audioCreate": {
+      "title": "Create Audio Doc",
+      "subtitle": "Upload an audio doc and generate a cover",
+      "signInRequired": "Please sign in to create an audio doc.",
+      "uploadTitle": "Upload audio",
+      "uploadDescription": "Drag & drop your audio file here",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Give your audio doc a title",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
+      "createButton": "Create Audio Doc",
+      "creating": "Creating...",
+      "previewTitle": "Cover preview",
+      "previewDescription": "The cover will be generated from your description.",
+      "previewReady": "Cover ready",
+      "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
+      "goToDokus": "Go to Dokus",
+      "createAnother": "Create another",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },
     "createNew": "New Doc",
     "wizard": {
       "title": "New Knowledge Doc",

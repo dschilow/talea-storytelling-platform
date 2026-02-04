@@ -612,6 +612,7 @@ export namespace avatar {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { createAudioDoku as api_doku_audio_createAudioDoku, listAudioDokus as api_doku_audio_listAudioDokus } from "~backend/doku/audio-doku";
 import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
 import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
@@ -627,13 +628,20 @@ export namespace doku {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.createAudioDoku = this.createAudioDoku.bind(this)
             this.deleteDoku = this.deleteDoku.bind(this)
             this.generateDoku = this.generateDoku.bind(this)
             this.getDoku = this.getDoku.bind(this)
+            this.listAudioDokus = this.listAudioDokus.bind(this)
             this.listDokus = this.listDokus.bind(this)
             this.listPublicDokus = this.listPublicDokus.bind(this)
             this.markRead = this.markRead.bind(this)
             this.updateDoku = this.updateDoku.bind(this)
+        }
+
+        public async createAudioDoku(params: RequestType<typeof api_doku_audio_createAudioDoku>): Promise<ResponseType<typeof api_doku_audio_createAudioDoku>> {
+            const resp = await this.baseClient.callTypedAPI(`/audio-dokus`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_createAudioDoku>
         }
 
         public async deleteDoku(params: { id: string }): Promise<void> {
@@ -653,6 +661,21 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_get_getDoku>
+        }
+
+        /**
+         * Lists public audio dokus across all users with pagination.
+         */
+        public async listAudioDokus(params: RequestType<typeof api_doku_audio_listAudioDokus>): Promise<ResponseType<typeof api_doku_audio_listAudioDokus>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                limit:  params.limit === undefined ? undefined : String(params.limit),
+                offset: params.offset === undefined ? undefined : String(params.offset),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/audio-dokus`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_listAudioDokus>
         }
 
         /**

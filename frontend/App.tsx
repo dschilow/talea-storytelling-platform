@@ -31,6 +31,7 @@ import ModernDokuWizard from './screens/Doku/ModernDokuWizard';
 import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
 import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
 import DokusScreen from './screens/Doku/DokusScreen';
+import CreateAudioDokuScreen from './screens/Doku/CreateAudioDokuScreen';
 import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
 import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
@@ -65,6 +66,7 @@ const RouterContent = () => {
           <Route path="/community" element={<ModernHomeScreen />} />
           <Route path="/logs" element={<LogViewerScreen />} />
           <Route path="/doku" element={<DokusScreen />} />
+          <Route path="/createaudiodoku" element={<CreateAudioDokuScreen />} />
           <Route path="/characters" element={<CharacterPoolScreen />} />
           <Route path="/artifacts" element={<ArtifactPoolScreen />} />
           <Route path="/fairytales" element={<FairyTalesScreen />} />

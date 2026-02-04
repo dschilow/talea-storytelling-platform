@@ -150,8 +150,24 @@ const MIGRATION_STATEMENTS = [
       ALTER TABLE dokus ADD COLUMN metadata JSONB;
     END IF;
   END $$`,
+
+  // 12. Audio dokus table
+  `CREATE TABLE IF NOT EXISTS audio_dokus (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    cover_description TEXT,
+    cover_image_url TEXT,
+    audio_url TEXT NOT NULL,
+    is_public BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_audio_dokus_user_id ON audio_dokus(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_audio_dokus_public ON audio_dokus(is_public)`,
   
-  // 12. Avatar doku read tracking
+  // 13. Avatar doku read tracking
   `CREATE TABLE IF NOT EXISTS avatar_doku_read (
     avatar_id TEXT NOT NULL REFERENCES avatars(id) ON DELETE CASCADE,
     doku_id TEXT NOT NULL REFERENCES dokus(id) ON DELETE CASCADE,
@@ -161,7 +177,7 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_avatar_doku_avatar ON avatar_doku_read(avatar_id)`,
   `CREATE INDEX IF NOT EXISTS idx_avatar_doku_doku ON avatar_doku_read(doku_id)`,
   
-  // 13. Avatar story read tracking
+  // 14. Avatar story read tracking
   `CREATE TABLE IF NOT EXISTS avatar_story_read (
     avatar_id TEXT NOT NULL REFERENCES avatars(id) ON DELETE CASCADE,
     story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
@@ -171,7 +187,7 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_avatar_story_avatar ON avatar_story_read(avatar_id)`,
   `CREATE INDEX IF NOT EXISTS idx_avatar_story_story ON avatar_story_read(story_id)`,
   
-  // 14. AI personality tracking
+  // 15. AI personality tracking
   `CREATE TABLE IF NOT EXISTS personality_tracking (
     id TEXT PRIMARY KEY,
     avatar_id TEXT NOT NULL REFERENCES avatars(id) ON DELETE CASCADE,
@@ -187,7 +203,7 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_personality_tracking_type ON personality_tracking(event_type)`,
   `CREATE INDEX IF NOT EXISTS idx_personality_tracking_date ON personality_tracking(created_at DESC)`,
 
-  // 15. Character pool for supporting story characters
+  // 16. Character pool for supporting story characters
   `CREATE TABLE IF NOT EXISTS character_pool (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -217,7 +233,7 @@ const MIGRATION_STATEMENTS = [
     END IF;
   END $$`,
 
-  // 16. Story-character junction table
+  // 17. Story-character junction table
   `CREATE TABLE IF NOT EXISTS story_characters (
     id TEXT PRIMARY KEY,
     story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
@@ -229,7 +245,7 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_story_characters_story ON story_characters(story_id)`,
   `CREATE INDEX IF NOT EXISTS idx_story_characters_character ON story_characters(character_id)`,
 
-  // 17. Story skeletons (Phase 1 output storage)
+  // 18. Story skeletons (Phase 1 output storage)
   `CREATE TABLE IF NOT EXISTS story_skeletons (
     id TEXT PRIMARY KEY,
     story_id TEXT NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
@@ -240,7 +256,7 @@ const MIGRATION_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_story_skeletons_story ON story_skeletons(story_id)`,
 
-  // 18. Add avatar_developments column to stories
+  // 19. Add avatar_developments column to stories
   `DO $$
   BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns

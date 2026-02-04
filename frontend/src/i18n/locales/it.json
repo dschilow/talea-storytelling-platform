@@ -2,6 +2,7 @@
   "common": {
     "loading": "Caricamento...",
     "close": "Chiudi",
+    "back": "Indietro",
     "appName": "Talea",
     "error": "Errore",
     "success": "Successo",
@@ -18,7 +19,7 @@
     "filter": "Filtra",
     "sort": "Ordina",
     "new": "Nuovo",
-    "yes": "Sì",
+    "yes": "SÃ¬",
     "no": "No"
   },
   "navigation": {
@@ -73,7 +74,7 @@
     "password": "Password",
     "forgotPassword": "Password dimenticata?",
     "noAccount": "Non hai un account?",
-    "hasAccount": "Hai già un account?",
+    "hasAccount": "Hai giÃ  un account?",
     "continue": "Continua"
   },
   "home": {
@@ -98,7 +99,7 @@
     "name": "Nome",
     "description": "Descrizione",
     "physicalTraits": "Tratti fisici",
-    "personality": "Personalità",
+    "personality": "PersonalitÃ ",
     "image": "Immagine",
     "generateImage": "Genera immagine",
     "uploadPhoto": "Carica foto",
@@ -106,10 +107,10 @@
     "deleteConfirm": "Sei sicuro di voler eliminare questo avatar?",
     "personalityTraits": {
       "knowledge": "Conoscenza",
-      "creativity": "Creatività",
+      "creativity": "CreativitÃ ",
       "vocabulary": "Vocabulario",
       "courage": "Coraggio",
-      "curiosity": "Curiosità",
+      "curiosity": "CuriositÃ ",
       "teamwork": "Lavoro di squadra",
       "empathy": "Empatia",
       "persistence": "Perseveranza",
@@ -123,7 +124,7 @@
     },
     "wizard": {
       "steps": {
-        "mode": "Scegli Modalità",
+        "mode": "Scegli ModalitÃ ",
         "basic": "Info Base",
         "appearance": "Aspetto",
         "style": "Stile",
@@ -145,9 +146,9 @@
         "title": "Info Base",
         "subtitle": "Parlaci del tuo personaggio",
         "name": "Nome",
-        "namePlaceholder": "Come si chiamerà il tuo avatar?",
+        "namePlaceholder": "Come si chiamerÃ  il tuo avatar?",
         "type": "Tipo",
-        "age": "Età",
+        "age": "EtÃ ",
         "gender": "Genere",
         "description": "Descrivi il tuo avatar",
         "descriptionPlaceholder": "es. Luna - Una ragazza curiosa, 8 anni..."
@@ -173,13 +174,13 @@
         "backstory": "Storia di Sfondo"
       },
       "create": {
-        "title": "Il tuo avatar è pronto!",
-        "info": "I tratti della personalità si sviluppano attraverso le storie!",
+        "title": "Il tuo avatar Ã¨ pronto!",
+        "info": "I tratti della personalitÃ  si sviluppano attraverso le storie!",
         "generateImage": "Genera Immagine",
         "generatingImage": "Generazione Immagine...",
         "createAvatar": "Crea Avatar",
         "creatingAvatar": "Creazione Avatar...",
-        "imageGeneratedSuccess": "🎨 Immagine avatar generata!",
+        "imageGeneratedSuccess": "ðŸŽ¨ Immagine avatar generata!",
         "imageGenerationError": "Errore generazione immagine.",
         "avatarCreatedSuccess": "Avatar pronto!",
         "avatarCreationError": "Impossibile creare l'avatar."
@@ -194,7 +195,7 @@
           "other": "Altro"
         },
         "ages": {
-          "baby": "Bebè",
+          "baby": "BebÃ¨",
           "child": "Bambino",
           "teen": "Adolescente",
           "adult": "Adulto",
@@ -245,7 +246,7 @@
         },
         "world": {
           "forest": "Foresta",
-          "city": "Città",
+          "city": "CittÃ ",
           "castle": "Castello",
           "future": "Futuro",
           "underwater": "Sottomarino",
@@ -256,7 +257,7 @@
           "adventurer": "Un coraggioso avventuriero in viaggio",
           "wizard": "Un apprendista di magia con grande potenziale",
           "talent": "Ha scoperto un talento speciale",
-          "normal": "Un bambino normale pieno di curiosità"
+          "normal": "Un bambino normale pieno di curiositÃ "
         }
       }
     }
@@ -269,10 +270,10 @@
     "generating": "Generazione storia...",
     "selectAvatars": "Seleziona avatar",
     "selectAvatarsSubtitle": "Scegli fino a 3 avatar per la storia",
-    "ageGroup": "Fascia d'età",
+    "ageGroup": "Fascia d'etÃ ",
     "genre": "Genere",
     "length": "Durata",
-    "complexity": "Complessità",
+    "complexity": "ComplessitÃ ",
     "tone": "Tono",
     "settings": "Impostazioni",
     "advanced": "Avanzate",
@@ -338,20 +339,47 @@
     "audioDokusSubtitle": "Ascolta i documenti in audio",
     "noAudioDokus": "Nessun documento audio disponibile",
     "audioPlay": "Riproduci",
-    "audioLoading": "Generazione audio...",
-    "create": "Crea documento",
-    "createNew": "Nuovo documento",
+    
+        "audioLoading": "Generating audio...",
+    "audioCreateButton": "Create Audio Doc",
+    "audioCreate": {
+      "title": "Create Audio Doc",
+      "subtitle": "Upload an audio doc and generate a cover",
+      "signInRequired": "Please sign in to create an audio doc.",
+      "uploadTitle": "Upload audio",
+      "uploadDescription": "Drag & drop your audio file here",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Give your audio doc a title",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
+      "createButton": "Create Audio Doc",
+      "creating": "Creating...",
+      "previewTitle": "Cover preview",
+      "previewDescription": "The cover will be generated from your description.",
+      "previewReady": "Cover ready",
+      "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
+      "goToDokus": "Go to Dokus",
+      "createAnother": "Create another",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },"createNew": "Nuovo documento",
     "generating": "Generazione documento...",
     "topic": "Argomento",
     "topicPlaceholder": "Su cosa vorresti imparare?",
-    "depth": "Profondità",
-    "ageGroup": "Fascia d'età",
+    "depth": "ProfonditÃ ",
+    "ageGroup": "Fascia d'etÃ ",
     "perspective": "Prospettiva",
     "tone": "Tono",
     "length": "Durata",
     "interactive": "Elementi interattivi",
     "quizQuestions": "Domande quiz",
-    "activities": "Attività pratiche",
+    "activities": "AttivitÃ  pratiche",
     "generateDoku": "Genera documento",
     "depths": {
       "basic": "Base",
@@ -396,7 +424,7 @@
     "appearance": "Aspetto",
     "theme": "Tema",
     "themeTitle": "Aspetto",
-    "themeDescription": "Scegli tra modalità chiara, scura o automatica",
+    "themeDescription": "Scegli tra modalitÃ  chiara, scura o automatica",
     "light": "Chiaro",
     "dark": "Scuro",
     "system": "Sistema",
@@ -432,11 +460,11 @@
     "totalDokus": "Totale documenti"
   },
   "errors": {
-    "generic": "Si è verificato un errore",
+    "generic": "Si Ã¨ verificato un errore",
     "networkError": "Errore di rete. Controlla la tua connessione Internet.",
     "unauthorized": "Non autorizzato. Effettua l'accesso.",
     "notFound": "Non trovato",
-    "serverError": "Errore del server. Riprova più tardi.",
+    "serverError": "Errore del server. Riprova piÃ¹ tardi.",
     "validationError": "Input non valido",
     "formIncomplete": "Compila tutti i campi obbligatori",
     "avatarRequired": "Seleziona almeno un avatar",
@@ -447,14 +475,14 @@
     "email": "Indirizzo email non valido",
     "minLength": "Almeno {{count}} caratteri",
     "maxLength": "Massimo {{count}} caratteri",
-    "nameRequired": "Il nome è obbligatorio",
-    "descriptionRequired": "La descrizione è obbligatoria"
+    "nameRequired": "Il nome Ã¨ obbligatorio",
+    "descriptionRequired": "La descrizione Ã¨ obbligatoria"
   },
   "wizard": {
     "titles": {
-      "avatars": "Chi c'è nella storia?",
+      "avatars": "Chi c'Ã¨ nella storia?",
       "category": "Che tipo di storia?",
-      "ageLength": "Per quale età e durata?",
+      "ageLength": "Per quale etÃ  e durata?",
       "feeling": "Che atmosfera?",
       "wishes": "Desideri speciali? (Opzionale)",
       "summary": "Tutto pronto!"
@@ -462,7 +490,7 @@
     "subtitles": {
       "avatars": "Seleziona 1-4 avatar per la storia.",
       "category": "Scegli una categoria - i tuoi avatar faranno parte di una storia unica!",
-      "ageLength": "Adatta la storia all'età e al tempo disponibile.",
+      "ageLength": "Adatta la storia all'etÃ  e al tempo disponibile.",
       "feeling": "Seleziona 1-3 atmosfere.",
       "wishes": "Aggiungi caratteristiche speciali o salta questo passaggio.",
       "summary": "Controlla la tua selezione e crea la storia."
@@ -471,17 +499,17 @@
       "back": "Indietro",
       "next": "Avanti",
       "create": "Crea",
-      "generate": "✨ Crea Storia! ✨"
+      "generate": "âœ¨ Crea Storia! âœ¨"
     },
     "common": {
       "examples": "ESEMPI:",
-      "note": "💡 Nota:",
+      "note": "ðŸ’¡ Nota:",
       "categoryNote": "Ogni categoria crea una storia completamente nuova!",
-      "wishesNote": "Tutti i desideri sono opzionali. L'IA farà del suo meglio!",
+      "wishesNote": "Tutti i desideri sono opzionali. L'IA farÃ  del suo meglio!",
       "summaryNote": "L'IA crea una storia basata sui tuoi desideri. Ci vogliono 60-90 secondi.",
       "selected": "selezionato",
       "notSelected": "Non selezionato",
-      "customWish": "💬 Desiderio personalizzato (opzionale):",
+      "customWish": "ðŸ’¬ Desiderio personalizzato (opzionale):",
       "customWishPlaceholder": "es. 'La storia deve svolgersi nello spazio'",
       "chars": "caratteri"
     },
@@ -528,7 +556,7 @@
       },
       "9-12": {
         "title": "9-12 Anni",
-        "description": "Trame più complesse"
+        "description": "Trame piÃ¹ complesse"
       },
       "13+": {
         "title": "13+ Anni",
@@ -576,7 +604,7 @@
     },
     "summary": {
       "avatars": "Avatar",
-      "age": "Età",
+      "age": "EtÃ ",
       "category": "Categoria",
       "length": "Durata",
       "feelings": "Sentimenti",
@@ -586,15 +614,15 @@
     "wishes": {
       "rhymes": {
         "title": "Rime",
-        "description": "La storia è raccontata in rima"
+        "description": "La storia Ã¨ raccontata in rima"
       },
       "moral": {
         "title": "Morale",
         "description": "La storia trasmette una lezione"
       },
       "avatarIsHero": {
-        "title": "Avatar è Eroe",
-        "description": "Il tuo avatar è il protagonista"
+        "title": "Avatar Ã¨ Eroe",
+        "description": "Il tuo avatar Ã¨ il protagonista"
       },
       "famousCharacters": {
         "title": "Personaggi Famosi",
@@ -612,7 +640,7 @@
     "steps": {
       "avatars": "Avatar",
       "category": "Categoria",
-      "ageLength": "Età e Durata",
+      "ageLength": "EtÃ  e Durata",
       "feeling": "Sentimenti",
       "wishes": "Desideri",
       "summary": "Riepilogo"
@@ -659,7 +687,7 @@
       "values": {
         "title": "Trasmettere Valori",
         "subtitle": "Il Giardino dei Valori",
-        "description": "Amicizia, coraggio e compassione – in storie per bambini."
+        "description": "Amicizia, coraggio e compassione â€“ in storie per bambini."
       },
       "parents": {
         "title": "Controllo Totale",
@@ -676,31 +704,31 @@
         "features": [
           "3 storie al mese",
           "1 Avatar",
-          "Qualità standard"
+          "QualitÃ  standard"
         ],
         "cta": "Inizia Gratis"
       },
       "family": {
         "name": "Famiglia",
-        "price": "€9,99",
+        "price": "â‚¬9,99",
         "period": "/mese",
         "features": [
           "Storie illimitate",
           "5 Avatar",
-          "Qualità HD",
+          "QualitÃ  HD",
           "Funzione memoria",
-          "Senza pubblicità"
+          "Senza pubblicitÃ "
         ],
         "cta": "Inizia"
       },
       "premium": {
         "name": "Premium",
-        "price": "€19,99",
+        "price": "â‚¬19,99",
         "period": "/mese",
         "features": [
           "Tutto di Famiglia",
           "Avatar illimitati",
-          "Qualità 4K",
+          "QualitÃ  4K",
           "Supporto prioritario",
           "Accesso anticipato"
         ],
@@ -708,10 +736,13 @@
       }
     },
     "footer": {
-      "copyright": "Storie Magiche per Bambini © 2025",
+      "copyright": "Storie Magiche per Bambini Â© 2025",
       "privacy": "Privacy",
       "terms": "Termini",
       "contact": "Contatti"
     }
   }
 }
+
+
+

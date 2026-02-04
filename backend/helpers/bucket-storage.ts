@@ -151,6 +151,13 @@ const extFromContentType = (contentType: string): string => {
   if (normalized.includes("webp")) return "webp";
   if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
   if (normalized.includes("gif")) return "gif";
+  if (normalized.includes("audio/mpeg") || normalized.includes("audio/mp3")) return "mp3";
+  if (normalized.includes("audio/wav") || normalized.includes("audio/x-wav")) return "wav";
+  if (normalized.includes("audio/ogg")) return "ogg";
+  if (normalized.includes("audio/webm")) return "webm";
+  if (normalized.includes("audio/mp4") || normalized.includes("audio/x-m4a") || normalized.includes("audio/m4a")) return "m4a";
+  if (normalized.includes("audio/aac")) return "aac";
+  if (normalized.includes("audio/flac")) return "flac";
   return "bin";
 };
 
@@ -427,6 +434,29 @@ export async function resolveImageUrlForClient(
   } catch (error) {
     console.warn("[Bucket] Failed to sign URL:", error);
     return imageUrl;
+  }
+}
+
+export async function resolveObjectUrlForClient(
+  objectUrl: string | undefined,
+  ttlSeconds?: number
+): Promise<string | undefined> {
+  if (!objectUrl) return undefined;
+  const config = await pickConfig();
+  if (!config) return objectUrl;
+
+  const key = extractBucketKey(objectUrl, config);
+  if (!key) return objectUrl;
+
+  if (config.accessMode === "public") {
+    return buildPublicUrl(config, key);
+  }
+
+  try {
+    return await signObjectUrl(config, key, ttlSeconds);
+  } catch (error) {
+    console.warn("[Bucket] Failed to sign URL:", error);
+    return objectUrl;
   }
 }
 

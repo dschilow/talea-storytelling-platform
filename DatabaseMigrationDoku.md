@@ -332,6 +332,25 @@ SELECT COUNT(*) FROM story_artifacts;
 -- Ergebnis: 0 (wird erst gefüllt, wenn User Stories lesen)
 ```
 
+### 7. Audio-Doku Migration (Doku Service)
+
+Diese Migration liegt im Doku-Service, nicht im Story-Service.
+
+**Datei:** `backend/doku/migrations/3_create_audio_dokus.up.sql`
+
+**Runner:** `execute-migrations-via-api.ts` (Gruppe `audio`)
+
+```bash
+bun run execute-migrations-via-api.ts audio
+```
+
+**Verifizieren:**
+
+```sql
+SELECT COUNT(*) FROM audio_dokus;
+SELECT id, title, is_public, created_at FROM audio_dokus ORDER BY created_at DESC LIMIT 5;
+```
+
 ## Tipps für eigene Migrations
 
 ### 1. Migration-Dateinamen

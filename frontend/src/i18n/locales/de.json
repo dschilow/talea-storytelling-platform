@@ -2,6 +2,7 @@
   "common": {
     "loading": "Lädt...",
     "close": "Schließen",
+    "back": "Zurück",
     "examples": "BEISPIELE:",
     "note": "💡 Hinweis:",
     "categoryNote": "Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine individuelle Geschichte erschaffen!",
@@ -628,6 +629,34 @@
     "noAudioDokus": "Noch keine Audio-Dokus verfügbar",
     "audioPlay": "Abspielen",
     "audioLoading": "Audio wird erstellt...",
+    "audioCreateButton": "Audio-Doku erstellen",
+    "audioCreate": {
+      "title": "Audio-Doku erstellen",
+      "subtitle": "Audio hochladen und Cover automatisch generieren",
+      "signInRequired": "Bitte melde dich an, um eine Audio-Doku zu erstellen.",
+      "uploadTitle": "Audio hochladen",
+      "uploadDescription": "Ziehe eine Audiodatei hierher oder klicke zum Auswählen",
+      "titleLabel": "Titel (optional)",
+      "titlePlaceholder": "Gib der Audio-Doku einen Titel",
+      "coverLabel": "Cover-Beschreibung",
+      "coverPlaceholder": "Beschreibe das Cover, das generiert werden soll...",
+      "descriptionLabel": "Audio-Doku Beschreibung",
+      "descriptionPlaceholder": "Diese Beschreibung erscheint neben dem Player",
+      "createButton": "Audio-Doku erstellen",
+      "creating": "Wird erstellt...",
+      "previewTitle": "Cover-Vorschau",
+      "previewDescription": "Das Cover wird aus deiner Beschreibung generiert.",
+      "previewReady": "Cover bereit",
+      "previewDescriptionReady": "Deine Audio-Doku wurde gespeichert.",
+      "goToDokus": "Zu den Dokus",
+      "createAnother": "Noch eine erstellen",
+      "errors": {
+        "missingAudio": "Bitte lade eine Audiodatei hoch.",
+        "missingCover": "Bitte beschreibe das Cover.",
+        "missingDescription": "Bitte füge eine Beschreibung hinzu.",
+        "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
+      }
+    },
     "createNew": "Neue Doku",
     "wizard": {
       "title": "Neue Wissens-Doku",
