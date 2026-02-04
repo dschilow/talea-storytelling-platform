@@ -2,6 +2,7 @@ import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, Sto
 import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, buildTemplatePhraseRewritePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
+import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions } from "./quality-gates";
 import { findTemplatePhraseMatches } from "./template-phrases";
 
@@ -18,10 +19,60 @@ export class LlmStoryWriter implements StoryWriter {
     fusionSections?: Map<number, string>;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
-    const model = "gpt-5-mini";
+    const model = normalizedRequest.rawConfig?.aiModel ?? "gpt-5-mini";
+    const isGeminiModel = model.startsWith("gemini-");
     const targetLanguage = normalizedRequest.language === "de" ? "German" : normalizedRequest.language;
     const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.`;
     const editSystemPrompt = "You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.";
+    const clampMaxTokens = (maxTokens?: number) => {
+      const safeMax = maxTokens ?? 2000;
+      return isGeminiModel ? Math.min(safeMax, 8192) : safeMax;
+    };
+
+    const callStoryModel = async (input: {
+      systemPrompt: string;
+      userPrompt: string;
+      responseFormat?: "json_object" | "text";
+      maxTokens?: number;
+      temperature?: number;
+      context?: string;
+      logSource?: string;
+      logMetadata?: Record<string, any>;
+      reasoningEffort?: "low" | "medium" | "high";
+    }) => {
+      if (isGeminiModel) {
+        const geminiResponse = await generateWithGemini({
+          systemPrompt: input.systemPrompt,
+          userPrompt: input.userPrompt,
+          maxTokens: clampMaxTokens(input.maxTokens),
+          temperature: input.temperature,
+        });
+        return {
+          content: geminiResponse.content,
+          usage: {
+            promptTokens: geminiResponse.usage.promptTokens,
+            completionTokens: geminiResponse.usage.completionTokens,
+            totalTokens: geminiResponse.usage.totalTokens,
+            model,
+          },
+        };
+      }
+
+      return callChatCompletion({
+        model,
+        messages: [
+          { role: "system", content: input.systemPrompt },
+          { role: "user", content: input.userPrompt },
+        ],
+        responseFormat: input.responseFormat,
+        maxTokens: input.maxTokens,
+        temperature: input.temperature,
+        reasoningEffort: input.reasoningEffort,
+        context: input.context,
+        logSource: input.logSource,
+        logMetadata: input.logMetadata,
+      });
+    };
 
     const lengthTargets = normalizedRequest.wordBudget
       ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
@@ -56,12 +107,9 @@ export class LlmStoryWriter implements StoryWriter {
 
     const maxOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));
 
-    const result = await callChatCompletion({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
-      ],
+    const result = await callStoryModel({
+      systemPrompt,
+      userPrompt: prompt,
       responseFormat: "json_object",
       maxTokens: Math.min(maxOutputTokens, 16000),
       temperature: strict ? 0.4 : 0.7,
@@ -136,12 +184,9 @@ export class LlmStoryWriter implements StoryWriter {
 
         const maxTokens = Math.min(2000, Math.round(Math.max(600, lengthTargets.wordMax * 2.5)));
         try {
-          const result = await callChatCompletion({
-            model,
-            messages: [
-              { role: "system", content: editSystemPrompt },
-              { role: "user", content: prompt },
-            ],
+          const result = await callStoryModel({
+            systemPrompt: editSystemPrompt,
+            userPrompt: prompt,
             responseFormat: "json_object",
             maxTokens,
             temperature: 0.4,
@@ -206,12 +251,9 @@ export class LlmStoryWriter implements StoryWriter {
         stylePackText,
       });
 
-      const rewriteResult = await callChatCompletion({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: rewritePrompt },
-        ],
+      const rewriteResult = await callStoryModel({
+        systemPrompt,
+        userPrompt: rewritePrompt,
         responseFormat: "json_object",
         maxTokens: Math.min(maxOutputTokens, 16000),
         temperature: 0.4,
@@ -275,12 +317,9 @@ export class LlmStoryWriter implements StoryWriter {
       try {
         const titleSystem = `You summarize children's stories in ${targetLanguage}.`;
         const titlePrompt = buildStoryTitlePrompt({ storyText, language: normalizedRequest.language });
-        const titleResult = await callChatCompletion({
-          model,
-          messages: [
-            { role: "system", content: titleSystem },
-            { role: "user", content: titlePrompt },
-          ],
+        const titleResult = await callStoryModel({
+          systemPrompt: titleSystem,
+          userPrompt: titlePrompt,
           responseFormat: "json_object",
           maxTokens: 800,
           temperature: 0.6,

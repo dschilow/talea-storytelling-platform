@@ -189,6 +189,7 @@ export function calculateTokenCosts(usage: { promptTokens: number; completionTok
 }
 
 function inputPricePerMillion(model: string): number {
+  if (model.includes("gemini")) return 0.0;
   if (model.includes("gpt-5-nano")) return 0.03;
   if (model.includes("gpt-5-mini")) return 0.075;
   if (model.includes("gpt-5-pro")) return 5.0;
@@ -199,6 +200,7 @@ function inputPricePerMillion(model: string): number {
 }
 
 function outputPricePerMillion(model: string): number {
+  if (model.includes("gemini")) return 0.0;
   if (model.includes("gpt-5-nano")) return 0.12;
   if (model.includes("gpt-5-mini")) return 0.3;
   if (model.includes("gpt-5-pro")) return 20.0;
