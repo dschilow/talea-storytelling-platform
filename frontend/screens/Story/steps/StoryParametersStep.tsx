@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
 
-type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-pro' | 'gpt-4.1-nano' | 'gpt-4.1-mini' | 'gpt-4.1' | 'o4-mini' | 'gemini-2.0-flash';
+type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-2.0-flash';
 
 interface StoryParametersStepProps {
   length: 'short' | 'medium' | 'long';
@@ -102,12 +102,7 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
     { key: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', icon: '🔥', description: 'KOSTENLOS - Google AI (Experimental)', cost: 'FREE', recommended: true },
     { key: 'gpt-5-nano', label: 'GPT-5 Nano', icon: '⚡', description: '$0.05/1M - Schnell & günstig', cost: '$0.05' },
     { key: 'gpt-5-mini', label: 'GPT-5 Mini', icon: '✨', description: '$0.25/1M - Bewährt', cost: '$0.25' },
-    { key: 'gpt-5', label: 'GPT-5', icon: '🌟', description: '$1.25/1M - Beste Qualität', cost: '$1.25' },
-    { key: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', icon: '🔷', description: '$0.20/1M - Sehr günstig', cost: '$0.20' },
-    { key: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', icon: '💎', description: '$0.80/1M - GPT-4 Qualität', cost: '$0.80' },
-    { key: 'gpt-4.1', label: 'GPT-4.1', icon: '💠', description: '$3.00/1M - Premium', cost: '$3.00' },
-    { key: 'o4-mini', label: 'o4 Mini', icon: '🎯', description: '$4.00/1M - Reasoning', cost: '$4.00' },
-    { key: 'gpt-5-pro', label: 'GPT-5 Pro', icon: '👑', description: '$15/1M - Höchste Qualität', cost: '$15.00' },
+    { key: 'gpt-5.2', label: 'GPT-5.2', icon: '🌟', description: '$1.25/1M - Beste Qualität', cost: '$1.25' },
   ];
 
   const renderParameterSection = (

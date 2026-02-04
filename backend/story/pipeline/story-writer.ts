@@ -501,9 +501,27 @@ function sanitizeMetaStructureFromText(text: string): string {
 }
 
 function safeJson(text: string) {
+  if (!text) return null;
+  const trimmed = text.trim();
+
+  // Strip markdown code fences if present
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
+
   try {
-    return JSON.parse(text);
+    return JSON.parse(candidate);
   } catch {
+    // Try to recover a JSON object from surrounding text
+    const first = candidate.indexOf("{");
+    const last = candidate.lastIndexOf("}");
+    if (first !== -1 && last !== -1 && last > first) {
+      const slice = candidate.slice(first, last + 1);
+      try {
+        return JSON.parse(slice);
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }

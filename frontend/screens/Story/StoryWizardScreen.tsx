@@ -36,7 +36,7 @@ interface StoryConfig {
   customPrompt?: string;
   language?: 'de' | 'en';
 
-  aiModel?: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-pro' | 'gpt-4.1-nano' | 'gpt-4.1-mini' | 'gpt-4.1' | 'o4-mini' | 'gemini-2.0-flash';
+  aiModel?: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-2.0-flash';
 
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';

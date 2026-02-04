@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
-type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-pro' | 'gpt-4.1-nano' | 'gpt-4.1-mini' | 'gpt-4.1' | 'o4-mini' | 'gemini-2.0-flash';
+type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-2.0-flash';
 
 interface Props {
   state: {
@@ -112,8 +112,8 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
       color: 'purple'
     },
     {
-      id: 'gpt-5',
-      title: '🌟 GPT-5',
+      id: 'gpt-5.2',
+      title: '🌟 GPT-5.2',
       description: 'Beste Qualität',
       cost: '$1.25/1M',
       color: 'indigo'
@@ -274,3 +274,4 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
     </div>
   );
 }
+

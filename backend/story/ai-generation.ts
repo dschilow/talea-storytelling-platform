@@ -250,6 +250,13 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },
+  "gpt-5.2": {
+    name: "gpt-5.2",
+    inputCostPer1M: 1.250,      // $1.250/1M tokens
+    outputCostPer1M: 10.000,    // $10.000/1M tokens
+    maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
   "gpt-5-pro": {
     name: "gpt-5-pro",
     inputCostPer1M: 15.00,      // $15.00/1M tokens

@@ -443,7 +443,7 @@ const ChapterSection: React.FC<{
                     transition={{ duration: 1.5 }}
                     src={chapter.imageUrl || `https://picsum.photos/seed/${index}/1920/1080`}
                     alt={chapter.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-4 pb-2 md:px-16 md:pb-4 z-20">
                     <motion.div

@@ -1961,7 +1961,7 @@ export namespace log {
 }
 
 export namespace story {
-    export type AIModel = "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "gpt-5-pro" | "gpt-4.1-nano" | "gpt-4.1-mini" | "gpt-4.1" | "o4-mini"
+    export type AIModel = "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "gpt-5.2" | "gpt-5-pro" | "gpt-4.1-nano" | "gpt-4.1-mini" | "gpt-4.1" | "o4-mini"
 
     export interface AddCharacterRequest {
         character: {

@@ -397,19 +397,40 @@ export async function recordStoryArtifact(
   discoveryChapter: number,
   usageChapter: number
 ): Promise<void> {
-  try {
-    const id = `sa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await storyDB.exec`
-      INSERT INTO story_artifacts (id, story_id, artifact_id, discovery_chapter, usage_chapter, is_unlocked, created_at)
-      VALUES (${id}, ${storyId}, ${artifactId}, ${discoveryChapter}, ${usageChapter}, FALSE, NOW())
-      ON CONFLICT (story_id, artifact_id) DO UPDATE SET
-        discovery_chapter = EXCLUDED.discovery_chapter,
-        usage_chapter = EXCLUDED.usage_chapter
-    `;
-    console.log(`[ArtifactMatcher] ✅ Story artifact recorded: ${storyId} + ${artifactId}`);
-  } catch (error) {
-    console.error("[ArtifactMatcher] Error recording story artifact:", error);
-    throw error; // Re-throw so errors are visible
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const id = `sa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await storyDB.exec`
+        INSERT INTO story_artifacts (id, story_id, artifact_id, discovery_chapter, usage_chapter, is_unlocked, created_at)
+        VALUES (${id}, ${storyId}, ${artifactId}, ${discoveryChapter}, ${usageChapter}, FALSE, NOW())
+        ON CONFLICT (story_id, artifact_id) DO UPDATE SET
+          discovery_chapter = EXCLUDED.discovery_chapter,
+          usage_chapter = EXCLUDED.usage_chapter
+      `;
+      console.log(`[ArtifactMatcher] ✅ Story artifact recorded: ${storyId} + ${artifactId}`);
+      return;
+    } catch (error) {
+      const message = String((error as any)?.message || error);
+      const isForeignKey =
+        message.includes("E23503") ||
+        message.includes("story_artifacts_story_id_fkey") ||
+        message.toLowerCase().includes("foreign key");
+
+      if (isForeignKey && attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 150 * attempt));
+        continue;
+      }
+
+      console.error("[ArtifactMatcher] Error recording story artifact:", {
+        attempt,
+        storyId,
+        artifactId,
+        isForeignKey,
+        error,
+      });
+      return;
+    }
   }
 }
 
