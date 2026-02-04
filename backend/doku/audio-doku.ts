@@ -30,6 +30,7 @@ interface CreateAudioDokuRequest {
   title?: string;
   description: string;
   coverDescription: string;
+  coverImageUrl?: string;
   audioDataUrl?: string;
   audioUrl?: string;
   filename?: string;
@@ -55,6 +56,15 @@ interface CreateAudioUploadUrlRequest {
 interface CreateAudioUploadUrlResponse {
   uploadUrl: string;
   audioUrl: string;
+}
+
+interface GenerateAudioCoverRequest {
+  title?: string;
+  coverDescription: string;
+}
+
+interface GenerateAudioCoverResponse {
+  coverImageUrl: string;
 }
 
 const parseDataUrl = (dataUrl: string): { contentType: string; buffer: Buffer } | null => {
@@ -153,20 +163,22 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
       inferTitleFromFilename(req.filename) ||
       "Audio Doku";
 
-    let coverImageUrl: string | undefined;
-    try {
-      const prompt = buildCoverPrompt(coverDescription, title);
-      const img = await ai.generateImage({
-        prompt,
-        width: 1024,
-        height: 1024,
-        steps: 4,
-        CFGScale: 4,
-        outputFormat: "JPEG",
-      });
-      coverImageUrl = img.imageUrl;
-    } catch (error) {
-      console.warn("[AudioDoku] Cover generation failed:", error);
+    let coverImageUrl: string | undefined = req.coverImageUrl?.trim() || undefined;
+    if (!coverImageUrl) {
+      try {
+        const prompt = buildCoverPrompt(coverDescription, title);
+        const img = await ai.generateImage({
+          prompt,
+          width: 1024,
+          height: 1024,
+          steps: 4,
+          CFGScale: 4,
+          outputFormat: "JPEG",
+        });
+        coverImageUrl = img.imageUrl;
+      } catch (error) {
+        console.warn("[AudioDoku] Cover generation failed:", error);
+      }
     }
 
     if (coverImageUrl) {
@@ -224,6 +236,44 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
       createdAt: now,
       updatedAt: now,
     };
+  }
+);
+
+export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCoverResponse>(
+  { expose: true, method: "POST", path: "/audio-dokus/generate-cover", auth: true },
+  async (req) => {
+    const coverDescription = req.coverDescription?.trim();
+    if (!coverDescription) {
+      throw APIError.invalidArgument("Cover description is required.");
+    }
+
+    const title = req.title?.trim() || "Audio Doku";
+    const prompt = buildCoverPrompt(coverDescription, title);
+
+    try {
+      const img = await ai.generateImage({
+        prompt,
+        width: 1024,
+        height: 1024,
+        steps: 4,
+        CFGScale: 4,
+        outputFormat: "JPEG",
+      });
+
+      let coverImageUrl = img.imageUrl;
+      const uploadedCover = await maybeUploadImageUrlToBucket(coverImageUrl, {
+        prefix: "images/audio-dokus",
+        filenameHint: sanitizeTitle(title),
+        uploadMode: "always",
+      });
+      coverImageUrl = uploadedCover?.url ?? coverImageUrl;
+
+      const resolvedCover = await resolveImageUrlForClient(coverImageUrl);
+      return { coverImageUrl: resolvedCover ?? coverImageUrl };
+    } catch (error) {
+      console.warn("[AudioDoku] Cover generation failed:", error);
+      throw APIError.failedPrecondition("Cover generation failed.");
+    }
   }
 );
 

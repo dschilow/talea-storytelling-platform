@@ -352,10 +352,13 @@
       "uploadDescription": "Drag & drop your audio file here",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Give your audio doc a title",
-      "coverLabel": "Cover description",
-      "coverPlaceholder": "Describe the cover image you want...",
-      "descriptionLabel": "Audio doc description",
-      "descriptionPlaceholder": "This description will appear next to the player",
+        "coverLabel": "Cover description",
+        "coverPlaceholder": "Describe the cover image you want...",
+        "generateCover": "Generate cover",
+        "generatingCover": "Generating cover...",
+        "coverReady": "Cover ready",
+        "descriptionLabel": "Audio doc description",
+        "descriptionPlaceholder": "This description will appear next to the player",
       "createButton": "Create Audio Doc",
       "creating": "Creating...",
       "previewTitle": "Cover preview",
@@ -364,12 +367,13 @@
       "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
       "goToDokus": "Go to Dokus",
       "createAnother": "Create another",
-      "errors": {
-        "missingAudio": "Please upload an audio file.",
-        "missingCover": "Please describe the cover.",
-        "missingDescription": "Please add a description.",
-        "uploadFailed": "Upload failed. Please try again."
-      }
+        "errors": {
+          "missingAudio": "Please upload an audio file.",
+          "missingCover": "Please describe the cover.",
+          "missingDescription": "Please add a description.",
+          "coverFailed": "Cover generation failed. Please try again.",
+          "uploadFailed": "Upload failed. Please try again."
+        }
     },"createNew": "Nouveau Doc",
     "create": "CrÃ©er un document",
     "generating": "GÃ©nÃ©ration du document...",

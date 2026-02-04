@@ -36,6 +36,8 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [coverLoading, setCoverLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdAudio, setCreatedAudio] = useState<AudioDoku | null>(null);
@@ -51,14 +53,36 @@ const CreateAudioDokuScreen: React.FC = () => {
   }, [audioFile]);
 
   const coverPreview = useMemo(() => {
-    return createdAudio?.coverImageUrl || UNSPLASH_PLACEHOLDER;
-  }, [createdAudio?.coverImageUrl]);
+    return createdAudio?.coverImageUrl || coverImageUrl || UNSPLASH_PLACEHOLDER;
+  }, [createdAudio?.coverImageUrl, coverImageUrl]);
 
   const handleFileSelected = (file: File | null) => {
     setAudioFile(file);
     setUploadedAudioUrl(null);
     if (file && !title.trim()) {
       setTitle(file.name.replace(/\.[^/.]+$/, ''));
+    }
+  };
+
+  const handleGenerateCover = async () => {
+    setError(null);
+    if (!coverDescription.trim()) {
+      setError(t('doku.audioCreate.errors.missingCover'));
+      return;
+    }
+
+    try {
+      setCoverLoading(true);
+      const response = await backend.doku.generateAudioCover({
+        title: title.trim() || undefined,
+        coverDescription: coverDescription.trim(),
+      });
+      setCoverImageUrl(response.coverImageUrl);
+    } catch (err) {
+      console.error('[AudioDoku] Cover generation failed:', err);
+      setError(t('doku.audioCreate.errors.coverFailed'));
+    } finally {
+      setCoverLoading(false);
     }
   };
 
@@ -102,6 +126,7 @@ const CreateAudioDokuScreen: React.FC = () => {
         title: title.trim() || undefined,
         description: description.trim(),
         coverDescription: coverDescription.trim(),
+        coverImageUrl: coverImageUrl ?? undefined,
         audioUrl: upload.audioUrl,
         filename: audioFile.name,
         isPublic: true,
@@ -247,6 +272,21 @@ const CreateAudioDokuScreen: React.FC = () => {
                     rows={4}
                     className="mt-2 w-full rounded-xl border border-white/60 bg-white/80 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
                   />
+                  <div className="mt-3 flex items-center gap-3">
+                    <Button
+                      title={coverLoading ? t('doku.audioCreate.generatingCover') : t('doku.audioCreate.generateCover')}
+                      onPress={handleGenerateCover}
+                      variant="outline"
+                      size="md"
+                      icon={<Sparkles size={16} />}
+                      disabled={coverLoading}
+                    />
+                    {coverImageUrl && (
+                      <span className="text-xs font-semibold text-emerald-600">
+                        {t('doku.audioCreate.coverReady')}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div>

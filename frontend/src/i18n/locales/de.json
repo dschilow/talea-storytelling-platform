@@ -638,10 +638,13 @@
       "uploadDescription": "Ziehe eine Audiodatei hierher oder klicke zum Auswählen",
       "titleLabel": "Titel (optional)",
       "titlePlaceholder": "Gib der Audio-Doku einen Titel",
-      "coverLabel": "Cover-Beschreibung",
-      "coverPlaceholder": "Beschreibe das Cover, das generiert werden soll...",
-      "descriptionLabel": "Audio-Doku Beschreibung",
-      "descriptionPlaceholder": "Diese Beschreibung erscheint neben dem Player",
+        "coverLabel": "Cover-Beschreibung",
+        "coverPlaceholder": "Beschreibe das Cover, das generiert werden soll...",
+        "generateCover": "Cover generieren",
+        "generatingCover": "Cover wird generiert...",
+        "coverReady": "Cover bereit",
+        "descriptionLabel": "Audio-Doku Beschreibung",
+        "descriptionPlaceholder": "Diese Beschreibung erscheint neben dem Player",
       "createButton": "Audio-Doku erstellen",
       "creating": "Wird erstellt...",
       "previewTitle": "Cover-Vorschau",
@@ -650,13 +653,14 @@
       "previewDescriptionReady": "Deine Audio-Doku wurde gespeichert.",
       "goToDokus": "Zu den Dokus",
       "createAnother": "Noch eine erstellen",
-      "errors": {
-        "missingAudio": "Bitte lade eine Audiodatei hoch.",
-        "missingCover": "Bitte beschreibe das Cover.",
-        "missingDescription": "Bitte füge eine Beschreibung hinzu.",
-        "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
-      }
-    },
+        "errors": {
+          "missingAudio": "Bitte lade eine Audiodatei hoch.",
+          "missingCover": "Bitte beschreibe das Cover.",
+          "missingDescription": "Bitte füge eine Beschreibung hinzu.",
+          "coverFailed": "Cover-Generierung fehlgeschlagen. Bitte erneut versuchen.",
+          "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
+        }
+      },
     "createNew": "Neue Doku",
     "wizard": {
       "title": "Neue Wissens-Doku",
