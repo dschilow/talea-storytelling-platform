@@ -97,7 +97,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
     position: 'absolute',
     top: spacing.md,
     right: onDelete ? `${spacing.md * 2 + 32}px` : spacing.md,
-    background: doku.isPublic ? (colors.mint[600] + '90') : (colors.amber[600] + '90'),
+    background: doku.isPublic ? (colors.mint[600] + '90') : (colors.peach[600] + '90'),
     backdropFilter: 'blur(10px)',
     borderRadius: `${radii.pill}px`,
     padding: `${spacing.sm}px`,
@@ -207,11 +207,11 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             title={doku.isPublic ? 'Als privat markieren' : 'Als öffentlich teilen'}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.background = doku.isPublic ? colors.mint[600] : colors.amber[600];
+              e.currentTarget.style.background = doku.isPublic ? colors.mint[600] : colors.peach[600];
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.background = doku.isPublic ? (colors.mint[600] + '90') : (colors.amber[600] + '90');
+              e.currentTarget.style.background = doku.isPublic ? (colors.mint[600] + '90') : (colors.peach[600] + '90');
             }}
           >
             {doku.isPublic ? (

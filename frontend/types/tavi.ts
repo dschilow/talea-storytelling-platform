@@ -2,6 +2,16 @@
 
 export interface TaviChatRequest {
   message: string;
+  context?: {
+    language?: string;
+  };
+}
+
+export interface TaviChatAction {
+  type: 'story' | 'doku';
+  id: string;
+  title: string;
+  route: string;
 }
 
 export interface TaviChatResponse {
@@ -11,6 +21,7 @@ export interface TaviChatResponse {
     completion: number;
     total: number;
   };
+  action?: TaviChatAction;
 }
 
 export interface TaviService {

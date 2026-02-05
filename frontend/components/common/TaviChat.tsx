@@ -2,18 +2,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 import Button from './Button';
 import { useBackend } from '../../hooks/useBackend';
-import type { TaviChatRequest, TaviChatResponse } from '../../types/tavi';
+import type { TaviChatAction, TaviChatResponse } from '../../types/tavi';
 
 interface Message {
   id: string;
   sender: 'tavi' | 'user';
   text: string;
   timestamp: Date;
+  action?: TaviChatAction;
 }
 
 interface TaviChatProps {
@@ -22,7 +24,8 @@ interface TaviChatProps {
 }
 
 const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const backend = useBackend();
   const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
@@ -92,7 +95,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       const response = await fetch(`${baseUrl}/tavi/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: userMessage.text }),
+        body: JSON.stringify({ message: userMessage.text, context: { language: i18n.language } }),
       });
 
       if (!response.ok) {
@@ -107,6 +110,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
         sender: 'tavi',
         text: data.response,
         timestamp: new Date(),
+        action: data.action,
       };
 
       setMessages(prev => [...prev, taviMessage]);
@@ -251,6 +255,18 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     boxShadow: shadows.colored.lavender,
   };
 
+  const actionButtonStyle: React.CSSProperties = {
+    marginTop: `${spacing.sm}px`,
+    padding: `${spacing.sm}px ${spacing.md}px`,
+    borderRadius: `${radii.md}px`,
+    border: `2px solid ${colors.lavender[300]}`,
+    background: colors.lavender[500],
+    color: colors.text.inverse,
+    cursor: 'pointer',
+    fontWeight: 600,
+    ...typography.textStyles.bodySm,
+  };
+
   const inputContainerStyle: React.CSSProperties = {
     padding: `${spacing.xl}px`,
     borderTop: `2px solid ${colors.border.light}`,
@@ -335,6 +351,21 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               style={message.sender === 'tavi' ? taviMessageStyle : userMessageStyle}
             >
               {message.text}
+              {message.action && (
+                <div>
+                  <button
+                    style={actionButtonStyle}
+                    onClick={() => {
+                      onClose();
+                      navigate(message.action?.route || '/');
+                    }}
+                  >
+                    {message.action.type === 'story'
+                      ? t('chat.openStory', 'Story oeffnen')
+                      : t('chat.openDoku', 'Doku oeffnen')}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
 
