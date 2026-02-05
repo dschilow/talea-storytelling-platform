@@ -225,7 +225,15 @@ export class LlmStoryWriter implements StoryWriter {
           requiredCharacters: missingCharacters,
         });
 
-        const maxTokens = Math.min(2000, Math.round(Math.max(600, lengthTargets.wordMax * 2.5)));
+        // V3: Höheres Token-Limit für Expand-Calls
+        // Problem: gpt-5-mini Reasoning verbraucht viel Budget (bis zu 100% bei 758 Tokens)
+        // Beispiel: Kapitel 4+5 scheiterten weil 758 Reasoning Tokens = 0 Output Tokens
+        // Lösung: Mindestens 1200 Tokens garantieren für Reasoning + Output
+        const baseMaxTokens = Math.round(Math.max(600, lengthTargets.wordMax * 2.5));
+        const maxTokens = Math.min(2000, Math.max(1200, baseMaxTokens));
+
+        console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
+
         try {
           const result = await callStoryModel({
             systemPrompt: editSystemPrompt,
@@ -236,6 +244,8 @@ export class LlmStoryWriter implements StoryWriter {
             context: `story-writer-expand-chapter-${chapter.chapter}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter },
+            // V3: Reasoning-Effort explizit auf "low" setzen
+            reasoningEffort: "low",
           });
 
           if (result.usage) {
