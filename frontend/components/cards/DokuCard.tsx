@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlaskConical, Trash2, Clock, Lightbulb } from 'lucide-react';
+import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock } from 'lucide-react';
 import type { Doku } from '../../types/doku';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
@@ -9,9 +9,10 @@ interface DokuCardProps {
   doku: Doku;
   onRead: (doku: Doku) => void;
   onDelete?: (dokuId: string, dokuTitle: string) => void;
+  onTogglePublic?: (dokuId: string, currentIsPublic: boolean) => void;
 }
 
-export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) => {
+export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic }) => {
   const handleClick = () => {
     console.log('DokuCard clicked:', doku.title, doku.id);
     onRead(doku);
@@ -21,6 +22,13 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) =>
     e.stopPropagation();
     if (onDelete) {
       onDelete(doku.id, doku.title);
+    }
+  };
+
+  const handleTogglePublic = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onTogglePublic) {
+      onTogglePublic(doku.id, doku.isPublic);
     }
   };
 
@@ -77,6 +85,19 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) =>
     top: spacing.md,
     right: spacing.md,
     background: colors.semantic.error + '90',
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    border: 'none',
+    cursor: 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+  };
+
+  const visibilityButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: onDelete ? `${spacing.md * 2 + 32}px` : spacing.md,
+    background: doku.isPublic ? (colors.mint[600] + '90') : (colors.amber[600] + '90'),
     backdropFilter: 'blur(10px)',
     borderRadius: `${radii.pill}px`,
     padding: `${spacing.sm}px`,
@@ -177,6 +198,28 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete }) =>
           <div style={statusBadgeStyle}>
             ✨ Wird erstellt...
           </div>
+        )}
+
+        {onTogglePublic && (
+          <button
+            onClick={handleTogglePublic}
+            style={visibilityButtonStyle}
+            title={doku.isPublic ? 'Als privat markieren' : 'Als öffentlich teilen'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15)';
+              e.currentTarget.style.background = doku.isPublic ? colors.mint[600] : colors.amber[600];
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = doku.isPublic ? (colors.mint[600] + '90') : (colors.amber[600] + '90');
+            }}
+          >
+            {doku.isPublic ? (
+              <Globe size={16} style={{ color: colors.text.inverse }} />
+            ) : (
+              <Lock size={16} style={{ color: colors.text.inverse }} />
+            )}
+          </button>
         )}
 
         {onDelete && (

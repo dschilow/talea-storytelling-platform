@@ -193,6 +193,24 @@ const DokusScreen: React.FC = () => {
     }
   };
 
+  const handleTogglePublic = async (dokuId: string, currentIsPublic: boolean) => {
+    try {
+      await backend.doku.updateDoku({ id: dokuId, isPublic: !currentIsPublic });
+      // Update in local state
+      setMyDokus(myDokus.map(d => 
+        d.id === dokuId ? { ...d, isPublic: !currentIsPublic } : d
+      ));
+      // If making public, it will appear in public dokus on next load
+      // If making private, remove from public dokus if present
+      if (currentIsPublic) {
+        setPublicDokus(publicDokus.filter(d => d.id !== dokuId));
+      }
+    } catch (error) {
+      console.error('Error toggling doku visibility:', error);
+      alert(t('errors.generic'));
+    }
+  };
+
   const handleOpenAudioModal = (doku: AudioDoku) => {
     setSelectedAudioDoku(doku);
     setAudioModalOpen(true);
@@ -501,6 +519,7 @@ const DokusScreen: React.FC = () => {
                       doku={doku}
                       onRead={handleReadDoku}
                       onDelete={handleDeleteDoku}
+                      onTogglePublic={handleTogglePublic}
                     />
                   ))}
                 </div>
