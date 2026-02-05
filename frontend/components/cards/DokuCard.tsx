@@ -1,9 +1,11 @@
-import React from 'react';
-import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock, Download } from 'lucide-react';
 import type { Doku } from '../../types/doku';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
+import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { useBackend } from '../../hooks/useBackend';
 
 interface DokuCardProps {
   doku: Doku;
@@ -13,6 +15,9 @@ interface DokuCardProps {
 }
 
 export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic }) => {
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const backend = useBackend();
+
   const handleClick = () => {
     console.log('DokuCard clicked:', doku.title, doku.id);
     onRead(doku);
@@ -29,6 +34,49 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
     e.stopPropagation();
     if (onTogglePublic) {
       onTogglePublic(doku.id, doku.isPublic);
+    }
+  };
+
+  const handleDownloadPDF = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!isPDFExportSupported()) {
+      alert('PDF-Export wird in diesem Browser nicht unterstützt');
+      return;
+    }
+
+    if (doku.status !== 'complete') {
+      alert('Die Doku muss erst vollständig generiert werden');
+      return;
+    }
+
+    try {
+      setIsExportingPDF(true);
+
+      // Load full doku with sections before exporting
+      console.log('[DokuCard] Loading full doku with sections for PDF export...');
+      const fullDoku = await backend.doku.getDoku({ id: doku.id });
+
+      console.log('[DokuCard] Full doku loaded:', {
+        hasSections: !!fullDoku.content?.sections,
+        sectionCount: fullDoku.content?.sections?.length || 0
+      });
+
+      if (!fullDoku.content?.sections || fullDoku.content.sections.length === 0) {
+        throw new Error('Die Doku hat keine Abschnitte');
+      }
+
+      await exportDokuAsPDF(fullDoku as any);
+
+      // Success notification
+      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
+        showSuccessToast('📄 PDF erfolgreich heruntergeladen!');
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('Fehler beim PDF-Export: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -93,10 +141,30 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
     transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
   };
 
+  const downloadButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: (() => {
+      let offset = spacing.md;
+      if (onDelete) offset = `calc(${spacing.md}px + 36px + ${spacing.sm}px)`;
+      if (onTogglePublic && onDelete) offset = `calc(${spacing.md}px + 72px + ${spacing.sm * 2}px)`;
+      else if (onTogglePublic) offset = `calc(${spacing.md}px + 36px + ${spacing.sm}px)`;
+      return offset;
+    })(),
+    background: colors.primary[500] + '90',
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    border: 'none',
+    cursor: isExportingPDF ? 'wait' : 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+    opacity: isExportingPDF ? 0.6 : 1,
+  };
+
   const visibilityButtonStyle: React.CSSProperties = {
     position: 'absolute',
     top: spacing.md,
-    right: onDelete ? `${spacing.md * 2 + 32}px` : spacing.md,
+    right: onDelete ? `calc(${spacing.md}px + 36px + ${spacing.sm}px)` : spacing.md,
     background: doku.isPublic ? (colors.mint[600] + '90') : (colors.peach[600] + '90'),
     backdropFilter: 'blur(10px)',
     borderRadius: `${radii.pill}px`,
@@ -198,6 +266,39 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
           <div style={statusBadgeStyle}>
             ✨ Wird erstellt...
           </div>
+        )}
+
+        {/* PDF Download Button - Only show for complete dokus */}
+        {doku.status === 'complete' && (
+          <button
+            onClick={handleDownloadPDF}
+            style={downloadButtonStyle}
+            title="Als PDF herunterladen"
+            disabled={isExportingPDF}
+            onMouseEnter={(e) => {
+              if (!isExportingPDF) {
+                e.currentTarget.style.transform = 'scale(1.15)';
+                e.currentTarget.style.background = colors.primary[500];
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = colors.primary[500] + '90';
+            }}
+          >
+            {isExportingPDF ? (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid white',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+            ) : (
+              <Download size={16} style={{ color: colors.text.inverse }} />
+            )}
+          </button>
         )}
 
         {onTogglePublic && (
