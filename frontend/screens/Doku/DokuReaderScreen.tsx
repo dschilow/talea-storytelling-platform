@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { PersonalityChangeNotification } from '../../components/common/PersonalityDevelopment';
+import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 
 // Define a new type for our flattened, displayable sections
 interface DisplayableSection {
@@ -45,6 +46,10 @@ const DokuReaderScreen: React.FC = () => {
   const [showPersonalityNotification, setShowPersonalityNotification] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // PDF Export state
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
 
   // Memoize the transformation of doku sections into a flat, displayable array
   const displayableSections: DisplayableSection[] = useMemo(() => {
@@ -133,6 +138,34 @@ const DokuReaderScreen: React.FC = () => {
       if (index === displayableSections.length - 1) {
         handleDokuCompletion();
       }
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!doku || !isPDFExportSupported()) {
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('PDF-Export wird in diesem Browser nicht unterstützt');
+      return;
+    }
+
+    try {
+      setIsExportingPDF(true);
+      setExportProgress(0);
+
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+
+      await exportDokuAsPDF(doku, (progress) => {
+        setExportProgress(progress);
+      });
+
+      showSuccessToast('📄 PDF erfolgreich heruntergeladen!');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('Fehler beim PDF-Export: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+    } finally {
+      setIsExportingPDF(false);
+      setExportProgress(0);
     }
   };
 
@@ -303,8 +336,30 @@ const DokuReaderScreen: React.FC = () => {
     }
   };
 
-  if (loading) { /* ... loading spinner ... */ }
-  if (error || !doku) { /* ... error message ... */ }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-lg text-gray-600 dark:text-gray-300">{t('doku.loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !doku) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+          <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
+          <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('doku.notFound')}</p>
+          <button onClick={() => navigate('/doku')} className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors flex items-center mx-auto">
+            <ArrowLeft size={18} className="mr-2" /> {t('common.back')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentDisplayableSection = displayableSections[currentIndex];
 
@@ -320,9 +375,34 @@ const DokuReaderScreen: React.FC = () => {
             <img src={doku?.coverImageUrl || '/placeholder-doku.jpg'} alt={doku?.title} className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover" />
             <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{doku?.title}</h1>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{doku?.summary}</p>
-            <button onClick={startReading} className="px-8 py-3 bg-teal-600 text-white font-bold rounded-full shadow-lg hover:bg-teal-700 transition-transform hover:scale-105">
-              {t('doku.readDoku')}
-            </button>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <button
+                onClick={startReading}
+                className="px-8 py-3 bg-teal-600 text-white font-bold rounded-full shadow-lg hover:bg-teal-700 transition-transform hover:scale-105"
+              >
+                {t('doku.readDoku')}
+              </button>
+
+              <button
+                onClick={handleExportPDF}
+                disabled={isExportingPDF}
+                className="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isExportingPDF ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{exportProgress}%</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    <span>PDF herunterladen</span>
+                  </>
+                )}
+              </button>
+            </div>
           </motion.div>
         ) : (
           <div key="reader" className="w-full h-full flex flex-col">

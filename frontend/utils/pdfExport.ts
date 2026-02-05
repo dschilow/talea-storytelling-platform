@@ -7,6 +7,7 @@
 
 import { jsPDF } from 'jspdf';
 import type { Story } from '../types/story';
+import type { Doku } from '../types/doku';
 import { getBackendUrl } from '../config';
 
 // Type definitions for image loading
@@ -549,6 +550,374 @@ export async function exportStoryAsPDF(
 
   } catch (error) {
     console.error('Error generating PDF:', error);
+    throw new Error(`PDF-Export fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Export Doku (educational article) as PDF
+ *
+ * @param doku - Doku object with sections and images
+ * @param onProgress - Optional callback for progress updates (0-100)
+ */
+export async function exportDokuAsPDF(
+  doku: Doku,
+  onProgress?: (progress: number) => void
+): Promise<void> {
+  try {
+    // Create PDF document (A4 format)
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+
+    const sections = doku.content?.sections || [];
+
+    console.log('[PDF Export] Doku data:', {
+      hasSections: !!doku.content?.sections,
+      sectionsLength: sections.length,
+      dokuTitle: doku.title,
+      firstSection: sections.length > 0 ? {
+        title: sections[0].title,
+        contentLength: sections[0].content.length,
+        hasImage: !!sections[0].imageUrl,
+        keyFactsCount: sections[0].keyFacts?.length || 0
+      } : null
+    });
+
+    // Early validation
+    if (!sections || sections.length === 0) {
+      console.error('[PDF Export] ERROR: No sections found!', {
+        dokuId: doku.id,
+        status: doku.status,
+        fullDokuObject: doku
+      });
+      throw new Error('Doku hat keine Abschnitte. Bitte stelle sicher, dass die Doku vollständig geladen ist.');
+    }
+
+    // Calculate total steps for progress
+    const totalSteps = 1 + sections.length * 2; // Cover + (section text + image) * sections
+    let currentStep = 0;
+
+    const updateProgress = () => {
+      currentStep++;
+      if (onProgress) {
+        onProgress(Math.round((currentStep / totalSteps) * 100));
+      }
+    };
+
+    // ============================================================================
+    // PAGE 1: COVER PAGE
+    // ============================================================================
+
+    // Add cover image if available
+    if (doku.coverImageUrl) {
+      const coverResult = await loadImageAsDataUrl(doku.coverImageUrl);
+
+      if (coverResult.success && coverResult.dataUrl) {
+        // Calculate dimensions to fit cover (max width, maintain aspect ratio)
+        const maxCoverWidth = contentWidth;
+        const maxCoverHeight = pageHeight * 0.5;
+
+        let coverWidth = maxCoverWidth;
+        let coverHeight = maxCoverHeight;
+
+        if (coverResult.width && coverResult.height) {
+          const aspectRatio = coverResult.width / coverResult.height;
+
+          if (aspectRatio > 1) {
+            // Landscape
+            coverWidth = maxCoverWidth;
+            coverHeight = coverWidth / aspectRatio;
+          } else {
+            // Portrait
+            coverHeight = maxCoverHeight;
+            coverWidth = coverHeight * aspectRatio;
+          }
+        }
+
+        // Center the cover image
+        const coverX = (pageWidth - coverWidth) / 2;
+        const coverY = 30;
+
+        doc.addImage(coverResult.dataUrl, 'JPEG', coverX, coverY, coverWidth, coverHeight);
+      }
+    }
+
+    // Add title
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    let yPos = doku.coverImageUrl ? pageHeight * 0.65 : 60;
+    const titleLines = doc.splitTextToSize(doku.title, contentWidth);
+    titleLines.forEach((line: string) => {
+      const textWidth = doc.getTextWidth(line);
+      doc.text(line, (pageWidth - textWidth) / 2, yPos);
+      yPos += 10;
+    });
+
+    // Add summary
+    if (doku.summary) {
+      yPos += 10;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      yPos = addWrappedText(doc, doku.summary, margin, yPos, contentWidth, 7);
+    }
+
+    // Add metadata
+    yPos += 15;
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Thema: ${doku.topic || 'Bildung'}`, margin, yPos);
+    yPos += 6;
+    doc.text(`Abschnitte: ${sections.length || 0}`, margin, yPos);
+    yPos += 6;
+    const dateStr = new Date(doku.createdAt).toLocaleDateString('de-DE');
+    doc.text(`Erstellt: ${dateStr}`, margin, yPos);
+
+    doc.setTextColor(0);
+    updateProgress();
+
+    // ============================================================================
+    // SECTIONS
+    // ============================================================================
+
+    if (sections && sections.length > 0) {
+      for (const section of sections) {
+        // Start new page for each section
+        doc.addPage();
+        yPos = margin;
+
+        // Section title
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        const sectionTitleLines = doc.splitTextToSize(section.title, contentWidth);
+        sectionTitleLines.forEach((line: string) => {
+          doc.text(line, margin, yPos);
+          yPos += 10;
+        });
+
+        yPos += 5;
+
+        // Section image if available
+        if (section.imageUrl) {
+          const imageResult = await loadImageAsDataUrl(section.imageUrl);
+
+          if (imageResult.success && imageResult.dataUrl) {
+            // Calculate dimensions (max width, maintain aspect ratio)
+            const maxImageWidth = contentWidth;
+            const maxImageHeight = 100; // Max height for section images
+
+            let imageWidth = maxImageWidth;
+            let imageHeight = maxImageHeight;
+
+            if (imageResult.width && imageResult.height) {
+              const aspectRatio = imageResult.width / imageResult.height;
+
+              if (aspectRatio > maxImageWidth / maxImageHeight) {
+                // Wide image
+                imageWidth = maxImageWidth;
+                imageHeight = imageWidth / aspectRatio;
+              } else {
+                // Tall image
+                imageHeight = maxImageHeight;
+                imageWidth = imageHeight * aspectRatio;
+              }
+            }
+
+            // Center the image
+            const imageX = (pageWidth - imageWidth) / 2;
+
+            doc.addImage(imageResult.dataUrl, 'JPEG', imageX, yPos, imageWidth, imageHeight);
+            yPos += imageHeight + 10;
+          }
+        }
+
+        updateProgress();
+
+        // Section content
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+
+        // Split content by paragraphs
+        const paragraphs = section.content.split('\n').filter(p => p.trim().length > 0);
+
+        for (const paragraph of paragraphs) {
+          // Check if we need a new page
+          if (yPos > pageHeight - 30) {
+            doc.addPage();
+            yPos = margin;
+          }
+
+          yPos = addWrappedText(doc, paragraph, margin, yPos, contentWidth, 7);
+          yPos += 5; // Space between paragraphs
+        }
+
+        // Add key facts if available
+        if (section.keyFacts && section.keyFacts.length > 0) {
+          // Check if we need a new page for facts
+          if (yPos > pageHeight - 50) {
+            doc.addPage();
+            yPos = margin;
+          }
+
+          yPos += 5;
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('💡 Wichtige Fakten:', margin, yPos);
+          yPos += 8;
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+
+          section.keyFacts.forEach((fact) => {
+            // Check if we need a new page
+            if (yPos > pageHeight - 20) {
+              doc.addPage();
+              yPos = margin;
+            }
+
+            doc.text('• ', margin, yPos);
+            yPos = addWrappedText(doc, fact, margin + 5, yPos, contentWidth - 5, 6);
+            yPos += 3;
+          });
+        }
+
+        // Add quiz questions if available
+        if (section.interactive?.quiz?.enabled && section.interactive.quiz.questions && section.interactive.quiz.questions.length > 0) {
+          // Check if we need a new page for quiz
+          if (yPos > pageHeight - 50) {
+            doc.addPage();
+            yPos = margin;
+          }
+
+          yPos += 8;
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('❓ Quiz:', margin, yPos);
+          yPos += 8;
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+
+          section.interactive.quiz.questions.forEach((q, qIndex) => {
+            // Check if we need a new page
+            if (yPos > pageHeight - 40) {
+              doc.addPage();
+              yPos = margin;
+            }
+
+            // Question
+            doc.setFont('helvetica', 'bold');
+            yPos = addWrappedText(doc, `${qIndex + 1}. ${q.question}`, margin, yPos, contentWidth, 6);
+            yPos += 3;
+
+            // Options
+            doc.setFont('helvetica', 'normal');
+            q.options.forEach((option, oIndex) => {
+              const isCorrect = oIndex === q.answerIndex;
+              const prefix = isCorrect ? '✓ ' : '  ';
+              yPos = addWrappedText(doc, `${prefix}${String.fromCharCode(65 + oIndex)}. ${option}`, margin + 3, yPos, contentWidth - 3, 6);
+              yPos += 2;
+            });
+
+            yPos += 5;
+          });
+        }
+
+        // Add activities if available
+        if (section.interactive?.activities?.enabled && section.interactive.activities.items && section.interactive.activities.items.length > 0) {
+          // Check if we need a new page for activities
+          if (yPos > pageHeight - 50) {
+            doc.addPage();
+            yPos = margin;
+          }
+
+          yPos += 8;
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('🎯 Aktivitäten:', margin, yPos);
+          yPos += 8;
+
+          doc.setFontSize(10);
+
+          section.interactive.activities.items.forEach((activity, aIndex) => {
+            // Check if we need a new page
+            if (yPos > pageHeight - 40) {
+              doc.addPage();
+              yPos = margin;
+            }
+
+            // Activity title
+            doc.setFont('helvetica', 'bold');
+            yPos = addWrappedText(doc, `${aIndex + 1}. ${activity.title}`, margin, yPos, contentWidth, 6);
+            yPos += 3;
+
+            // Description
+            doc.setFont('helvetica', 'normal');
+            yPos = addWrappedText(doc, activity.description, margin + 3, yPos, contentWidth - 3, 6);
+            yPos += 3;
+
+            // Materials
+            if (activity.materials && activity.materials.length > 0) {
+              doc.setFont('helvetica', 'italic');
+              doc.text('Materialien:', margin + 3, yPos);
+              yPos += 5;
+              doc.setFont('helvetica', 'normal');
+              activity.materials.forEach((material) => {
+                yPos = addWrappedText(doc, `• ${material}`, margin + 6, yPos, contentWidth - 6, 6);
+                yPos += 2;
+              });
+            }
+
+            yPos += 5;
+          });
+        }
+
+        updateProgress();
+      }
+    }
+
+    // ============================================================================
+    // FOOTER ON EACH PAGE
+    // ============================================================================
+
+    const totalPages = doc.getNumberOfPages();
+
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(150);
+
+      // Page number
+      const pageText = `Seite ${i} von ${totalPages}`;
+      const pageTextWidth = doc.getTextWidth(pageText);
+      doc.text(pageText, pageWidth - margin - pageTextWidth, pageHeight - 10);
+
+      // Talea branding
+      doc.text('Erstellt mit Talea', margin, pageHeight - 10);
+    }
+
+    doc.setTextColor(0);
+
+    // ============================================================================
+    // SAVE PDF
+    // ============================================================================
+
+    const filename = `${doku.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
+    doc.save(filename);
+
+    if (onProgress) {
+      onProgress(100);
+    }
+
+  } catch (error) {
+    console.error('Error generating Doku PDF:', error);
     throw new Error(`PDF-Export fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
