@@ -1,12 +1,36 @@
 import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
-import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, buildTemplatePhraseRewritePrompt, resolveLengthTargets } from "./prompts";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions } from "./quality-gates";
-import { findTemplatePhraseMatches } from "./template-phrases";
+// V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
-const MAX_REWRITE_PASSES = 2;
+// ════════════════════════════════════════════════════════════════════════════
+// OPTIMIERTE PIPELINE-KONSTANTEN (V2)
+// ════════════════════════════════════════════════════════════════════════════
+// Ziel: Minimale API-Calls bei maximaler Qualität
+//
+// Alte Pipeline (9+ Calls):
+//   1× Full Story → bis zu 5× Expand → bis zu 3× Rewrite
+//
+// Neue Pipeline (2-3 Calls):
+//   1× Full Story (mit optimiertem Prompt) → max 1× Rewrite (nur bei ERRORs)
+//   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
+// ════════════════════════════════════════════════════════════════════════════
+
+// Maximal 1 Rewrite-Pass (statt 2) - der optimierte Prompt sollte beim ersten Mal funktionieren
+const MAX_REWRITE_PASSES = 1;
+
+// Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
+// (Niedrigerer Wert = weniger Expand-Calls)
+const HARD_MIN_CHAPTER_WORDS = 150;
+
+// Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
+const REWRITE_ONLY_ON_ERRORS = true;
+
+// Maximal 2 Kapitel expandieren pro Geschichte (begrenzt API-Calls)
+const MAX_EXPAND_CALLS = 2;
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -142,57 +166,64 @@ export class LlmStoryWriter implements StoryWriter {
       wordBudget: normalizedRequest.wordBudget,
     });
 
+    // ════════════════════════════════════════════════════════════════════════
+    // OPTIMIERTE applyTargetedEdits (V2)
+    // - Verwendet HARD_MIN_CHAPTER_WORDS statt dynamischen Wert
+    // - Begrenzt auf MAX_EXPAND_CALLS um API-Kosten zu reduzieren
+    // - Template-Fixes werden NICHT mehr separat gemacht (im Rewrite enthalten)
+    // ════════════════════════════════════════════════════════════════════════
     const applyTargetedEdits = async (draftInput: StoryDraft): Promise<{ draft: StoryDraft; usage?: TokenUsage; changed: boolean }> => {
-      const hardMin = getHardMinChapterWords(draftInput, normalizedRequest.wordBudget);
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
       let usage: TokenUsage | undefined;
+      let expandCallCount = 0; // Zähle Expand-Calls
 
       for (let i = 0; i < updatedChapters.length; i++) {
+        // Stoppe wenn MAX_EXPAND_CALLS erreicht
+        if (expandCallCount >= MAX_EXPAND_CALLS) {
+          console.log(`[story-writer] Max expand calls (${MAX_EXPAND_CALLS}) reached, skipping remaining chapters`);
+          break;
+        }
+
         const chapter = updatedChapters[i];
         const directive = directives.find(d => d.chapter === chapter.chapter);
         if (!directive) continue;
 
         const wordCount = countWords(chapter.text);
         const sentenceCount = splitSentences(chapter.text).length;
-        const templateMatches = findTemplatePhraseMatches(chapter.text, normalizedRequest.language);
         const missingCharacters = findMissingCharacters(chapter.text, directive, cast);
         const needsMissingFix = missingCharacters.length > 0;
-        const needsExpand = Boolean((hardMin && wordCount < hardMin) || sentenceCount < 3 || needsMissingFix);
-        const needsTemplateFix = templateMatches.length > 0 && !needsExpand;
-        if (!needsExpand && !needsTemplateFix && !needsMissingFix) continue;
+
+        // V2: Nur expandieren wenn WIRKLICH zu kurz (unter hartem Minimum) oder < 3 Sätze
+        // Template-Fixes werden im nächsten Rewrite-Pass erledigt, nicht separat
+        const needsExpand = Boolean(wordCount < HARD_MIN_CHAPTER_WORDS || sentenceCount < 3 || needsMissingFix);
+
+        // V2: Keine separaten Template-Fix-Calls mehr - zu teuer
+        // const templateMatches = findTemplatePhraseMatches(chapter.text, normalizedRequest.language);
+        // const needsTemplateFix = templateMatches.length > 0 && !needsExpand;
+
+        if (!needsExpand) continue;
+
+        // V2: Nur Expand-Calls, keine separaten Template-Fix-Calls mehr
+        console.log(`[story-writer] Expanding chapter ${chapter.chapter}: ${wordCount} words, ${sentenceCount} sentences, missing: ${missingCharacters.join(", ") || "none"}`);
 
         const prevContext = i > 0 ? getEdgeContext(updatedChapters[i - 1]?.text || "", "end") : "";
         const nextContext = i < updatedChapters.length - 1 ? getEdgeContext(updatedChapters[i + 1]?.text || "", "start") : "";
 
-        const prompt = needsExpand
-          ? buildChapterExpansionPrompt({
-              chapter: directive,
-              cast,
-              dna,
-              language: normalizedRequest.language,
-              ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-              tone: normalizedRequest.requestedTone,
-              lengthTargets,
-              stylePackText,
-              originalText: chapter.text,
-              previousContext: prevContext,
-              nextContext,
-              requiredCharacters: missingCharacters,
-            })
-          : buildTemplatePhraseRewritePrompt({
-              chapter: directive,
-              cast,
-              dna,
-              language: normalizedRequest.language,
-              ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-              tone: normalizedRequest.requestedTone,
-              lengthTargets,
-              stylePackText,
-              originalText: chapter.text,
-              phraseLabels: templateMatches.map(m => m.label),
-              requiredCharacters: missingCharacters,
-            });
+        const prompt = buildChapterExpansionPrompt({
+          chapter: directive,
+          cast,
+          dna,
+          language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          tone: normalizedRequest.requestedTone,
+          lengthTargets,
+          stylePackText,
+          originalText: chapter.text,
+          previousContext: prevContext,
+          nextContext,
+          requiredCharacters: missingCharacters,
+        });
 
         const maxTokens = Math.min(2000, Math.round(Math.max(600, lengthTargets.wordMax * 2.5)));
         try {
@@ -202,9 +233,9 @@ export class LlmStoryWriter implements StoryWriter {
             responseFormat: "json_object",
             maxTokens,
             temperature: 0.4,
-            context: needsExpand ? `story-writer-expand-chapter-${chapter.chapter}` : `story-writer-template-fix-${chapter.chapter}`,
+            context: `story-writer-expand-chapter-${chapter.chapter}`,
             logSource: "phase6-story-llm",
-            logMetadata: { storyId: normalizedRequest.storyId, step: needsExpand ? "expand" : "template-fix", chapter: chapter.chapter },
+            logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter },
           });
 
           if (result.usage) {
@@ -216,6 +247,7 @@ export class LlmStoryWriter implements StoryWriter {
             chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
             if (parsed.title) chapter.title = String(parsed.title);
             changed = true;
+            expandCallCount++; // V2: Zähle erfolgreiche Expand-Calls
           }
         } catch (error) {
           console.warn(`[story-writer] Targeted edit failed for chapter ${chapter.chapter}`, error);
@@ -242,12 +274,24 @@ export class LlmStoryWriter implements StoryWriter {
       }
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // OPTIMIERTE REWRITE-LOGIK (V2)
+    // - Nur bei ERRORs rewriten (REWRITE_ONLY_ON_ERRORS = true)
+    // - WARNINGs werden ignoriert für Rewrites (kosten zu viel)
+    // - Max 1 Rewrite-Pass (MAX_REWRITE_PASSES = 1)
+    // ════════════════════════════════════════════════════════════════════════
     let rewriteAttempt = 0;
-    while (qualityReport.failedGates.length > 0 && rewriteAttempt < maxRewritePasses) {
-      rewriteAttempt++;
-      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - failed gates: ${qualityReport.failedGates.join(", ")}`);
+    const errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
 
-      const errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+    // V2: Nur rewriten wenn es wirklich ERRORs gibt (nicht nur WARNINGs)
+    const shouldRewrite = REWRITE_ONLY_ON_ERRORS
+      ? errorIssues.length > 0
+      : qualityReport.failedGates.length > 0;
+
+    while (shouldRewrite && rewriteAttempt < maxRewritePasses) {
+      rewriteAttempt++;
+      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - ${errorIssues.length} errors, failed gates: ${qualityReport.failedGates.join(", ")}`);
+
       const rewriteInstructions = buildRewriteInstructions(errorIssues, normalizedRequest.language);
 
       const rewritePrompt = buildFullStoryRewritePrompt({
@@ -314,11 +358,15 @@ export class LlmStoryWriter implements StoryWriter {
       }
     }
 
+    // V2: Finaler Expand-Pass nur für kritische Probleme (nicht für TEMPLATE_PHRASE)
+    // Template-Phrasen werden im Rewrite behandelt, nicht mit extra API-Calls
     if (allowPostEdits) {
       const needsFinalTargeted = qualityReport.issues.some(issue =>
-        issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "TEMPLATE_PHRASE" || issue.code === "MISSING_CHARACTER"
+        issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "MISSING_CHARACTER"
+        // V2: TEMPLATE_PHRASE entfernt - zu teuer für extra API-Calls
       );
       if (needsFinalTargeted) {
+        console.log(`[story-writer] Final targeted edit needed for: ${qualityReport.issues.filter(i => ["CHAPTER_TOO_SHORT_HARD", "CHAPTER_PLACEHOLDER", "MISSING_CHARACTER"].includes(i.code)).map(i => i.code).join(", ")}`);
         const targetedAfter = await applyTargetedEdits(draft);
         if (targetedAfter.changed) {
           draft = targetedAfter.draft;
@@ -624,13 +672,6 @@ function getEdgeContext(text: string, edge: "start" | "end", maxSentences = 1): 
   return sentences.slice(Math.max(0, sentences.length - maxSentences)).join(" ");
 }
 
-function getHardMinChapterWords(draft: StoryDraft, wordBudget?: import("./word-budget").WordBudget): number | null {
-  if (!wordBudget) return null;
-  const chapterCount = draft.chapters.length;
-  const isMediumOrLong = wordBudget.minMinutes >= 8;
-  if (chapterCount >= 4 && isMediumOrLong) return 220;
-  if (chapterCount >= 3) return 160;
-  return null;
-}
+// V2: getHardMinChapterWords entfernt - jetzt durch HARD_MIN_CHAPTER_WORDS Konstante ersetzt
 
 

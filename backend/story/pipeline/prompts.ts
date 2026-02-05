@@ -1,4 +1,575 @@
-﻿import type { CastSet, SceneDirective, StoryDNA, TaleDNA } from "./types";
+import type { CastSet, SceneDirective, StoryDNA, TaleDNA } from "./types";
+
+// ─── Character Profile Builder ────────────────────────────────────────────────
+// Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
+
+interface CharacterSheet {
+  displayName: string;
+  roleType?: string;
+  slotKey?: string;
+  personalityTags?: string[];
+  speechStyleHints?: string[];
+  visualSignature?: string[];
+  enhancedPersonality?: {
+    dominant?: string;
+    catchphrase?: string;
+    quirk?: string;
+    emotionalTriggers?: string[];
+    secondaryTraits?: string[];
+  };
+  // DB-Properties
+  archetype?: string;
+  role?: string;
+  species?: string;
+  catchphraseContext?: string;
+}
+
+/**
+ * Baut eine einzigartige Charakter-Beschreibung mit:
+ * - Beruf/Spezies-spezifischen Fähigkeiten
+ * - Persönlichkeit und Quirks
+ * - Sprechstil mit Beispiel
+ * - Catchphrase mit Kontext
+ */
+function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string {
+  const ep = sheet.enhancedPersonality;
+  const name = sheet.displayName;
+
+  // Persönlichkeit aus DB oder Fallback
+  const personality = sheet.personalityTags?.slice(0, 3).join(", ")
+    || ep?.dominant
+    || "neugierig";
+
+  // Sekundäre Traits
+  const secondaryTraits = ep?.secondaryTraits?.slice(0, 3).join(", ")
+    || sheet.personalityTags?.slice(3, 6).join(", ")
+    || "";
+
+  // Sprechstil
+  const speechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || "normal";
+
+  // Quirk (Marotte)
+  const quirk = ep?.quirk || "";
+
+  // Catchphrase mit Kontext
+  const catchphrase = ep?.catchphrase || "";
+  const catchphraseContext = sheet.catchphraseContext || ep?.emotionalTriggers?.[0] || "";
+
+  // Archetype -> Fähigkeiten/Beruf
+  const archetype = sheet.archetype || "";
+  const species = sheet.species || "";
+
+  // Baue kompakte Zeilen
+  let lines: string[] = [];
+
+  // Zeile 1: Name + Kernpersönlichkeit
+  let line1 = `**${name}**`;
+  if (sheet.roleType === "AVATAR") {
+    line1 += ` (Kind)`;
+  } else if (species && !species.includes("human_child")) {
+    // Spezies/Beruf für Nicht-Kinder
+    const speciesLabel = getSpeciesLabel(species, isGerman);
+    if (speciesLabel) line1 += ` (${speciesLabel})`;
+  }
+  line1 += `: ${personality}`;
+  if (secondaryTraits) line1 += `; ${secondaryTraits}`;
+  lines.push(line1);
+
+  // Zeile 2: Sprechstil mit Beispiel
+  const speechExample = generateSpeechExample(name, speechStyle, catchphrase, isGerman);
+  lines.push(`  - Spricht: ${speechStyle}. ${speechExample}`);
+
+  // Zeile 3: Quirk + Catchphrase (wenn vorhanden)
+  if (quirk || catchphrase) {
+    let line3 = "  -";
+    if (quirk) line3 += ` Marotte: ${quirk}.`;
+    if (catchphrase && catchphraseContext) {
+      line3 += ` Spruch (${catchphraseContext}): „${catchphrase}"`;
+    } else if (catchphrase) {
+      line3 += ` Spruch: „${catchphrase}"`;
+    }
+    lines.push(line3);
+  }
+
+  // Zeile 4: Berufsspezifische Fähigkeit (basierend auf Archetype)
+  const ability = getArchetypeAbility(archetype, species, isGerman);
+  if (ability) {
+    lines.push(`  - Kann: ${ability}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Gibt eine lesbare Spezies-Bezeichnung zurück
+ */
+function getSpeciesLabel(species: string, isGerman: boolean): string {
+  const labels: Record<string, string> = {
+    "human_baker": isGerman ? "Bäcker" : "Baker",
+    "human_postman": isGerman ? "Postbote" : "Postman",
+    "human_firefighter": isGerman ? "Feuerwehrfrau" : "Firefighter",
+    "human_police": isGerman ? "Polizist" : "Police Officer",
+    "human_witch": isGerman ? "Hexe" : "Witch",
+    "human_wizard": isGerman ? "Zauberer" : "Wizard",
+    "human_knight": isGerman ? "Ritter" : "Knight",
+    "human_sailor": isGerman ? "Kapitän" : "Captain",
+    "human_gardener": isGerman ? "Gärtnerin" : "Gardener",
+    "human_teacher": isGerman ? "Lehrerin" : "Teacher",
+    "human_queen": isGerman ? "Königin" : "Queen",
+    "human_king": isGerman ? "König" : "King",
+    "human_princess": isGerman ? "Prinzessin" : "Princess",
+    "human_astronaut": isGerman ? "Astronautin" : "Astronaut",
+    "human_elder": isGerman ? "Oma" : "Grandma",
+    "human_bandit": isGerman ? "Räuber" : "Robber",
+    "human_bandit_leader": isGerman ? "Räuberhauptmann" : "Robber Captain",
+    "human_dark_wizard": isGerman ? "Schwarzmagier" : "Dark Mage",
+    "dog": isGerman ? "Hund" : "Dog",
+    "cat": isGerman ? "Katze" : "Cat",
+    "squirrel": isGerman ? "Eichhörnchen" : "Squirrel",
+    "unicorn": isGerman ? "Einhorn" : "Unicorn",
+    "fairy": isGerman ? "Fee" : "Fairy",
+    "dragon_small": isGerman ? "kleiner Drache" : "Small Dragon",
+    "goblin": isGerman ? "Kobold" : "Goblin",
+    "troll": isGerman ? "Troll" : "Troll",
+    "dwarf": isGerman ? "Zwerg" : "Dwarf",
+    "robot": isGerman ? "Roboter" : "Robot",
+    "frog": isGerman ? "Frosch" : "Frog",
+    "fox_detective": isGerman ? "Fuchs-Detektiv" : "Fox Detective",
+  };
+  return labels[species] || "";
+}
+
+/**
+ * Gibt berufsspezifische Fähigkeiten basierend auf Archetype zurück
+ */
+function getArchetypeAbility(archetype: string, species: string, isGerman: boolean): string {
+  // Spezies-basierte Fähigkeiten haben Vorrang
+  const speciesAbilities: Record<string, string> = {
+    "human_baker": isGerman
+      ? "backen, Teig kneten, mit Essen trösten"
+      : "bake, knead dough, comfort with food",
+    "human_firefighter": isGerman
+      ? "löschen, retten, Leitern erklimmen"
+      : "extinguish fires, rescue, climb ladders",
+    "human_police": isGerman
+      ? "Ordnung halten, Regeln durchsetzen, Hinweise finden"
+      : "keep order, enforce rules, find clues",
+    "human_witch": isGerman
+      ? "Zaubertränke brauen, Zaubersprüche wirken, mit dem Besen fliegen"
+      : "brew potions, cast spells, fly on broom",
+    "human_wizard": isGerman
+      ? "mächtige Magie wirken, die Zukunft sehen, weise Ratschläge geben"
+      : "cast powerful magic, see the future, give wise advice",
+    "human_gardener": isGerman
+      ? "Pflanzen zum Wachsen bringen, Kräuter kennen, die Natur verstehen"
+      : "make plants grow, know herbs, understand nature",
+    "human_knight": isGerman
+      ? "kämpfen (theoretisch), beschützen, stolpern aber aufstehen"
+      : "fight (theoretically), protect, trip but get up",
+    "human_sailor": isGerman
+      ? "navigieren, Seile knoten, Seegeschichten erzählen"
+      : "navigate, tie knots, tell sea stories",
+    "human_teacher": isGerman
+      ? "erklären, korrigieren, Wissen teilen"
+      : "explain, correct, share knowledge",
+    "human_doctor": isGerman
+      ? "heilen, Wunden versorgen, beruhigen"
+      : "heal, treat wounds, calm down",
+    "dog": isGerman
+      ? "Spuren erschnüffeln, treu folgen, bellen bei Gefahr"
+      : "sniff out trails, follow loyally, bark at danger",
+    "cat": isGerman
+      ? "leise schleichen, hoch springen, elegant ignorieren"
+      : "sneak quietly, jump high, elegantly ignore",
+    "unicorn": isGerman
+      ? "heilen, telepathisch kommunizieren, Regenbogen hinterlassen"
+      : "heal, communicate telepathically, leave rainbows",
+    "fairy": isGerman
+      ? "Glitzerstaub verteilen, fliegen, kleine Zauber wirken"
+      : "spread glitter dust, fly, cast small spells",
+    "dragon_small": isGerman
+      ? "Feuer spucken (ein bisschen), fliegen (wackelig), süß aussehen"
+      : "breathe fire (a little), fly (wobbly), look cute",
+    "goblin": isGerman
+      ? "stehlen, tricksen, kichern, schnell verschwinden"
+      : "steal, trick, giggle, disappear quickly",
+    "troll": isGerman
+      ? "Brücken blockieren, stark sein, mit Essen bestochen werden"
+      : "block bridges, be strong, be bribed with food",
+    "dwarf": isGerman
+      ? "graben, Gold erkennen, handwerken"
+      : "dig, recognize gold, craft",
+    "robot": isGerman
+      ? "berechnen, analysieren, logisch denken, piepen"
+      : "calculate, analyze, think logically, beep",
+    "squirrel": isGerman
+      ? "klettern, Nüsse sammeln, nervös herumspringen"
+      : "climb, collect nuts, jump around nervously",
+  };
+
+  if (species && speciesAbilities[species]) {
+    return speciesAbilities[species];
+  }
+
+  // Archetype-basierte Fähigkeiten als Fallback
+  const archetypeAbilities: Record<string, string> = {
+    "merchant": isGerman ? "handeln, Waren anbieten, überzeugen" : "trade, offer goods, persuade",
+    "investigator": isGerman ? "Hinweise finden, kombinieren, beobachten" : "find clues, combine, observe",
+    "caregiver": isGerman ? "trösten, füttern, umsorgen" : "comfort, feed, care for",
+    "guardian": isGerman ? "beschützen, warnen, Regeln durchsetzen" : "protect, warn, enforce rules",
+    "mentor": isGerman ? "lehren, beraten, Weisheit teilen" : "teach, advise, share wisdom",
+    "hero_helper": isGerman ? "retten, helfen, mutig eingreifen" : "rescue, help, bravely intervene",
+    "magical_helper": isGerman ? "mit Magie helfen, verzaubern" : "help with magic, enchant",
+    "magical_trickster": isGerman ? "tricksen mit Magie, verwirren" : "trick with magic, confuse",
+    "magical_creature": isGerman ? "magische Kräfte nutzen, heilen" : "use magical powers, heal",
+    "animal_companion": isGerman ? "treu begleiten, Gefahren wittern" : "accompany loyally, sense danger",
+    "animal_trickster": isGerman ? "tricksen, schnell sein, ablenken" : "trick, be fast, distract",
+    "creature": isGerman ? "besondere Kreatur-Fähigkeiten" : "special creature abilities",
+    "trickster": isGerman ? "stehlen, tricksen, entkommen" : "steal, trick, escape",
+    "villain": isGerman ? "Pläne schmieden, drohen, scheitern" : "make plans, threaten, fail",
+    "explorer": isGerman ? "entdecken, erforschen, mutig vorangehen" : "discover, explore, lead bravely",
+    "adventurer": isGerman ? "Abenteuer erleben, Geschichten erzählen" : "have adventures, tell stories",
+    "royal": isGerman ? "befehlen, repräsentieren, Würde zeigen" : "command, represent, show dignity",
+  };
+
+  return archetypeAbilities[archetype] || "";
+}
+
+/**
+ * Generiert ein kurzes Sprechbeispiel basierend auf dem Stil
+ */
+function generateSpeechExample(name: string, speechStyle: string, catchphrase: string, isGerman: boolean): string {
+  // Wenn Catchphrase vorhanden, als Beispiel nutzen
+  if (catchphrase && catchphrase.length < 50) {
+    return `Beispiel: „${catchphrase}"`;
+  }
+
+  // Generiere Beispiel basierend auf Sprechstil
+  const styleExamples: Record<string, string> = {
+    "fast": isGerman ? `Beispiel: „Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
+    "breathless": isGerman ? `Beispiel: „Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
+    "woof": isGerman ? `Beispiel: „Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
+    "barking": isGerman ? `Beispiel: „Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
+    "giggling": isGerman ? `Beispiel: „Hihihi! Erwischt! Kicher-kicher!"` : `Example: "Hehehe! Caught you! Giggle-giggle!"`,
+    "rhyming": isGerman ? `Beispiel: „Eins-zwei-drei, Zauber frei!"` : `Example: "One-two-three, magic free!"`,
+    "telepathic": isGerman ? `Beispiel: „*Habt keine Furcht. Euer Mut leuchtet.*"` : `Example: "*Fear not. Your courage shines.*"`,
+    "gentle": isGerman ? `Beispiel: „*Folgt eurem Herzen...*"` : `Example: "*Follow your heart...*"`,
+    "mechanical": isGerman ? `Beispiel: „Piep-Piep. Analyse komplett."` : `Example: "Beep-Boop. Analysis complete."`,
+    "croaking": isGerman ? `Beispiel: „Quaaak! Ich bin ein Prinz! Wirklich!"` : `Example: "Croak! I'm a prince! Really!"`,
+    "grumbling": isGerman ? `Beispiel: „Grmpf. Was willst du?"` : `Example: "Grmpf. What do you want?"`,
+    "whispering": isGerman ? `Beispiel: „Psst... kommt näher..."` : `Example: "Psst... come closer..."`,
+    "regal": isGerman ? `Beispiel: „Wir befehlen, dass..."` : `Example: "We command that..."`,
+    "squeaky": isGerman ? `Beispiel: „Pieps! Eine Nuss! Da! Da!"` : `Example: "Squeak! A nut! There! There!"`,
+  };
+
+  // Suche nach passendem Beispiel
+  for (const [style, example] of Object.entries(styleExamples)) {
+    if (speechStyle.toLowerCase().includes(style)) {
+      return example;
+    }
+  }
+
+  return "";
+}
+
+// ─── Optimized Full Story Prompt (V3) ─────────────────────────────────────────
+// Kompakter, effektiver, mit dynamischen Charakter-Properties aus DB
+
+export function buildFullStoryPrompt(input: {
+  directives: SceneDirective[];
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+  totalWordTarget: number;
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  stylePackText?: string;
+  strict?: boolean;
+  fusionSections?: Map<number, string>;
+}): string {
+  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, fusionSections } = input;
+  const isGerman = language === "de";
+  const artifactName = cast.artifact?.name?.trim();
+  const artifactRule = cast.artifact?.storyUseRule || "wichtiges magisches Objekt";
+
+  // Sammle alle einzigartigen Charaktere
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const allowedNames: string[] = [];
+  const characterProfiles: string[] = [];
+
+  for (const slot of allSlots) {
+    const sheet = findCharacterBySlot(cast, slot);
+    if (!sheet || slot.includes("ARTIFACT")) continue;
+    allowedNames.push(sheet.displayName);
+    characterProfiles.push(buildCharacterProfile(sheet as CharacterSheet, isGerman));
+  }
+
+  // Kapitel-Übersicht (kompakt)
+  const chapterOutlines = directives.map((d, idx) => {
+    const charsOnStage = d.charactersOnStage
+      .filter(s => !s.includes("ARTIFACT"))
+      .map(s => findCharacterBySlot(cast, s)?.displayName)
+      .filter(Boolean)
+      .join(", ");
+
+    const isLast = idx === directives.length - 1;
+    const artifactNote = d.artifactUsage && !d.artifactUsage.toLowerCase().includes("nicht genutzt")
+      ? ` [${artifactName}]`
+      : "";
+
+    // Kompakt: Kapitel + Setting + Ziel + Figuren + Hook
+    let outline = `${idx + 1}. **${d.setting}**: ${d.goal}${artifactNote}`;
+    outline += `\n   Figuren: ${charsOnStage}`;
+    if (!isLast && d.outcome) {
+      outline += `\n   Hook: ${d.outcome.substring(0, 80)}`;
+    }
+
+    // Fusion-Hinweise falls vorhanden
+    const fusionBlock = fusionSections?.get(d.chapter);
+    if (fusionBlock) {
+      const lines = fusionBlock.split("\n").slice(0, 2);
+      outline += `\n   ${lines.join("; ")}`;
+    }
+
+    return outline;
+  }).join("\n\n");
+
+  // Altersgerechter Stil
+  const ageStyle = ageRange.max <= 5
+    ? "Sehr kurze Sätze (max 10 Wörter), sanfte Wiederholung, 1 Hauptproblem, sichere Auflösung."
+    : ageRange.max <= 8
+      ? "Kurze Sätze (max 15 Wörter), mehr Dialog, kleine Rätsel, spielerische Spannung, klare Hooks."
+      : ageRange.max <= 12
+        ? "Mittlere Sätze, stärkere Motive, schärfere Wendungen, tiefere Emotionen."
+        : "Komplexerer Stil, moralische Nuancen, größere Wendungen.";
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // HAUPTPROMPT - Optimiert für Token-Effizienz und Qualität
+  // ────────────────────────────────────────────────────────────────────────────
+
+  return `# Rolle und Ziel
+Du bist ein preisgekrönter Kinderbuch-Autor mit dem Witz von Roald Dahl, der Wärme von Astrid Lindgren und der Magie von Cornelia Funke.
+Schreibe eine komplette Kindergeschichte auf ${isGerman ? "Deutsch" : language}. **Nur JSON-Ausgabe.**
+
+# Zielgruppe
+- Alter: ${ageRange.min}–${ageRange.max} Jahre
+- ${ageStyle}
+
+# Ton
+${tone || dna.toneBounds?.targetTone || "Warm"}, frech, aufregend – wie ein Lieblingsonkel, der heimlich ein Pirat war.
+Niemals belehrend, niemals zynisch, niemals langweilig.
+
+# Das oberste Gebot: ZEIGEN, NICHT ERZÄHLEN
+\`\`\`
+❌ VERBOTEN: "Emma hatte Angst."
+✅ RICHTIG: "Emmas Knie zitterten. Sie presste die Hand auf den Mund."
+
+❌ VERBOTEN: "Der Wald war unheimlich."
+✅ RICHTIG: "Nebel hing zwischen den Bäumen. Irgendwo knackte ein Ast."
+
+❌ VERBOTEN: "Sie freuten sich sehr."
+✅ RICHTIG: "Sie klatschten so laut ab, dass Bello erschrocken bellte."
+\`\`\`
+
+# Stil-Regeln
+1. Kurze, klare Sätze mit starken Verben.
+2. Jeder Satz arbeitet: Handlung, Charakter, Atmosphäre oder Lacher.
+3. Dialog treibt 60% der Handlung – lebendig, unterbrochen, charakteristisch.
+4. Max 1 Adjektiv pro Nomen. Keine Adjektiv-Ketten.
+5. Konkrete Sinne pro Kapitel: Was hört, riecht, fühlt der Held?
+6. Humor: Körperkomik, absurde Logik, Dreier-Regel (2× normal, 3. Mal Chaos).
+
+# Verbotene Wörter
+"plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
+
+# Harte Regeln (müssen erfüllt sein)
+1. **Sprache**: Nur ${isGerman ? "Deutsch" : language}.
+2. **Länge**: Gesamt ${totalWordMin}–${totalWordMax} Wörter. Pro Kapitel **${wordsPerChapter.min}–${wordsPerChapter.max} Wörter** (HARTES MINIMUM: ${wordsPerChapter.min}).
+3. **Kapitel-Struktur**: Jedes Kapitel enthält: (a) Sinnesdetail-Einstieg, (b) klares Ziel, (c) Hindernis, (d) Aktion mit Konsequenz, (e) Hook am Ende (außer letztes).
+4. **Keine Meta-Labels**: Keine "Setting:", "Ziel:", "Hook:" – nur Prosa.
+5. **Cast Lock**: NUR diese Namen: ${allowedNames.join(", ")}. Keine neuen Charaktere!
+6. **Aktive Charaktere**: Mind. 3–4 Figuren HANDELN pro Kapitel (Verb + Objekt).
+7. **Anti-Wiederholung**: Keine identischen Sätze. Catchphrases genau 1×.
+8. **Kein Deus ex Machina**: Der Held löst es selbst – durch Mut, Cleverness oder Teamwork.
+9. **Ende ohne Predigt**: Die Geschichte IST die Moral. Nie erklären.
+
+# Figuren (NUR diese erlaubt)
+Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
+
+${characterProfiles.join("\n\n")}
+
+${artifactName ? `# Artefakt: ${artifactName}
+**Funktion**: ${artifactRule}
+
+**Pflicht-Bogen**:
+| Phase | Kapitel | Was passiert |
+|-------|---------|--------------|
+| Einführung | 1–2 | Wird entdeckt, zeigt erste Fähigkeit |
+| Versagen | 2–3 | Funktioniert falsch ODER führt in Sackgasse |
+| Triumph | 4–5 | Held nutzt es CLEVER (Artefakt löst nicht allein!) |` : ""}
+
+# Kapitel-Vorgaben
+${chapterOutlines}
+
+# Qualitäts-Check (intern prüfen)
+- [ ] Erster Satz macht sofort neugierig?
+- [ ] Jedes Kapitel: mind. 1 Lacher + 1 Kribbel-Moment?
+- [ ] Dialoge: Klingt jeder Charakter ANDERS?
+- [ ] Sinne dabei: Hören, Riechen, Fühlen?
+- [ ] Letzter Satz bleibt im Kopf?
+- [ ] Wortanzahl ${wordsPerChapter.min}+ pro Kapitel?
+
+# Ausgabe-Format
+Antworte NUR mit validem JSON. Kein Text davor oder danach.
+
+\`\`\`json
+{
+  "title": "Kurzer Titel (max 7 Wörter)",
+  "description": "Ein packender Teaser-Satz",
+  "chapters": [
+    { "chapter": 1, "title": "Neugier-Hook-Titel", "text": "Kapiteltext..." },
+    { "chapter": 2, "title": "Neugier-Hook-Titel", "text": "Kapiteltext..." },
+    ...
+  ]
+}
+\`\`\``;
+}
+
+// ─── Optimized Rewrite Prompt (V2) ────────────────────────────────────────────
+// Kompakter, fokussiert nur auf die Probleme
+
+export function buildFullStoryRewritePrompt(input: {
+  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; title: string; text: string }> };
+  directives: SceneDirective[];
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  qualityIssues: string;
+  stylePackText?: string;
+}): string {
+  const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText } = input;
+  const isGerman = language === "de";
+  const artifactName = cast.artifact?.name?.trim();
+
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const allowedNames = Array.from(allSlots)
+    .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+    .filter(Boolean)
+    .join(", ");
+
+  const originalText = originalDraft.chapters
+    .map(ch => `--- Kapitel ${ch.chapter}: ${ch.title} ---\n${ch.text}`)
+    .join("\n\n");
+
+  return `# Aufgabe
+Überarbeite die Geschichte. Behalte Handlung und Charaktere, behebe ALLE Probleme.
+
+${qualityIssues}
+
+# Regeln (unveränderlich)
+- Erlaubte Namen: ${allowedNames}
+- Keine neuen Figuren
+- Länge: ${totalWordMin}–${totalWordMax} Wörter gesamt, **${wordsPerChapter.min}–${wordsPerChapter.max} pro Kapitel**
+- Kurze Kapitel → mit Aktion + Dialog erweitern (zeigen, nicht erzählen)
+- Fehlende Figur → einfügen mit Aktion + mindestens 1 Dialog-Zeile
+- Jedes Kapitel: Sinneseinstieg, Ziel, Hindernis, Aktion, Hook
+- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}–${ageRange.max}
+${artifactName ? `- Artefakt "${artifactName}" aktiv nutzen` : ""}
+- Kapiteltitel = Neugier-Hooks
+- Letztes Kapitel: Epilog (2–4 Sätze)
+
+# VERBOTEN im Text
+"Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war"
+
+# Original-Text
+${originalText}
+
+# Ausgabe
+Komplette überarbeitete Geschichte als JSON:
+\`\`\`json
+{
+  "title": "Story-Titel",
+  "description": "Teaser-Satz",
+  "chapters": [
+    { "chapter": 1, "title": "...", "text": "..." },
+    ...
+  ]
+}
+\`\`\``;
+}
+
+// ─── Chapter Expansion Prompt (V2 - kompakter) ────────────────────────────────
+
+export function buildChapterExpansionPrompt(input: {
+  chapter: SceneDirective;
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+  lengthTargets: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number };
+  stylePackText?: string;
+  originalText: string;
+  previousContext?: string;
+  nextContext?: string;
+  requiredCharacters?: string[];
+}): string {
+  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, originalText, previousContext, nextContext, requiredCharacters } = input;
+  const isGerman = language === "de";
+  const artifactName = cast.artifact?.name?.trim();
+
+  const characterNames = chapter.charactersOnStage
+    .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+    .filter(Boolean) as string[];
+  const allowedNames = Array.from(new Set(characterNames)).join(", ");
+
+  const missingLine = requiredCharacters?.length
+    ? `\n**FEHLENDE FIGUREN (MÜSSEN EINGEFÜGT WERDEN):** ${requiredCharacters.join(", ")}\nJede muss: benannt werden + konkrete Aktion + mind. 1 Dialog-Zeile`
+    : "";
+
+  const contextLines = [
+    previousContext ? `Vorheriges Kapitel endete: "${previousContext}"` : "",
+    nextContext ? `Nächstes Kapitel beginnt: "${nextContext}"` : ""
+  ].filter(Boolean).join("\n");
+
+  return `# Aufgabe
+Erweitere das Kapitel ohne die Handlung zu ändern. Zeigen, nicht erzählen.
+
+# Szene
+- Setting: ${chapter.setting}, Stimmung: ${chapter.mood ?? "COZY"}
+- Ziel: ${chapter.goal}
+- Figuren: ${allowedNames}
+${artifactName && chapter.artifactUsage ? `- Artefakt: ${artifactName} (${chapter.artifactUsage})` : ""}
+- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}–${ageRange.max}
+${missingLine}
+
+# Länge
+**${lengthTargets.wordMin}–${lengthTargets.wordMax} Wörter, ${lengthTargets.sentenceMin}–${lengthTargets.sentenceMax} Sätze**
+
+# Regeln
+1. Nur diese Namen: ${allowedNames}
+2. Keine neuen Figuren
+3. Keine Meta-Labels im Text
+4. Erweitern durch: konkrete Aktion + 2–3 Dialog-Zeilen
+5. Sinnesdetails hinzufügen
+
+${contextLines ? `# Kontext\n${contextLines}\n` : ""}
+# Original
+${originalText}
+
+# Ausgabe
+JSON: { "title": "Kapiteltitel", "text": "Kapiteltext" }`;
+}
+
+// ─── Legacy functions (für Kompatibilität) ────────────────────────────────────
 
 export function buildStoryChapterPrompt(input: {
   chapter: SceneDirective;
@@ -42,11 +613,9 @@ export function buildStoryChapterPrompt(input: {
     ? `Artifact usage: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}`
     : "";
 
-
-
   return `You are a professional children's story author.
 
-Write Chapter ${chapter.chapter} for a ${ageRange.min}-${ageRange.max} year old audience in ${language}.
+Write Chapter ${chapter.chapter} for a ${ageRange.min}-${ageRange.max} year old audience in ${isGerman ? "German" : language}.
 Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
 
 SCENE DIRECTIVE:
@@ -135,8 +704,6 @@ export function buildStoryChapterRevisionPrompt(input: {
 
   const issueList = issues.length > 0 ? issues.map(issue => `- ${issue}`).join("\n") : "- Keine";
 
-
-
   return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in ${isGerman ? "German" : language}.
 
 ISSUES:
@@ -166,67 +733,6 @@ RULES:
 9) Chapter title must be a curiosity hook, not "Chapter X".
 10) Children's-book style: vivid, rhythmic, varied sentence starts.
 
-ORIGINAL TEXT:
-${originalText}
-
-Return JSON:
-{ "title": "Short chapter title", "text": "Chapter text" }`;
-}
-
-export function buildChapterExpansionPrompt(input: {
-  chapter: SceneDirective;
-  cast: CastSet;
-  dna: TaleDNA | StoryDNA;
-  language: string;
-  ageRange: { min: number; max: number };
-  tone?: string;
-  lengthTargets: { wordMin: number; wordMax: number; sentenceMin: number; sentenceMax: number };
-  stylePackText?: string;
-  originalText: string;
-  previousContext?: string;
-  nextContext?: string;
-  requiredCharacters?: string[];
-}): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, stylePackText, originalText, previousContext, nextContext, requiredCharacters } = input;
-  const isGerman = language === "de";
-  const artifactName = cast.artifact?.name?.trim();
-  const characterNames = chapter.charactersOnStage
-    .map(slot => findCharacterBySlot(cast, slot)?.displayName)
-    .filter(Boolean) as string[];
-  const allowedNames = Array.from(new Set(characterNames)).join(", ");
-
-  const prev = previousContext ? `PREVIOUS CHAPTER CONTEXT:\n${previousContext}\n` : "";
-  const next = nextContext ? `NEXT CHAPTER CONTEXT:\n${nextContext}\n` : "";
-  const missingLine = requiredCharacters?.length
-    ? `MISSING CHARACTERS (MUST INSERT): ${requiredCharacters.join(", ")}.\nEach missing character must be named, perform a concrete action, and speak at least one short line of dialogue.`
-    : "";
-
-  return `Expand the chapter below without changing the plot. Keep continuity with adjacent chapters. Write the output in ${isGerman ? "German" : language}.
-
-SCENE DIRECTIVE:
-- Setting: ${chapter.setting}
-- Mood: ${chapter.mood ?? "COZY"}
-- Goal: ${chapter.goal}
-- Conflict: ${chapter.conflict}
-- Outcome: ${chapter.outcome}
-- Characters (must appear): ${allowedNames || "none"}
-- Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
-- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
-- Audience: ${ageRange.min}-${ageRange.max} years
-${stylePackText ? `\n${stylePackText}\n` : ""}
-
-RULES:
-1) Use only these names: ${allowedNames || "none"}.
-2) No new proper names or new characters.
-3) No meta text or instructions.
-3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
-4) Add a concrete action sequence + 2-3 short dialogue lines.
-5) Keep the original plot beats and setting; just expand the scene.
-6) Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension".
-7) Target ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
-${missingLine ? `8) ${missingLine}\n` : ""}
-
-${prev}${next}
 ORIGINAL TEXT:
 ${originalText}
 
@@ -291,309 +797,13 @@ Return JSON:
 { "title": "Short chapter title", "text": "Chapter text" }`;
 }
 
-// ─── Full Story Prompt (all chapters in one call) ───────────────────────────
-// OPTIMIZED V2: More compact, uses full character properties from DB
-export function buildFullStoryPrompt(input: {
-  directives: SceneDirective[];
-  cast: CastSet;
-  dna: TaleDNA | StoryDNA;
-  language: string;
-  ageRange: { min: number; max: number };
-  tone?: string;
-  totalWordTarget: number;
-  totalWordMin: number;
-  totalWordMax: number;
-  wordsPerChapter: { min: number; max: number };
-  stylePackText?: string;
-  strict?: boolean;
-  fusionSections?: Map<number, string>;
-}): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, fusionSections } = input;
-  const isGerman = language === "de";
-  const artifactName = cast.artifact?.name?.trim();
-  const artifactRule = cast.artifact?.storyUseRule || "important object";
-
-  // Collect all unique character names
-  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
-  const allowedNames: string[] = [];
-
-  // Build compact character profiles with full DB properties
-  const characterLines: string[] = [];
-  for (const slot of allSlots) {
-    const sheet = findCharacterBySlot(cast, slot);
-    if (!sheet || slot.includes("ARTIFACT")) continue;
-    allowedNames.push(sheet.displayName);
-
-    const ep = sheet.enhancedPersonality;
-    const personality = sheet.personalityTags?.slice(0, 4).join(", ") || ep?.dominant || "neugierig";
-    const speechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || "normal";
-
-    // Compact one-line format: Name (age?): personality; spricht speechStyle.
-    let line = `- ${sheet.displayName}`;
-    if (sheet.roleType === "AVATAR") {
-      line += ` (Kind)`;
-    }
-    line += `: ${personality}; spricht ${speechStyle}.`;
-
-    // Add catchphrase with context if available
-    if (ep?.catchphrase) {
-      const context = (sheet as any).catchphraseContext || ep.emotionalTriggers?.[0] || "";
-      line += ` Spruch: „${ep.catchphrase}"${context ? ` (${context})` : ""}.`;
-    }
-
-    // Add quirk if available
-    if (ep?.quirk) {
-      line += ` Marotte: ${ep.quirk}.`;
-    }
-
-    characterLines.push(line);
-  }
-
-  // Build compact chapter outline (Setting + Hook only)
-  const chapterOutlines = directives.map((d, idx) => {
-    const charsOnStage = d.charactersOnStage
-      .filter(s => !s.includes("ARTIFACT"))
-      .map(s => findCharacterBySlot(cast, s)?.displayName)
-      .filter(Boolean)
-      .join(", ");
-
-    const isLast = idx === directives.length - 1;
-
-    // Compact format: Chapter N (Setting): Goal. Hook: ...
-    let outline = `${idx + 1}. ${d.setting}: ${d.goal}`;
-    if (d.artifactUsage && !d.artifactUsage.toLowerCase().includes("nicht genutzt")) {
-      outline += ` [${artifactName}]`;
-    }
-    outline += ` Figuren: ${charsOnStage}.`;
-    if (!isLast && d.outcome) {
-      outline += ` Hook: ${d.outcome.substring(0, 60)}...`;
-    }
-
-    // Add fusion hints if available (compact)
-    const fusionBlock = fusionSections?.get(d.chapter);
-    if (fusionBlock) {
-      const compactFusion = fusionBlock.split("\n").slice(0, 2).join("; ");
-      outline += ` [${compactFusion}]`;
-    }
-
-    return outline;
-  }).join("\n");
-
-  // Build recurring motifs from character quirks/catchphrases
-  const motifs: string[] = [];
-  for (const slot of allSlots) {
-    const sheet = findCharacterBySlot(cast, slot);
-    if (!sheet) continue;
-    const ep = sheet.enhancedPersonality;
-    if (ep?.quirk && motifs.length < 3) {
-      motifs.push(`- ${sheet.displayName} ${ep.quirk} (spielerisch, wiederkehrend)`);
-    }
-  }
-
-  // Determine age-specific style
-  const ageStyle = ageRange.max <= 5
-    ? "Sehr kurze Sätze, sanfte Wiederholung, 1 Hauptproblem, sichere Auflösung."
-    : ageRange.max <= 8
-      ? "Mehr Dialog, kleine Rätsel, spielerische Spannung, klare Hooks."
-      : ageRange.max <= 12
-        ? "Stärkere Motive, schärfere Wendungen, tiefere Emotionen, kindgerecht."
-        : "Dichterer Stil, moralische Nuancen, größere Wendungen.";
-
-
-
-  // English version
-  return `# Role and Goal
-- You are: Award-winning children's book author.
-- Goal: Write a complete children's story in ${isGerman ? "German" : language}. Only JSON output.
-
-# Target Audience
-- ${ageRange.min}–${ageRange.max} years old
-- Style: ${ageStyle}
-
-# Tone
-- ${tone || dna.toneBounds?.targetTone || "Warm"}, witty, exciting – never cynical.
-
-# Style Rules
-- Short, clear paragraphs; vivid imagery; clear cause-effect
-- Plot driven by dialogue (2–6 dialogue lines per chapter)
-- Max 1–2 poetic images/similes per chapter
-
-# Hard Rules (Quality Gates)
-1. **Language**: All text fields in ${isGerman ? "German" : language} only.
-2. **Length**: Total: ${totalWordMin}–${totalWordMax} words. Per chapter: ${wordsPerChapter.min}–${wordsPerChapter.max} words (upper half preferred). No mini-chapters.
-3. **Chapter Structure**: Each chapter in prose: (a) setting+mood, (b) clear goal, (c) difficulty, (d) visible action (verb+object), (e) progress, (f) last sentence = gentle hook (except final chapter).
-4. **No Labels**: No terms like "Setting:", "Goal:", "Hook:" in chapter text – only narrative prose.
-5. **Cast Lock**: Only these names: ${allowedNames.join(", ")}. No new characters. Background figures unnamed.
-6. **Continuity**: Red thread. Decisions carry over. No abrupt location changes without transition.
-7. **Active Characters**: Every character influences the plot actively. At least 3–4 characters act visibly per chapter.
-8. **Anti-Repetition**: No identical sentences across chapters. No filler words ("suddenly", "somehow"). No clichés like "decisive clue" – show don't tell.
-9. **Character Voices**: Each character has a unique voice in dialogue (per speech style). Use catchphrases exactly 1x. Show quirks.
-${artifactName ? `10. **Artifact Arc**: ${artifactName} introduced in ch 1–2, fails/misleads in ch 2–3, helps decisively in ch 4–5. At least 2 active scenes.` : ""}
-11. **Ending**: Final chapter resolves conflict through scene (dialogue+action), shows small lesson without preaching, ends with warm closing image + short epilogue (2–4 sentences).
-
-# Characters (only these allowed)
-${characterLines.join("\n")}
-${artifactName ? `\n# Artifact\n- ${artifactName}: ${artifactRule}` : ""}
-
-${motifs.length > 0 ? `# Recurring Motifs\n${motifs.join("\n")}` : ""}
-
-# Chapter Structure (guidance, NOT verbatim)
-${chapterOutlines}
-
-# Output Format
-Return only valid JSON:
-\`\`\`json
-{
-  "title": "Short title (max 7 words)",
-  "description": "One-sentence teaser",
-  "chapters": [
-    { "chapter": 1, "title": "Chapter title", "text": "Chapter text..." },
-    { "chapter": 2, "title": "Chapter title", "text": "Chapter text..." },
-    ...
-  ]
-}
-\`\`\``;
-}
-
-// ─── Full Story Rewrite Prompt ──────────────────────────────────────────────────
-export function buildFullStoryRewritePrompt(input: {
-  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; title: string; text: string }> };
-  directives: SceneDirective[];
-  cast: CastSet;
-  dna: TaleDNA | StoryDNA;
-  language: string;
-  ageRange: { min: number; max: number };
-  tone?: string;
-  totalWordMin: number;
-  totalWordMax: number;
-  wordsPerChapter: { min: number; max: number };
-  qualityIssues: string;
-  stylePackText?: string;
-}): string {
-  const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText } = input;
-  const isGerman = language === "de";
-  const artifactName = cast.artifact?.name?.trim();
-
-  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
-  const allowedNames = Array.from(allSlots)
-    .map(slot => findCharacterBySlot(cast, slot)?.displayName)
-    .filter(Boolean)
-    .join(", ");
-
-  const originalText = originalDraft.chapters
-    .map(ch => `--- Chapter ${ch.chapter}: ${ch.title} ---\n${ch.text}`)
-    .join("\n\n");
-
-
-
-  return `Revise the following children's story. Keep the plot and action, but fix ALL listed problems. Write the output in ${isGerman ? "German" : language}.
-
-${qualityIssues}
-
-STYLE TARGETS (do NOT mention these directly):
-- Page-turning momentum, warm humor, cinematic clarity
-- Poetic depth in small doses, distinct character voices
-
-RULES (unchangeable):
-- Allowed names: ${allowedNames || "none"}
-- No new proper names
-- Length: ${totalWordMin}-${totalWordMax} words total, ${wordsPerChapter.min}-${wordsPerChapter.max} per chapter
-- No placeholder chapters; if a chapter is short, expand with a concrete action sequence + 2-3 short dialogue lines
-- Avoid template phrases like "important decision", "decisive clue", "special idea", "new ability", "felt the tension"
-- Each chapter must contain these beats woven naturally into prose (never as headings): a clear setting (place + mood, 1-2 sentences), a purpose, a difficulty, a concrete action, a step forward, and a closing hook
-- If any chapter has 1-2 sentences, AUTO-EXPAND using these beats as natural prose
-- Each chapter must include one small extra complication (something slips, is too heavy, is misunderstood, or distracts) — never label it
-- Avoid sentences like "He made an important decision" or "They discovered the decisive clue"; replace with concrete action + short dialogue
-- Do NOT render headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Visible action:", "Action continued:", "Sichtbare Aktion:", "Aktion fortgesetzt:" in the chapter text. Also never start sentences with "Her goal was", "An obstacle was", "Ihr Ziel war", "Ein Hindernis war". These are internal only.
-- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
-- Audience: ${ageRange.min}-${ageRange.max} years
-${artifactName ? `- Artifact "${artifactName}" must be actively used` : ""}
-- Chapter titles must be curiosity hooks (not "Chapter X")
-- Description must be a 1-sentence teaser hook
-- Last chapter ends with a short epilogue paragraph + optional 1-sentence spark for next adventure
-${stylePackText ? `\n${stylePackText}\n` : ""}
-
-ORIGINAL TEXT:
-${originalText}
-
-Return the COMPLETE revised story as JSON:
-{
-  "title": "Story title",
-  "description": "1-2 sentences",
-  "chapters": [
-    { "chapter": 1, "title": "...", "text": "..." },
-    ...
-  ]
-}`;
-}
-
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
-
-
   return `Create a short story title (max 7 words) and a 1-sentence teaser hook for the following children's story in ${input.language === "de" ? "German" : input.language}.
 Return JSON:
 { "title": "...", "description": "..." }
 
 Story:
 ${input.storyText}`;
-}
-
-function buildStructureMap(chapterCount: number): string {
-  if (chapterCount >= 8) {
-    return [
-      "- Ch1: Setup + promise + first mini-mystery",
-      "- Ch2: First setback + rule of the world",
-      "- Ch3: False lead / unexpected ally",
-      "- Ch4: Midpoint twist (stakes widen)",
-      "- Ch5: Loss or mistake by protagonist",
-      "- Ch6: Plan + rising time pressure",
-      "- Ch7: Final confrontation + clever solution",
-      "- Ch8: Reward + warm resolution + short epilogue beat",
-    ].join("\n");
-  }
-  if (chapterCount === 7) {
-    return [
-      "- Ch1: Setup + promise",
-      "- Ch2: Setback + rule of the world",
-      "- Ch3: False lead / ally",
-      "- Ch4: Midpoint twist",
-      "- Ch5: Darkest moment",
-      "- Ch6: Final plan + confrontation",
-      "- Ch7: Resolution + short epilogue beat",
-    ].join("\n");
-  }
-  if (chapterCount === 6) {
-    return [
-      "- Ch1: Setup + promise",
-      "- Ch2: Setback + rule of the world",
-      "- Ch3: Twist / false lead",
-      "- Ch4: Darkest moment",
-      "- Ch5: Final plan + confrontation",
-      "- Ch6: Resolution + short epilogue beat",
-    ].join("\n");
-  }
-  if (chapterCount === 5) {
-    return [
-      "- Ch1: Setup + first mini-mystery",
-      "- Ch2: First setback + escalation",
-      "- Ch3: False lead / twist",
-      "- Ch4: Darkest moment (nearly lost)",
-      "- Ch5: Resolution + warm payoff + short epilogue beat",
-    ].join("\n");
-  }
-  if (chapterCount === 4) {
-    return [
-      "- Ch1: Setup + promise",
-      "- Ch2: Escalation + obstacle",
-      "- Ch3: Climax (darkest moment)",
-      "- Ch4: Resolution + short epilogue beat",
-    ].join("\n");
-  }
-  return [
-    "- Ch1: Setup + problem",
-    "- Ch2: Confrontation + turning point",
-    "- Ch3: Resolution + short epilogue beat",
-  ].join("\n");
 }
 
 export function buildImageSpecPrompt(input: {

@@ -212,6 +212,10 @@ export interface CharacterSheet {
   enhancedPersonality?: EnhancedPersonality;
   catchphrase?: string;                 // Shortcut for quick access
   catchphraseContext?: string;          // When to use it: "when excited", "bei Gefahr"
+  // V2: Character profession/species from DB for ability mapping
+  archetype?: string;                   // e.g., "hero_helper", "magical_creature", "animal_companion"
+  species?: string;                     // e.g., "human_baker", "dog", "unicorn", "goblin"
+  role?: string;                        // Story role: "protagonist", "helper", "villain"
   visualSignature: string[];
   outfitLock: string[];
   faceLock?: string[];
