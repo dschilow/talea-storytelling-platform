@@ -19,6 +19,8 @@ type DokuPerspective = "science" | "history" | "technology" | "nature" | "cultur
 
 interface TaviChatContext {
   language?: string;
+  intentHint?: TaviActionType;
+  pendingRequest?: string;
 }
 
 interface TaviChatRequest {
@@ -43,6 +45,8 @@ interface TaviChatResponse {
     total: number;
   };
   action?: TaviChatAction;
+  intentHint?: TaviActionType;
+  awaitingConfirmation?: boolean;
 }
 
 const TAVI_SYSTEM_PROMPT = `Du bist Tavi, das magische Geschichten-Genie der Talea Storytelling Platform! ðŸ§žâ€â™‚ï¸âœ¨
@@ -72,11 +76,45 @@ Antworte immer auf Deutsch und mit viel Begeisterung fÃ¼r Geschichten und Krea
 
 const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["de", "en", "fr", "es", "it", "nl", "ru"];
 
-const STORY_KEYWORDS = /\b(story|geschichte|maerchen|mÃ¤rchen|erzaehlung|erzÃ¤hlung)\b/i;
-const DOKU_KEYWORDS = /\b(doku|wissensdoku|dokumentation)\b/i;
-const ACTION_VERBS = /\b(mach|mache|erstelle|erstell|generier|schreib|schreibe|erzaehl|erzaehle|erzaehlst|erzähl|erzähle|create|make|generate|bitte|kannst|koenntest)\b/i;
+const STORY_KEYWORDS = /\b(story|stories|storys|geschichte|geschichten|maerchen|mÃ¤rchen|erzaehlung|erzÃ¤hlung|erzaehlungen|erzÃ¤hlungen)\b/i;
+const DOKU_KEYWORDS = /\b(doku|dokus|wissensdoku|wissensdokus|dokumentation|dokumentationen)\b/i;
+const ACTION_VERBS = /\b(mach|mache|machst|erstelle|erstellen|erstellt|generier|generiere|generieren|schreib|schreibe|schreibst|erzaehl|erzaehle|erzaehlst|create|make|generate|bitte|kannst|koenntest)\b/i;
 const STORY_COMMAND = /^(\/?(?:story|geschichte|maerchen|mÃ¤rchen|erzaehlung|erzÃ¤hlung))\b/i;
 const DOKU_COMMAND = /^(\/?(?:doku|wissensdoku|dokumentation))\b/i;
+const TOPIC_STOP_WORDS = [
+  "hallo",
+  "hey",
+  "hi",
+  "bitte",
+  "kannst",
+  "koenntest",
+  "du",
+  "ihr",
+  "mir",
+  "mal",
+  "dann",
+  "thema",
+  "mach",
+  "mache",
+  "machst",
+  "erstelle",
+  "erstellen",
+  "erstellt",
+  "generiere",
+  "generieren",
+  "schreib",
+  "schreibe",
+  "schreibst",
+  "doku",
+  "dokus",
+  "wissensdoku",
+  "dokumentation",
+  "story",
+  "stories",
+  "storys",
+  "geschichte",
+  "geschichten",
+];
 
 function normalizeLanguage(value?: string): SupportedLanguage | undefined {
   if (!value) return undefined;
@@ -220,10 +258,18 @@ function cleanupTopic(raw: string): string {
   topic = topic.replace(/\b(fuer|fÃ¼r|for)\s+\d+\s*-\s*\d+\s*(jahre|years)?\b/gi, "");
   topic = topic.replace(/\b(fuer|fÃ¼r|for)\s+\d+\+?\s*(jahre|years)?\b/gi, "");
   topic = topic.replace(/\b(kurz|lang|mittel|short|long|medium|basic|standard|deep|grundlagen|tief)\b/gi, "");
-  topic = topic.replace(/\b(doku|wissensdoku|dokumentation)\b/gi, "");
+  topic = topic.replace(/\b(doku|dokus|wissensdoku|wissensdokus|dokumentation|dokumentationen)\b/gi, "");
   topic = topic.replace(/\b(bitte|mach|mache|erstelle|generiere|schreibe|schreib|create|make)\b/gi, "");
   topic = topic.replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, "");
   return topic.trim();
+}
+
+function stripStopWords(candidate: string): string {
+  let cleaned = candidate.toLowerCase();
+  for (const word of TOPIC_STOP_WORDS) {
+    cleaned = cleaned.replace(new RegExp(`\\b${escapeRegex(word)}\\b`, "gi"), " ");
+  }
+  return cleaned.replace(/[^a-z0-9Ã¤Ã¶Ã¼ÃŸ-]/gi, " ").replace(/\s+/g, " ").trim();
 }
 
 function extractTopic(message: string): string | undefined {
@@ -231,10 +277,12 @@ function extractTopic(message: string): string | undefined {
   const match = stripped.match(/(?:ueber|Ã¼ber|zum thema|zum|zu|about|on)\s+(.+)/i);
   if (match?.[1]) {
     const topic = cleanupTopic(match[1]);
-    return topic.length > 0 ? topic : undefined;
+    const cleaned = stripStopWords(topic);
+    return cleaned.length > 1 ? cleaned : undefined;
   }
   const fallback = cleanupTopic(stripped);
-  return fallback.length > 0 ? fallback : undefined;
+  const cleanedFallback = stripStopWords(fallback);
+  return cleanedFallback.length > 1 ? cleanedFallback : undefined;
 }
 
 function detectIntent(message: string): "story" | "doku" | "ambiguous" | null {
@@ -244,6 +292,31 @@ function detectIntent(message: string): "story" | "doku" | "ambiguous" | null {
   if (wantsStory) return "story";
   if (wantsDoku) return "doku";
   return null;
+}
+
+function isConfirmation(message: string): boolean {
+  const trimmed = message.toLowerCase().trim();
+  if (!trimmed) return false;
+  if (/^(ja|jap|jep|jo|klar|ok|okay|yes|yep|bitte|mach|mache|go)$/.test(trimmed)) {
+    return true;
+  }
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 3 && /(ja|klar|ok|okay|yes|bitte)/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+function isDecline(message: string): boolean {
+  const trimmed = message.toLowerCase().trim();
+  if (!trimmed) return false;
+  if (/^(nein|nee|no|nope|spaeter|später|nicht|abbruch)$/.test(trimmed)) {
+    return true;
+  }
+  if (/(doch nicht|lieber nicht|kein danke)/.test(trimmed)) {
+    return true;
+  }
+  return false;
 }
 
 function escapeRegex(value: string): string {
@@ -356,16 +429,47 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     }
 
     const language = normalizeLanguage(context?.language) ?? "de";
-    const intent = detectIntent(message);
+    const intentHint = context?.intentHint;
+    const pendingRequest = context?.pendingRequest;
+    let intent = detectIntent(message);
 
     if (intent === "ambiguous") {
-      return {
-        response: "Meinst du eine Geschichte oder eine Doku? Sag mir kurz, was du erstellen moechtest.",
-        tokensUsed: { prompt: 0, completion: 0, total: 0 },
-      };
+      if (intentHint) {
+        intent = intentHint;
+      } else {
+        return {
+          response: "Meinst du eine Geschichte oder eine Doku? Sag mir kurz, was du erstellen moechtest.",
+          tokensUsed: { prompt: 0, completion: 0, total: 0 },
+        };
+      }
+    }
+
+    if (!intent && intentHint) {
+      intent = intentHint;
     }
 
     if (intent === "story") {
+      if (isDecline(message)) {
+        return {
+          response: "Alles klar! Sag Bescheid, wenn du eine Geschichte generieren moechtest.",
+          tokensUsed: { prompt: 0, completion: 0, total: 0 },
+        };
+      }
+
+      const confirmed = isConfirmation(message);
+      const requestText = confirmed
+        ? (pendingRequest && pendingRequest.trim().length > 0 ? pendingRequest : message)
+        : message;
+
+      if (!confirmed) {
+        return {
+          response: "Soll ich dir dazu eine Story generieren? Sag einfach \"ja\" oder gib mir noch Details.",
+          tokensUsed: { prompt: 0, completion: 0, total: 0 },
+          intentHint: "story",
+          awaitingConfirmation: true,
+        };
+      }
+
       const avatars = await avatarDB.queryAll<{ id: string; name: string }>`
         SELECT id, name FROM avatars WHERE user_id = ${auth.userID} ORDER BY created_at DESC
       `;
@@ -377,9 +481,9 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         };
       }
 
-      const selection = selectAvatarIds(message, avatars);
+      const selection = selectAvatarIds(requestText, avatars);
       const config = buildStoryConfig({
-        message,
+        message: requestText,
         avatarIds: selection.ids,
         language,
       });
@@ -407,11 +511,33 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     }
 
     if (intent === "doku") {
-      const config = buildDokuConfig({ message, language });
+      if (isDecline(message)) {
+        return {
+          response: "Alles klar! Sag Bescheid, wenn du eine Doku generieren moechtest.",
+          tokensUsed: { prompt: 0, completion: 0, total: 0 },
+        };
+      }
+
+      const confirmed = isConfirmation(message);
+      const requestText = confirmed
+        ? (pendingRequest && pendingRequest.trim().length > 0 ? pendingRequest : message)
+        : message;
+      const config = buildDokuConfig({ message: requestText, language });
+
       if (!config.topic || config.topic.length < 2) {
         return {
           response: "Welches Thema soll die Doku haben? Nenne mir kurz ein Thema.",
           tokensUsed: { prompt: 0, completion: 0, total: 0 },
+          intentHint: "doku",
+        };
+      }
+
+      if (!confirmed) {
+        return {
+          response: `Soll ich dir eine Doku zu "${config.topic}" generieren? Sag einfach "ja".`,
+          tokensUsed: { prompt: 0, completion: 0, total: 0 },
+          intentHint: "doku",
+          awaitingConfirmation: true,
         };
       }
 

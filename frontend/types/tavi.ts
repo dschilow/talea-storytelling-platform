@@ -4,6 +4,8 @@ export interface TaviChatRequest {
   message: string;
   context?: {
     language?: string;
+    intentHint?: 'story' | 'doku';
+    pendingRequest?: string;
   };
 }
 
@@ -22,6 +24,8 @@ export interface TaviChatResponse {
     total: number;
   };
   action?: TaviChatAction;
+  intentHint?: 'story' | 'doku';
+  awaitingConfirmation?: boolean;
 }
 
 export interface TaviService {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, Sparkles } from 'lucide-react';
+import { X, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +39,8 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [pendingIntent, setPendingIntent] = useState<'story' | 'doku' | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,10 +94,12 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
         headers.Authorization = `Bearer ${token}`;
       }
 
+      const intentHint = pendingIntent ?? undefined;
+      const pendingRequestText = pendingRequest ?? undefined;
       const response = await fetch(`${baseUrl}/tavi/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: userMessage.text, context: { language: i18n.language } }),
+        body: JSON.stringify({ message: userMessage.text, context: { language: i18n.language, intentHint, pendingRequest: pendingRequestText } }),
       });
 
       if (!response.ok) {
@@ -114,6 +118,20 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       };
 
       setMessages(prev => [...prev, taviMessage]);
+      if (data.action) {
+        setPendingIntent(null);
+        setPendingRequest(null);
+      } else if (data.intentHint) {
+        setPendingIntent(data.intentHint);
+        if (data.awaitingConfirmation) {
+          setPendingRequest(userMessage.text);
+        } else {
+          setPendingRequest(null);
+        }
+      } else if (intentHint) {
+        setPendingIntent(null);
+        setPendingRequest(null);
+      }
     } catch (error) {
       console.error('Tavi chat error:', error);
 
