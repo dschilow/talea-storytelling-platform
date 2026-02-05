@@ -9,3 +9,4 @@ Logs
 
 # Prevent local npm registry configs from leaking into CI/CD
 package-lock.json
+design
