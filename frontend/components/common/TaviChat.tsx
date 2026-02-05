@@ -1,12 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Sparkles, Bot, ArrowRight } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { colors } from '../../utils/constants/colors';
-import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
-import Button from './Button';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useBackend } from '../../hooks/useBackend';
 import type { TaviChatAction, TaviChatResponse } from '../../types/tavi';
 
@@ -23,6 +20,131 @@ interface TaviChatProps {
   onClose: () => void;
 }
 
+/* ─── Typing indicator dots ─── */
+const TypingDots: React.FC = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="flex items-center gap-2 self-start max-w-[80%]"
+  >
+    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] flex items-center justify-center shadow-md flex-shrink-0">
+      <Bot size={14} className="text-white" />
+    </div>
+    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-sm">
+      <div className="flex items-center gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className="w-2 h-2 rounded-full bg-[#A989F2]"
+            animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
+            transition={{
+              duration: 0.8,
+              repeat: Infinity,
+              delay: i * 0.15,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  </motion.div>
+);
+
+/* ─── Message bubble ─── */
+const MessageBubble: React.FC<{
+  message: Message;
+  onAction: (route: string) => void;
+  t: any;
+}> = ({ message, onAction, t }) => {
+  const isTavi = message.sender === 'tavi';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12, x: isTavi ? -20 : 20 }}
+      animate={{ opacity: 1, y: 0, x: 0 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={`flex items-end gap-2 ${isTavi ? 'self-start' : 'self-end flex-row-reverse'} max-w-[85%]`}
+    >
+      {/* Avatar */}
+      {isTavi && (
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] flex items-center justify-center shadow-md flex-shrink-0 mb-1">
+          <Bot size={14} className="text-white" />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        {/* Bubble */}
+        <div
+          className={`px-4 py-2.5 leading-relaxed text-sm whitespace-pre-wrap ${
+            isTavi
+              ? 'rounded-2xl rounded-bl-sm bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/40 dark:border-white/10 text-slate-800 dark:text-slate-100 shadow-sm'
+              : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/20'
+          }`}
+        >
+          {message.text}
+        </div>
+
+        {/* Action button */}
+        {message.action && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onAction(message.action?.route || '/')}
+            className="mt-1 self-start flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#A989F2]/15 to-[#FF6B9D]/15 dark:from-[#A989F2]/25 dark:to-[#FF6B9D]/25 border border-[#A989F2]/30 text-[#7C5CE0] dark:text-[#A989F2] text-xs font-semibold hover:from-[#A989F2]/25 hover:to-[#FF6B9D]/25 transition-colors"
+          >
+            {message.action.type === 'story'
+              ? t('chat.openStory', 'Story öffnen')
+              : t('chat.openDoku', 'Doku öffnen')}
+            <ArrowRight size={13} />
+          </motion.button>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─── Quick suggestion pills ─── */
+const QuickSuggestions: React.FC<{
+  onSelect: (text: string) => void;
+  t: any;
+}> = ({ onSelect, t }) => {
+  const suggestions = [
+    { text: t('chat.suggestion_story', 'Erzähl mir eine Geschichte'), emoji: '📖' },
+    { text: t('chat.suggestion_doku', 'Erstelle eine Doku'), emoji: '📚' },
+    { text: t('chat.suggestion_avatar', 'Neuen Avatar erstellen'), emoji: '✨' },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.5 }}
+      className="flex flex-wrap gap-2 px-1 mt-2"
+    >
+      {suggestions.map((s, i) => (
+        <motion.button
+          key={i}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.6 + i * 0.1 }}
+          whileHover={{ scale: 1.05, y: -1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onSelect(s.text)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-white/50 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-[#A989F2]/40 hover:text-[#7C5CE0] dark:hover:text-[#A989F2] transition-colors shadow-sm"
+        >
+          <span>{s.emoji}</span>
+          {s.text}
+        </motion.button>
+      ))}
+    </motion.div>
+  );
+};
+
+/* ─── Main Chat Component ─── */
 const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -34,13 +156,14 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       sender: 'tavi',
       text: t('chat.welcome'),
       timestamp: new Date(),
-    }
+    },
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [pendingIntent, setPendingIntent] = useState<'story' | 'doku' | null>(null);
   const [pendingRequest, setPendingRequest] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -54,29 +177,29 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setInputMessage(text);
-
-    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    const words = text.trim().split(/\s+/).filter((w) => w.length > 0);
     setWordCount(words.length);
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading || wordCount > 50) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading || wordCount > 50) return;
 
+    setShowSuggestions(false);
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: 'user',
-      text: inputMessage.trim(),
+      text: text.trim(),
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputMessage('');
     setWordCount(0);
     setIsLoading(true);
@@ -99,7 +222,10 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       const response = await fetch(`${baseUrl}/tavi/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: userMessage.text, context: { language: i18n.language, intentHint, pendingRequest: pendingRequestText } }),
+        body: JSON.stringify({
+          message: userMessage.text,
+          context: { language: i18n.language, intentHint, pendingRequest: pendingRequestText },
+        }),
       });
 
       if (!response.ok) {
@@ -117,7 +243,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
         action: data.action,
       };
 
-      setMessages(prev => [...prev, taviMessage]);
+      setMessages((prev) => [...prev, taviMessage]);
       if (data.action) {
         setPendingIntent(null);
         setPendingRequest(null);
@@ -136,7 +262,6 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       console.error('Tavi chat error:', error);
 
       let errorText = t('chat.error');
-
       if (error instanceof Error && process.env.NODE_ENV === 'development') {
         errorText = `Debug: ${error.message}`;
       }
@@ -148,11 +273,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSendMessage = () => sendMessage(inputMessage);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -161,284 +288,152 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  if (!isOpen) return null;
-
-  const containerStyle: React.CSSProperties = {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(169, 137, 242, 0.2)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    zIndex: 1000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: `${spacing.lg}px`,
+  const handleAction = (route: string) => {
+    onClose();
+    navigate(route);
   };
 
-  const chatCardStyle: React.CSSProperties = {
-    width: '450px',
-    maxWidth: '90vw',
-    height: '650px',
-    maxHeight: '85vh',
-    background: colors.glass.backgroundAlt,
-    backdropFilter: 'blur(24px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-    border: `2px solid ${colors.border.light}`,
-    borderRadius: `${radii.xxl}px`,
-    boxShadow: shadows.xl,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    position: 'relative',
+  const handleSuggestion = (text: string) => {
+    setInputMessage(text);
+    const words = text.trim().split(/\s+/).filter((w) => w.length > 0);
+    setWordCount(words.length);
+    sendMessage(text);
   };
 
-  const headerStyle: React.CSSProperties = {
-    padding: `${spacing.xl}px`,
-    borderBottom: `2px solid ${colors.border.light}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    background: colors.lavender[50] + '40',
-  };
-
-  const titleStyle: React.CSSProperties = {
-    ...typography.textStyles.headingMd,
-    color: colors.text.primary,
-    display: 'flex',
-    alignItems: 'center',
-    gap: `${spacing.sm}px`,
-  };
-
-  const taviIconStyle: React.CSSProperties = {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundImage: 'url(/tavi.png)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    border: `3px solid ${colors.lavender[400]}`,
-    boxShadow: shadows.glow.lavender,
-  };
-
-  const closeButtonStyle: React.CSSProperties = {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    border: `2px solid ${colors.border.light}`,
-    background: colors.background.card,
-    color: colors.text.primary,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
-  };
-
-  const messagesContainerStyle: React.CSSProperties = {
-    flex: 1,
-    padding: `${spacing.xl}px`,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: `${spacing.md}px`,
-  };
-
-  const messageBaseStyle: React.CSSProperties = {
-    maxWidth: '80%',
-    padding: `${spacing.md}px ${spacing.lg}px`,
-    borderRadius: `${radii.lg}px`,
-    ...typography.textStyles.body,
-    lineHeight: '1.6',
-    wordWrap: 'break-word',
-  };
-
-  const taviMessageStyle: React.CSSProperties = {
-    ...messageBaseStyle,
-    alignSelf: 'flex-start',
-    background: colors.glass.background,
-    color: colors.text.primary,
-    border: `2px solid ${colors.border.light}`,
-    boxShadow: shadows.soft,
-  };
-
-  const userMessageStyle: React.CSSProperties = {
-    ...messageBaseStyle,
-    alignSelf: 'flex-end',
-    background: colors.gradients.primary,
-    color: colors.text.inverse,
-    boxShadow: shadows.colored.lavender,
-  };
-
-  const actionButtonStyle: React.CSSProperties = {
-    marginTop: `${spacing.sm}px`,
-    padding: `${spacing.sm}px ${spacing.md}px`,
-    borderRadius: `${radii.md}px`,
-    border: `2px solid ${colors.lavender[300]}`,
-    background: colors.lavender[500],
-    color: colors.text.inverse,
-    cursor: 'pointer',
-    fontWeight: 600,
-    ...typography.textStyles.bodySm,
-  };
-
-  const inputContainerStyle: React.CSSProperties = {
-    padding: `${spacing.xl}px`,
-    borderTop: `2px solid ${colors.border.light}`,
-    background: colors.lavender[50] + '40',
-  };
-
-  const inputWrapperStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: `${spacing.sm}px`,
-    alignItems: 'flex-end',
-  };
-
-  const inputStyle: React.CSSProperties = {
-    flex: 1,
-    padding: `${spacing.md}px ${spacing.lg}px`,
-    borderRadius: `${radii.lg}px`,
-    border: `2px solid ${colors.border.light}`,
-    background: colors.background.card,
-    color: colors.text.primary,
-    ...typography.textStyles.body,
-    outline: 'none',
-    resize: 'none',
-    minHeight: '48px',
-    maxHeight: '120px',
-    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
-  };
-
-  const wordCountStyle: React.CSSProperties = {
-    ...typography.textStyles.caption,
-    color: wordCount > 50 ? colors.semantic.error : colors.text.tertiary,
-    fontWeight: '600',
-    marginBottom: `${spacing.xs}px`,
-    textAlign: 'right',
-  };
-
-  const loadingStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: `${spacing.sm}px`,
-    padding: `${spacing.md}px ${spacing.lg}px`,
-    background: colors.glass.background,
-    border: `2px solid ${colors.border.light}`,
-    borderRadius: `${radii.lg}px`,
-    alignSelf: 'flex-start',
-    maxWidth: '80%',
-    boxShadow: shadows.soft,
-  };
+  const isOverLimit = wordCount > 50;
+  const canSend = !isLoading && inputMessage.trim().length > 0 && !isOverLimit;
 
   return (
-    <div style={containerStyle} onClick={onClose}>
-      <div style={chatCardStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={headerStyle}>
-          <div style={titleStyle}>
-            <div style={taviIconStyle} />
-            <div>
-              <div>{t('chat.title')}</div>
-              <div style={{ ...typography.textStyles.caption, color: colors.text.tertiary, fontWeight: '500' }}>
-                {t('chat.subtitle')}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm"
+          />
+
+          {/* Chat card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-[460px] max-w-[92vw] h-[680px] max-h-[88vh] flex flex-col overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-2xl shadow-purple-500/10"
+          >
+            {/* ── Header ── */}
+            <div className="relative flex items-center justify-between px-5 py-4 border-b border-white/40 dark:border-white/10">
+              {/* Gradient stripe */}
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#A989F2] via-[#FF6B9D] to-[#FF9B5C]" />
+
+              <div className="flex items-center gap-3">
+                {/* Tavi avatar */}
+                <motion.div
+                  animate={{ rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="relative"
+                >
+                  <div className="w-11 h-11 rounded-full bg-cover bg-center border-[2.5px] border-[#A989F2]/60 shadow-lg shadow-purple-500/20" style={{ backgroundImage: 'url(/tavi.png)' }} />
+                  {/* Online dot */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-900" />
+                </motion.div>
+
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-white font-[Fredoka]">
+                    {t('chat.title')}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    {t('chat.subtitle')}
+                  </p>
+                </div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-white/80 dark:hover:bg-slate-700/60 transition-colors shadow-sm"
+              >
+                <X size={16} />
+              </motion.button>
+            </div>
+
+            {/* ── Messages ── */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 scroll-smooth">
+              <AnimatePresence mode="popLayout">
+                {messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} onAction={handleAction} t={t} />
+                ))}
+
+                {isLoading && <TypingDots key="typing" />}
+              </AnimatePresence>
+
+              {/* Quick suggestions after welcome */}
+              {showSuggestions && messages.length === 1 && (
+                <QuickSuggestions onSelect={handleSuggestion} t={t} />
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* ── Input area ── */}
+            <div className="px-4 pt-3 pb-4 border-t border-white/40 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
+              {/* Word count */}
+              <div className={`text-[10px] font-semibold mb-1.5 text-right ${isOverLimit ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                {wordCount}/50 {t('chat.words')}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    value={inputMessage}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    placeholder={t('chat.placeholder')}
+                    disabled={isLoading}
+                    maxLength={300}
+                    className="w-full px-4 py-3 rounded-2xl text-sm bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/50 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-[#A989F2]/50 focus:ring-2 focus:ring-[#A989F2]/20 transition-all"
+                  />
+                  {isLoading && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Sparkles size={14} className="text-[#A989F2] animate-pulse" />
+                    </div>
+                  )}
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={handleSendMessage}
+                  disabled={!canSend}
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${
+                    canSend
+                      ? 'bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                >
+                  <Send size={16} className={canSend ? '' : ''} />
+                </motion.button>
               </div>
             </div>
-          </div>
-          <button
-            style={closeButtonStyle}
-            onClick={onClose}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.borderColor = colors.lavender[400];
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.borderColor = colors.border.light;
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
 
-        <div style={messagesContainerStyle}>
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              style={message.sender === 'tavi' ? taviMessageStyle : userMessageStyle}
-            >
-              {message.text}
-              {message.action && (
-                <div>
-                  <button
-                    style={actionButtonStyle}
-                    onClick={() => {
-                      onClose();
-                      navigate(message.action?.route || '/');
-                    }}
-                  >
-                    {message.action.type === 'story'
-                      ? t('chat.openStory', 'Story oeffnen')
-                      : t('chat.openDoku', 'Doku oeffnen')}
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div style={loadingStyle}>
-              <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: colors.lavender[600] }} />
-              <span style={{ color: colors.text.secondary, ...typography.textStyles.bodySm }}>
-                {t('chat.thinking')}
-              </span>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div style={inputContainerStyle}>
-          <div style={wordCountStyle}>
-            {wordCount}/50 {t('chat.words')}
-          </div>
-          <div style={inputWrapperStyle}>
-            <input
-              ref={inputRef}
-              style={inputStyle}
-              value={inputMessage}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              placeholder={t('chat.placeholder')}
-              disabled={isLoading}
-              maxLength={300}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = colors.lavender[400];
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = colors.border.light;
-              }}
-            />
-            <Button
-              title=""
-              onPress={handleSendMessage}
-              variant={wordCount > 50 || !inputMessage.trim() ? 'ghost' : 'primary'}
-              size="md"
-              disabled={isLoading || !inputMessage.trim() || wordCount > 50}
-              icon={<Send size={18} />}
-            />
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    </div>
+            {/* ── Decorative bottom glow ── */}
+            <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-[#A989F2]/5 to-transparent pointer-events-none" />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

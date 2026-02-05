@@ -1,40 +1,105 @@
-// Modern Doku Wizard - Checker Tobi Style
-// Step-by-step wizard for creating educational dokus
-// Inspired by ModernStoryWizard design
+// Talea Doku Wizard - Immersive, Professional, Child-Friendly
+// Redesigned with Talea design system: glass-morphism, gradient accents, framer-motion
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Sparkles, CheckCircle, FlaskConical, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft, ArrowRight, Sparkles, CheckCircle, FlaskConical,
+  Loader2, Check, X, Wand2, GraduationCap
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
+// =====================================================
+// TYPES
+// =====================================================
 interface DokuWizardState {
-  // Step 1: Topic
   topic: string;
-
-  // Step 2: Age & Depth
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
   depth: 'basic' | 'standard' | 'deep';
-
-  // Step 3: Perspective & Tone
   perspective: 'science' | 'history' | 'technology' | 'nature' | 'culture';
   tone: 'fun' | 'neutral' | 'curious';
-
-  // Step 4: Content Settings
   length: 'short' | 'medium' | 'long';
   includeInteractive: boolean;
   quizQuestions: number;
   handsOnActivities: number;
 }
 
-// ─── Step Components ──────────────────────────────────────────────────────────
+// =====================================================
+// ANIMATED BACKGROUND
+// =====================================================
+const DokuWizardBackground: React.FC = () => (
+  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <motion.div
+      className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-20"
+      style={{ background: 'radial-gradient(circle, rgba(255,155,92,0.4) 0%, rgba(255,107,157,0.2) 50%, transparent 70%)' }}
+      animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
+      transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <motion.div
+      className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full opacity-20"
+      style={{ background: 'radial-gradient(circle, rgba(169,137,242,0.3) 0%, transparent 70%)' }}
+      animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
+      transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    {['🔬', '🌍', '📚', '⭐', '🧪', '🌱'].map((emoji, i) => (
+      <motion.div
+        key={i}
+        className="absolute text-2xl select-none opacity-10"
+        style={{ left: `${10 + i * 15}%`, top: `${20 + (i % 3) * 25}%` }}
+        animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0], opacity: [0.05, 0.12, 0.05] }}
+        transition={{ duration: 8 + i * 2, delay: i * 0.8, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        {emoji}
+      </motion.div>
+    ))}
+  </div>
+);
 
+// =====================================================
+// SELECTION CARD - Reusable animated selection
+// =====================================================
+const SelectionCard: React.FC<{
+  selected: boolean;
+  onClick: () => void;
+  emoji: string;
+  label: string;
+  desc?: string;
+  detail?: string;
+  compact?: boolean;
+}> = ({ selected, onClick, emoji, label, desc, detail, compact }) => (
+  <motion.button
+    whileHover={{ scale: 1.03, y: -2 }}
+    whileTap={{ scale: 0.97 }}
+    onClick={onClick}
+    className={`flex flex-col items-center gap-2 ${compact ? 'p-3' : 'p-4'} rounded-2xl border-2 transition-all text-center ${
+      selected
+        ? 'border-[#FF9B5C] bg-[#FF9B5C]/5 shadow-lg shadow-[#FF9B5C]/10'
+        : 'border-white/50 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md'
+    }`}
+  >
+    <span className={compact ? 'text-xl' : 'text-2xl'}>{emoji}</span>
+    <span className="font-bold text-sm text-foreground">{label}</span>
+    {desc && <span className="text-xs text-muted-foreground">{desc}</span>}
+    {detail && <span className="text-[10px] text-muted-foreground/60">{detail}</span>}
+    {selected && (
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        className="absolute -top-1 -right-1 w-5 h-5 bg-[#FF9B5C] rounded-full flex items-center justify-center shadow-sm"
+      >
+        <Check className="w-3 h-3 text-white" />
+      </motion.div>
+    )}
+  </motion.button>
+);
+
+// =====================================================
+// STEP 1 - TOPIC
+// =====================================================
 function Step1Topic({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
-  const { t } = useTranslation();
-
   const topicSuggestions = [
     { emoji: '🦕', label: 'Dinosaurier', topic: 'Dinosaurier' },
     { emoji: '🌋', label: 'Vulkane', topic: 'Vulkane' },
@@ -53,10 +118,10 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
   return (
     <div className="space-y-6">
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Was möchtest du entdecken?
         </h2>
-        <p className="text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Gib ein Thema ein oder wähle eine Idee aus
         </p>
       </div>
@@ -68,41 +133,41 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
           value={state.topic}
           onChange={(e) => updateState({ topic: e.target.value })}
           placeholder="z.B. Dinosaurier, Vulkane, Weltraum..."
-          className="w-full px-6 py-4 text-lg rounded-xl border-2 border-gray-200 dark:border-gray-600
-                     bg-white dark:bg-gray-800 text-gray-800 dark:text-white
-                     focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-800
-                     placeholder:text-gray-400 transition-all outline-none"
+          className="w-full px-6 py-4 text-lg rounded-2xl border-2 border-white/50 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
+          style={{ fontFamily: '"Nunito", sans-serif' }}
           autoFocus
         />
         {state.topic && (
-          <button
+          <motion.button
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
             onClick={() => updateState({ topic: '' })}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
           >
-            &times;
-          </button>
+            <X className="w-4 h-4" />
+          </motion.button>
         )}
       </div>
 
       {/* Topic Suggestions */}
       <div>
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Ideen zum Entdecken:</p>
+        <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">Ideen zum Entdecken</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {topicSuggestions.map((s) => (
-            <button
+            <motion.button
               key={s.label}
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => updateState({ topic: s.topic })}
-              className={`
-                flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-left transition-all
-                ${state.topic === s.topic
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 shadow-md'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600 bg-white dark:bg-gray-800'
-                }
-              `}
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
+                state.topic === s.topic
+                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/5 shadow-lg shadow-[#FF9B5C]/10'
+                  : 'border-white/50 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md'
+              }`}
             >
-              <span className="text-xl">{s.emoji}</span>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{s.label}</span>
-            </button>
+              <span className="text-xl flex-shrink-0">{s.emoji}</span>
+              <span className="text-sm font-semibold text-foreground">{s.label}</span>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -110,69 +175,59 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
   );
 }
 
+// =====================================================
+// STEP 2 - AGE & DEPTH
+// =====================================================
 function Step2AgeAndDepth({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const ageGroups = [
-    { value: '3-5' as const, emoji: '🧒', label: '3-5 Jahre', desc: 'Ganz einfach, mit Bildern' },
-    { value: '6-8' as const, emoji: '👧', label: '6-8 Jahre', desc: 'Spielerisch und spannend' },
+    { value: '3-5' as const, emoji: '🧒', label: '3-5 Jahre', desc: 'Ganz einfach' },
+    { value: '6-8' as const, emoji: '👧', label: '6-8 Jahre', desc: 'Spielerisch' },
     { value: '9-12' as const, emoji: '🧑', label: '9-12 Jahre', desc: 'Tiefere Zusammenhänge' },
     { value: '13+' as const, emoji: '🧑‍🎓', label: '13+ Jahre', desc: 'Komplexe Themen' },
   ];
 
   const depths = [
-    { value: 'basic' as const, emoji: '🌱', label: 'Grundlagen', desc: 'Einfacher Einstieg ins Thema' },
-    { value: 'standard' as const, emoji: '🌿', label: 'Standard', desc: 'Ausgewogene Tiefe mit Details' },
-    { value: 'deep' as const, emoji: '🌳', label: 'Tief', desc: 'Experten-Wissen, viele Details' },
+    { value: 'basic' as const, emoji: '🌱', label: 'Grundlagen', desc: 'Einfacher Einstieg' },
+    { value: 'standard' as const, emoji: '🌿', label: 'Standard', desc: 'Ausgewogene Tiefe' },
+    { value: 'deep' as const, emoji: '🌳', label: 'Tief', desc: 'Experten-Wissen' },
   ];
 
   return (
     <div className="space-y-8">
-      {/* Age Group */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Für wen ist die Doku?
         </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-center mb-4">Wähle die passende Altersgruppe</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {ageGroups.map((ag) => (
-            <button
-              key={ag.value}
-              onClick={() => updateState({ ageGroup: ag.value })}
-              className={`
-                flex flex-col items-center gap-2 px-4 py-5 rounded-xl border-2 transition-all
-                ${state.ageGroup === ag.value
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 shadow-md scale-[1.02]'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600 bg-white dark:bg-gray-800'
-                }
-              `}
-            >
-              <span className="text-3xl">{ag.emoji}</span>
-              <span className="font-bold text-gray-800 dark:text-white">{ag.label}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 text-center">{ag.desc}</span>
-            </button>
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground">Wähle die passende Altersgruppe</p>
       </div>
 
-      {/* Depth */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {ageGroups.map((ag) => (
+          <SelectionCard
+            key={ag.value}
+            selected={state.ageGroup === ag.value}
+            onClick={() => updateState({ ageGroup: ag.value })}
+            emoji={ag.emoji}
+            label={ag.label}
+            desc={ag.desc}
+          />
+        ))}
+      </div>
+
       <div>
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">Wie tief soll es gehen?</h3>
+        <h3 className="text-lg font-bold text-foreground mb-3" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+          Wie tief soll es gehen?
+        </h3>
         <div className="grid grid-cols-3 gap-3">
           {depths.map((d) => (
-            <button
+            <SelectionCard
               key={d.value}
+              selected={state.depth === d.value}
               onClick={() => updateState({ depth: d.value })}
-              className={`
-                flex flex-col items-center gap-2 px-4 py-4 rounded-xl border-2 transition-all
-                ${state.depth === d.value
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 shadow-md'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600 bg-white dark:bg-gray-800'
-                }
-              `}
-            >
-              <span className="text-2xl">{d.emoji}</span>
-              <span className="font-bold text-sm text-gray-800 dark:text-white">{d.label}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 text-center">{d.desc}</span>
-            </button>
+              emoji={d.emoji}
+              label={d.label}
+              desc={d.desc}
+            />
           ))}
         </div>
       </div>
@@ -180,13 +235,16 @@ function Step2AgeAndDepth({ state, updateState }: { state: DokuWizardState; upda
   );
 }
 
+// =====================================================
+// STEP 3 - PERSPECTIVE & TONE
+// =====================================================
 function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const perspectives = [
     { value: 'science' as const, emoji: '🔬', label: 'Naturwissenschaft', desc: 'Wie funktioniert es?' },
     { value: 'history' as const, emoji: '📜', label: 'Geschichte', desc: 'Wie war es früher?' },
     { value: 'technology' as const, emoji: '⚙️', label: 'Technik', desc: 'Wie wird es gebaut?' },
     { value: 'nature' as const, emoji: '🌿', label: 'Natur', desc: 'Was lebt und wächst?' },
-    { value: 'culture' as const, emoji: '🎭', label: 'Kultur', desc: 'Was bedeutet es für Menschen?' },
+    { value: 'culture' as const, emoji: '🎭', label: 'Kultur', desc: 'Was bedeutet es?' },
   ];
 
   const tones = [
@@ -197,53 +255,41 @@ function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardStat
 
   return (
     <div className="space-y-8">
-      {/* Perspective */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Welcher Blickwinkel?
         </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-center mb-4">Aus welcher Perspektive soll erzählt werden?</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {perspectives.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => updateState({ perspective: p.value })}
-              className={`
-                flex flex-col items-center gap-2 px-3 py-4 rounded-xl border-2 transition-all
-                ${state.perspective === p.value
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 shadow-md scale-[1.02]'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600 bg-white dark:bg-gray-800'
-                }
-              `}
-            >
-              <span className="text-2xl">{p.emoji}</span>
-              <span className="font-bold text-sm text-gray-800 dark:text-white">{p.label}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 text-center">{p.desc}</span>
-            </button>
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground">Aus welcher Perspektive soll erzählt werden?</p>
       </div>
 
-      {/* Tone */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {perspectives.map((p) => (
+          <SelectionCard
+            key={p.value}
+            selected={state.perspective === p.value}
+            onClick={() => updateState({ perspective: p.value })}
+            emoji={p.emoji}
+            label={p.label}
+            desc={p.desc}
+            compact
+          />
+        ))}
+      </div>
+
       <div>
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">Wie soll es klingen?</h3>
+        <h3 className="text-lg font-bold text-foreground mb-3" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+          Wie soll es klingen?
+        </h3>
         <div className="grid grid-cols-3 gap-3">
           {tones.map((t) => (
-            <button
+            <SelectionCard
               key={t.value}
+              selected={state.tone === t.value}
               onClick={() => updateState({ tone: t.value })}
-              className={`
-                flex flex-col items-center gap-2 px-4 py-4 rounded-xl border-2 transition-all
-                ${state.tone === t.value
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 shadow-md'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600 bg-white dark:bg-gray-800'
-                }
-              `}
-            >
-              <span className="text-2xl">{t.emoji}</span>
-              <span className="font-bold text-sm text-gray-800 dark:text-white">{t.label}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 text-center">{t.desc}</span>
-            </button>
+              emoji={t.emoji}
+              label={t.label}
+              desc={t.desc}
+            />
           ))}
         </div>
       </div>
@@ -251,6 +297,9 @@ function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardStat
   );
 }
 
+// =====================================================
+// STEP 4 - CONTENT SETTINGS
+// =====================================================
 function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const lengths = [
     { value: 'short' as const, emoji: '📄', label: 'Kurz', desc: '3 Abschnitte', detail: 'Schneller Überblick' },
@@ -260,195 +309,321 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
 
   return (
     <div className="space-y-8">
-      {/* Length */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Wie umfangreich?
         </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-center mb-4">Wähle die Länge deiner Wissensdoku</p>
-        <div className="grid grid-cols-3 gap-4">
-          {lengths.map((l) => (
-            <button
-              key={l.value}
-              onClick={() => updateState({ length: l.value })}
-              className={`
-                flex flex-col items-center gap-2 px-4 py-5 rounded-xl border-2 transition-all
-                ${state.length === l.value
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 shadow-md scale-[1.02]'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-teal-300 dark:hover:border-teal-600 bg-white dark:bg-gray-800'
-                }
-              `}
-            >
-              <span className="text-3xl">{l.emoji}</span>
-              <span className="font-bold text-gray-800 dark:text-white">{l.label}</span>
-              <span className="text-sm text-teal-600 dark:text-teal-400">{l.desc}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{l.detail}</span>
-            </button>
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground">Wähle die Länge deiner Wissensdoku</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {lengths.map((l) => (
+          <SelectionCard
+            key={l.value}
+            selected={state.length === l.value}
+            onClick={() => updateState({ length: l.value })}
+            emoji={l.emoji}
+            label={l.label}
+            desc={l.desc}
+            detail={l.detail}
+          />
+        ))}
       </div>
 
       {/* Interactive Toggle */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg border border-white/50 dark:border-white/10 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white">Interaktive Elemente</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Quiz-Fragen und Mitmach-Aktivitäten</p>
+            <h3 className="text-base font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+              🧩 Interaktive Elemente
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Quiz-Fragen und Mitmach-Aktivitäten</p>
           </div>
-          <button
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             onClick={() => updateState({ includeInteractive: !state.includeInteractive })}
-            className={`
-              relative w-14 h-7 rounded-full transition-colors
-              ${state.includeInteractive ? 'bg-teal-500' : 'bg-gray-300 dark:bg-gray-600'}
-            `}
+            className={`relative w-14 h-7 rounded-full transition-colors shadow-inner ${
+              state.includeInteractive ? 'bg-[#FF9B5C]' : 'bg-muted'
+            }`}
           >
-            <span className={`
-              absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform
-              ${state.includeInteractive ? 'translate-x-7' : 'translate-x-0.5'}
-            `} />
-          </button>
+            <motion.span
+              animate={{ x: state.includeInteractive ? 28 : 2 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md"
+            />
+          </motion.button>
         </div>
 
-        {state.includeInteractive && (
-          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">
-                Quiz-Fragen (0-10)
-              </label>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })}
-                  className="w-10 h-10 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
-                             font-bold text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  -
-                </button>
-                <span className="text-2xl font-bold text-teal-600 dark:text-teal-400 w-8 text-center">
-                  {state.quizQuestions}
-                </span>
-                <button
-                  onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })}
-                  className="w-10 h-10 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
-                             font-bold text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  +
-                </button>
+        <AnimatePresence>
+          {state.includeInteractive && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/30 dark:border-white/10">
+                {/* Quiz Questions */}
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                    Quiz-Fragen
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })}
+                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                    >
+                      -
+                    </motion.button>
+                    <span className="text-2xl font-bold text-[#FF9B5C] w-8 text-center">
+                      {state.quizQuestions}
+                    </span>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })}
+                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                    >
+                      +
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Hands-on Activities */}
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                    Mitmach-Aktivitäten
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })}
+                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                    >
+                      -
+                    </motion.button>
+                    <span className="text-2xl font-bold text-[#FF9B5C] w-8 text-center">
+                      {state.handsOnActivities}
+                    </span>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })}
+                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                    >
+                      +
+                    </motion.button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">
-                Mitmach-Aktivitäten (0-5)
-              </label>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })}
-                  className="w-10 h-10 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
-                             font-bold text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  -
-                </button>
-                <span className="text-2xl font-bold text-teal-600 dark:text-teal-400 w-8 text-center">
-                  {state.handsOnActivities}
-                </span>
-                <button
-                  onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })}
-                  className="w-10 h-10 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
-                             font-bold text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 }
 
+// =====================================================
+// STEP 5 - SUMMARY
+// =====================================================
 function Step5Summary({ state, onGenerate }: { state: DokuWizardState; onGenerate: () => void }) {
-  const perspectiveLabels: Record<string, string> = {
-    science: 'Naturwissenschaft',
-    history: 'Geschichte',
-    technology: 'Technik',
-    nature: 'Natur',
-    culture: 'Kultur',
-  };
-
-  const toneLabels: Record<string, string> = {
-    fun: 'Lustig',
-    neutral: 'Sachlich',
-    curious: 'Neugierig',
-  };
-
-  const depthLabels: Record<string, string> = {
-    basic: 'Grundlagen',
-    standard: 'Standard',
-    deep: 'Tief',
-  };
-
-  const lengthLabels: Record<string, string> = {
-    short: 'Kurz (3 Abschnitte)',
-    medium: 'Mittel (5 Abschnitte)',
-    long: 'Lang (7 Abschnitte)',
+  const labels: Record<string, Record<string, string>> = {
+    perspective: { science: 'Naturwissenschaft', history: 'Geschichte', technology: 'Technik', nature: 'Natur', culture: 'Kultur' },
+    tone: { fun: 'Lustig', neutral: 'Sachlich', curious: 'Neugierig' },
+    depth: { basic: 'Grundlagen', standard: 'Standard', deep: 'Tief' },
+    length: { short: 'Kurz (3)', medium: 'Mittel (5)', long: 'Lang (7)' },
   };
 
   const items = [
     { icon: '🎯', label: 'Thema', value: state.topic },
     { icon: '👤', label: 'Altersgruppe', value: state.ageGroup + ' Jahre' },
-    { icon: '📊', label: 'Tiefe', value: depthLabels[state.depth] },
-    { icon: '🔬', label: 'Perspektive', value: perspectiveLabels[state.perspective] },
-    { icon: '🎨', label: 'Tonalität', value: toneLabels[state.tone] },
-    { icon: '📏', label: 'Länge', value: lengthLabels[state.length] },
+    { icon: '📊', label: 'Tiefe', value: labels.depth[state.depth] },
+    { icon: '🔬', label: 'Perspektive', value: labels.perspective[state.perspective] },
+    { icon: '🎨', label: 'Tonalität', value: labels.tone[state.tone] },
+    { icon: '📏', label: 'Abschnitte', value: labels.length[state.length] },
     { icon: '🧩', label: 'Interaktiv', value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aktivitäten` : 'Ohne' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Deine Wissensdoku
         </h2>
-        <p className="text-gray-500 dark:text-gray-400">
-          Überprüfe deine Einstellungen
-        </p>
+        <p className="text-sm text-muted-foreground">Überprüfe deine Einstellungen</p>
       </div>
 
-      <div className="bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20
-                      rounded-2xl p-6 border border-teal-200 dark:border-teal-800">
+      <div className="rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-lg p-6">
         <div className="space-y-3">
-          {items.map((item) => (
-            <div key={item.label} className="flex items-center gap-3 py-2 border-b border-teal-100 dark:border-teal-800 last:border-0">
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-sm font-medium text-gray-500 dark:text-gray-400 w-28">{item.label}</span>
-              <span className="text-sm font-bold text-gray-800 dark:text-white flex-1">{item.value}</span>
-            </div>
+          {items.map((item, i) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="flex items-center gap-3 py-2.5 border-b border-white/20 dark:border-white/5 last:border-0"
+            >
+              <span className="text-xl flex-shrink-0">{item.icon}</span>
+              <span className="text-sm font-medium text-muted-foreground w-28 flex-shrink-0">{item.label}</span>
+              <span className="text-sm font-bold text-foreground flex-1">{item.value}</span>
+            </motion.div>
           ))}
         </div>
       </div>
 
-      <div className="text-center pt-2">
-        <button
-          onClick={onGenerate}
-          className="
-            inline-flex items-center gap-3 px-10 py-5 rounded-2xl font-bold text-xl
-            bg-gradient-to-r from-teal-500 to-cyan-600 text-white
-            hover:from-teal-600 hover:to-cyan-700 active:scale-95
-            shadow-2xl transform transition-all duration-200
-          "
-        >
-          <Sparkles size={24} />
-          Doku erstellen
-        </button>
-      </div>
+      <motion.button
+        whileHover={{ scale: 1.03, y: -2 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={onGenerate}
+        className="w-full flex items-center justify-center gap-3 px-8 py-5 rounded-2xl font-bold text-lg text-white shadow-xl shadow-[#FF9B5C]/25 hover:shadow-2xl hover:shadow-[#FF9B5C]/35 transition-shadow"
+        style={{ background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' }}
+      >
+        <Sparkles className="w-6 h-6" />
+        Doku erstellen
+      </motion.button>
     </div>
   );
 }
 
-// ─── Main Wizard ──────────────────────────────────────────────────────────────
-
+// =====================================================
+// STEP INDICATOR
+// =====================================================
 const STEPS = ['Thema', 'Alter & Tiefe', 'Perspektive', 'Inhalt', 'Zusammenfassung'];
 
+const StepIndicator: React.FC<{ activeStep: number }> = ({ activeStep }) => (
+  <div className="flex items-center justify-center gap-2 mb-8">
+    {STEPS.map((label, i) => (
+      <React.Fragment key={i}>
+        <motion.div className="relative group" whileHover={{ scale: 1.1 }}>
+          <motion.div
+            animate={{
+              width: i === activeStep ? 40 : 32,
+              height: 32,
+            }}
+            className={`rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+              i < activeStep
+                ? 'bg-emerald-500 text-white'
+                : i === activeStep
+                ? 'bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] text-white shadow-lg shadow-[#FF9B5C]/25'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {i < activeStep ? <Check className="w-4 h-4" /> : i + 1}
+          </motion.div>
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-muted-foreground font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+            {label}
+          </div>
+        </motion.div>
+        {i < STEPS.length - 1 && (
+          <div className={`w-6 h-0.5 rounded-full transition-colors ${i < activeStep ? 'bg-emerald-500' : 'bg-muted'}`} />
+        )}
+      </React.Fragment>
+    ))}
+  </div>
+);
+
+// =====================================================
+// GENERATION PROGRESS
+// =====================================================
+const GenerationProgress: React.FC<{ phase: string }> = ({ phase }) => {
+  const phases = [
+    { key: 'text', icon: '📝', title: 'Wissen wird zusammengestellt...', desc: 'KI recherchiert und schreibt deine Doku' },
+    { key: 'cover', icon: '🎨', title: 'Cover-Bild wird gemalt...', desc: 'Kindgerechte Illustration' },
+    { key: 'sections', icon: '🖼️', title: 'Kapitel-Bilder entstehen...', desc: 'Jeder Abschnitt bekommt ein Bild' },
+    { key: 'personality', icon: '🧠', title: 'Wissen wird verteilt...', desc: 'Deine Avatare lernen dazu' },
+    { key: 'complete', icon: '✅', title: 'Fertig!', desc: 'Deine Wissensdoku ist bereit' },
+  ];
+
+  const currentIdx = phases.findIndex(p => p.key === phase);
+  const current = phases[currentIdx] || phases[0];
+
+  return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md text-center"
+      >
+        {/* Central icon */}
+        <motion.div
+          animate={{ rotate: [0, 360] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+          className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center shadow-2xl"
+          style={{ background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' }}
+        >
+          <FlaskConical className="w-10 h-10 text-white" />
+        </motion.div>
+
+        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+          {current.title}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-10">{current.desc}</p>
+
+        {/* Progress steps */}
+        <div className="space-y-3 text-left">
+          {phases.map((p, idx) => {
+            const isActive = idx === currentIdx;
+            const isComplete = idx < currentIdx;
+
+            return (
+              <motion.div
+                key={p.key}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 ${
+                  isActive
+                    ? 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border border-[#FF9B5C]/30 shadow-lg shadow-[#FF9B5C]/10'
+                    : isComplete
+                    ? 'bg-white/40 dark:bg-slate-800/40'
+                    : 'opacity-40'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  isComplete
+                    ? 'bg-emerald-500 text-white'
+                    : isActive
+                    ? 'bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] text-white'
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  {isComplete ? (
+                    <Check className="w-5 h-5" />
+                  ) : isActive ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}>
+                      <Loader2 className="w-5 h-5" />
+                    </motion.div>
+                  ) : (
+                    <span className="text-base">{p.icon}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold ${isActive ? 'text-foreground' : isComplete ? 'text-foreground/70' : 'text-muted-foreground'}`}>
+                    {p.title}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-8 w-full h-2 rounded-full bg-muted overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: 'linear-gradient(90deg, #FF9B5C, #FF6B9D)' }}
+            animate={{ width: `${((currentIdx + 1) / phases.length) * 100}%` }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+          />
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// =====================================================
+// MAIN WIZARD
+// =====================================================
 export default function ModernDokuWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
@@ -462,12 +637,9 @@ export default function ModernDokuWizard() {
   const [userLanguage, setUserLanguage] = useState<string>('de');
 
   useEffect(() => {
-    if (i18n.language) {
-      setUserLanguage(i18n.language);
-    }
+    if (i18n.language) setUserLanguage(i18n.language);
   }, [i18n.language]);
 
-  // Load user preferred language
   useEffect(() => {
     const loadLang = async () => {
       try {
@@ -505,10 +677,10 @@ export default function ModernDokuWizard() {
   const canProceed = () => {
     switch (activeStep) {
       case 0: return state.topic.trim().length >= 3;
-      case 1: return true; // Always have defaults
+      case 1: return true;
       case 2: return true;
       case 3: return true;
-      case 4: return true; // Summary
+      case 4: return true;
       default: return false;
     }
   };
@@ -534,7 +706,6 @@ export default function ModernDokuWizard() {
         language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl',
       };
 
-      // Start a timer to cycle through phases for UX
       const phaseTimer = setInterval(() => {
         setGenerationPhase(prev => {
           if (prev === 'text') return 'cover';
@@ -575,132 +746,96 @@ export default function ModernDokuWizard() {
     }
   };
 
-  // Generation Progress
+  // Generation screen
   if (generating) {
-    const phaseConfig = {
-      text: { icon: '📝', title: 'Wissen wird zusammengestellt...', desc: 'KI recherchiert und schreibt deine Doku' },
-      cover: { icon: '🎨', title: 'Cover-Bild wird gemalt...', desc: 'Axel Scheffler Stil, kindgerecht' },
-      sections: { icon: '🖼️', title: 'Kapitel-Bilder werden gemalt...', desc: 'Jeder Abschnitt bekommt eine Illustration' },
-      personality: { icon: '🧠', title: 'Wissen wird verteilt...', desc: 'Deine Avatare lernen neue Dinge' },
-      complete: { icon: '✅', title: 'Fertig!', desc: 'Deine Wissensdoku ist bereit' },
-    };
-
-    const current = phaseConfig[generationPhase];
-    const phases = ['text', 'cover', 'sections', 'personality', 'complete'] as const;
-    const currentIdx = phases.indexOf(generationPhase);
-
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4 animate-bounce">{current.icon}</div>
-            <h1 className="text-3xl font-bold text-teal-600 dark:text-teal-400 mb-2">{current.title}</h1>
-            <p className="text-gray-500 dark:text-gray-400">{current.desc}</p>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="space-y-3">
-            {phases.map((phase, idx) => {
-              const conf = phaseConfig[phase];
-              const isDone = idx < currentIdx;
-              const isCurrent = idx === currentIdx;
-
-              return (
-                <div key={phase} className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                  ${isDone ? 'bg-green-50 dark:bg-green-900/20' : ''}
-                  ${isCurrent ? 'bg-teal-50 dark:bg-teal-900/20 ring-2 ring-teal-300 dark:ring-teal-700' : ''}
-                  ${!isDone && !isCurrent ? 'opacity-40' : ''}
-                `}>
-                  <span className="text-xl">{conf.icon}</span>
-                  <span className={`flex-1 text-sm font-medium ${isDone ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                    {conf.title}
-                  </span>
-                  {isDone && <CheckCircle size={18} className="text-green-500" />}
-                  {isCurrent && <Loader2 size={18} className="text-teal-500 animate-spin" />}
-                </div>
-              );
-            })}
-          </div>
+      <div className="min-h-screen relative pb-28">
+        <DokuWizardBackground />
+        <div className="relative z-10 pt-6">
+          <GenerationProgress phase={generationPhase} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8">
+    <div className="min-h-screen relative pb-28">
+      <DokuWizardBackground />
+
+      <div className="relative z-10 pt-4">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <FlaskConical className="w-8 h-8 text-teal-600" />
-            <h1 className="text-3xl font-bold text-teal-600 dark:text-teal-400">
+        <motion.div
+          initial={{ opacity: 0, y: -15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-4"
+        >
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] flex items-center justify-center shadow-lg shadow-[#FF9B5C]/20">
+              <GraduationCap className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
               Neue Wissensdoku
             </h1>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Schritt {activeStep + 1} von {STEPS.length}
           </p>
-        </div>
+        </motion.div>
 
-        {/* Progress Bar */}
-        <div className="flex items-center justify-between mb-8">
-          {STEPS.map((label, index) => (
-            <div key={label} className="flex items-center flex-1">
-              <div className="flex flex-col items-center flex-1">
-                <div className={`
-                  w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all
-                  ${index < activeStep ? 'bg-green-500 text-white' : ''}
-                  ${index === activeStep ? 'bg-teal-600 text-white ring-4 ring-teal-200 dark:ring-teal-800' : ''}
-                  ${index > activeStep ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' : ''}
-                `}>
-                  {index < activeStep ? <CheckCircle size={20} /> : index + 1}
-                </div>
-                <span className={`text-xs mt-2 text-center hidden sm:block ${index === activeStep ? 'font-bold text-teal-600 dark:text-teal-400' : 'text-gray-500'}`}>
-                  {label}
-                </span>
-              </div>
-              {index < STEPS.length - 1 && (
-                <div className={`h-1 flex-1 mx-2 rounded ${index < activeStep ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
-              )}
-            </div>
-          ))}
-        </div>
+        {/* Step indicator */}
+        <StepIndicator activeStep={activeStep} />
 
-        {/* Step Content */}
-        <div className="min-h-[400px] mb-8">
-          {renderStep()}
-        </div>
+        {/* Step content with glass container */}
+        <motion.div className="rounded-3xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-xl p-6 md:p-8 min-h-[400px]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {renderStep()}
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
-          <button
+        {/* Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex justify-between items-center mt-6"
+        >
+          <motion.button
+            whileHover={{ x: -2 }}
+            whileTap={{ scale: 0.95 }}
             onClick={activeStep === 0 ? () => navigate('/doku') : handleBack}
-            className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
-                       bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300
-                       hover:bg-gray-300 dark:hover:bg-gray-600 active:scale-95"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-foreground bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg border border-white/40 dark:border-white/10 hover:bg-white/80 shadow-sm transition-all"
           >
-            <ArrowLeft size={20} />
-            {activeStep === 0 ? 'Zurück' : 'Zurück'}
-          </button>
+            <ArrowLeft className="w-4 h-4" />
+            Zurück
+          </motion.button>
 
           {activeStep < STEPS.length - 1 && (
-            <button
+            <motion.button
+              whileHover={{ x: 2, scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleNext}
               disabled={!canProceed()}
-              className={`
-                flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
-                ${!canProceed()
-                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                  : 'bg-teal-600 text-white hover:bg-teal-700 active:scale-95 shadow-lg'
-                }
-              `}
+              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
+                !canProceed()
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'text-white shadow-lg shadow-[#FF9B5C]/25 hover:shadow-xl hover:shadow-[#FF9B5C]/35'
+              }`}
+              style={canProceed() ? { background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' } : undefined}
             >
               Weiter
-              <ArrowRight size={20} />
-            </button>
+              <ArrowRight className="w-4 h-4" />
+            </motion.button>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

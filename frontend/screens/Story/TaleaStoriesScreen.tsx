@@ -345,8 +345,7 @@ const StoryGridCard: React.FC<{
           {/* Participants */}
           {((story.config?.avatars && story.config.avatars.length > 0) ||
             (story.config?.characters && story.config.characters.length > 0)) && (
-            <div className="mb-3">
-              <p className="text-[10px] text-muted-foreground/60 font-semibold mb-1.5 uppercase tracking-wider">Teilnehmer</p>
+            <div className="mb-2">
               <ParticipantAvatars story={story} />
             </div>
           )}
@@ -397,30 +396,25 @@ const ParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
 
   return (
     <>
-      <div className="flex items-center -space-x-2">
+      <div className="flex items-center flex-wrap gap-1">
         {participants.map((p, i) => (
           <motion.button
             key={i}
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.1, type: 'spring', stiffness: 300 }}
-            whileHover={{ scale: 1.2, zIndex: 20 }}
+            whileHover={{ scale: 1.15, zIndex: 20 }}
             whileTap={{ scale: 0.9 }}
             onClick={(e) => {
               e.stopPropagation();
               setSelected(p);
             }}
-            className="relative w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
+            className="relative w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-black/5"
             style={{ zIndex: participants.length - i }}
           >
             <img src={p.src} alt={p.name} className="w-full h-full object-cover" />
           </motion.button>
         ))}
-        {participants.length > 0 && (
-          <span className="text-[10px] text-muted-foreground/60 ml-3 font-medium">
-            {participants.map(p => p.name).join(', ')}
-          </span>
-        )}
       </div>
 
       {/* Selected participant overlay */}

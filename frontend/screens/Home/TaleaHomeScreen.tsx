@@ -485,30 +485,25 @@ const HomeParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
 
   return (
     <>
-      <div className="flex items-center -space-x-1.5">
+      <div className="flex items-center flex-wrap gap-0.5">
         {participants.map((p, i) => (
           <motion.button
             key={i}
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.08, type: 'spring', stiffness: 300 }}
-            whileHover={{ scale: 1.25, zIndex: 20 }}
+            whileHover={{ scale: 1.15, zIndex: 20 }}
             whileTap={{ scale: 0.9 }}
             onClick={(e) => {
               e.stopPropagation();
               setSelected(p);
             }}
-            className="relative w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
+            className="relative w-9 h-9 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-black/5"
             style={{ zIndex: participants.length - i }}
           >
             <img src={p.src} alt={p.name} className="w-full h-full object-cover" />
           </motion.button>
         ))}
-        {participants.length > 0 && (
-          <span className="text-[9px] text-muted-foreground/50 ml-2 font-medium truncate max-w-[100px]">
-            {participants.map(p => p.name).join(', ')}
-          </span>
-        )}
       </div>
 
       {/* Selected participant overlay */}
