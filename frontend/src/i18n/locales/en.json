@@ -774,6 +774,7 @@
     "about": "About",
     "version": "Version",
     "subscriptionPlans": {
+      "free": "Free",
       "starter": "Starter",
       "familie": "Family",
       "premium": "Premium"

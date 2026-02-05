@@ -16,7 +16,7 @@ type Avatar = avatar.Avatar;
 
 interface AdminStats {
   totals: { users: number; avatars: number; stories: number };
-  subscriptions: { starter: number; familie: number; premium: number };
+  subscriptions: { free: number; starter: number; familie: number; premium: number };
   storiesByStatus: { generating: number; complete: number; error: number };
   recentActivity: {
     latestUser?: { id: string; name: string; createdAt: string } | null;
@@ -270,7 +270,8 @@ const AdminDashboard: React.FC = () => {
                   <StatTile label="Geschichten" value={stats?.totals.stories ?? 0} />
                 </div>
 
-                <div style={{ marginTop: spacing.lg, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: spacing.md }}>
+                <div style={{ marginTop: spacing.lg, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: spacing.md }}>
+                  <StatTile label="Free" value={stats?.subscriptions.free ?? 0} />
                   <StatTile label="Starter" value={stats?.subscriptions.starter ?? 0} />
                   <StatTile label="Familie" value={stats?.subscriptions.familie ?? 0} />
                   <StatTile label="Premium" value={stats?.subscriptions.premium ?? 0} />
@@ -345,6 +346,7 @@ const AdminDashboard: React.FC = () => {
                                 background: colors.surface
                               }}
                             >
+                              <option value="free">free</option>
                               <option value="starter">starter</option>
                               <option value="familie">familie</option>
                               <option value="premium">premium</option>

@@ -13,6 +13,7 @@ interface AdminStats {
     stories: number;
   };
   subscriptions: {
+    free: number;
     starter: number;
     familie: number;
     premium: number;
@@ -48,7 +49,7 @@ export const getStats = api<void, AdminStats>(
     const subs = await userDB.rawQueryAll<{ subscription: string; cnt: string }>(
       "SELECT subscription, COUNT(*)::text as cnt FROM users GROUP BY subscription"
     );
-    const subsMap = { starter: 0, familie: 0, premium: 0 } as Record<string, number>;
+    const subsMap = { free: 0, starter: 0, familie: 0, premium: 0 } as Record<string, number>;
     for (const r of subs) {
       if (r.subscription in subsMap) subsMap[r.subscription] = parseInt(r.cnt, 10);
     }
@@ -78,6 +79,7 @@ export const getStats = api<void, AdminStats>(
         stories: parseInt(storiesCountRow?.count ?? "0", 10),
       },
       subscriptions: {
+        free: subsMap.free,
         starter: subsMap.starter,
         familie: subsMap.familie,
         premium: subsMap.premium,

@@ -258,7 +258,7 @@ const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
         await userDB.exec`
           INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-          VALUES (${clerkUser.id}, ${email}, ${name}, 'starter', ${role}, ${now}, ${now})
+          VALUES (${clerkUser.id}, ${email}, ${name}, 'free', ${role}, ${now}, ${now})
           ON CONFLICT (id) DO UPDATE
             SET email = EXCLUDED.email,
                 name = EXCLUDED.name,

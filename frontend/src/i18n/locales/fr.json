@@ -446,6 +446,7 @@
     "about": "Ã€ propos",
     "version": "Version",
     "subscriptionPlans": {
+      "free": "Gratuit",
       "starter": "Starter",
       "familie": "Famille",
       "premium": "Premium"

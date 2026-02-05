@@ -1,7 +1,7 @@
 import { APIError } from "encore.dev/api";
 import { userDB } from "../user/db";
 
-export type SubscriptionPlan = "starter" | "familie" | "premium";
+export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
 export type UsageKind = "story" | "doku";
 
 export type PlanQuota = {
@@ -10,19 +10,21 @@ export type PlanQuota = {
 };
 
 export const PLAN_QUOTAS: Record<SubscriptionPlan, PlanQuota> = {
+  free: { stories: 10, dokus: 10 },
   starter: { stories: 5, dokus: 3 },
   familie: { stories: 20, dokus: 10 },
   premium: { stories: 60, dokus: 30 },
 };
 
-const PLAN_PRIORITY: SubscriptionPlan[] = ["premium", "familie", "starter"];
+const PLAN_PRIORITY: SubscriptionPlan[] = ["premium", "familie", "starter", "free"];
 const PLAN_ALIASES: Record<SubscriptionPlan, string[]> = {
+  free: ["free", "kostenlos"],
   starter: ["starter"],
   familie: ["familie", "family"],
   premium: ["premium"],
 };
 
-const DEFAULT_PLAN: SubscriptionPlan = "starter";
+const DEFAULT_PLAN: SubscriptionPlan = "free";
 
 function startOfMonthUTC(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

@@ -489,6 +489,7 @@
     "about": "О приложении",
     "version": "Версия",
     "subscriptionPlans": {
+      "free": "Бесплатно",
       "starter": "Начальный",
       "familie": "Семейный",
       "premium": "Премиум"

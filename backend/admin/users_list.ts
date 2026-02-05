@@ -14,7 +14,7 @@ export interface AdminUser {
   id: string;
   email: string;
   name: string;
-  subscription: "starter" | "familie" | "premium";
+  subscription: "free" | "starter" | "familie" | "premium";
   role: "admin" | "user";
   createdAt: Date;
   updatedAt: Date;

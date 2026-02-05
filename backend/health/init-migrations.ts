@@ -9,7 +9,7 @@ const MIGRATION_STATEMENTS = [
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    subscription TEXT NOT NULL DEFAULT 'starter',
+    subscription TEXT NOT NULL DEFAULT 'free',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,

@@ -443,6 +443,7 @@
     "about": "Informazioni",
     "version": "Versione",
     "subscriptionPlans": {
+      "free": "Gratis",
       "starter": "Starter",
       "familie": "Famiglia",
       "premium": "Premium"

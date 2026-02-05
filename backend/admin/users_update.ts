@@ -11,7 +11,7 @@ interface UpdateUserParams {
 interface UpdateUserRequest extends UpdateUserParams {
   name?: string;
   email?: string;
-  subscription?: "starter" | "familie" | "premium";
+  subscription?: "free" | "starter" | "familie" | "premium";
   role?: "admin" | "user";
 }
 

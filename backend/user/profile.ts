@@ -9,39 +9,39 @@ export type Theme = "light" | "dark" | "system";
 async function ensurePreferenceColumns() {
   // Defensive: make sure DB has the new preference columns before we read/write
   try {
-    await userDB.exec(`
+    await userDB.exec`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'de';
-    `);
+    `;
   } catch (err) {
     console.warn("[user.ensurePreferenceColumns] preferred_language add skipped", err);
   }
 
   try {
-    await userDB.exec(`
+    await userDB.exec`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'system';
-    `);
+    `;
   } catch (err) {
     console.warn("[user.ensurePreferenceColumns] theme add skipped", err);
   }
 
   try {
-    await userDB.exec(`
+    await userDB.exec`
       UPDATE users
       SET preferred_language = 'de'
       WHERE preferred_language IS NULL;
-    `);
+    `;
   } catch (err) {
     console.warn("[user.ensurePreferenceColumns] preferred_language backfill skipped", err);
   }
 
   try {
-    await userDB.exec(`
+    await userDB.exec`
       UPDATE users
       SET theme = 'system'
       WHERE theme IS NULL;
-    `);
+    `;
   } catch (err) {
     console.warn("[user.ensurePreferenceColumns] theme backfill skipped", err);
   }
@@ -51,7 +51,7 @@ export interface UserProfile {
   id: string;
   email: string;
   name: string;
-  subscription: "starter" | "familie" | "premium";
+  subscription: "free" | "starter" | "familie" | "premium";
   role: "admin" | "user";
   preferredLanguage: SupportedLanguage;
   theme: Theme;
@@ -62,7 +62,7 @@ export interface UserProfile {
 interface CreateUserRequest {
   email: string;
   name: string;
-  subscription?: "starter" | "familie" | "premium";
+  subscription?: "free" | "starter" | "familie" | "premium";
   role?: "admin" | "user";
   preferredLanguage?: SupportedLanguage;
   theme?: Theme;
@@ -83,14 +83,14 @@ export const create = api<CreateUserRequest, UserProfile>(
     
     await userDB.exec`
       INSERT INTO users (id, email, name, subscription, role, preferred_language, theme, created_at, updated_at)
-      VALUES (${id}, ${req.email}, ${req.name}, ${req.subscription || "starter"}, ${req.role || "user"}, ${req.preferredLanguage || "de"}, ${req.theme || "system"}, ${now}, ${now})
+      VALUES (${id}, ${req.email}, ${req.name}, ${req.subscription || "free"}, ${req.role || "user"}, ${req.preferredLanguage || "de"}, ${req.theme || "system"}, ${now}, ${now})
     `;
 
     return {
       id,
       email: req.email,
       name: req.name,
-      subscription: (req.subscription || "starter") as UserProfile["subscription"],
+      subscription: (req.subscription || "free") as UserProfile["subscription"],
       role: (req.role || "user") as UserProfile["role"],
       preferredLanguage: (req.preferredLanguage || "de") as SupportedLanguage,
       theme: (req.theme || "system") as Theme,
@@ -110,7 +110,7 @@ export const get = api<GetUserParams, UserProfile>(
       id: string;
       email: string;
       name: string;
-      subscription: "starter" | "familie" | "premium";
+      subscription: "free" | "starter" | "familie" | "premium";
       role: "admin" | "user";
       preferredLanguage: SupportedLanguage;
       theme: Theme;

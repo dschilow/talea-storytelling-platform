@@ -113,6 +113,7 @@ export namespace admin {
             stories: number
         }
         subscriptions: {
+            free: number
             starter: number
             familie: number
             premium: number
@@ -156,7 +157,7 @@ export namespace admin {
         id: string
         email: string
         name: string
-        subscription: "starter" | "familie" | "premium"
+        subscription: "free" | "starter" | "familie" | "premium"
         role: "admin" | "user"
         createdAt: string
         updatedAt: string
@@ -202,7 +203,7 @@ export namespace admin {
     export interface UpdateUserRequest {
         name?: string
         email?: string
-        subscription?: "starter" | "familie" | "premium"
+        subscription?: "free" | "starter" | "familie" | "premium"
         role?: "admin" | "user"
     }
 
@@ -2753,7 +2754,7 @@ export namespace user {
     export interface CreateUserRequest {
         email: string
         name: string
-        subscription?: "starter" | "familie" | "premium"
+        subscription?: "free" | "starter" | "familie" | "premium"
         role?: "admin" | "user"
     }
 
@@ -2761,7 +2762,7 @@ export namespace user {
         id: string
         email: string
         name: string
-        subscription: "starter" | "familie" | "premium"
+        subscription: "free" | "starter" | "familie" | "premium"
         role: "admin" | "user"
         createdAt: string
         updatedAt: string
