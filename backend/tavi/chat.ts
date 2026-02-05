@@ -49,6 +49,18 @@ interface TaviChatResponse {
   awaitingConfirmation?: boolean;
 }
 
+interface OpenAIChatResponse {
+  choices?: Array<{
+    message?: { content?: string };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
 const TAVI_SYSTEM_PROMPT = `Du bist Tavi, das magische Geschichten-Genie der Talea Storytelling Platform! ðŸ§žâ€â™‚ï¸âœ¨
 
 PersÃ¶nlichkeit:
@@ -599,7 +611,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as OpenAIChatResponse;
       console.log("âœ… OpenAI response received:", {
         choicesCount: data.choices?.length || 0,
         tokensUsed: data.usage,

@@ -14,6 +14,7 @@ import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mc
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildStoryChapterImageUrlForClient, buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { updateStoryInstanceStatus } from "./pipeline/repository";
+import { claimGenerationUsage } from "../helpers/billing";
 import {
   createStructuredMemory,
   filterPersonalityChangesWithCooldown,
@@ -242,6 +243,14 @@ export const generate = api<GenerateStoryRequest, Story>(
     const clerkToken = auth?.clerkToken;
     if (!clerkToken) {
       throw APIError.unauthenticated("Missing Clerk token for MCP operations");
+    }
+
+    if (auth?.role !== "admin") {
+      await claimGenerationUsage({
+        userId: currentUserId,
+        kind: "story",
+        clerkToken,
+      });
     }
     const mcpApiKey = mcpServerApiKey();
 

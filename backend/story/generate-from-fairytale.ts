@@ -4,6 +4,7 @@ import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { fairytalesDB } from "../fairytales/db";
 import type { Story, Chapter } from "./generate";
+import { claimGenerationUsage } from "../helpers/billing";
 import crypto from "crypto";
 
 // =====================================================
@@ -30,6 +31,14 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
 
     if (!currentUserId) {
       throw APIError.unauthenticated("Missing authenticated user");
+    }
+
+    if (auth?.role !== "admin") {
+      await claimGenerationUsage({
+        userId: currentUserId,
+        kind: "story",
+        clerkToken: auth?.clerkToken,
+      });
     }
 
     console.log("[FairyTaleStory] Starting generation:", {

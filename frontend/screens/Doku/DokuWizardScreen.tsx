@@ -122,7 +122,11 @@ const DokuWizardScreen: React.FC = () => {
       window.location.href = `/doku-reader/${created.id}`;
     } catch (e) {
       console.error('Fehler bei Doku-Generierung', e);
-      alert(t('doku.wizard.errors.generationFailed'));
+      if (e instanceof Error && e.message.includes('Abo-Limit erreicht')) {
+        alert('Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.');
+      } else {
+        alert(t('doku.wizard.errors.generationFailed'));
+      }
     } finally {
       setLoading(false);
     }

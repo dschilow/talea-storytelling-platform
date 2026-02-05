@@ -197,6 +197,8 @@ export default function ModernStoryWizard() {
           errorMessage = t('story.wizard.alerts.tooLong');
         } else if (error.message.includes('timeout')) {
           errorMessage = t('story.wizard.alerts.timeout');
+        } else if (error.message.includes('Abo-Limit erreicht')) {
+          errorMessage = 'Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.';
         }
       }
 

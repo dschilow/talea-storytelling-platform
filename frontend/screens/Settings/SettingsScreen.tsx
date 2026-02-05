@@ -1,14 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile } from '@clerk/clerk-react';
+import { UserProfile, PricingTable } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useBackend } from '../../hooks/useBackend';
 import { useUser } from '@clerk/clerk-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../src/i18n';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
-import { Sun, Moon, Monitor, Languages } from 'lucide-react';
+import { Sun, Moon, Monitor, Languages, CreditCard, Sparkles, Users, Crown, BookOpen, FileText } from 'lucide-react';
 
 type ThemeOption = 'light' | 'dark' | 'system';
+
+type SubscriptionPlan = 'starter' | 'familie' | 'premium';
+
+const PLAN_CARDS: Array<{
+  id: SubscriptionPlan;
+  icon: typeof Sparkles;
+  stories: number;
+  dokus: number;
+  accent: string;
+  glow: string;
+}> = [
+  {
+    id: 'starter',
+    icon: Sparkles,
+    stories: 5,
+    dokus: 3,
+    accent: 'from-rose-200/70 to-purple-200/70',
+    glow: 'bg-gradient-to-br from-rose-200/70 to-purple-200/70',
+  },
+  {
+    id: 'familie',
+    icon: Users,
+    stories: 20,
+    dokus: 10,
+    accent: 'from-amber-200/70 to-emerald-200/70',
+    glow: 'bg-gradient-to-br from-amber-200/70 to-emerald-200/70',
+  },
+  {
+    id: 'premium',
+    icon: Crown,
+    stories: 60,
+    dokus: 30,
+    accent: 'from-sky-200/70 to-indigo-200/70',
+    glow: 'bg-gradient-to-br from-sky-200/70 to-indigo-200/70',
+  },
+];
 
 // Custom Language Selection Component for Clerk UserProfile
 function LanguageSelector() {
@@ -229,6 +265,135 @@ function ThemeSelector() {
   );
 }
 
+function BillingPanel() {
+  const { t } = useTranslation();
+  const backend = useBackend();
+  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPlan = async () => {
+      try {
+        setIsLoading(true);
+        const profile = await backend.user.me();
+        if (active) {
+          setCurrentPlan(profile.subscription as SubscriptionPlan);
+        }
+      } catch (err) {
+        console.error('Failed to load subscription plan:', err);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+
+    loadPlan();
+    return () => {
+      active = false;
+    };
+  }, [backend]);
+
+  return (
+    <div className="p-6">
+      <div className="flex items-start gap-4 mb-6">
+        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+          <CreditCard className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            {t('settings.subscription')} &amp; {t('settings.billing')}
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Wähle dein Abo und verwalte deine Monatslimits.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {PLAN_CARDS.map((plan) => {
+          const Icon = plan.icon;
+          const isActive = currentPlan === plan.id;
+
+          return (
+            <div
+              key={plan.id}
+              className={`relative overflow-hidden rounded-2xl border transition-all duration-200 ${
+                isActive
+                  ? 'border-purple-400/70 shadow-xl ring-2 ring-purple-300/50'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-purple-300/60 dark:hover:border-purple-600/40'
+              }`}
+            >
+              <div className={`absolute -top-12 -right-12 h-28 w-28 rounded-full blur-2xl ${plan.glow}`} />
+              <div className="relative p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${plan.accent}`}>
+                      <Icon className="h-5 w-5 text-gray-900/70" />
+                    </span>
+                    <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      {t(`settings.subscriptionPlans.${plan.id}`)}
+                    </span>
+                  </div>
+                  {isActive && (
+                    <span className="text-xs font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full">
+                      Aktiv
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white/70 dark:bg-gray-900/40 border border-white/60 dark:border-gray-700/60 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      <BookOpen className="h-4 w-4" />
+                      {t('admin.stories')}
+                    </div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">
+                      {plan.stories}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">pro Monat</div>
+                  </div>
+                  <div className="rounded-xl bg-white/70 dark:bg-gray-900/40 border border-white/60 dark:border-gray-700/60 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      <FileText className="h-4 w-4" />
+                      {t('admin.dokus')}
+                    </div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">
+                      {plan.dokus}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">pro Monat</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-8 rounded-2xl border border-dashed border-purple-200 dark:border-purple-800 bg-white/80 dark:bg-gray-900/60 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              Abo auswählen
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {isLoading && currentPlan === null ? 'Lade dein aktuelles Abo...' : 'Abrechnung läuft über Clerk Billing.'}
+            </p>
+          </div>
+          {currentPlan && (
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
+              Aktuell: {t(`settings.subscriptionPlans.${currentPlan}`)}
+            </span>
+          )}
+        </div>
+        <div id="pricing-table" className="rounded-xl overflow-hidden">
+          <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsScreen() {
   const { t } = useTranslation();
 
@@ -272,6 +437,14 @@ export default function SettingsScreen() {
               url="appearance"
             >
               <ThemeSelector />
+            </UserProfile.Page>
+
+            <UserProfile.Page
+              label={`${t('settings.subscription')} & ${t('settings.billing')}`}
+              labelIcon={<CreditCard className="w-4 h-4" />}
+              url="billing"
+            >
+              <BillingPanel />
             </UserProfile.Page>
           </UserProfile>
         </div>

@@ -553,7 +553,11 @@ export default function ModernDokuWizard() {
       navigate(`/doku-reader/${created.id}`);
     } catch (error) {
       console.error('[DokuWizard] Error generating doku:', error);
-      alert('Doku konnte nicht erstellt werden. Bitte versuche es erneut.');
+      let message = 'Doku konnte nicht erstellt werden. Bitte versuche es erneut.';
+      if (error instanceof Error && error.message.includes('Abo-Limit erreicht')) {
+        message = 'Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.';
+      }
+      alert(message);
     } finally {
       setGenerating(false);
       setGenerationPhase('text');

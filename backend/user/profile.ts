@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { userDB } from "./db";
+import { extractPlanFromClerkToken } from "../helpers/billing";
 
 export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type Theme = "light" | "dark" | "system";
@@ -136,6 +137,16 @@ export const me = api<void, UserProfile>(
     const auth = getAuthData()!;
 
     await ensurePreferenceColumns();
+
+    const tokenPlan = extractPlanFromClerkToken(auth.clerkToken);
+    if (tokenPlan) {
+      const now = new Date();
+      await userDB.exec`
+        UPDATE users
+        SET subscription = ${tokenPlan}, updated_at = ${now}
+        WHERE id = ${auth.userID} AND subscription <> ${tokenPlan}
+      `;
+    }
 
     const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date; preferred_language: SupportedLanguage }>`
       SELECT id, email, name, subscription, role, preferred_language, theme, created_at, updated_at

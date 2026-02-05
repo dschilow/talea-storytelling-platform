@@ -1,4 +1,4 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { secret } from "encore.dev/config";
 import { ai, avatar } from "~encore/clients";
@@ -6,6 +6,8 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { normalizeLanguage } from "../story/avatar-image-optimization";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { getAuthData } from "~encore/auth";
+import { claimGenerationUsage } from "../helpers/billing";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -108,10 +110,37 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
   async (req) => {
     const id = crypto.randomUUID();
     const now = new Date();
+    const auth = getAuthData();
+    const currentUserId = auth?.userID ?? req.userId;
+
+    if (!currentUserId) {
+      throw APIError.unauthenticated("Missing authenticated user for doku generation");
+    }
+
+    if (auth?.userID && req.userId && auth.userID !== req.userId) {
+      console.warn("[doku.generate] Auth user mismatch detected", {
+        authUserId: auth.userID,
+        requestUserId: req.userId,
+        dokuId: id,
+      });
+    }
+
+    const clerkToken = auth?.clerkToken;
+    if (!clerkToken) {
+      throw APIError.unauthenticated("Missing Clerk token for billing");
+    }
+
+    if (auth?.role !== "admin") {
+      await claimGenerationUsage({
+        userId: currentUserId,
+        kind: "doku",
+        clerkToken,
+      });
+    }
 
     await dokuDB.exec`
       INSERT INTO dokus (id, user_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
-      VALUES (${id}, ${req.userId}, 'Wird generiert...', ${req.config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
+      VALUES (${id}, ${currentUserId}, 'Wird generiert...', ${req.config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
     `;
 
     const startTime = Date.now();
@@ -270,7 +299,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
         // Load all avatars for this user
         const userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-          SELECT id, name FROM avatars WHERE user_id = ${req.userId}
+          SELECT id, name FROM avatars WHERE user_id = ${currentUserId}
         `;
 
         for (const a of userAvatars) {
@@ -321,7 +350,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
       return {
         id,
-        userId: req.userId,
+        userId: currentUserId,
         title: parsed.title,
         topic: req.config.topic,
         summary: parsed.summary,
