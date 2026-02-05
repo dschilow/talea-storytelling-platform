@@ -349,7 +349,11 @@ const ModernHomeScreen: React.FC = () => {
                 {t('navigation.settings')}
               </ModernButton>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton
+                  afterSignOutUrl="/"
+                  userProfileMode="navigation"
+                  userProfileUrl="/settings"
+                />
               </motion.div>
             </div>
           </div>

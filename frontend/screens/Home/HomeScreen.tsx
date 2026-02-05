@@ -195,7 +195,11 @@ const HomeScreen: React.FC = () => {
                 <RefreshCw className="w-5 h-5 text-primary" />
               </button>
               <div className="scale-125">
-                <UserButton afterSignOutUrl="/" />
+                <UserButton
+                  afterSignOutUrl="/"
+                  userProfileMode="navigation"
+                  userProfileUrl="/settings"
+                />
               </div>
             </div>
           </header>

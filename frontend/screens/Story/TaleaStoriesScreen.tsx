@@ -342,6 +342,15 @@ const StoryGridCard: React.FC<{
             {story.summary || story.description || 'Eine magische Geschichte voller Abenteuer und Entdeckungen.'}
           </p>
 
+          {/* Participants */}
+          {((story.config?.avatars && story.config.avatars.length > 0) ||
+            (story.config?.characters && story.config.characters.length > 0)) && (
+            <div className="mb-3">
+              <p className="text-[10px] text-muted-foreground/60 font-semibold mb-1.5 uppercase tracking-wider">Teilnehmer</p>
+              <ParticipantAvatars story={story} />
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
@@ -364,6 +373,93 @@ const StoryGridCard: React.FC<{
         </div>
       </div>
     </motion.div>
+  );
+};
+
+// =====================================================
+// PARTICIPANT AVATARS - Animated avatar group with click-to-view
+// =====================================================
+const ParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
+  const [selected, setSelected] = useState<{ src: string; name: string } | null>(null);
+
+  const participants = [
+    ...(story.config?.avatars || []).map(a => ({
+      src: a.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${a.name}`,
+      name: a.name,
+    })),
+    ...(story.config?.characters || []).map(c => ({
+      src: c.imageUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${c.name}`,
+      name: c.name,
+    })),
+  ];
+
+  if (participants.length === 0) return null;
+
+  return (
+    <>
+      <div className="flex items-center -space-x-2">
+        {participants.map((p, i) => (
+          <motion.button
+            key={i}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.1, type: 'spring', stiffness: 300 }}
+            whileHover={{ scale: 1.2, zIndex: 20 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelected(p);
+            }}
+            className="relative w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
+            style={{ zIndex: participants.length - i }}
+          >
+            <img src={p.src} alt={p.name} className="w-full h-full object-cover" />
+          </motion.button>
+        ))}
+        {participants.length > 0 && (
+          <span className="text-[10px] text-muted-foreground/60 ml-3 font-medium">
+            {participants.map(p => p.name).join(', ')}
+          </span>
+        )}
+      </div>
+
+      {/* Selected participant overlay */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4"
+            onClick={(e) => { e.stopPropagation(); setSelected(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl p-8 text-center shadow-2xl border border-white/40 max-w-xs"
+            >
+              <motion.img
+                src={selected.src}
+                alt={selected.name}
+                className="w-40 h-40 rounded-full object-cover mx-auto border-4 border-[#A989F2]/20 shadow-xl"
+                layoutId={`participant-${selected.name}`}
+              />
+              <h3 className="text-xl font-bold text-foreground mt-4" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+                {selected.name}
+              </h3>
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelected(null); }}
+                className="mt-4 px-4 py-2 rounded-xl bg-muted text-sm font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
+              >
+                Schließen
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
@@ -434,6 +530,14 @@ const StoryListCard: React.FC<{
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
               {story.summary || story.description || 'Eine magische Geschichte voller Abenteuer.'}
             </p>
+
+            {/* Participants */}
+            {((story.config?.avatars && story.config.avatars.length > 0) ||
+              (story.config?.characters && story.config.characters.length > 0)) && (
+              <div className="mt-2">
+                <ParticipantAvatars story={story} />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between mt-2">

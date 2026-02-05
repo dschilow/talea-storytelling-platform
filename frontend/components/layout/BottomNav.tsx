@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, BookOpen, User, FlaskConical, Sparkles, Gem, BookMarked, Code } from 'lucide-react';
+import { Home, BookOpen, User, FlaskConical, Sparkles, Gem, BookMarked, Code, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +17,7 @@ const BottomNav: React.FC = () => {
         { icon: Gem, label: t('navigation.artifacts'), path: '/artifacts' },
         { icon: BookMarked, label: t('navigation.fairytales'), path: '/fairytales' },
         { icon: Code, label: t('navigation.logs'), path: '/logs' },
+        { icon: Settings, label: t('navigation.settings'), path: '/settings' },
     ];
 
     const isActive = (path: string) => location.pathname === path;
