@@ -5,7 +5,7 @@ import { ClerkProvider } from '@clerk/clerk-react';
 import { Toaster } from 'sonner';
 import { store } from './store/store';
 
-import HomeScreen from './screens/Home/HomeScreen';
+import HomeScreen from './screens/Home/TaleaHomeScreen';
 import AvatarWizardScreen from './screens/Avatar/AvatarWizardScreen';
 import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
 import AvatarsScreen from './screens/Avatar/AvatarsScreen';
@@ -17,7 +17,7 @@ import StoryScrollReaderScreen from './screens/Story/StoryScrollReaderScreen';
 import CinematicStoryViewer from './screens/Story/CinematicStoryViewer';
 import CinematicDokuViewer from './screens/Doku/CinematicDokuViewer';
 
-import StoriesScreen from './screens/Story/StoriesScreen';
+import StoriesScreen from './screens/Story/TaleaStoriesScreen';
 import FairyTaleSelectionScreen from './screens/Story/FairyTaleSelectionScreen';
 import CharacterMappingScreen from './screens/Story/CharacterMappingScreen';
 import LogViewerScreen from './screens/Logs/LogViewerScreen';
