@@ -266,6 +266,7 @@ function gateCastLock(
       const parts = name.split(/\s+/);
       if (parts.some(p => allowedNames.has(p))) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
+      if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
 
       const isActor = isLikelyCharacterAction(ch.text, match[1]);
       issues.push({
@@ -1056,4 +1057,35 @@ function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
   ]);
 
   return articles.has(prev);
+}
+
+function isLikelyGermanNameCandidate(text: string, token: string, matchIndex: number): boolean {
+  const normalized = token.trim();
+  if (!normalized) return false;
+
+  // Single-word names that repeat are likely real character references.
+  if (countWordOccurrences(text, normalized) >= 2) return true;
+
+  // Sentence-initial capitalized nouns are very common in German; ignore one-off hits.
+  if (isLikelySentenceStart(text, matchIndex)) {
+    const prefix = text.slice(Math.max(0, matchIndex - 28), matchIndex).toLowerCase();
+    if (!/(herr|frau|prinz|prinzessin|k(?:oe|ö)nig|k(?:oe|ö)nigin|ritter|fee|hexe|zauberer)\s+$/.test(prefix)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function countWordOccurrences(text: string, word: string): number {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = text.match(new RegExp(`\\b${escaped}\\b`, "gi"));
+  return matches ? matches.length : 0;
+}
+
+function isLikelySentenceStart(text: string, index: number): boolean {
+  let i = index - 1;
+  while (i >= 0 && /\s/.test(text[i])) i--;
+  if (i < 0) return true;
+  return /[.!?\n]/.test(text[i]);
 }

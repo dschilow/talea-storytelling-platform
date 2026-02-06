@@ -2,11 +2,11 @@ import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, St
 import { callChatCompletion } from "./llm-client";
 
 const MODEL = "gpt-5-nano";
-const MAX_CHAPTER_WORDS = 360;
-const LEAD_WORDS = 200;
-const TAIL_WORDS = 180;
+const MAX_CHAPTER_WORDS = 220;
+const LEAD_WORDS = 130;
+const TAIL_WORDS = 80;
 const MAX_RETRIES = 1;
-const CHAPTER_BATCH_SIZE = 4;
+const CHAPTER_BATCH_SIZE = 5;
 
 export async function generateSceneDescriptions(input: {
   chapters: StoryChapterText[];
@@ -120,62 +120,53 @@ async function extractBatchSceneDescriptions(
   storyId?: string,
   language?: string
 ): Promise<Array<any>> {
-  const systemPrompt = `Extract the single most dynamic visual moment for EACH chapter. Output English JSON only.
-
-CRITICAL ACTION RULES:
-- Each character MUST have a UNIQUE, SPECIFIC physical action - NOT just "standing" or "looking".
-- Actions must be DYNAMIC VERBS showing movement or interaction: "kneels and reaches toward", "climbs over a wall", "runs with arms outstretched", "crouches behind a bush peering out", "leans forward pointing at a map", "swings from a branch".
-- FORBIDDEN actions: "stands", "looks", "watches", "is present", "participates". These are too static.
-- Characters must interact with EACH OTHER or with PROPS - not pose for a camera.
-- bodyLanguage must describe a SPECIFIC POSE, not just "standing": "crouching low", "leaning forward", "arms raised", "one knee on ground", "back turned halfway".
-- expression must show EMOTION: "wide-eyed with wonder", "frowning with concentration", "grinning mischievously".
-- Actions/bodyLanguage/expressions must be verb phrases only (no names, no pronouns, no other characters).
-- Choose a moment where ALL listed characters are present at the same time.
-- Do NOT add new characters or background people.
-- Use only details explicitly present in the chapter text or directives.
-- If "Must show" items are provided, include them in keyProps or environment.
-- Be concise.`;
+  const systemPrompt = `Extract one dynamic visual moment per chapter and return English JSON only.
+Rules:
+- every listed character appears exactly once, with a unique physical action
+- no static actions ("stand/look/watch"), no camera-facing poses
+- use only details from chapter text + metadata
+- no extra people or new characters
+- concise outputs (short phrases, no long prose).`;
 
   const chapterBlocks = chapterInputs.map((input) => {
     const { chapter, directive, onStageSlots, onStageNames } = input;
     const truncatedText = buildSceneSnippet(chapter.text, MAX_CHAPTER_WORDS, LEAD_WORDS, TAIL_WORDS);
     const characterList = onStageNames.map((name, idx) => `${onStageSlots[idx]}: ${name}`).join(", ");
-    const mustShow = (directive.imageMustShow || []).slice(0, 8).join(", ");
+    const mustShow = compactVisualHints(directive.imageMustShow || [], onStageNames).join(", ");
     const slotList = onStageSlots.map((s) => `"${s}"`).join(", ");
 
     return `CHAPTER ${chapter.chapter}: "${chapter.title}"
 ${truncatedText}
 Setting: ${directive.setting}
 Mood: ${directive.mood ?? "COZY"}
-Goal: ${directive.goal}
-Conflict: ${directive.conflict}
-Outcome: ${directive.outcome}
-Artifact usage: ${directive.artifactUsage}
-Must show (visual hints): ${mustShow || "none"}
+Beat goal: ${sanitizeSceneText(directive.goal || "").slice(0, 90) || "n/a"}
+Must show: ${mustShow || "none"}
 Characters: ${characterList}
-Use exactly these slotKeys: ${slotList}`;
+Slots: ${slotList}`;
   }).join("\n\n---\n\n");
 
   const userPrompt = `Story language: ${language || "de"}.
 ${chapterBlocks}
 
-Return JSON with this exact structure:
+Return JSON with this structure:
 {
   "chapters": [
     {
       "chapter": number,
-      "keyMoment": "...",
+      "keyMoment": "max 20 words",
       "characterActions": [
-        { "slotKey": "EXACT_SLOT", "action": "physical verb phrase", "expression": "face", "bodyLanguage": "pose" }
+        { "slotKey": "EXACT_SLOT", "action": "verb phrase", "expression": "short emotion", "bodyLanguage": "short pose" }
       ],
-      "environment": "scene background",
-      "cameraAngle": "angle (wide/medium shot only, NO portraits/close-ups)",
-      "keyProps": ["obj1", "obj2"],
-      "lighting": "light desc",
-      "emotionalTone": "mood"
+      "environment": "short setting phrase",
+      "cameraAngle": "wide or medium shot",
+      "keyProps": ["max 4 concise props"],
+      "lighting": "short lighting phrase",
+      "emotionalTone": "single mood word"
     }
   ]
 }`;
+
+  const maxCompletionTokens = Math.min(2400, Math.max(1000, chapterInputs.length * 420));
 
   const result = await callChatCompletion({
     messages: [
@@ -184,8 +175,9 @@ Return JSON with this exact structure:
     ],
     model: MODEL,
     responseFormat: "json_object",
-    maxTokens: 3500,
-    temperature: 0.6,
+    maxTokens: maxCompletionTokens,
+    temperature: 0.4,
+    reasoningEffort: "low",
     context: "scene-prompt-generator-batch",
     logSource: "phase6.5-scene-prompts-llm",
     logMetadata: { storyId, chapters: chapterInputs.length },
@@ -245,7 +237,9 @@ function normalizeSceneDescription(input: {
     characterActions,
     environment: sanitizeSceneText(String(parsed.environment || "")),
     cameraAngle: sanitizeCameraAngle(String(parsed.cameraAngle || "wide shot, eye-level")),
-    keyProps: Array.isArray(parsed.keyProps) ? parsed.keyProps.map((value: any) => String(value)) : [],
+    keyProps: Array.isArray(parsed.keyProps)
+      ? parsed.keyProps.map((value: any) => String(value)).filter(Boolean).slice(0, 6)
+      : [],
     lighting: sanitizeSceneText(String(parsed.lighting || "natural light")),
     emotionalTone: String(parsed.emotionalTone || "neutral"),
   };
@@ -417,6 +411,35 @@ function ensureUniqueActions(actions: AICharacterAction[]): void {
     item.action = uniqueAction;
     seen.add(uniqueAction.toLowerCase());
   });
+}
+
+function compactVisualHints(hints: string[], onStageNames: string[]): string[] {
+  if (!Array.isArray(hints) || hints.length === 0) return [];
+
+  const blocked = new Set(onStageNames.map(name => name.trim().toLowerCase()));
+  const unique = new Set<string>();
+
+  for (const raw of hints) {
+    const normalized = String(raw || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!normalized) continue;
+
+    const lower = normalized.toLowerCase();
+    if (blocked.has(lower)) continue;
+
+    const compact = normalized
+      .split(/[.,;:]/)[0]
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 52);
+    if (!compact) continue;
+
+    unique.add(compact);
+    if (unique.size >= 5) break;
+  }
+
+  return Array.from(unique);
 }
 
 function buildCharacterMap(cast: CastSet): Map<string, string> {

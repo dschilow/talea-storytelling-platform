@@ -64,7 +64,7 @@ const ARTIFACT_ABILITY_MAP: Record<string, string> = {
 
 const AI_MATCH_MODEL = "gpt-5-nano";
 const AI_MATCH_MIN_CONFIDENCE = 0.35;
-const AI_MATCH_MAX_CANDIDATES = 80;
+const AI_MATCH_MAX_CANDIDATES = 12;
 
 export async function buildCastSet(input: {
   normalized: NormalizedRequest;
@@ -239,10 +239,8 @@ async function selectCandidateForSlot(input: {
     normalized,
     variantPlan,
     blueprint,
-    allAvailable,
     eligibleCandidates,
     scored,
-    usedIds: Array.from(used),
   });
 
   const picked = aiPick ?? fallbackPick;
@@ -263,57 +261,46 @@ async function selectCandidateForSlotWithAI(input: {
   normalized: NormalizedRequest;
   variantPlan: StoryVariantPlan;
   blueprint?: StoryBlueprintBase;
-  allAvailable: CharacterPoolRow[];
   eligibleCandidates: CharacterPoolRow[];
   scored: ScoredCandidate[];
-  usedIds: string[];
 }): Promise<CharacterPoolRow | null> {
-  const { slot, normalized, variantPlan, blueprint, allAvailable, eligibleCandidates, scored, usedIds } = input;
+  const { slot, normalized, variantPlan, blueprint, eligibleCandidates, scored } = input;
   if (eligibleCandidates.length <= 1) {
     return eligibleCandidates[0] ?? null;
   }
 
   try {
     const scoreMap = new Map(scored.map(item => [item.candidate.id, item.score]));
-    const rankedForPrompt = [...allAvailable]
+    const rankedForPrompt = [...eligibleCandidates]
       .sort((a, b) => (scoreMap.get(b.id) || 0) - (scoreMap.get(a.id) || 0))
       .slice(0, AI_MATCH_MAX_CANDIDATES);
-    const eligibleIdSet = new Set(eligibleCandidates.map(candidate => candidate.id));
 
     const candidateOptions = rankedForPrompt.map((candidate) => ({
       id: candidate.id,
       name: candidate.name,
       role: candidate.role,
       archetype: candidate.archetype,
-      eligibleForSlot: eligibleIdSet.has(candidate.id),
       scoreHint: Number((scoreMap.get(candidate.id) || 0).toFixed(3)),
-      dominantPersonality: candidate.dominant_personality || null,
-      secondaryTraits: (candidate.secondary_traits || []).slice(0, 4),
-      speechStyle: (candidate.speech_style || []).slice(0, 3),
-      catchphrase: candidate.catchphrase || null,
-      emotionalTriggers: (candidate.emotional_triggers || []).slice(0, 4),
-      quirk: candidate.quirk || null,
+      dominantPersonality: candidate.dominant_personality || undefined,
+      secondaryTraits: (candidate.secondary_traits || []).slice(0, 2),
+      speechStyle: (candidate.speech_style || []).slice(0, 2),
       species: candidate.species_category || candidate.visual_profile?.species || null,
-      professionTags: (candidate.profession_tags || []).slice(0, 4),
-      visualHint: String(candidate.visual_profile?.description || candidate.physical_description || "").slice(0, 180),
-      usage: candidate.total_usage_count || 0,
+      visualHint: String(candidate.visual_profile?.description || candidate.physical_description || "").slice(0, 72),
     }));
 
     const sceneHints = (blueprint?.scenes || [])
-      .slice(0, Math.max(3, normalized.chapterCount))
+      .slice(0, Math.min(3, normalized.chapterCount))
       .map(scene => ({
         chapter: scene.sceneNumber,
         beatType: scene.beatType,
         setting: scene.setting,
-        mood: scene.mood,
-        summary: summarizeSceneForCasting(scene.sceneDescription),
+        summary: summarizeSceneForCasting(scene.sceneDescription).slice(0, 80),
       }));
 
-    const systemPrompt = `You are a casting director for children's story generation.
-Pick the best character for the requested slot, considering current and future story beats.
-You MUST choose only from eligible candidates.
-Prioritize narrative fit, distinctive personality/voice, and long-term arc usefulness.
-Return JSON only.`;
+    const systemPrompt = `You are a casting director for children's stories.
+Pick the best candidate for the slot from the candidate list.
+Prefer strongest fit + distinct voice + reliable long-arc value.
+Return compact JSON only with selectedCandidateId and confidence.`;
 
     const userPayload = {
       story: {
@@ -332,13 +319,10 @@ Return JSON only.`;
         constraints: slot.constraints || [],
         visualHints: slot.visualHints || [],
       },
-      alreadyUsedCharacterIds: usedIds,
-      eligibleCandidateIds: Array.from(eligibleIdSet),
       candidates: candidateOptions,
       outputSchema: {
         selectedCandidateId: "string",
         confidence: "number 0..1",
-        reasoning: "short string",
       },
     };
 
@@ -349,7 +333,7 @@ Return JSON only.`;
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 900,
+      maxTokens: 220,
       temperature: 0.3,
       reasoningEffort: "low",
       context: "casting-ai-match",

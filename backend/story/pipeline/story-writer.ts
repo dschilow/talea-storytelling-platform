@@ -148,6 +148,7 @@ export class LlmStoryWriter implements StoryWriter {
       responseFormat: "json_object",
       maxTokens: Math.min(maxOutputTokens, 16000),
       temperature: strict ? 0.4 : 0.7,
+      reasoningEffort: "low",
       context: "story-writer-full",
       logSource: "phase6-story-llm",
       logMetadata: { storyId: normalizedRequest.storyId, step: "full" },
@@ -233,12 +234,9 @@ export class LlmStoryWriter implements StoryWriter {
           requiredCharacters: missingCharacters,
         });
 
-        // V3: Höheres Token-Limit für Expand-Calls
-        // Problem: gpt-5-mini Reasoning verbraucht viel Budget (bis zu 100% bei 758 Tokens)
-        // Beispiel: Kapitel 4+5 scheiterten weil 758 Reasoning Tokens = 0 Output Tokens
-        // Lösung: Mindestens 1200 Tokens garantieren für Reasoning + Output
-        const baseMaxTokens = Math.round(Math.max(600, lengthTargets.wordMax * 2.5));
-        const maxTokens = Math.min(2000, Math.max(1200, baseMaxTokens));
+        // Keep expand calls compact to reduce cost while leaving room for short rewrites.
+        const baseMaxTokens = Math.round(Math.max(520, lengthTargets.wordMax * 2.2));
+        const maxTokens = Math.min(1400, Math.max(850, baseMaxTokens));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
 
@@ -298,15 +296,35 @@ export class LlmStoryWriter implements StoryWriter {
     // - WARNINGs werden ignoriert für Rewrites (kosten zu viel)
     // - Max 1 Rewrite-Pass (MAX_REWRITE_PASSES = 1)
     // ════════════════════════════════════════════════════════════════════════
+    let errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+    if (normalizedRequest.wordBudget && canAutoTrimLengthErrors(errorIssues)) {
+      const trimResult = autoTrimDraftToWordBudget({
+        draft,
+        maxWords: normalizedRequest.wordBudget.maxWords,
+        minWordsPerChapter: Math.max(HARD_MIN_CHAPTER_WORDS, normalizedRequest.wordBudget.minWordsPerChapter),
+      });
+      if (trimResult.changed) {
+        draft = trimResult.draft;
+        qualityReport = runQualityGates({
+          draft,
+          directives,
+          cast,
+          language: normalizedRequest.language,
+          wordBudget: normalizedRequest.wordBudget,
+        });
+        errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+        console.log(`[story-writer] Applied deterministic trim before rewrite. Remaining errors: ${errorIssues.length}`);
+      }
+    }
+
     let rewriteAttempt = 0;
-    const errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+    while (rewriteAttempt < maxRewritePasses) {
+      errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+      const shouldRewrite = REWRITE_ONLY_ON_ERRORS
+        ? errorIssues.length > 0
+        : qualityReport.failedGates.length > 0;
+      if (!shouldRewrite) break;
 
-    // V2: Nur rewriten wenn es wirklich ERRORs gibt (nicht nur WARNINGs)
-    const shouldRewrite = REWRITE_ONLY_ON_ERRORS
-      ? errorIssues.length > 0
-      : qualityReport.failedGates.length > 0;
-
-    while (shouldRewrite && rewriteAttempt < maxRewritePasses) {
       rewriteAttempt++;
       console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - ${errorIssues.length} errors, failed gates: ${qualityReport.failedGates.join(", ")}`);
 
@@ -335,6 +353,7 @@ export class LlmStoryWriter implements StoryWriter {
           responseFormat: "json_object",
           maxTokens: Math.min(maxOutputTokens, 16000),
           temperature: 0.4,
+          reasoningEffort: "low",
           context: `story-writer-rewrite-${rewriteAttempt}`,
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt },
@@ -744,6 +763,87 @@ function findMissingCharacters(text: string, directive: SceneDirective, cast: Ca
 function findCharacterDisplayName(cast: CastSet, slotKey: string): string | null {
   const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
   return sheet?.displayName ?? null;
+}
+
+function canAutoTrimLengthErrors(errorIssues: Array<{ code: string }>): boolean {
+  if (errorIssues.length === 0) return false;
+  return errorIssues.every(issue => issue.code === "TOTAL_TOO_LONG");
+}
+
+function autoTrimDraftToWordBudget(input: {
+  draft: StoryDraft;
+  maxWords: number;
+  minWordsPerChapter: number;
+}): { draft: StoryDraft; changed: boolean } {
+  const { draft, maxWords, minWordsPerChapter } = input;
+  const chapters = draft.chapters.map(ch => ({ ...ch, text: ch.text || "" }));
+  let totalWords = chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+  if (totalWords <= maxWords) return { draft, changed: false };
+
+  let changed = false;
+  let guard = 0;
+
+  while (totalWords > maxWords && guard < 120) {
+    guard++;
+    const overflow = totalWords - maxWords;
+    const candidates = chapters
+      .map((chapter, index) => ({ index, words: countWords(chapter.text) }))
+      .filter(item => item.words > minWordsPerChapter + 8)
+      .sort((a, b) => b.words - a.words);
+
+    if (candidates.length === 0) break;
+
+    let trimmedOne = false;
+    for (const candidate of candidates) {
+      const currentWords = candidate.words;
+      const reduceBy = Math.min(28, Math.max(8, Math.ceil(overflow / 2)));
+      const targetWords = Math.max(minWordsPerChapter, currentWords - reduceBy);
+      const nextText = truncateTextToWordTarget(chapters[candidate.index].text, targetWords);
+      if (nextText === chapters[candidate.index].text) continue;
+
+      chapters[candidate.index].text = nextText;
+      trimmedOne = true;
+      changed = true;
+      break;
+    }
+
+    if (!trimmedOne) break;
+    totalWords = chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+  }
+
+  if (!changed) return { draft, changed: false };
+  return { draft: { ...draft, chapters }, changed: true };
+}
+
+function truncateTextToWordTarget(text: string, targetWords: number): string {
+  const cleaned = text.trim();
+  if (!cleaned) return cleaned;
+
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length <= targetWords) return cleaned;
+
+  const sentences = splitSentences(cleaned);
+  const keptSentences: string[] = [];
+  let runningWords = 0;
+
+  for (const sentence of sentences) {
+    const sentenceWords = countWords(sentence);
+    if (runningWords + sentenceWords > targetWords) break;
+    keptSentences.push(sentence.trim());
+    runningWords += sentenceWords;
+  }
+
+  if (keptSentences.length >= 2) {
+    const joined = keptSentences.join(" ").replace(/\s+/g, " ").trim();
+    if (countWords(joined) >= Math.max(30, Math.floor(targetWords * 0.75))) {
+      return joined;
+    }
+  }
+
+  let fallback = words.slice(0, targetWords).join(" ").trim();
+  fallback = fallback.replace(/[,:;!?-]+$/g, "").trim();
+  if (fallback && !/[.!?]$/.test(fallback)) fallback += ".";
+  return fallback;
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {
