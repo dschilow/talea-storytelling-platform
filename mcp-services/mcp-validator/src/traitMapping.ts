@@ -5,16 +5,14 @@
 
 const VALID_BASE_TRAITS = [
   'courage',
-  'intelligence',
   'creativity',
-  'empathy',
-  'strength',
-  'humor',
-  'adventure',
-  'patience',
+  'vocabulary',
   'curiosity',
-  'leadership',
   'teamwork',
+  'empathy',
+  'persistence',
+  'logic',
+  'knowledge',
 ] as const;
 
 const VALID_KNOWLEDGE_SUBCATEGORIES = [
@@ -27,43 +25,58 @@ const VALID_KNOWLEDGE_SUBCATEGORIES = [
   'chemistry',
 ] as const;
 
-// Legacy/Alternative name mappings
+// Legacy/Alternative name mappings → maps to the 9 real backend traits
 const LEGACY_MAPPING: Record<string, string> = {
-  // German names
+  // German names → backend trait IDs
   mut: 'courage',
-  intelligenz: 'intelligence',
   kreativität: 'creativity',
   empathie: 'empathy',
-  stärke: 'strength',
-  abenteuerlust: 'adventure',
-  geduld: 'patience',
   neugier: 'curiosity',
-  führungsqualität: 'leadership',
+  teamwork: 'teamwork',
+  teamgeist: 'teamwork',
   sozialität: 'teamwork',
+  ausdauer: 'persistence',
+  logik: 'logic',
+  wortschatz: 'vocabulary',
+  wissen: 'knowledge',
+
+  // Old traits → nearest backend equivalent
+  intelligence: 'logic',
+  intelligenz: 'logic',
+  strength: 'persistence',
+  stärke: 'persistence',
+  humor: 'creativity',
+  adventure: 'curiosity',
+  abenteuerlust: 'curiosity',
+  patience: 'persistence',
+  geduld: 'persistence',
+  leadership: 'teamwork',
+  führungsqualität: 'teamwork',
+  determination: 'persistence',
 
   // Alternative English names
   bravery: 'courage',
   brave: 'courage',
-  smart: 'intelligence',
-  clever: 'intelligence',
-  wisdom: 'intelligence',
+  smart: 'logic',
+  clever: 'logic',
+  wisdom: 'logic',
   imaginative: 'creativity',
   artistic: 'creativity',
   compassion: 'empathy',
   kindness: 'empathy',
   caring: 'empathy',
-  physical_strength: 'strength',
-  strong: 'strength',
-  funny: 'humor',
-  wit: 'humor',
-  adventurous: 'adventure',
-  exploration: 'adventure',
-  patient: 'patience',
-  calm: 'patience',
+  physical_strength: 'persistence',
+  strong: 'persistence',
+  funny: 'creativity',
+  wit: 'creativity',
+  adventurous: 'curiosity',
+  exploration: 'curiosity',
+  patient: 'persistence',
+  calm: 'persistence',
   curious: 'curiosity',
   inquisitive: 'curiosity',
-  leader: 'leadership',
-  leading: 'leadership',
+  leader: 'teamwork',
+  leading: 'teamwork',
 
   // Knowledge subcategories (German)
   geschichte: 'knowledge.history',

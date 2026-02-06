@@ -20,6 +20,14 @@ interface MarkDokuReadResponse {
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
+    appliedChanges?: Array<{ trait: string; change: number }>;
+    masteryEvents?: Array<{
+      trait: string;
+      oldTier: string;
+      newTier: string;
+      newTierLevel: number;
+      currentValue: number;
+    }>;
   }>;
 }
 
@@ -111,7 +119,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
           console.log(`🔄 Updating ${userAvatar.name} with changes:`, changes);
 
           // Apply personality updates
-          await avatar.updatePersonality({
+          const personalityResult = await avatar.updatePersonality({
             id: userAvatar.id,
             changes: changes,
             storyId: req.dokuId,
@@ -139,7 +147,18 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
 
           personalityChanges.push({
             avatarName: userAvatar.name,
-            changes: changes
+            changes: changes,
+            appliedChanges: personalityResult.appliedChanges.map(ac => ({
+              trait: ac.trait,
+              change: ac.change,
+            })),
+            masteryEvents: personalityResult.masteryEvents.map(me => ({
+              trait: me.trait,
+              oldTier: me.oldTier.name,
+              newTier: me.newTier.name,
+              newTierLevel: me.newTier.level,
+              currentValue: me.newValue,
+            })),
           });
 
           updatedCount++;

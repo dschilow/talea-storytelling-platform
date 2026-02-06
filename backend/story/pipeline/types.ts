@@ -330,7 +330,15 @@ export interface StoryWriter {
     strict?: boolean;
     stylePackText?: string;
     fusionSections?: Map<number, string>;
+    avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
   }) => Promise<{ draft: StoryDraft; usage?: TokenUsage }>;
+}
+
+/** Compressed avatar memory for prompt injection */
+export interface AvatarMemoryCompressed {
+  storyTitle: string;
+  experience: string;
+  emotionalImpact: 'positive' | 'negative' | 'neutral';
 }
 
 export interface ImageDirector {

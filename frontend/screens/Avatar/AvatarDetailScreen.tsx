@@ -9,6 +9,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { HierarchicalTraitDisplay } from '../../components/common/HierarchicalTraitDisplay';
+import { PersonalityRadarChart } from '../../components/avatar/PersonalityRadarChart';
 import TreasureRoom from '../../components/gamification/TreasureRoom';
 import { PackageOpen } from 'lucide-react';
 import { convertBackendTraitsToFrontend } from '../../constants/traits';
@@ -26,7 +27,9 @@ const MemoryTimeline: React.FC<{
     }
   };
 
-  const getImpactIcon = (impact: string) => {
+  const getImpactEmoji = (impact: string, contentType?: string) => {
+    if (contentType === 'doku') return '📚';
+    if (contentType === 'quiz') return '🧩';
     switch (impact) {
       case 'positive': return '✨';
       case 'negative': return '💔';
@@ -34,98 +37,144 @@ const MemoryTimeline: React.FC<{
     }
   };
 
+  const getContentLabel = (contentType?: string) => {
+    switch (contentType) {
+      case 'doku': return 'Doku';
+      case 'quiz': return 'Quiz';
+      default: return 'Geschichte';
+    }
+  };
+
+  // Trait display names for diary
+  const traitDisplayNames: Record<string, string> = {
+    courage: 'Mut', creativity: 'Kreativität', vocabulary: 'Wortschatz',
+    curiosity: 'Neugier', teamwork: 'Teamgeist', empathy: 'Empathie',
+    persistence: 'Ausdauer', logic: 'Logik', knowledge: 'Wissen',
+    'knowledge.biology': 'Biologie', 'knowledge.history': 'Geschichte',
+    'knowledge.physics': 'Physik', 'knowledge.geography': 'Geografie',
+    'knowledge.astronomy': 'Astronomie', 'knowledge.mathematics': 'Mathematik',
+    'knowledge.chemistry': 'Chemie',
+  };
+
   const sortedMemories = [...memories].sort((a, b) =>
     new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime()
   );
 
+  // Group memories by date for diary feel
+  const groupedByDate: Record<string, typeof sortedMemories> = {};
+  sortedMemories.forEach(m => {
+    const dateStr = new Date(m.createdAt || m.timestamp || 0).toLocaleDateString('de-DE', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    if (!groupedByDate[dateStr]) groupedByDate[dateStr] = [];
+    groupedByDate[dateStr].push(m);
+  });
+
   return (
-    <div className="space-y-4">
-      {sortedMemories.map((memory, index) => (
-        <FadeInView key={memory.id} delay={index * 100}>
-          <div className="relative">
-            {/* Timeline line */}
-            {index < sortedMemories.length - 1 && (
-              <div
-                className="absolute left-6 top-12 w-0.5 h-16 bg-gray-200"
-                style={{ zIndex: 0 }}
-              />
-            )}
+    <div className="space-y-6">
+      {/* Diary Header */}
+      <div className="text-center mb-2">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-full border border-amber-200">
+          <span className="text-lg">📔</span>
+          <span className="text-sm font-semibold text-amber-800">Tagebuch</span>
+          <span className="text-xs text-amber-600">({memories.length} Einträge)</span>
+        </div>
+      </div>
 
-            <div className="flex space-x-4">
-              {/* Timeline dot */}
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg relative z-10"
-                style={{
-                  backgroundColor: getImpactColor(memory.emotionalImpact),
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                }}
-              >
-                {getImpactIcon(memory.emotionalImpact)}
-              </div>
-
-              {/* Memory content */}
-              <div className="flex-1">
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-800 flex items-center">
-                        <BookOpen className="w-4 h-4 mr-2 text-purple-500" />
-                        {memory.storyTitle}
-                      </h4>
-                      <div className="flex items-center text-xs text-gray-500 mt-1">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(memory.createdAt || memory.timestamp || 0).toLocaleDateString('de-DE')}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onDeleteMemory(memory.id)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors"
-                      title="Erinnerung löschen"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-
-                  <p className="text-gray-600 text-sm mb-3">{memory.experience}</p>
-
-                  {memory.personalityChanges && memory.personalityChanges.length > 0 && (
-                    <div className="border-t border-gray-100 pt-3">
-                      <div className="text-xs text-gray-500 mb-2 flex items-center">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        Persönlichkeitsveränderungen:
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {memory.personalityChanges.map((change, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 rounded-full text-xs font-medium"
-                            style={{
-                              backgroundColor: change.change > 0 ? '#10B98120' : '#EF444420',
-                              color: change.change > 0 ? '#10B981' : '#EF4444'
-                            }}
-                          >
-                            {change.trait} {change.change > 0 ? '+' : ''}{change.change}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+      {Object.entries(groupedByDate).map(([dateStr, dayMemories]) => (
+        <div key={dateStr}>
+          {/* Date Separator (diary style) */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-px bg-amber-200" />
+            <span className="text-xs font-medium text-amber-700 px-3 py-1 bg-amber-50 rounded-full border border-amber-200 italic">
+              📅 {dateStr}
+            </span>
+            <div className="flex-1 h-px bg-amber-200" />
           </div>
-        </FadeInView>
+
+          <div className="space-y-3">
+            {dayMemories.map((memory, index) => (
+              <FadeInView key={memory.id} delay={index * 80}>
+                {/* Diary Entry Card */}
+                <div className="relative bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
+                  {/* Decorative left border */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+                    style={{ backgroundColor: getImpactColor(memory.emotionalImpact) }}
+                  />
+
+                  <div className="p-4 pl-5">
+                    {/* Header row */}
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{getImpactEmoji(memory.emotionalImpact, (memory as any).contentType)}</span>
+                        <div>
+                          <h4 className="font-semibold text-gray-800 text-sm leading-tight">
+                            {memory.storyTitle}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
+                              {getContentLabel((memory as any).contentType)}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(memory.createdAt || memory.timestamp || 0).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onDeleteMemory(memory.id)}
+                        className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-colors"
+                        title="Erinnerung löschen"
+                      >
+                        <span className="text-sm">🗑️</span>
+                      </button>
+                    </div>
+
+                    {/* Diary text — the experience in a "handwritten" style */}
+                    <div className="mt-2 pl-1 text-gray-700 text-sm leading-relaxed italic">
+                      „{memory.experience}"
+                    </div>
+
+                    {/* Personality Changes as mini badges */}
+                    {memory.personalityChanges && memory.personalityChanges.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {memory.personalityChanges.map((change, idx) => {
+                          const displayName = traitDisplayNames[change.trait] || change.trait;
+                          const isPositive = change.change > 0;
+                          return (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              style={{
+                                backgroundColor: isPositive ? '#10B98115' : '#EF444415',
+                                color: isPositive ? '#059669' : '#DC2626',
+                                border: `1px solid ${isPositive ? '#10B98130' : '#EF444430'}`,
+                              }}
+                            >
+                              {isPositive ? '↑' : '↓'} {displayName} {isPositive ? '+' : ''}{change.change}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </FadeInView>
+            ))}
+          </div>
+        </div>
       ))}
 
       {memories.length === 0 && (
         <FadeInView delay={0}>
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-8 h-8 text-gray-400" />
+            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-amber-200">
+              <span className="text-3xl">📔</span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">Noch keine Erinnerungen</h3>
-            <p className="text-gray-500 max-w-sm mx-auto">
-              Sobald dein Avatar in Geschichten teilnimmt, werden hier seine Erfahrungen und Entwicklung sichtbar.
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Noch keine Einträge</h3>
+            <p className="text-gray-500 max-w-xs mx-auto text-sm">
+              Sobald dein Avatar Geschichten erlebt oder Dokus liest, erscheinen hier seine Tagebuch-Einträge.
             </p>
           </div>
         </FadeInView>
@@ -659,7 +708,7 @@ const AvatarDetailScreen: React.FC = () => {
                 }`}
             >
               <BookOpen className="w-5 h-5 mr-2" />
-              Erinnerungen ({displayMemories.length})
+              Tagebuch ({displayMemories.length})
             </button>
             <button
               onClick={() => setActiveTab('inventory')}
@@ -687,6 +736,22 @@ const AvatarDetailScreen: React.FC = () => {
                   <p className="text-gray-600 mb-6">
                     Die Persönlichkeit deines Avatars entwickelt sich durch seine Erfahrungen in den Geschichten.
                   </p>
+
+                  {/* Radar Chart Overview */}
+                  {rawPersonalityTraits && (
+                    <div className="mb-8 p-4 bg-gradient-to-br from-purple-50 via-white to-blue-50 rounded-2xl border border-purple-100">
+                      <h4 className="text-center text-sm font-semibold text-purple-700 mb-2 tracking-wide uppercase">
+                        ✨ Fähigkeiten-Übersicht
+                      </h4>
+                      <PersonalityRadarChart
+                        traits={rawPersonalityTraits}
+                        size={320}
+                        showMasteryBadges={true}
+                        showLegend={true}
+                        animate={true}
+                      />
+                    </div>
+                  )}
 
                   {/* Debug buttons for resetting */}
                   <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -772,16 +837,16 @@ const AvatarDetailScreen: React.FC = () => {
               <Card variant="elevated" className="mb-6">
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <BookOpen className="w-6 h-6 mr-2 text-purple-500" />
-                    Erinnerungen & Erfahrungen
+                    <BookOpen className="w-6 h-6 mr-2 text-amber-500" />
+                    Tagebuch
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    Hier siehst du alle Erfahrungen und Erinnerungen deines Avatars aus seinen Geschichtenabenteuern.
+                    Alle Erlebnisse und Entdeckungen deines Avatars — wie in einem persönlichen Tagebuch.
                   </p>
                   {memoryLoading ? (
                     <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
-                      <p className="text-gray-500 mt-2">Lade Erinnerungen...</p>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div>
+                      <p className="text-gray-500 mt-2">Lade Tagebuch...</p>
                     </div>
                   ) : (
                     <MemoryTimeline

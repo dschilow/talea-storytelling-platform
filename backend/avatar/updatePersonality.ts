@@ -3,6 +3,30 @@ import type { PersonalityTraits } from "./avatar";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 
+// ─── Trait Mastery Tiers ───────────────────────────────────────────────────
+export const MASTERY_TIERS = [
+  { level: 1, name: 'Anfänger',  nameEn: 'Beginner',   icon: '🌱', minValue: 0,  maxValue: 20 },
+  { level: 2, name: 'Lehrling',  nameEn: 'Apprentice', icon: '🌿', minValue: 21, maxValue: 40 },
+  { level: 3, name: 'Geselle',   nameEn: 'Journeyman', icon: '🌳', minValue: 41, maxValue: 60 },
+  { level: 4, name: 'Meister',   nameEn: 'Master',     icon: '⭐', minValue: 61, maxValue: 80 },
+  { level: 5, name: 'Legende',   nameEn: 'Legend',      icon: '👑', minValue: 81, maxValue: 100 },
+] as const;
+
+export function getMasteryTier(value: number) {
+  for (let i = MASTERY_TIERS.length - 1; i >= 0; i--) {
+    if (value >= MASTERY_TIERS[i].minValue) return MASTERY_TIERS[i];
+  }
+  return MASTERY_TIERS[0];
+}
+
+// Diminishing returns: the higher the trait, the less points you get
+function applyDiminishingReturns(currentValue: number, rawChange: number): number {
+  if (rawChange <= 0) return rawChange; // Reductions are always full
+  // Scale factor: 1.0 at 0, 0.5 at 50, 0.25 at 75, 0.15 at 90
+  const scaleFactor = Math.max(0.15, 1.0 - (currentValue / 130));
+  return Math.max(1, Math.round(rawChange * scaleFactor));
+}
+
 interface TraitChange {
   trait: string;
   change: number;
@@ -21,6 +45,13 @@ interface UpdatePersonalityResponse {
   success: boolean;
   updatedTraits: PersonalityTraits;
   appliedChanges: TraitChange[];
+  masteryEvents: Array<{
+    trait: string;
+    traitDisplayName: string;
+    oldTier: typeof MASTERY_TIERS[number];
+    newTier: typeof MASTERY_TIERS[number];
+    newValue: number;
+  }>;
 }
 
 // Updates an avatar's personality traits with delta changes
@@ -57,6 +88,14 @@ export const updatePersonality = api(
 
     const updatedTraits = { ...currentTraits };
     const appliedChanges: TraitChange[] = [];
+    const masteryEvents: UpdatePersonalityResponse['masteryEvents'] = [];
+
+    // Trait display names for mastery events
+    const traitDisplayNames: Record<string, string> = {
+      courage: 'Mut', creativity: 'Kreativität', vocabulary: 'Wortschatz',
+      curiosity: 'Neugier', teamwork: 'Teamgeist', empathy: 'Empathie',
+      persistence: 'Ausdauer', logic: 'Logik', knowledge: 'Wissen',
+    };
 
     // Apply trait changes
     for (const change of changes) {
@@ -105,13 +144,30 @@ export const updatePersonality = api(
           console.warn(`⚠️ Unknown base trait: ${baseKey}`);
         }
       } else {
-        // Handle direct base trait updates
+        // Handle direct base trait updates (with diminishing returns)
         if (traitIdentifier in updatedTraits) {
           const currentTrait = updatedTraits[traitIdentifier];
           const oldValue = typeof currentTrait === 'number' ? currentTrait : currentTrait.value;
 
+          // Apply diminishing returns for base traits
+          const effectiveChange = applyDiminishingReturns(oldValue, change.change);
+          
           const maxValue = 100; // Base traits have lower limit
-          const newValue = Math.max(0, Math.min(maxValue, oldValue + change.change));
+          const newValue = Math.max(0, Math.min(maxValue, oldValue + effectiveChange));
+
+          // Check mastery tier change
+          const oldTier = getMasteryTier(oldValue);
+          const newTier = getMasteryTier(newValue);
+          if (newTier.level > oldTier.level) {
+            masteryEvents.push({
+              trait: traitIdentifier,
+              traitDisplayName: traitDisplayNames[traitIdentifier] || traitIdentifier,
+              oldTier,
+              newTier,
+              newValue,
+            });
+            console.log(`  🏆 MASTERY UP! ${traitIdentifier}: ${oldTier.icon} ${oldTier.name} → ${newTier.icon} ${newTier.name}`);
+          }
 
           // Preserve subcategories if they exist
           if (typeof currentTrait === 'object') {
@@ -144,12 +200,13 @@ export const updatePersonality = api(
       WHERE id = ${id}
     `;
 
-    console.log(`✅ Personality update complete for avatar ${id}`);
+    console.log(`✅ Personality update complete for avatar ${id}${masteryEvents.length > 0 ? ` (${masteryEvents.length} mastery-ups!)` : ''}`);
 
     return {
       success: true,
       updatedTraits,
-      appliedChanges
+      appliedChanges,
+      masteryEvents,
     };
   }
 );

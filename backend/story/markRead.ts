@@ -23,6 +23,14 @@ interface MarkStoryReadResponse {
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
+    appliedChanges?: Array<{ trait: string; change: number; oldValue?: number; newValue?: number }>;
+    masteryEvents?: Array<{
+      trait: string;
+      oldTier: string;
+      newTier: string;
+      newTierLevel: number;
+      currentValue: number;
+    }>;
     rewards?: {
       newItems: InventoryItem[];
       upgradedItems: InventoryItem[];
@@ -130,7 +138,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           console.log(`🔄 Updating ${userAvatar.name} with changes:`, changes);
 
           // Apply personality updates
-          await avatar.updatePersonality({
+          const personalityResult = await avatar.updatePersonality({
             id: userAvatar.id,
             changes: changes,
             storyId: req.storyId,
@@ -213,6 +221,17 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           personalityChanges.push({
             avatarName: userAvatar.name,
             changes: changes,
+            appliedChanges: personalityResult.appliedChanges.map(ac => ({
+              trait: ac.trait,
+              change: ac.change,
+            })),
+            masteryEvents: personalityResult.masteryEvents.map(me => ({
+              trait: me.trait,
+              oldTier: me.oldTier.name,
+              newTier: me.newTier.name,
+              newTierLevel: me.newTier.level,
+              currentValue: me.newValue,
+            })),
             rewards: rewards
           });
 
@@ -322,16 +341,16 @@ function getPersonalityDisplayName(personalityTrait: string): string {
     "courage": "Mut",
     "empathy": "Empathie",
     "curiosity": "Neugier",
-    "kindness": "Freundlichkeit",
-    "humor": "Humor",
-    "determination": "Entschlossenheit",
-    "wisdom": "Weisheit"
+    "teamwork": "Teamgeist",
+    "persistence": "Ausdauer",
+    "logic": "Logik",
+    "vocabulary": "Wortschatz",
   };
 
   return displayNames[personalityTrait] || personalityTrait;
 }
 
-// Helper function to map genres to personality traits
+// Helper function to map genres to personality traits (using valid backend trait IDs)
 function inferPersonalityTrait(genre?: string): string {
   if (!genre) return "empathy";
 
@@ -339,13 +358,15 @@ function inferPersonalityTrait(genre?: string): string {
 
   const map: Array<{ keywords: string[]; trait: string }> = [
     { keywords: ["fantasy", "magie", "zauberer", "feen", "drachen"], trait: "creativity" },
-    { keywords: ["abenteuer", "reise", "entdeckung", "expedition"], trait: "courage" },
+    { keywords: ["abenteuer", "reise", "entdeckung", "expedition", "herausforderung", "kampf"], trait: "courage" },
     { keywords: ["freundschaft", "familie", "liebe", "gemeinschaft"], trait: "empathy" },
     { keywords: ["wissenschaft", "rätsel", "geheimnis", "detektiv"], trait: "curiosity" },
-    { keywords: ["tier", "natur", "umwelt", "wald"], trait: "kindness" },
-    { keywords: ["humor", "komödie", "spaß", "lustig"], trait: "humor" },
-    { keywords: ["herausforderung", "problem", "lösung", "kampf"], trait: "determination" },
-    { keywords: ["märchen", "weisheit", "lehre", "moral"], trait: "wisdom" },
+    { keywords: ["tier", "natur", "umwelt", "wald"], trait: "empathy" },
+    { keywords: ["humor", "komödie", "spaß", "lustig"], trait: "creativity" },
+    { keywords: ["problem", "lösung", "ausdauer", "durchhalten"], trait: "persistence" },
+    { keywords: ["märchen", "weisheit", "lehre", "moral"], trait: "vocabulary" },
+    { keywords: ["team", "zusammen", "gemeinsam", "helfen"], trait: "teamwork" },
+    { keywords: ["logik", "denken", "strategie", "plan"], trait: "logic" },
   ];
 
   for (const entry of map) {

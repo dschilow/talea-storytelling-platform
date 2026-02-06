@@ -259,14 +259,13 @@ export function parseKnowledgeTrait(traitId: string): { baseKey: string; subcate
 export const AI_PERSONALITY_SYSTEM_PROMPT = `
 PERSÖNLICHKEITS-UPDATE-SYSTEM:
 
-Du erhältst eine Liste von BASIS-MERKMALEN und optional WISSENS-BEREICHEN.
-Analysiere die generierte Geschichte/Doku und entscheide welche Merkmale sich entwickeln sollen.
+Du erhältst eine Liste von BASIS-MERKMALEN.
+Analysiere die generierte Geschichte und entscheide welche Merkmale sich entwickeln sollen.
 
-BASIS-MERKMALE (ID verwenden):
-${BASE_PERSONALITY_TRAITS.map(t => `- ${t.id}: ${t.displayNames.de}`).join('\n')}
+BASIS-MERKMALE (ID verwenden, 1-5 Punkte):
+${BASE_PERSONALITY_TRAITS.filter(t => t.id !== 'knowledge').map(t => `- ${t.id}: ${t.displayNames.de}`).join('\n')}
 
-WISSENS-BEREICHE (verwende knowledge.BEREICH):
-${Object.keys(KNOWLEDGE_SUBCATEGORIES).map(key => `- knowledge.${key}: ${KNOWLEDGE_SUBCATEGORIES[key].displayNames.de}`).join('\n')}
+WICHTIG: Wissens-Bereiche (knowledge.*) werden NUR durch Doku-Lektüre vergeben, NICHT durch Geschichten!
 
 ANTWORT-FORMAT:
 [
@@ -274,9 +273,9 @@ ANTWORT-FORMAT:
 ]
 
 REGELN:
-- Verwende IMMER die exakten IDs (z.B. "courage", "knowledge.biology")
+- Verwende IMMER die exakten IDs (z.B. "courage", "creativity", "persistence")
 - Basis-Merkmale: 1-5 Punkte pro Update
-- Wissens-Merkmale: 1-10 Punkte pro Update
-- Nur Merkmale updaten die zur Geschichte/Doku passen
+- Nur Merkmale updaten die zur Geschichte passen
 - Mitmach-Avatare bekommen mehr Punkte als Lese-Avatare
+- NIEMALS knowledge.* Merkmale in Geschichten vergeben
 `;

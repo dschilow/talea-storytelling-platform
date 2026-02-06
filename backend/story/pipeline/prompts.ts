@@ -1,4 +1,4 @@
-import type { CastSet, SceneDirective, StoryDNA, TaleDNA } from "./types";
+import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed } from "./types";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
@@ -289,8 +289,9 @@ export function buildFullStoryPrompt(input: {
   stylePackText?: string;
   strict?: boolean;
   fusionSections?: Map<number, string>;
+  avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, fusionSections } = input;
+  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, fusionSections, avatarMemories } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
   const artifactRule = cast.artifact?.storyUseRule || "wichtiges magisches Objekt";
@@ -345,6 +346,33 @@ export function buildFullStoryPrompt(input: {
       : ageRange.max <= 12
         ? "Mittlere Sätze, stärkere Motive, schärfere Wendungen, tiefere Emotionen."
         : "Komplexerer Stil, moralische Nuancen, größere Wendungen.";
+
+  // Build avatar memory section for story continuity
+  let memorySection = "";
+  if (avatarMemories && avatarMemories.size > 0) {
+    const memoryBlocks: string[] = [];
+    // Map avatar IDs to display names via cast
+    for (const avatar of cast.avatars) {
+      const memories = avatarMemories.get(avatar.characterId);
+      if (!memories || memories.length === 0) continue;
+      const lines = memories.map((m, i) => {
+        const icon = m.emotionalImpact === 'positive' ? '✨' : m.emotionalImpact === 'negative' ? '💔' : '💭';
+        return `  ${i + 1}. ${icon} "${m.storyTitle}": ${m.experience}`;
+      }).join("\n");
+      memoryBlocks.push(`**${avatar.displayName}**:\n${lines}`);
+    }
+    if (memoryBlocks.length > 0) {
+      memorySection = `
+# Erinnerungen der Avatare (vergangene Abenteuer)
+${memoryBlocks.join("\n\n")}
+
+**Erinnerungs-Regeln**:
+- Baue mindestens EINE natürliche Referenz zu einem früheren Erlebnis ein.
+- Beispiel: "Das erinnert mich an...", murmelte Alexander. ODER: Seit dem Abenteuer im Kristallwald wusste sie, dass...
+- NICHT nacherzählen, nur kurze, natürliche Rückblicke.
+`;
+    }
+  }
 
   // ────────────────────────────────────────────────────────────────────────────
   // HAUPTPROMPT - Optimiert für Token-Effizienz und Qualität
@@ -401,6 +429,7 @@ Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
 
 ${characterProfiles.join("\n\n")}
 
+${memorySection}
 ${artifactName ? `# Artefakt: ${artifactName}
 **Funktion**: ${artifactRule}
 

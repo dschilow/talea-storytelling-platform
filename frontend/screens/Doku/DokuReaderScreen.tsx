@@ -6,6 +6,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
+import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import type { Doku, DokuSection } from '../../types/doku';
@@ -14,6 +15,7 @@ import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { PersonalityChangeNotification } from '../../components/common/PersonalityDevelopment';
+import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 
 // Define a new type for our flattened, displayable sections
@@ -44,6 +46,9 @@ const DokuReaderScreen: React.FC = () => {
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
   const [personalityChanges, setPersonalityChanges] = useState<Array<{ trait: string; change: number }>>([]);
   const [showPersonalityNotification, setShowPersonalityNotification] = useState(false);
+
+  // Growth celebration modal
+  const { isOpen: showGrowthCelebration, data: growthData, triggerCelebration, closeCelebration } = useGrowthCelebration();
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -232,6 +237,11 @@ const DokuReaderScreen: React.FC = () => {
 
           showSuccessToast(message.trim());
         });
+
+        // 🎉 Trigger growth celebration modal (especially for mastery tier-ups)
+        if (result.personalityChanges && result.personalityChanges.length > 0) {
+          triggerCelebration(result.personalityChanges, 'doku', doku?.title);
+        }
 
         // Helper function to get German trait names
         function getTraitDisplayName(trait: string): string {
@@ -484,6 +494,16 @@ const DokuReaderScreen: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Growth Celebration Modal */}
+      <GrowthCelebrationModal
+        isOpen={showGrowthCelebration}
+        onClose={closeCelebration}
+        traitChanges={growthData.traitChanges}
+        masteryEvents={growthData.masteryEvents}
+        source={growthData.source}
+        sourceTitle={growthData.sourceTitle}
+      />
     </div>
   );
 };

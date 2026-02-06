@@ -6,11 +6,13 @@ import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
+import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
+import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
@@ -49,6 +51,9 @@ const StoryReaderScreen: React.FC = () => {
   // NEW: Pool artifact celebration (from artifact_pool system)
   const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
   const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
+
+  // Growth celebration modal
+  const { isOpen: showGrowthCelebration, data: growthData, triggerCelebration, closeCelebration } = useGrowthCelebration();
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -323,6 +328,9 @@ const StoryReaderScreen: React.FC = () => {
               }, 800 + (index * 600)); // Faster timing - 0.8s initial, 0.6s between each
             }
           });
+
+          // 🎉 Trigger growth celebration modal (especially for mastery tier-ups)
+          triggerCelebration(result.personalityChanges, 'story', story?.title);
         } else {
           // No personality changes, just show completion
           console.log('🔔 No personality changes found, showing only completion toast');
@@ -603,6 +611,16 @@ const StoryReaderScreen: React.FC = () => {
           setPoolArtifact(null);
           navigate('/treasure-room');
         }}
+      />
+
+      {/* Growth Celebration Modal (mastery tier-ups & trait changes) */}
+      <GrowthCelebrationModal
+        isOpen={showGrowthCelebration}
+        onClose={closeCelebration}
+        traitChanges={growthData.traitChanges}
+        masteryEvents={growthData.masteryEvents}
+        source={growthData.source}
+        sourceTitle={growthData.sourceTitle}
       />
 
     </div>

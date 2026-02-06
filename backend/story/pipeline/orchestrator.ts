@@ -23,6 +23,8 @@ import { generateSceneDescriptions } from "./scene-prompt-generator";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import type { AvatarMemoryCompressed } from "./types";
 import {
   loadCastSet,
   loadIntegrationPlan,
@@ -239,6 +241,36 @@ export class StoryPipelineOrchestrator {
       let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
       let tokenUsage: any;
       let qualityReport: any;
+
+      // ─── Fetch avatar memories for story continuity ─────────────────────
+      const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
+      try {
+        const avatarDB = SQLDatabase.named("avatar");
+        for (const avatar of input.avatars) {
+          const rows: Array<{ story_title: string; experience: string; emotional_impact: string }> = [];
+          const gen = await avatarDB.query<{ story_title: string; experience: string; emotional_impact: string }>`
+            SELECT story_title, experience, emotional_impact
+            FROM avatar_memories
+            WHERE avatar_id = ${avatar.id}
+            ORDER BY created_at DESC
+            LIMIT 5
+          `;
+          for await (const row of gen) {
+            rows.push(row);
+          }
+          if (rows.length > 0) {
+            avatarMemories.set(avatar.id, rows.map(r => ({
+              storyTitle: r.story_title,
+              experience: (r.experience || "").substring(0, 150),
+              emotionalImpact: (r.emotional_impact as any) || 'neutral',
+            })));
+            console.log(`[pipeline] 🧠 Fetched ${rows.length} memories for avatar ${avatar.name}`);
+          }
+        }
+      } catch (e) {
+        console.warn("[pipeline] ⚠️ Could not fetch avatar memories (non-critical):", e);
+      }
+
       const storedText = await loadStoryText(normalized.storyId);
 
       if (storedText.length === directives.length) {
@@ -281,6 +313,7 @@ export class StoryPipelineOrchestrator {
           directives,
           stylePackText,
           fusionSections,
+          avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
         });
         storyDraft = writeResult.draft;
         tokenUsage = writeResult.usage ?? tokenUsage;

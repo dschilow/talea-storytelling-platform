@@ -1547,16 +1547,17 @@ function getPersonalityUpdateInstructions(): string {
 Analysiere die generierte Geschichte und bestimme Charakterentwicklungen:
 
 **BASIS-MERKMALE** (verwende exakte IDs, 1-5 Punkte):
-courage, intelligence, creativity, empathy, strength, humor, adventure, patience, curiosity, leadership, teamwork
+courage, creativity, vocabulary, curiosity, teamwork, empathy, persistence, logic
 
-**WISSENS-MERKMALE** (verwende knowledge.BEREICH, 1-10 Punkte):
-knowledge.biology, knowledge.history, knowledge.physics, knowledge.geography, knowledge.astronomy
+**WICHTIG: KEIN "knowledge" oder "knowledge.*" vergeben!**
+Wissen wird ausschließlich durch Doku-Lektüre erworben, NICHT durch Geschichten.
 
 **REGELN:**
 - Nur Merkmale vergeben, die in der Geschichte AKTIV gezeigt werden
 - Hauptcharaktere: 2-4 Merkmale
 - Nebencharaktere: 1-2 Merkmale
 - Begruendung muss sich auf konkrete Szene beziehen
+- KEINE dieser Merkmale verwenden: intelligence, strength, humor, adventure, patience, leadership, wisdom, kindness, determination
 
 **FORMAT:**
 "avatarDevelopments": [
@@ -1963,12 +1964,37 @@ You MUST implement this style consistently in ALL chapters!`
     "]"
   ].join("\n");
 
+  // Build avatar memory section for prompt injection
+  const avatarMemoryLines = avatars.map((avatar) => {
+    const compressed = compressedMemoriesMap.get(avatar.id);
+    if (!compressed || compressed.length === 0) return null;
+    const memoryTexts = (compressed as any[]).map((m, i) => {
+      const emotion = m.emotionalImpact === 'positive' ? '✨' : m.emotionalImpact === 'negative' ? '💔' : '💭';
+      return `  ${i + 1}. ${emotion} "${m.storyTitle}": ${m.experience}`;
+    }).join("\n");
+    return `### ${avatar.name}:\n${memoryTexts}`;
+  }).filter(Boolean);
+
+  const memorySection = avatarMemoryLines.length > 0
+    ? [
+        "AVATAR MEMORIES (past adventures - use for continuity and character depth):",
+        ...avatarMemoryLines,
+        "",
+        "MEMORY RULES:",
+        "- Reference at least ONE past memory naturally in dialogue or narration.",
+        "- Example: '\"Das erinnert mich an...\", murmelte Alexander.' or 'Seit dem Abenteuer im Kristallwald wusste sie...'",
+        "- Do NOT retell old stories. Just brief, natural callbacks.",
+        ""
+      ].join("\n")
+    : "";
+
   const userPrompt = [
     buildEnhancedUserPrompt(config, avatars, chapterCount, args.qualityFeedback),
     "",
     "AVAILABLE AVATARS:",
     avatarSummary,
     "",
+    memorySection,
     "AVATAR VISUAL CANON:",
     avatarVisualLines,
     "",
@@ -2006,12 +2032,22 @@ You MUST implement this style consistently in ALL chapters!`
   }
 
   // Build profile and memory data for state (used later for image generation)
+  // FIX: Actually compress memories so they can be injected into prompts
+  const compressedMemoriesMap = new Map<string, unknown[]>();
+  for (const [avatarId, memories] of avatarMemoriesMap.entries()) {
+    const compressed = compressMemories(memories);
+    if (compressed.length > 0) {
+      compressedMemoriesMap.set(avatarId, compressed);
+      console.log(`[ai-generation] 🧠 Compressed ${compressed.length} memories for avatar ${avatarId}`);
+    }
+  }
+
   const state: StoryToolState = {
     avatarProfilesById: new Map(),
     avatarProfilesByName: new Map(),
     compressedProfilesById: new Map(),
     avatarMemoriesById: avatarMemoriesMap,
-    compressedMemoriesById: new Map(),
+    compressedMemoriesById: compressedMemoriesMap,
     validatorFailures: 0,
   };
 

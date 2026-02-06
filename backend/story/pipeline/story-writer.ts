@@ -1,4 +1,4 @@
-import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage } from "./types";
+import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed } from "./types";
 import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
@@ -41,8 +41,9 @@ export class LlmStoryWriter implements StoryWriter {
     strict?: boolean;
     stylePackText?: string;
     fusionSections?: Map<number, string>;
+    avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
-    const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections } = input;
+    const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories } = input;
     const model = normalizedRequest.rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
@@ -135,6 +136,7 @@ export class LlmStoryWriter implements StoryWriter {
       stylePackText,
       strict,
       fusionSections,
+      avatarMemories,
     });
 
     const maxOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));
