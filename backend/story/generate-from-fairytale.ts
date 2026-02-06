@@ -33,13 +33,11 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
       throw APIError.unauthenticated("Missing authenticated user");
     }
 
-    if (auth?.role !== "admin") {
-      await claimGenerationUsage({
-        userId: currentUserId,
-        kind: "story",
-        clerkToken: auth?.clerkToken,
-      });
-    }
+    await claimGenerationUsage({
+      userId: currentUserId,
+      kind: "story",
+      clerkToken: auth?.clerkToken,
+    });
 
     console.log("[FairyTaleStory] Starting generation:", {
       taleId: req.taleId,

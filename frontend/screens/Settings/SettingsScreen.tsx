@@ -35,8 +35,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type SubscriptionPlan = 'free' | 'starter' | 'familie' | 'premium';
@@ -363,15 +361,12 @@ function BillingPanel() {
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('free');
 
   const loadBilling = async () => {
     try {
       setIsLoading(true);
       const nextProfile = (await backend.user.me()) as unknown as ProfileSnapshot;
       setProfile(nextProfile);
-      const activePlan = nextProfile.billing?.plan || nextProfile.subscription;
-      setSelectedPlan(activePlan || 'free');
     } catch (err) {
       console.error('Failed to load billing profile:', err);
     } finally {
@@ -387,19 +382,11 @@ function BillingPanel() {
   const currentPlan = billing?.plan ?? profile?.subscription ?? 'free';
   const currentPlanMeta = PLAN_META[currentPlan];
   const CurrentPlanIcon = currentPlanMeta.icon;
-  const selectedPlanMeta = PLAN_META[selectedPlan];
+  const planOrder: SubscriptionPlan[] = ['free', 'starter', 'familie', 'premium'];
   const periodStartLabel = useMemo(() => {
     if (!billing?.periodStart) return '-';
     return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date(billing.periodStart));
   }, [billing?.periodStart]);
-
-  const scrollToClerkPricing = () => {
-    setPlanDialogOpen(false);
-    const target = document.getElementById('clerk-pricing-table');
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
 
   return (
     <div className="p-6 space-y-5">
@@ -428,46 +415,71 @@ function BillingPanel() {
                 Plan wechseln
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Monatsplan wechseln</DialogTitle>
-                <DialogDescription>
-                  Waehle einen Plan und oeffne danach Clerk Billing fuer den eigentlichen Wechsel.
-                </DialogDescription>
-              </DialogHeader>
+            <DialogContent className="w-[min(1100px,96vw)] max-w-none max-h-[92vh] overflow-y-auto border-[#A989F2]/30 bg-background/95 p-0 shadow-2xl shadow-[#A989F2]/20">
+              <div className="relative overflow-hidden">
+                <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-br from-[#A989F2]/25 to-[#FF6B9D]/20 blur-3xl" />
+                <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-gradient-to-br from-[#2DD4BF]/20 to-[#0EA5E9]/15 blur-3xl" />
 
-              <RadioGroup value={selectedPlan} onValueChange={(value) => setSelectedPlan(value as SubscriptionPlan)} className="gap-2">
-                {(Object.keys(PLAN_META) as SubscriptionPlan[]).map((plan) => {
-                  const meta = PLAN_META[plan];
-                  return (
-                    <div key={plan} className="relative flex w-full items-center gap-2 rounded-lg border border-input px-4 py-3 shadow-sm shadow-black/5 has-[[data-state=checked]]:border-ring has-[[data-state=checked]]:bg-accent">
-                      <RadioGroupItem value={plan} id={`plan-${plan}`} aria-describedby={`plan-${plan}-desc`} className="order-1 after:absolute after:inset-0" />
-                      <div className="grid grow gap-1">
-                        <Label htmlFor={`plan-${plan}`}>{meta.title}</Label>
-                        <p id={`plan-${plan}-desc`} className="text-xs text-muted-foreground">
-                          Story: {meta.storyLimit} | Doku: {meta.dokuLimit} | Audio: {meta.audioLimit}
-                        </p>
+                <div className="relative border-b border-border/70 px-6 py-5 md:px-8 md:py-7">
+                  <DialogHeader className="space-y-2 text-left">
+                    <DialogTitle className="text-2xl font-bold tracking-tight" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+                      Plan in Clerk Billing wechseln
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
+                      Ein Wechselpunkt, monatlich kuendbar, sofort transparent. Alle Limits werden danach automatisch aktualisiert.
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+
+                <div className="relative grid gap-0 md:grid-cols-[320px_1fr]">
+                  <aside className="border-b border-border/70 bg-muted/20 p-6 md:border-b-0 md:border-r">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Aktueller Plan</p>
+                    <div className="rounded-2xl border border-border bg-card/80 p-4 mb-5">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${currentPlanMeta.gradient}`}>
+                          <CurrentPlanIcon className="h-5 w-5 text-white" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{currentPlanMeta.title}</p>
+                          <p className="text-xs text-muted-foreground">Monat: {periodStartLabel}</p>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </RadioGroup>
 
-              <div className="rounded-xl border border-border bg-card/70 p-3">
-                <p className="text-xs font-semibold text-foreground mb-2">Ausgewaehlter Plan: {selectedPlanMeta.title}</p>
-                <p className="text-xs text-muted-foreground">Community-Dokus: {selectedPlanMeta.community}</p>
-                <p className="text-xs text-muted-foreground">Audio-Dokus: {selectedPlanMeta.audioLimit}</p>
-              </div>
+                    <div className="space-y-2">
+                      {planOrder.map((plan) => {
+                        const meta = PLAN_META[plan];
+                        const active = currentPlan === plan;
+                        return (
+                          <div
+                            key={`dialog-${plan}`}
+                            className={`rounded-xl border px-3 py-2 ${
+                              active ? 'border-[#A989F2]/50 bg-[#A989F2]/10' : 'border-border bg-card/60'
+                            }`}
+                          >
+                            <p className="text-xs font-semibold text-foreground">{meta.title}</p>
+                            <p className="text-[11px] text-muted-foreground">Story {meta.storyLimit}</p>
+                            <p className="text-[11px] text-muted-foreground">Doku {meta.dokuLimit}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </aside>
 
-              <div className="grid gap-2">
-                <Button type="button" className="w-full" onClick={scrollToClerkPricing}>
-                  Zu Clerk Billing
-                </Button>
-                <DialogClose asChild>
-                  <Button type="button" variant="ghost" className="w-full">
-                    Schliessen
-                  </Button>
-                </DialogClose>
+                  <div className="p-4 md:p-6">
+                    <div className="rounded-2xl border border-border bg-card/80 p-2 md:p-3">
+                      <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-xs text-muted-foreground">
+                        Nach erfolgreichem Checkout kannst du hier direkt auf `Aktualisieren` klicken.
+                      </p>
+                      <DialogClose asChild>
+                        <Button type="button" variant="outline">Schliessen</Button>
+                      </DialogClose>
+                    </div>
+                  </div>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -588,19 +600,6 @@ function BillingPanel() {
             })}
           </div>
 
-          <div id="clerk-pricing-table" className="rounded-2xl border border-dashed border-[#A989F2]/30 bg-card/70 backdrop-blur-lg p-4">
-            <div className="mb-3">
-              <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                Plan in Clerk Billing wechseln
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Planwechsel ist monatlich moeglich. Nach dem Wechsel werden die Limits automatisch aktualisiert.
-              </p>
-            </div>
-            <div className="rounded-xl overflow-visible">
-              <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
-            </div>
-          </div>
         </>
       ) : (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">

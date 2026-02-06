@@ -130,13 +130,11 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       throw APIError.unauthenticated("Missing Clerk token for billing");
     }
 
-    if (auth?.role !== "admin") {
-      await claimGenerationUsage({
-        userId: currentUserId,
-        kind: "doku",
-        clerkToken,
-      });
-    }
+    await claimGenerationUsage({
+      userId: currentUserId,
+      kind: "doku",
+      clerkToken,
+    });
 
     await dokuDB.exec`
       INSERT INTO dokus (id, user_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)

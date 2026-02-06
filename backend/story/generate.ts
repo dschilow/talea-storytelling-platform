@@ -245,13 +245,11 @@ export const generate = api<GenerateStoryRequest, Story>(
       throw APIError.unauthenticated("Missing Clerk token for MCP operations");
     }
 
-    if (auth?.role !== "admin") {
-      await claimGenerationUsage({
-        userId: currentUserId,
-        kind: "story",
-        clerkToken,
-      });
-    }
+    await claimGenerationUsage({
+      userId: currentUserId,
+      kind: "story",
+      clerkToken,
+    });
     const mcpApiKey = mcpServerApiKey();
 
     const safe = (obj: any) => {
