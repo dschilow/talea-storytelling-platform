@@ -46,7 +46,7 @@ const Sidebar: React.FC = () => {
   const isActive = (href: string) => location.pathname === href;
 
   return (
-    <div className="hidden md:flex h-screen sticky top-0 left-0 z-50">
+    <div className="hidden md:flex h-screen fixed top-0 left-0 z-50">
       <AceternitySidebar open={open} setOpen={setOpen}>
         <SidebarBody
           className="justify-between gap-6 border-r border-white/[0.06]"
@@ -90,7 +90,7 @@ const Sidebar: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/stories/new')}
+              onClick={() => navigate('/story')}
               className="relative mb-5 mx-0.5 overflow-hidden rounded-xl flex items-center gap-2.5 py-2.5 px-2.5 shadow-lg transition-all"
               style={{
                 background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 50%, #FF9B5C 100%)',

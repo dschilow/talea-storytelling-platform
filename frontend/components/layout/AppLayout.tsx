@@ -10,6 +10,7 @@ const AppLayout: React.FC = () => {
         <div className="min-h-screen text-foreground flex flex-col md:flex-row">
             {/* Desktop Sidebar - Only visible when signed in */}
             <SignedIn>
+                <div className="hidden md:block w-[60px] flex-shrink-0" />
                 <Sidebar />
             </SignedIn>
 

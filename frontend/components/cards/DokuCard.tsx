@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock, Download, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock, Download, Loader2, Sparkles } from 'lucide-react';
 import type { Doku } from '../../types/doku';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
@@ -13,6 +13,7 @@ interface DokuCardProps {
 }
 
 export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const backend = useBackend();
 
@@ -51,112 +52,159 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
 
   return (
     <motion.div
-      whileHover={{ y: -6 }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      whileHover={{ y: -8 }}
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="cursor-pointer group overflow-hidden rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-md hover:shadow-xl transition-shadow"
+      className="cursor-pointer group"
     >
-      {/* Image */}
-      <div className="relative h-[200px] overflow-hidden bg-gradient-to-br from-[#FF9B5C]/20 to-[#FF6B9D]/20">
-        {doku.coverImageUrl ? (
-          <img
-            src={doku.coverImageUrl}
-            alt={doku.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <FlaskConical size={64} className="text-white/50" />
-          </div>
-        )}
+      <div className="relative overflow-hidden rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-lg group-hover:shadow-2xl transition-all duration-500">
+        {/* Spine accent */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1.5 z-10"
+          style={{ background: 'linear-gradient(180deg, #FF9B5C 0%, #FF6B9D 50%, #A989F2 100%)' }}
+        />
 
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-
-        {/* Status badge */}
-        {doku.status === 'generating' && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 text-amber-300 text-[11px] font-bold">
-            <Loader2 size={12} className="animate-spin" />
-            Wird erstellt...
-          </div>
-        )}
-
-        {/* Action buttons overlay */}
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
-          {/* PDF Download */}
-          {doku.status === 'complete' && (
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleDownloadPDF}
-              disabled={isExportingPDF}
-              title="Als PDF herunterladen"
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-[#A989F2]/80 backdrop-blur-sm text-white hover:bg-[#A989F2] transition-colors disabled:opacity-50"
-            >
-              {isExportingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            </motion.button>
-          )}
-
-          {/* Toggle Public/Private */}
-          {onTogglePublic && (
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleTogglePublic}
-              title={doku.isPublic ? 'Als privat markieren' : 'Als öffentlich teilen'}
-              className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm text-white transition-colors ${
-                doku.isPublic
-                  ? 'bg-emerald-500/80 hover:bg-emerald-500'
-                  : 'bg-orange-400/80 hover:bg-orange-400'
-              }`}
-            >
-              {doku.isPublic ? <Globe size={14} /> : <Lock size={14} />}
-            </motion.button>
-          )}
-
-          {/* Delete */}
-          {onDelete && (
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleDelete}
-              title="Doku löschen"
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/80 backdrop-blur-sm text-white hover:bg-red-500 transition-colors"
-            >
-              <Trash2 size={14} />
-            </motion.button>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-4">
-        <h3 className="text-base font-bold text-white line-clamp-1 group-hover:text-[#FF9B5C] transition-colors" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          {doku.title}
-        </h3>
-
-        <p className="text-sm text-white/60 line-clamp-1 mt-0.5">
-          {doku.topic}
-        </p>
-
-        {/* Badge */}
-        <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/20 text-emerald-400 text-[11px] font-semibold">
-          <Lightbulb size={12} />
-          Lehrreich & Spannend
-        </div>
-
-        {/* Meta */}
-        <div className="flex items-center gap-4 mt-3">
-          <div className="flex items-center gap-1.5 text-[11px] text-white/40">
-            <Clock size={12} />
-            {new Date(doku.createdAt).toLocaleDateString('de-DE')}
-          </div>
-          {(doku as any).pages && (
-            <div className="flex items-center gap-1.5 text-[11px] text-white/40">
-              <FlaskConical size={12} />
-              {(doku as any).pages.length} Seiten
+        {/* Cover Image */}
+        <div className="relative h-[240px] overflow-hidden">
+          {doku.coverImageUrl ? (
+            <motion.img
+              src={doku.coverImageUrl}
+              alt={doku.title}
+              className="w-full h-full object-cover"
+              animate={{ scale: isHovered ? 1.1 : 1 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#FF9B5C]/10 via-[#FF6B9D]/10 to-[#A989F2]/10">
+              <motion.div animate={{ rotate: isHovered ? [0, -5, 5, 0] : 0 }} transition={{ duration: 0.5 }}>
+                <FlaskConical className="w-20 h-20 text-[#FF9B5C]/30" />
+              </motion.div>
             </div>
           )}
+
+          {/* Cinematic gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+          {/* Title on image */}
+          <div className="absolute bottom-0 left-0 right-0 p-5">
+            <h3
+              className="text-xl font-bold text-white line-clamp-2 drop-shadow-lg"
+              style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
+            >
+              {doku.title}
+            </h3>
+          </div>
+
+          {/* Status badge */}
+          {doku.status === 'generating' && (
+            <motion.div
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="absolute top-4 left-6 px-3 py-1.5 rounded-full bg-amber-400/90 backdrop-blur-sm text-xs font-bold text-amber-900 flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Wird erstellt...
+            </motion.div>
+          )}
+
+          {/* Action buttons (shown on hover) */}
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute top-4 right-4 flex gap-2 z-10"
+              >
+                {doku.status === 'complete' && (
+                  <motion.button
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    transition={{ type: 'spring', stiffness: 300 }}
+                    onClick={handleDownloadPDF}
+                    disabled={isExportingPDF}
+                    className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white hover:bg-[#A989F2]/80 transition-colors shadow-lg"
+                    title="Als PDF herunterladen"
+                  >
+                    {isExportingPDF ? (
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
+                        <Download className="w-4 h-4" />
+                      </motion.div>
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                  </motion.button>
+                )}
+                {onTogglePublic && (
+                  <motion.button
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, delay: 0.03 }}
+                    onClick={handleTogglePublic}
+                    className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white hover:bg-emerald-500/80 transition-colors shadow-lg"
+                    title={doku.isPublic ? 'Als privat markieren' : 'Als öffentlich teilen'}
+                  >
+                    {doku.isPublic ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  </motion.button>
+                )}
+                {onDelete && (
+                  <motion.button
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, delay: 0.06 }}
+                    onClick={handleDelete}
+                    className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white hover:bg-red-500/80 transition-colors shadow-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </motion.button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Read overlay */}
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              >
+                <div className="w-16 h-16 rounded-full bg-white/15 backdrop-blur-xl flex items-center justify-center shadow-2xl border border-white/20">
+                  <FlaskConical className="w-7 h-7 text-white" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 pl-6">
+          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-3">
+            {doku.topic || 'Ein spannender Wissensartikel zum Entdecken und Lernen.'}
+          </p>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{new Date(doku.createdAt).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/20 text-emerald-400 text-[10px] font-semibold">
+              <Lightbulb size={10} />
+              Lehrreich
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>

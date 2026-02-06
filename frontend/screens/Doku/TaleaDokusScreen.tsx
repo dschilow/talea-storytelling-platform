@@ -1,7 +1,7 @@
 // Talea Dokus Screen - Knowledge hub with sections
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, Headphones, Play, Plus, X, Search, GraduationCap, Globe, Mic, ArrowRight } from 'lucide-react';
+import { FlaskConical, Headphones, Play, Plus, X, Search, GraduationCap, Globe, Mic, ArrowRight, Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -33,7 +33,7 @@ const DokuBackground: React.FC = () => (
 );
 
 // =====================================================
-// SECTION HEADER
+// SECTION HEADER (smaller, for sub-sections)
 // =====================================================
 const SectionHeader: React.FC<{
   icon: React.ReactNode;
@@ -44,16 +44,16 @@ const SectionHeader: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ icon, title, subtitle, count, gradient, actionLabel, onAction }) => (
-  <div className="flex items-center justify-between mb-5">
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md text-white" style={{ background: gradient }}>
+  <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center gap-2.5">
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ background: gradient }}>
         {icon}
       </div>
       <div>
-        <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+        <h3 className="text-sm font-bold text-white/90" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           {title}
-        </h2>
-        <p className="text-xs text-muted-foreground">{subtitle} ({count})</p>
+        </h3>
+        <p className="text-[11px] text-muted-foreground">{subtitle} ({count})</p>
       </div>
     </div>
     {onAction && actionLabel && (
@@ -61,10 +61,10 @@ const SectionHeader: React.FC<{
         whileHover={{ scale: 1.05, y: -1 }}
         whileTap={{ scale: 0.95 }}
         onClick={onAction}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-semibold text-sm shadow-md hover:shadow-lg transition-shadow"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white font-semibold text-xs shadow-md hover:shadow-lg transition-shadow"
         style={{ background: gradient }}
       >
-        <Plus className="w-4 h-4" />
+        <Plus className="w-3.5 h-3.5" />
         {actionLabel}
       </motion.button>
     )}
@@ -204,10 +204,10 @@ const AudioModal: React.FC<{
 // LOADING
 // =====================================================
 const SectionLoading: React.FC = () => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {[1, 2, 3].map((i) => (
-      <div key={i} className="rounded-2xl overflow-hidden bg-white/[0.05] border border-white/[0.06]">
-        <div className="h-40 bg-muted animate-pulse" />
+      <div key={i} className="rounded-3xl overflow-hidden bg-white/[0.05] border border-white/[0.06]">
+        <div className="h-[240px] bg-muted animate-pulse" />
         <div className="p-4 space-y-2">
           <div className="w-3/4 h-4 rounded bg-muted animate-pulse" />
           <div className="w-1/2 h-3 rounded bg-muted animate-pulse" />
@@ -244,6 +244,7 @@ const TaleaDokusScreen: React.FC = () => {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
   const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const myObserverRef = useRef<HTMLDivElement>(null);
   const publicObserverRef = useRef<HTMLDivElement>(null);
@@ -405,24 +406,62 @@ const TaleaDokusScreen: React.FC = () => {
 
       <SignedIn>
         <div className="relative z-10 pt-6 space-y-8">
-          {/* Header */}
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <div className="flex items-center gap-4 mb-2">
-              <motion.div
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 200 }}
-                className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] flex items-center justify-center shadow-xl shadow-[#FF9B5C]/25"
+          {/* ── Unified Header (matches Stories page) ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-8"
+          >
+            {/* Title Row */}
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] flex items-center justify-center shadow-xl shadow-[#FF9B5C]/25"
+                >
+                  <GraduationCap className="w-7 h-7 text-white" />
+                </motion.div>
+                <div>
+                  <h1
+                    className="text-3xl md:text-4xl font-bold text-foreground tracking-tight"
+                    style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
+                  >
+                    {t('doku.title', 'Wissens-Dokus')}
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {totalMy + totalPublic} Artikel, {totalAudio} Audio
+                  </p>
+                </div>
+              </div>
+
+              {/* Create New Doku Button */}
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/doku/create')}
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-bold shadow-lg shadow-[#FF9B5C]/25 hover:shadow-xl hover:shadow-[#FF9B5C]/35 transition-shadow"
+                style={{ background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' }}
               >
-                <GraduationCap className="w-7 h-7 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                  {t('doku.title', 'Wissensartikel')}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {totalMy + totalPublic} Artikel, {totalAudio} Audio
-                </p>
+                <Wand2 className="w-5 h-5" />
+                <span className="hidden md:inline">{t('doku.createNew', 'Neue Doku')}</span>
+              </motion.button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/60" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('doku.searchPlaceholder', 'Dokus durchsuchen...')}
+                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
+                  style={{ fontFamily: '"Nunito", sans-serif' }}
+                />
               </div>
             </div>
           </motion.div>
@@ -434,35 +473,38 @@ const TaleaDokusScreen: React.FC = () => {
               {/* My Dokus */}
               <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                 <SectionHeader
-                  icon={<FlaskConical className="w-5 h-5" />}
-                  title={t('doku.myDokus', 'Meine Artikel')}
+                  icon={<FlaskConical className="w-4 h-4" />}
+                  title={t('doku.myDokus', 'Meine Dokus')}
                   subtitle={t('doku.myDokusSubtitle', 'Deine persönlichen Wissensartikel')}
                   count={totalMy}
                   gradient="linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)"
-                  actionLabel={t('doku.createNew', 'Neuer Artikel')}
-                  onAction={() => navigate('/doku/create')}
                 />
 
-                {loadingMy ? <SectionLoading /> : myDokus.length === 0 ? (
+                {loadingMy ? <SectionLoading /> : (() => {
+                  const filtered = searchQuery
+                    ? myDokus.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase()) || (d.topic || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                    : myDokus;
+                  return filtered.length === 0 ? (
                   <div className="text-center py-12 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/[0.08]">
                     <div className="text-4xl mb-3">🔬</div>
-                    <p className="text-sm text-muted-foreground">{t('doku.noDokus', 'Noch keine Artikel')}</p>
+                    <p className="text-sm text-muted-foreground">{t('doku.noDokus', 'Noch keine Dokus')}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {myDokus.map((doku) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filtered.map((doku) => (
                       <DokuCard key={doku.id} doku={doku} onRead={(d) => navigate(`/doku-reader/${d.id}`)} onDelete={handleDeleteDoku} onTogglePublic={handleTogglePublic} />
                     ))}
                   </div>
-                )}
+                );
+                })()}
                 {hasMoreMy && <div ref={myObserverRef} className="h-4 mt-4">{loadingMoreMy && <LoadingDots />}</div>}
               </motion.section>
 
               {/* Public Dokus */}
               <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                 <SectionHeader
-                  icon={<Globe className="w-5 h-5" />}
-                  title={t('doku.publicDokus', 'Öffentliche Artikel')}
+                  icon={<Globe className="w-4 h-4" />}
+                  title={t('doku.publicDokus', 'Community Dokus')}
                   subtitle={t('doku.publicDokusSubtitle', 'Von der Community geteilt')}
                   count={totalPublic}
                   gradient="linear-gradient(135deg, #2DD4BF 0%, #0EA5E9 100%)"
@@ -479,7 +521,7 @@ const TaleaDokusScreen: React.FC = () => {
                     <p className="text-sm text-muted-foreground">{t('doku.noPublicDokus', 'Keine öffentlichen Artikel')}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {publicDokus.map((doku) => (
                       <DokuCard key={doku.id} doku={doku} onRead={(d) => navigate(`/doku-reader/${d.id}`)} />
                     ))}
@@ -491,8 +533,8 @@ const TaleaDokusScreen: React.FC = () => {
               {/* Audio Dokus */}
               <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                 <SectionHeader
-                  icon={<Headphones className="w-5 h-5" />}
-                  title={t('doku.audioDokus', 'Audio-Artikel')}
+                  icon={<Headphones className="w-4 h-4" />}
+                  title={t('doku.audioDokus', 'Audio-Dokus')}
                   subtitle={t('doku.audioDokusSubtitle', 'Zum Anhören')}
                   count={totalAudio}
                   gradient="linear-gradient(135deg, #A989F2 0%, #8B6FDB 100%)"
@@ -511,7 +553,7 @@ const TaleaDokusScreen: React.FC = () => {
                     <p className="text-sm text-muted-foreground">{t('doku.noAudioDokus', 'Noch keine Audio-Artikel')}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {audioDokus.map((doku, i) => (
                       <AudioDokuCard key={doku.id} doku={doku} index={i} onPlay={() => setAudioModal(doku)} />
                     ))}

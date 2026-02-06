@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // ─── "More" sheet items ───
 const MORE_ITEMS = [
-  { icon: FlaskConical, labelKey: 'navigation.doku', path: '/doku', color: '#FF9B5C' },
+  { icon: User, labelKey: 'navigation.avatars', path: '/avatar', color: '#2DD4BF' },
   { icon: Sparkles, labelKey: 'navigation.characters', path: '/characters', color: '#A989F2' },
   { icon: Gem, labelKey: 'navigation.artifacts', path: '/artifacts', color: '#FF6B9D' },
   { icon: BookMarked, labelKey: 'navigation.fairytales', path: '/fairytales', color: '#2DD4BF' },
@@ -138,12 +138,12 @@ const BottomNav: React.FC = () => {
   // Primary nav items (left side of center button)
   const leftItems = [
     { icon: Home, label: t('navigation.home'), path: '/', color: '#A989F2' },
-    { icon: User, label: t('navigation.avatars'), path: '/avatar', color: '#2DD4BF' },
+    { icon: BookOpen, label: t('navigation.stories'), path: '/stories', color: '#FF6B9D' },
   ];
 
   // Primary nav items (right side of center button)
   const rightItems = [
-    { icon: BookOpen, label: t('navigation.stories'), path: '/stories', color: '#FF6B9D' },
+    { icon: FlaskConical, label: t('navigation.doku'), path: '/doku', color: '#FF9B5C' },
   ];
 
   const renderNavItem = (item: (typeof leftItems)[0]) => {
@@ -219,7 +219,7 @@ const BottomNav: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
-              onClick={() => navigate('/stories/new')}
+              onClick={() => navigate('/story')}
               className="relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl"
               style={{
                 background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 50%, #FF9B5C 100%)',

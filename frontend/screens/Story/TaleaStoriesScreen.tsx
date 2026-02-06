@@ -213,7 +213,7 @@ const StoryGridCard: React.FC<{
       onClick={onRead}
       className="cursor-pointer group"
     >
-      <div className="relative overflow-hidden rounded-3xl bg-[#13102B]/90 backdrop-blur-xl border border-white/[0.08] shadow-lg group-hover:shadow-2xl transition-all duration-500">
+      <div className="relative overflow-hidden rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-lg group-hover:shadow-2xl transition-all duration-500">
         {/* Book spine accent */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1.5 z-10"
