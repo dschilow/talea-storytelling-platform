@@ -24,8 +24,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Get system theme preference
   const getSystemTheme = (): ResolvedTheme => {
-    // Always prefer dark for the magical Talea experience
-    return 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
   // Resolve theme (system → actual light/dark)

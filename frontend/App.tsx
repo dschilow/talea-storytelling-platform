@@ -102,7 +102,7 @@ const AppContent = () => {
 
   return (
     <Router>
-      <div style={{ minHeight: '100vh', background: colors.gradients.background }}>
+      <div className="min-h-screen">
         <RouterContent />
       </div>
     </Router>

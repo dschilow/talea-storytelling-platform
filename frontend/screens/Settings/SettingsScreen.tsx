@@ -208,7 +208,7 @@ function LanguageSelector() {
             className={`relative p-4 rounded-2xl border-2 transition-all ${
               selectedLanguage === lang.code
                 ? 'border-[#A989F2] bg-[#A989F2]/10 shadow-lg shadow-[#A989F2]/10'
-                : 'border-white/[0.08] bg-white/[0.06] hover:border-[#A989F2]/40 hover:shadow-md hover:bg-white/[0.10]'
+                : 'border-border bg-card/70 hover:border-[#A989F2]/40 hover:shadow-md hover:bg-accent/70'
             } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {selectedLanguage === lang.code && (
@@ -285,7 +285,7 @@ function ThemeSelector() {
               className={`relative p-5 rounded-2xl border-2 transition-all ${
                 theme === option.value
                   ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
-                  : 'border-white/[0.08] bg-white/[0.06] hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-white/[0.10]'
+                  : 'border-border bg-card/70 hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-accent/70'
               }`}
             >
               {theme === option.value && (
@@ -329,7 +329,7 @@ function UsageCard(props: {
       : Math.min(100, Math.round((props.usage.used / props.usage.limit) * 100));
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.06] backdrop-blur-lg p-4">
+    <div className="rounded-2xl border border-border bg-card/70 backdrop-blur-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{props.title}</p>
@@ -453,7 +453,7 @@ function BillingPanel() {
                 })}
               </RadioGroup>
 
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.05] p-3">
+              <div className="rounded-xl border border-border bg-card/70 p-3">
                 <p className="text-xs font-semibold text-foreground mb-2">Ausgewaehlter Plan: {selectedPlanMeta.title}</p>
                 <p className="text-xs text-muted-foreground">Community-Dokus: {selectedPlanMeta.community}</p>
                 <p className="text-xs text-muted-foreground">Audio-Dokus: {selectedPlanMeta.audioLimit}</p>
@@ -475,12 +475,12 @@ function BillingPanel() {
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.06] p-5 text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
           Lade Billing-Daten...
         </div>
       ) : billing ? (
         <>
-          <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.06] backdrop-blur-lg p-5">
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-card/70 backdrop-blur-lg p-5">
             <div className={`absolute -top-14 -right-10 h-32 w-32 rounded-full blur-2xl opacity-40 bg-gradient-to-br ${currentPlanMeta.gradient}`} />
             <div className="relative flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
@@ -495,10 +495,10 @@ function BillingPanel() {
               </div>
 
               <div className="flex gap-2 flex-wrap">
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
                   Community: {billing.permissions.canReadCommunityDokus ? 'aktiv' : 'gesperrt'}
                 </span>
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
                   Audio: {billing.permissions.canUseAudioDokus ? 'aktiv' : 'gesperrt'}
                 </span>
               </div>
@@ -510,7 +510,7 @@ function BillingPanel() {
               className={`rounded-2xl border p-4 text-sm ${
                 billing.permissions.freeTrialActive
                   ? 'border-[#A989F2]/30 bg-[#A989F2]/10 text-foreground'
-                  : 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                  : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-200'
               }`}
             >
               {billing.permissions.freeTrialActive ? (
@@ -567,7 +567,7 @@ function BillingPanel() {
                   className={`relative rounded-2xl border p-4 ${
                     active
                       ? 'border-[#A989F2] bg-[#A989F2]/10 shadow-lg shadow-[#A989F2]/10'
-                      : 'border-white/[0.08] bg-white/[0.05]'
+                      : 'border-border bg-card/70'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -588,7 +588,7 @@ function BillingPanel() {
             })}
           </div>
 
-          <div id="clerk-pricing-table" className="rounded-2xl border border-dashed border-[#A989F2]/30 bg-white/[0.06] backdrop-blur-lg p-4">
+          <div id="clerk-pricing-table" className="rounded-2xl border border-dashed border-[#A989F2]/30 bg-card/70 backdrop-blur-lg p-4">
             <div className="mb-3">
               <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
                 Plan in Clerk Billing wechseln
@@ -603,7 +603,7 @@ function BillingPanel() {
           </div>
         </>
       ) : (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.06] p-5 text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
           Billing-Daten konnten nicht geladen werden.
         </div>
       )}
@@ -647,7 +647,7 @@ export default function SettingsScreen() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-xl overflow-hidden"
+          className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-hidden"
         >
           <UserProfile
             appearance={{
@@ -655,13 +655,13 @@ export default function SettingsScreen() {
               elements: {
                 rootBox: 'w-full',
                 card: 'shadow-none bg-transparent',
-                navbar: 'bg-white/[0.04] backdrop-blur-lg border-r border-white/[0.06]',
-                navbarButton: 'text-foreground/70 hover:bg-white/[0.08] rounded-xl transition-all',
+                navbar: 'bg-card/70 backdrop-blur-lg border-r border-border',
+                navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
                 navbarButtonActive: 'bg-[#A989F2]/10 text-[#A989F2] font-semibold',
                 pageScrollBox: 'bg-transparent',
                 page: 'bg-transparent',
                 formButtonPrimary: 'bg-gradient-to-r from-[#A989F2] to-[#FF6B9D] hover:opacity-90 text-white rounded-xl shadow-lg',
-                formFieldInput: 'rounded-xl border-white/[0.08] bg-white/[0.06] backdrop-blur-lg',
+                formFieldInput: 'rounded-xl border-border bg-card/70 backdrop-blur-lg',
               },
             }}
           >

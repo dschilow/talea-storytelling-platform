@@ -7,7 +7,7 @@ import { GlobalAudioPlayer } from '../audio/GlobalAudioPlayer';
 
 const AppLayout: React.FC = () => {
     return (
-        <div className="min-h-screen text-white flex flex-col md:flex-row" style={{ background: 'linear-gradient(135deg, #0F0A1A 0%, #1A1033 40%, #0D1B2A 100%)' }}>
+        <div className="min-h-screen text-foreground flex flex-col md:flex-row">
             {/* Desktop Sidebar - Only visible when signed in */}
             <SignedIn>
                 <Sidebar />
