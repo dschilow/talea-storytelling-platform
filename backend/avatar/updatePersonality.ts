@@ -4,13 +4,22 @@ import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 
 // ─── Trait Mastery Tiers ───────────────────────────────────────────────────
-export const MASTERY_TIERS = [
+export interface MasteryTier {
+  level: number;
+  name: string;
+  nameEn: string;
+  icon: string;
+  minValue: number;
+  maxValue: number;
+}
+
+export const MASTERY_TIERS: MasteryTier[] = [
   { level: 1, name: 'Anfänger',  nameEn: 'Beginner',   icon: '🌱', minValue: 0,  maxValue: 20 },
   { level: 2, name: 'Lehrling',  nameEn: 'Apprentice', icon: '🌿', minValue: 21, maxValue: 40 },
   { level: 3, name: 'Geselle',   nameEn: 'Journeyman', icon: '🌳', minValue: 41, maxValue: 60 },
   { level: 4, name: 'Meister',   nameEn: 'Master',     icon: '⭐', minValue: 61, maxValue: 80 },
   { level: 5, name: 'Legende',   nameEn: 'Legend',      icon: '👑', minValue: 81, maxValue: 100 },
-] as const;
+];
 
 export function getMasteryTier(value: number) {
   for (let i = MASTERY_TIERS.length - 1; i >= 0; i--) {
@@ -48,8 +57,8 @@ interface UpdatePersonalityResponse {
   masteryEvents: Array<{
     trait: string;
     traitDisplayName: string;
-    oldTier: typeof MASTERY_TIERS[number];
-    newTier: typeof MASTERY_TIERS[number];
+    oldTier: MasteryTier;
+    newTier: MasteryTier;
     newValue: number;
   }>;
 }

@@ -25,6 +25,9 @@ import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { AvatarMemoryCompressed } from "./types";
+
+// Top-level DB reference required by Encore compiler
+const avatarDB = SQLDatabase.named("avatar");
 import {
   loadCastSet,
   loadIntegrationPlan,
@@ -245,7 +248,6 @@ export class StoryPipelineOrchestrator {
       // ─── Fetch avatar memories for story continuity ─────────────────────
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
-        const avatarDB = SQLDatabase.named("avatar");
         for (const avatar of input.avatars) {
           const rows: Array<{ story_title: string; experience: string; emotional_impact: string }> = [];
           const gen = await avatarDB.query<{ story_title: string; experience: string; emotional_impact: string }>`
