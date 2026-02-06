@@ -5,6 +5,7 @@ import { validateAndFixImageSpecs } from "../image-prompt-validator";
 import { TemplateImageDirector } from "../image-director";
 import { computeWordBudget, buildLengthTargetsFromBudget } from "../word-budget";
 import { validateStoryDraft } from "../story-validator";
+import { splitContinuousStoryIntoChapters } from "../story-segmentation";
 import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryDNA } from "../types";
 
 function buildNormalized(seed: number): NormalizedRequest {
@@ -267,12 +268,106 @@ function testForbiddenCanonPhrase() {
   assert.ok(result.issues.some(issue => issue.code === "CANON_REPETITION"), "Forbidden canon phrase should be detected");
 }
 
+function testContinuousStorySegmentation() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "forest path",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "start the journey",
+      conflict: "thick fog",
+      outcome: "they continue",
+      artifactUsage: "artifact appears",
+      canonAnchorLine: "stay brave",
+      imageMustShow: ["forest"],
+      imageAvoid: ["looking at camera"],
+    },
+    {
+      chapter: 2,
+      setting: "old bridge",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "cross the bridge",
+      conflict: "bridge shakes",
+      outcome: "they reach the cave",
+      artifactUsage: "artifact glows",
+      canonAnchorLine: "keep moving",
+      imageMustShow: ["bridge"],
+      imageAvoid: ["looking at camera"],
+    },
+    {
+      chapter: 3,
+      setting: "cave entrance",
+      mood: "MYSTERIOUS",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "find the hidden mark",
+      conflict: "riddle on the wall",
+      outcome: "they solve it",
+      artifactUsage: "artifact reacts",
+      canonAnchorLine: "trust your team",
+      imageMustShow: ["cave"],
+      imageAvoid: ["looking at camera"],
+    },
+    {
+      chapter: 4,
+      setting: "inner chamber",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "open the stone gate",
+      conflict: "final lock",
+      outcome: "gate opens",
+      artifactUsage: "artifact fails once, then works",
+      canonAnchorLine: "never give up",
+      imageMustShow: ["stone gate"],
+      imageAvoid: ["looking at camera"],
+    },
+    {
+      chapter: 5,
+      setting: "sunny valley",
+      mood: "TRIUMPH",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "return home",
+      conflict: "none",
+      outcome: "happy ending",
+      artifactUsage: "artifact rests",
+      canonAnchorLine: "home at last",
+      imageMustShow: ["valley"],
+      imageAvoid: ["looking at camera"],
+    },
+  ];
+
+  const storyText = [
+    "Lena zog den Mantel enger und trat auf den Waldpfad. Der Nebel roch nach nassem Moos, und irgendwo knackte ein Ast. \"Wir gehen trotzdem\", sagte sie und hob die Laterne.",
+    "Am alten Steg knarrten die Bretter unter jedem Schritt. Lena atmete tief ein, tastete sich vor und lachte kurz, als ein Frosch ins Wasser sprang. \"Nur nicht stehen bleiben\", murmelte sie.",
+    "Vor der Hoehle entdeckte sie eine eingeritzte Spur im Stein. Die Zeichen wirkten erst wirr, dann erkannte sie ein Muster und rief: \"Jetzt verstehe ich es!\"",
+    "Im inneren Raum blockierte ein schweres Tor den Weg. Das Artefakt flackerte und wurde dunkel, doch Lena drueckte den Ring ein zweites Mal und der Mechanismus klickte laut.",
+    "Draussen lag das Tal im goldenen Licht. Lena hielt kurz inne, steckte das Artefakt ein und grinste. \"Das war knapp\", sagte sie, dann lief sie den Weg nach Hause.",
+  ].join("\\n\\n");
+
+  const chapters = splitContinuousStoryIntoChapters({
+    storyText,
+    directives,
+    language: "de",
+    wordsPerChapter: { min: 25, max: 120 },
+  });
+
+  assert.strictEqual(chapters.length, directives.length, "Segmentation should produce one chapter per directive");
+  assert.ok(chapters.every(ch => ch.text.trim().length > 0), "Each segmented chapter should contain text");
+  assert.deepStrictEqual(
+    chapters.map(ch => ch.chapter),
+    directives.map(d => d.chapter),
+    "Segmented chapters should keep directive chapter order"
+  );
+}
+
 async function run() {
   testVariantDeterminism();
   testMatchingScore();
   testImageSpecValidation();
   testWordBudget();
   testForbiddenCanonPhrase();
+  testContinuousStorySegmentation();
   await testIntegrationWithMocks();
   console.log("Pipeline tests passed.");
 }

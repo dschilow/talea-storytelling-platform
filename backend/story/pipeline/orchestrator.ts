@@ -323,6 +323,13 @@ export class StoryPipelineOrchestrator {
         tokenUsage = writeResult.usage ?? tokenUsage;
         qualityReport = writeResult.qualityReport;
 
+        await logPhase("phase6.2-segmentation", { storyId: normalized.storyId }, {
+          strategy: "continuous-story-then-segmentation",
+          chapters: storyDraft.chapters.length,
+          chapterWordCounts: storyDraft.chapters.map(ch => (ch.text?.split(/\s+/).filter(Boolean).length || 0)),
+          totalWords: storyDraft.chapters.reduce((sum, ch) => sum + (ch.text?.split(/\s+/).filter(Boolean).length || 0), 0),
+        });
+
         await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({ chapter: ch.chapter, title: ch.title, text: ch.text })));
         await logPhase("phase6-story", { storyId: normalized.storyId, title: storyDraft.title }, {
           chapters: storyDraft.chapters.length,

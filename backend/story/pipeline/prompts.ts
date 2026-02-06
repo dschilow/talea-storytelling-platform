@@ -397,7 +397,7 @@ Niemals belehrend, niemals zynisch, niemals langweilig.
 2. Jeder Satz arbeitet: Handlung, Charakter, Atmosphäre oder Lacher.
 3. Dialog treibt 60% der Handlung – lebendig, unterbrochen, charakteristisch.
 4. Max 1 Adjektiv pro Nomen. Keine Adjektiv-Ketten.
-5. Konkrete Sinne pro Kapitel: Was hört, riecht, fühlt der Held?
+5. Konkrete Sinne pro Beat: Was hört, riecht, fühlt der Held?
 6. Humor: Körperkomik, absurde Logik, Dreier-Regel (2× normal, 3. Mal Chaos).
 
 # Verbotene Wörter
@@ -405,14 +405,16 @@ Niemals belehrend, niemals zynisch, niemals langweilig.
 
 # Harte Regeln (müssen erfüllt sein)
 1. **Sprache**: Nur ${isGerman ? "Deutsch" : language}.
-2. **Länge**: Gesamt ${totalWordMin}–${totalWordMax} Wörter. Pro Kapitel **${wordsPerChapter.min}–${wordsPerChapter.max} Wörter** (HARTES MINIMUM: ${wordsPerChapter.min}).
-3. **Kapitel-Struktur**: Jedes Kapitel enthält: (a) Sinnesdetail-Einstieg, (b) klares Ziel, (c) Hindernis, (d) Aktion mit Konsequenz, (e) Hook am Ende (außer letztes).
-4. **Keine Meta-Labels**: Keine "Setting:", "Ziel:", "Hook:" – nur Prosa.
-5. **Cast Lock**: NUR diese Namen: ${allowedNames.join(", ")}. Keine neuen Charaktere!
-6. **Aktive Charaktere**: Mind. 3–4 Figuren HANDELN pro Kapitel (Verb + Objekt).
-7. **Anti-Wiederholung**: Keine identischen Sätze. Catchphrases genau 1×.
-8. **Kein Deus ex Machina**: Der Held löst es selbst – durch Mut, Cleverness oder Teamwork.
-9. **Ende ohne Predigt**: Die Geschichte IST die Moral. Nie erklären.
+2. **Länge**: Gesamt ${totalWordMin}–${totalWordMax} Wörter. Pro Story-Beat ungefähr **${wordsPerChapter.min}–${wordsPerChapter.max} Wörter**.
+3. **Flow**: Schreibe EINE zusammenhängende Geschichte (keine Kapitel-Labels, keine "Kapitel 1", keine Nummerierung im Text).
+4. **Beat-Struktur**: Die Geschichte muss die ${directives.length} Beats in der Reihenfolge unten abbilden (mit klaren Übergängen).
+5. **Absatz-Regel**: Trenne Beats mit genau einer Leerzeile, aber ohne Überschriften.
+6. **Keine Meta-Labels**: Keine "Setting:", "Ziel:", "Hook:" – nur Prosa.
+7. **Cast Lock**: NUR diese Namen: ${allowedNames.join(", ")}. Keine neuen Charaktere.
+8. **Aktive Charaktere**: Figuren handeln sichtbar (Verb + Objekt), nicht nur erwähnen.
+9. **Anti-Wiederholung**: Keine identischen Sätze. Catchphrases genau 1×.
+10. **Kein Deus ex Machina**: Der Held löst es selbst – durch Mut, Cleverness oder Teamwork.
+11. **Ende ohne Predigt**: Die Geschichte IST die Moral. Nie erklären.
 
 # Figuren (NUR diese erlaubt)
 Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
@@ -430,16 +432,16 @@ ${artifactName ? `# Artefakt: ${artifactName}
 | Versagen | 2–3 | Funktioniert falsch ODER führt in Sackgasse |
 | Triumph | 4–5 | Held nutzt es CLEVER (Artefakt löst nicht allein!) |` : ""}
 
-# Kapitel-Vorgaben
+# Story-Beat-Vorgaben
 ${chapterOutlines}
 
 # Qualitäts-Check (intern prüfen)
 - [ ] Erster Satz macht sofort neugierig?
-- [ ] Jedes Kapitel: mind. 1 Lacher + 1 Kribbel-Moment?
+- [ ] Jeder Beat: mind. 1 Lacher + 1 Kribbel-Moment?
 - [ ] Dialoge: Klingt jeder Charakter ANDERS?
 - [ ] Sinne dabei: Hören, Riechen, Fühlen?
 - [ ] Letzter Satz bleibt im Kopf?
-- [ ] Wortanzahl ${wordsPerChapter.min}+ pro Kapitel?
+- [ ] Wortanzahl im Zielkorridor pro Beat?
 
 # Ausgabe-Format
 Antworte NUR mit validem JSON. Kein Text davor oder danach.
@@ -448,11 +450,7 @@ Antworte NUR mit validem JSON. Kein Text davor oder danach.
 {
   "title": "Kurzer Titel (max 7 Wörter)",
   "description": "Ein packender Teaser-Satz",
-  "chapters": [
-    { "chapter": 1, "title": "Neugier-Hook-Titel", "text": "Kapiteltext..." },
-    { "chapter": 2, "title": "Neugier-Hook-Titel", "text": "Kapiteltext..." },
-    ...
-  ]
+  "storyText": "Eine zusammenhängende Geschichte als Fließtext mit Leerzeile zwischen Beats, aber ohne Kapitel-Titel/Nummern."
 }
 \`\`\``;
 }

@@ -4,6 +4,7 @@ import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions } from "./quality-gates";
+import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -157,7 +158,12 @@ export class LlmStoryWriter implements StoryWriter {
     }
 
     let parsed = safeJson(result.content);
-    let draft = sanitizeDraft(extractDraft(parsed, directives, normalizedRequest.language));
+    let draft = sanitizeDraft(extractDraftFromAnyFormat({
+      parsed,
+      directives,
+      language: normalizedRequest.language,
+      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+    }));
 
     // ─── Phase B: Quality Gates + Rewrite Passes ─────────────────────────────
     let qualityReport = runQualityGates({
@@ -346,7 +352,12 @@ export class LlmStoryWriter implements StoryWriter {
       }
 
       parsed = safeJson(rewriteResult.content);
-      const revisedDraft = sanitizeDraft(extractDraft(parsed, directives, normalizedRequest.language));
+      const revisedDraft = sanitizeDraft(extractDraftFromAnyFormat({
+        parsed,
+        directives,
+        language: normalizedRequest.language,
+        wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+      }));
 
       const revisedReport = runQualityGates({
         draft: revisedDraft,
@@ -470,7 +481,97 @@ export class LlmStoryWriter implements StoryWriter {
   }
 }
 
-function extractDraft(
+function extractDraftFromAnyFormat(input: {
+  parsed: any;
+  directives: SceneDirective[];
+  language: string;
+  wordsPerChapter: { min: number; max: number };
+}): StoryDraft {
+  const { parsed, directives, language, wordsPerChapter } = input;
+  const continuous = extractContinuousStoryPayload(parsed, language);
+  if (continuous?.storyText) {
+    return buildDraftFromContinuousStory({
+      title: continuous.title,
+      description: continuous.description,
+      storyText: continuous.storyText,
+      directives,
+      language,
+      wordsPerChapter,
+    });
+  }
+  return extractDraftFromChapterArray(parsed, directives, language);
+}
+
+function extractContinuousStoryPayload(parsed: any, language: string): {
+  title: string;
+  description: string;
+  storyText: string;
+} | null {
+  if (!parsed || typeof parsed !== "object") return null;
+
+  const title = typeof parsed.title === "string" && parsed.title.trim()
+    ? parsed.title.trim()
+    : language === "de" ? "Neue Geschichte" : "New Story";
+  const description = typeof parsed.description === "string" ? parsed.description.trim() : "";
+
+  const directTextFields = ["storyText", "story", "text", "content"];
+  let storyText = "";
+  for (const field of directTextFields) {
+    const value = parsed[field];
+    if (typeof value === "string" && value.trim()) {
+      storyText = value.trim();
+      break;
+    }
+  }
+
+  if (!storyText && Array.isArray(parsed.chapters)) {
+    const joined = parsed.chapters
+      .map((chapter: any) => (typeof chapter?.text === "string" ? chapter.text.trim() : ""))
+      .filter(Boolean)
+      .join("\n\n");
+    if (joined) storyText = joined;
+  }
+
+  storyText = sanitizeContinuousStoryText(storyText);
+  if (!storyText) return null;
+
+  return { title, description, storyText };
+}
+
+function buildDraftFromContinuousStory(input: {
+  title: string;
+  description: string;
+  storyText: string;
+  directives: SceneDirective[];
+  language: string;
+  wordsPerChapter: { min: number; max: number };
+}): StoryDraft {
+  const { title, description, storyText, directives, language, wordsPerChapter } = input;
+  const chapters = splitContinuousStoryIntoChapters({
+    storyText,
+    directives,
+    language,
+    wordsPerChapter,
+  });
+
+  return {
+    title: title || (language === "de" ? "Neue Geschichte" : "New Story"),
+    description: description || storyText.slice(0, 180),
+    chapters,
+  };
+}
+
+function sanitizeContinuousStoryText(text: string): string {
+  if (!text) return "";
+  const withoutHeadings = text
+    .replace(/^\s*#{1,6}\s*(Kapitel|Chapter)\s+\d+[^\n]*$/gim, "")
+    .replace(/^\s*(Kapitel|Chapter)\s+\d+\s*[:.-]?\s*[^\n]*$/gim, "")
+    .replace(/\n{3,}/g, "\n\n");
+
+  return withoutHeadings.trim();
+}
+
+function extractDraftFromChapterArray(
   parsed: any,
   directives: SceneDirective[],
   language: string,
@@ -685,5 +786,3 @@ function getEdgeContext(text: string, edge: "start" | "end", maxSentences = 1): 
 }
 
 // V2: getHardMinChapterWords entfernt - jetzt durch HARD_MIN_CHAPTER_WORDS Konstante ersetzt
-
-
