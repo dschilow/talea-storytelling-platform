@@ -222,15 +222,15 @@ function buildAISpec(
 // Removes forbidden portrait-like terms from AI-generated text
 function sanitizeForbiddenTerms(text: string): string {
   if (!text) return text;
-  const forbidden = ["portrait", "selfie", "close-up", "closeup"];
+  const forbidden = ["portrait", "selfie", "close-up", "closeup", "looking at camera", "look at camera", "staring at viewer"];
   let result = text;
   for (const word of forbidden) {
     const regex = new RegExp(`\\b${word}\\b`, "gi");
-    result = result.replace(regex, "medium shot");
+    result = result.replace(regex, "wide shot");
   }
   // If the entire string was just a forbidden word, return a safe default
   if (forbidden.some(word => result.toLowerCase().trim() === word)) {
-    return "medium shot";
+    return "wide shot";
   }
   return result;
 }
@@ -337,8 +337,8 @@ function buildComposition(directive: SceneDirective, beatType: string): string {
   const compositions: Record<string, string> = {
     SETUP: "wide establishing shot, eye-level, full-body characters visible, environment prominently shown",
     INCITING: "medium-wide shot, slight low angle, characters discovering something, environment partly visible",
-    CONFLICT: "medium shot, dynamic angle, characters in motion, tense body language",
-    CLIMAX: "dramatic medium-close shot, low angle looking up at characters, intense action moment",
+    CONFLICT: "wide dynamic shot, tilted angle, full body visible head-to-toe, characters in motion",
+    CLIMAX: "wide dramatic shot, low angle, full body visible head-to-toe, intense action moment",
     RESOLUTION: "wide shot pulling back, warm and open framing, characters together peacefully",
   };
 
@@ -367,9 +367,11 @@ function buildBlocking(directive: SceneDirective, cast: CastSet): string {
     return `${name} ${pose} ${position}`;
   });
 
-  const gazeDirection = getGazeDirection(slots.length, mood, beatType);
+  const interactionLine = slots.length > 1
+    ? "Bodies angled toward each other and key props, never posed front-facing toward camera."
+    : "Body angled toward the key prop, not front-facing camera.";
 
-  return positions.join(", ") + ". " + gazeDirection;
+  return positions.join(", ") + ". " + interactionLine;
 }
 
 function buildActions(directive: SceneDirective, cast: CastSet): string {
@@ -405,86 +407,53 @@ function inferBeatType(directive: SceneDirective): string {
 
 function getDynamicPose(index: number, _total: number, _mood: string, beatType: string): string {
   const poses: Record<string, string[]> = {
-    SETUP: ["walks calmly", "stands relaxed with open posture", "sits comfortably", "gestures warmly"],
-    INCITING: ["leans forward curiously", "points toward something", "turns to look", "reaches out"],
-    CONFLICT: ["steps forward determinedly", "crouches in ready stance", "holds up hands defensively", "moves quickly"],
+    SETUP: ["walks in with open posture", "kneels to inspect the scene", "steps sideways to make space", "reaches out in greeting"],
+    INCITING: ["leans forward and points to a clue", "takes a quick step toward the discovery", "extends an arm to stop the others", "bends low to inspect details"],
+    CONFLICT: ["steps forward determinedly", "crouches in a ready stance", "swings around to shield a teammate", "moves quickly around an obstacle"],
     CLIMAX: ["rushes forward", "reaches dramatically", "jumps into action", "faces the challenge"],
-    RESOLUTION: ["embraces joyfully", "stands triumphantly", "celebrates with arms raised", "waves happily"],
+    RESOLUTION: ["embraces joyfully", "raises both arms in relief", "spins toward the group in celebration", "leans in for a shared victory moment"],
   };
 
   const poseSet = poses[beatType] || poses.CONFLICT;
   return poseSet[index % poseSet.length];
 }
 
-function getGazeDirection(characterCount: number, _mood: string, beatType: string): string {
-  if (characterCount === 1) {
-    const options: Record<string, string> = {
-      SETUP: "Looking ahead at the path before them.",
-      INCITING: "Eyes fixed on something in the distance.",
-      CONFLICT: "Gazing intently at the scene before them.",
-      CLIMAX: "Eyes focused on the challenge ahead.",
-      RESOLUTION: "Looking toward the horizon with hope.",
-    };
-    return options[beatType] || "Looking at the scene around them.";
-  }
-
-  if (characterCount === 2) {
-    const options: Record<string, string> = {
-      SETUP: "The two characters exchange a warm glance.",
-      INCITING: "Both looking at the same point of interest.",
-      CONFLICT: "Eyes meet with determination and concern.",
-      CLIMAX: "Exchanging a look of understanding.",
-      RESOLUTION: "Smiling at each other in celebration.",
-    };
-    return options[beatType] || "Characters looking at each other.";
-  }
-
-  const options: Record<string, string> = {
-    SETUP: "The group faces the same direction, ready to begin.",
-    INCITING: "All eyes turn toward a new discovery.",
-    CONFLICT: "Characters look at each other, planning their next move.",
-    CLIMAX: "Focused together on overcoming the challenge.",
-    RESOLUTION: "The group gathers together in celebration.",
-  };
-  return options[beatType] || "Characters interacting with each other.";
-}
-
 function getPrimaryAction(name: string, mood: string, beatType: string): string {
   const actions: Record<string, Record<string, string>> = {
     SETUP: {
-      COZY: `${name} walks through the scene with curiosity`,
-      TENSE: `${name} surveys the surroundings carefully`,
-      MYSTERIOUS: `${name} discovers something intriguing`,
-      TRIUMPH: `${name} prepares for the journey ahead`,
-      FUNNY: `${name} explores with playful curiosity`,
+      COZY: `${name} steps into the scene and guides the group forward`,
+      TENSE: `${name} moves along the edge and signals caution`,
+      MYSTERIOUS: `${name} kneels to inspect an unusual clue`,
+      TRIUMPH: `${name} raises a hand and leads the advance`,
+      FUNNY: `${name} darts ahead and reacts playfully`,
     },
     INCITING: {
-      COZY: `${name} encounters someone unexpected`,
-      TENSE: `${name} spots something concerning in the distance`,
-      MYSTERIOUS: `${name} follows a mysterious clue`,
-      TRIUMPH: `${name} takes the first brave step`,
-      FUNNY: `${name} stumbles upon a funny situation`,
+      COZY: `${name} reaches toward a surprising object`,
+      TENSE: `${name} rushes to block a sudden problem`,
+      MYSTERIOUS: `${name} follows a faint trail through the scene`,
+      TRIUMPH: `${name} takes a bold step and calls the others in`,
+      FUNNY: `${name} slips, recovers, and keeps moving`,
     },
     CONFLICT: {
-      COZY: `${name} works to solve a problem`,
-      TENSE: `${name} faces a difficult challenge`,
-      MYSTERIOUS: `${name} unravels a mystery`,
-      TRIUMPH: `${name} overcomes an obstacle`,
-      FUNNY: `${name} gets into a comical situation`,
+      COZY: `${name} pulls a teammate through the obstacle`,
+      TENSE: `${name} confronts the challenge and pushes through`,
+      MYSTERIOUS: `${name} opens a hidden mechanism under pressure`,
+      TRIUMPH: `${name} clears the obstacle with decisive movement`,
+      FUNNY: `${name} improvises an unexpected move to solve the mess`,
     },
     CLIMAX: {
-      COZY: `${name} steps forward to try a new plan`,
-      TENSE: `${name} confronts the biggest challenge`,
-      MYSTERIOUS: `${name} discovers the truth`,
-      TRIUMPH: `${name} achieves a breakthrough`,
-      FUNNY: `${name} solves the problem in an unexpected way`,
+      COZY: `${name} lunges forward to execute the plan`,
+      TENSE: `${name} braces and counters the biggest threat`,
+      MYSTERIOUS: `${name} snaps the final clue into place`,
+      TRIUMPH: `${name} drives the breakthrough moment`,
+      FUNNY: `${name} flips the situation with a chaotic but clever move`,
     },
     RESOLUTION: {
-      COZY: `${name} celebrates with friends`,
-      TENSE: `${name} finally relaxes after the adventure`,
-      MYSTERIOUS: `${name} reflects on what was learned`,
-      TRIUMPH: `${name} rejoices in victory`,
-      FUNNY: `${name} laughs together with everyone`,
+      COZY: `${name} gathers everyone into a relieved group moment`,
+      TENSE: `${name} exhales, lowers their shoulders, and helps reset the scene`,
+      MYSTERIOUS: `${name} carefully secures the discovered item`,
+      TRIUMPH: `${name} lifts the key object in victory`,
+      FUNNY: `${name} celebrates with a playful jump and grin`,
     },
   };
 
@@ -495,29 +464,29 @@ function getPrimaryAction(name: string, mood: string, beatType: string): string 
 function getSecondaryAction(name: string, index: number, _mood: string, beatType: string): string {
   const reactions: Record<string, string[]> = {
     SETUP: [
-      `${name} follows along with interest`,
-      `${name} offers helpful advice`,
-      `${name} watches supportively`,
+      `${name} circles in and points out a detail`,
+      `${name} steps in to hand over a useful prop`,
+      `${name} shifts position to support the lead move`,
     ],
     INCITING: [
-      `${name} reacts with surprise`,
-      `${name} points something out`,
-      `${name} looks on with concern`,
+      `${name} darts to the side and marks the path`,
+      `${name} reaches out and signals a warning`,
+      `${name} crouches and braces for the next move`,
     ],
     CONFLICT: [
-      `${name} helps tackle the challenge`,
-      `${name} provides crucial assistance`,
-      `${name} stands ready to help`,
+      `${name} pulls against the obstacle`,
+      `${name} anchors the group and clears space`,
+      `${name} rushes in with direct assistance`,
     ],
     CLIMAX: [
-      `${name} supports the effort`,
-      `${name} contributes to the solution`,
-      `${name} cheers encouragement`,
+      `${name} commits to the final coordinated move`,
+      `${name} redirects the momentum toward the solution`,
+      `${name} secures the exit route while moving`,
     ],
     RESOLUTION: [
-      `${name} joins in the celebration`,
-      `${name} shares in the joy`,
-      `${name} expresses happiness`,
+      `${name} moves in for a celebratory group gesture`,
+      `${name} helps place the key prop safely`,
+      `${name} turns back and waves everyone forward`,
     ],
   };
 

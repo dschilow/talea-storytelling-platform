@@ -42,6 +42,7 @@ export class RunwareImageGenerator implements ImageGenerator {
         prompt,
         negativePrompt,
         referenceImages,
+        useCollageReference: Boolean(spec.collageUrl),
         maxRetries: config?.imageRetryMax ?? 2,
         steps: config?.runwareSteps,
         cfgScale: config?.runwareCfgScale,
@@ -64,6 +65,7 @@ async function generateWithRetry(input: {
   prompt: string;
   negativePrompt: string;
   referenceImages: string[];
+  useCollageReference?: boolean;
   maxRetries: number;
   steps?: number;
   cfgScale?: number;
@@ -72,13 +74,14 @@ async function generateWithRetry(input: {
   let attempt = 0;
   let lastError: unknown;
   const logSource = resolveImageLogSource(input.logContext?.phase);
+  const ipAdapterWeight = resolveIpAdapterWeight(input.referenceImages.length, Boolean(input.useCollageReference));
   while (attempt <= input.maxRetries) {
     try {
       const response = await ai.generateImage({
         prompt: input.prompt,
         negativePrompt: input.negativePrompt,
         referenceImages: input.referenceImages.length > 0 ? input.referenceImages : undefined,
-        ipAdapterWeight: input.referenceImages.length > 0 ? 0.8 : undefined,
+        ipAdapterWeight,
         steps: input.steps,
         CFGScale: input.cfgScale,
       });
@@ -89,7 +92,7 @@ async function generateWithRetry(input: {
           prompt: input.prompt,
           negativePrompt: input.negativePrompt,
           referenceImages: input.referenceImages,
-          ipAdapterWeight: input.referenceImages.length > 0 ? 0.8 : undefined,
+          ipAdapterWeight,
           steps: input.steps,
           cfgScale: input.cfgScale,
           attempt,
@@ -107,7 +110,7 @@ async function generateWithRetry(input: {
           prompt: input.prompt,
           negativePrompt: input.negativePrompt,
           referenceImages: input.referenceImages,
-          ipAdapterWeight: input.referenceImages.length > 0 ? 0.8 : undefined,
+          ipAdapterWeight,
           steps: input.steps,
           cfgScale: input.cfgScale,
           attempt,
@@ -130,4 +133,11 @@ function resolveImageLogSource(phase?: string): string {
   if (phase === "phase10-vision") return "phase10-vision-retry-imagegen";
   if (phase === "phase9-imagegen") return "phase9-imagegen-runware";
   return "phase9-imagegen-runware";
+}
+
+function resolveIpAdapterWeight(referenceCount: number, useCollageReference: boolean): number | undefined {
+  if (referenceCount <= 0) return undefined;
+  if (useCollageReference) return 0.55;
+  if (referenceCount >= 3) return 0.6;
+  return 0.65;
 }
