@@ -534,7 +534,6 @@ function BillingPanel() {
                 ctaPosition="bottom"
                 newSubscriptionRedirectUrl="/settings?billing=success"
                 checkoutProps={{
-                  portalRoot: typeof document !== 'undefined' ? document.body : undefined,
                   appearance: {
                     elements: {
                       drawerBackdrop: 'z-[5000] !fixed',
