@@ -162,6 +162,7 @@ export class StoryPipelineOrchestrator {
           normalized: { ...normalized, variantSeed },
           roles: blueprint.roles,
           variantPlan,
+          blueprint,
           avatars: input.avatars,
         });
         await saveCastSet(normalized.storyId, castSet);

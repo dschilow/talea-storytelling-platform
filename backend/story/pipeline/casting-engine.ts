@@ -1,12 +1,13 @@
 ﻿import { storyDB } from "../db";
 import type { ArtifactRequirement } from "../types";
 import { artifactMatcher, recordStoryArtifact } from "../artifact-matcher";
-import type { AvatarDetail, CastSet, CharacterSheet, EnhancedPersonality, MatchScore, NormalizedRequest, RoleSlot, StoryVariantPlan } from "./types";
+import type { AvatarDetail, CastSet, CharacterSheet, EnhancedPersonality, MatchScore, NormalizedRequest, RoleSlot, StoryBlueprintBase, StoryVariantPlan } from "./types";
 import { createSeededRandom } from "./utils";
 import { buildInvariantsFromVisualProfile, formatInvariantsForPrompt } from "../character-invariants";
 import { scoreCandidate } from "./matching-score";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
+import { callChatCompletion } from "./llm-client";
 
 interface CharacterPoolRow {
   id: string;
@@ -37,6 +38,17 @@ interface CharacterPoolRow {
   quirk?: string | null;
 }
 
+interface ScoredCandidate {
+  candidate: CharacterPoolRow;
+  score: number;
+}
+
+interface AiCastingDecision {
+  selectedCandidateId?: string;
+  confidence?: number;
+  reasoning?: string;
+}
+
 const ARTIFACT_ABILITY_MAP: Record<string, string> = {
   GUIDES_TRUE: "navigation",
   GETS_HIJACKED: "protection",
@@ -50,13 +62,18 @@ const ARTIFACT_ABILITY_MAP: Record<string, string> = {
   CONNECTS_PEOPLE: "communication",
 };
 
+const AI_MATCH_MODEL = "gpt-5-nano";
+const AI_MATCH_MIN_CONFIDENCE = 0.35;
+const AI_MATCH_MAX_CANDIDATES = 80;
+
 export async function buildCastSet(input: {
   normalized: NormalizedRequest;
   roles: RoleSlot[];
   variantPlan: StoryVariantPlan;
+  blueprint?: StoryBlueprintBase;
   avatars: AvatarDetail[];
 }): Promise<CastSet> {
-  const { normalized, roles, variantPlan, avatars } = input;
+  const { normalized, roles, variantPlan, blueprint, avatars } = input;
   const rng = createSeededRandom(variantPlan.variantSeed);
 
   const pool = await loadCharacterPool();
@@ -79,7 +96,16 @@ export async function buildCastSet(input: {
     // Limit non-required pool characters to maximum 4
     if (!slot.required && poolSheets.length >= 4) continue;
 
-    const candidate = await selectCandidateForSlot(slot, pool, used, rng, matchScores);
+    const candidate = await selectCandidateForSlot({
+      slot,
+      pool,
+      used,
+      rng,
+      matchScores,
+      normalized,
+      variantPlan,
+      blueprint,
+    });
     if (!candidate) {
       if (slot.required) {
         throw new Error(`No suitable character found for required slot ${slot.slotKey}. Update character_pool or slot constraints.`);
@@ -176,18 +202,22 @@ async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterShee
   }));
 }
 
-async function selectCandidateForSlot(
-  slot: RoleSlot,
-  pool: CharacterPoolRow[],
-  used: Set<string>,
-  rng: ReturnType<typeof createSeededRandom>,
-  matchScores: MatchScore[]
-): Promise<CharacterSheet | null> {
-  const candidates = pool.filter(candidate => !used.has(candidate.id) && passesHardConstraints(slot, candidate));
+async function selectCandidateForSlot(input: {
+  slot: RoleSlot;
+  pool: CharacterPoolRow[];
+  used: Set<string>;
+  rng: ReturnType<typeof createSeededRandom>;
+  matchScores: MatchScore[];
+  normalized: NormalizedRequest;
+  variantPlan: StoryVariantPlan;
+  blueprint?: StoryBlueprintBase;
+}): Promise<CharacterSheet | null> {
+  const { slot, pool, used, rng, matchScores, normalized, variantPlan, blueprint } = input;
+  const allAvailable = pool.filter(candidate => !used.has(candidate.id));
+  const eligibleCandidates = allAvailable.filter(candidate => passesHardConstraints(slot, candidate));
+  if (eligibleCandidates.length === 0) return null;
 
-  if (candidates.length === 0) return null;
-
-  const scored = candidates.map(candidate => {
+  const scored: ScoredCandidate[] = eligibleCandidates.map(candidate => {
     const scoreDetails = scoreCandidate(slot, candidate as any);
     matchScores.push({
       slotKey: slot.slotKey,
@@ -202,11 +232,155 @@ async function selectCandidateForSlot(
   scored.sort((a, b) => b.score - a.score);
   const topScore = scored[0]?.score ?? 0;
   const topTier = scored.filter(item => item.score >= topScore - 0.15);
-  const picked = topTier[Math.floor(rng.next() * topTier.length)]?.candidate;
+  const fallbackPick = topTier[Math.floor(rng.next() * Math.max(1, topTier.length))]?.candidate;
 
+  const aiPick = await selectCandidateForSlotWithAI({
+    slot,
+    normalized,
+    variantPlan,
+    blueprint,
+    allAvailable,
+    eligibleCandidates,
+    scored,
+    usedIds: Array.from(used),
+  });
+
+  const picked = aiPick ?? fallbackPick;
   if (!picked) return null;
 
+  if (aiPick) {
+    const entry = matchScores.find(score => score.slotKey === slot.slotKey && score.candidateId === aiPick.id);
+    if (entry) {
+      entry.notes = [entry.notes, "ai-selected (gpt-5-nano)"].filter(Boolean).join(", ");
+    }
+  }
+
   return await buildPoolCharacterSheet(picked, slot.slotKey, slot.roleType);
+}
+
+async function selectCandidateForSlotWithAI(input: {
+  slot: RoleSlot;
+  normalized: NormalizedRequest;
+  variantPlan: StoryVariantPlan;
+  blueprint?: StoryBlueprintBase;
+  allAvailable: CharacterPoolRow[];
+  eligibleCandidates: CharacterPoolRow[];
+  scored: ScoredCandidate[];
+  usedIds: string[];
+}): Promise<CharacterPoolRow | null> {
+  const { slot, normalized, variantPlan, blueprint, allAvailable, eligibleCandidates, scored, usedIds } = input;
+  if (eligibleCandidates.length <= 1) {
+    return eligibleCandidates[0] ?? null;
+  }
+
+  try {
+    const scoreMap = new Map(scored.map(item => [item.candidate.id, item.score]));
+    const rankedForPrompt = [...allAvailable]
+      .sort((a, b) => (scoreMap.get(b.id) || 0) - (scoreMap.get(a.id) || 0))
+      .slice(0, AI_MATCH_MAX_CANDIDATES);
+    const eligibleIdSet = new Set(eligibleCandidates.map(candidate => candidate.id));
+
+    const candidateOptions = rankedForPrompt.map((candidate) => ({
+      id: candidate.id,
+      name: candidate.name,
+      role: candidate.role,
+      archetype: candidate.archetype,
+      eligibleForSlot: eligibleIdSet.has(candidate.id),
+      scoreHint: Number((scoreMap.get(candidate.id) || 0).toFixed(3)),
+      dominantPersonality: candidate.dominant_personality || null,
+      secondaryTraits: (candidate.secondary_traits || []).slice(0, 4),
+      speechStyle: (candidate.speech_style || []).slice(0, 3),
+      catchphrase: candidate.catchphrase || null,
+      emotionalTriggers: (candidate.emotional_triggers || []).slice(0, 4),
+      quirk: candidate.quirk || null,
+      species: candidate.species_category || candidate.visual_profile?.species || null,
+      professionTags: (candidate.profession_tags || []).slice(0, 4),
+      visualHint: String(candidate.visual_profile?.description || candidate.physical_description || "").slice(0, 180),
+      usage: candidate.total_usage_count || 0,
+    }));
+
+    const sceneHints = (blueprint?.scenes || [])
+      .slice(0, Math.max(3, normalized.chapterCount))
+      .map(scene => ({
+        chapter: scene.sceneNumber,
+        beatType: scene.beatType,
+        setting: scene.setting,
+        mood: scene.mood,
+        summary: summarizeSceneForCasting(scene.sceneDescription),
+      }));
+
+    const systemPrompt = `You are a casting director for children's story generation.
+Pick the best character for the requested slot, considering current and future story beats.
+You MUST choose only from eligible candidates.
+Prioritize narrative fit, distinctive personality/voice, and long-term arc usefulness.
+Return JSON only.`;
+
+    const userPayload = {
+      story: {
+        category: normalized.category,
+        language: normalized.language,
+        ageRange: `${normalized.ageMin}-${normalized.ageMax}`,
+        chapterCount: normalized.chapterCount,
+        variantChoices: variantPlan.variantChoices,
+        sceneHints,
+      },
+      slot: {
+        slotKey: slot.slotKey,
+        roleType: slot.roleType,
+        required: slot.required,
+        archetypePreference: slot.archetypePreference || [],
+        constraints: slot.constraints || [],
+        visualHints: slot.visualHints || [],
+      },
+      alreadyUsedCharacterIds: usedIds,
+      eligibleCandidateIds: Array.from(eligibleIdSet),
+      candidates: candidateOptions,
+      outputSchema: {
+        selectedCandidateId: "string",
+        confidence: "number 0..1",
+        reasoning: "short string",
+      },
+    };
+
+    const response = await callChatCompletion({
+      model: AI_MATCH_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: JSON.stringify(userPayload) },
+      ],
+      responseFormat: "json_object",
+      maxTokens: 900,
+      temperature: 0.3,
+      reasoningEffort: "low",
+      context: "casting-ai-match",
+      logSource: "phase3-casting-ai-match",
+      logMetadata: {
+        storyId: normalized.storyId,
+        slotKey: slot.slotKey,
+        candidateCount: candidateOptions.length,
+        eligibleCount: eligibleCandidates.length,
+      },
+    });
+
+    const parsed = JSON.parse(response.content) as AiCastingDecision;
+    const selectedId = String(parsed?.selectedCandidateId || "").trim();
+    if (!selectedId) return null;
+
+    const candidate = eligibleCandidates.find(item => item.id === selectedId) || null;
+    if (!candidate) return null;
+
+    const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence)
+      ? parsed.confidence
+      : 0.5;
+    if (confidence < AI_MATCH_MIN_CONFIDENCE) {
+      return null;
+    }
+
+    return candidate;
+  } catch (error) {
+    console.warn("[casting-engine] AI matching failed, falling back to score-based matching", (error as Error)?.message || error);
+    return null;
+  }
 }
 
 function passesHardConstraints(slot: RoleSlot, candidate: CharacterPoolRow): boolean {
@@ -365,4 +539,10 @@ function ensureMinSignature(signature: string[], fallback: string[]): string[] {
   if (cleaned.length >= 2) return cleaned.slice(0, 6);
   const merged = [...cleaned, ...fallback].filter(Boolean);
   return merged.slice(0, 2);
+}
+
+function summarizeSceneForCasting(text: string): string {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= 180) return clean;
+  return `${clean.slice(0, 177).trimEnd()}...`;
 }
