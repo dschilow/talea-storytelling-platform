@@ -597,7 +597,7 @@ function BillingPanel() {
                 Planwechsel ist monatlich moeglich. Nach dem Wechsel werden die Limits automatisch aktualisiert.
               </p>
             </div>
-            <div className="rounded-xl overflow-hidden">
+            <div className="rounded-xl overflow-visible">
               <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
             </div>
           </div>
@@ -647,7 +647,7 @@ export default function SettingsScreen() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-hidden"
+          className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-visible"
         >
           <UserProfile
             appearance={{
