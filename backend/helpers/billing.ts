@@ -2,18 +2,19 @@ import { APIError } from "encore.dev/api";
 import { userDB } from "../user/db";
 
 export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
-export type UsageKind = "story" | "doku";
+export type UsageKind = "story" | "doku" | "audio";
 
 export type PlanQuota = {
   stories: number;
   dokus: number;
+  audio: number | null;
 };
 
 export const PLAN_QUOTAS: Record<SubscriptionPlan, PlanQuota> = {
-  free: { stories: 10, dokus: 10 },
-  starter: { stories: 5, dokus: 3 },
-  familie: { stories: 20, dokus: 10 },
-  premium: { stories: 60, dokus: 30 },
+  free: { stories: 3, dokus: 3, audio: 1 },
+  starter: { stories: 10, dokus: 10, audio: 2 },
+  familie: { stories: 25, dokus: 25, audio: 10 },
+  premium: { stories: 50, dokus: 50, audio: null },
 };
 
 const PLAN_PRIORITY: SubscriptionPlan[] = ["premium", "familie", "starter", "free"];
@@ -25,9 +26,20 @@ const PLAN_ALIASES: Record<SubscriptionPlan, string[]> = {
 };
 
 const DEFAULT_PLAN: SubscriptionPlan = "free";
+const FREE_TRIAL_DAYS = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function startOfMonthUTC(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+function addDaysUTC(date: Date, days: number) {
+  return new Date(date.getTime() + days * MS_PER_DAY);
+}
+
+function remainingDaysUntil(now: Date, end: Date): number {
+  if (now >= end) return 0;
+  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
 }
 
 function parsePlanClaim(raw: unknown): string[] {
@@ -86,11 +98,169 @@ export async function resolvePlanForUser(userId: string, clerkToken?: string | n
   return row?.subscription ?? DEFAULT_PLAN;
 }
 
+type PlanPolicy = {
+  plan: SubscriptionPlan;
+  limits: PlanQuota;
+  freeTrialActive: boolean;
+  freeTrialEndsAt: Date | null;
+  freeTrialDaysRemaining: number;
+  canReadCommunityDokus: boolean;
+  canUseAudioDokus: boolean;
+};
+
+type UsageCounts = {
+  story_count: number;
+  doku_count: number;
+  audio_count: number;
+};
+
+type UserPlanContext = {
+  plan: SubscriptionPlan;
+  createdAt: Date;
+};
+
+async function resolveUserPlanContext(userId: string, clerkToken?: string | null): Promise<UserPlanContext> {
+  const plan = await resolvePlanForUser(userId, clerkToken);
+
+  const row = await userDB.queryRow<{ created_at: Date }>`
+    SELECT created_at FROM users WHERE id = ${userId}
+  `;
+
+  if (!row) {
+    throw APIError.notFound("User not found");
+  }
+
+  return { plan, createdAt: row.created_at };
+}
+
+function computePlanPolicy(plan: SubscriptionPlan, createdAt: Date, now: Date): PlanPolicy {
+  if (plan !== "free") {
+    return {
+      plan,
+      limits: PLAN_QUOTAS[plan],
+      freeTrialActive: false,
+      freeTrialEndsAt: null,
+      freeTrialDaysRemaining: 0,
+      canReadCommunityDokus: true,
+      canUseAudioDokus: true,
+    };
+  }
+
+  const freeTrialEndsAt = addDaysUTC(createdAt, FREE_TRIAL_DAYS);
+  const freeTrialActive = now < freeTrialEndsAt;
+
+  if (!freeTrialActive) {
+    return {
+      plan,
+      limits: { stories: 0, dokus: 0, audio: 0 },
+      freeTrialActive,
+      freeTrialEndsAt,
+      freeTrialDaysRemaining: 0,
+      canReadCommunityDokus: false,
+      canUseAudioDokus: false,
+    };
+  }
+
+  return {
+    plan,
+    limits: PLAN_QUOTAS.free,
+    freeTrialActive,
+    freeTrialEndsAt,
+    freeTrialDaysRemaining: remainingDaysUntil(now, freeTrialEndsAt),
+    canReadCommunityDokus: true,
+    canUseAudioDokus: true,
+  };
+}
+
+async function readUsageCounts(userId: string, periodStart: Date): Promise<UsageCounts> {
+  const row = await userDB.queryRow<UsageCounts>`
+    SELECT story_count, doku_count, audio_count
+    FROM generation_usage
+    WHERE user_id = ${userId} AND period_start = ${periodStart}
+  `;
+
+  return {
+    story_count: row?.story_count ?? 0,
+    doku_count: row?.doku_count ?? 0,
+    audio_count: row?.audio_count ?? 0,
+  };
+}
+
+type UsageBucket = {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  costPerGeneration: 1;
+};
+
+function buildUsageBucket(limit: number | null, used: number): UsageBucket {
+  return {
+    limit,
+    used,
+    remaining: limit === null ? null : Math.max(0, limit - used),
+    costPerGeneration: 1,
+  };
+}
+
+export type BillingOverview = {
+  plan: SubscriptionPlan;
+  periodStart: Date;
+  storyCredits: UsageBucket;
+  dokuCredits: UsageBucket;
+  audioCredits: UsageBucket;
+  permissions: {
+    canReadCommunityDokus: boolean;
+    canUseAudioDokus: boolean;
+    freeTrialActive: boolean;
+    freeTrialEndsAt: Date | null;
+    freeTrialDaysRemaining: number;
+  };
+};
+
+export async function getBillingOverview(params: {
+  userId: string;
+  clerkToken?: string | null;
+}): Promise<BillingOverview> {
+  const now = new Date();
+  const periodStart = startOfMonthUTC(now);
+  const context = await resolveUserPlanContext(params.userId, params.clerkToken);
+  const policy = computePlanPolicy(context.plan, context.createdAt, now);
+  const usage = await readUsageCounts(params.userId, periodStart);
+
+  return {
+    plan: context.plan,
+    periodStart,
+    storyCredits: buildUsageBucket(policy.limits.stories, usage.story_count),
+    dokuCredits: buildUsageBucket(policy.limits.dokus, usage.doku_count),
+    audioCredits: buildUsageBucket(policy.limits.audio, usage.audio_count),
+    permissions: {
+      canReadCommunityDokus: policy.canReadCommunityDokus,
+      canUseAudioDokus: policy.canUseAudioDokus,
+      freeTrialActive: policy.freeTrialActive,
+      freeTrialEndsAt: policy.freeTrialEndsAt,
+      freeTrialDaysRemaining: policy.freeTrialDaysRemaining,
+    },
+  };
+}
+
+function getLimitFromPolicy(policy: PlanPolicy, kind: UsageKind): number | null {
+  if (kind === "story") return policy.limits.stories;
+  if (kind === "doku") return policy.limits.dokus;
+  return policy.limits.audio;
+}
+
+function getLimitLabel(kind: UsageKind) {
+  if (kind === "story") return "Story-Generierungen";
+  if (kind === "doku") return "Doku-Generierungen";
+  return "Audio-Dokus";
+}
+
 export type UsageClaim = {
   plan: SubscriptionPlan;
-  limit: number;
+  kind: UsageKind;
+  limit: number | null;
   used: number;
-  remaining: number;
+  remaining: number | null;
   periodStart: Date;
 };
 
@@ -99,30 +269,64 @@ export async function claimGenerationUsage(params: {
   kind: UsageKind;
   clerkToken?: string | null;
 }): Promise<UsageClaim> {
-  const plan = await resolvePlanForUser(params.userId, params.clerkToken);
-  const limit = params.kind === "story" ? PLAN_QUOTAS[plan].stories : PLAN_QUOTAS[plan].dokus;
-
-  if (limit <= 0) {
-    throw APIError.permissionDenied("Abo-Limit erreicht: 0 Generierungen pro Monat.");
-  }
-
   const now = new Date();
   const periodStart = startOfMonthUTC(now);
+  const context = await resolveUserPlanContext(params.userId, params.clerkToken);
+  const policy = computePlanPolicy(context.plan, context.createdAt, now);
+  const limit = getLimitFromPolicy(policy, params.kind);
+
+  if (params.kind === "audio" && !policy.canUseAudioDokus) {
+    throw APIError.permissionDenied(
+      "Abo-Limit erreicht: Audio-Dokus sind nur in der 7-Tage-Free-Testphase oder mit einem bezahlten Abo verfügbar."
+    );
+  }
+
+  if (limit !== null && limit <= 0) {
+    if (context.plan === "free" && !policy.freeTrialActive) {
+      throw APIError.permissionDenied(
+        "Abo-Limit erreicht: Deine Free-Testphase ist abgelaufen. Upgrade auf Starter, Familie oder Premium."
+      );
+    }
+    throw APIError.permissionDenied(`Abo-Limit erreicht: 0 ${getLimitLabel(params.kind)} pro Monat.`);
+  }
 
   await userDB.exec`
-    INSERT INTO generation_usage (user_id, period_start, story_count, doku_count, updated_at)
-    VALUES (${params.userId}, ${periodStart}, 0, 0, ${now})
+    INSERT INTO generation_usage (user_id, period_start, story_count, doku_count, audio_count, updated_at)
+    VALUES (${params.userId}, ${periodStart}, 0, 0, 0, ${now})
     ON CONFLICT (user_id, period_start) DO NOTHING
   `;
 
+  if (limit === null) {
+    const row = await userDB.queryRow<UsageCounts>`
+      UPDATE generation_usage
+      SET audio_count = audio_count + 1, updated_at = ${now}
+      WHERE user_id = ${params.userId}
+        AND period_start = ${periodStart}
+      RETURNING story_count, doku_count, audio_count
+    `;
+
+    if (!row) {
+      throw APIError.internal("Konnte Audio-Verbrauch nicht aktualisieren.");
+    }
+
+    return {
+      plan: context.plan,
+      kind: params.kind,
+      limit,
+      used: row.audio_count,
+      remaining: null,
+      periodStart,
+    };
+  }
+
   if (params.kind === "story") {
-    const row = await userDB.queryRow<{ story_count: number; doku_count: number }>`
+    const row = await userDB.queryRow<UsageCounts>`
       UPDATE generation_usage
       SET story_count = story_count + 1, updated_at = ${now}
       WHERE user_id = ${params.userId}
         AND period_start = ${periodStart}
         AND story_count < ${limit}
-      RETURNING story_count, doku_count
+      RETURNING story_count, doku_count, audio_count
     `;
 
     if (!row) {
@@ -132,7 +336,8 @@ export async function claimGenerationUsage(params: {
     }
 
     return {
-      plan,
+      plan: context.plan,
+      kind: params.kind,
       limit,
       used: row.story_count,
       remaining: Math.max(0, limit - row.story_count),
@@ -140,26 +345,79 @@ export async function claimGenerationUsage(params: {
     };
   }
 
-  const row = await userDB.queryRow<{ story_count: number; doku_count: number }>`
+  if (params.kind === "doku") {
+    const row = await userDB.queryRow<UsageCounts>`
+      UPDATE generation_usage
+      SET doku_count = doku_count + 1, updated_at = ${now}
+      WHERE user_id = ${params.userId}
+        AND period_start = ${periodStart}
+        AND doku_count < ${limit}
+      RETURNING story_count, doku_count, audio_count
+    `;
+
+    if (!row) {
+      throw APIError.permissionDenied(
+        `Abo-Limit erreicht: ${limit} Doku-Generierungen pro Monat. Bitte Abo upgraden.`
+      );
+    }
+
+    return {
+      plan: context.plan,
+      kind: params.kind,
+      limit,
+      used: row.doku_count,
+      remaining: Math.max(0, limit - row.doku_count),
+      periodStart,
+    };
+  }
+
+  const row = await userDB.queryRow<UsageCounts>`
     UPDATE generation_usage
-    SET doku_count = doku_count + 1, updated_at = ${now}
+    SET audio_count = audio_count + 1, updated_at = ${now}
     WHERE user_id = ${params.userId}
       AND period_start = ${periodStart}
-      AND doku_count < ${limit}
-    RETURNING story_count, doku_count
+      AND audio_count < ${limit}
+    RETURNING story_count, doku_count, audio_count
   `;
 
   if (!row) {
     throw APIError.permissionDenied(
-      `Abo-Limit erreicht: ${limit} Doku-Generierungen pro Monat. Bitte Abo upgraden.`
+      `Abo-Limit erreicht: ${limit} Audio-Dokus pro Monat. Bitte Abo upgraden.`
     );
   }
 
   return {
-    plan,
+    plan: context.plan,
+    kind: params.kind,
     limit,
-    used: row.doku_count,
-    remaining: Math.max(0, limit - row.doku_count),
+    used: row.audio_count,
+    remaining: Math.max(0, limit - row.audio_count),
     periodStart,
   };
+}
+
+export async function assertCommunityDokuAccess(params: {
+  userId: string;
+  clerkToken?: string | null;
+}): Promise<BillingOverview> {
+  const billing = await getBillingOverview(params);
+  if (!billing.permissions.canReadCommunityDokus) {
+    throw APIError.permissionDenied(
+      "Community-Dokus sind nur in der 7-Tage-Free-Testphase oder mit Starter/Familie/Premium verfügbar."
+    );
+  }
+  return billing;
+}
+
+export async function assertAudioDokuAccess(params: {
+  userId: string;
+  clerkToken?: string | null;
+}): Promise<BillingOverview> {
+  const billing = await getBillingOverview(params);
+  if (!billing.permissions.canUseAudioDokus) {
+    throw APIError.permissionDenied(
+      "Audio-Dokus sind nur in der 7-Tage-Free-Testphase oder mit Starter/Familie/Premium verfügbar."
+    );
+  }
+  return billing;
 }

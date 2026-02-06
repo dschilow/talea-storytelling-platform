@@ -36,6 +36,16 @@ interface WizardState {
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
+type StoryCredits = {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  costPerGeneration: 1;
+};
+type BillingPermissions = {
+  freeTrialActive: boolean;
+  freeTrialDaysRemaining: number;
+};
 
 const GENERATION_STEPS: { key: GenerationStep; icon: React.ElementType; label: string; description: string; duration: string }[] = [
   { key: 'profiles', icon: Users, label: 'Avatar-Profile', description: 'Lade visuelle Profile und Eigenschaften', duration: '~3s' },
@@ -320,11 +330,31 @@ export default function TaleaStoryWizard() {
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<GenerationStep>('profiles');
   const [userLanguage, setUserLanguage] = useState<string>('de');
+  const [storyCredits, setStoryCredits] = useState<StoryCredits | null>(null);
+  const [billingPermissions, setBillingPermissions] = useState<BillingPermissions | null>(null);
   const [lootArtifact, setLootArtifact] = useState<InventoryItem | null>(null);
   const [showLootModal, setShowLootModal] = useState(false);
   const [pendingStoryId, setPendingStoryId] = useState<string | null>(null);
 
   useEffect(() => { if (i18n.language) setUserLanguage(i18n.language); }, [i18n.language]);
+  useEffect(() => {
+    let active = true;
+    const loadCredits = async () => {
+      if (!userId) return;
+      try {
+        const profile = await backend.user.me();
+        if (!active) return;
+        setStoryCredits((profile as any).billing?.storyCredits ?? null);
+        setBillingPermissions((profile as any).billing?.permissions ?? null);
+      } catch (error) {
+        console.error('[TaleaWizard] Failed to load story credits:', error);
+      }
+    };
+    loadCredits();
+    return () => {
+      active = false;
+    };
+  }, [backend, userId]);
 
   const [state, setState] = useState<WizardState>({
     selectedAvatars: [], mainCategory: null, subCategory: null, ageGroup: null,
@@ -351,6 +381,15 @@ export default function TaleaStoryWizard() {
 
   const handleGenerate = async () => {
     if (!userId) { alert(t('story.wizard.alerts.loginRequired')); return; }
+    if (storyCredits && storyCredits.remaining !== null && storyCredits.remaining <= 0) {
+      if (billingPermissions && !billingPermissions.freeTrialActive) {
+        alert('Free-Testphase abgelaufen. Bitte im Profil auf Starter, Familie oder Premium wechseln.');
+      } else {
+        alert('Keine StoryCredits mehr fuer diesen Monat. Bitte im Profil dein Abo upgraden.');
+      }
+      return;
+    }
+
     try {
       setGenerating(true);
       setGenerationStep('profiles');
@@ -360,6 +399,15 @@ export default function TaleaStoryWizard() {
       setGenerationStep('text');
       const storyConfig = mapWizardStateToAPI(state, userLanguage);
       const story = await backend.story.generate({ userId, config: storyConfig });
+      setStoryCredits((prev) =>
+        prev
+          ? {
+              ...prev,
+              used: prev.used + 1,
+              remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
+            }
+          : prev
+      );
       setGenerationStep('validation');
       await new Promise(r => setTimeout(r, 900));
       setGenerationStep('images');
@@ -406,13 +454,29 @@ export default function TaleaStoryWizard() {
   };
 
   const renderStep = () => {
+    const storyGenerationBlocked = Boolean(storyCredits && storyCredits.remaining !== null && storyCredits.remaining <= 0);
+    const blockedMessage = storyGenerationBlocked
+      ? billingPermissions && !billingPermissions.freeTrialActive
+        ? 'Free-Testphase abgelaufen. Upgrade im Profil noetig.'
+        : 'StoryCredits fuer diesen Monat aufgebraucht.'
+      : undefined;
+
     switch (activeStep) {
       case 0: return <Step1AvatarSelection state={state} updateState={updateState} />;
       case 1: return <Step2CategorySelection state={state} updateState={updateState} />;
       case 2: return <Step3AgeAndLength state={state} updateState={updateState} />;
       case 3: return <Step4StoryFeeling state={state} updateState={updateState} />;
       case 4: return <Step5SpecialWishes state={state} updateState={updateState} />;
-      case 5: return <Step6Summary state={state} onGenerate={handleGenerate} />;
+      case 5:
+        return (
+          <Step6Summary
+            state={state}
+            onGenerate={handleGenerate}
+            storyCredits={storyCredits}
+            generateDisabled={storyGenerationBlocked}
+            generateDisabledMessage={blockedMessage}
+          />
+        );
       default: return null;
     }
   };

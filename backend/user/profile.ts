@@ -1,7 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { userDB } from "./db";
-import { extractPlanFromClerkToken } from "../helpers/billing";
+import { getBillingOverview, type BillingOverview } from "../helpers/billing";
 
 export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type Theme = "light" | "dark" | "system";
@@ -55,8 +55,55 @@ export interface UserProfile {
   role: "admin" | "user";
   preferredLanguage: SupportedLanguage;
   theme: Theme;
+  billing: BillingOverview;
   createdAt: Date;
   updatedAt: Date;
+}
+
+type UserRow = {
+  id: string;
+  email: string;
+  name: string;
+  subscription: "free" | "starter" | "familie" | "premium";
+  role: "admin" | "user";
+  preferred_language: SupportedLanguage;
+  theme: Theme;
+  created_at: Date;
+  updated_at: Date;
+};
+
+async function getUserRowById(userId: string): Promise<UserRow> {
+  const user = await userDB.queryRow<UserRow>`
+    SELECT id, email, name, subscription, role, preferred_language, theme, created_at, updated_at
+    FROM users WHERE id = ${userId}
+  `;
+
+  if (!user) {
+    throw APIError.notFound("User not found");
+  }
+
+  return user;
+}
+
+function mapUserProfile(row: UserRow, billing: BillingOverview): UserProfile {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    subscription: billing.plan,
+    role: row.role,
+    preferredLanguage: row.preferred_language,
+    theme: row.theme,
+    billing,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function buildUserProfile(userId: string, clerkToken?: string | null): Promise<UserProfile> {
+  const billing = await getBillingOverview({ userId, clerkToken });
+  const row = await getUserRowById(userId);
+  return mapUserProfile(row, billing);
 }
 
 interface CreateUserRequest {
@@ -86,17 +133,7 @@ export const create = api<CreateUserRequest, UserProfile>(
       VALUES (${id}, ${req.email}, ${req.name}, ${req.subscription || "free"}, ${req.role || "user"}, ${req.preferredLanguage || "de"}, ${req.theme || "system"}, ${now}, ${now})
     `;
 
-    return {
-      id,
-      email: req.email,
-      name: req.name,
-      subscription: (req.subscription || "free") as UserProfile["subscription"],
-      role: (req.role || "user") as UserProfile["role"],
-      preferredLanguage: (req.preferredLanguage || "de") as SupportedLanguage,
-      theme: (req.theme || "system") as Theme,
-      createdAt: now,
-      updatedAt: now,
-    };
+    return buildUserProfile(id);
   }
 );
 
@@ -105,27 +142,7 @@ export const get = api<GetUserParams, UserProfile>(
   { expose: true, method: "GET", path: "/user/:id" },
   async ({ id }) => {
     await ensurePreferenceColumns();
-
-    const user = await userDB.queryRow<{
-      id: string;
-      email: string;
-      name: string;
-      subscription: "free" | "starter" | "familie" | "premium";
-      role: "admin" | "user";
-      preferredLanguage: SupportedLanguage;
-      theme: Theme;
-      createdAt: Date;
-      updatedAt: Date;
-    }>`
-      SELECT id, email, name, subscription, role, preferred_language as "preferredLanguage", theme, created_at as "createdAt", updated_at as "updatedAt"
-      FROM users WHERE id = ${id}
-    `;
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    return user;
+    return buildUserProfile(id);
   }
 );
 
@@ -137,39 +154,7 @@ export const me = api<void, UserProfile>(
     const auth = getAuthData()!;
 
     await ensurePreferenceColumns();
-
-    const tokenPlan = extractPlanFromClerkToken(auth.clerkToken);
-    if (tokenPlan) {
-      const now = new Date();
-      await userDB.exec`
-        UPDATE users
-        SET subscription = ${tokenPlan}, updated_at = ${now}
-        WHERE id = ${auth.userID} AND subscription <> ${tokenPlan}
-      `;
-    }
-
-    const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date; preferred_language: SupportedLanguage }>`
-      SELECT id, email, name, subscription, role, preferred_language, theme, created_at, updated_at
-      FROM users WHERE id = ${auth.userID}
-    `;
-
-    if (!user) {
-      // This should not happen anymore since the auth handler creates the user,
-      // but it's a good safeguard.
-      throw APIError.internal("Authenticated user not found in database.");
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      subscription: user.subscription,
-      role: user.role,
-      preferredLanguage: user.preferred_language,
-      theme: user.theme,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
+    return buildUserProfile(auth.userID, auth.clerkToken);
   }
 );
 
@@ -192,26 +177,7 @@ export const updateLanguage = api<UpdateLanguageRequest, UserProfile>(
       WHERE id = ${auth.userID}
     `;
 
-    const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date; preferred_language: SupportedLanguage }>`
-      SELECT id, email, name, subscription, role, preferred_language, theme, created_at, updated_at
-      FROM users WHERE id = ${auth.userID}
-    `;
-
-    if (!user) {
-      throw APIError.internal("User not found after update.");
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      subscription: user.subscription,
-      role: user.role,
-      preferredLanguage: user.preferred_language,
-      theme: user.theme,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
+    return buildUserProfile(auth.userID, auth.clerkToken);
   }
 );
 
@@ -234,25 +200,6 @@ export const updateTheme = api<UpdateThemeRequest, UserProfile>(
       WHERE id = ${auth.userID}
     `;
 
-    const user = await userDB.queryRow<UserProfile & { created_at: Date; updated_at: Date; preferred_language: SupportedLanguage }>`
-      SELECT id, email, name, subscription, role, preferred_language, theme, created_at, updated_at
-      FROM users WHERE id = ${auth.userID}
-    `;
-
-    if (!user) {
-      throw APIError.internal("User not found after update.");
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      subscription: user.subscription,
-      role: user.role,
-      preferredLanguage: user.preferred_language,
-      theme: user.theme,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
+    return buildUserProfile(auth.userID, auth.clerkToken);
   }
 );

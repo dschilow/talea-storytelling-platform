@@ -21,9 +21,23 @@ interface Props {
     customWish: string;
   };
   onGenerate: () => void;
+  storyCredits?: {
+    limit: number | null;
+    used: number;
+    remaining: number | null;
+    costPerGeneration: 1;
+  } | null;
+  generateDisabled?: boolean;
+  generateDisabledMessage?: string;
 }
 
-export default function Step6Summary({ state, onGenerate }: Props) {
+export default function Step6Summary({
+  state,
+  onGenerate,
+  storyCredits,
+  generateDisabled = false,
+  generateDisabledMessage,
+}: Props) {
   const { t } = useTranslation();
 
   const CATEGORY_NAMES: Record<string, string> = {
@@ -140,15 +154,43 @@ export default function Step6Summary({ state, onGenerate }: Props) {
         </div>
       </motion.div>
 
+      {storyCredits && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-[#A989F2]/30 bg-[#A989F2]/10 p-4"
+        >
+          <p className="text-xs uppercase tracking-wider text-white/70 font-semibold mb-2">StoryCredits</p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-white">
+                {storyCredits.remaining === null ? 'unbegrenzt' : storyCredits.remaining}
+              </p>
+              <p className="text-xs text-white/60">verbleibend</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-semibold text-white">
+                {storyCredits.used} / {storyCredits.limit === null ? 'unbegrenzt' : storyCredits.limit}
+              </p>
+              <p className="text-xs text-white/60">verbraucht / limit</p>
+            </div>
+          </div>
+          <p className="text-xs text-white/60 mt-2">Kosten pro Generierung: {storyCredits.costPerGeneration} StoryCredit</p>
+        </motion.div>
+      )}
+
       {/* Big Create Button */}
       <motion.button
         onClick={onGenerate}
+        disabled={generateDisabled}
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
-        className="w-full py-5 rounded-2xl font-bold text-xl text-white flex items-center justify-center gap-4 relative overflow-hidden"
+        className={`w-full py-5 rounded-2xl font-bold text-xl text-white flex items-center justify-center gap-4 relative overflow-hidden ${
+          generateDisabled ? 'opacity-60 cursor-not-allowed' : ''
+        }`}
         style={{
           fontFamily: '"Fredoka", sans-serif',
           background: 'linear-gradient(135deg, #A989F2, #FF6B9D, #FF9B5C)',
@@ -161,9 +203,15 @@ export default function Step6Summary({ state, onGenerate }: Props) {
             style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', transform: 'translateX(-100%)' }} />
         </div>
         <Sparkles size={28} className="relative z-10" />
-        <span className="relative z-10">{t('wizard.buttons.generate')}</span>
+        <span className="relative z-10">
+          {generateDisabled ? 'Nicht verfuegbar' : `${t('wizard.buttons.generate')} (1 StoryCredit)`}
+        </span>
         <Sparkles size={28} className="relative z-10" />
       </motion.button>
+
+      {generateDisabledMessage && (
+        <p className="text-xs text-rose-300 text-center">{generateDisabledMessage}</p>
+      )}
     </div>
   );
 }

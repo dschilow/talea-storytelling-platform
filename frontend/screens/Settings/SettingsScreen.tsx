@@ -1,9 +1,6 @@
-// Talea Settings Screen - Professional, immersive settings experience
-// Redesigned with Talea design system: glass-morphism, animations, gradient accents
-
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { UserProfile, PricingTable } from '@clerk/clerk-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { PricingTable, UserProfile } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useBackend } from '../../hooks/useBackend';
 import { useUser } from '@clerk/clerk-react';
@@ -11,29 +8,116 @@ import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../src/i18n';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import {
-  Sun, Moon, Monitor, Languages, CreditCard, Sparkles, Users,
-  Crown, BookOpen, FileText, Settings, Check, Globe
+  BookOpen,
+  Check,
+  Clock3,
+  CreditCard,
+  Crown,
+  FileText,
+  Globe,
+  Headphones,
+  Languages,
+  Monitor,
+  Moon,
+  RefreshCcw,
+  Settings,
+  Sparkles,
+  Sun,
+  Users,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type ThemeOption = 'light' | 'dark' | 'system';
-type SubscriptionPlan = 'starter' | 'familie' | 'premium';
+type SubscriptionPlan = 'free' | 'starter' | 'familie' | 'premium';
 
-const PLAN_CARDS: Array<{
-  id: SubscriptionPlan;
-  icon: typeof Sparkles;
-  stories: number;
-  dokus: number;
-  gradient: string;
-  shadow: string;
-}> = [
-  { id: 'starter', icon: Sparkles, stories: 5, dokus: 3, gradient: 'from-[#FF6B9D] to-[#A989F2]', shadow: 'shadow-[#A989F2]/15' },
-  { id: 'familie', icon: Users, stories: 20, dokus: 10, gradient: 'from-[#2DD4BF] to-[#0EA5E9]', shadow: 'shadow-[#2DD4BF]/15' },
-  { id: 'premium', icon: Crown, stories: 60, dokus: 30, gradient: 'from-[#FF9B5C] to-[#FF6B9D]', shadow: 'shadow-[#FF9B5C]/15' },
-];
+type CreditUsage = {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  costPerGeneration: 1;
+};
 
-// =====================================================
-// ANIMATED BACKGROUND
-// =====================================================
+type BillingSnapshot = {
+  plan: SubscriptionPlan;
+  periodStart: Date;
+  storyCredits: CreditUsage;
+  dokuCredits: CreditUsage;
+  audioCredits: CreditUsage;
+  permissions: {
+    canReadCommunityDokus: boolean;
+    canUseAudioDokus: boolean;
+    freeTrialActive: boolean;
+    freeTrialEndsAt: Date | null;
+    freeTrialDaysRemaining: number;
+  };
+};
+
+type ProfileSnapshot = {
+  subscription: SubscriptionPlan;
+  billing: BillingSnapshot;
+};
+
+const PLAN_META: Record<
+  SubscriptionPlan,
+  {
+    title: string;
+    icon: typeof Sparkles;
+    gradient: string;
+    storyLimit: string;
+    dokuLimit: string;
+    audioLimit: string;
+    community: string;
+  }
+> = {
+  free: {
+    title: 'Free',
+    icon: Sparkles,
+    gradient: 'from-[#64748B] to-[#94A3B8]',
+    storyLimit: '3 / Monat (7 Tage Test)',
+    dokuLimit: '3 / Monat (7 Tage Test)',
+    audioLimit: '1 / Monat (nur Test)',
+    community: 'Nur waehrend Testphase',
+  },
+  starter: {
+    title: 'Starter',
+    icon: Sparkles,
+    gradient: 'from-[#FF6B9D] to-[#A989F2]',
+    storyLimit: '10 / Monat',
+    dokuLimit: '10 / Monat',
+    audioLimit: '2 / Monat',
+    community: 'Ja',
+  },
+  familie: {
+    title: 'Familie',
+    icon: Users,
+    gradient: 'from-[#2DD4BF] to-[#0EA5E9]',
+    storyLimit: '25 / Monat',
+    dokuLimit: '25 / Monat',
+    audioLimit: '10 / Monat',
+    community: 'Ja',
+  },
+  premium: {
+    title: 'Premium',
+    icon: Crown,
+    gradient: 'from-[#FF9B5C] to-[#FF6B9D]',
+    storyLimit: '50 / Monat',
+    dokuLimit: '50 / Monat',
+    audioLimit: 'Unbegrenzt',
+    community: 'Ja',
+  },
+};
+
 const SettingsBackground: React.FC = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
     <motion.div
@@ -51,9 +135,6 @@ const SettingsBackground: React.FC = () => (
   </div>
 );
 
-// =====================================================
-// LANGUAGE SELECTOR
-// =====================================================
 function LanguageSelector() {
   const { t, i18n } = useTranslation();
   const backend = useBackend();
@@ -149,23 +230,10 @@ function LanguageSelector() {
           </motion.button>
         ))}
       </div>
-
-      <div className="mt-6 p-4 bg-[#A989F2]/5 border border-[#A989F2]/20 rounded-2xl">
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <Languages className="w-4 h-4 text-[#A989F2]" />
-          <span className="font-medium">
-            {t('settings.currentLanguage')}:{' '}
-            <strong>{SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage)?.nativeName}</strong>
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
 
-// =====================================================
-// THEME SELECTOR
-// =====================================================
 function ThemeSelector() {
   const { t } = useTranslation();
   const { theme, setTheme: setGlobalTheme } = useTheme();
@@ -181,9 +249,9 @@ function ThemeSelector() {
   };
 
   const themeOptions = [
-    { value: 'light' as ThemeOption, icon: Sun, label: t('settings.light'), description: t('settings.lightDescription'), emoji: '☀️' },
-    { value: 'dark' as ThemeOption, icon: Moon, label: t('settings.dark'), description: t('settings.darkDescription'), emoji: '🌙' },
-    { value: 'system' as ThemeOption, icon: Monitor, label: t('settings.system'), description: t('settings.systemDescription'), emoji: '💻' },
+    { value: 'light' as ThemeOption, icon: Sun, label: t('settings.light'), description: t('settings.lightDescription') },
+    { value: 'dark' as ThemeOption, icon: Moon, label: t('settings.dark'), description: t('settings.darkDescription') },
+    { value: 'system' as ThemeOption, icon: Monitor, label: t('settings.system'), description: t('settings.systemDescription') },
   ];
 
   return (
@@ -230,7 +298,7 @@ function ThemeSelector() {
                 </motion.div>
               )}
               <div className="flex flex-col items-center gap-3">
-                <span className="text-3xl">{option.emoji}</span>
+                <Icon className="w-8 h-8 text-foreground/80" />
                 <div className="text-center">
                   <div className="font-bold text-foreground">{option.label}</div>
                   <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
@@ -244,138 +312,305 @@ function ThemeSelector() {
   );
 }
 
-// =====================================================
-// BILLING PANEL
-// =====================================================
-function BillingPanel() {
-  const { t } = useTranslation();
-  const backend = useBackend();
-  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    const loadPlan = async () => {
-      try {
-        setIsLoading(true);
-        const profile = await backend.user.me();
-        if (active) setCurrentPlan(profile.subscription as SubscriptionPlan);
-      } catch (err) {
-        console.error('Failed to load subscription plan:', err);
-      } finally {
-        if (active) setIsLoading(false);
-      }
-    };
-    loadPlan();
-    return () => { active = false; };
-  }, [backend]);
+function UsageCard(props: {
+  title: string;
+  subtitle: string;
+  usage: CreditUsage;
+  icon: React.ReactNode;
+  accentClass: string;
+}) {
+  const limitText = props.usage.limit === null ? 'unbegrenzt' : String(props.usage.limit);
+  const remainingText = props.usage.remaining === null ? 'unbegrenzt' : String(props.usage.remaining);
+  const progress =
+    props.usage.limit === null
+      ? 24
+      : props.usage.limit <= 0
+      ? 100
+      : Math.min(100, Math.round((props.usage.used / props.usage.limit) * 100));
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9] flex items-center justify-center shadow-md">
-          <CreditCard className="w-5 h-5 text-white" />
-        </div>
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.06] backdrop-blur-lg p-4">
+      <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-            {t('settings.subscription')} & {t('settings.billing')}
-          </h2>
-          <p className="text-xs text-muted-foreground">Wähle dein Abo und verwalte deine Monatslimits.</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{props.title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{props.subtitle}</p>
+        </div>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${props.accentClass}`}>{props.icon}</div>
+      </div>
+
+      <div className="flex items-end justify-between mb-2">
+        <div>
+          <p className="text-2xl font-bold text-foreground">{remainingText}</p>
+          <p className="text-[11px] text-muted-foreground">verbleibend</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-semibold text-foreground">{props.usage.used} / {limitText}</p>
+          <p className="text-[11px] text-muted-foreground">verbraucht / limit</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {PLAN_CARDS.map((plan, i) => {
-          const Icon = plan.icon;
-          const isActive = currentPlan === plan.id;
-
-          return (
-            <motion.div
-              key={plan.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className={`relative overflow-hidden rounded-2xl border-2 transition-all ${
-                isActive
-                  ? 'border-[#A989F2] shadow-xl ring-2 ring-[#A989F2]/20 bg-[#A989F2]/5'
-                  : 'border-white/[0.08] bg-white/[0.06] hover:shadow-lg hover:bg-white/[0.10]'
-              }`}
-            >
-              {/* Gradient glow */}
-              <div className={`absolute -top-12 -right-12 h-28 w-28 rounded-full blur-2xl opacity-40 bg-gradient-to-br ${plan.gradient}`} />
-
-              <div className="relative p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${plan.gradient} shadow-md ${plan.shadow}`}>
-                      <Icon className="h-5 w-5 text-white" />
-                    </span>
-                    <span className="text-lg font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                      {t(`settings.subscriptionPlans.${plan.id}`)}
-                    </span>
-                  </div>
-                  {isActive && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="text-[10px] font-bold uppercase tracking-wider text-[#A989F2] bg-[#A989F2]/10 px-2 py-1 rounded-full"
-                    >
-                      Aktiv
-                    </motion.span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-white/[0.06] border border-white/[0.08] p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      <BookOpen className="h-3.5 w-3.5" />
-                      {t('admin.stories')}
-                    </div>
-                    <div className="text-2xl font-bold text-foreground mt-1.5">{plan.stories}</div>
-                    <div className="text-[10px] text-muted-foreground">pro Monat</div>
-                  </div>
-                  <div className="rounded-xl bg-white/[0.06] border border-white/[0.08] p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      <FileText className="h-3.5 w-3.5" />
-                      {t('admin.dokus')}
-                    </div>
-                    <div className="text-2xl font-bold text-foreground mt-1.5">{plan.dokus}</div>
-                    <div className="text-[10px] text-muted-foreground">pro Monat</div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
+      <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full bg-gradient-to-r from-[#A989F2] to-[#FF6B9D]" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="mt-8 rounded-2xl border border-dashed border-[#A989F2]/30 bg-white/[0.06] backdrop-blur-lg p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              Abo auswählen
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              {isLoading && currentPlan === null ? 'Lade dein aktuelles Abo...' : 'Abrechnung läuft über Clerk Billing.'}
-            </p>
-          </div>
-          {currentPlan && (
-            <span className="text-xs font-semibold text-foreground bg-muted px-3 py-1 rounded-full">
-              Aktuell: {t(`settings.subscriptionPlans.${currentPlan}`)}
-            </span>
-          )}
-        </div>
-        <div className="rounded-xl overflow-hidden">
-          <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
-        </div>
-      </div>
+      <p className="text-[11px] text-muted-foreground mt-2">Kosten: {props.usage.costPerGeneration} Credit pro Generierung</p>
     </div>
   );
 }
 
-// =====================================================
-// MAIN SETTINGS SCREEN
-// =====================================================
+function BillingPanel() {
+  const backend = useBackend();
+  const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('free');
+
+  const loadBilling = async () => {
+    try {
+      setIsLoading(true);
+      const nextProfile = (await backend.user.me()) as unknown as ProfileSnapshot;
+      setProfile(nextProfile);
+      const activePlan = nextProfile.billing?.plan || nextProfile.subscription;
+      setSelectedPlan(activePlan || 'free');
+    } catch (err) {
+      console.error('Failed to load billing profile:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBilling();
+  }, [backend]);
+
+  const billing = profile?.billing ?? null;
+  const currentPlan = billing?.plan ?? profile?.subscription ?? 'free';
+  const currentPlanMeta = PLAN_META[currentPlan];
+  const CurrentPlanIcon = currentPlanMeta.icon;
+  const selectedPlanMeta = PLAN_META[selectedPlan];
+  const periodStartLabel = useMemo(() => {
+    if (!billing?.periodStart) return '-';
+    return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date(billing.periodStart));
+  }, [billing?.periodStart]);
+
+  const scrollToClerkPricing = () => {
+    setPlanDialogOpen(false);
+    const target = document.getElementById('clerk-pricing-table');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9] flex items-center justify-center shadow-md">
+            <CreditCard className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+              Abo & Credits
+            </h2>
+            <p className="text-xs text-muted-foreground">Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={loadBilling}>
+            <RefreshCcw className="w-4 h-4 mr-2" />
+            Aktualisieren
+          </Button>
+          <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
+            <DialogTrigger asChild>
+              <Button type="button">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Plan wechseln
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Monatsplan wechseln</DialogTitle>
+                <DialogDescription>
+                  Waehle einen Plan und oeffne danach Clerk Billing fuer den eigentlichen Wechsel.
+                </DialogDescription>
+              </DialogHeader>
+
+              <RadioGroup value={selectedPlan} onValueChange={(value) => setSelectedPlan(value as SubscriptionPlan)} className="gap-2">
+                {(Object.keys(PLAN_META) as SubscriptionPlan[]).map((plan) => {
+                  const meta = PLAN_META[plan];
+                  return (
+                    <div key={plan} className="relative flex w-full items-center gap-2 rounded-lg border border-input px-4 py-3 shadow-sm shadow-black/5 has-[[data-state=checked]]:border-ring has-[[data-state=checked]]:bg-accent">
+                      <RadioGroupItem value={plan} id={`plan-${plan}`} aria-describedby={`plan-${plan}-desc`} className="order-1 after:absolute after:inset-0" />
+                      <div className="grid grow gap-1">
+                        <Label htmlFor={`plan-${plan}`}>{meta.title}</Label>
+                        <p id={`plan-${plan}-desc`} className="text-xs text-muted-foreground">
+                          Story: {meta.storyLimit} | Doku: {meta.dokuLimit} | Audio: {meta.audioLimit}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </RadioGroup>
+
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.05] p-3">
+                <p className="text-xs font-semibold text-foreground mb-2">Ausgewaehlter Plan: {selectedPlanMeta.title}</p>
+                <p className="text-xs text-muted-foreground">Community-Dokus: {selectedPlanMeta.community}</p>
+                <p className="text-xs text-muted-foreground">Audio-Dokus: {selectedPlanMeta.audioLimit}</p>
+              </div>
+
+              <div className="grid gap-2">
+                <Button type="button" className="w-full" onClick={scrollToClerkPricing}>
+                  Zu Clerk Billing
+                </Button>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost" className="w-full">
+                    Schliessen
+                  </Button>
+                </DialogClose>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.06] p-5 text-sm text-muted-foreground">
+          Lade Billing-Daten...
+        </div>
+      ) : billing ? (
+        <>
+          <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.06] backdrop-blur-lg p-5">
+            <div className={`absolute -top-14 -right-10 h-32 w-32 rounded-full blur-2xl opacity-40 bg-gradient-to-br ${currentPlanMeta.gradient}`} />
+            <div className="relative flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${currentPlanMeta.gradient}`}>
+                  <CurrentPlanIcon className="h-5 w-5 text-white" />
+                </span>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Aktueller Plan</p>
+                  <h3 className="text-xl font-bold text-foreground">{currentPlanMeta.title}</h3>
+                  <p className="text-xs text-muted-foreground">Abrechnungsmonat: {periodStartLabel}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                  Community: {billing.permissions.canReadCommunityDokus ? 'aktiv' : 'gesperrt'}
+                </span>
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                  Audio: {billing.permissions.canUseAudioDokus ? 'aktiv' : 'gesperrt'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {currentPlan === 'free' && (
+            <div
+              className={`rounded-2xl border p-4 text-sm ${
+                billing.permissions.freeTrialActive
+                  ? 'border-[#A989F2]/30 bg-[#A989F2]/10 text-foreground'
+                  : 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+              }`}
+            >
+              {billing.permissions.freeTrialActive ? (
+                <div className="flex items-center gap-2">
+                  <Clock3 className="w-4 h-4" />
+                  <span>
+                    Free-Testphase aktiv: noch {billing.permissions.freeTrialDaysRemaining} Tage.
+                    Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Clock3 className="w-4 h-4" />
+                  <span>
+                    Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <UsageCard
+              title="StoryCredits"
+              subtitle="1 Story = 1 Credit"
+              usage={billing.storyCredits}
+              icon={<BookOpen className="w-4 h-4 text-white" />}
+              accentClass="bg-gradient-to-br from-[#A989F2] to-[#7C6BE3]"
+            />
+            <UsageCard
+              title="DokuCredits"
+              subtitle="1 Doku = 1 Credit"
+              usage={billing.dokuCredits}
+              icon={<FileText className="w-4 h-4 text-white" />}
+              accentClass="bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9]"
+            />
+            <UsageCard
+              title="AudioCredits"
+              subtitle="1 Audio-Doku = 1 Credit"
+              usage={billing.audioCredits}
+              icon={<Headphones className="w-4 h-4 text-white" />}
+              accentClass="bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D]"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {(Object.keys(PLAN_META) as SubscriptionPlan[]).map((plan) => {
+              const meta = PLAN_META[plan];
+              const PlanIcon = meta.icon;
+              const active = currentPlan === plan;
+              return (
+                <div
+                  key={plan}
+                  className={`relative rounded-2xl border p-4 ${
+                    active
+                      ? 'border-[#A989F2] bg-[#A989F2]/10 shadow-lg shadow-[#A989F2]/10'
+                      : 'border-white/[0.08] bg-white/[0.05]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient}`}>
+                        <PlanIcon className="h-4 w-4 text-white" />
+                      </span>
+                      <p className="text-sm font-bold text-foreground">{meta.title}</p>
+                    </div>
+                    {active && <span className="text-[10px] font-bold uppercase tracking-wider text-[#A989F2]">Aktiv</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Story: {meta.storyLimit}</p>
+                  <p className="text-xs text-muted-foreground">Doku: {meta.dokuLimit}</p>
+                  <p className="text-xs text-muted-foreground">Audio: {meta.audioLimit}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Community: {meta.community}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div id="clerk-pricing-table" className="rounded-2xl border border-dashed border-[#A989F2]/30 bg-white/[0.06] backdrop-blur-lg p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+                Plan in Clerk Billing wechseln
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Planwechsel ist monatlich moeglich. Nach dem Wechsel werden die Limits automatisch aktualisiert.
+              </p>
+            </div>
+            <div className="rounded-xl overflow-hidden">
+              <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.06] p-5 text-sm text-muted-foreground">
+          Billing-Daten konnten nicht geladen werden.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsScreen() {
   const { t } = useTranslation();
 
@@ -384,7 +619,6 @@ export default function SettingsScreen() {
       <SettingsBackground />
 
       <div className="relative z-10 pt-6">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -409,7 +643,6 @@ export default function SettingsScreen() {
           </div>
         </motion.div>
 
-        {/* Clerk UserProfile with custom pages */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

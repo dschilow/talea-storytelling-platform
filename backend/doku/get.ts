@@ -3,6 +3,7 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { Doku, DokuSection } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { assertCommunityDokuAccess } from "../helpers/billing";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -51,6 +52,13 @@ export const getDoku = api<GetDokuParams, Doku>(
 
     if (row.user_id !== auth.userID && auth.role !== "admin" && !row.is_public) {
       throw APIError.permissionDenied("You do not have permission to view this dossier.");
+    }
+
+    if (row.is_public && row.user_id !== auth.userID && auth.role !== "admin") {
+      await assertCommunityDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
     }
 
     const parsed = normalizeContent(row.content);

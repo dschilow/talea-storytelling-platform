@@ -1,0 +1,2 @@
+ALTER TABLE generation_usage
+ADD COLUMN IF NOT EXISTS audio_count INTEGER NOT NULL DEFAULT 0;

@@ -2,6 +2,8 @@ import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { DokuSection, Doku } from "./generate";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { getAuthData } from "~encore/auth";
+import { assertCommunityDokuAccess } from "../helpers/billing";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -36,6 +38,12 @@ function normalizeContent(raw: unknown): { sections: DokuSection[]; summary?: st
 export const listPublicDokus = api<ListPublicDokusRequest, ListPublicDokusResponse>(
   { expose: true, method: "GET", path: "/dokus/public", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    await assertCommunityDokuAccess({
+      userId: auth.userID,
+      clerkToken: auth.clerkToken,
+    });
+
     const limit = req.limit || 12;
     const offset = req.offset || 0;
 

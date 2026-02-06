@@ -242,9 +242,16 @@ const TaleaDokusScreen: React.FC = () => {
   const [totalAudio, setTotalAudio] = useState(0);
   const [audioModal, setAudioModal] = useState<AudioDoku | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
+  const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
 
   const myObserverRef = useRef<HTMLDivElement>(null);
   const publicObserverRef = useRef<HTMLDivElement>(null);
+
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) return error.message;
+    return fallback;
+  };
 
   const loadMyDokus = async () => {
     try {
@@ -259,20 +266,33 @@ const TaleaDokusScreen: React.FC = () => {
   const loadPublicDokus = async () => {
     try {
       setLoadingPublic(true);
+      setPublicAccessMessage(null);
       const res = await backend.doku.listPublicDokus({ limit: 12, offset: 0 });
       setPublicDokus(res.dokus as any[]);
       setTotalPublic(res.total);
       setHasMorePublic(res.hasMore);
-    } catch (e) { console.error(e); } finally { setLoadingPublic(false); }
+    } catch (e) {
+      console.error(e);
+      setPublicDokus([]);
+      setTotalPublic(0);
+      setHasMorePublic(false);
+      setPublicAccessMessage(getErrorMessage(e, 'Community-Dokus sind in deinem aktuellen Plan nicht verfuegbar.'));
+    } finally { setLoadingPublic(false); }
   };
 
   const loadAudioDokus = async () => {
     try {
       setLoadingAudio(true);
+      setAudioAccessMessage(null);
       const res = await backend.doku.listAudioDokus({ limit: 12, offset: 0 });
       setAudioDokus(res.audioDokus as any[]);
       setTotalAudio(res.total);
-    } catch (e) { console.error(e); } finally { setLoadingAudio(false); }
+    } catch (e) {
+      console.error(e);
+      setAudioDokus([]);
+      setTotalAudio(0);
+      setAudioAccessMessage(getErrorMessage(e, 'Audio-Dokus sind in deinem aktuellen Plan nicht verfuegbar.'));
+    } finally { setLoadingAudio(false); }
   };
 
   const loadMoreMy = useCallback(async () => {
@@ -286,14 +306,14 @@ const TaleaDokusScreen: React.FC = () => {
   }, [backend, myDokus.length, hasMoreMy, loadingMoreMy]);
 
   const loadMorePublic = useCallback(async () => {
-    if (loadingMorePublic || !hasMorePublic) return;
+    if (loadingMorePublic || !hasMorePublic || publicAccessMessage) return;
     try {
       setLoadingMorePublic(true);
       const res = await backend.doku.listPublicDokus({ limit: 12, offset: publicDokus.length });
       setPublicDokus(prev => [...prev, ...res.dokus as any[]]);
       setHasMorePublic(res.hasMore);
     } catch (e) { console.error(e); } finally { setLoadingMorePublic(false); }
-  }, [backend, publicDokus.length, hasMorePublic, loadingMorePublic]);
+  }, [backend, publicDokus.length, hasMorePublic, loadingMorePublic, publicAccessMessage]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -315,7 +335,7 @@ const TaleaDokusScreen: React.FC = () => {
   }, [hasMoreMy, loadingMoreMy, loadingMy, loadMoreMy, isSignedIn]);
 
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isSignedIn || publicAccessMessage) return;
     const observer = new IntersectionObserver(
       (entries) => { if (entries[0].isIntersecting && hasMorePublic && !loadingMorePublic && !loadingPublic) loadMorePublic(); },
       { threshold: 0.1 }
@@ -323,7 +343,7 @@ const TaleaDokusScreen: React.FC = () => {
     const target = publicObserverRef.current;
     if (target) observer.observe(target);
     return () => { if (target) observer.unobserve(target); };
-  }, [hasMorePublic, loadingMorePublic, loadingPublic, loadMorePublic, isSignedIn]);
+  }, [hasMorePublic, loadingMorePublic, loadingPublic, loadMorePublic, isSignedIn, publicAccessMessage]);
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (window.confirm(`${t('common.delete', 'Löschen')} "${dokuTitle}"?`)) {
@@ -448,7 +468,12 @@ const TaleaDokusScreen: React.FC = () => {
                   gradient="linear-gradient(135deg, #2DD4BF 0%, #0EA5E9 100%)"
                 />
 
-                {loadingPublic ? <SectionLoading /> : publicDokus.length === 0 ? (
+                {loadingPublic ? <SectionLoading /> : publicAccessMessage ? (
+                  <div className="text-center py-10 rounded-2xl bg-rose-500/10 border border-rose-500/25">
+                    <div className="text-4xl mb-3">🔒</div>
+                    <p className="text-sm text-rose-200">{publicAccessMessage}</p>
+                  </div>
+                ) : publicDokus.length === 0 ? (
                   <div className="text-center py-12 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/[0.08]">
                     <div className="text-4xl mb-3">🌍</div>
                     <p className="text-sm text-muted-foreground">{t('doku.noPublicDokus', 'Keine öffentlichen Artikel')}</p>
@@ -475,7 +500,12 @@ const TaleaDokusScreen: React.FC = () => {
                   onAction={() => navigate('/createaudiodoku')}
                 />
 
-                {loadingAudio ? <SectionLoading /> : audioDokus.length === 0 ? (
+                {loadingAudio ? <SectionLoading /> : audioAccessMessage ? (
+                  <div className="text-center py-10 rounded-2xl bg-rose-500/10 border border-rose-500/25">
+                    <div className="text-4xl mb-3">🔒</div>
+                    <p className="text-sm text-rose-200">{audioAccessMessage}</p>
+                  </div>
+                ) : audioDokus.length === 0 ? (
                   <div className="text-center py-12 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/[0.08]">
                     <div className="text-4xl mb-3">🎧</div>
                     <p className="text-sm text-muted-foreground">{t('doku.noAudioDokus', 'Noch keine Audio-Artikel')}</p>

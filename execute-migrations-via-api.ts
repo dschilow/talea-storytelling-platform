@@ -60,6 +60,13 @@ const migrations: Array<{
     dir: "backend/user/migrations",
     service: "user",
   },
+  {
+    file: "7_add_audio_usage.up.sql",
+    name: "7_add_audio_usage",
+    group: "user",
+    dir: "backend/user/migrations",
+    service: "user",
+  },
 ];
 
 async function runMigration(

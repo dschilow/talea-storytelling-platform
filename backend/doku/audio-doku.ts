@@ -10,6 +10,7 @@ import {
   createPresignedUploadUrl,
   uploadBufferToBucket,
 } from "../helpers/bucket-storage";
+import { assertAudioDokuAccess, claimGenerationUsage } from "../helpers/billing";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -95,6 +96,14 @@ const buildCoverPrompt = (description: string, title: string): string => {
 export const createAudioUploadUrl = api<CreateAudioUploadUrlRequest, CreateAudioUploadUrlResponse>(
   { expose: true, method: "POST", path: "/audio-dokus/upload-url", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (auth.role !== "admin") {
+      await assertAudioDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
+    }
+
     const contentType = req.contentType?.trim();
     const filename = req.filename?.trim();
 
@@ -132,6 +141,13 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
   },
   async (req) => {
     const auth = getAuthData()!;
+    if (auth.role !== "admin") {
+      await assertAudioDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
+    }
+
     const description = req.description?.trim();
     const coverDescription = req.coverDescription?.trim();
 
@@ -163,6 +179,14 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
 
     if (!audioUrl) {
       throw APIError.invalidArgument("Audio file is required.");
+    }
+
+    if (auth.role !== "admin") {
+      await claimGenerationUsage({
+        userId: auth.userID,
+        kind: "audio",
+        clerkToken: auth.clerkToken,
+      });
     }
 
     const title =
@@ -249,6 +273,14 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
 export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCoverResponse>(
   { expose: true, method: "POST", path: "/audio-dokus/generate-cover", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (auth.role !== "admin") {
+      await assertAudioDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
+    }
+
     const coverDescription = req.coverDescription?.trim();
     if (!coverDescription) {
       throw APIError.invalidArgument("Cover description is required.");
@@ -287,6 +319,14 @@ export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCo
 export const listAudioDokus = api<ListAudioDokusRequest, ListAudioDokusResponse>(
   { expose: true, method: "GET", path: "/audio-dokus", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (auth.role !== "admin") {
+      await assertAudioDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
+    }
+
     const limit = req.limit || 12;
     const offset = req.offset || 0;
 

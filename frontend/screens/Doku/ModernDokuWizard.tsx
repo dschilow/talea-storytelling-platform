@@ -427,7 +427,19 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
 // =====================================================
 // STEP 5 - SUMMARY
 // =====================================================
-function Step5Summary({ state, onGenerate }: { state: DokuWizardState; onGenerate: () => void }) {
+function Step5Summary({
+  state,
+  onGenerate,
+  dokuCredits,
+  generateDisabled,
+  generateDisabledMessage,
+}: {
+  state: DokuWizardState;
+  onGenerate: () => void;
+  dokuCredits: { limit: number | null; used: number; remaining: number | null; costPerGeneration: 1 } | null;
+  generateDisabled: boolean;
+  generateDisabledMessage?: string;
+}) {
   const labels: Record<string, Record<string, string>> = {
     perspective: { science: 'Naturwissenschaft', history: 'Geschichte', technology: 'Technik', nature: 'Natur', culture: 'Kultur' },
     tone: { fun: 'Lustig', neutral: 'Sachlich', curious: 'Neugierig' },
@@ -476,15 +488,57 @@ function Step5Summary({ state, onGenerate }: { state: DokuWizardState; onGenerat
         whileHover={{ scale: 1.03, y: -2 }}
         whileTap={{ scale: 0.97 }}
         onClick={onGenerate}
-        className="w-full flex items-center justify-center gap-3 px-8 py-5 rounded-2xl font-bold text-lg text-white shadow-xl shadow-[#FF9B5C]/25 hover:shadow-2xl hover:shadow-[#FF9B5C]/35 transition-shadow"
+        disabled={generateDisabled}
+        className={`w-full flex items-center justify-center gap-3 px-8 py-5 rounded-2xl font-bold text-lg text-white shadow-xl shadow-[#FF9B5C]/25 hover:shadow-2xl hover:shadow-[#FF9B5C]/35 transition-shadow ${
+          generateDisabled ? 'opacity-60 cursor-not-allowed' : ''
+        }`}
         style={{ background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' }}
       >
         <Sparkles className="w-6 h-6" />
-        Doku erstellen
+        {generateDisabled ? 'Nicht verfuegbar' : 'Doku erstellen (1 DokuCredit)'}
       </motion.button>
+
+      {dokuCredits && (
+        <div className="rounded-2xl border border-[#FF9B5C]/30 bg-[#FF9B5C]/10 p-4">
+          <p className="text-xs uppercase tracking-wider text-foreground/80 font-semibold mb-2">DokuCredits</p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-foreground">
+                {dokuCredits.remaining === null ? 'unbegrenzt' : dokuCredits.remaining}
+              </p>
+              <p className="text-xs text-muted-foreground">verbleibend</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-semibold text-foreground">
+                {dokuCredits.used} / {dokuCredits.limit === null ? 'unbegrenzt' : dokuCredits.limit}
+              </p>
+              <p className="text-xs text-muted-foreground">verbraucht / limit</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Kosten pro Generierung: {dokuCredits.costPerGeneration} DokuCredit
+          </p>
+        </div>
+      )}
+
+      {generateDisabledMessage && (
+        <p className="text-xs text-rose-300 text-center">{generateDisabledMessage}</p>
+      )}
     </div>
   );
 }
+
+type DokuCredits = {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  costPerGeneration: 1;
+};
+
+type BillingPermissions = {
+  freeTrialActive: boolean;
+  freeTrialDaysRemaining: number;
+};
 
 // =====================================================
 // STEP INDICATOR
@@ -635,6 +689,8 @@ export default function ModernDokuWizard() {
   const [generating, setGenerating] = useState(false);
   const [generationPhase, setGenerationPhase] = useState<'text' | 'cover' | 'sections' | 'personality' | 'complete'>('text');
   const [userLanguage, setUserLanguage] = useState<string>('de');
+  const [dokuCredits, setDokuCredits] = useState<DokuCredits | null>(null);
+  const [billingPermissions, setBillingPermissions] = useState<BillingPermissions | null>(null);
 
   useEffect(() => {
     if (i18n.language) setUserLanguage(i18n.language);
@@ -645,6 +701,8 @@ export default function ModernDokuWizard() {
       try {
         const profile = await backend.user.me();
         if (profile.preferredLanguage) setUserLanguage(profile.preferredLanguage);
+        setDokuCredits((profile as any).billing?.dokuCredits ?? null);
+        setBillingPermissions((profile as any).billing?.permissions ?? null);
       } catch { /* fallback to i18n */ }
     };
     if (backend && user) loadLang();
@@ -688,6 +746,14 @@ export default function ModernDokuWizard() {
   const handleGenerate = async () => {
     if (!userId) return;
     if (!state.topic.trim()) return;
+    if (dokuCredits && dokuCredits.remaining !== null && dokuCredits.remaining <= 0) {
+      if (billingPermissions && !billingPermissions.freeTrialActive) {
+        alert('Free-Testphase abgelaufen. Bitte im Profil auf Starter, Familie oder Premium wechseln.');
+      } else {
+        alert('Keine DokuCredits mehr fuer diesen Monat. Bitte im Profil dein Abo upgraden.');
+      }
+      return;
+    }
 
     try {
       setGenerating(true);
@@ -716,6 +782,15 @@ export default function ModernDokuWizard() {
       }, 4000);
 
       const created = await backend.doku.generateDoku({ userId, config });
+      setDokuCredits((prev) =>
+        prev
+          ? {
+              ...prev,
+              used: prev.used + 1,
+              remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
+            }
+          : prev
+      );
 
       clearInterval(phaseTimer);
       setGenerationPhase('complete');
@@ -736,12 +811,28 @@ export default function ModernDokuWizard() {
   };
 
   const renderStep = () => {
+    const dokuGenerationBlocked = Boolean(dokuCredits && dokuCredits.remaining !== null && dokuCredits.remaining <= 0);
+    const blockedMessage = dokuGenerationBlocked
+      ? billingPermissions && !billingPermissions.freeTrialActive
+        ? 'Free-Testphase abgelaufen. Upgrade im Profil noetig.'
+        : 'DokuCredits fuer diesen Monat aufgebraucht.'
+      : undefined;
+
     switch (activeStep) {
       case 0: return <Step1Topic state={state} updateState={updateState} />;
       case 1: return <Step2AgeAndDepth state={state} updateState={updateState} />;
       case 2: return <Step3PerspectiveAndTone state={state} updateState={updateState} />;
       case 3: return <Step4ContentSettings state={state} updateState={updateState} />;
-      case 4: return <Step5Summary state={state} onGenerate={handleGenerate} />;
+      case 4:
+        return (
+          <Step5Summary
+            state={state}
+            onGenerate={handleGenerate}
+            dokuCredits={dokuCredits}
+            generateDisabled={dokuGenerationBlocked}
+            generateDisabledMessage={blockedMessage}
+          />
+        );
       default: return null;
     }
   };
