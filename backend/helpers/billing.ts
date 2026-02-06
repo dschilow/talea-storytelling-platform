@@ -122,7 +122,7 @@ type UserPlanContext = {
 async function resolveUserPlanContext(userId: string, clerkToken?: string | null): Promise<UserPlanContext> {
   const plan = await resolvePlanForUser(userId, clerkToken);
 
-  const row = await userDB.queryRow<{ created_at: Date }>`
+  const row = await userDB.queryRow<{ created_at: Date | null }>`
     SELECT created_at FROM users WHERE id = ${userId}
   `;
 
@@ -130,7 +130,7 @@ async function resolveUserPlanContext(userId: string, clerkToken?: string | null
     throw APIError.notFound("User not found");
   }
 
-  return { plan, createdAt: row.created_at };
+  return { plan, createdAt: row.created_at ?? new Date() };
 }
 
 function computePlanPolicy(plan: SubscriptionPlan, createdAt: Date, now: Date): PlanPolicy {
@@ -225,7 +225,20 @@ export async function getBillingOverview(params: {
   const periodStart = startOfMonthUTC(now);
   const context = await resolveUserPlanContext(params.userId, params.clerkToken);
   const policy = computePlanPolicy(context.plan, context.createdAt, now);
-  const usage = await readUsageCounts(params.userId, periodStart);
+  let usage: UsageCounts = {
+    story_count: 0,
+    doku_count: 0,
+    audio_count: 0,
+  };
+
+  try {
+    usage = await readUsageCounts(params.userId, periodStart);
+  } catch (error) {
+    console.warn("[billing.getBillingOverview] Failed to read usage counters, falling back to zero usage.", {
+      userId: params.userId,
+      error,
+    });
+  }
 
   return {
     plan: context.plan,
@@ -290,11 +303,17 @@ export async function claimGenerationUsage(params: {
     throw APIError.permissionDenied(`Abo-Limit erreicht: 0 ${getLimitLabel(params.kind)} pro Monat.`);
   }
 
-  await userDB.exec`
-    INSERT INTO generation_usage (user_id, period_start, story_count, doku_count, audio_count, updated_at)
-    VALUES (${params.userId}, ${periodStart}, 0, 0, 0, ${now})
-    ON CONFLICT (user_id, period_start) DO NOTHING
-  `;
+  try {
+    await userDB.exec`
+      INSERT INTO generation_usage (user_id, period_start, story_count, doku_count, audio_count, updated_at)
+      VALUES (${params.userId}, ${periodStart}, 0, 0, 0, ${now})
+      ON CONFLICT (user_id, period_start) DO NOTHING
+    `;
+  } catch (error) {
+    throw APIError.failedPrecondition(
+      "Billing-Datenbank nicht bereit. Bitte User-Migrationen ueber Script ausfuehren (6_add_generation_usage und 7_add_audio_usage)."
+    );
+  }
 
   if (limit === null) {
     const row = await userDB.queryRow<UsageCounts>`
