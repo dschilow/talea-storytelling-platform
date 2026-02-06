@@ -26,15 +26,6 @@ import {
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type SubscriptionPlan = 'free' | 'starter' | 'familie' | 'premium';
@@ -360,7 +351,6 @@ function BillingPanel() {
   const backend = useBackend();
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
   const loadBilling = async () => {
     try {
@@ -382,7 +372,6 @@ function BillingPanel() {
   const currentPlan = billing?.plan ?? profile?.subscription ?? 'free';
   const currentPlanMeta = PLAN_META[currentPlan];
   const CurrentPlanIcon = currentPlanMeta.icon;
-  const planOrder: SubscriptionPlan[] = ['free', 'starter', 'familie', 'premium'];
   const periodStartLabel = useMemo(() => {
     if (!billing?.periodStart) return '-';
     return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date(billing.periodStart));
@@ -408,81 +397,6 @@ function BillingPanel() {
             <RefreshCcw className="w-4 h-4 mr-2" />
             Aktualisieren
           </Button>
-          <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
-            <DialogTrigger asChild>
-              <Button type="button">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Plan wechseln
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[min(1100px,96vw)] max-w-none max-h-[92vh] overflow-y-auto border-[#A989F2]/30 bg-background/95 p-0 shadow-2xl shadow-[#A989F2]/20">
-              <div className="relative overflow-hidden">
-                <div className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-br from-[#A989F2]/25 to-[#FF6B9D]/20 blur-3xl" />
-                <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-gradient-to-br from-[#2DD4BF]/20 to-[#0EA5E9]/15 blur-3xl" />
-
-                <div className="relative border-b border-border/70 px-6 py-5 md:px-8 md:py-7">
-                  <DialogHeader className="space-y-2 text-left">
-                    <DialogTitle className="text-2xl font-bold tracking-tight" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                      Plan in Clerk Billing wechseln
-                    </DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground">
-                      Ein Wechselpunkt, monatlich kuendbar, sofort transparent. Alle Limits werden danach automatisch aktualisiert.
-                    </DialogDescription>
-                  </DialogHeader>
-                </div>
-
-                <div className="relative grid gap-0 md:grid-cols-[320px_1fr]">
-                  <aside className="border-b border-border/70 bg-muted/20 p-6 md:border-b-0 md:border-r">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Aktueller Plan</p>
-                    <div className="rounded-2xl border border-border bg-card/80 p-4 mb-5">
-                      <div className="flex items-center gap-3">
-                        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${currentPlanMeta.gradient}`}>
-                          <CurrentPlanIcon className="h-5 w-5 text-white" />
-                        </span>
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{currentPlanMeta.title}</p>
-                          <p className="text-xs text-muted-foreground">Monat: {periodStartLabel}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {planOrder.map((plan) => {
-                        const meta = PLAN_META[plan];
-                        const active = currentPlan === plan;
-                        return (
-                          <div
-                            key={`dialog-${plan}`}
-                            className={`rounded-xl border px-3 py-2 ${
-                              active ? 'border-[#A989F2]/50 bg-[#A989F2]/10' : 'border-border bg-card/60'
-                            }`}
-                          >
-                            <p className="text-xs font-semibold text-foreground">{meta.title}</p>
-                            <p className="text-[11px] text-muted-foreground">Story {meta.storyLimit}</p>
-                            <p className="text-[11px] text-muted-foreground">Doku {meta.dokuLimit}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </aside>
-
-                  <div className="p-4 md:p-6">
-                    <div className="rounded-2xl border border-border bg-card/80 p-2 md:p-3">
-                      <PricingTable ctaPosition="bottom" newSubscriptionRedirectUrl="/settings?billing=success" />
-                    </div>
-                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-                      <p className="text-xs text-muted-foreground">
-                        Nach erfolgreichem Checkout kannst du hier direkt auf `Aktualisieren` klicken.
-                      </p>
-                      <DialogClose asChild>
-                        <Button type="button" variant="outline">Schliessen</Button>
-                      </DialogClose>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -600,6 +514,41 @@ function BillingPanel() {
             })}
           </div>
 
+          <div id="billing-plan-switcher" className="rounded-2xl border border-[#A989F2]/30 bg-card/70 backdrop-blur-lg p-4 md:p-5">
+            <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+                  Plan in Clerk Billing wechseln
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Der Checkout oeffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf `Aktualisieren` klicken.
+                </p>
+              </div>
+              <span className="text-[11px] font-semibold text-[#A989F2] bg-[#A989F2]/10 rounded-full px-3 py-1">
+                Monatlich wechselbar
+              </span>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card/80 p-2 md:p-3">
+              <PricingTable
+                ctaPosition="bottom"
+                newSubscriptionRedirectUrl="/settings?billing=success"
+                checkoutProps={{
+                  portalRoot: typeof document !== 'undefined' ? document.body : undefined,
+                  appearance: {
+                    elements: {
+                      drawerBackdrop: 'z-[5000] !fixed',
+                      drawerRoot: 'z-[5001] !fixed',
+                      drawerContent: 'z-[5002] !fixed',
+                      modalBackdrop: 'z-[5000] !fixed',
+                      modalContent: 'z-[5002] !fixed',
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+
         </>
       ) : (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
@@ -642,12 +591,7 @@ export default function SettingsScreen() {
           </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-visible"
-        >
+        <div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-visible">
           <UserProfile
             appearance={{
               baseTheme: undefined,
@@ -688,7 +632,7 @@ export default function SettingsScreen() {
               <BillingPanel />
             </UserProfile.Page>
           </UserProfile>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

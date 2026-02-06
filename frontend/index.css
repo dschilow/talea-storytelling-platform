@@ -344,3 +344,15 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Clerk checkout drawer/modal must always render above app dialogs */
+.cl-drawerBackdrop,
+.cl-modalBackdrop {
+  z-index: 5000 !important;
+}
+
+.cl-drawerRoot,
+.cl-drawerContent,
+.cl-modalContent {
+  z-index: 5002 !important;
+}
