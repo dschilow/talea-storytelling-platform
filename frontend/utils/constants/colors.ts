@@ -189,8 +189,8 @@ export const colors = {
   },
 
   glass: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-    backgroundAlt: 'linear-gradient(135deg, rgba(255,248,255,0.95) 0%, rgba(249,245,255,0.8) 100%)',
+    background: 'linear-gradient(135deg, rgba(19,16,43,0.9) 0%, rgba(19,16,43,0.7) 100%)',
+    backgroundAlt: 'linear-gradient(135deg, rgba(15,10,26,0.95) 0%, rgba(26,16,51,0.8) 100%)',
     border: 'rgba(209, 189, 248, 0.3)',
     shadow: '0 8px 32px rgba(169, 137, 242, 0.15)',
     shadowStrong: '0 12px 48px rgba(169, 137, 242, 0.25)',
@@ -211,7 +211,7 @@ export const colors = {
     sunset: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)',
     ocean: 'linear-gradient(135deg, #0EA5E9 0%, #2DD4BF 100%)',
     lavender: 'linear-gradient(135deg, #D1BDF8 0%, #A989F2 100%)',
-    background: 'linear-gradient(135deg, #FFF8F5 0%, #F9F5FF 50%, #F0F9FF 100%)',
+    background: 'linear-gradient(135deg, #0F0A1A 0%, #1A1033 40%, #0D1B2A 100%)',
     nature: 'linear-gradient(135deg, #8BBB9B 0%, #2DD4BF 100%)',
   },
 };

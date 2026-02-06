@@ -53,7 +53,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           whileTap={{ scale: 0.9 }}
           onClick={() => handleSkip(-15)}
           title="15 Sekunden zurück"
-          className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center bg-white/60 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700/60 transition-colors shadow-sm`}
+          className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] text-white/70 hover:bg-white/[0.12] transition-colors shadow-sm`}
         >
           <Rewind size={iconSize} />
         </motion.button>
@@ -85,7 +85,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           whileTap={{ scale: 0.9 }}
           onClick={() => handleSkip(15)}
           title="15 Sekunden vor"
-          className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center bg-white/60 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700/60 transition-colors shadow-sm`}
+          className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] text-white/70 hover:bg-white/[0.12] transition-colors shadow-sm`}
         >
           <FastForward size={iconSize} />
         </motion.button>
@@ -97,7 +97,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             whileTap={{ scale: 0.9 }}
             onClick={close}
             title="Schließen"
-            className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center ml-auto bg-red-50 dark:bg-red-950/30 border border-red-200/50 dark:border-red-800/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors shadow-sm`}
+            className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center ml-auto bg-red-500/10 border border-red-400/20 text-red-400 hover:bg-red-500/20 transition-colors shadow-sm`}
           >
             <X size={iconSize} />
           </motion.button>
@@ -106,13 +106,13 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
 
       {/* Seek bar */}
       <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 min-w-[38px] tabular-nums">
+        <span className="text-[11px] font-medium text-white/40 min-w-[38px] tabular-nums">
           {formatTime(currentTime)}
         </span>
 
         <div className="relative flex-1 h-6 flex items-center group">
           {/* Track background */}
-          <div className="absolute inset-x-0 h-1.5 rounded-full bg-slate-200/70 dark:bg-slate-700/50" />
+          <div className="absolute inset-x-0 h-1.5 rounded-full bg-white/10" />
 
           {/* Progress fill */}
           <motion.div
@@ -139,7 +139,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           />
         </div>
 
-        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 min-w-[38px] tabular-nums text-right">
+        <span className="text-[11px] font-medium text-white/40 min-w-[38px] tabular-nums text-right">
           {formatTime(duration || 0)}
         </span>
       </div>

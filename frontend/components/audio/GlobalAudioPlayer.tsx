@@ -17,10 +17,10 @@ export const GlobalAudioPlayer: React.FC = () => {
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           className="fixed left-1/2 -translate-x-1/2 bottom-24 md:bottom-6 z-[1200] w-[min(920px,92vw)]"
         >
-          <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-2xl shadow-2xl shadow-purple-500/10 px-5 py-4">
+          <div className="bg-[#13102B]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-purple-500/10 px-5 py-4">
             {/* Track info */}
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/40 dark:border-white/10 bg-gradient-to-br from-[#A989F2]/20 to-[#FF6B9D]/20 flex-shrink-0 flex items-center justify-center shadow-sm">
+              <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#A989F2]/20 to-[#FF6B9D]/20 flex-shrink-0 flex items-center justify-center shadow-sm">
                 {track.coverImageUrl ? (
                   <img src={track.coverImageUrl} alt={track.title} className="w-full h-full object-cover" />
                 ) : (
@@ -29,11 +29,11 @@ export const GlobalAudioPlayer: React.FC = () => {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-white truncate" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+                <h4 className="text-sm font-bold text-white truncate" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
                   {track.title}
                 </h4>
                 {track.description && (
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  <p className="text-[11px] text-white/50 truncate">
                     {track.description}
                   </p>
                 )}

@@ -86,7 +86,7 @@ const AudioDokuCard: React.FC<{
     whileHover={{ y: -4 }}
     whileTap={{ scale: 0.98 }}
     onClick={onPlay}
-    className="cursor-pointer group overflow-hidden rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-md hover:shadow-xl transition-all"
+    className="cursor-pointer group overflow-hidden rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] shadow-md hover:shadow-xl transition-all"
   >
     <div className="relative h-40 overflow-hidden">
       {doku.coverImageUrl ? (
@@ -102,9 +102,9 @@ const AudioDokuCard: React.FC<{
       <div className="absolute inset-0 flex items-center justify-center">
         <motion.div
           whileHover={{ scale: 1.15 }}
-          className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-opacity"
+          className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-xl flex items-center justify-center shadow-xl border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity"
         >
-          <Play className="w-5 h-5 text-[#A989F2] ml-0.5" />
+          <Play className="w-5 h-5 text-white ml-0.5" />
         </motion.div>
       </div>
 
@@ -148,7 +148,7 @@ const AudioModal: React.FC<{
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl border border-white/40 dark:border-white/10 shadow-2xl overflow-hidden"
+        className="w-full max-w-lg bg-[#13102B]/95 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
       >
         {/* Cover */}
         <div className="relative h-48 overflow-hidden">
@@ -175,7 +175,7 @@ const AudioModal: React.FC<{
           <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{doku.description}</p>
 
           {audioError && (
-            <div className="text-sm text-red-500 mb-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/20">{audioError}</div>
+            <div className="text-sm text-red-400 mb-3 p-3 rounded-xl bg-red-500/10">{audioError}</div>
           )}
 
           <div className="rounded-2xl bg-muted/30 p-4">
@@ -206,7 +206,7 @@ const AudioModal: React.FC<{
 const SectionLoading: React.FC = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
     {[1, 2, 3].map((i) => (
-      <div key={i} className="rounded-2xl overflow-hidden bg-white/50 dark:bg-slate-800/50 border border-white/30">
+      <div key={i} className="rounded-2xl overflow-hidden bg-white/[0.05] border border-white/[0.06]">
         <div className="h-40 bg-muted animate-pulse" />
         <div className="p-4 space-y-2">
           <div className="w-3/4 h-4 rounded bg-muted animate-pulse" />
@@ -424,7 +424,7 @@ const TaleaDokusScreen: React.FC = () => {
                 />
 
                 {loadingMy ? <SectionLoading /> : myDokus.length === 0 ? (
-                  <div className="text-center py-12 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/30">
+                  <div className="text-center py-12 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/[0.08]">
                     <div className="text-4xl mb-3">🔬</div>
                     <p className="text-sm text-muted-foreground">{t('doku.noDokus', 'Noch keine Artikel')}</p>
                   </div>
@@ -449,7 +449,7 @@ const TaleaDokusScreen: React.FC = () => {
                 />
 
                 {loadingPublic ? <SectionLoading /> : publicDokus.length === 0 ? (
-                  <div className="text-center py-12 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/30">
+                  <div className="text-center py-12 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/[0.08]">
                     <div className="text-4xl mb-3">🌍</div>
                     <p className="text-sm text-muted-foreground">{t('doku.noPublicDokus', 'Keine öffentlichen Artikel')}</p>
                   </div>
@@ -476,7 +476,7 @@ const TaleaDokusScreen: React.FC = () => {
                 />
 
                 {loadingAudio ? <SectionLoading /> : audioDokus.length === 0 ? (
-                  <div className="text-center py-12 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/30">
+                  <div className="text-center py-12 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/[0.08]">
                     <div className="text-4xl mb-3">🎧</div>
                     <p className="text-sm text-muted-foreground">{t('doku.noAudioDokus', 'Noch keine Audio-Artikel')}</p>
                   </div>

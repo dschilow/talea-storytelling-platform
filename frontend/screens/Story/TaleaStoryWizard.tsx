@@ -1,9 +1,9 @@
-// Talea Story Wizard - Immersive, Professional, Child-Friendly
-// Redesigned with smooth animations, gradient accents, and clear visual hierarchy
+// Talea Story Wizard - Magical, Immersive, Professional
+// Full-screen enchanted experience with particles, aurora background, and premium glass UI
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Sparkles, CheckCircle, Wand2, BookOpen, Users, Brain, FileText, Image, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, CheckCircle, Wand2, BookOpen, Users, Brain, FileText, Image, Loader2, Check, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
 
-// Import Steps (reuse existing step components)
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
 import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
@@ -47,29 +46,184 @@ const GENERATION_STEPS: { key: GenerationStep; icon: React.ElementType; label: s
   { key: 'complete', icon: Sparkles, label: 'Fertig', description: 'Speichere und aktualisiere Avatare', duration: '~3s' },
 ];
 
-// =====================================================
-// GENERATION PROGRESS - Immersive fullscreen view
-// =====================================================
+/* ═══════════════════════════════════════════════════════
+   FLOATING PARTICLES - Magical star field
+   ═══════════════════════════════════════════════════════ */
+const FloatingParticles: React.FC = () => {
+  const particles = useMemo(() =>
+    Array.from({ length: 35 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 2,
+      duration: Math.random() * 12 + 8,
+      delay: Math.random() * 6,
+      opacity: Math.random() * 0.5 + 0.1,
+      emoji: ['✦', '✧', '⋆', '✵', '·'][Math.floor(Math.random() * 5)],
+    })),
+  []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute text-white/30 select-none"
+          style={{ left: `${p.x}%`, top: `${p.y}%`, fontSize: `${p.size * 3}px` }}
+          animate={{
+            y: [0, -40, 0],
+            x: [0, Math.sin(p.id) * 15, 0],
+            opacity: [p.opacity * 0.5, p.opacity, p.opacity * 0.5],
+            scale: [0.8, 1.2, 0.8],
+          }}
+          transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          {p.emoji}
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════
+   AURORA BACKGROUND - Animated gradient backdrop
+   ═══════════════════════════════════════════════════════ */
+const AuroraBackground: React.FC = () => (
+  <div className="fixed inset-0 pointer-events-none z-0">
+    {/* Deep base gradient */}
+    <div className="absolute inset-0 bg-gradient-to-br from-[#0F0A1A] via-[#1A1033] to-[#0D1B2A]" />
+
+    {/* Aurora streaks */}
+    <motion.div
+      className="absolute top-0 left-0 right-0 h-[70vh] opacity-40"
+      style={{
+        background: 'linear-gradient(135deg, rgba(169,137,242,0.3) 0%, rgba(255,107,157,0.2) 30%, rgba(45,212,191,0.15) 60%, transparent 100%)',
+        filter: 'blur(60px)',
+      }}
+      animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.05, 1] }}
+      transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <motion.div
+      className="absolute bottom-0 right-0 w-[70vw] h-[50vh] opacity-30"
+      style={{
+        background: 'radial-gradient(ellipse at bottom right, rgba(255,155,92,0.25) 0%, rgba(169,137,242,0.15) 40%, transparent 70%)',
+        filter: 'blur(50px)',
+      }}
+      animate={{ opacity: [0.2, 0.4, 0.2] }}
+      transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+    />
+
+    {/* Animated orbs */}
+    <motion.div
+      className="absolute top-[20%] left-[15%] w-40 h-40 rounded-full"
+      style={{ background: 'radial-gradient(circle, rgba(169,137,242,0.4), transparent 70%)', filter: 'blur(30px)' }}
+      animate={{ x: [0, 50, 0], y: [0, -30, 0], scale: [1, 1.3, 1] }}
+      transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <motion.div
+      className="absolute bottom-[25%] right-[20%] w-32 h-32 rounded-full"
+      style={{ background: 'radial-gradient(circle, rgba(255,107,157,0.35), transparent 70%)', filter: 'blur(25px)' }}
+      animate={{ x: [0, -40, 0], y: [0, 20, 0], scale: [1, 1.2, 1] }}
+      transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <motion.div
+      className="absolute top-[50%] left-[50%] w-28 h-28 rounded-full"
+      style={{ background: 'radial-gradient(circle, rgba(45,212,191,0.3), transparent 70%)', filter: 'blur(25px)' }}
+      animate={{ x: [-20, 30, -20], y: [-10, 20, -10] }}
+      transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+    />
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════
+   STEP INDICATOR - Enchanted journey progress
+   ═══════════════════════════════════════════════════════ */
+const STEP_ICONS = ['🧸', '📚', '🎯', '🎭', '✨', '🚀'];
+const STEP_COLORS = ['#A989F2', '#FF6B9D', '#FF9B5C', '#2DD4BF', '#A989F2', '#34D399'];
+
+const StepIndicator: React.FC<{ activeStep: number; totalSteps: number; labels: string[] }> = ({ activeStep, totalSteps, labels }) => (
+  <div className="flex items-center justify-center gap-1 sm:gap-2 mb-8 px-4">
+    {Array.from({ length: totalSteps }).map((_, i) => (
+      <React.Fragment key={i}>
+        <motion.button
+          className="relative group"
+          whileHover={{ scale: 1.15 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {/* Glow behind active step */}
+          {i === activeStep && (
+            <motion.div
+              className="absolute inset-0 rounded-2xl"
+              style={{ background: STEP_COLORS[i], filter: 'blur(12px)', opacity: 0.5 }}
+              animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.3, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+          )}
+
+          <motion.div
+            animate={{ scale: i === activeStep ? 1 : 0.9 }}
+            className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+              i < activeStep
+                ? 'bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
+                : i === activeStep
+                ? 'text-white shadow-xl'
+                : 'bg-white/10 text-white/40 border border-white/10'
+            }`}
+            style={i === activeStep ? {
+              background: `linear-gradient(135deg, ${STEP_COLORS[i]}, ${STEP_COLORS[(i + 1) % 6]})`,
+              boxShadow: `0 8px 32px ${STEP_COLORS[i]}40`,
+            } : undefined}
+          >
+            {i < activeStep ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <span className="text-base sm:text-lg">{STEP_ICONS[i]}</span>
+            )}
+          </motion.div>
+
+          {/* Label below on hover */}
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white/50 font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            {labels[i]}
+          </div>
+        </motion.button>
+
+        {/* Connector line */}
+        {i < totalSteps - 1 && (
+          <div className="relative w-6 sm:w-10 h-1 mx-0.5">
+            <div className="absolute inset-0 rounded-full bg-white/10" />
+            {i < activeStep && (
+              <motion.div
+                className="absolute inset-0 rounded-full bg-emerald-400/80"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.4 }}
+                style={{ transformOrigin: 'left' }}
+              />
+            )}
+            {i === activeStep && (
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                style={{ background: `linear-gradient(90deg, ${STEP_COLORS[i]}, transparent)`, transformOrigin: 'left' }}
+                animate={{ scaleX: [0, 0.5, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            )}
+          </div>
+        )}
+      </React.Fragment>
+    ))}
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════
+   GENERATION PROGRESS - Immersive fullscreen magic
+   ═══════════════════════════════════════════════════════ */
 const GenerationProgress: React.FC<{ currentStep: GenerationStep }> = ({ currentStep }) => {
   const currentIndex = GENERATION_STEPS.findIndex(s => s.key === currentStep);
 
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center relative">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full opacity-20"
-          style={{ background: 'radial-gradient(circle, rgba(169,137,242,0.5), transparent)' }}
-          animate={{ scale: [1, 1.3, 1], x: [0, 30, 0], y: [0, -20, 0] }}
-          transition={{ duration: 6, repeat: Infinity }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full opacity-20"
-          style={{ background: 'radial-gradient(circle, rgba(255,107,157,0.5), transparent)' }}
-          animate={{ scale: [1, 1.2, 1], x: [0, -20, 0], y: [0, 15, 0] }}
-          transition={{ duration: 8, repeat: Infinity }}
-        />
-      </div>
+    <div className="min-h-[80vh] flex flex-col items-center justify-center relative">
+      <FloatingParticles />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -80,26 +234,24 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep }> = ({ current
         <motion.div
           animate={{ rotate: [0, 360] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-          className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center shadow-2xl"
+          className="w-24 h-24 mx-auto mb-8 rounded-3xl flex items-center justify-center shadow-2xl relative"
           style={{ background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 100%)' }}
         >
-          <Wand2 className="w-10 h-10 text-white" />
+          <Wand2 className="w-12 h-12 text-white" />
+          {/* Glow */}
+          <div className="absolute inset-0 rounded-3xl" style={{ background: 'linear-gradient(135deg, #A989F2, #FF6B9D)', filter: 'blur(20px)', opacity: 0.5 }} />
         </motion.div>
 
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+        <h2 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
           Deine Geschichte entsteht...
         </h2>
-        <p className="text-sm text-muted-foreground mb-10">
-          Geschätzte Dauer: 75-90 Sekunden
-        </p>
+        <p className="text-sm text-white/50 mb-10">Geschätzte Dauer: 75-90 Sekunden</p>
 
-        {/* Step list */}
         <div className="space-y-3 text-left">
           {GENERATION_STEPS.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === currentIndex;
             const isComplete = index < currentIndex;
-            const isPending = index > currentIndex;
 
             return (
               <motion.div
@@ -107,40 +259,28 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep }> = ({ current
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 ${
+                className={`flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 ${
                   isActive
-                    ? 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border border-[#A989F2]/30 shadow-lg shadow-[#A989F2]/10'
+                    ? 'bg-white/15 backdrop-blur-xl border border-white/20 shadow-lg shadow-[#A989F2]/10'
                     : isComplete
-                    ? 'bg-white/40 dark:bg-slate-800/40'
-                    : 'opacity-40'
+                    ? 'bg-white/5'
+                    : 'opacity-30'
                 }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  isComplete
-                    ? 'bg-emerald-500 text-white'
-                    : isActive
-                    ? 'bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] text-white'
-                    : 'bg-muted text-muted-foreground'
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  isComplete ? 'bg-emerald-500 text-white' :
+                  isActive ? 'bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] text-white shadow-lg' :
+                  'bg-white/10 text-white/40'
                 }`}>
-                  {isComplete ? (
-                    <Check className="w-5 h-5" />
-                  ) : isActive ? (
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}>
-                      <Loader2 className="w-5 h-5" />
-                    </motion.div>
-                  ) : (
-                    <Icon className="w-5 h-5" />
-                  )}
+                  {isComplete ? <Check className="w-5 h-5" /> :
+                   isActive ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}><Loader2 className="w-5 h-5" /></motion.div> :
+                   <Icon className="w-5 h-5" />}
                 </div>
-
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${isActive ? 'text-foreground' : isComplete ? 'text-foreground/70' : 'text-muted-foreground'}`}>
-                    {step.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                  <p className={`text-sm font-semibold ${isActive ? 'text-white' : isComplete ? 'text-white/60' : 'text-white/30'}`}>{step.label}</p>
+                  <p className="text-xs text-white/40 truncate">{step.description}</p>
                 </div>
-
-                <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
+                <span className="text-[10px] text-white/30 flex-shrink-0">
                   {isComplete ? '✓' : isActive ? '...' : step.duration}
                 </span>
               </motion.div>
@@ -149,7 +289,7 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep }> = ({ current
         </div>
 
         {/* Progress bar */}
-        <div className="mt-8 w-full h-2 rounded-full bg-muted overflow-hidden">
+        <div className="mt-8 w-full h-2 rounded-full bg-white/10 overflow-hidden">
           <motion.div
             className="h-full rounded-full"
             style={{ background: 'linear-gradient(90deg, #A989F2, #FF6B9D, #FF9B5C)' }}
@@ -162,50 +302,9 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep }> = ({ current
   );
 };
 
-// =====================================================
-// STEP INDICATOR - Minimal, elegant progress dots
-// =====================================================
-const StepIndicator: React.FC<{ activeStep: number; totalSteps: number; labels: string[] }> = ({ activeStep, totalSteps, labels }) => (
-  <div className="flex items-center justify-center gap-2 mb-8">
-    {Array.from({ length: totalSteps }).map((_, i) => (
-      <React.Fragment key={i}>
-        <motion.button
-          className="relative group"
-          whileHover={{ scale: 1.1 }}
-        >
-          <motion.div
-            animate={{
-              width: i === activeStep ? 40 : i < activeStep ? 32 : 32,
-              height: 32,
-            }}
-            className={`rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-              i < activeStep
-                ? 'bg-emerald-500 text-white'
-                : i === activeStep
-                ? 'bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] text-white shadow-lg shadow-[#A989F2]/25'
-                : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            {i < activeStep ? <Check className="w-4 h-4" /> : i + 1}
-          </motion.div>
-
-          {/* Tooltip label */}
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-muted-foreground font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-            {labels[i]}
-          </div>
-        </motion.button>
-
-        {i < totalSteps - 1 && (
-          <div className={`w-6 h-0.5 rounded-full transition-colors ${i < activeStep ? 'bg-emerald-500' : 'bg-muted'}`} />
-        )}
-      </React.Fragment>
-    ))}
-  </div>
-);
-
-// =====================================================
-// MAIN WIZARD
-// =====================================================
+/* ═══════════════════════════════════════════════════════
+   MAIN WIZARD
+   ═══════════════════════════════════════════════════════ */
 export default function TaleaStoryWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
@@ -213,12 +312,8 @@ export default function TaleaStoryWizard() {
   const { t, i18n } = useTranslation();
 
   const STEPS = [
-    t('wizard.steps.avatars'),
-    t('wizard.steps.category'),
-    t('wizard.steps.ageLength'),
-    t('wizard.steps.feeling'),
-    t('wizard.steps.wishes'),
-    t('wizard.steps.summary'),
+    t('wizard.steps.avatars'), t('wizard.steps.category'), t('wizard.steps.ageLength'),
+    t('wizard.steps.feeling'), t('wizard.steps.wishes'), t('wizard.steps.summary'),
   ];
 
   const [activeStep, setActiveStep] = useState(0);
@@ -229,38 +324,18 @@ export default function TaleaStoryWizard() {
   const [showLootModal, setShowLootModal] = useState(false);
   const [pendingStoryId, setPendingStoryId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (i18n.language) setUserLanguage(i18n.language);
-  }, [i18n.language]);
+  useEffect(() => { if (i18n.language) setUserLanguage(i18n.language); }, [i18n.language]);
 
   const [state, setState] = useState<WizardState>({
-    selectedAvatars: [],
-    mainCategory: null,
-    subCategory: null,
-    ageGroup: null,
-    length: null,
-    feelings: [],
-    rhymes: false,
-    moral: false,
-    avatarIsHero: true,
-    famousCharacters: false,
-    happyEnd: true,
-    surpriseEnd: false,
-    customWish: '',
+    selectedAvatars: [], mainCategory: null, subCategory: null, ageGroup: null,
+    length: null, feelings: [], rhymes: false, moral: false, avatarIsHero: true,
+    famousCharacters: false, happyEnd: true, surpriseEnd: false, customWish: '',
     aiModel: 'gemini-3-flash-preview',
   });
 
-  const updateState = (updates: Partial<WizardState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  };
-
-  const handleNext = () => {
-    if (activeStep < STEPS.length - 1) setActiveStep(prev => prev + 1);
-  };
-
-  const handleBack = () => {
-    if (activeStep > 0) setActiveStep(prev => prev - 1);
-  };
+  const updateState = (updates: Partial<WizardState>) => setState(prev => ({ ...prev, ...updates }));
+  const handleNext = () => { if (activeStep < STEPS.length - 1) setActiveStep(prev => prev + 1); };
+  const handleBack = () => { if (activeStep > 0) setActiveStep(prev => prev - 1); };
 
   const canProceed = () => {
     switch (activeStep) {
@@ -275,47 +350,32 @@ export default function TaleaStoryWizard() {
   };
 
   const handleGenerate = async () => {
-    if (!userId) {
-      alert(t('story.wizard.alerts.loginRequired'));
-      return;
-    }
-
+    if (!userId) { alert(t('story.wizard.alerts.loginRequired')); return; }
     try {
       setGenerating(true);
       setGenerationStep('profiles');
       await new Promise(r => setTimeout(r, 1200));
-
       setGenerationStep('memories');
       await new Promise(r => setTimeout(r, 1200));
-
       setGenerationStep('text');
       const storyConfig = mapWizardStateToAPI(state, userLanguage);
       const story = await backend.story.generate({ userId, config: storyConfig });
-
       setGenerationStep('validation');
       await new Promise(r => setTimeout(r, 900));
-
       setGenerationStep('images');
       await new Promise(r => setTimeout(r, 1200));
-
       setGenerationStep('complete');
       await new Promise(r => setTimeout(r, 800));
 
       const storyData = story as any;
       const newArtifact = storyData.newArtifact || storyData.metadata?.newArtifact;
-
       if (newArtifact) {
         const lootItem: InventoryItem = {
-          id: crypto.randomUUID(),
-          name: newArtifact.name,
-          type: newArtifact.type || 'TOOL',
-          level: 1,
-          sourceStoryId: story.id,
-          description: newArtifact.description,
+          id: crypto.randomUUID(), name: newArtifact.name, type: newArtifact.type || 'TOOL',
+          level: 1, sourceStoryId: story.id, description: newArtifact.description,
           visualPrompt: newArtifact.visualDescriptorKeywords?.join(', ') || '',
           tags: newArtifact.visualDescriptorKeywords || [],
-          acquiredAt: new Date().toISOString(),
-          imageUrl: newArtifact.imageUrl,
+          acquiredAt: new Date().toISOString(), imageUrl: newArtifact.imageUrl,
           storyEffect: newArtifact.storyEffect,
         };
         setLootArtifact(lootItem);
@@ -342,10 +402,7 @@ export default function TaleaStoryWizard() {
   const handleLootModalClose = () => {
     setShowLootModal(false);
     setLootArtifact(null);
-    if (pendingStoryId) {
-      navigate(`/story-reader/${pendingStoryId}`);
-      setPendingStoryId(null);
-    }
+    if (pendingStoryId) { navigate(`/story-reader/${pendingStoryId}`); setPendingStoryId(null); }
   };
 
   const renderStep = () => {
@@ -360,40 +417,50 @@ export default function TaleaStoryWizard() {
     }
   };
 
-  // Generating view
   if (generating) {
     return (
-      <div className="relative">
+      <div className="relative min-h-screen">
+        <AuroraBackground />
+        <FloatingParticles />
         <GenerationProgress currentStep={generationStep} />
       </div>
     );
   }
 
   return (
-    <div className="relative pb-8">
-      {/* Background accents */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-32 -right-32 w-[400px] h-[400px] rounded-full opacity-15" style={{ background: 'radial-gradient(circle, rgba(169,137,242,0.4), transparent)' }} />
-        <div className="absolute -bottom-32 -left-32 w-[300px] h-[300px] rounded-full opacity-15" style={{ background: 'radial-gradient(circle, rgba(255,107,157,0.3), transparent)' }} />
-      </div>
+    <div className="relative min-h-screen pb-8">
+      {/* Magical background */}
+      <AuroraBackground />
+      <FloatingParticles />
 
       <div className="relative z-10">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-6 pt-2"
+          transition={{ duration: 0.6 }}
+          className="text-center mb-6 pt-6"
         >
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] flex items-center justify-center shadow-lg shadow-[#A989F2]/20">
-              <Wand2 className="w-5 h-5 text-white" />
+          <motion.div
+            className="inline-flex items-center gap-3 mb-3"
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl relative"
+              style={{ background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 100%)' }}
+            >
+              <Wand2 className="w-6 h-6 text-white" />
+              <div className="absolute inset-0 rounded-2xl" style={{ background: 'linear-gradient(135deg, #A989F2, #FF6B9D)', filter: 'blur(15px)', opacity: 0.4 }} />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+            <h1
+              className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-[#A989F2] via-[#FF6B9D] to-[#FF9B5C] bg-clip-text text-transparent"
+              style={{ fontFamily: '"Fredoka", sans-serif' }}
+            >
               {t('story.wizard.title')}
             </h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
+          </motion.div>
+          <p className="text-sm text-white/50 font-medium">
             {t('story.wizard.stepCounter', { current: activeStep + 1, total: STEPS.length })}
           </p>
         </motion.div>
@@ -401,39 +468,61 @@ export default function TaleaStoryWizard() {
         {/* Step indicator */}
         <StepIndicator activeStep={activeStep} totalSteps={STEPS.length} labels={STEPS} />
 
-        {/* Step content with animation */}
+        {/* Glass content container with gradient border */}
         <motion.div
-          className="rounded-3xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-xl p-6 md:p-8 min-h-[400px]"
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {renderStep()}
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Navigation */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex justify-between items-center mt-6"
+          className="relative mx-auto max-w-4xl"
+        >
+          {/* Animated gradient border */}
+          <div className="absolute -inset-[1px] rounded-[28px] overflow-hidden">
+            <motion.div
+              className="absolute inset-0"
+              style={{
+                background: 'conic-gradient(from 0deg, #A989F2, #FF6B9D, #FF9B5C, #2DD4BF, #A989F2)',
+                opacity: 0.4,
+              }}
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+            />
+          </div>
+
+          {/* Inner glass container */}
+          <div className="relative rounded-[27px] bg-[#13102B]/80 backdrop-blur-2xl p-6 md:p-8 min-h-[420px] shadow-2xl">
+            {/* Subtle inner glow */}
+            <div className="absolute top-0 left-0 right-0 h-40 rounded-t-[27px] bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeStep}
+                initial={{ opacity: 0, x: 30, filter: 'blur(8px)' }}
+                animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, x: -30, filter: 'blur(8px)' }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {renderStep()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </motion.div>
+
+        {/* Navigation buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-between items-center mt-6 mx-auto max-w-4xl px-1"
         >
           <motion.button
-            whileHover={{ x: -2 }}
+            whileHover={{ x: -3, scale: 1.02 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleBack}
             disabled={activeStep === 0}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold transition-all ${
+            className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-semibold transition-all ${
               activeStep === 0
-                ? 'text-muted-foreground/40 cursor-not-allowed'
-                : 'text-foreground bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg border border-white/40 dark:border-white/10 hover:bg-white/80 shadow-sm'
+                ? 'text-white/20 cursor-not-allowed'
+                : 'text-white bg-white/10 backdrop-blur-xl border border-white/10 hover:bg-white/15 hover:border-white/20 shadow-lg'
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -442,52 +531,35 @@ export default function TaleaStoryWizard() {
 
           {activeStep < STEPS.length - 1 ? (
             <motion.button
-              whileHover={{ x: 2, scale: 1.02 }}
+              whileHover={{ x: 3, scale: 1.04, boxShadow: `0 12px 40px ${STEP_COLORS[activeStep]}50` }}
               whileTap={{ scale: 0.95 }}
               onClick={handleNext}
               disabled={!canProceed()}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
-                !canProceed()
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'text-white shadow-lg shadow-[#A989F2]/25 hover:shadow-xl hover:shadow-[#A989F2]/35'
+              className={`flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold text-lg transition-all ${
+                !canProceed() ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'text-white shadow-xl'
               }`}
-              style={canProceed() ? { background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 100%)' } : undefined}
+              style={canProceed() ? {
+                background: `linear-gradient(135deg, ${STEP_COLORS[activeStep]}, ${STEP_COLORS[(activeStep + 1) % 6]})`,
+                boxShadow: `0 8px 30px ${STEP_COLORS[activeStep]}40`,
+              } : undefined}
             >
               {t('wizard.buttons.next')}
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-5 h-5" />
             </motion.button>
-          ) : (
-            <motion.button
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleGenerate}
-              className="flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-white shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:shadow-emerald-500/35 transition-shadow"
-              style={{ background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)' }}
-            >
-              <Sparkles className="w-5 h-5" />
-              {t('wizard.buttons.generate')}
-            </motion.button>
-          )}
+          ) : null}
         </motion.div>
       </div>
 
-      <LevelUpModal
-        isOpen={showLootModal}
-        onClose={handleLootModalClose}
-        item={lootArtifact || undefined}
-        type="new_item"
-      />
+      <LevelUpModal isOpen={showLootModal} onClose={handleLootModalClose} item={lootArtifact || undefined} type="new_item" />
     </div>
   );
 }
 
-// Helper: Map wizard state to API format (unchanged logic)
 function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   const genreMap: Record<string, string> = {
     'fairy-tales': 'fairy_tales', 'adventure': 'adventure', 'magic': 'magic',
     'animals': 'animals', 'scifi': 'scifi', 'modern': 'modern',
   };
-
   let tone: 'warm' | 'witty' | 'epic' | 'soothing' | 'mischievous' | 'wonder' = 'warm';
   if (state.feelings.includes('funny')) tone = 'witty';
   else if (state.feelings.includes('exciting')) tone = 'epic';
@@ -495,27 +567,20 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   else if (state.feelings.includes('crazy')) tone = 'mischievous';
   else if (state.feelings.includes('meaningful')) tone = 'soothing';
   else if (state.mainCategory === 'magic') tone = 'wonder';
-
   const genre = state.mainCategory ? genreMap[state.mainCategory] || 'adventure' : 'adventure';
-
   return {
     avatarIds: state.selectedAvatars,
     ageGroup: (state.ageGroup || '6-8') as '3-5' | '6-8' | '9-12' | '13+',
-    genre,
-    length: (state.length || 'medium') as 'short' | 'medium' | 'long',
+    genre, length: (state.length || 'medium') as 'short' | 'medium' | 'long',
     complexity: 'medium' as 'simple' | 'medium' | 'complex',
     setting: state.mainCategory === 'fairy-tales' ? 'fantasy' : 'varied',
     suspenseLevel: state.feelings.includes('exciting') ? 2 : 1,
     humorLevel: state.feelings.includes('funny') ? 2 : 1,
-    tone,
-    pacing: (state.feelings.includes('exciting') ? 'fast' : 'balanced') as 'fast' | 'balanced' | 'slow',
-    allowRhymes: state.rhymes,
-    hasTwist: state.surpriseEnd,
+    tone, pacing: (state.feelings.includes('exciting') ? 'fast' : 'balanced') as 'fast' | 'balanced' | 'slow',
+    allowRhymes: state.rhymes, hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',
     aiModel: state.aiModel,
-    preferences: {
-      useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
-    },
+    preferences: { useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic' },
   } as any;
 }

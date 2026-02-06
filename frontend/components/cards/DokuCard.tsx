@@ -54,7 +54,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
       whileHover={{ y: -6 }}
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="cursor-pointer group overflow-hidden rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-md hover:shadow-xl transition-shadow"
+      className="cursor-pointer group overflow-hidden rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-md hover:shadow-xl transition-shadow"
     >
       {/* Image */}
       <div className="relative h-[200px] overflow-hidden bg-gradient-to-br from-[#FF9B5C]/20 to-[#FF6B9D]/20">
@@ -75,7 +75,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
 
         {/* Status badge */}
         {doku.status === 'generating' && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-amber-300/50 text-amber-600 text-[11px] font-bold">
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 text-amber-300 text-[11px] font-bold">
             <Loader2 size={12} className="animate-spin" />
             Wird erstellt...
           </div>
@@ -131,28 +131,28 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="text-base font-bold text-slate-800 dark:text-white line-clamp-1 group-hover:text-[#FF9B5C] transition-colors" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+        <h3 className="text-base font-bold text-white line-clamp-1 group-hover:text-[#FF9B5C] transition-colors" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           {doku.title}
         </h3>
 
-        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+        <p className="text-sm text-white/60 line-clamp-1 mt-0.5">
           {doku.topic}
         </p>
 
         {/* Badge */}
-        <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
+        <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/20 text-emerald-400 text-[11px] font-semibold">
           <Lightbulb size={12} />
           Lehrreich & Spannend
         </div>
 
         {/* Meta */}
         <div className="flex items-center gap-4 mt-3">
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+          <div className="flex items-center gap-1.5 text-[11px] text-white/40">
             <Clock size={12} />
             {new Date(doku.createdAt).toLocaleDateString('de-DE')}
           </div>
           {(doku as any).pages && (
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+            <div className="flex items-center gap-1.5 text-[11px] text-white/40">
               <FlaskConical size={12} />
               {(doku as any).pages.length} Seiten
             </div>

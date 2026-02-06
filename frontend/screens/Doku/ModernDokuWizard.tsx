@@ -76,8 +76,8 @@ const SelectionCard: React.FC<{
     onClick={onClick}
     className={`flex flex-col items-center gap-2 ${compact ? 'p-3' : 'p-4'} rounded-2xl border-2 transition-all text-center ${
       selected
-        ? 'border-[#FF9B5C] bg-[#FF9B5C]/5 shadow-lg shadow-[#FF9B5C]/10'
-        : 'border-white/50 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md'
+        ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
+        : 'border-white/[0.08] bg-white/[0.06] backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-white/[0.10]'
     }`}
   >
     <span className={compact ? 'text-xl' : 'text-2xl'}>{emoji}</span>
@@ -133,7 +133,7 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
           value={state.topic}
           onChange={(e) => updateState({ topic: e.target.value })}
           placeholder="z.B. Dinosaurier, Vulkane, Weltraum..."
-          className="w-full px-6 py-4 text-lg rounded-2xl border-2 border-white/50 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
+          className="w-full px-6 py-4 text-lg rounded-2xl border-2 border-white/[0.08] bg-white/[0.06] backdrop-blur-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
           style={{ fontFamily: '"Nunito", sans-serif' }}
           autoFocus
         />
@@ -161,8 +161,8 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
               onClick={() => updateState({ topic: s.topic })}
               className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
                 state.topic === s.topic
-                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/5 shadow-lg shadow-[#FF9B5C]/10'
-                  : 'border-white/50 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md'
+                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
+                  : 'border-white/[0.08] bg-white/[0.06] backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-white/[0.10]'
               }`}
             >
               <span className="text-xl flex-shrink-0">{s.emoji}</span>
@@ -331,7 +331,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
       </div>
 
       {/* Interactive Toggle */}
-      <div className="rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg border border-white/50 dark:border-white/10 p-6 shadow-sm">
+      <div className="rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
@@ -363,7 +363,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/30 dark:border-white/10">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.08]">
                 {/* Quiz Questions */}
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
@@ -373,7 +373,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       -
                     </motion.button>
@@ -383,7 +383,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       +
                     </motion.button>
@@ -399,7 +399,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       -
                     </motion.button>
@@ -409,7 +409,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-700/80 border border-white/50 dark:border-white/10 font-bold text-lg text-foreground hover:bg-white transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       +
                     </motion.button>
@@ -454,7 +454,7 @@ function Step5Summary({ state, onGenerate }: { state: DokuWizardState; onGenerat
         <p className="text-sm text-muted-foreground">Überprüfe deine Einstellungen</p>
       </div>
 
-      <div className="rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-lg p-6">
+      <div className="rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-lg p-6">
         <div className="space-y-3">
           {items.map((item, i) => (
             <motion.div
@@ -462,7 +462,7 @@ function Step5Summary({ state, onGenerate }: { state: DokuWizardState; onGenerat
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="flex items-center gap-3 py-2.5 border-b border-white/20 dark:border-white/5 last:border-0"
+              className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0"
             >
               <span className="text-xl flex-shrink-0">{item.icon}</span>
               <span className="text-sm font-medium text-muted-foreground w-28 flex-shrink-0">{item.label}</span>
@@ -574,9 +574,9 @@ const GenerationProgress: React.FC<{ phase: string }> = ({ phase }) => {
                 transition={{ delay: idx * 0.1 }}
                 className={`flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 ${
                   isActive
-                    ? 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border border-[#FF9B5C]/30 shadow-lg shadow-[#FF9B5C]/10'
+                    ? 'bg-white/[0.08] backdrop-blur-lg border border-[#FF9B5C]/30 shadow-lg shadow-[#FF9B5C]/10'
                     : isComplete
-                    ? 'bg-white/40 dark:bg-slate-800/40'
+                    ? 'bg-white/[0.04]'
                     : 'opacity-40'
                 }`}
               >
@@ -787,7 +787,7 @@ export default function ModernDokuWizard() {
         <StepIndicator activeStep={activeStep} />
 
         {/* Step content with glass container */}
-        <motion.div className="rounded-3xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-xl p-6 md:p-8 min-h-[400px]">
+        <motion.div className="rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-xl p-6 md:p-8 min-h-[400px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeStep}
@@ -812,7 +812,7 @@ export default function ModernDokuWizard() {
             whileHover={{ x: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={activeStep === 0 ? () => navigate('/doku') : handleBack}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-foreground bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg border border-white/40 dark:border-white/10 hover:bg-white/80 shadow-sm transition-all"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-foreground bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] hover:bg-white/[0.12] shadow-sm transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
             Zurück

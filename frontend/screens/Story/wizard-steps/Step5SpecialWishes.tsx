@@ -1,13 +1,9 @@
-// Step 5: Special Wishes (Optional)
-// Additional story preferences
+// Step 5: Special Wishes — Dark magical theme with toggle glow cards
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Music, BookHeart, Star, Shuffle, Smile, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } } as const;
-const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, damping: 20 } } };
 
 interface Props {
   state: {
@@ -26,74 +22,30 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
   const { t } = useTranslation();
 
   const WISHES = [
-    {
-      id: 'rhymes',
-      title: `🎵 ${t('wizard.wishes.rhymes.title')}`,
-      description: t('wizard.wishes.rhymes.description'),
-      icon: Music,
-      color: 'pink'
-    },
-    {
-      id: 'moral',
-      title: `📖 ${t('wizard.wishes.moral.title')}`,
-      description: t('wizard.wishes.moral.description'),
-      icon: BookHeart,
-      color: 'blue'
-    },
-    {
-      id: 'avatarIsHero',
-      title: `⭐ ${t('wizard.wishes.avatarIsHero.title')}`,
-      description: t('wizard.wishes.avatarIsHero.description'),
-      icon: Star,
-      color: 'yellow',
-      defaultActive: true
-    },
-    {
-      id: 'famousCharacters',
-      title: `👑 ${t('wizard.wishes.famousCharacters.title')}`,
-      description: t('wizard.wishes.famousCharacters.description'),
-      icon: Shuffle,
-      color: 'purple'
-    },
-    {
-      id: 'happyEnd',
-      title: `😊 ${t('wizard.wishes.happyEnd.title')}`,
-      description: t('wizard.wishes.happyEnd.description'),
-      icon: Smile,
-      color: 'green',
-      defaultActive: true
-    },
-    {
-      id: 'surpriseEnd',
-      title: `❗ ${t('wizard.wishes.surpriseEnd.title')}`,
-      description: t('wizard.wishes.surpriseEnd.description'),
-      icon: AlertCircle,
-      color: 'orange'
-    }
+    { id: 'rhymes', title: `🎵 ${t('wizard.wishes.rhymes.title')}`, description: t('wizard.wishes.rhymes.description'), icon: Music, color: '#FF6B9D', glow: 'rgba(255,107,157,0.3)' },
+    { id: 'moral', title: `📖 ${t('wizard.wishes.moral.title')}`, description: t('wizard.wishes.moral.description'), icon: BookHeart, color: '#60A5FA', glow: 'rgba(96,165,250,0.3)' },
+    { id: 'avatarIsHero', title: `⭐ ${t('wizard.wishes.avatarIsHero.title')}`, description: t('wizard.wishes.avatarIsHero.description'), icon: Star, color: '#FBBF24', glow: 'rgba(251,191,36,0.3)' },
+    { id: 'famousCharacters', title: `👑 ${t('wizard.wishes.famousCharacters.title')}`, description: t('wizard.wishes.famousCharacters.description'), icon: Shuffle, color: '#A989F2', glow: 'rgba(169,137,242,0.3)' },
+    { id: 'happyEnd', title: `😊 ${t('wizard.wishes.happyEnd.title')}`, description: t('wizard.wishes.happyEnd.description'), icon: Smile, color: '#34D399', glow: 'rgba(52,211,153,0.3)' },
+    { id: 'surpriseEnd', title: `❗ ${t('wizard.wishes.surpriseEnd.title')}`, description: t('wizard.wishes.surpriseEnd.description'), icon: AlertCircle, color: '#FF9B5C', glow: 'rgba(255,155,92,0.3)' },
   ];
 
   const handleToggleWish = (wishId: string) => {
     updateState({ [wishId]: !state[wishId as keyof typeof state] });
   };
 
-  const handleCustomWishChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateState({ customWish: e.target.value });
-  };
-
   return (
-    <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
-      {/* Title & Description */}
-      <motion.div className="text-center" variants={fadeUp}>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2" style={{ fontFamily: 'Fredoka, sans-serif' }}>
+    <div className="space-y-6">
+      {/* Title */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+        <h2 className="text-2xl font-extrabold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
           ✨ {t('wizard.titles.wishes')}
         </h2>
-        <p className="text-gray-600 dark:text-gray-300">
-          {t('wizard.subtitles.wishes')}
-        </p>
+        <p className="text-white/50 text-sm">{t('wizard.subtitles.wishes')}</p>
       </motion.div>
 
       {/* Wishes Grid */}
-      <motion.div className="grid grid-cols-2 md:grid-cols-3 gap-3" variants={fadeUp}>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {WISHES.map((wish, i) => {
           const isSelected = state[wish.id as keyof typeof state] as boolean;
           const Icon = wish.icon;
@@ -102,69 +54,64 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
             <motion.button
               key={wish.id}
               onClick={() => handleToggleWish(wish.id)}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05, type: 'spring', damping: 20 }}
-              whileHover={{ y: -3 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05, type: 'spring' as const, damping: 20 }}
+              whileHover={{ y: -3, scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
-              className={`
-                relative p-4 rounded-2xl border-2 transition-colors
-                ${isSelected
-                  ? 'border-purple-500 bg-purple-50/80 dark:bg-purple-900/30 ring-2 ring-purple-200/60'
-                  : 'border-white/60 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl hover:border-purple-300'}
-              `}
+              className="relative"
             >
-              {/* Selection Badge */}
-              <AnimatePresence>
-                {isSelected && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md z-10">
-                    ✓
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Icon & Text */}
-              <div className="flex flex-col items-center text-center">
-                <Icon size={28} className={`mb-2 ${isSelected ? 'text-purple-500' : 'text-gray-400'}`} />
-                <p className="font-semibold text-sm text-gray-800 dark:text-white mb-1">{wish.title}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{wish.description}</p>
+              {isSelected && (
+                <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                  className="absolute -inset-1 rounded-2xl z-0"
+                  style={{ background: wish.glow, filter: 'blur(12px)' }} />
+              )}
+              <div className={`relative z-10 p-4 rounded-2xl transition-all duration-300 flex flex-col items-center text-center gap-2 ${
+                isSelected ? 'border-2 shadow-xl' : 'bg-white/[0.06] border border-white/10 hover:bg-white/10'
+              }`} style={isSelected ? { background: `${wish.color}12`, borderColor: `${wish.color}50` } : undefined}>
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
+                      style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>✓</motion.div>
+                  )}
+                </AnimatePresence>
+                <Icon size={24} style={{ color: isSelected ? wish.color : 'rgba(255,255,255,0.35)' }} />
+                <p className="font-semibold text-sm text-white">{wish.title}</p>
+                <p className="text-[11px] text-white/40">{wish.description}</p>
               </div>
             </motion.button>
           );
         })}
-      </motion.div>
+      </div>
 
       {/* Custom Wish Input */}
-      <motion.div variants={fadeUp}>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <label className="block mb-2">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('wizard.common.customWish')}</span>
+          <span className="text-sm font-semibold text-white/70">{t('wizard.common.customWish')}</span>
         </label>
         <textarea
           value={state.customWish}
-          onChange={handleCustomWishChange}
+          onChange={(e) => updateState({ customWish: e.target.value })}
           placeholder={t('wizard.common.customWishPlaceholder')}
           maxLength={200}
-          className="
-            w-full p-4 border-2 border-white/60 dark:border-slate-600/60 rounded-2xl
-            bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl
-            text-gray-800 dark:text-white
-            focus:border-purple-500 focus:ring-4 focus:ring-purple-200/40
-            resize-none transition-all
-          "
+          className="w-full p-4 rounded-2xl bg-white/[0.06] border border-white/10 text-white placeholder-white/25
+            focus:border-[#A989F2]/60 focus:ring-2 focus:ring-[#A989F2]/20 focus:bg-white/[0.08]
+            resize-none transition-all backdrop-blur-sm outline-none"
           rows={3}
         />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {state.customWish.length}/200 {t('wizard.common.chars')}
-        </p>
+        <p className="text-[11px] text-white/30 mt-1">{state.customWish.length}/200 {t('wizard.common.chars')}</p>
       </motion.div>
 
       {/* Info Box */}
-      <motion.div className="bg-blue-50/80 dark:bg-blue-900/30 border-2 border-blue-400/60 rounded-2xl p-4 backdrop-blur-sm" variants={fadeUp}>
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          <strong>{t('wizard.common.note')}</strong> {t('wizard.common.wishesNote')}
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+        className="rounded-2xl p-4 bg-blue-500/10 border border-blue-400/20"
+      >
+        <p className="text-sm text-blue-300/80">
+          <strong className="text-blue-300">{t('wizard.common.note')}</strong> {t('wizard.common.wishesNote')}
         </p>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

@@ -31,7 +31,7 @@ const TypingDots: React.FC = () => (
     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] flex items-center justify-center shadow-md flex-shrink-0">
       <Bot size={14} className="text-white" />
     </div>
-    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-sm">
+    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/[0.06] backdrop-blur-md border border-white/[0.08] shadow-sm">
       <div className="flex items-center gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.div
@@ -78,7 +78,7 @@ const MessageBubble: React.FC<{
         <div
           className={`px-4 py-2.5 leading-relaxed text-sm whitespace-pre-wrap ${
             isTavi
-              ? 'rounded-2xl rounded-bl-sm bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/40 dark:border-white/10 text-slate-800 dark:text-slate-100 shadow-sm'
+              ? 'rounded-2xl rounded-bl-sm bg-white/[0.06] backdrop-blur-md border border-white/[0.08] text-white/90 shadow-sm'
               : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/20'
           }`}
         >
@@ -134,7 +134,7 @@ const QuickSuggestions: React.FC<{
           whileHover={{ scale: 1.05, y: -1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => onSelect(s.text)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-white/50 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-[#A989F2]/40 hover:text-[#7C5CE0] dark:hover:text-[#A989F2] transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/[0.06] backdrop-blur-sm border border-white/[0.08] text-white/70 hover:border-[#A989F2]/40 hover:text-[#A989F2] transition-colors shadow-sm"
         >
           <span>{s.emoji}</span>
           {s.text}
@@ -329,10 +329,10 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-[460px] max-w-[92vw] h-[680px] max-h-[88vh] flex flex-col overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-2xl shadow-purple-500/10"
+            className="relative w-[460px] max-w-[92vw] h-[680px] max-h-[88vh] flex flex-col overflow-hidden rounded-3xl bg-[#13102B]/95 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-purple-500/10"
           >
             {/* ── Header ── */}
-            <div className="relative flex items-center justify-between px-5 py-4 border-b border-white/40 dark:border-white/10">
+            <div className="relative flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
               {/* Gradient stripe */}
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#A989F2] via-[#FF6B9D] to-[#FF9B5C]" />
 
@@ -345,14 +345,14 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                 >
                   <div className="w-11 h-11 rounded-full bg-cover bg-center border-[2.5px] border-[#A989F2]/60 shadow-lg shadow-purple-500/20" style={{ backgroundImage: 'url(/tavi.png)' }} />
                   {/* Online dot */}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-900" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#13102B]" />
                 </motion.div>
 
                 <div>
-                  <h3 className="text-base font-bold text-slate-800 dark:text-white font-[Fredoka]">
+                  <h3 className="text-base font-bold text-white font-[Fredoka]">
                     {t('chat.title')}
                   </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  <p className="text-[11px] text-white/50 font-medium">
                     {t('chat.subtitle')}
                   </p>
                 </div>
@@ -362,7 +362,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-white/80 dark:hover:bg-slate-700/60 transition-colors shadow-sm"
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.12] transition-colors shadow-sm"
               >
                 <X size={16} />
               </motion.button>
@@ -387,9 +387,9 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             </div>
 
             {/* ── Input area ── */}
-            <div className="px-4 pt-3 pb-4 border-t border-white/40 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
+            <div className="px-4 pt-3 pb-4 border-t border-white/[0.08] bg-white/[0.03]">
               {/* Word count */}
-              <div className={`text-[10px] font-semibold mb-1.5 text-right ${isOverLimit ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
+              <div className={`text-[10px] font-semibold mb-1.5 text-right ${isOverLimit ? 'text-red-500' : 'text-white/40'}`}>
                 {wordCount}/50 {t('chat.words')}
               </div>
 
@@ -403,7 +403,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                     placeholder={t('chat.placeholder')}
                     disabled={isLoading}
                     maxLength={300}
-                    className="w-full px-4 py-3 rounded-2xl text-sm bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/50 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-[#A989F2]/50 focus:ring-2 focus:ring-[#A989F2]/20 transition-all"
+                    className="w-full px-4 py-3 rounded-2xl text-sm bg-white/[0.06] backdrop-blur-sm border border-white/[0.08] text-white placeholder-white/30 outline-none focus:border-[#A989F2]/50 focus:ring-2 focus:ring-[#A989F2]/20 transition-all"
                   />
                   {isLoading && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -420,7 +420,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                   className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${
                     canSend
                       ? 'bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                      : 'bg-white/[0.06] text-white/30 cursor-not-allowed'
                   }`}
                 >
                   <Send size={16} className={canSend ? '' : ''} />

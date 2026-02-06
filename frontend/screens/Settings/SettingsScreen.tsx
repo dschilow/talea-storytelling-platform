@@ -126,8 +126,8 @@ function LanguageSelector() {
             disabled={isSaving}
             className={`relative p-4 rounded-2xl border-2 transition-all ${
               selectedLanguage === lang.code
-                ? 'border-[#A989F2] bg-[#A989F2]/5 shadow-lg shadow-[#A989F2]/10'
-                : 'border-white/50 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 hover:border-[#A989F2]/40 hover:shadow-md'
+                ? 'border-[#A989F2] bg-[#A989F2]/10 shadow-lg shadow-[#A989F2]/10'
+                : 'border-white/[0.08] bg-white/[0.06] hover:border-[#A989F2]/40 hover:shadow-md hover:bg-white/[0.10]'
             } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {selectedLanguage === lang.code && (
@@ -216,8 +216,8 @@ function ThemeSelector() {
               onClick={() => handleThemeChange(option.value)}
               className={`relative p-5 rounded-2xl border-2 transition-all ${
                 theme === option.value
-                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/5 shadow-lg shadow-[#FF9B5C]/10'
-                  : 'border-white/50 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 hover:border-[#FF9B5C]/40 hover:shadow-md'
+                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
+                  : 'border-white/[0.08] bg-white/[0.06] hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-white/[0.10]'
               }`}
             >
               {theme === option.value && (
@@ -297,8 +297,8 @@ function BillingPanel() {
               transition={{ delay: i * 0.1 }}
               className={`relative overflow-hidden rounded-2xl border-2 transition-all ${
                 isActive
-                  ? 'border-[#A989F2] shadow-xl ring-2 ring-[#A989F2]/20'
-                  : 'border-white/50 dark:border-white/10 hover:shadow-lg'
+                  ? 'border-[#A989F2] shadow-xl ring-2 ring-[#A989F2]/20 bg-[#A989F2]/5'
+                  : 'border-white/[0.08] bg-white/[0.06] hover:shadow-lg hover:bg-white/[0.10]'
               }`}
             >
               {/* Gradient glow */}
@@ -326,7 +326,7 @@ function BillingPanel() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-white/70 dark:bg-slate-900/40 border border-white/60 dark:border-white/5 p-3">
+                  <div className="rounded-xl bg-white/[0.06] border border-white/[0.08] p-3">
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       <BookOpen className="h-3.5 w-3.5" />
                       {t('admin.stories')}
@@ -334,7 +334,7 @@ function BillingPanel() {
                     <div className="text-2xl font-bold text-foreground mt-1.5">{plan.stories}</div>
                     <div className="text-[10px] text-muted-foreground">pro Monat</div>
                   </div>
-                  <div className="rounded-xl bg-white/70 dark:bg-slate-900/40 border border-white/60 dark:border-white/5 p-3">
+                  <div className="rounded-xl bg-white/[0.06] border border-white/[0.08] p-3">
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       <FileText className="h-3.5 w-3.5" />
                       {t('admin.dokus')}
@@ -349,7 +349,7 @@ function BillingPanel() {
         })}
       </div>
 
-      <div className="mt-8 rounded-2xl border border-dashed border-[#A989F2]/30 bg-white/60 dark:bg-slate-900/60 backdrop-blur-lg p-5">
+      <div className="mt-8 rounded-2xl border border-dashed border-[#A989F2]/30 bg-white/[0.06] backdrop-blur-lg p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
@@ -414,7 +414,7 @@ export default function SettingsScreen() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="rounded-3xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-xl overflow-hidden"
+          className="rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-xl overflow-hidden"
         >
           <UserProfile
             appearance={{
@@ -422,13 +422,13 @@ export default function SettingsScreen() {
               elements: {
                 rootBox: 'w-full',
                 card: 'shadow-none bg-transparent',
-                navbar: 'bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg',
-                navbarButton: 'text-foreground/70 hover:bg-white/60 dark:hover:bg-slate-800/60 rounded-xl transition-all',
+                navbar: 'bg-white/[0.04] backdrop-blur-lg border-r border-white/[0.06]',
+                navbarButton: 'text-foreground/70 hover:bg-white/[0.08] rounded-xl transition-all',
                 navbarButtonActive: 'bg-[#A989F2]/10 text-[#A989F2] font-semibold',
                 pageScrollBox: 'bg-transparent',
                 page: 'bg-transparent',
                 formButtonPrimary: 'bg-gradient-to-r from-[#A989F2] to-[#FF6B9D] hover:opacity-90 text-white rounded-xl shadow-lg',
-                formFieldInput: 'rounded-xl border-white/50 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg',
+                formFieldInput: 'rounded-xl border-white/[0.08] bg-white/[0.06] backdrop-blur-lg',
               },
             }}
           >

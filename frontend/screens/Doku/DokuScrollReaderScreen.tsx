@@ -167,7 +167,7 @@ const DokuScrollReaderScreen: React.FC = () => {
   if (error || !doku) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+        <div className="text-center p-8 bg-[#13102B]/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl">
           <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
           <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('errors.notFound')}</p>
           <button onClick={() => navigate('/doku')} className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors flex items-center mx-auto">

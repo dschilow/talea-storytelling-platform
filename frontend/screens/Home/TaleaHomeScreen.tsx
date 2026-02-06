@@ -150,7 +150,7 @@ const GreetingHeader: React.FC<{ userName: string; onRefresh: () => void; refres
           whileHover={{ scale: 1.05 }}
         >
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] p-[2px] shadow-lg shadow-[#A989F2]/20">
-            <div className="w-full h-full rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full rounded-2xl bg-[#13102B] flex items-center justify-center overflow-hidden">
               <UserButton
                 afterSignOutUrl="/"
                 userProfileMode="navigation"
@@ -182,7 +182,7 @@ const GreetingHeader: React.FC<{ userName: string; onRefresh: () => void; refres
         whileTap={{ scale: 0.9 }}
         onClick={onRefresh}
         disabled={refreshing}
-        className="p-3 rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-sm hover:shadow-md transition-shadow"
+        className="p-3 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/10 shadow-sm hover:shadow-md hover:bg-white/10 transition-all"
       >
         <RefreshCw className={`w-5 h-5 text-[#A989F2] ${refreshing ? 'animate-spin' : ''}`} />
       </motion.button>
@@ -217,9 +217,9 @@ const QuickActionCard: React.FC<{
     className="relative group w-full text-left"
   >
     <div
-      className="relative overflow-hidden rounded-3xl p-6 border border-white/40 dark:border-white/10 backdrop-blur-xl shadow-lg transition-shadow duration-300"
+      className="relative overflow-hidden rounded-3xl p-6 border border-white/[0.08] backdrop-blur-xl shadow-lg transition-shadow duration-300"
       style={{
-        background: `linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.6) 100%)`,
+        background: `linear-gradient(135deg, rgba(19,16,43,0.85) 0%, rgba(19,16,43,0.65) 100%)`,
         boxShadow: `0 8px 32px ${shadowColor}`,
       }}
     >
@@ -365,7 +365,7 @@ const StoryBookCard: React.FC<{
         }}
       />
 
-      <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border-2 border-white/50 dark:border-white/10 shadow-xl group-hover:shadow-2xl transition-shadow duration-300">
+      <div className="relative overflow-hidden rounded-2xl bg-[#13102B]/90 border border-white/[0.08] shadow-xl group-hover:shadow-2xl transition-shadow duration-300">
         {/* Cover Image */}
         <div className="relative h-[200px] overflow-hidden">
           {story.coverImageUrl ? (
@@ -407,7 +407,7 @@ const StoryBookCard: React.FC<{
                   e.stopPropagation();
                   onDelete();
                 }}
-                className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 backdrop-blur-sm text-white hover:bg-red-600 transition-colors"
+                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-red-500/80 backdrop-blur-sm text-white hover:bg-red-600 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </motion.button>
@@ -421,10 +421,10 @@ const StoryBookCard: React.FC<{
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5 }}
-                className="absolute inset-0 flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
-                <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl">
-                  <BookOpen className="w-6 h-6 text-[#A989F2] ml-0.5" />
+                <div className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-xl flex items-center justify-center shadow-xl border border-white/20">
+                  <BookOpen className="w-6 h-6 text-white ml-0.5" />
                 </div>
               </motion.div>
             )}
@@ -498,7 +498,7 @@ const HomeParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
               e.stopPropagation();
               setSelected(p);
             }}
-            className="relative w-9 h-9 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-black/5"
+            className="relative w-9 h-9 rounded-full border-2 border-[#13102B] overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-white/10"
             style={{ zIndex: participants.length - i }}
           >
             <img src={p.src} alt={p.name} className="w-full h-full object-cover" />
@@ -521,7 +521,7 @@ const HomeParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
               animate={{ scale: 1 }}
               exit={{ scale: 0.8 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl p-8 text-center shadow-2xl border border-white/40 max-w-xs"
+              className="bg-[#13102B]/95 backdrop-blur-xl rounded-3xl p-8 text-center shadow-2xl border border-white/10 max-w-xs"
             >
               <motion.img
                 src={selected.src}
@@ -611,7 +611,7 @@ const AvatarGallery: React.FC<{
               >
                 {/* Glowing ring */}
                 <div className="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9] shadow-lg shadow-[#2DD4BF]/25 group-hover:shadow-xl group-hover:shadow-[#2DD4BF]/35 transition-shadow">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-slate-900 border-2 border-white">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-[#13102B] border-2 border-[#13102B]">
                     {avatar.imageUrl ? (
                       <img src={avatar.imageUrl} alt={avatar.name} className="w-full h-full object-cover" />
                     ) : (
@@ -732,7 +732,7 @@ const DokuGrid: React.FC<{
               whileHover={{ y: -4, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onRead(doku.id)}
-              className="relative cursor-pointer group overflow-hidden rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-md hover:shadow-xl transition-shadow"
+              className="relative cursor-pointer group overflow-hidden rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] shadow-md hover:shadow-xl transition-shadow"
             >
               <div className="relative h-28 overflow-hidden">
                 {doku.coverImageUrl ? (
@@ -782,7 +782,7 @@ const EmptyState: React.FC<{
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="text-center py-12 px-6 rounded-3xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-lg border border-white/40 dark:border-white/10"
+    className="text-center py-12 px-6 rounded-3xl bg-white/[0.05] backdrop-blur-lg border border-white/10"
   >
     <motion.div
       className="text-5xl mb-4"

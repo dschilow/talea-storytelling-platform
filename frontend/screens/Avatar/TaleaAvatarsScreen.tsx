@@ -51,7 +51,7 @@ const AvatarPortraitCard: React.FC<{
       className="group cursor-pointer"
       onClick={onView}
     >
-      <div className="relative overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-2 border-white/50 dark:border-white/10 shadow-lg group-hover:shadow-2xl transition-all duration-500">
+      <div className="relative overflow-hidden rounded-3xl bg-[#13102B]/90 backdrop-blur-xl border border-white/[0.08] shadow-lg group-hover:shadow-2xl transition-all duration-500">
         {/* Avatar Image */}
         <div className="relative aspect-[3/4] overflow-hidden">
           {avatar.imageUrl ? (
@@ -132,8 +132,8 @@ const AvatarPortraitCard: React.FC<{
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="absolute inset-0 flex items-center justify-center"
               >
-                <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center shadow-2xl">
-                  <Eye className="w-6 h-6 text-[#2DD4BF]" />
+                <div className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-xl flex items-center justify-center shadow-2xl border border-white/20">
+                  <Eye className="w-6 h-6 text-white" />
                 </div>
               </motion.div>
             )}
@@ -189,7 +189,7 @@ const EmptyAvatarState: React.FC<{ onCreateNew: () => void }> = ({ onCreateNew }
 const LoadingSkeleton: React.FC = () => (
   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-      <div key={i} className="rounded-3xl overflow-hidden bg-white/50 dark:bg-slate-800/50 border border-white/30">
+      <div key={i} className="rounded-3xl overflow-hidden bg-white/[0.05] border border-white/[0.06]">
         <div className="aspect-[3/4] bg-muted animate-pulse" />
       </div>
     ))}
@@ -320,7 +320,7 @@ const TaleaAvatarsScreen: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Avatare durchsuchen..."
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border border-white/50 dark:border-white/10 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/40 transition-all shadow-sm"
+                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/40 transition-all shadow-sm"
                   style={{ fontFamily: '"Nunito", sans-serif' }}
                 />
               </div>

@@ -18,16 +18,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const backend = useBackend();
   const { user, isLoaded } = useUser();
 
-  const [theme, setThemeState] = useState<Theme>('system');
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
+  const [theme, setThemeState] = useState<Theme>('dark');
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark');
   const [isLoading, setIsLoading] = useState(true);
 
   // Get system theme preference
   const getSystemTheme = (): ResolvedTheme => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'light';
+    // Always prefer dark for the magical Talea experience
+    return 'dark';
   };
 
   // Resolve theme (system → actual light/dark)

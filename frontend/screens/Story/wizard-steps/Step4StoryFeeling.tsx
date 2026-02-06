@@ -1,97 +1,45 @@
-// Step 4: Story Feeling
-// Select 1-3 emotions/tones for the story
+// Step 4: Story Feeling — Dark magical theme with glow cards
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Heart, Zap, Stars, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } } as const;
-const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, damping: 20 } } };
-
 type Feeling = 'funny' | 'warm' | 'exciting' | 'crazy' | 'meaningful';
-
-interface Props {
-  state: {
-    feelings: Feeling[];
-  };
-  updateState: (updates: any) => void;
-}
+interface Props { state: { feelings: Feeling[] }; updateState: (updates: any) => void; }
 
 export default function Step4StoryFeeling({ state, updateState }: Props) {
   const { t } = useTranslation();
 
   const FEELINGS = [
-    {
-      id: 'funny',
-      title: `😂 ${t('wizard.feelings.funny.title')}`,
-      description: t('wizard.feelings.funny.description'),
-      icon: Smile,
-      color: 'yellow',
-      gradient: 'from-yellow-400 to-orange-400'
-    },
-    {
-      id: 'warm',
-      title: `❤️ ${t('wizard.feelings.warm.title')}`,
-      description: t('wizard.feelings.warm.description'),
-      icon: Heart,
-      color: 'red',
-      gradient: 'from-red-400 to-pink-400'
-    },
-    {
-      id: 'exciting',
-      title: `⚡ ${t('wizard.feelings.exciting.title')}`,
-      description: t('wizard.feelings.exciting.description'),
-      icon: Zap,
-      color: 'blue',
-      gradient: 'from-blue-400 to-cyan-400'
-    },
-    {
-      id: 'crazy',
-      title: `🤪 ${t('wizard.feelings.crazy.title')}`,
-      description: t('wizard.feelings.crazy.description'),
-      icon: Stars,
-      color: 'purple',
-      gradient: 'from-purple-400 to-pink-400'
-    },
-    {
-      id: 'meaningful',
-      title: `💭 ${t('wizard.feelings.meaningful.title')}`,
-      description: t('wizard.feelings.meaningful.description'),
-      icon: MessageCircle,
-      color: 'green',
-      gradient: 'from-green-400 to-emerald-400'
-    }
+    { id: 'funny', title: `😂 ${t('wizard.feelings.funny.title')}`, description: t('wizard.feelings.funny.description'), icon: Smile, gradient: 'from-yellow-500 to-orange-500', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' },
+    { id: 'warm', title: `❤️ ${t('wizard.feelings.warm.title')}`, description: t('wizard.feelings.warm.description'), icon: Heart, gradient: 'from-red-500 to-pink-500', color: '#F87171', glow: 'rgba(248,113,113,0.35)' },
+    { id: 'exciting', title: `⚡ ${t('wizard.feelings.exciting.title')}`, description: t('wizard.feelings.exciting.description'), icon: Zap, gradient: 'from-blue-500 to-cyan-500', color: '#60A5FA', glow: 'rgba(96,165,250,0.35)' },
+    { id: 'crazy', title: `🤪 ${t('wizard.feelings.crazy.title')}`, description: t('wizard.feelings.crazy.description'), icon: Stars, gradient: 'from-purple-500 to-pink-500', color: '#A989F2', glow: 'rgba(169,137,242,0.35)' },
+    { id: 'meaningful', title: `💭 ${t('wizard.feelings.meaningful.title')}`, description: t('wizard.feelings.meaningful.description'), icon: MessageCircle, gradient: 'from-emerald-500 to-teal-500', color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
   ];
 
   const handleToggleFeeling = (feelingId: Feeling) => {
-    const currentFeelings = state.feelings;
-
-    if (currentFeelings.includes(feelingId)) {
-      // Remove feeling
-      updateState({ feelings: currentFeelings.filter(f => f !== feelingId) });
-    } else {
-      // Add feeling (max 3)
-      if (currentFeelings.length < 3) {
-        updateState({ feelings: [...currentFeelings, feelingId] });
-      }
+    const current = state.feelings;
+    if (current.includes(feelingId)) {
+      updateState({ feelings: current.filter(f => f !== feelingId) });
+    } else if (current.length < 3) {
+      updateState({ feelings: [...current, feelingId] });
     }
   };
 
   return (
-    <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
-      {/* Title & Description */}
-      <motion.div className="text-center" variants={fadeUp}>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2" style={{ fontFamily: 'Fredoka, sans-serif' }}>
+    <div className="space-y-6">
+      {/* Title */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+        <h2 className="text-2xl font-extrabold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
           🎭 {t('wizard.titles.feeling')}
         </h2>
-        <p className="text-gray-600 dark:text-gray-300">
-          {t('wizard.subtitles.feeling')}
-        </p>
+        <p className="text-white/50 text-sm">{t('wizard.subtitles.feeling')}</p>
       </motion.div>
 
       {/* Feelings Grid */}
-      <motion.div className="grid grid-cols-2 md:grid-cols-3 gap-4" variants={fadeUp}>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {FEELINGS.map((feeling, i) => {
           const isSelected = state.feelings.includes(feeling.id as Feeling);
           const Icon = feeling.icon;
@@ -102,66 +50,67 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
               key={feeling.id}
               onClick={() => handleToggleFeeling(feeling.id as Feeling)}
               disabled={isDisabled}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.06, type: 'spring', damping: 20 }}
-              whileHover={!isDisabled ? { y: -4, boxShadow: '0 12px 30px rgba(169,137,242,0.15)' } : {}}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06, type: 'spring' as const, damping: 20 }}
+              whileHover={!isDisabled ? { y: -5, scale: 1.03 } : {}}
               whileTap={!isDisabled ? { scale: 0.97 } : {}}
-              className={`
-                relative p-6 rounded-2xl border-2 transition-colors
-                ${isSelected
-                  ? 'border-purple-500 bg-purple-50/80 dark:bg-purple-900/30 ring-4 ring-purple-200/60 shadow-xl'
-                  : isDisabled
-                    ? 'border-gray-200 bg-gray-50 dark:bg-slate-900/50 opacity-50 cursor-not-allowed'
-                    : 'border-white/60 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl shadow-lg'}
-              `}
+              className={`relative ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
-              {/* Selection Badge */}
-              <AnimatePresence>
-                {isSelected && (
-                  <motion.div
-                    initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                    className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10"
-                  >
-                    ✓
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Glow behind selected */}
+              {isSelected && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                  className="absolute -inset-1 rounded-2xl z-0"
+                  style={{ background: feeling.glow, filter: 'blur(14px)' }}
+                />
+              )}
 
-              {/* Icon */}
-              <div className={`
-                w-16 h-16 mx-auto mb-3 rounded-xl bg-gradient-to-br ${feeling.gradient} 
-                flex items-center justify-center shadow-lg
-              `}>
-                <Icon size={32} className="text-white" />
-              </div>
+              <div className={`relative z-10 p-6 rounded-2xl transition-all duration-300 ${
+                isSelected ? 'border-2 shadow-xl' : 'bg-white/[0.06] border border-white/10 hover:bg-white/10'
+              }`} style={isSelected ? { background: `${feeling.color}12`, borderColor: `${feeling.color}60` } : undefined}>
+                {/* Check badge */}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1, rotate: 360 }} exit={{ scale: 0 }}
+                      transition={{ type: 'spring' as const, damping: 12 }}
+                      className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-20"
+                      style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>✓</motion.div>
+                  )}
+                </AnimatePresence>
 
-              {/* Title & Description */}
-              <div className="text-center">
-                <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-1">
-                  {feeling.title}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {feeling.description}
-                </p>
+                {/* Icon */}
+                <div className={`w-14 h-14 mx-auto mb-3 rounded-xl bg-gradient-to-br ${feeling.gradient} flex items-center justify-center shadow-lg`}>
+                  <Icon size={28} className="text-white" />
+                </div>
+
+                <h3 className="font-bold text-base text-white mb-1">{feeling.title}</h3>
+                <p className="text-xs text-white/40">{feeling.description}</p>
               </div>
             </motion.button>
           );
         })}
-      </motion.div>
+      </div>
 
-      {/* Selection Counter */}
-      <motion.div variants={fadeUp} className={`
-        p-4 rounded-2xl border-2 transition-colors backdrop-blur-sm
-        ${state.feelings.length === 0 ? 'border-gray-300/60 bg-gray-50/60 dark:bg-slate-800/60' :
-          state.feelings.length < 3 ? 'border-blue-400/60 bg-blue-50/60 dark:bg-blue-900/30' :
-            'border-emerald-400 bg-emerald-50/80 dark:bg-emerald-900/30'}
-      `}>
-        <p className="font-semibold text-center text-gray-700 dark:text-gray-200">
+      {/* Selection counter */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className={`p-4 rounded-2xl text-center border transition-all ${
+          state.feelings.length === 0
+            ? 'border-white/10 bg-white/[0.04]'
+            : state.feelings.length < 3
+              ? 'border-blue-400/30 bg-blue-500/10'
+              : 'border-emerald-500/30 bg-emerald-500/10'
+        }`}
+      >
+        <p className="font-semibold text-white/70">
           {state.feelings.length === 0 && `👆 ${t('wizard.subtitles.feeling')}`}
-          {state.feelings.length > 0 && `✓ ${state.feelings.length} ${t('wizard.common.selected')}`}
+          {state.feelings.length > 0 && state.feelings.length < 3 && `✓ ${state.feelings.length}/3 ${t('wizard.common.selected')} — noch ${3 - state.feelings.length} möglich`}
+          {state.feelings.length >= 3 && `✅ ${state.feelings.length}/3 ${t('wizard.common.selected')}`}
         </p>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

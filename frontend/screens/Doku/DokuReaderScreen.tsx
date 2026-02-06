@@ -350,7 +350,7 @@ const DokuReaderScreen: React.FC = () => {
   if (error || !doku) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+        <div className="text-center p-8 bg-[#13102B]/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl">
           <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
           <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('doku.notFound')}</p>
           <button onClick={() => navigate('/doku')} className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors flex items-center mx-auto">
@@ -453,7 +453,7 @@ const DokuReaderScreen: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
+              className="bg-[#13102B]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
             >
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Hinweis</h2>
               <p className="text-gray-600 dark:text-gray-300 mb-6">

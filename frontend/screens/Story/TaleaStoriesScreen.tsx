@@ -135,13 +135,13 @@ const StoriesHeader: React.FC<{
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('story.searchPlaceholder', 'Geschichten durchsuchen...')}
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border border-white/50 dark:border-white/10 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#A989F2]/40 focus:border-[#A989F2]/40 transition-all shadow-sm"
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#A989F2]/40 focus:border-[#A989F2]/40 transition-all shadow-sm"
             style={{ fontFamily: '"Nunito", sans-serif' }}
           />
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg rounded-2xl border border-white/50 dark:border-white/10 p-1.5 shadow-sm">
+        <div className="flex items-center bg-white/[0.06] backdrop-blur-lg rounded-2xl border border-white/10 p-1.5 shadow-sm">
           <button
             onClick={() => setViewMode('grid')}
             className={`p-2.5 rounded-xl transition-all ${
@@ -213,7 +213,7 @@ const StoryGridCard: React.FC<{
       onClick={onRead}
       className="cursor-pointer group"
     >
-      <div className="relative overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-2 border-white/50 dark:border-white/10 shadow-lg group-hover:shadow-2xl transition-all duration-500">
+      <div className="relative overflow-hidden rounded-3xl bg-[#13102B]/90 backdrop-blur-xl border border-white/[0.08] shadow-lg group-hover:shadow-2xl transition-all duration-500">
         {/* Book spine accent */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1.5 z-10"
@@ -277,7 +277,7 @@ const StoryGridCard: React.FC<{
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute top-4 right-4 flex gap-2"
+                className="absolute top-4 right-4 flex gap-2 z-10"
               >
                 {story.status === 'complete' && (
                   <motion.button
@@ -326,10 +326,10 @@ const StoryGridCard: React.FC<{
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute inset-0 flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
-                <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center shadow-2xl">
-                  <BookOpen className="w-7 h-7 text-[#A989F2]" />
+                <div className="w-16 h-16 rounded-full bg-white/15 backdrop-blur-xl flex items-center justify-center shadow-2xl border border-white/20">
+                  <BookOpen className="w-7 h-7 text-white" />
                 </div>
               </motion.div>
             )}
@@ -409,7 +409,7 @@ const ParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
               e.stopPropagation();
               setSelected(p);
             }}
-            className="relative w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-black/5"
+            className="relative w-10 h-10 rounded-full border-2 border-[#13102B] overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-white/10"
             style={{ zIndex: participants.length - i }}
           >
             <img src={p.src} alt={p.name} className="w-full h-full object-cover" />
@@ -432,7 +432,7 @@ const ParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
               animate={{ scale: 1 }}
               exit={{ scale: 0.8 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl p-8 text-center shadow-2xl border border-white/40 max-w-xs"
+              className="bg-[#13102B]/95 backdrop-blur-xl rounded-3xl p-8 text-center shadow-2xl border border-white/10 max-w-xs"
             >
               <motion.img
                 src={selected.src}
@@ -495,7 +495,7 @@ const StoryListCard: React.FC<{
       onClick={onRead}
       className="cursor-pointer group"
     >
-      <div className="flex gap-4 p-4 rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-sm hover:shadow-lg transition-all duration-300">
+      <div className="flex gap-4 p-4 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] shadow-sm hover:shadow-lg transition-all duration-300">
         {/* Thumbnail */}
         <div className="relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 rounded-xl overflow-hidden">
           {story.coverImageUrl ? (
@@ -553,7 +553,7 @@ const StoryListCard: React.FC<{
               <motion.span
                 animate={{ opacity: [0.6, 1, 0.6] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300"
               >
                 Erstellt...
               </motion.span>
@@ -565,7 +565,7 @@ const StoryListCard: React.FC<{
         <div className="flex flex-col gap-2 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           {story.status === 'complete' && (
             <button
-              onClick={handleDownloadPDF}
+              onClick={(e) => { e.stopPropagation(); handleDownloadPDF(e); }}
               disabled={isExportingPDF}
               className="p-2 rounded-xl bg-[#A989F2]/10 text-[#A989F2] hover:bg-[#A989F2]/20 transition-colors"
             >
@@ -577,7 +577,7 @@ const StoryListCard: React.FC<{
               e.stopPropagation();
               onDelete();
             }}
-            className="p-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 transition-colors"
+            className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -675,7 +675,7 @@ const LoadingSkeleton: React.FC = () => (
     {/* Grid skeleton */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="rounded-3xl overflow-hidden bg-white/50 dark:bg-slate-800/50 backdrop-blur-lg border border-white/30">
+        <div key={i} className="rounded-3xl overflow-hidden bg-white/[0.05] backdrop-blur-lg border border-white/[0.06]">
           <div className="h-[240px] bg-muted animate-pulse" />
           <div className="p-5 space-y-3">
             <div className="w-3/4 h-5 rounded-lg bg-muted animate-pulse" />
