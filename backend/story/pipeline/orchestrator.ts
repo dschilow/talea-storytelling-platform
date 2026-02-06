@@ -246,24 +246,26 @@ export class StoryPipelineOrchestrator {
       let qualityReport: any;
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
+      // OPTIMIZED: Only 3 memories per avatar, short titles only – keeps prompt small
+      // for reasoning models (gpt-5-mini) where extra context → more reasoning tokens
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
         for (const avatar of input.avatars) {
-          const rows: Array<{ story_title: string; experience: string; emotional_impact: string }> = [];
-          const gen = await avatarDB.query<{ story_title: string; experience: string; emotional_impact: string }>`
-            SELECT story_title, experience, emotional_impact
+          const rows: Array<{ story_title: string; emotional_impact: string }> = [];
+          const gen = await avatarDB.query<{ story_title: string; emotional_impact: string }>`
+            SELECT story_title, emotional_impact
             FROM avatar_memories
             WHERE avatar_id = ${avatar.id}
             ORDER BY created_at DESC
-            LIMIT 5
+            LIMIT 3
           `;
           for await (const row of gen) {
             rows.push(row);
           }
           if (rows.length > 0) {
             avatarMemories.set(avatar.id, rows.map(r => ({
-              storyTitle: r.story_title,
-              experience: (r.experience || "").substring(0, 150),
+              storyTitle: (r.story_title || "").substring(0, 60),
+              experience: "",
               emotionalImpact: (r.emotional_impact as any) || 'neutral',
             })));
             console.log(`[pipeline] 🧠 Fetched ${rows.length} memories for avatar ${avatar.name}`);

@@ -348,23 +348,9 @@ async function getAvatarProfilesFromDB(avatarIds: string[]): Promise<McpAvatarPr
   return profiles;
 }
 
-async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 10): Promise<McpAvatarMemory[]> {
-  // Create table if not exists
-  await avatarDB.exec`
-    CREATE TABLE IF NOT EXISTS avatar_memories (
-      id TEXT PRIMARY KEY,
-      avatar_id TEXT NOT NULL,
-      story_id TEXT,
-      story_title TEXT,
-      experience TEXT,
-      emotional_impact TEXT CHECK (emotional_impact IN ('positive', 'negative', 'neutral')),
-      personality_changes TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (avatar_id) REFERENCES avatars(id) ON DELETE CASCADE
-    )
-  `;
-
-  // Get last 5 stories + last 5 dokus (max 10 total)
+async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Promise<McpAvatarMemory[]> {
+  // OPTIMIZED: Simple query with actual limit, no CTE overhead.
+  // Table is created by migrations, no need for CREATE TABLE IF NOT EXISTS on every call.
   const memoryRowsGenerator = await avatarDB.query<{
     id: string;
     story_id: string;
@@ -374,27 +360,11 @@ async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 10): Pr
     personality_changes: string;
     created_at: string;
   }>`
-    WITH stories AS (
-      SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
-      FROM avatar_memories
-      WHERE avatar_id = ${avatarId}
-        AND (experience LIKE '%aktiver Teilnehmer%' OR experience LIKE '%Geschichte%')
-        AND experience NOT LIKE '%Doku%'
-      ORDER BY created_at DESC
-      LIMIT 5
-    ),
-    dokus AS (
-      SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
-      FROM avatar_memories
-      WHERE avatar_id = ${avatarId}
-        AND experience LIKE '%Doku%'
-      ORDER BY created_at DESC
-      LIMIT 5
-    )
-    SELECT * FROM stories
-    UNION ALL
-    SELECT * FROM dokus
+    SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
+    FROM avatar_memories
+    WHERE avatar_id = ${avatarId}
     ORDER BY created_at DESC
+    LIMIT ${limit}
   `;
 
   const memoryRows: any[] = [];
@@ -1965,25 +1935,18 @@ You MUST implement this style consistently in ALL chapters!`
   ].join("\n");
 
   // Build avatar memory section for prompt injection
+  // OPTIMIZED: Ultra-compact – only titles, minimal rules to save tokens
   const avatarMemoryLines = avatars.map((avatar) => {
     const compressed = compressedMemoriesMap.get(avatar.id);
     if (!compressed || compressed.length === 0) return null;
-    const memoryTexts = (compressed as any[]).map((m, i) => {
-      const emotion = m.emotionalImpact === 'positive' ? '✨' : m.emotionalImpact === 'negative' ? '💔' : '💭';
-      return `  ${i + 1}. ${emotion} "${m.storyTitle}": ${m.experience}`;
-    }).join("\n");
-    return `### ${avatar.name}:\n${memoryTexts}`;
+    const titles = (compressed as any[]).map((m) => m.storyTitle).join(", ");
+    return `${avatar.name}: ${titles}`;
   }).filter(Boolean);
 
   const memorySection = avatarMemoryLines.length > 0
     ? [
-        "AVATAR MEMORIES (past adventures - use for continuity and character depth):",
+        "PAST ADVENTURES (reference ONE naturally, don't retell):",
         ...avatarMemoryLines,
-        "",
-        "MEMORY RULES:",
-        "- Reference at least ONE past memory naturally in dialogue or narration.",
-        "- Example: '\"Das erinnert mich an...\", murmelte Alexander.' or 'Seit dem Abenteuer im Kristallwald wusste sie...'",
-        "- Do NOT retell old stories. Just brief, natural callbacks.",
         ""
       ].join("\n")
     : "";

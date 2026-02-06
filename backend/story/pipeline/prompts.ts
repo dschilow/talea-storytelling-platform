@@ -348,29 +348,19 @@ export function buildFullStoryPrompt(input: {
         : "Komplexerer Stil, moralische Nuancen, größere Wendungen.";
 
   // Build avatar memory section for story continuity
+  // OPTIMIZED: Ultra-compact format – only story titles, no experience text, minimal rules.
+  // Reasoning models (gpt-5-mini) burn disproportionate tokens on extra context.
   let memorySection = "";
   if (avatarMemories && avatarMemories.size > 0) {
-    const memoryBlocks: string[] = [];
-    // Map avatar IDs to display names via cast
+    const memoryTitles: string[] = [];
     for (const avatar of cast.avatars) {
       const memories = avatarMemories.get(avatar.characterId);
       if (!memories || memories.length === 0) continue;
-      const lines = memories.map((m, i) => {
-        const icon = m.emotionalImpact === 'positive' ? '✨' : m.emotionalImpact === 'negative' ? '💔' : '💭';
-        return `  ${i + 1}. ${icon} "${m.storyTitle}": ${m.experience}`;
-      }).join("\n");
-      memoryBlocks.push(`**${avatar.displayName}**:\n${lines}`);
+      const titles = memories.map(m => m.storyTitle).join(", ");
+      memoryTitles.push(`${avatar.displayName}: ${titles}`);
     }
-    if (memoryBlocks.length > 0) {
-      memorySection = `
-# Erinnerungen der Avatare (vergangene Abenteuer)
-${memoryBlocks.join("\n\n")}
-
-**Erinnerungs-Regeln**:
-- Baue mindestens EINE natürliche Referenz zu einem früheren Erlebnis ein.
-- Beispiel: "Das erinnert mich an...", murmelte Alexander. ODER: Seit dem Abenteuer im Kristallwald wusste sie, dass...
-- NICHT nacherzählen, nur kurze, natürliche Rückblicke.
-`;
+    if (memoryTitles.length > 0) {
+      memorySection = `\n# Frühere Abenteuer\n${memoryTitles.join("\n")}\nBaue EINE kurze, natürliche Referenz ein ("Das erinnert mich an..."). Nicht nacherzählen.\n`;
     }
   }
 
