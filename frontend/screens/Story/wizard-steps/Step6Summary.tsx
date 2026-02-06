@@ -2,8 +2,12 @@
 // Final overview before generating the story
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Sparkles, User, BookOpen, Clock, Heart, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } } as const;
+const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, damping: 20 } } };
 
 interface Props {
   state: {
@@ -66,125 +70,128 @@ export default function Step6Summary({ state, onGenerate }: Props) {
   ].filter(Boolean);
 
   return (
-    <div className="space-y-6">
+    <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
       {/* Title */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <motion.div className="text-center" variants={fadeUp}>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2" style={{ fontFamily: 'Fredoka, sans-serif' }}>
           🎉 {t('wizard.titles.summary')}
         </h2>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           {t('wizard.subtitles.summary')}
         </p>
-      </div>
+      </motion.div>
 
       {/* Summary Cards */}
       <div className="space-y-4">
         {/* Avatars */}
-        <div className="bg-white border-2 border-purple-200 rounded-xl p-4 flex items-start gap-4">
-          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <motion.div variants={fadeUp} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-2 border-purple-200/60 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
             <User size={24} className="text-purple-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.avatars')}</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-semibold text-gray-800 dark:text-white mb-1">{t('wizard.summary.avatars')}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               {state.selectedAvatars.length} {t('wizard.summary.avatars')} {t('wizard.common.selected')}
             </p>
           </div>
-          <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-        </div>
+          <CheckCircle size={20} className="text-emerald-500 flex-shrink-0" />
+        </motion.div>
 
         {/* Category */}
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-4 flex items-start gap-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <motion.div variants={fadeUp} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-2 border-blue-200/60 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
             <BookOpen size={24} className="text-blue-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.category')}</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-semibold text-gray-800 dark:text-white mb-1">{t('wizard.summary.category')}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               {state.mainCategory ? CATEGORY_NAMES[state.mainCategory] : t('wizard.common.notSelected')}
             </p>
           </div>
-          <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-        </div>
+          <CheckCircle size={20} className="text-emerald-500 flex-shrink-0" />
+        </motion.div>
 
         {/* Age & Length */}
-        <div className="bg-white border-2 border-green-200 rounded-xl p-4 flex items-start gap-4">
-          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <motion.div variants={fadeUp} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-2 border-green-200/60 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-12 h-12 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
             <Clock size={24} className="text-green-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.age')} & {t('wizard.summary.length')}</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-semibold text-gray-800 dark:text-white mb-1">{t('wizard.summary.age')} & {t('wizard.summary.length')}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               {state.ageGroup && AGE_LABELS[state.ageGroup]}, {state.length && LENGTH_LABELS[state.length]}
             </p>
           </div>
-          <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-        </div>
+          <CheckCircle size={20} className="text-emerald-500 flex-shrink-0" />
+        </motion.div>
 
         {/* Feelings */}
-        <div className="bg-white border-2 border-pink-200 rounded-xl p-4 flex items-start gap-4">
-          <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <motion.div variants={fadeUp} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-2 border-pink-200/60 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
             <Heart size={24} className="text-pink-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold text-gray-800 mb-1">{t('wizard.summary.feelings')}</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-semibold text-gray-800 dark:text-white mb-1">{t('wizard.summary.feelings')}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               {state.feelings.map(f => FEELING_EMOJIS[f]).join(', ')}
             </p>
           </div>
-          <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-        </div>
+          <CheckCircle size={20} className="text-emerald-500 flex-shrink-0" />
+        </motion.div>
 
         {/* Special Wishes (if any) */}
         {(activeWishes.length > 0 || state.customWish) && (
-          <div className="bg-white border-2 border-yellow-200 rounded-xl p-4 flex items-start gap-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Sparkles size={24} className="text-yellow-600" />
+          <motion.div variants={fadeUp} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-2 border-amber-200/60 rounded-2xl p-4 flex items-start gap-4">
+            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Sparkles size={24} className="text-amber-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-gray-800 mb-1">{t('wizard.titles.wishes')}</p>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">{t('wizard.titles.wishes')}</p>
               {activeWishes.length > 0 && (
-                <p className="text-sm text-gray-600 mb-1">{activeWishes.join(', ')}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">{activeWishes.join(', ')}</p>
               )}
               {state.customWish && (
-                <p className="text-sm text-gray-600 italic">"{state.customWish}"</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{state.customWish}"</p>
               )}
             </div>
-            <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-          </div>
+            <CheckCircle size={20} className="text-emerald-500 flex-shrink-0" />
+          </motion.div>
         )}
       </div>
 
       {/* Info Box */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-6">
+      <motion.div variants={fadeUp} className="bg-gradient-to-r from-purple-50/80 to-pink-50/80 dark:from-purple-900/30 dark:to-pink-900/30 border-2 border-purple-300/60 rounded-2xl p-6 backdrop-blur-sm">
         <div className="flex items-start gap-4">
           <Sparkles size={32} className="text-purple-600 flex-shrink-0" />
           <div>
-            <p className="font-bold text-purple-900 mb-2">
+            <p className="font-bold text-purple-900 dark:text-purple-200 mb-2">
               ✨ {t('wizard.summary.ready')}
             </p>
-            <p className="text-sm text-purple-800">
+            <p className="text-sm text-purple-800 dark:text-purple-300">
               {t('wizard.common.summaryNote')}
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Big Create Button */}
-      <button
+      <motion.button
         onClick={onGenerate}
+        variants={fadeUp}
+        whileHover={{ scale: 1.03, boxShadow: '0 20px 50px rgba(169,137,242,0.4)' }}
+        whileTap={{ scale: 0.97 }}
         className="
           w-full py-6 rounded-2xl font-bold text-2xl
-          bg-gradient-to-r from-purple-600 via-pink-600 to-red-600
-          text-white shadow-2xl transform transition-all duration-200
-          hover:scale-105 active:scale-95
+          bg-gradient-to-r from-purple-600 via-pink-600 to-red-500
+          text-white shadow-2xl
           flex items-center justify-center gap-4
         "
+        style={{ fontFamily: 'Fredoka, sans-serif' }}
       >
         <Sparkles size={32} className="animate-pulse" />
         {t('wizard.buttons.generate')}
         <Sparkles size={32} className="animate-pulse" />
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 }

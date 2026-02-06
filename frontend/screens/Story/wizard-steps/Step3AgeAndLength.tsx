@@ -2,8 +2,12 @@
 // Simple choices for target age and story duration
 
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Baby, Users, GraduationCap, UserCheck, Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } } as const;
+const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, damping: 20 } } };
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
@@ -121,157 +125,186 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
   ];
 
   return (
-    <div className="space-y-8">
+    <motion.div className="space-y-8" variants={stagger} initial="hidden" animate="show">
       {/* Title & Description */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <motion.div className="text-center" variants={fadeUp}>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2" style={{ fontFamily: 'Fredoka, sans-serif' }}>
           🎯 {t('wizard.titles.ageLength')}
         </h2>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           {t('wizard.subtitles.ageLength')}
         </p>
-      </div>
+      </motion.div>
 
       {/* Age Group Selection */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <motion.div variants={fadeUp}>
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
           <Users size={20} />
           {t('wizard.steps.ageLength')}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {AGE_GROUPS.map((group) => {
+          {AGE_GROUPS.map((group, i) => {
             const isSelected = state.ageGroup === group.id;
             const Icon = group.icon;
 
             return (
-              <button
+              <motion.button
                 key={group.id}
                 onClick={() => handleSelectAge(group.id as AgeGroup)}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05, type: 'spring', damping: 20 }}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.97 }}
                 className={`
-                  relative p-4 rounded-xl border-2 transition-all transform
+                  relative p-4 rounded-2xl border-2 transition-colors
                   ${isSelected
-                    ? `border-${group.color}-600 bg-${group.color}-50 ring-4 ring-${group.color}-200 scale-105`
-                    : 'border-gray-200 bg-white hover:border-gray-400 hover:scale-102'}
+                    ? 'border-purple-500 bg-purple-50/80 dark:bg-purple-900/30 ring-4 ring-purple-200/60'
+                    : 'border-white/60 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl hover:border-purple-300'}
                 `}
               >
-                {isSelected && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    ✓
-                  </div>
-                )}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md z-10">
+                      ✓
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="flex flex-col items-center text-center">
-                  <Icon size={32} className={`mb-2 ${isSelected ? `text-${group.color}-600` : 'text-gray-400'}`} />
-                  <p className="font-bold text-sm text-gray-800 mb-1">{group.title}</p>
-                  <p className="text-xs text-gray-600">{group.description}</p>
+                  <Icon size={32} className={`mb-2 ${isSelected ? 'text-purple-500' : 'text-gray-400'}`} />
+                  <p className="font-bold text-sm text-gray-800 dark:text-white mb-1">{group.title}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{group.description}</p>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* Length Selection */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <motion.div variants={fadeUp}>
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
           <Clock size={20} />
           {t('wizard.summary.length')}
         </h3>
         <div className="grid grid-cols-3 gap-3">
-          {LENGTHS.map((length) => {
+          {LENGTHS.map((length, i) => {
             const isSelected = state.length === length.id;
 
             return (
-              <button
+              <motion.button
                 key={length.id}
                 onClick={() => handleSelectLength(length.id as Length)}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05, type: 'spring', damping: 20 }}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.97 }}
                 className={`
-                  relative p-5 rounded-xl border-2 transition-all transform
+                  relative p-5 rounded-2xl border-2 transition-colors
                   ${isSelected
-                    ? `border-${length.color}-600 bg-${length.color}-50 ring-4 ring-${length.color}-200 scale-105`
-                    : 'border-gray-200 bg-white hover:border-gray-400 hover:scale-102'}
+                    ? 'border-pink-500 bg-pink-50/80 dark:bg-pink-900/30 ring-4 ring-pink-200/60'
+                    : 'border-white/60 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl hover:border-pink-300'}
                 `}
               >
-                {isSelected && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    ✓
-                  </div>
-                )}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md z-10">
+                      ✓
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="text-center">
                   <p className="text-2xl mb-2">{length.title}</p>
-                  <p className="font-semibold text-gray-800 mb-1">{length.duration}</p>
-                  <p className="text-xs text-gray-600">{length.chapters}</p>
+                  <p className="font-semibold text-gray-800 dark:text-white mb-1">{length.duration}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{length.chapters}</p>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* AI Model Selection */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <motion.div variants={fadeUp}>
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
           🤖 AI Model
         </h3>
-        <p className="text-sm text-gray-600 mb-3">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
           Wähle das KI-Modell für die Story-Generierung
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {AI_MODELS.map((model) => {
+          {AI_MODELS.map((model, i) => {
             const isSelected = state.aiModel === model.id;
 
             return (
-              <button
+              <motion.button
                 key={model.id}
                 onClick={() => handleSelectAiModel(model.id as AIModel)}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05, type: 'spring', damping: 20 }}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.97 }}
                 className={`
-                  relative p-4 rounded-xl border-2 transition-all transform
+                  relative p-4 rounded-2xl border-2 transition-colors
                   ${isSelected
-                    ? `border-${model.color}-600 bg-${model.color}-50 ring-4 ring-${model.color}-200 scale-105`
-                    : 'border-gray-200 bg-white hover:border-gray-400 hover:scale-102'}
+                    ? 'border-purple-500 bg-purple-50/80 dark:bg-purple-900/30 ring-4 ring-purple-200/60'
+                    : 'border-white/60 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl hover:border-purple-300'}
                 `}
               >
                 {model.recommended && (
-                  <div className="absolute -top-2 -left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-emerald-400 to-green-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-md">
                     ⭐ NEU
                   </div>
                 )}
-                {isSelected && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    ✓
-                  </div>
-                )}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md z-10">
+                      ✓
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div className="flex flex-col items-center text-center">
                   <p className="text-2xl mb-2">{model.title}</p>
-                  <p className="text-xs text-gray-600 mb-1">{model.description}</p>
-                  <p className={`text-xs font-bold ${model.cost === 'FREE' ? 'text-green-600' : 'text-gray-500'}`}>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{model.description}</p>
+                  <p className={`text-xs font-bold ${model.cost === 'FREE' ? 'text-emerald-600' : 'text-gray-500'}`}>
                     {model.cost}
                   </p>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* Selection Summary */}
-      {state.ageGroup && state.length && (
-        <div className="bg-green-50 border-2 border-green-500 rounded-xl p-4">
-          <p className="font-semibold text-green-800 mb-1">
-            ✓ {t('wizard.common.selected')}
-          </p>
-          <p className="text-sm text-green-600">
-            {t('wizard.summary.age')}: {state.ageGroup}, {t('wizard.summary.length')}: {
-              state.length === 'short' ? t('wizard.lengths.short.duration') :
-                state.length === 'medium' ? t('wizard.lengths.medium.duration') :
-                  t('wizard.lengths.long.duration')
-            }
-          </p>
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {state.ageGroup && state.length && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+            className="bg-emerald-50/80 dark:bg-emerald-900/30 border-2 border-emerald-400 rounded-2xl p-4 backdrop-blur-sm"
+          >
+            <p className="font-semibold text-emerald-800 dark:text-emerald-300 mb-1">
+              ✓ {t('wizard.common.selected')}
+            </p>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">
+              {t('wizard.summary.age')}: {state.ageGroup}, {t('wizard.summary.length')}: {
+                state.length === 'short' ? t('wizard.lengths.short.duration') :
+                  state.length === 'medium' ? t('wizard.lengths.medium.duration') :
+                    t('wizard.lengths.long.duration')
+              }
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

@@ -2,8 +2,12 @@
 // Select 1-3 emotions/tones for the story
 
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Heart, Zap, Stars, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } } as const;
+const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, damping: 20 } } };
 
 type Feeling = 'funny' | 'warm' | 'exciting' | 'crazy' | 'meaningful';
 
@@ -75,44 +79,54 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
       {/* Title & Description */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <motion.div className="text-center" variants={fadeUp}>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2" style={{ fontFamily: 'Fredoka, sans-serif' }}>
           🎭 {t('wizard.titles.feeling')}
         </h2>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           {t('wizard.subtitles.feeling')}
         </p>
-      </div>
+      </motion.div>
 
       {/* Feelings Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {FEELINGS.map((feeling) => {
+      <motion.div className="grid grid-cols-2 md:grid-cols-3 gap-4" variants={fadeUp}>
+        {FEELINGS.map((feeling, i) => {
           const isSelected = state.feelings.includes(feeling.id as Feeling);
           const Icon = feeling.icon;
           const isDisabled = !isSelected && state.feelings.length >= 3;
 
           return (
-            <button
+            <motion.button
               key={feeling.id}
               onClick={() => handleToggleFeeling(feeling.id as Feeling)}
               disabled={isDisabled}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.06, type: 'spring', damping: 20 }}
+              whileHover={!isDisabled ? { y: -4, boxShadow: '0 12px 30px rgba(169,137,242,0.15)' } : {}}
+              whileTap={!isDisabled ? { scale: 0.97 } : {}}
               className={`
-                relative p-6 rounded-2xl border-2 transition-all transform
+                relative p-6 rounded-2xl border-2 transition-colors
                 ${isSelected
-                  ? `border-${feeling.color}-600 bg-${feeling.color}-50 ring-4 ring-${feeling.color}-200 scale-105 shadow-xl`
+                  ? 'border-purple-500 bg-purple-50/80 dark:bg-purple-900/30 ring-4 ring-purple-200/60 shadow-xl'
                   : isDisabled
-                    ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                    : 'border-gray-200 bg-white hover:border-gray-400 hover:scale-102 shadow-lg'}
+                    ? 'border-gray-200 bg-gray-50 dark:bg-slate-900/50 opacity-50 cursor-not-allowed'
+                    : 'border-white/60 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl shadow-lg'}
               `}
             >
               {/* Selection Badge */}
-              {isSelected && (
-                <div className="absolute -top-3 -right-3 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                  ✓
-                </div>
-              )}
+              <AnimatePresence>
+                {isSelected && (
+                  <motion.div
+                    initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                    className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-10"
+                  >
+                    ✓
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Icon */}
               <div className={`
@@ -124,30 +138,30 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
 
               {/* Title & Description */}
               <div className="text-center">
-                <h3 className="font-bold text-lg text-gray-800 mb-1">
+                <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-1">
                   {feeling.title}
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   {feeling.description}
                 </p>
               </div>
-            </button>
+            </motion.button>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Selection Counter */}
-      <div className={`
-        p-4 rounded-xl border-2 transition-all
-        ${state.feelings.length === 0 ? 'border-gray-300 bg-gray-50' :
-          state.feelings.length < 3 ? 'border-blue-400 bg-blue-50' :
-            'border-green-500 bg-green-50'}
+      <motion.div variants={fadeUp} className={`
+        p-4 rounded-2xl border-2 transition-colors backdrop-blur-sm
+        ${state.feelings.length === 0 ? 'border-gray-300/60 bg-gray-50/60 dark:bg-slate-800/60' :
+          state.feelings.length < 3 ? 'border-blue-400/60 bg-blue-50/60 dark:bg-blue-900/30' :
+            'border-emerald-400 bg-emerald-50/80 dark:bg-emerald-900/30'}
       `}>
-        <p className="font-semibold text-center">
+        <p className="font-semibold text-center text-gray-700 dark:text-gray-200">
           {state.feelings.length === 0 && `👆 ${t('wizard.subtitles.feeling')}`}
           {state.feelings.length > 0 && `✓ ${state.feelings.length} ${t('wizard.common.selected')}`}
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

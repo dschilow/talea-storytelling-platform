@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock, Download } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { FlaskConical, Trash2, Clock, Lightbulb, Globe, Lock, Download, Loader2 } from 'lucide-react';
 import type { Doku } from '../../types/doku';
-import { colors } from '../../utils/constants/colors';
-import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
 
@@ -19,59 +17,30 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
   const backend = useBackend();
 
   const handleClick = () => {
-    console.log('DokuCard clicked:', doku.title, doku.id);
     onRead(doku);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete) {
-      onDelete(doku.id, doku.title);
-    }
+    onDelete?.(doku.id, doku.title);
   };
 
   const handleTogglePublic = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onTogglePublic) {
-      onTogglePublic(doku.id, doku.isPublic);
-    }
+    onTogglePublic?.(doku.id, doku.isPublic);
   };
 
   const handleDownloadPDF = async (e: React.MouseEvent) => {
     e.stopPropagation();
-
-    if (!isPDFExportSupported()) {
-      alert('PDF-Export wird in diesem Browser nicht unterstützt');
-      return;
-    }
-
-    if (doku.status !== 'complete') {
-      alert('Die Doku muss erst vollständig generiert werden');
-      return;
-    }
+    if (!isPDFExportSupported()) { alert('PDF-Export wird in diesem Browser nicht unterstützt'); return; }
+    if (doku.status !== 'complete') { alert('Die Doku muss erst vollständig generiert werden'); return; }
 
     try {
       setIsExportingPDF(true);
-
-      // Load full doku with sections before exporting
-      console.log('[DokuCard] Loading full doku with sections for PDF export...');
       const fullDoku = await backend.doku.getDoku({ id: doku.id });
-
-      console.log('[DokuCard] Full doku loaded:', {
-        hasSections: !!fullDoku.content?.sections,
-        sectionCount: fullDoku.content?.sections?.length || 0
-      });
-
-      if (!fullDoku.content?.sections || fullDoku.content.sections.length === 0) {
-        throw new Error('Die Doku hat keine Abschnitte');
-      }
-
+      if (!fullDoku.content?.sections || fullDoku.content.sections.length === 0) throw new Error('Die Doku hat keine Abschnitte');
       await exportDokuAsPDF(fullDoku as any);
-
-      // Success notification
-      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast('📄 PDF erfolgreich heruntergeladen!');
-      });
+      import('../../utils/toastUtils').then(({ showSuccessToast }) => showSuccessToast('📄 PDF erfolgreich heruntergeladen!'));
     } catch (error) {
       console.error('PDF export error:', error);
       alert('Fehler beim PDF-Export: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
@@ -80,294 +49,116 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
     }
   };
 
-  const cardStyle: React.CSSProperties = {
-    background: colors.glass.background,
-    backdropFilter: 'blur(20px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-    border: `2px solid ${colors.border.light}`,
-    borderRadius: `${radii.xl}px`,
-    overflow: 'hidden',
-    boxShadow: shadows.md,
-    transition: `all ${animations.duration.normal} ${animations.easing.smooth}`,
-    cursor: 'pointer',
-  };
-
-  const imageContainerStyle: React.CSSProperties = {
-    position: 'relative',
-    height: '220px',
-    overflow: 'hidden',
-    background: colors.gradients.ocean,
-  };
-
-  const imageStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    transition: `transform ${animations.duration.slow} ${animations.easing.smooth}`,
-  };
-
-  const defaultImageStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  };
-
-  const statusBadgeStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    background: colors.glass.background,
-    backdropFilter: 'blur(10px)',
-    borderRadius: `${radii.pill}px`,
-    padding: `${spacing.xs}px ${spacing.md}px`,
-    ...typography.textStyles.caption,
-    fontWeight: '700',
-    color: doku.status === 'complete' ? colors.semantic.success : colors.semantic.warning,
-    border: `2px solid ${doku.status === 'complete' ? colors.semantic.success + '40' : colors.semantic.warning + '40'}`,
-  };
-
-  const deleteButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    background: colors.semantic.error + '90',
-    backdropFilter: 'blur(10px)',
-    borderRadius: `${radii.pill}px`,
-    padding: `${spacing.sm}px`,
-    border: 'none',
-    cursor: 'pointer',
-    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
-  };
-
-  const downloadButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.md,
-    right: (() => {
-      let offset = spacing.md;
-      if (onDelete) offset = `calc(${spacing.md}px + 36px + ${spacing.sm}px)`;
-      if (onTogglePublic && onDelete) offset = `calc(${spacing.md}px + 72px + ${spacing.sm * 2}px)`;
-      else if (onTogglePublic) offset = `calc(${spacing.md}px + 36px + ${spacing.sm}px)`;
-      return offset;
-    })(),
-    background: colors.primary[500] + '90',
-    backdropFilter: 'blur(10px)',
-    borderRadius: `${radii.pill}px`,
-    padding: `${spacing.sm}px`,
-    border: 'none',
-    cursor: isExportingPDF ? 'wait' : 'pointer',
-    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
-    opacity: isExportingPDF ? 0.6 : 1,
-  };
-
-  const visibilityButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: spacing.md,
-    right: onDelete ? `calc(${spacing.md}px + 36px + ${spacing.sm}px)` : spacing.md,
-    background: doku.isPublic ? (colors.mint[600] + '90') : (colors.peach[600] + '90'),
-    backdropFilter: 'blur(10px)',
-    borderRadius: `${radii.pill}px`,
-    padding: `${spacing.sm}px`,
-    border: 'none',
-    cursor: 'pointer',
-    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
-  };
-
-  const overlayStyle: React.CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 100%)',
-  };
-
-  const contentStyle: React.CSSProperties = {
-    padding: `${spacing.lg}px`,
-  };
-
-  const titleStyle: React.CSSProperties = {
-    ...typography.textStyles.headingMd,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-    transition: `color ${animations.duration.fast} ${animations.easing.smooth}`,
-  };
-
-  const topicStyle: React.CSSProperties = {
-    ...typography.textStyles.bodySm,
-    color: colors.text.secondary,
-    marginBottom: spacing.md,
-  };
-
-  const topicBadgeStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: spacing.xs,
-    padding: `${spacing.xs}px ${spacing.md}px`,
-    background: colors.mint[50],
-    color: colors.mint[700],
-    borderRadius: `${radii.pill}px`,
-    ...typography.textStyles.caption,
-    fontWeight: '600',
-    border: `1px solid ${colors.mint[200]}`,
-    marginTop: spacing.sm,
-  };
-
-  const metaContainerStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  };
-
-  const metaItemStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: spacing.xs,
-    ...typography.textStyles.caption,
-    color: colors.text.tertiary,
-  };
-
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -6 }}
+      whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      style={cardStyle}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-8px)';
-        e.currentTarget.style.boxShadow = shadows.xl;
-        const img = e.currentTarget.querySelector('img') as HTMLElement;
-        if (img) img.style.transform = 'scale(1.1)';
-        const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
-        if (title) title.style.color = colors.mint[600];
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = shadows.md;
-        const img = e.currentTarget.querySelector('img') as HTMLElement;
-        if (img) img.style.transform = 'scale(1)';
-        const title = e.currentTarget.querySelector('[data-title]') as HTMLElement;
-        if (title) title.style.color = colors.text.primary;
-      }}
+      className="cursor-pointer group overflow-hidden rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-md hover:shadow-xl transition-shadow"
     >
-      <div style={imageContainerStyle}>
+      {/* Image */}
+      <div className="relative h-[200px] overflow-hidden bg-gradient-to-br from-[#FF9B5C]/20 to-[#FF6B9D]/20">
         {doku.coverImageUrl ? (
           <img
             src={doku.coverImageUrl}
             alt={doku.title}
-            style={imageStyle}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div style={defaultImageStyle}>
-            <FlaskConical size={72} style={{ color: colors.text.inverse, opacity: 0.6 }} />
+          <div className="w-full h-full flex items-center justify-center">
+            <FlaskConical size={64} className="text-white/50" />
           </div>
         )}
-        
-        <div style={overlayStyle} />
 
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+
+        {/* Status badge */}
         {doku.status === 'generating' && (
-          <div style={statusBadgeStyle}>
-            ✨ Wird erstellt...
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-amber-300/50 text-amber-600 text-[11px] font-bold">
+            <Loader2 size={12} className="animate-spin" />
+            Wird erstellt...
           </div>
         )}
 
-        {/* PDF Download Button - Only show for complete dokus */}
-        {doku.status === 'complete' && (
-          <button
-            onClick={handleDownloadPDF}
-            style={downloadButtonStyle}
-            title="Als PDF herunterladen"
-            disabled={isExportingPDF}
-            onMouseEnter={(e) => {
-              if (!isExportingPDF) {
-                e.currentTarget.style.transform = 'scale(1.15)';
-                e.currentTarget.style.background = colors.primary[500];
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.background = colors.primary[500] + '90';
-            }}
-          >
-            {isExportingPDF ? (
-              <div style={{
-                width: '16px',
-                height: '16px',
-                border: '2px solid white',
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-            ) : (
-              <Download size={16} style={{ color: colors.text.inverse }} />
-            )}
-          </button>
-        )}
+        {/* Action buttons overlay */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+          {/* PDF Download */}
+          {doku.status === 'complete' && (
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleDownloadPDF}
+              disabled={isExportingPDF}
+              title="Als PDF herunterladen"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-[#A989F2]/80 backdrop-blur-sm text-white hover:bg-[#A989F2] transition-colors disabled:opacity-50"
+            >
+              {isExportingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            </motion.button>
+          )}
 
-        {onTogglePublic && (
-          <button
-            onClick={handleTogglePublic}
-            style={visibilityButtonStyle}
-            title={doku.isPublic ? 'Als privat markieren' : 'Als öffentlich teilen'}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.background = doku.isPublic ? colors.mint[600] : colors.peach[600];
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.background = doku.isPublic ? (colors.mint[600] + '90') : (colors.peach[600] + '90');
-            }}
-          >
-            {doku.isPublic ? (
-              <Globe size={16} style={{ color: colors.text.inverse }} />
-            ) : (
-              <Lock size={16} style={{ color: colors.text.inverse }} />
-            )}
-          </button>
-        )}
+          {/* Toggle Public/Private */}
+          {onTogglePublic && (
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleTogglePublic}
+              title={doku.isPublic ? 'Als privat markieren' : 'Als öffentlich teilen'}
+              className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm text-white transition-colors ${
+                doku.isPublic
+                  ? 'bg-emerald-500/80 hover:bg-emerald-500'
+                  : 'bg-orange-400/80 hover:bg-orange-400'
+              }`}
+            >
+              {doku.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+            </motion.button>
+          )}
 
-        {onDelete && (
-          <button
-            onClick={handleDelete}
-            style={deleteButtonStyle}
-            title="Doku löschen"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.background = colors.semantic.error;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.background = colors.semantic.error + '90';
-            }}
-          >
-            <Trash2 size={16} style={{ color: colors.text.inverse }} />
-          </button>
-        )}
+          {/* Delete */}
+          {onDelete && (
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleDelete}
+              title="Doku löschen"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/80 backdrop-blur-sm text-white hover:bg-red-500 transition-colors"
+            >
+              <Trash2 size={14} />
+            </motion.button>
+          )}
+        </div>
       </div>
 
-      <div style={contentStyle}>
-        <h3 style={titleStyle} data-title>
+      {/* Content */}
+      <div className="p-4">
+        <h3 className="text-base font-bold text-slate-800 dark:text-white line-clamp-1 group-hover:text-[#FF9B5C] transition-colors" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           {doku.title}
         </h3>
-        <p style={topicStyle}>
+
+        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
           {doku.topic}
         </p>
 
-        <div style={topicBadgeStyle}>
-          <Lightbulb size={14} />
-          <span>Lehrreich & Spannend</span>
+        {/* Badge */}
+        <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
+          <Lightbulb size={12} />
+          Lehrreich & Spannend
         </div>
 
-        <div style={metaContainerStyle}>
-          <div style={metaItemStyle}>
-            <Clock size={14} />
-            <span>{new Date(doku.createdAt).toLocaleDateString('de-DE')}</span>
+        {/* Meta */}
+        <div className="flex items-center gap-4 mt-3">
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+            <Clock size={12} />
+            {new Date(doku.createdAt).toLocaleDateString('de-DE')}
           </div>
-          {doku.pages && (
-            <div style={metaItemStyle}>
-              <FlaskConical size={14} />
-              <span>{doku.pages.length} Seiten</span>
+          {(doku as any).pages && (
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+              <FlaskConical size={12} />
+              {(doku as any).pages.length} Seiten
             </div>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
