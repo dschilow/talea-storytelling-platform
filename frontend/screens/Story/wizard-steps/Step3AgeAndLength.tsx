@@ -1,4 +1,4 @@
-// Step 3: Age Group, Story Length & AI Model — Dark magical theme
+﻿// Step 3: Age Group, Story Length & AI Model â€” Dark magical theme
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,16 +25,16 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
   ];
 
   const LENGTHS = [
-    { id: 'short', title: '⚡', label: t('wizard.lengths.short.title'), duration: t('wizard.lengths.short.duration'), chapters: t('wizard.lengths.short.chapters'), color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
-    { id: 'medium', title: '📖', label: t('wizard.lengths.medium.title'), duration: t('wizard.lengths.medium.duration'), chapters: t('wizard.lengths.medium.chapters'), color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' },
-    { id: 'long', title: '📚', label: t('wizard.lengths.long.title'), duration: t('wizard.lengths.long.duration'), chapters: t('wizard.lengths.long.chapters'), color: '#FF9B5C', glow: 'rgba(255,155,92,0.35)' },
+    { id: 'short', title: 'âš¡', label: t('wizard.lengths.short.title'), duration: t('wizard.lengths.short.duration'), chapters: t('wizard.lengths.short.chapters'), color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
+    { id: 'medium', title: 'ðŸ“–', label: t('wizard.lengths.medium.title'), duration: t('wizard.lengths.medium.duration'), chapters: t('wizard.lengths.medium.chapters'), color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' },
+    { id: 'long', title: 'ðŸ“š', label: t('wizard.lengths.long.title'), duration: t('wizard.lengths.long.duration'), chapters: t('wizard.lengths.long.chapters'), color: '#FF9B5C', glow: 'rgba(255,155,92,0.35)' },
   ];
 
   const AI_MODELS = [
-    { id: 'gemini-3-flash-preview', title: '🔥 Gemini 3 Flash', description: 'KOSTENLOS - Google AI', cost: 'FREE', recommended: true, color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
-    { id: 'gpt-5-nano', title: '⚡ GPT-5 Nano', description: 'Schnell & günstig', cost: '$0.05/1M', color: '#60A5FA', glow: 'rgba(96,165,250,0.35)' },
-    { id: 'gpt-5-mini', title: '✨ GPT-5 Mini', description: 'Bewährt', cost: '$0.25/1M', color: '#A989F2', glow: 'rgba(169,137,242,0.35)' },
-    { id: 'gpt-5.2', title: '🌟 GPT-5.2', description: 'Beste Qualität', cost: '$1.25/1M', color: '#F472B6', glow: 'rgba(244,114,182,0.35)' },
+    { id: 'gemini-3-flash-preview', title: 'ðŸ”¥ Gemini 3 Flash', description: 'KOSTENLOS - Google AI', cost: 'FREE', recommended: true, color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
+    { id: 'gpt-5-nano', title: 'âš¡ GPT-5 Nano', description: 'Schnell & gÃ¼nstig', cost: '$0.05/1M', color: '#60A5FA', glow: 'rgba(96,165,250,0.35)' },
+    { id: 'gpt-5-mini', title: 'âœ¨ GPT-5 Mini', description: 'BewÃ¤hrt', cost: '$0.25/1M', color: '#A989F2', glow: 'rgba(169,137,242,0.35)' },
+    { id: 'gpt-5.2', title: 'ðŸŒŸ GPT-5.2', description: 'Beste QualitÃ¤t', cost: '$1.25/1M', color: '#F472B6', glow: 'rgba(244,114,182,0.35)' },
   ];
 
   const handleSelectAge = (ageGroup: AgeGroup) => updateState({ ageGroup });
@@ -45,16 +45,16 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
     <div className="space-y-8">
       {/* Title */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="text-2xl font-extrabold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
-          🎯 {t('wizard.titles.ageLength')}
+        <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
+          ðŸŽ¯ {t('wizard.titles.ageLength')}
         </h2>
-        <p className="text-white/50 text-sm">{t('wizard.subtitles.ageLength')}</p>
+        <p className="text-muted-foreground text-sm">{t('wizard.subtitles.ageLength')}</p>
       </motion.div>
 
       {/* Age Group Selection */}
       <div>
-        <h3 className="text-base font-semibold text-white/80 mb-3 flex items-center gap-2">
-          <Users size={18} className="text-white/60" /> {t('wizard.steps.ageLength')}
+        <h3 className="text-base font-semibold text-foreground/90 mb-3 flex items-center gap-2">
+          <Users size={18} className="text-foreground/70" /> {t('wizard.steps.ageLength')}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {AGE_GROUPS.map((group, i) => {
@@ -77,18 +77,18 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
                     style={{ background: group.glow, filter: 'blur(12px)' }} />
                 )}
                 <div className={`relative z-10 p-4 rounded-2xl transition-all duration-300 flex flex-col items-center text-center gap-2 ${
-                  isSelected ? 'border-2 shadow-xl' : 'bg-white/[0.06] border border-white/10 hover:bg-white/10'
+                  isSelected ? 'border-2 shadow-xl' : 'bg-card/70 border border-border hover:bg-accent/70'
                 }`} style={isSelected ? { background: `${group.color}12`, borderColor: `${group.color}60` } : undefined}>
                   <AnimatePresence>
                     {isSelected && (
                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                         className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
-                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>✓</motion.div>
+                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>âœ“</motion.div>
                     )}
                   </AnimatePresence>
                   <Icon size={28} style={{ color: isSelected ? group.color : 'rgba(255,255,255,0.4)' }} />
-                  <p className="font-bold text-sm text-white">{group.title}</p>
-                  <p className="text-[11px] text-white/40">{group.description}</p>
+                  <p className="font-bold text-sm text-foreground">{group.title}</p>
+                  <p className="text-[11px] text-muted-foreground/80">{group.description}</p>
                 </div>
               </motion.button>
             );
@@ -98,8 +98,8 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
 
       {/* Length Selection */}
       <div>
-        <h3 className="text-base font-semibold text-white/80 mb-3 flex items-center gap-2">
-          <Clock size={18} className="text-white/60" /> {t('wizard.summary.length')}
+        <h3 className="text-base font-semibold text-foreground/90 mb-3 flex items-center gap-2">
+          <Clock size={18} className="text-foreground/70" /> {t('wizard.summary.length')}
         </h3>
         <div className="grid grid-cols-3 gap-3">
           {LENGTHS.map((length, i) => {
@@ -121,19 +121,19 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
                     style={{ background: length.glow, filter: 'blur(12px)' }} />
                 )}
                 <div className={`relative z-10 p-5 rounded-2xl transition-all duration-300 text-center ${
-                  isSelected ? 'border-2 shadow-xl' : 'bg-white/[0.06] border border-white/10 hover:bg-white/10'
+                  isSelected ? 'border-2 shadow-xl' : 'bg-card/70 border border-border hover:bg-accent/70'
                 }`} style={isSelected ? { background: `${length.color}12`, borderColor: `${length.color}60` } : undefined}>
                   <AnimatePresence>
                     {isSelected && (
                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                         className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
-                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>✓</motion.div>
+                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>âœ“</motion.div>
                     )}
                   </AnimatePresence>
                   <p className="text-3xl mb-2">{length.title}</p>
-                  <p className="font-bold text-sm text-white">{length.label}</p>
-                  <p className="text-xs text-white/50 mt-1">{length.duration}</p>
-                  <p className="text-[10px] text-white/30 mt-0.5">{length.chapters}</p>
+                  <p className="font-bold text-sm text-foreground">{length.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{length.duration}</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{length.chapters}</p>
                 </div>
               </motion.button>
             );
@@ -143,10 +143,10 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
 
       {/* AI Model Selection */}
       <div>
-        <h3 className="text-base font-semibold text-white/80 mb-1 flex items-center gap-2">
-          🤖 AI Model
+        <h3 className="text-base font-semibold text-foreground/90 mb-1 flex items-center gap-2">
+          ðŸ¤– AI Model
         </h3>
-        <p className="text-xs text-white/40 mb-3">Wähle das KI-Modell für die Story-Generierung</p>
+        <p className="text-xs text-muted-foreground/80 mb-3">WÃ¤hle das KI-Modell fÃ¼r die Story-Generierung</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {AI_MODELS.map((model, i) => {
             const isSelected = state.aiModel === model.id;
@@ -167,22 +167,22 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
                     style={{ background: model.glow, filter: 'blur(12px)' }} />
                 )}
                 <div className={`relative z-10 p-4 rounded-2xl transition-all duration-300 text-center ${
-                  isSelected ? 'border-2 shadow-xl' : 'bg-white/[0.06] border border-white/10 hover:bg-white/10'
+                  isSelected ? 'border-2 shadow-xl' : 'bg-card/70 border border-border hover:bg-accent/70'
                 }`} style={isSelected ? { background: `${model.color}12`, borderColor: `${model.color}60` } : undefined}>
                   {model.recommended && (
-                    <div className="absolute -top-2 -left-2 text-[10px] px-2 py-0.5 rounded-full font-bold text-white shadow-md z-20"
-                      style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>⭐ NEU</div>
+                    <div className="absolute -top-2 -left-2 text-[10px] px-2 py-0.5 rounded-full font-bold text-foreground shadow-md z-20"
+                      style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>â­ NEU</div>
                   )}
                   <AnimatePresence>
                     {isSelected && (
                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                         className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
-                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>✓</motion.div>
+                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>âœ“</motion.div>
                     )}
                   </AnimatePresence>
                   <p className="text-lg mb-1">{model.title}</p>
-                  <p className="text-[11px] text-white/40 mb-1">{model.description}</p>
-                  <p className={`text-xs font-bold ${model.cost === 'FREE' ? 'text-emerald-400' : 'text-white/30'}`}>
+                  <p className="text-[11px] text-muted-foreground/80 mb-1">{model.description}</p>
+                  <p className={`text-xs font-bold ${model.cost === 'FREE' ? 'text-emerald-400' : 'text-muted-foreground/70'}`}>
                     {model.cost}
                   </p>
                 </div>
@@ -199,7 +199,7 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
             className="rounded-2xl p-4 border border-emerald-500/30 bg-emerald-500/10"
           >
-            <p className="font-semibold text-emerald-300 mb-1">✓ {t('wizard.common.selected')}</p>
+            <p className="font-semibold text-emerald-300 mb-1">âœ“ {t('wizard.common.selected')}</p>
             <p className="text-sm text-emerald-400/80">
               {t('wizard.summary.age')}: {state.ageGroup}, {t('wizard.summary.length')}: {
                 state.length === 'short' ? t('wizard.lengths.short.duration') :
@@ -213,4 +213,6 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
     </div>
   );
 }
+
+
 

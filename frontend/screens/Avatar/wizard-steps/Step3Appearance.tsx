@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   HairColorSelector,
   HairStyleSelector,
@@ -7,6 +7,7 @@ import {
 } from '../../../components/avatar-form/ColorSelector';
 import { isAnimalCharacter } from '../../../types/avatarForm';
 import type { AvatarFormData } from '../../../types/avatarForm';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 interface Step3AppearanceProps {
   formData: AvatarFormData;
@@ -15,49 +16,47 @@ interface Step3AppearanceProps {
 
 export default function Step3Appearance({ formData, updateFormData }: Step3AppearanceProps) {
   const isAnimal = isAnimalCharacter(formData.characterType);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <div className="space-y-6">
-      {/* Step title */}
       <div className="text-center">
         <h2
-          className="text-2xl font-extrabold text-white mb-1"
-          style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
+          className="text-2xl font-extrabold text-foreground mb-1"
+          style={{ fontFamily: '"Cormorant Garamond", serif' }}
         >
           Aussehen
         </h2>
-        <p className="text-white/50 text-sm">Wie sieht dein Avatar aus?</p>
+        <p className="text-muted-foreground text-sm">Wie sieht dein Avatar aus?</p>
       </div>
 
-      {/* Hair Color & Style (not for animals) */}
       {!isAnimal && (
         <>
           <HairColorSelector
             value={formData.hairColor}
             onChange={(hairColor) => updateFormData({ hairColor })}
-            darkMode
+            darkMode={isDark}
           />
           <HairStyleSelector
             value={formData.hairStyle}
             onChange={(hairStyle) => updateFormData({ hairStyle })}
-            darkMode
+            darkMode={isDark}
           />
         </>
       )}
 
-      {/* Eye Color */}
       <EyeColorSelector
         value={formData.eyeColor}
         onChange={(eyeColor) => updateFormData({ eyeColor })}
-        darkMode
+        darkMode={isDark}
       />
 
-      {/* Skin/Fur Color */}
       <SkinFurColorSelector
         value={formData.skinTone}
         onChange={(skinTone) => updateFormData({ skinTone })}
         characterType={formData.characterType}
-        darkMode
+        darkMode={isDark}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-// Step 1: Avatar Selection — Dark magical theme with glowing cards
+﻿// Step 1: Avatar Selection â€” Dark magical theme with glowing cards
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,7 +44,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
           transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
           className="w-12 h-12 border-3 border-[#A989F2] border-t-transparent rounded-full mb-4"
         />
-        <p className="text-white/50">{t('common.loading')}</p>
+        <p className="text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
@@ -57,10 +57,10 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
-        <h2 className="text-2xl font-extrabold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
-          🧸 {t('wizard.titles.avatars')}
+        <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
+          ðŸ§¸ {t('wizard.titles.avatars')}
         </h2>
-        <p className="text-white/50 text-sm">{t('wizard.subtitles.avatars')}</p>
+        <p className="text-muted-foreground text-sm">{t('wizard.subtitles.avatars')}</p>
       </motion.div>
 
       {/* Avatar Grid */}
@@ -68,10 +68,10 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-16 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl"
+          className="text-center py-16 rounded-3xl bg-card/60 border border-border backdrop-blur-xl"
         >
-          <User size={48} className="mx-auto text-white/20 mb-4" />
-          <p className="text-white/40 mb-6">{t('homePage.emptyAvatarsTitle')}</p>
+          <User size={48} className="mx-auto text-muted-foreground/60 mb-4" />
+          <p className="text-muted-foreground/80 mb-6">{t('homePage.emptyAvatarsTitle')}</p>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -116,7 +116,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                 <div className={`relative z-10 rounded-2xl p-3 transition-all duration-300 ${
                   isSelected
                     ? 'bg-gradient-to-br from-[#A989F2]/20 to-[#FF6B9D]/20 border-2 border-[#A989F2]/60 shadow-xl shadow-[#A989F2]/20'
-                    : 'bg-white/[0.06] border border-white/10 hover:bg-white/10 hover:border-white/20'
+                    : 'bg-card/70 border border-border hover:bg-accent/70 hover:border-border/80'
                 }`}>
                   {/* Check badge */}
                   <AnimatePresence>
@@ -128,7 +128,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                         className="absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg z-20"
                         style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}
                       >
-                        ✓
+                        âœ“
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -138,14 +138,14 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                     {avatar.imageUrl ? (
                       <img src={avatar.imageUrl} alt={avatar.name} className="w-full h-full object-cover" />
                     ) : (
-                      <ImageIcon size={36} className="text-white/20" />
+                      <ImageIcon size={36} className="text-muted-foreground/60" />
                     )}
                   </div>
 
                   {/* Info */}
                   <div className="text-left">
-                    <p className="font-bold text-white text-sm truncate">{avatar.name}</p>
-                    <p className="text-xs text-white/40">{avatar.age} {t('wizard.summary.age')}, {avatar.gender === 'male' ? '👦' : avatar.gender === 'female' ? '👧' : '🧒'}</p>
+                    <p className="font-bold text-foreground text-sm truncate">{avatar.name}</p>
+                    <p className="text-xs text-muted-foreground/80">{avatar.age} {t('wizard.summary.age')}, {avatar.gender === 'male' ? 'ðŸ‘¦' : avatar.gender === 'female' ? 'ðŸ‘§' : 'ðŸ§’'}</p>
                   </div>
                 </div>
               </motion.button>
@@ -169,7 +169,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
           >
             <Sparkles className="text-emerald-400 w-5 h-5 flex-shrink-0" />
             <p className="font-semibold text-emerald-300 text-sm">
-              ✓ {state.selectedAvatars.length} {t('wizard.summary.avatars')} {t('common.selected')}
+              âœ“ {state.selectedAvatars.length} {t('wizard.summary.avatars')} {t('common.selected')}
             </p>
           </motion.div>
         )}
@@ -177,3 +177,5 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     </div>
   );
 }
+
+

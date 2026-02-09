@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { SignedIn } from '@clerk/clerk-react';
 import Sidebar from './Sidebar';
@@ -10,7 +10,7 @@ const AppLayout: React.FC = () => {
         <div className="min-h-screen text-foreground flex flex-col md:flex-row">
             {/* Desktop Sidebar - Only visible when signed in */}
             <SignedIn>
-                <div className="hidden md:block w-[86px] flex-shrink-0" />
+                <div className="hidden md:block w-[88px] flex-shrink-0" />
                 <Sidebar />
             </SignedIn>
 
@@ -32,3 +32,4 @@ const AppLayout: React.FC = () => {
 };
 
 export default AppLayout;
+

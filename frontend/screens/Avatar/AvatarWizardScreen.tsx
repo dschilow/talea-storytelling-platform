@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+﻿import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,7 @@ import {
   isAnimalCharacter,
 } from '../../types/avatarForm';
 import { useBackend } from '../../hooks/useBackend';
+import { useTheme } from '../../contexts/ThemeContext';
 
 import Step1Basics from './wizard-steps/Step1Basics';
 import Step2AgeBody from './wizard-steps/Step2AgeBody';
@@ -29,60 +30,73 @@ const WIZARD_STEPS = [
 ];
 
 const ACCENT = '#2DD4BF';
+const headingFont = '"Cormorant Garamond", serif';
 
-// ── Background ────────────────────────────────────────────
-const Background: React.FC = () => (
-  <div
-    className="fixed inset-0 pointer-events-none z-0"
-    style={{ background: '#0C0E14' }}
-  >
-    <div
-      className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full"
-      style={{
-        background: 'radial-gradient(circle, rgba(45,212,191,0.07) 0%, transparent 70%)',
-        filter: 'blur(80px)',
-      }}
-    />
-    <div
-      className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full"
-      style={{
-        background: 'radial-gradient(circle, rgba(45,212,191,0.04) 0%, transparent 70%)',
-        filter: 'blur(80px)',
-      }}
-    />
-  </div>
+type WizardPalette = {
+  pageGradient: string;
+  border: string;
+  panel: string;
+  text: string;
+  muted: string;
+  stepIdle: string;
+};
+
+function paletteFor(isDark: boolean): WizardPalette {
+  if (isDark) {
+    return {
+      pageGradient:
+        'radial-gradient(960px 540px at 100% 0%, rgba(94,129,160,0.26) 0%, transparent 56%), radial-gradient(980px 520px at 0% 18%, rgba(78,120,110,0.24) 0%, transparent 62%), linear-gradient(180deg,#111a25 0%, #0e1722 100%)',
+      border: '#32455d',
+      panel: 'rgba(24,35,49,0.92)',
+      text: '#e6eef9',
+      muted: '#9db0c8',
+      stepIdle: 'rgba(39,53,72,0.92)',
+    };
+  }
+
+  return {
+    pageGradient:
+      'radial-gradient(980px 560px at 100% 0%, #f2dfdc 0%, transparent 56%), radial-gradient(980px 540px at 0% 18%, #dbe8de 0%, transparent 61%), linear-gradient(180deg,#f8f1e8 0%, #f6efe4 100%)',
+    border: '#dfcfbb',
+    panel: 'rgba(255,250,243,0.93)',
+    text: '#1b2838',
+    muted: '#627487',
+    stepIdle: 'rgba(237,226,209,0.85)',
+  };
+}
+
+const WizardBackground: React.FC<{ palette: WizardPalette }> = ({ palette }) => (
+  <div className="fixed inset-0 pointer-events-none -z-10" style={{ background: palette.pageGradient }} />
 );
 
-// ── Step indicator ────────────────────────────────────────
-const StepIndicator: React.FC<{ activeStep: number }> = ({ activeStep }) => (
-  <div className="flex items-center justify-center gap-1.5 sm:gap-2 mb-4 px-2">
+const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette }> = ({ activeStep, palette }) => (
+  <div className="flex items-center justify-center gap-2.5 mb-5 px-2">
     {WIZARD_STEPS.map((step, i) => (
       <React.Fragment key={step.key}>
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5">
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300"
+            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300"
             style={
               i < activeStep
-                ? { background: ACCENT, color: '#0C0E14' }
+                ? { background: ACCENT, color: '#0e1520' }
                 : i === activeStep
-                  ? { background: 'rgba(45,212,191,0.15)', border: `2px solid ${ACCENT}`, color: ACCENT }
-                  : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.25)' }
+                ? { background: `${ACCENT}26`, border: `2px solid ${ACCENT}`, color: ACCENT }
+                : { background: palette.stepIdle, border: `1px solid ${palette.border}`, color: palette.muted }
             }
           >
             {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
           </div>
           <span
-            className={`text-[9px] sm:text-[10px] font-medium transition-colors duration-300 ${
-              i === activeStep ? 'text-white/60' : i < activeStep ? 'text-white/30' : 'text-white/15'
-            }`}
+            className="text-[10px] font-medium"
+            style={{ color: i <= activeStep ? palette.text : palette.muted }}
           >
             {step.label}
           </span>
         </div>
         {i < WIZARD_STEPS.length - 1 && (
           <div
-            className="w-4 sm:w-6 h-px rounded-full -mt-3"
-            style={{ background: i < activeStep ? ACCENT : 'rgba(255,255,255,0.06)' }}
+            className="w-7 h-px rounded-full -mt-4"
+            style={{ background: i < activeStep ? ACCENT : palette.border }}
           />
         )}
       </React.Fragment>
@@ -90,31 +104,31 @@ const StepIndicator: React.FC<{ activeStep: number }> = ({ activeStep }) => (
   </div>
 );
 
-// ── Creating loading state ────────────────────────────────
-const CreatingAnimation: React.FC<{ name: string }> = ({ name }) => (
+const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({ name, palette }) => (
   <div className="relative min-h-screen">
-    <Background />
-    <div className="relative z-10 flex flex-col items-center justify-center min-h-screen gap-6 px-6">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-      >
+    <WizardBackground palette={palette} />
+    <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-6 px-6">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
         <Loader2 className="w-10 h-10" style={{ color: ACCENT }} />
       </motion.div>
       <div className="text-center">
-        <h2 className="text-xl font-semibold text-white">
+        <h2 className="text-xl font-semibold" style={{ color: palette.text }}>
           {name} wird erstellt
         </h2>
-        <p className="text-white/35 text-sm mt-1">Einen Moment noch...</p>
+        <p className="text-sm mt-1" style={{ color: palette.muted }}>
+          Einen Moment noch...
+        </p>
       </div>
     </div>
   </div>
 );
 
-// ── Main wizard ───────────────────────────────────────────
 const AvatarWizardScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const palette = useMemo(() => paletteFor(isDark), [isDark]);
 
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
@@ -147,6 +161,7 @@ const AvatarWizardScreen: React.FC = () => {
   const handleNext = () => {
     if (canProceed && activeStep < WIZARD_STEPS.length - 1) setActiveStep((s) => s + 1);
   };
+
   const handleBack = () => {
     if (activeStep > 0) setActiveStep((s) => s - 1);
   };
@@ -263,7 +278,7 @@ const AvatarWizardScreen: React.FC = () => {
   };
 
   if (isCreating) {
-    return <CreatingAnimation name={formData.name} />;
+    return <CreatingAnimation name={formData.name} palette={palette} />;
   }
 
   const renderStep = () => {
@@ -301,38 +316,33 @@ const AvatarWizardScreen: React.FC = () => {
 
   return (
     <div className="relative min-h-screen pb-6">
-      <Background />
+      <WizardBackground palette={palette} />
 
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-3 pt-4 pb-3">
+      <div className="relative z-10 pt-4">
+        <div className="flex items-center gap-3 px-3 pb-3">
           <button
             onClick={() => navigate('/avatar')}
-            className="p-2 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-all"
+            className="p-2 rounded-lg transition-all"
+            style={{ color: palette.muted, background: palette.panel, border: `1px solid ${palette.border}` }}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-lg font-semibold text-white">
+            <h1 className="text-3xl leading-none" style={{ color: palette.text, fontFamily: headingFont }}>
               Avatar erstellen
             </h1>
-            <p className="text-xs text-white/30">
+            <p className="text-xs mt-1" style={{ color: palette.muted }}>
               Schritt {activeStep + 1} von {WIZARD_STEPS.length}
             </p>
           </div>
         </div>
 
-        {/* Step indicator */}
-        <StepIndicator activeStep={activeStep} />
+        <StepIndicator activeStep={activeStep} palette={palette} />
 
-        {/* Content card */}
-        <div className="mx-3 sm:mx-auto sm:max-w-lg">
+        <div className="mx-3 sm:mx-auto sm:max-w-2xl">
           <div
-            className="rounded-2xl p-4 sm:p-5"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
-            }}
+            className="rounded-3xl p-5"
+            style={{ background: palette.panel, border: `1px solid ${palette.border}` }}
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -347,12 +357,12 @@ const AvatarWizardScreen: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          {/* Navigation */}
           <div className="flex items-center justify-between mt-4 gap-3">
             {activeStep > 0 ? (
               <button
                 onClick={handleBack}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{ color: palette.text, background: palette.panel, border: `1px solid ${palette.border}` }}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Zurueck
@@ -365,11 +375,8 @@ const AvatarWizardScreen: React.FC = () => {
               <button
                 onClick={handleNext}
                 disabled={!canProceed}
-                className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-semibold text-[#0C0E14] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{
-                  background: canProceed ? ACCENT : 'rgba(255,255,255,0.1)',
-                  color: canProceed ? '#0C0E14' : 'rgba(255,255,255,0.3)',
-                }}
+                className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: canProceed ? ACCENT : palette.stepIdle, color: canProceed ? '#0f1a28' : palette.muted }}
               >
                 Weiter
                 <ArrowRight className="w-4 h-4" />

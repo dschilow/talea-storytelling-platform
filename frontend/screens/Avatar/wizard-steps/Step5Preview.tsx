@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { Wand2, RefreshCw, Rocket } from 'lucide-react';
 import {
@@ -50,33 +50,33 @@ export default function Step5Preview({
       {/* Step title */}
       <div className="text-center">
         <h2
-          className="text-2xl font-extrabold text-white mb-1"
+          className="text-2xl font-extrabold text-foreground mb-1"
           style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
         >
           Vorschau & Erstellen
         </h2>
-        <p className="text-white/50 text-sm">Generiere ein Bild und erwecke deinen Avatar zum Leben</p>
+        <p className="text-muted-foreground text-sm">Generiere ein Bild und erwecke deinen Avatar zum Leben</p>
       </div>
 
       {/* Summary Card */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 space-y-3">
+      <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
         <div className="flex items-center gap-3">
           {previewUrl ? (
             <img
               src={previewUrl}
               alt={formData.name}
-              className="w-16 h-16 rounded-xl object-cover border-2 border-white/10"
+              className="w-16 h-16 rounded-xl object-cover border-2 border-border"
             />
           ) : (
-            <div className="w-16 h-16 rounded-xl bg-white/[0.06] border-2 border-dashed border-white/10 flex items-center justify-center">
-              <span className="text-2xl">{characterType?.icon || '🎨'}</span>
+            <div className="w-16 h-16 rounded-xl bg-card/70 border-2 border-dashed border-border flex items-center justify-center">
+              <span className="text-2xl">{characterType?.icon || 'ðŸŽ¨'}</span>
             </div>
           )}
           <div>
-            <h3 className="text-lg font-bold text-white">{formData.name || 'Ohne Name'}</h3>
-            <p className="text-sm text-white/40">
-              {characterType?.labelDe || 'Avatar'} · {formData.age} Jahre
-              {isHuman && ` · ${formData.height} cm`}
+            <h3 className="text-lg font-bold text-foreground">{formData.name || 'Ohne Name'}</h3>
+            <p className="text-sm text-muted-foreground/80">
+              {characterType?.labelDe || 'Avatar'} Â· {formData.age} Jahre
+              {isHuman && ` Â· ${formData.height} cm`}
             </p>
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function Step5Preview({
         {/* Detail rows */}
         <div className="grid grid-cols-2 gap-2 text-sm">
           {!isAnimal && hairColor && formData.hairColor !== 'none' && (
-            <div className="flex items-center gap-2 text-white/50">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <div
                 className="w-3 h-3 rounded-full border border-white/20"
                 style={{ background: hairColor.color.includes('gradient') ? undefined : hairColor.color }}
@@ -93,7 +93,7 @@ export default function Step5Preview({
             </div>
           )}
           {eyeColor && (
-            <div className="flex items-center gap-2 text-white/50">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <div
                 className="w-3 h-3 rounded-full border border-white/20"
                 style={{ background: eyeColor.color.includes('gradient') ? undefined : eyeColor.color }}
@@ -102,7 +102,7 @@ export default function Step5Preview({
             </div>
           )}
           {skinTone && (
-            <div className="flex items-center gap-2 text-white/50">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <div
                 className="w-3 h-3 rounded-full border border-white/20"
                 style={{ background: skinTone.color.includes('gradient') ? undefined : skinTone.color }}
@@ -120,7 +120,7 @@ export default function Step5Preview({
                 feature && (
                   <span
                     key={feature.id}
-                    className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-white/50 border border-white/[0.06]"
+                    className="text-xs px-2 py-0.5 rounded-full bg-card/70 text-muted-foreground border border-border"
                   >
                     {feature.icon} {feature.labelDe}
                   </span>
@@ -152,13 +152,13 @@ export default function Step5Preview({
               transition={{ duration: 2, repeat: Infinity }}
               className="absolute -top-3 -right-3 text-3xl"
             >
-              ✨
+              âœ¨
             </motion.div>
           </motion.div>
         ) : (
-          <div className="w-48 h-48 rounded-3xl bg-white/[0.04] border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2">
-            <span className="text-5xl">🎨</span>
-            <span className="text-xs text-white/30">Noch kein Bild</span>
+          <div className="w-48 h-48 rounded-3xl bg-card/60 border-2 border-dashed border-border flex flex-col items-center justify-center gap-2">
+            <span className="text-5xl">ðŸŽ¨</span>
+            <span className="text-xs text-muted-foreground/70">Noch kein Bild</span>
           </div>
         )}
 
@@ -198,7 +198,7 @@ export default function Step5Preview({
 
       {/* Info Box */}
       <div className="rounded-xl p-3 border border-[#2DD4BF]/20 bg-[#2DD4BF]/[0.06]">
-        <p className="text-xs text-white/50">
+        <p className="text-xs text-muted-foreground">
           <strong className="text-[#2DD4BF]">Info:</strong> Die Persoenlichkeit deines Avatars startet
           bei 0 und entwickelt sich durch Abenteuer in Geschichten weiter.
         </p>
@@ -210,7 +210,7 @@ export default function Step5Preview({
         whileTap={{ scale: 0.98 }}
         onClick={onCreateAvatar}
         disabled={isCreating || !formData.name.trim()}
-        className="w-full py-4 px-6 rounded-2xl text-white font-bold disabled:opacity-40 flex items-center justify-center gap-2 transition-all"
+        className="w-full py-4 px-6 rounded-2xl text-foreground font-bold disabled:opacity-40 flex items-center justify-center gap-2 transition-all"
         style={{
           background: 'linear-gradient(135deg, #34D399, #10B981)',
           boxShadow: '0 8px 30px rgba(52,211,153,0.3)',
@@ -222,3 +222,4 @@ export default function Step5Preview({
     </div>
   );
 }
+

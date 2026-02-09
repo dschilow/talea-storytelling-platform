@@ -1,4 +1,4 @@
-// Talea Doku Wizard - Immersive, Professional, Child-Friendly
+﻿// Talea Doku Wizard - Immersive, Professional, Child-Friendly
 // Redesigned with Talea design system: glass-morphism, gradient accents, framer-motion
 
 import React, { useState, useEffect } from 'react';
@@ -44,7 +44,7 @@ const DokuWizardBackground: React.FC = () => (
       animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
       transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
     />
-    {['🔬', '🌍', '📚', '⭐', '🧪', '🌱'].map((emoji, i) => (
+    {['ðŸ”¬', 'ðŸŒ', 'ðŸ“š', 'â­', 'ðŸ§ª', 'ðŸŒ±'].map((emoji, i) => (
       <motion.div
         key={i}
         className="absolute text-2xl select-none opacity-10"
@@ -77,7 +77,7 @@ const SelectionCard: React.FC<{
     className={`flex flex-col items-center gap-2 ${compact ? 'p-3' : 'p-4'} rounded-2xl border-2 transition-all text-center ${
       selected
         ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
-        : 'border-white/[0.08] bg-white/[0.06] backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-white/[0.10]'
+        : 'border-border bg-card/70 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-accent/60'
     }`}
   >
     <span className={compact ? 'text-xl' : 'text-2xl'}>{emoji}</span>
@@ -101,28 +101,28 @@ const SelectionCard: React.FC<{
 // =====================================================
 function Step1Topic({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const topicSuggestions = [
-    { emoji: '🦕', label: 'Dinosaurier', topic: 'Dinosaurier' },
-    { emoji: '🌋', label: 'Vulkane', topic: 'Vulkane' },
-    { emoji: '🚀', label: 'Weltraum', topic: 'Das Sonnensystem' },
-    { emoji: '🦁', label: 'Tiere Afrikas', topic: 'Tiere in Afrika' },
-    { emoji: '⚡', label: 'Elektrizität', topic: 'Wie funktioniert Strom?' },
-    { emoji: '🏰', label: 'Ritter & Burgen', topic: 'Das Leben im Mittelalter' },
-    { emoji: '🌊', label: 'Ozeane', topic: 'Die Geheimnisse der Ozeane' },
-    { emoji: '🧬', label: 'Menschlicher Körper', topic: 'Wie funktioniert unser Körper?' },
-    { emoji: '🌱', label: 'Pflanzen', topic: 'Wie wachsen Pflanzen?' },
-    { emoji: '🐝', label: 'Bienen', topic: 'Warum sind Bienen so wichtig?' },
-    { emoji: '🌍', label: 'Klimawandel', topic: 'Klimawandel einfach erklärt' },
-    { emoji: '🔬', label: 'Chemie', topic: 'Chemie im Alltag' },
+    { emoji: 'ðŸ¦•', label: 'Dinosaurier', topic: 'Dinosaurier' },
+    { emoji: 'ðŸŒ‹', label: 'Vulkane', topic: 'Vulkane' },
+    { emoji: 'ðŸš€', label: 'Weltraum', topic: 'Das Sonnensystem' },
+    { emoji: 'ðŸ¦', label: 'Tiere Afrikas', topic: 'Tiere in Afrika' },
+    { emoji: 'âš¡', label: 'ElektrizitÃ¤t', topic: 'Wie funktioniert Strom?' },
+    { emoji: 'ðŸ°', label: 'Ritter & Burgen', topic: 'Das Leben im Mittelalter' },
+    { emoji: 'ðŸŒŠ', label: 'Ozeane', topic: 'Die Geheimnisse der Ozeane' },
+    { emoji: 'ðŸ§¬', label: 'Menschlicher KÃ¶rper', topic: 'Wie funktioniert unser KÃ¶rper?' },
+    { emoji: 'ðŸŒ±', label: 'Pflanzen', topic: 'Wie wachsen Pflanzen?' },
+    { emoji: 'ðŸ', label: 'Bienen', topic: 'Warum sind Bienen so wichtig?' },
+    { emoji: 'ðŸŒ', label: 'Klimawandel', topic: 'Klimawandel einfach erklÃ¤rt' },
+    { emoji: 'ðŸ”¬', label: 'Chemie', topic: 'Chemie im Alltag' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="text-center mb-4">
         <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Was möchtest du entdecken?
+          Was mÃ¶chtest du entdecken?
         </h2>
         <p className="text-sm text-muted-foreground">
-          Gib ein Thema ein oder wähle eine Idee aus
+          Gib ein Thema ein oder wÃ¤hle eine Idee aus
         </p>
       </div>
 
@@ -133,7 +133,7 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
           value={state.topic}
           onChange={(e) => updateState({ topic: e.target.value })}
           placeholder="z.B. Dinosaurier, Vulkane, Weltraum..."
-          className="w-full px-6 py-4 text-lg rounded-2xl border-2 border-white/[0.08] bg-white/[0.06] backdrop-blur-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
+          className="w-full px-6 py-4 text-lg rounded-2xl border-2 border-border bg-card/70 backdrop-blur-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
           style={{ fontFamily: '"Nunito", sans-serif' }}
           autoFocus
         />
@@ -162,7 +162,7 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
               className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
                 state.topic === s.topic
                   ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
-                  : 'border-white/[0.08] bg-white/[0.06] backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-white/[0.10]'
+                  : 'border-border bg-card/70 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-accent/60'
               }`}
             >
               <span className="text-xl flex-shrink-0">{s.emoji}</span>
@@ -180,25 +180,25 @@ function Step1Topic({ state, updateState }: { state: DokuWizardState; updateStat
 // =====================================================
 function Step2AgeAndDepth({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const ageGroups = [
-    { value: '3-5' as const, emoji: '🧒', label: '3-5 Jahre', desc: 'Ganz einfach' },
-    { value: '6-8' as const, emoji: '👧', label: '6-8 Jahre', desc: 'Spielerisch' },
-    { value: '9-12' as const, emoji: '🧑', label: '9-12 Jahre', desc: 'Tiefere Zusammenhänge' },
-    { value: '13+' as const, emoji: '🧑‍🎓', label: '13+ Jahre', desc: 'Komplexe Themen' },
+    { value: '3-5' as const, emoji: 'ðŸ§’', label: '3-5 Jahre', desc: 'Ganz einfach' },
+    { value: '6-8' as const, emoji: 'ðŸ‘§', label: '6-8 Jahre', desc: 'Spielerisch' },
+    { value: '9-12' as const, emoji: 'ðŸ§‘', label: '9-12 Jahre', desc: 'Tiefere ZusammenhÃ¤nge' },
+    { value: '13+' as const, emoji: 'ðŸ§‘â€ðŸŽ“', label: '13+ Jahre', desc: 'Komplexe Themen' },
   ];
 
   const depths = [
-    { value: 'basic' as const, emoji: '🌱', label: 'Grundlagen', desc: 'Einfacher Einstieg' },
-    { value: 'standard' as const, emoji: '🌿', label: 'Standard', desc: 'Ausgewogene Tiefe' },
-    { value: 'deep' as const, emoji: '🌳', label: 'Tief', desc: 'Experten-Wissen' },
+    { value: 'basic' as const, emoji: 'ðŸŒ±', label: 'Grundlagen', desc: 'Einfacher Einstieg' },
+    { value: 'standard' as const, emoji: 'ðŸŒ¿', label: 'Standard', desc: 'Ausgewogene Tiefe' },
+    { value: 'deep' as const, emoji: 'ðŸŒ³', label: 'Tief', desc: 'Experten-Wissen' },
   ];
 
   return (
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Für wen ist die Doku?
+          FÃ¼r wen ist die Doku?
         </h2>
-        <p className="text-sm text-muted-foreground">Wähle die passende Altersgruppe</p>
+        <p className="text-sm text-muted-foreground">WÃ¤hle die passende Altersgruppe</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -240,17 +240,17 @@ function Step2AgeAndDepth({ state, updateState }: { state: DokuWizardState; upda
 // =====================================================
 function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const perspectives = [
-    { value: 'science' as const, emoji: '🔬', label: 'Naturwissenschaft', desc: 'Wie funktioniert es?' },
-    { value: 'history' as const, emoji: '📜', label: 'Geschichte', desc: 'Wie war es früher?' },
-    { value: 'technology' as const, emoji: '⚙️', label: 'Technik', desc: 'Wie wird es gebaut?' },
-    { value: 'nature' as const, emoji: '🌿', label: 'Natur', desc: 'Was lebt und wächst?' },
-    { value: 'culture' as const, emoji: '🎭', label: 'Kultur', desc: 'Was bedeutet es?' },
+    { value: 'science' as const, emoji: 'ðŸ”¬', label: 'Naturwissenschaft', desc: 'Wie funktioniert es?' },
+    { value: 'history' as const, emoji: 'ðŸ“œ', label: 'Geschichte', desc: 'Wie war es frÃ¼her?' },
+    { value: 'technology' as const, emoji: 'âš™ï¸', label: 'Technik', desc: 'Wie wird es gebaut?' },
+    { value: 'nature' as const, emoji: 'ðŸŒ¿', label: 'Natur', desc: 'Was lebt und wÃ¤chst?' },
+    { value: 'culture' as const, emoji: 'ðŸŽ­', label: 'Kultur', desc: 'Was bedeutet es?' },
   ];
 
   const tones = [
-    { value: 'fun' as const, emoji: '😄', label: 'Lustig', desc: 'Mit Witz und Humor' },
-    { value: 'curious' as const, emoji: '🤔', label: 'Neugierig', desc: 'Checker Tobi Style' },
-    { value: 'neutral' as const, emoji: '📖', label: 'Sachlich', desc: 'Klar und informativ' },
+    { value: 'fun' as const, emoji: 'ðŸ˜„', label: 'Lustig', desc: 'Mit Witz und Humor' },
+    { value: 'curious' as const, emoji: 'ðŸ¤”', label: 'Neugierig', desc: 'Checker Tobi Style' },
+    { value: 'neutral' as const, emoji: 'ðŸ“–', label: 'Sachlich', desc: 'Klar und informativ' },
   ];
 
   return (
@@ -259,7 +259,7 @@ function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardStat
         <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Welcher Blickwinkel?
         </h2>
-        <p className="text-sm text-muted-foreground">Aus welcher Perspektive soll erzählt werden?</p>
+        <p className="text-sm text-muted-foreground">Aus welcher Perspektive soll erzÃ¤hlt werden?</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -302,9 +302,9 @@ function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardStat
 // =====================================================
 function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
   const lengths = [
-    { value: 'short' as const, emoji: '📄', label: 'Kurz', desc: '3 Abschnitte', detail: 'Schneller Überblick' },
-    { value: 'medium' as const, emoji: '📑', label: 'Mittel', desc: '5 Abschnitte', detail: 'Ausgewogen' },
-    { value: 'long' as const, emoji: '📚', label: 'Lang', desc: '7 Abschnitte', detail: 'Ausführliches Wissen' },
+    { value: 'short' as const, emoji: 'ðŸ“„', label: 'Kurz', desc: '3 Abschnitte', detail: 'Schneller Ãœberblick' },
+    { value: 'medium' as const, emoji: 'ðŸ“‘', label: 'Mittel', desc: '5 Abschnitte', detail: 'Ausgewogen' },
+    { value: 'long' as const, emoji: 'ðŸ“š', label: 'Lang', desc: '7 Abschnitte', detail: 'AusfÃ¼hrliches Wissen' },
   ];
 
   return (
@@ -313,7 +313,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
         <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Wie umfangreich?
         </h2>
-        <p className="text-sm text-muted-foreground">Wähle die Länge deiner Wissensdoku</p>
+        <p className="text-sm text-muted-foreground">WÃ¤hle die LÃ¤nge deiner Wissensdoku</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -331,13 +331,13 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
       </div>
 
       {/* Interactive Toggle */}
-      <div className="rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] p-6 shadow-sm">
+      <div className="rounded-2xl bg-card/70 backdrop-blur-lg border border-border p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              🧩 Interaktive Elemente
+              ðŸ§© Interaktive Elemente
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Quiz-Fragen und Mitmach-Aktivitäten</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Quiz-Fragen und Mitmach-AktivitÃ¤ten</p>
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -363,7 +363,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.08]">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
                 {/* Quiz Questions */}
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
@@ -373,7 +373,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       -
                     </motion.button>
@@ -383,7 +383,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       +
                     </motion.button>
@@ -393,13 +393,13 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                 {/* Hands-on Activities */}
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                    Mitmach-Aktivitäten
+                    Mitmach-AktivitÃ¤ten
                   </label>
                   <div className="flex items-center gap-3">
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       -
                     </motion.button>
@@ -409,7 +409,7 @@ function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; 
                     <motion.button
                       whileTap={{ scale: 0.9 }}
                       onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })}
-                      className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
                     >
                       +
                     </motion.button>
@@ -448,13 +448,13 @@ function Step5Summary({
   };
 
   const items = [
-    { icon: '🎯', label: 'Thema', value: state.topic },
-    { icon: '👤', label: 'Altersgruppe', value: state.ageGroup + ' Jahre' },
-    { icon: '📊', label: 'Tiefe', value: labels.depth[state.depth] },
-    { icon: '🔬', label: 'Perspektive', value: labels.perspective[state.perspective] },
-    { icon: '🎨', label: 'Tonalität', value: labels.tone[state.tone] },
-    { icon: '📏', label: 'Abschnitte', value: labels.length[state.length] },
-    { icon: '🧩', label: 'Interaktiv', value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aktivitäten` : 'Ohne' },
+    { icon: 'ðŸŽ¯', label: 'Thema', value: state.topic },
+    { icon: 'ðŸ‘¤', label: 'Altersgruppe', value: state.ageGroup + ' Jahre' },
+    { icon: 'ðŸ“Š', label: 'Tiefe', value: labels.depth[state.depth] },
+    { icon: 'ðŸ”¬', label: 'Perspektive', value: labels.perspective[state.perspective] },
+    { icon: 'ðŸŽ¨', label: 'TonalitÃ¤t', value: labels.tone[state.tone] },
+    { icon: 'ðŸ“', label: 'Abschnitte', value: labels.length[state.length] },
+    { icon: 'ðŸ§©', label: 'Interaktiv', value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} AktivitÃ¤ten` : 'Ohne' },
   ];
 
   return (
@@ -463,10 +463,10 @@ function Step5Summary({
         <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
           Deine Wissensdoku
         </h2>
-        <p className="text-sm text-muted-foreground">Überprüfe deine Einstellungen</p>
+        <p className="text-sm text-muted-foreground">ÃœberprÃ¼fe deine Einstellungen</p>
       </div>
 
-      <div className="rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-lg p-6">
+      <div className="rounded-2xl bg-card/70 backdrop-blur-xl border border-border shadow-lg p-6">
         <div className="space-y-3">
           {items.map((item, i) => (
             <motion.div
@@ -474,7 +474,7 @@ function Step5Summary({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0"
+              className="flex items-center gap-3 py-2.5 border-b border-border last:border-0"
             >
               <span className="text-xl flex-shrink-0">{item.icon}</span>
               <span className="text-sm font-medium text-muted-foreground w-28 flex-shrink-0">{item.label}</span>
@@ -582,11 +582,11 @@ const StepIndicator: React.FC<{ activeStep: number }> = ({ activeStep }) => (
 // =====================================================
 const GenerationProgress: React.FC<{ phase: string }> = ({ phase }) => {
   const phases = [
-    { key: 'text', icon: '📝', title: 'Wissen wird zusammengestellt...', desc: 'KI recherchiert und schreibt deine Doku' },
-    { key: 'cover', icon: '🎨', title: 'Cover-Bild wird gemalt...', desc: 'Kindgerechte Illustration' },
-    { key: 'sections', icon: '🖼️', title: 'Kapitel-Bilder entstehen...', desc: 'Jeder Abschnitt bekommt ein Bild' },
-    { key: 'personality', icon: '🧠', title: 'Wissen wird verteilt...', desc: 'Deine Avatare lernen dazu' },
-    { key: 'complete', icon: '✅', title: 'Fertig!', desc: 'Deine Wissensdoku ist bereit' },
+    { key: 'text', icon: 'ðŸ“', title: 'Wissen wird zusammengestellt...', desc: 'KI recherchiert und schreibt deine Doku' },
+    { key: 'cover', icon: 'ðŸŽ¨', title: 'Cover-Bild wird gemalt...', desc: 'Kindgerechte Illustration' },
+    { key: 'sections', icon: 'ðŸ–¼ï¸', title: 'Kapitel-Bilder entstehen...', desc: 'Jeder Abschnitt bekommt ein Bild' },
+    { key: 'personality', icon: 'ðŸ§ ', title: 'Wissen wird verteilt...', desc: 'Deine Avatare lernen dazu' },
+    { key: 'complete', icon: 'âœ…', title: 'Fertig!', desc: 'Deine Wissensdoku ist bereit' },
   ];
 
   const currentIdx = phases.findIndex(p => p.key === phase);
@@ -628,9 +628,9 @@ const GenerationProgress: React.FC<{ phase: string }> = ({ phase }) => {
                 transition={{ delay: idx * 0.1 }}
                 className={`flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 ${
                   isActive
-                    ? 'bg-white/[0.08] backdrop-blur-lg border border-[#FF9B5C]/30 shadow-lg shadow-[#FF9B5C]/10'
+                    ? 'bg-card/70 backdrop-blur-lg border border-[#FF9B5C]/30 shadow-lg shadow-[#FF9B5C]/10'
                     : isComplete
-                    ? 'bg-white/[0.04]'
+                    ? 'bg-card/60'
                     : 'opacity-40'
                 }`}
               >
@@ -878,7 +878,7 @@ export default function ModernDokuWizard() {
         <StepIndicator activeStep={activeStep} />
 
         {/* Step content with glass container */}
-        <motion.div className="rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-xl p-6 md:p-8 min-h-[400px]">
+        <motion.div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl p-6 md:p-8 min-h-[400px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeStep}
@@ -903,10 +903,10 @@ export default function ModernDokuWizard() {
             whileHover={{ x: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={activeStep === 0 ? () => navigate('/doku') : handleBack}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-foreground bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] hover:bg-white/[0.12] shadow-sm transition-all"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-foreground bg-card/70 backdrop-blur-lg border border-border hover:bg-accent/70 shadow-sm transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
-            Zurück
+            ZurÃ¼ck
           </motion.button>
 
           {activeStep < STEPS.length - 1 && (
@@ -931,3 +931,4 @@ export default function ModernDokuWizard() {
     </div>
   );
 }
+

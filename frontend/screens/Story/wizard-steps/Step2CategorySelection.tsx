@@ -1,4 +1,4 @@
-// Step 2: Category Selection — Bold colored cards on dark theme
+﻿// Step 2: Category Selection â€” Bold colored cards on dark theme
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,10 +23,10 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="text-2xl font-extrabold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
-          📚 {t('wizard.titles.category')}
+        <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
+          ðŸ“š {t('wizard.titles.category')}
         </h2>
-        <p className="text-white/50 text-sm">{t('wizard.subtitles.category')}</p>
+        <p className="text-muted-foreground text-sm">{t('wizard.subtitles.category')}</p>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -58,7 +58,7 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
               <div className={`relative z-10 p-5 rounded-2xl transition-all duration-300 ${
                 isSelected
                   ? 'border-2 shadow-xl'
-                  : 'bg-white/[0.06] border border-white/10 hover:bg-white/10 hover:border-white/20'
+                  : 'bg-card/70 border border-border hover:bg-accent/70 hover:border-border/80'
               }`}
               style={isSelected ? {
                 background: `linear-gradient(135deg, ${cat.color}15, ${cat.color}08)`,
@@ -71,27 +71,27 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
                   {isSelected && (
                     <motion.div
                       initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                      className="absolute -top-3 -right-3 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-lg z-20"
+                      className="absolute -top-3 -right-3 w-10 h-10 rounded-full flex items-center justify-center text-foreground font-bold shadow-lg z-20"
                       style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}
                     >
-                      ✓
+                      âœ“
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 <div className="flex items-start gap-4 mb-3">
                   <div className={`p-3 rounded-xl bg-gradient-to-br ${cat.gradient} shadow-lg flex-shrink-0`}>
-                    <Icon size={28} className="text-white" />
+                    <Icon size={28} className="text-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg text-white mb-1">{cat.title}</h3>
-                    <p className="text-sm text-white/50">{cat.description}</p>
+                    <h3 className="font-bold text-lg text-foreground mb-1">{cat.title}</h3>
+                    <p className="text-sm text-muted-foreground">{cat.description}</p>
                   </div>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-white/10">
-                  <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1">{t('wizard.common.examples')}</p>
-                  <p className="text-sm text-white/60">{cat.examples}</p>
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">{t('wizard.common.examples')}</p>
+                  <p className="text-sm text-foreground/70">{cat.examples}</p>
                 </div>
               </div>
             </motion.button>
@@ -112,3 +112,5 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
     </div>
   );
 }
+
+

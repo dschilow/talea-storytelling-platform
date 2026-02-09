@@ -1,4 +1,4 @@
-// Step 6: Summary & Create — Dark magical theme with glowing summary cards
+﻿// Step 6: Summary & Create â€” Dark magical theme with glowing summary cards
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -41,12 +41,12 @@ export default function Step6Summary({
   const { t } = useTranslation();
 
   const CATEGORY_NAMES: Record<string, string> = {
-    'fairy-tales': `🏰 ${t('wizard.categories.fairy_tales.title')}`,
-    'adventure': `🗺️ ${t('wizard.categories.adventure.title')}`,
-    'magic': `✨ ${t('wizard.categories.magic.title')}`,
-    'animals': `🦊 ${t('wizard.categories.animals.title')}`,
-    'scifi': `🚀 ${t('wizard.categories.scifi.title')}`,
-    'modern': `🏡 ${t('wizard.categories.modern.title')}`,
+    'fairy-tales': `ðŸ° ${t('wizard.categories.fairy_tales.title')}`,
+    'adventure': `ðŸ—ºï¸ ${t('wizard.categories.adventure.title')}`,
+    'magic': `âœ¨ ${t('wizard.categories.magic.title')}`,
+    'animals': `ðŸ¦Š ${t('wizard.categories.animals.title')}`,
+    'scifi': `ðŸš€ ${t('wizard.categories.scifi.title')}`,
+    'modern': `ðŸ¡ ${t('wizard.categories.modern.title')}`,
   };
 
   const AGE_LABELS: Record<string, string> = {
@@ -55,24 +55,24 @@ export default function Step6Summary({
   };
 
   const LENGTH_LABELS: Record<string, string> = {
-    'short': `⚡ ${t('wizard.lengths.short.title')} (${t('wizard.lengths.short.duration')})`,
-    'medium': `📖 ${t('wizard.lengths.medium.title')} (${t('wizard.lengths.medium.duration')})`,
-    'long': `📚 ${t('wizard.lengths.long.title')} (${t('wizard.lengths.long.duration')})`,
+    'short': `âš¡ ${t('wizard.lengths.short.title')} (${t('wizard.lengths.short.duration')})`,
+    'medium': `ðŸ“– ${t('wizard.lengths.medium.title')} (${t('wizard.lengths.medium.duration')})`,
+    'long': `ðŸ“š ${t('wizard.lengths.long.title')} (${t('wizard.lengths.long.duration')})`,
   };
 
   const FEELING_EMOJIS: Record<string, string> = {
-    'funny': `😂 ${t('wizard.feelings.funny.title')}`, 'warm': `❤️ ${t('wizard.feelings.warm.title')}`,
-    'exciting': `⚡ ${t('wizard.feelings.exciting.title')}`, 'crazy': `🤪 ${t('wizard.feelings.crazy.title')}`,
-    'meaningful': `💭 ${t('wizard.feelings.meaningful.title')}`,
+    'funny': `ðŸ˜‚ ${t('wizard.feelings.funny.title')}`, 'warm': `â¤ï¸ ${t('wizard.feelings.warm.title')}`,
+    'exciting': `âš¡ ${t('wizard.feelings.exciting.title')}`, 'crazy': `ðŸ¤ª ${t('wizard.feelings.crazy.title')}`,
+    'meaningful': `ðŸ’­ ${t('wizard.feelings.meaningful.title')}`,
   };
 
   const activeWishes = [
-    state.rhymes && `🎵 ${t('wizard.wishes.rhymes.title')}`,
-    state.moral && `📖 ${t('wizard.wishes.moral.title')}`,
-    state.avatarIsHero && `⭐ ${t('wizard.wishes.avatarIsHero.title')}`,
-    state.famousCharacters && `👑 ${t('wizard.wishes.famousCharacters.title')}`,
-    state.happyEnd && `😊 ${t('wizard.wishes.happyEnd.title')}`,
-    state.surpriseEnd && `❗ ${t('wizard.wishes.surpriseEnd.title')}`,
+    state.rhymes && `ðŸŽµ ${t('wizard.wishes.rhymes.title')}`,
+    state.moral && `ðŸ“– ${t('wizard.wishes.moral.title')}`,
+    state.avatarIsHero && `â­ ${t('wizard.wishes.avatarIsHero.title')}`,
+    state.famousCharacters && `ðŸ‘‘ ${t('wizard.wishes.famousCharacters.title')}`,
+    state.happyEnd && `ðŸ˜Š ${t('wizard.wishes.happyEnd.title')}`,
+    state.surpriseEnd && `â— ${t('wizard.wishes.surpriseEnd.title')}`,
   ].filter(Boolean);
 
   const summaryItems = [
@@ -86,10 +86,10 @@ export default function Step6Summary({
     <div className="space-y-6">
       {/* Title */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="text-2xl font-extrabold text-white mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
-          🎉 {t('wizard.titles.summary')}
+        <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
+          ðŸŽ‰ {t('wizard.titles.summary')}
         </h2>
-        <p className="text-white/50 text-sm">{t('wizard.subtitles.summary')}</p>
+        <p className="text-muted-foreground text-sm">{t('wizard.subtitles.summary')}</p>
       </motion.div>
 
       {/* Summary Cards */}
@@ -102,15 +102,15 @@ export default function Step6Summary({
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.08, type: 'spring' as const, damping: 20 }}
-              className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.06] border border-white/10"
+              className="flex items-start gap-4 p-4 rounded-2xl bg-card/70 border border-border"
             >
               <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: `${item.color}20` }}>
                 <Icon size={22} style={{ color: item.color }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white text-sm mb-0.5">{item.label}</p>
-                <p className="text-xs text-white/50">{item.value}</p>
+                <p className="font-semibold text-foreground text-sm mb-0.5">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.value}</p>
               </div>
               <CheckCircle size={18} className="text-emerald-400 flex-shrink-0 mt-1" />
             </motion.div>
@@ -123,16 +123,16 @@ export default function Step6Summary({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.35, type: 'spring' as const, damping: 20 }}
-            className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.06] border border-white/10"
+            className="flex items-start gap-4 p-4 rounded-2xl bg-card/70 border border-border"
           >
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: 'rgba(251,191,36,0.15)' }}>
               <Sparkles size={22} className="text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white text-sm mb-0.5">{t('wizard.titles.wishes')}</p>
-              {activeWishes.length > 0 && <p className="text-xs text-white/50">{activeWishes.join(', ')}</p>}
-              {state.customWish && <p className="text-xs text-white/40 italic mt-1">"{state.customWish}"</p>}
+              <p className="font-semibold text-foreground text-sm mb-0.5">{t('wizard.titles.wishes')}</p>
+              {activeWishes.length > 0 && <p className="text-xs text-muted-foreground">{activeWishes.join(', ')}</p>}
+              {state.customWish && <p className="text-xs text-muted-foreground/80 italic mt-1">"{state.customWish}"</p>}
             </div>
             <CheckCircle size={18} className="text-emerald-400 flex-shrink-0 mt-1" />
           </motion.div>
@@ -148,8 +148,8 @@ export default function Step6Summary({
         <div className="flex items-start gap-4">
           <Sparkles size={28} className="text-[#A989F2] flex-shrink-0" />
           <div>
-            <p className="font-bold text-white mb-1">✨ {t('wizard.summary.ready')}</p>
-            <p className="text-sm text-white/50">{t('wizard.common.summaryNote')}</p>
+            <p className="font-bold text-foreground mb-1">âœ¨ {t('wizard.summary.ready')}</p>
+            <p className="text-sm text-muted-foreground">{t('wizard.common.summaryNote')}</p>
           </div>
         </div>
       </motion.div>
@@ -160,22 +160,22 @@ export default function Step6Summary({
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border border-[#A989F2]/30 bg-[#A989F2]/10 p-4"
         >
-          <p className="text-xs uppercase tracking-wider text-white/70 font-semibold mb-2">StoryCredits</p>
+          <p className="text-xs uppercase tracking-wider text-foreground/80 font-semibold mb-2">StoryCredits</p>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-foreground">
                 {storyCredits.remaining === null ? 'unbegrenzt' : storyCredits.remaining}
               </p>
-              <p className="text-xs text-white/60">verbleibend</p>
+              <p className="text-xs text-foreground/70">verbleibend</p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-foreground">
                 {storyCredits.used} / {storyCredits.limit === null ? 'unbegrenzt' : storyCredits.limit}
               </p>
-              <p className="text-xs text-white/60">verbraucht / limit</p>
+              <p className="text-xs text-foreground/70">verbraucht / limit</p>
             </div>
           </div>
-          <p className="text-xs text-white/60 mt-2">Kosten pro Generierung: {storyCredits.costPerGeneration} StoryCredit</p>
+          <p className="text-xs text-foreground/70 mt-2">Kosten pro Generierung: {storyCredits.costPerGeneration} StoryCredit</p>
         </motion.div>
       )}
 
@@ -215,3 +215,5 @@ export default function Step6Summary({
     </div>
   );
 }
+
+
