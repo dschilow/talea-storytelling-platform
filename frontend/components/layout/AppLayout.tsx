@@ -16,7 +16,7 @@ const AppLayout: React.FC = () => {
 
             {/* Main Content Area */}
             <main className="flex-1 min-h-screen transition-all duration-300">
-                <div className="pb-24 md:pb-10 md:pt-10 px-4 md:px-10 max-w-[1120px] mx-auto w-full">
+                <div className="pb-20 md:pb-10 md:pt-10 px-4 md:px-10 max-w-[1120px] mx-auto w-full">
                     <Outlet />
                 </div>
             </main>

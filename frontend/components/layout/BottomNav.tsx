@@ -253,24 +253,24 @@ const BottomNav: React.FC = () => {
 
   const colors = isDark
     ? {
-        nav: "linear-gradient(180deg,rgba(23,30,42,0.96)_0%,rgba(19,26,38,0.99)_100%)",
+        nav: "rgba(19,27,39,0.96)",
         border: "#2f3d53",
-        text: "#9fb0c8",
-        textActive: "#dde7f8",
+        text: "#9ab0ca",
+        textActive: "#e6eef9",
         more: "#8f7cae",
-        audioBg: "rgba(31,40,56,0.9)",
+        audioBg: "rgba(26,36,51,0.94)",
         audioBorder: "#3a4962",
-        audioSurface: "rgba(18,24,35,0.36)",
+        audioSurface: "rgba(17,24,35,0.42)",
       }
     : {
-        nav: "linear-gradient(180deg,rgba(255,251,243,0.96)_0%,rgba(246,237,224,0.99)_100%)",
+        nav: "rgba(251,245,236,0.96)",
         border: "#e5d9c9",
-        text: "#6f7e92",
-        textActive: "#31455e",
+        text: "#5f768f",
+        textActive: "#23384f",
         more: "#8f7cae",
-        audioBg: "rgba(255,255,255,0.9)",
+        audioBg: "rgba(255,255,255,0.94)",
         audioBorder: "#e3d7c8",
-        audioSurface: "rgba(255,255,255,0.5)",
+        audioSurface: "rgba(255,255,255,0.66)",
       };
 
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
@@ -355,9 +355,9 @@ const BottomNav: React.FC = () => {
         isDark={isDark}
       />
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2.5 pb-1.5 md:hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-1 md:hidden">
         <div
-          className="pointer-events-auto overflow-hidden rounded-[20px] border shadow-[0_10px_24px_rgba(52,60,73,0.2)] backdrop-blur"
+          className="pointer-events-auto overflow-hidden rounded-[18px] border shadow-[0_10px_22px_rgba(43,54,69,0.22)] backdrop-blur"
           style={{ borderColor: colors.border, background: colors.nav }}
         >
           <AnimatePresence>
@@ -368,7 +368,7 @@ const BottomNav: React.FC = () => {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 12, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 360, damping: 32 }}
-                className="mx-1.5 mt-1.5 mb-1 overflow-hidden rounded-2xl border"
+                className="mx-1 mt-1 mb-0.5 overflow-hidden rounded-xl border"
                 style={{ borderColor: colors.audioBorder, background: colors.audioBg }}
               >
                 <div
@@ -381,11 +381,11 @@ const BottomNav: React.FC = () => {
                       toggleExpanded();
                     }
                   }}
-                  className="cursor-pointer px-2.5 pt-2.5"
+                  className="cursor-pointer px-2 pt-2"
                   aria-label={playerExpanded ? "Audio-Player einklappen" : "Audio-Player ausklappen"}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="h-9 w-9 overflow-hidden rounded-lg border border-white/20 bg-slate-200/40 dark:bg-slate-700/40">
+                    <div className="h-8 w-8 overflow-hidden rounded-lg border border-white/20 bg-slate-200/40 dark:bg-slate-700/40">
                       {track.coverImageUrl ? (
                         <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
                       ) : (
@@ -396,10 +396,10 @@ const BottomNav: React.FC = () => {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[11px] font-semibold leading-tight" style={{ color: colors.textActive }}>
+                      <p className="truncate text-[10px] font-semibold leading-tight" style={{ color: colors.textActive }}>
                         {track.title}
                       </p>
-                      <p className="truncate text-[10px]" style={{ color: colors.text }}>
+                      <p className="truncate text-[9px]" style={{ color: colors.text }}>
                         {isPlaying ? "Wird abgespielt" : "Pausiert"} - {formatTime(currentTime)} / {formatTime(duration)}
                       </p>
                     </div>
@@ -435,7 +435,7 @@ const BottomNav: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: isDark ? "rgba(120,138,167,0.28)" : "rgba(123,135,152,0.24)" }}>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ background: isDark ? "rgba(120,138,167,0.28)" : "rgba(123,135,152,0.24)" }}>
                     <motion.div
                       className="h-full rounded-full"
                       style={{ background: "linear-gradient(90deg,#7e9cd1 0%,#b184c5 100%)", width: `${progress}%` }}
@@ -454,16 +454,16 @@ const BottomNav: React.FC = () => {
                       className="overflow-hidden border-t"
                       style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
                     >
-                      <div className="px-2.5 pb-2.5 pt-2">
-                        <p className="line-clamp-2 text-[10px] leading-relaxed" style={{ color: colors.text }}>
+                      <div className="px-2 pb-2 pt-1.5">
+                        <p className="line-clamp-2 text-[9px] leading-relaxed" style={{ color: colors.text }}>
                           {track.description || "Audio aus Talea"}
                         </p>
 
-                        <div className="mt-2 flex items-center justify-center gap-2">
+                        <div className="mt-1.5 flex items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleSkip(-15)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
                             style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
                             aria-label="15 Sekunden zurueck"
                           >
@@ -473,7 +473,7 @@ const BottomNav: React.FC = () => {
                           <button
                             type="button"
                             onClick={togglePlay}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
                             style={{ background: "linear-gradient(135deg,#7e9cd1 0%,#b184c5 100%)", color: "white" }}
                             aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
                           >
@@ -483,7 +483,7 @@ const BottomNav: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleSkip(15)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
                             style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
                             aria-label="15 Sekunden vor"
                           >
@@ -498,7 +498,7 @@ const BottomNav: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <nav className={cn("px-1", track ? "pb-1 pt-0.5" : "py-0.5")} aria-label="Mobile Navigation">
+          <nav className={cn("px-1", track ? "pb-0.5 pt-0.5" : "py-0.5")} aria-label="Mobile Navigation">
             <div className="flex items-center">
               {PRIMARY_ITEMS.map(renderPrimaryItem)}
 

@@ -1,139 +1,107 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Sparkles, Save, RefreshCw, Scan, ChevronDown, ChevronUp } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, RefreshCw, Save, Scan, Sparkles } from 'lucide-react';
 
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import LottieLoader from '../../components/common/LottieLoader';
-import FadeInView from '../../components/animated/FadeInView';
+import { useBackend } from '../../hooks/useBackend';
+import { useTheme } from '../../contexts/ThemeContext';
 import { AvatarForm } from '../../components/avatar-form';
+import { PersonalityRadarChart } from '../../components/avatar/PersonalityRadarChart';
 import {
   AvatarFormData,
-  DEFAULT_AVATAR_FORM_DATA,
-  formDataToVisualProfile,
-  formDataToDescription,
+  BODY_BUILDS,
   CHARACTER_TYPES,
-  GENDERS,
+  DEFAULT_AVATAR_FORM_DATA,
+  EYE_COLORS,
+  FUR_COLORS_ANIMAL,
   HAIR_COLORS,
   HAIR_STYLES,
-  EYE_COLORS,
   SKIN_TONES_HUMAN,
-  FUR_COLORS_ANIMAL,
-  BODY_BUILDS,
   SPECIAL_FEATURES,
   CharacterTypeId,
+  formDataToDescription,
+  formDataToVisualProfile,
   isHumanCharacter,
-  isAnimalCharacter,
 } from '../../types/avatarForm';
-import { colors } from '../../utils/constants/colors';
-import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import { useBackend } from '../../hooks/useBackend';
 
-// Helper to convert backend avatar to form data
+const TRAIT_LABELS: Record<string, string> = {
+  knowledge: 'Wissen',
+  creativity: 'Kreativitaet',
+  vocabulary: 'Wortschatz',
+  courage: 'Mut',
+  curiosity: 'Neugier',
+  teamwork: 'Teamgeist',
+  empathy: 'Empathie',
+  persistence: 'Ausdauer',
+  logic: 'Logik',
+};
+
 function avatarToFormData(avatar: any): Partial<AvatarFormData> {
   const formData: Partial<AvatarFormData> = {
     name: avatar.name || '',
   };
 
-  // Try to extract from visual profile first (most accurate)
-  const vp = avatar.visualProfile;
-  if (vp) {
-    // Character type
-    const charType = vp.characterType?.toLowerCase() || '';
-    const matchedType = CHARACTER_TYPES.find(t =>
-      charType.includes(t.labelEn) || charType.includes(t.id)
-    );
+  const visualProfile = avatar.visualProfile;
+  if (visualProfile) {
+    const characterType = String(visualProfile.characterType || '').toLowerCase();
+    const matchedType = CHARACTER_TYPES.find((type) => characterType.includes(type.id) || characterType.includes(type.labelEn));
     formData.characterType = matchedType?.id || 'human';
 
-    // Gender
-    const gender = vp.gender?.toLowerCase();
-    if (gender?.includes('female') || gender?.includes('girl')) {
-      formData.gender = 'female';
-    } else {
-      formData.gender = 'male';
-    }
+    const genderValue = String(visualProfile.gender || '').toLowerCase();
+    formData.gender = genderValue.includes('female') ? 'female' : 'male';
 
-    // Age
-    const ageMatch = vp.ageApprox?.match(/(\d+)/);
-    formData.age = ageMatch ? parseInt(ageMatch[1], 10) : 8;
+    const ageMatch = String(visualProfile.ageApprox || '').match(/(\d+)/);
+    formData.age = ageMatch ? Number(ageMatch[1]) : 8;
 
-    // Hair
-    const hairColor = vp.hair?.color?.toLowerCase();
-    const matchedHair = HAIR_COLORS.find(h =>
-      hairColor?.includes(h.labelEn.toLowerCase())
-    );
-    formData.hairColor = matchedHair?.id || 'brown';
+    const hairColor = String(visualProfile.hair?.color || '').toLowerCase();
+    const matchedHairColor = HAIR_COLORS.find((entry) => hairColor.includes(entry.labelEn.toLowerCase()));
+    formData.hairColor = matchedHairColor?.id || 'brown';
 
-    const hairStyle = vp.hair?.style?.toLowerCase() || vp.hair?.length?.toLowerCase();
-    const matchedStyle = HAIR_STYLES.find(s =>
-      hairStyle?.includes(s.labelEn.toLowerCase())
-    );
-    formData.hairStyle = matchedStyle?.id || 'short';
+    const hairStyle = String(visualProfile.hair?.style || visualProfile.hair?.length || '').toLowerCase();
+    const matchedHairStyle = HAIR_STYLES.find((entry) => hairStyle.includes(entry.labelEn.toLowerCase()));
+    formData.hairStyle = matchedHairStyle?.id || 'short';
 
-    // Eyes
-    const eyeColor = vp.eyes?.color?.toLowerCase();
-    const matchedEye = EYE_COLORS.find(e =>
-      eyeColor?.includes(e.labelEn.toLowerCase())
-    );
-    formData.eyeColor = matchedEye?.id || 'brown';
+    const eyeColor = String(visualProfile.eyes?.color || '').toLowerCase();
+    const matchedEyeColor = EYE_COLORS.find((entry) => eyeColor.includes(entry.labelEn.toLowerCase()));
+    formData.eyeColor = matchedEyeColor?.id || 'brown';
 
-    // Skin/Fur
-    const skinTone = vp.skin?.tone?.toLowerCase();
+    const skinValue = String(visualProfile.skin?.tone || '').toLowerCase();
     if (isHumanCharacter(formData.characterType as CharacterTypeId)) {
-      const matchedSkin = SKIN_TONES_HUMAN.find(s =>
-        skinTone?.includes(s.labelEn.toLowerCase())
-      );
+      const matchedSkin = SKIN_TONES_HUMAN.find((entry) => skinValue.includes(entry.labelEn.toLowerCase()));
       formData.skinTone = matchedSkin?.id || 'medium';
     } else {
-      const matchedFur = FUR_COLORS_ANIMAL.find(f =>
-        skinTone?.includes(f.labelEn.toLowerCase())
-      );
+      const matchedFur = FUR_COLORS_ANIMAL.find((entry) => skinValue.includes(entry.labelEn.toLowerCase()));
       formData.skinTone = matchedFur?.id || 'brown';
     }
 
-    // Accessories as special features
-    const accessories = vp.accessories || [];
-    const features: string[] = [];
-    accessories.forEach((acc: string) => {
-      const accLower = acc.toLowerCase();
-      const matchedFeature = SPECIAL_FEATURES.find(f =>
-        accLower.includes(f.labelEn.toLowerCase()) || f.labelEn.toLowerCase().includes(accLower)
-      );
-      if (matchedFeature) {
-        features.push(matchedFeature.id);
-      }
-    });
-    formData.specialFeatures = features as any;
+    const accessoryFeatures = Array.isArray(visualProfile.accessories)
+      ? visualProfile.accessories
+          .map((accessory: string) =>
+            SPECIAL_FEATURES.find((feature) =>
+              accessory.toLowerCase().includes(feature.labelEn.toLowerCase())
+            )?.id
+          )
+          .filter(Boolean)
+      : [];
+
+    formData.specialFeatures = accessoryFeatures as any;
   }
 
-  // Fallback: Try to parse from physical traits
-  if (!vp && avatar.physicalTraits) {
-    const pt = avatar.physicalTraits;
-
-    // Character type from physicalTraits.characterType
-    const charType = pt.characterType?.toLowerCase() || '';
-    const matchedType = CHARACTER_TYPES.find(t =>
-      charType.includes(t.labelDe.toLowerCase()) ||
-      charType.includes(t.labelEn.toLowerCase()) ||
-      charType.includes(t.id)
+  if (!visualProfile && avatar.physicalTraits) {
+    const physicalTraits = avatar.physicalTraits;
+    const characterType = String(physicalTraits.characterType || '').toLowerCase();
+    const matchedType = CHARACTER_TYPES.find(
+      (type) =>
+        characterType.includes(type.id) ||
+        characterType.includes(type.labelDe.toLowerCase()) ||
+        characterType.includes(type.labelEn.toLowerCase())
     );
+
     formData.characterType = matchedType?.id || 'human';
-
-    // Try to parse appearance text for other fields
-    const appearance = pt.appearance?.toLowerCase() || '';
-
-    // Age from appearance
-    const ageMatch = appearance.match(/(\d+)\s*(jahre|years|j\.)/i);
-    formData.age = ageMatch ? parseInt(ageMatch[1], 10) : 8;
-
-    // Height from appearance
-    const heightMatch = appearance.match(/(\d+)\s*(cm|groß)/i);
-    formData.height = heightMatch ? parseInt(heightMatch[1], 10) : 130;
+    const ageMatch = String(physicalTraits.appearance || '').match(/(\d+)/);
+    formData.age = ageMatch ? Number(ageMatch[1]) : 8;
   }
 
-  // Use description as additional description
   if (avatar.description) {
     formData.additionalDescription = avatar.description;
   }
@@ -141,107 +109,98 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
   return formData;
 }
 
-// Convert form data back to backend format
 function formDataToBackendFormat(formData: AvatarFormData) {
-  const characterType = CHARACTER_TYPES.find(t => t.id === formData.characterType);
+  const characterType = CHARACTER_TYPES.find((entry) => entry.id === formData.characterType);
   const description = formDataToDescription(formData);
 
   return {
     name: formData.name,
     description: formData.additionalDescription || description,
     physicalTraits: {
-      characterType: formData.characterType === 'other' && formData.customCharacterType
-        ? formData.customCharacterType
-        : characterType?.labelDe || 'Mensch',
+      characterType:
+        formData.characterType === 'other' && formData.customCharacterType
+          ? formData.customCharacterType
+          : characterType?.labelDe || 'Mensch',
       appearance: description,
     },
     visualProfile: formDataToVisualProfile(formData),
   };
 }
 
-// Personality trait display config
-const personalityLabels = {
-  knowledge: { label: 'Wissen', icon: '🧠', color: colors.primary[500] },
-  creativity: { label: 'Kreativität', icon: '🎨', color: colors.peach[500] },
-  vocabulary: { label: 'Wortschatz', icon: '🔤', color: colors.lavender[500] },
-  courage: { label: 'Mut', icon: '🦁', color: colors.semantic.error },
-  curiosity: { label: 'Neugier', icon: '🔍', color: colors.peach[400] },
-  teamwork: { label: 'Teamgeist', icon: '🤝', color: colors.sky[500] },
-  empathy: { label: 'Empathie', icon: '💗', color: colors.rose[500] },
-  persistence: { label: 'Ausdauer', icon: '🧗', color: colors.mint[500] },
-  logic: { label: 'Logik', icon: '🔢', color: colors.lilac[500] },
-};
-
 const EditAvatarScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
   const navigate = useNavigate();
   const backend = useBackend();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const [avatar, setAvatar] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regeneratingImage, setRegeneratingImage] = useState(false);
   const [analyzingImage, setAnalyzingImage] = useState(false);
-
   const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>();
-  const [showPersonality, setShowPersonality] = useState(true);
 
-  // Load avatar data
   useEffect(() => {
     if (!avatarId) {
-      console.error('No avatarId provided');
+      setLoading(false);
       return;
     }
+
+    let alive = true;
 
     const loadAvatar = async () => {
       try {
         setLoading(true);
         const avatarData = await backend.avatar.get({ id: avatarId });
+
+        if (!alive) return;
         setAvatar(avatarData);
         setPreviewUrl((avatarData as any).imageUrl);
-
-        // Convert to form data
         const converted = avatarToFormData(avatarData);
-        setFormData(prev => ({ ...prev, ...converted }));
+        setFormData((previous) => ({ ...previous, ...converted }));
       } catch (error) {
-        console.error('Error loading avatar:', error);
-        alert('Avatar konnte nicht geladen werden.');
-        navigate('/');
+        console.error('Could not load avatar for editing:', error);
+        navigate('/avatar');
       } finally {
-        setLoading(false);
+        if (alive) {
+          setLoading(false);
+        }
       }
     };
 
-    loadAvatar();
-  }, [avatarId, backend, navigate]);
+    void loadAvatar();
 
-  // Handle form changes
+    return () => {
+      alive = false;
+    };
+  }, [avatarId, backend.avatar, navigate]);
+
   const handleFormChange = useCallback((data: AvatarFormData) => {
     setFormData(data);
   }, []);
 
-  // Generate preview image
   const handleGeneratePreview = async (data: AvatarFormData, referenceImageUrl?: string) => {
     try {
       setRegeneratingImage(true);
 
       const description = formDataToDescription(data);
-      const characterType = CHARACTER_TYPES.find(t => t.id === data.characterType);
+      const characterType = CHARACTER_TYPES.find((type) => type.id === data.characterType);
 
       const result = await backend.ai.generateAvatarImage({
-        characterType: data.characterType === 'other' && data.customCharacterType
-          ? data.customCharacterType
-          : characterType?.labelEn || 'human child',
+        characterType:
+          data.characterType === 'other' && data.customCharacterType
+            ? data.customCharacterType
+            : characterType?.labelEn || 'human child',
         appearance: description,
         personalityTraits: {},
         style: 'disney',
-        referenceImageUrl: referenceImageUrl,
+        referenceImageUrl,
       });
 
       setPreviewUrl(result.imageUrl);
 
-      // Analyze the new image to get visual profile
       try {
         const analysis = await backend.ai.analyzeAvatarImage({
           imageUrl: result.imageUrl,
@@ -251,38 +210,32 @@ const EditAvatarScreen: React.FC = () => {
           },
         });
 
-        // Store analysis result for later save
-        setAvatar((prev: any) => ({
-          ...prev,
+        setAvatar((previous: any) => ({
+          ...previous,
           imageUrl: result.imageUrl,
           visualProfile: analysis.visualProfile,
         }));
-      } catch (err) {
-        console.error('Error analyzing new image:', err);
-        setAvatar((prev: any) => ({
-          ...prev,
+      } catch (analysisError) {
+        console.error('Preview image analysis failed:', analysisError);
+        setAvatar((previous: any) => ({
+          ...previous,
           imageUrl: result.imageUrl,
         }));
       }
 
-      // Show success
-      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast('Neues Avatar-Bild wurde generiert!');
-      });
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+      showSuccessToast('Neues Avatar-Bild generiert.');
     } catch (error) {
-      console.error('Error generating preview:', error);
-      import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Fehler beim Generieren des Bildes.');
-      });
+      console.error('Could not generate preview image:', error);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('Bild konnte nicht generiert werden.');
     } finally {
       setRegeneratingImage(false);
     }
   };
 
-  // Analyze existing image
   const handleAnalyzeImage = async () => {
-    if (!avatar?.imageUrl) {
-      alert('Kein Bild vorhanden zum Analysieren.');
+    if (!avatar?.imageUrl || !avatarId) {
       return;
     }
 
@@ -291,288 +244,290 @@ const EditAvatarScreen: React.FC = () => {
 
       const analysis = await backend.ai.analyzeAvatarImage({
         imageUrl: avatar.imageUrl,
-        hints: {
-          name: formData.name,
-        },
+        hints: { name: formData.name },
       });
 
-      // Update avatar with new visual profile
       await backend.avatar.update({
-        id: avatarId!,
+        id: avatarId,
         visualProfile: analysis.visualProfile,
       });
 
-      setAvatar((prev: any) => ({
-        ...prev,
+      setAvatar((previous: any) => ({
+        ...previous,
         visualProfile: analysis.visualProfile,
       }));
 
-      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast('Bild analysiert und visuelles Profil aktualisiert!');
-      });
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+      showSuccessToast('Bildprofil wurde aktualisiert.');
     } catch (error) {
-      console.error('Error analyzing image:', error);
-      import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Fehler beim Analysieren des Bildes.');
-      });
+      console.error('Could not analyze image:', error);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('Bildanalyse fehlgeschlagen.');
     } finally {
       setAnalyzingImage(false);
     }
   };
 
-  // Save changes
   const handleSave = async () => {
     if (!avatarId || !formData.name.trim()) {
-      alert('Bitte gib deinem Avatar einen Namen.');
       return;
     }
 
     try {
       setSaving(true);
-
-      const backendData = formDataToBackendFormat(formData);
+      const payload = formDataToBackendFormat(formData);
 
       await backend.avatar.update({
         id: avatarId,
-        ...backendData,
+        ...payload,
         imageUrl: previewUrl,
       });
 
-      import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich aktualisiert!`);
-      });
-
-      // Navigate back with refresh flag to reload avatar list with new image
-      navigate('/', { state: { refresh: true } });
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+      showSuccessToast(`Avatar "${formData.name}" wurde gespeichert.`);
+      navigate(`/avatar/${avatarId}`);
     } catch (error) {
-      console.error('Error updating avatar:', error);
-      alert('Avatar konnte nicht aktualisiert werden. Bitte versuche es erneut.');
+      console.error('Could not save avatar changes:', error);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('Avatar konnte nicht gespeichert werden.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Get personality traits for display
-  const getPersonalityTraits = () => {
-    const traits = avatar?.personalityTraits || {};
-    const result: Record<string, number> = {};
-
-    Object.entries(traits).forEach(([key, val]) => {
-      if (typeof val === 'number') {
-        result[key] = val;
-      } else if (typeof val === 'object' && val !== null && 'value' in val) {
-        result[key] = (val as any).value;
+  const personalityTraits = useMemo(() => {
+    const source = avatar?.personalityTraits || {};
+    return Object.entries(source).reduce<Record<string, number>>((result, [key, value]) => {
+      if (typeof value === 'number') {
+        result[key] = value;
+      } else if (value && typeof value === 'object' && typeof (value as any).value === 'number') {
+        result[key] = (value as any).value;
       }
-    });
-
-    return result;
-  };
+      return result;
+    }, {});
+  }, [avatar?.personalityTraits]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: colors.background.primary }}>
-        <LottieLoader message="Lade Avatar..." size={150} />
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-transparent" style={{ borderTopColor: isDark ? '#93abd3' : '#7f96c8', borderRightColor: isDark ? '#93abd3' : '#7f96c8' }} />
       </div>
     );
   }
 
   if (!avatar) {
     return (
-      <div className="min-h-screen" style={{ background: colors.background.primary }}>
-        <div className="p-6 text-center">
-          <p className="text-gray-600">Avatar nicht gefunden</p>
-          <Button title="Zurück" onPress={() => navigate('/')} variant="secondary" />
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div
+          className="w-full max-w-md rounded-3xl border p-6 text-center"
+          style={{
+            borderColor: isDark ? '#34495f' : '#ddcfbe',
+            background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+          }}
+        >
+          <h2 className="text-xl font-semibold" style={{ color: isDark ? '#e8effb' : '#213247' }}>
+            Avatar nicht gefunden
+          </h2>
+          <button
+            type="button"
+            onClick={() => navigate('/avatar')}
+            className="mt-4 rounded-full border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: isDark ? '#3b5168' : '#d7c9b7', color: isDark ? '#c5d5e8' : '#4b6078' }}
+          >
+            Zurueck zur Avatar-Liste
+          </button>
         </div>
       </div>
     );
   }
 
-  const personalityTraits = getPersonalityTraits();
-
   return (
-    <div className="min-h-screen pb-32" style={{ background: colors.background.primary }}>
-      {/* Header */}
-      <div
-        className="sticky top-0 z-10 backdrop-blur-xl border-b"
-        style={{
-          background: colors.glass.background,
-          borderColor: colors.glass.border,
-        }}
-      >
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="p-2 rounded-full hover:bg-purple-50 transition-colors"
+    <div
+      className="min-h-screen pb-28"
+      style={{
+        background: isDark
+          ? 'radial-gradient(980px 520px at 100% 0%, rgba(102,88,138,0.26) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, rgba(80,111,148,0.23) 0%, transparent 62%), #131d2b'
+          : 'radial-gradient(980px 520px at 100% 0%, #efe1de 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, #dbe8df 0%, transparent 62%), #f8f2e9',
+      }}
+    >
+      <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pt-3 sm:px-5">
+        <header
+          className="sticky top-2 z-20 flex items-center justify-between rounded-2xl border px-3 py-2.5 backdrop-blur-xl"
+          style={{
+            borderColor: isDark ? '#33485f' : '#dbcdbd',
+            background: isDark ? 'rgba(21,31,45,0.8)' : 'rgba(255,251,245,0.86)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => navigate(`/avatar/${avatar.id}`)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
+            style={{ borderColor: isDark ? '#425a74' : '#d5c8b7', color: isDark ? '#d2e0f4' : '#4d627a' }}
+            aria-label="Zurueck"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </motion.button>
-          <h1 className="text-xl font-bold text-gray-800 flex-1">Avatar bearbeiten</h1>
-          <div className="flex items-center gap-2">
-            <motion.div
-              animate={{ rotate: saving ? 360 : 0 }}
-              transition={{ duration: 1, repeat: saving ? Infinity : 0 }}
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+
+          <p className="truncate px-3 text-sm font-semibold" style={{ color: isDark ? '#e6eefb' : '#223347' }}>
+            Avatar bearbeiten
+          </p>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !formData.name.trim()}
+            className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+            style={{
+              borderColor: isDark ? '#425a74' : '#d5c8b7',
+              color: isDark ? '#d2e0f4' : '#4d627a',
+              background: saving ? (isDark ? 'rgba(56,74,97,0.6)' : 'rgba(234,226,214,0.8)') : 'transparent',
+            }}
+          >
+            {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Speichern
+          </button>
+        </header>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+          <section
+            className="rounded-3xl border p-4 sm:p-5"
+            style={{
+              borderColor: isDark ? '#33495f' : '#ddcfbe',
+              background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+            }}
+          >
+            <AvatarForm
+              initialData={formData}
+              onChange={handleFormChange}
+              onPreview={handleGeneratePreview}
+              previewUrl={previewUrl}
+              isGeneratingPreview={regeneratingImage}
+              mode="edit"
+            />
+          </section>
+
+          <aside className="space-y-4">
+            <section
+              className="rounded-3xl border p-4"
+              style={{
+                borderColor: isDark ? '#33495f' : '#ddcfbe',
+                background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+              }}
             >
-              <Sparkles className="w-5 h-5 text-purple-500" />
-            </motion.div>
-          </div>
-        </div>
-      </div>
+              <h2 className="text-lg font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+                Vorschau
+              </h2>
+              <p className="mt-1 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
+                Live-Bild und visuelles Profil fuer konsistente Storybilder.
+              </p>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Avatar Form */}
-        <FadeInView delay={100}>
-          <AvatarForm
-            initialData={formData}
-            onChange={handleFormChange}
-            onPreview={handleGeneratePreview}
-            previewUrl={previewUrl}
-            isGeneratingPreview={regeneratingImage}
-            mode="edit"
-          />
-        </FadeInView>
-
-        {/* Visual Profile Warning */}
-        {avatar.imageUrl && !avatar.visualProfile && (
-          <FadeInView delay={200}>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-amber-50 border border-amber-200 rounded-xl p-4"
-            >
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">⚠️</span>
-                <div className="flex-1">
-                  <p className="text-amber-800 font-medium mb-2">
-                    Kein visuelles Profil vorhanden
-                  </p>
-                  <p className="text-amber-700 text-sm mb-3">
-                    Für konsistente Darstellung in Geschichten sollte das Bild analysiert werden.
-                  </p>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleAnalyzeImage}
-                    disabled={analyzingImage}
-                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 transition-colors disabled:opacity-50"
-                  >
-                    {analyzingImage ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Analysiere...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Scan className="w-4 h-4" />
-                        <span>Bild analysieren</span>
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </FadeInView>
-        )}
-
-        {/* Personality Development (Read-only) */}
-        <FadeInView delay={300}>
-          <Card variant="glass">
-            <motion.button
-              type="button"
-              onClick={() => setShowPersonality(!showPersonality)}
-              className="w-full flex items-center justify-between text-left"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">💫</span>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800">Persönlichkeitsentwicklung</h2>
-                  <p className="text-sm text-gray-500">
-                    Entwickelt sich automatisch durch Geschichten
-                  </p>
-                </div>
-              </div>
-              <motion.div animate={{ rotate: showPersonality ? 180 : 0 }}>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              </motion.div>
-            </motion.button>
-
-            <AnimatePresence>
-              {showPersonality && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {Object.entries(personalityTraits).map(([key, value]) => {
-                        const trait = personalityLabels[key as keyof typeof personalityLabels];
-                        if (!trait) return null;
-
-                        return (
-                          <div
-                            key={key}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl">{trait.icon}</span>
-                              <span className="text-sm font-medium text-gray-700">{trait.label}</span>
-                            </div>
-                            <div
-                              className="px-3 py-1 rounded-full text-white font-bold text-sm"
-                              style={{ backgroundColor: trait.color }}
-                            >
-                              {value}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-3 italic flex items-center gap-1">
-                      <span>💡</span>
-                      Lasse deinen Avatar Geschichten erleben, um seine Persönlichkeit weiterzuentwickeln!
-                    </p>
+              <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: isDark ? '#3b5269' : '#d8cab9' }}>
+                {previewUrl ? (
+                  <img src={previewUrl} alt={formData.name} className="h-64 w-full object-cover" />
+                ) : (
+                  <div className="flex h-64 w-full items-center justify-center" style={{ background: isDark ? 'rgba(66,90,118,0.45)' : '#ece4d9', color: isDark ? '#d6e2f5' : '#4b6078' }}>
+                    <Sparkles className="h-8 w-8" />
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
-        </FadeInView>
+                )}
+              </div>
 
-        {/* Action Buttons */}
-        <FadeInView delay={400}>
-          <div className="flex gap-4">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate('/')}
-              className="flex-1 py-4 px-6 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
-            >
-              Abbrechen
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleSave}
-              disabled={saving || !formData.name.trim()}
-              className="flex-1 py-4 px-6 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Speichere...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  <span>Änderungen speichern</span>
-                </>
+              {avatar.imageUrl && !avatar.visualProfile && (
+                <button
+                  type="button"
+                  onClick={handleAnalyzeImage}
+                  disabled={analyzingImage}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                  style={{
+                    borderColor: isDark ? '#3b5269' : '#d8cab9',
+                    color: isDark ? '#d2e0f4' : '#4d627a',
+                    background: isDark ? 'rgba(39,53,72,0.8)' : 'rgba(255,255,255,0.75)',
+                  }}
+                >
+                  {analyzingImage ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Scan className="h-4 w-4" />}
+                  Bild analysieren
+                </button>
               )}
-            </motion.button>
-          </div>
-        </FadeInView>
+            </section>
+
+            <section
+              className="rounded-3xl border p-4"
+              style={{
+                borderColor: isDark ? '#33495f' : '#ddcfbe',
+                background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+              }}
+            >
+              <h2 className="text-lg font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+                Persoenlichkeits-Status
+              </h2>
+              <p className="mt-1 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
+                Nur lesbar. Entwicklung passiert durch Stories und Dokus.
+              </p>
+
+              <div className="mt-3">
+                <PersonalityRadarChart
+                  traits={avatar.personalityTraits || {}}
+                  size={280}
+                  showMasteryBadges={false}
+                  showLegend={false}
+                />
+              </div>
+
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {Object.entries(personalityTraits)
+                  .filter(([trait]) => TRAIT_LABELS[trait])
+                  .sort(([a], [b]) => TRAIT_LABELS[a].localeCompare(TRAIT_LABELS[b], 'de'))
+                  .map(([trait, value]) => (
+                    <div
+                      key={trait}
+                      className="rounded-xl border px-2.5 py-2"
+                      style={{
+                        borderColor: isDark ? '#3a5068' : '#d6c9b8',
+                        background: isDark ? 'rgba(30,43,60,0.72)' : 'rgba(255,255,255,0.72)',
+                      }}
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: isDark ? '#8fa4c1' : '#6f839d' }}>
+                        {TRAIT_LABELS[trait]}
+                      </p>
+                      <p className="text-sm font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+                        {Math.round(value)}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <footer
+          className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:justify-end"
+          style={{
+            borderColor: isDark ? '#33495f' : '#ddcfbe',
+            background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => navigate(`/avatar/${avatar.id}`)}
+            className="rounded-full border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: isDark ? '#3b5168' : '#d7c9b7', color: isDark ? '#c5d5e8' : '#4b6078' }}
+          >
+            Abbrechen
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !formData.name.trim()}
+            className="inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
+            style={{
+              borderColor: 'transparent',
+              background: 'linear-gradient(135deg,#7d98c7 0%,#a985c5 54%,#c98a78 100%)',
+            }}
+          >
+            {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Aenderungen speichern
+          </button>
+        </footer>
       </div>
     </div>
   );

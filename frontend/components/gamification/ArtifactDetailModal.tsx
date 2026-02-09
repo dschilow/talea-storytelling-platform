@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, Zap, Book, Shield, Users, Sparkles, ExternalLink } from 'lucide-react';
-import { InventoryItem } from '../../types/avatar';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Book, ExternalLink, Shield, Sparkles, Swords, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
+
+import { useTheme } from '../../contexts/ThemeContext';
+import { useBackend } from '../../hooks/useBackend';
+import { InventoryItem } from '../../types/avatar';
 
 interface ArtifactDetailModalProps {
   item: InventoryItem | null;
@@ -13,61 +15,74 @@ interface ArtifactDetailModalProps {
   showStoryLink?: boolean;
 }
 
+const getTypeMeta = (type: InventoryItem['type']) => {
+  switch (type) {
+    case 'WEAPON':
+      return { label: 'Werkzeug', icon: Swords };
+    case 'KNOWLEDGE':
+      return { label: 'Wissen', icon: Book };
+    case 'COMPANION':
+      return { label: 'Begleiter', icon: Users };
+    default:
+      return { label: 'Artefakt', icon: Shield };
+  }
+};
+
 const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
   item,
   isOpen,
   onClose,
-  showStoryLink = true
+  showStoryLink = true,
 }) => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
   const [storyTitle, setStoryTitle] = useState<string | null>(null);
 
   useEffect(() => {
+    let alive = true;
+
     if (item?.sourceStoryId && showStoryLink) {
-      // Fetch story title
-      backend.story.get({ id: item.sourceStoryId })
-        .then((story: any) => setStoryTitle(story.title))
-        .catch(() => setStoryTitle(null));
+      backend.story
+        .get({ id: item.sourceStoryId })
+        .then((story: any) => {
+          if (alive) {
+            setStoryTitle(story?.title || null);
+          }
+        })
+        .catch(() => {
+          if (alive) {
+            setStoryTitle(null);
+          }
+        });
+    } else {
+      setStoryTitle(null);
     }
+
+    return () => {
+      alive = false;
+    };
   }, [item?.sourceStoryId, showStoryLink]);
 
-  const getIcon = () => {
-    if (!item) return <Shield className="w-8 h-8 text-purple-500" />;
-    switch (item.type) {
-      case 'WEAPON': return <Zap className="w-8 h-8 text-yellow-500" />;
-      case 'KNOWLEDGE': return <Book className="w-8 h-8 text-blue-500" />;
-      case 'COMPANION': return <Users className="w-8 h-8 text-green-500" />;
-      default: return <Shield className="w-8 h-8 text-purple-500" />;
-    }
-  };
-
-  const getTypeLabel = () => {
-    if (!item) return '';
-    switch (item.type) {
-      case 'WEAPON': return t('artifact.type.weapon', 'Magische Waffe');
-      case 'KNOWLEDGE': return t('artifact.type.knowledge', 'Wissen');
-      case 'COMPANION': return t('artifact.type.companion', 'Begleiter');
-      default: return t('artifact.type.tool', 'Werkzeug');
-    }
-  };
-
-  const getRarityGradient = () => {
-    if (!item) return 'from-gray-400 to-gray-600';
-    if (item.level >= 3) return 'from-yellow-400 via-amber-500 to-orange-500';
-    if (item.level === 2) return 'from-blue-400 via-indigo-500 to-purple-500';
-    return 'from-purple-400 via-pink-500 to-rose-500';
-  };
+  const typeMeta = useMemo(() => (item ? getTypeMeta(item.type) : null), [item]);
 
   const handleGoToStory = () => {
-    if (item?.sourceStoryId) {
-      onClose();
-      navigate(`/story-reader/${item.sourceStoryId}`);
+    if (!item?.sourceStoryId) {
+      return;
     }
+
+    onClose();
+    navigate(`/story-reader/${item.sourceStoryId}`);
   };
 
-  if (!item) return null;
+  if (!item || !typeMeta) {
+    return null;
+  }
+
+  const TypeIcon = typeMeta.icon;
 
   return (
     <AnimatePresence>
@@ -76,145 +91,114 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.8, opacity: 0, y: 50 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: 50 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+            className="w-full max-w-xl overflow-hidden rounded-3xl border"
+            style={{
+              borderColor: isDark ? '#334a61' : '#dccfbe',
+              background: isDark ? 'rgba(24,36,51,0.96)' : 'rgba(255,251,245,0.97)',
+            }}
+            onClick={(event) => event.stopPropagation()}
           >
-            {/* Gradient Header */}
-            <div className={`bg-gradient-to-br ${getRarityGradient()} p-6 pb-20 relative overflow-hidden`}>
-              {/* Sparkle Effects */}
-              <div className="absolute inset-0 overflow-hidden">
-                {[...Array(8)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute"
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{
-                      opacity: [0, 1, 0],
-                      scale: [0, 1, 0],
-                      x: Math.random() * 100 - 50,
-                      y: Math.random() * 100 - 50,
-                    }}
-                    transition={{
-                      duration: 2,
-                      delay: i * 0.3,
-                      repeat: Infinity,
-                    }}
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                    }}
-                  >
-                    <Sparkles className="w-4 h-4 text-white/60" />
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Close Button */}
+            <div
+              className="relative border-b px-5 pb-4 pt-5"
+              style={{
+                borderColor: isDark ? '#32465f' : '#e2d5c5',
+                background: isDark
+                  ? 'linear-gradient(135deg, rgba(79,111,149,0.24) 0%, rgba(134,112,165,0.22) 100%)'
+                  : 'linear-gradient(135deg, rgba(234,222,208,0.72) 0%, rgba(229,222,240,0.82) 100%)',
+              }}
+            >
               <button
+                type="button"
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                style={{
+                  borderColor: isDark ? '#3a4f67' : '#d9cbb9',
+                  color: isDark ? '#c2d2e7' : '#607388',
+                  background: isDark ? 'rgba(25,35,49,0.8)' : 'rgba(255,251,245,0.86)',
+                }}
+                aria-label="Modal schliessen"
               >
-                <X className="w-5 h-5 text-white" />
+                <X className="h-4 w-4" />
               </button>
 
-              {/* Type Badge */}
-              <div className="flex items-center gap-2 text-white/90 text-sm font-medium">
-                {getIcon()}
-                <span>{getTypeLabel()}</span>
+              <div className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.1em]" style={{ borderColor: isDark ? '#435a77' : '#d3c4b2', color: isDark ? '#c5d5e8' : '#5c728b' }}>
+                <TypeIcon className="h-3.5 w-3.5" />
+                {typeMeta.label}
               </div>
 
-              {/* Title */}
-              <h2 className="text-2xl font-bold text-white mt-3">{item.name}</h2>
+              <h2 className="mt-3 text-2xl font-semibold" style={{ color: isDark ? '#e8f0fb' : '#223347' }}>
+                {item.name}
+              </h2>
 
-              {/* Level Stars */}
-              <div className="flex gap-1 mt-2">
-                {[...Array(Math.max(item.level, 1))].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-300 fill-current" />
+              <div className="mt-2 flex items-center gap-1.5">
+                {Array.from({ length: Math.max(1, item.level) }).map((_, index) => (
+                  <Sparkles key={`modal-star-${index}`} className="h-4 w-4 text-[#c88c7a]" />
                 ))}
               </div>
             </div>
 
-            {/* Artifact Image - Overlapping */}
-            <div className="relative -mt-16 px-6">
-              <div className="bg-white rounded-2xl shadow-xl p-3 mx-auto w-48 h-48">
+            <div className="space-y-4 px-5 py-5">
+              <div
+                className="overflow-hidden rounded-2xl border"
+                style={{
+                  borderColor: isDark ? '#334a61' : '#dccfbe',
+                  background: isDark ? 'rgba(18,28,41,0.85)' : 'rgba(255,255,255,0.86)',
+                }}
+              >
                 {item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-full h-full object-contain rounded-xl"
-                  />
+                  <img src={item.imageUrl} alt={item.name} className="h-56 w-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center">
-                    <span className="text-6xl">🎁</span>
+                  <div className="flex h-56 w-full items-center justify-center">
+                    <TypeIcon className="h-10 w-10" style={{ color: isDark ? '#c8d8eb' : '#607389' }} />
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="p-6 pt-4 space-y-4">
-              {/* Description */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  {t('artifact.description', 'Beschreibung')}
-                </h3>
-                <p className="text-gray-700 leading-relaxed">{item.description}</p>
-              </div>
+              <InfoBlock
+                label={t('artifact.description', 'Beschreibung')}
+                text={item.description || 'Keine Beschreibung vorhanden.'}
+                isDark={isDark}
+              />
 
-              {/* Story Effect */}
               {item.storyEffect && (
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
-                  <h3 className="text-sm font-semibold text-purple-700 mb-2 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    {t('artifact.storyEffect', 'Magische Wirkung')}
-                  </h3>
-                  <p className="text-purple-600 text-sm">{item.storyEffect}</p>
-                </div>
+                <InfoBlock
+                  label={t('artifact.storyEffect', 'Magische Wirkung')}
+                  text={item.storyEffect}
+                  isDark={isDark}
+                />
               )}
 
-              {/* Source Story */}
               {showStoryLink && item.sourceStoryId && (
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                <div
+                  className="rounded-2xl border px-3.5 py-3"
+                  style={{
+                    borderColor: isDark ? '#334a61' : '#dccfbe',
+                    background: isDark ? 'rgba(20,31,45,0.8)' : 'rgba(255,251,246,0.9)',
+                  }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: isDark ? '#97abc5' : '#6b7f97' }}>
                     {t('artifact.origin', 'Gefunden in')}
-                  </h3>
-                  <button
-                    onClick={handleGoToStory}
-                    className="flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors group"
-                  >
-                    <Book className="w-4 h-4" />
-                    <span className="group-hover:underline">
-                      {storyTitle || t('artifact.loadingStory', 'Geschichte wird geladen...')}
-                    </span>
-                    <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(item.acquiredAt).toLocaleDateString('de-DE', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleGoToStory}
+                    className="mt-1 inline-flex items-center gap-2 text-sm font-semibold"
+                    style={{ color: isDark ? '#cfe0f5' : '#31465e' }}
+                  >
+                    <Book className="h-4 w-4" />
+                    <span className="line-clamp-1">{storyTitle || 'Geschichte oeffnen'}</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               )}
-            </div>
-
-            {/* Close Button */}
-            <div className="p-6 pt-0">
-              <button
-                onClick={onClose}
-                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-              >
-                {t('common.close', 'Schließen')}
-              </button>
             </div>
           </motion.div>
         </motion.div>
@@ -222,5 +206,22 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
     </AnimatePresence>
   );
 };
+
+const InfoBlock: React.FC<{ label: string; text: string; isDark: boolean }> = ({ label, text, isDark }) => (
+  <div
+    className="rounded-2xl border px-3.5 py-3"
+    style={{
+      borderColor: isDark ? '#334a61' : '#dccfbe',
+      background: isDark ? 'rgba(20,31,45,0.8)' : 'rgba(255,251,246,0.9)',
+    }}
+  >
+    <p className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: isDark ? '#97abc5' : '#6b7f97' }}>
+      {label}
+    </p>
+    <p className="mt-1.5 text-sm leading-relaxed" style={{ color: isDark ? '#d4e2f4' : '#33485f' }}>
+      {text}
+    </p>
+  </div>
+);
 
 export default ArtifactDetailModal;
