@@ -20,6 +20,11 @@ cat /usr/share/nginx/html/config.js
 export PORT=${PORT:-8080}
 echo "Configuring nginx to listen on port ${PORT}"
 envsubst '${PORT}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
+echo "Final nginx config:"
+cat /etc/nginx/conf.d/default.conf
+
+echo "Validating nginx configuration..."
+nginx -t
 
 # Execute the CMD (start nginx)
 exec "$@"

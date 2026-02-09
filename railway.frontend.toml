@@ -10,6 +10,7 @@ VITE_BACKEND_URL = "${{VITE_BACKEND_URL}}"
 VITE_CLERK_PUBLISHABLE_KEY = "${{VITE_CLERK_PUBLISHABLE_KEY}}"
 
 [deploy]
+startCommand = "/docker-entrypoint.sh nginx -g 'daemon off;'"
 healthcheckPath = "/"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
