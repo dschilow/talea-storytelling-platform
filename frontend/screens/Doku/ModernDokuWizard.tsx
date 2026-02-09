@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { SupportedLanguage } from '../../src/i18n';
 
 type DokuWizardState = {
   topic: string;
@@ -130,7 +131,7 @@ export default function ModernDokuWizard() {
   const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>('text');
-  const [language, setLanguage] = useState<'de' | 'en' | 'fr' | 'es' | 'it' | 'nl'>('de');
+  const [language, setLanguage] = useState<SupportedLanguage>('de');
   const [credits, setCredits] = useState<DokuCredits | null>(null);
   const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
   const [state, setState] = useState<DokuWizardState>({
@@ -149,7 +150,7 @@ export default function ModernDokuWizard() {
   const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
 
   useEffect(() => {
-    const lang = i18n.language as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
+    const lang = i18n.language as SupportedLanguage;
     if (lang) setLanguage(lang);
   }, [i18n.language]);
 

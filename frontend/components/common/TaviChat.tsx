@@ -22,6 +22,8 @@ interface TaviChatProps {
   onClose: () => void;
 }
 
+type TranslateWithFallback = (key: string, fallback?: string) => string;
+
 const TypingDots: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
@@ -51,7 +53,7 @@ const TypingDots: React.FC<{ isDark: boolean }> = ({ isDark }) => (
 const MessageBubble: React.FC<{
   message: Message;
   onAction: (route: string) => void;
-  t: (key: string, fallback?: string) => string;
+  t: TranslateWithFallback;
 }> = ({ message, onAction, t }) => {
   const isTavi = message.sender === 'tavi';
 
@@ -102,7 +104,7 @@ const MessageBubble: React.FC<{
 
 const QuickSuggestions: React.FC<{
   onSelect: (text: string) => void;
-  t: (key: string, fallback?: string) => string;
+  t: TranslateWithFallback;
 }> = ({ onSelect, t }) => {
   const suggestions = [
     { text: t('chat.suggestion_story', 'Erzaehl mir eine Geschichte'), emoji: '📖' },
@@ -162,6 +164,11 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isDark = resolvedTheme === 'dark';
+
+  const tWithFallback: TranslateWithFallback = (key, fallback) => {
+    const result = t(key, { defaultValue: fallback ?? key });
+    return typeof result === 'string' ? result : String(result);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -364,13 +371,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
               <AnimatePresence mode="popLayout">
                 {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} onAction={handleAction} t={t} />
+                  <MessageBubble key={message.id} message={message} onAction={handleAction} t={tWithFallback} />
                 ))}
                 {isLoading && <TypingDots isDark={isDark} key="typing" />}
               </AnimatePresence>
 
               {showSuggestions && messages.length === 1 && (
-                <QuickSuggestions onSelect={handleSuggestion} t={t} />
+                <QuickSuggestions onSelect={handleSuggestion} t={tWithFallback} />
               )}
 
               <div ref={messagesEndRef} />

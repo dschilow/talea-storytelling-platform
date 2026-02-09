@@ -45,6 +45,33 @@
   background: linear-gradient(90deg, var(--landing-accent), var(--landing-accent-2), var(--landing-accent-3));
 }
 
+.landing-parallax-ribbon {
+  position: fixed;
+  left: -16vw;
+  right: -16vw;
+  height: 280px;
+  border-radius: 999px;
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.48;
+  will-change: transform;
+}
+
+.landing-parallax-ribbon-a {
+  top: 18vh;
+  background: linear-gradient(90deg, rgba(255, 171, 165, 0.56), rgba(181, 162, 255, 0.46), rgba(126, 214, 201, 0.42));
+}
+
+.landing-parallax-ribbon-b {
+  top: 58vh;
+  background: linear-gradient(90deg, rgba(120, 201, 255, 0.34), rgba(244, 171, 228, 0.42), rgba(255, 223, 145, 0.3));
+}
+
+.dark .landing-parallax-ribbon {
+  opacity: 0.34;
+}
+
 .landing-nav {
   position: fixed;
   inset: 0 0 auto 0;
@@ -167,6 +194,7 @@
   pointer-events: none;
   position: absolute;
   inset: 0;
+  will-change: transform;
 }
 
 .hero-sky-layer {
@@ -282,6 +310,7 @@
   z-index: 2;
   width: min(940px, calc(100% - 1.2rem));
   margin: 0 auto 7rem;
+  will-change: transform;
 }
 
 .hero-visual-glow {
@@ -337,6 +366,7 @@
   z-index: 4;
   min-height: 130px;
   pointer-events: none;
+  will-change: transform;
 }
 
 .hero-character-card {
@@ -593,6 +623,7 @@
 .panel-image-main {
   margin-top: 0;
   min-height: 260px;
+  will-change: transform;
 }
 
 .panel-image-floating {
@@ -604,6 +635,7 @@
   margin-top: 0;
   border-radius: 14px;
   box-shadow: 0 16px 30px rgba(14, 16, 30, 0.35);
+  will-change: transform;
 }
 
 .panel-audio-chip {
@@ -681,6 +713,7 @@
   height: 100%;
   object-fit: cover;
   z-index: -3;
+  will-change: transform;
 }
 
 .final-cta-panel-image::before {
@@ -736,6 +769,14 @@
 }
 
 @media (max-width: 1024px) {
+  .landing-parallax-ribbon {
+    left: -24vw;
+    right: -24vw;
+    height: 220px;
+    filter: blur(40px);
+    opacity: 0.34;
+  }
+
   .landing-links a {
     display: none;
   }
@@ -776,6 +817,10 @@
 }
 
 @media (max-width: 720px) {
+  .landing-parallax-ribbon {
+    display: none;
+  }
+
   .landing-nav {
     padding: 0.84rem 0.75rem;
   }

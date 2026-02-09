@@ -9,6 +9,15 @@ type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
 type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-3-flash-preview';
 
+type ModelOption = {
+  id: AIModel;
+  title: string;
+  subtitle: string;
+  cost: string;
+  tone: string;
+  recommended?: boolean;
+};
+
 interface Props {
   state: { ageGroup: AgeGroup; length: Length; aiModel: AIModel };
   updateState: (updates: any) => void;
@@ -27,7 +36,7 @@ const lengths = [
   { id: 'long', tone: '#c5828c' },
 ] as const;
 
-const models = [
+const models: ModelOption[] = [
   {
     id: 'gemini-3-flash-preview',
     title: 'Gemini 3 Flash',
@@ -57,7 +66,7 @@ const models = [
     cost: '$1.25 / 1M',
     tone: '#c5828c',
   },
-] as const;
+];
 
 function SelectionBadge() {
   return (

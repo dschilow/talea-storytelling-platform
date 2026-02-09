@@ -19,9 +19,10 @@ import {
   Users,
   WandSparkles,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import './LandingPage.css';
 
-type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+type IconComponent = LucideIcon;
 
 type IslandFeature = {
   title: string;
@@ -202,12 +203,32 @@ const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const { isSignedIn } = useUser();
   const pageRef = useRef<HTMLDivElement>(null);
+  const islandsRef = useRef<HTMLElement>(null);
+  const flowRef = useRef<HTMLElement>(null);
+  const trustRef = useRef<HTMLElement>(null);
+  const ctaRef = useRef<HTMLElement>(null);
   const shouldReduceMotion = useReducedMotion();
   const startTarget = isSignedIn ? '/' : '/auth';
 
   const { scrollYProgress } = useScroll({
     target: pageRef,
     offset: ['start start', 'end end'],
+  });
+  const { scrollYProgress: islandsProgress } = useScroll({
+    target: islandsRef,
+    offset: ['start end', 'end start'],
+  });
+  const { scrollYProgress: flowProgress } = useScroll({
+    target: flowRef,
+    offset: ['start end', 'end start'],
+  });
+  const { scrollYProgress: trustProgress } = useScroll({
+    target: trustRef,
+    offset: ['start end', 'end start'],
+  });
+  const { scrollYProgress: ctaProgress } = useScroll({
+    target: ctaRef,
+    offset: ['start end', 'end start'],
   });
 
   const skyY = useTransform(
@@ -235,10 +256,59 @@ const LandingPage: React.FC = () => {
     [0, 0.5],
     [0, shouldReduceMotion ? 0 : -42]
   );
+  const ribbonAY = useTransform(scrollYProgress, [0, 1], [0, shouldReduceMotion ? 0 : -360]);
+  const ribbonBY = useTransform(scrollYProgress, [0, 1], [0, shouldReduceMotion ? 0 : -180]);
+  const islandsHeadingY = useTransform(
+    islandsProgress,
+    [0, 0.5, 1],
+    [shouldReduceMotion ? 0 : 26, 0, shouldReduceMotion ? 0 : -26]
+  );
+  const islandCardYEven = useTransform(
+    islandsProgress,
+    [0, 1],
+    [shouldReduceMotion ? 0 : 24, shouldReduceMotion ? 0 : -24]
+  );
+  const islandCardYOdd = useTransform(
+    islandsProgress,
+    [0, 1],
+    [shouldReduceMotion ? 0 : -18, shouldReduceMotion ? 0 : 18]
+  );
+  const flowSectionY = useTransform(
+    flowProgress,
+    [0, 0.5, 1],
+    [shouldReduceMotion ? 0 : 24, 0, shouldReduceMotion ? 0 : -16]
+  );
+  const flowMainImageY = useTransform(
+    flowProgress,
+    [0, 1],
+    [shouldReduceMotion ? 0 : 34, shouldReduceMotion ? 0 : -36]
+  );
+  const flowFloatingImageY = useTransform(
+    flowProgress,
+    [0, 1],
+    [shouldReduceMotion ? 0 : -26, shouldReduceMotion ? 0 : 34]
+  );
+  const trustSectionY = useTransform(
+    trustProgress,
+    [0, 0.5, 1],
+    [shouldReduceMotion ? 0 : 20, 0, shouldReduceMotion ? 0 : -14]
+  );
+  const trustImageY = useTransform(
+    trustProgress,
+    [0, 1],
+    [shouldReduceMotion ? 0 : 30, shouldReduceMotion ? 0 : -30]
+  );
+  const ctaPanoramaY = useTransform(
+    ctaProgress,
+    [0, 1],
+    [shouldReduceMotion ? 0 : 22, shouldReduceMotion ? 0 : -22]
+  );
 
   return (
     <div ref={pageRef} className="landing-root">
       <motion.div className="landing-progress" style={{ scaleX: scrollYProgress }} />
+      <motion.div className="landing-parallax-ribbon landing-parallax-ribbon-a" style={{ y: ribbonAY }} />
+      <motion.div className="landing-parallax-ribbon landing-parallax-ribbon-b" style={{ y: ribbonBY }} />
 
       <header className="landing-nav">
         <button
@@ -354,7 +424,9 @@ const LandingPage: React.FC = () => {
 
         <motion.section
           id="islands"
+          ref={islandsRef}
           className="landing-section"
+          style={{ y: islandsHeadingY }}
           variants={sectionVariant}
           initial="hidden"
           whileInView="show"
@@ -372,6 +444,7 @@ const LandingPage: React.FC = () => {
                 <motion.article
                   key={feature.title}
                   className="island-card"
+                  style={{ y: index % 2 === 0 ? islandCardYEven : islandCardYOdd }}
                   variants={cardVariant}
                   initial="hidden"
                   whileInView="show"
@@ -404,7 +477,7 @@ const LandingPage: React.FC = () => {
           </div>
         </motion.section>
 
-        <section id="flow" className="landing-section split-layout">
+        <motion.section id="flow" ref={flowRef} className="landing-section split-layout" style={{ y: flowSectionY }}>
           <motion.article
             className="panel-card"
             variants={sectionVariant}
@@ -438,21 +511,21 @@ const LandingPage: React.FC = () => {
             viewport={{ once: true, amount: 0.25 }}
           >
             <div className="panel-image-stack">
-              <div className="panel-image panel-image-main">
+              <motion.div className="panel-image panel-image-main" style={{ y: flowMainImageY }}>
                 <img src="/landing-assets/generated/journey-map.webp" alt="Workflow Visual fuer Talea" />
-              </div>
-              <div className="panel-image panel-image-floating">
+              </motion.div>
+              <motion.div className="panel-image panel-image-floating" style={{ y: flowFloatingImageY }}>
                 <img src="/landing-assets/generated/audio-wave-garden.webp" alt="Audio Visual fuer Talea" />
-              </div>
+              </motion.div>
             </div>
             <div className="panel-audio-chip">
               <AudioLines size={16} />
               Audio-Player integriert in mobile Navigation
             </div>
           </motion.article>
-        </section>
+        </motion.section>
 
-        <section id="trust" className="landing-section split-layout">
+        <motion.section id="trust" ref={trustRef} className="landing-section split-layout" style={{ y: trustSectionY }}>
           <motion.article
             className="panel-card panel-card-visual"
             variants={sectionVariant}
@@ -460,9 +533,9 @@ const LandingPage: React.FC = () => {
             whileInView="show"
             viewport={{ once: true, amount: 0.25 }}
           >
-            <div className="panel-image">
+            <motion.div className="panel-image" style={{ y: trustImageY }}>
               <img src="/landing-assets/generated/trust-guardian-arch.webp" alt="Sicherheit und Stabilitaet in Talea" />
-            </div>
+            </motion.div>
             <div className="hero-character-row">
               <span>Profil</span>
               <span>Tagebuch</span>
@@ -500,9 +573,10 @@ const LandingPage: React.FC = () => {
               })}
             </div>
           </motion.article>
-        </section>
+        </motion.section>
 
         <motion.section
+          ref={ctaRef}
           className="landing-section final-cta"
           variants={sectionVariant}
           initial="hidden"
@@ -510,7 +584,7 @@ const LandingPage: React.FC = () => {
           viewport={{ once: true, amount: 0.25 }}
         >
           <div className="final-cta-panel final-cta-panel-image">
-            <img src="/landing-assets/generated/final-panorama.webp" alt="" aria-hidden="true" />
+            <motion.img src="/landing-assets/generated/final-panorama.webp" alt="" aria-hidden="true" style={{ y: ctaPanoramaY }} />
             <p>Bereit fuer den Launch?</p>
             <h2>Startet jetzt in Talea und baut eure eigene Story-Welt.</h2>
             <div className="final-cta-actions">
