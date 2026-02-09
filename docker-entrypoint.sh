@@ -16,8 +16,8 @@ echo "config.js generated successfully"
 cat /usr/share/nginx/html/config.js
 
 # Substitute PORT environment variable in nginx config
-# Default to 80 if PORT is not set
-export PORT=${PORT:-80}
+# Default to 8080 if PORT is not set
+export PORT=${PORT:-8080}
 echo "Configuring nginx to listen on port ${PORT}"
 envsubst '${PORT}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
 

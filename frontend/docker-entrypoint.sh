@@ -14,7 +14,7 @@ EOF
 echo "config.js generated successfully"
 cat /usr/share/nginx/html/config.js
 
-export PORT=${PORT:-80}
+export PORT=${PORT:-8080}
 echo "Configuring nginx to listen on port ${PORT}"
 envsubst '${PORT}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
 
