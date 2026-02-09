@@ -1,337 +1,450 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Sparkles, Star, BookOpen, Users, Brain, Heart, Shield, TreePine } from 'lucide-react';
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from 'framer-motion';
+import {
+  ArrowRight,
+  AudioLines,
+  BookOpenText,
+  Compass,
+  MessageCircleMore,
+  MoonStar,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  WandSparkles,
+} from 'lucide-react';
 import './LandingPage.css';
 
-gsap.registerPlugin(ScrollTrigger);
+type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
-// Feature configuration (without text - text comes from translations)
-const FEATURE_CONFIG = [
-    { id: 'stories', icon: BookOpen, color: '#24C5A8', emoji: '📚' },
-    { id: 'avatars', icon: Users, color: '#7C4DFF', emoji: '🎭' },
-    { id: 'learning', icon: Brain, color: '#F093FB', emoji: '🧠' },
-    { id: 'memory', icon: TreePine, color: '#FFCE45', emoji: '🌳' },
-    { id: 'values', icon: Heart, color: '#FF6B6B', emoji: '💝' },
-    { id: 'parents', icon: Shield, color: '#4ECDC4', emoji: '🛡️' },
+type IslandFeature = {
+  title: string;
+  subtitle: string;
+  description: string;
+  points: string[];
+  image: string;
+  icon: IconComponent;
+  tag: string;
+};
+
+const islandFeatures: IslandFeature[] = [
+  {
+    title: 'Story Engine',
+    subtitle: 'Personalisierte Geschichten in Minuten',
+    description:
+      'Aus euren Avataren werden echte Heldinnen und Helden mit rotem Faden, Lernimpulsen und klarem Spannungsbogen.',
+    points: [
+      'Teilnehmende Charaktere pro Story frei waehlbar',
+      'Vorlese- und Lesemodus fuer Kinder und Eltern',
+      'Quiz und Fakten direkt im Lesefluss integriert',
+    ],
+    image: '/landing-assets/stories.png',
+    icon: BookOpenText,
+    tag: 'Insel 01',
+  },
+  {
+    title: 'Doku Studio',
+    subtitle: 'Wissen als Erlebnis statt als Textwand',
+    description:
+      'Wissensdokus verbinden Stimme, Struktur und Visuals zu einer ruhigen, modernen Lernstrecke fuer Schule und Familie.',
+    points: [
+      'Audio-Dokus fuer unterwegs und zum Einschlafen',
+      'Klar strukturierter Reader mit Kapiteln',
+      'Themen von Natur bis Raumfahrt moeglich',
+    ],
+    image: '/landing-assets/cine_5_dokus.png',
+    icon: AudioLines,
+    tag: 'Insel 02',
+  },
+  {
+    title: 'Avatar Atelier',
+    subtitle: 'Charaktere mit Persoenlichkeit und Entwicklung',
+    description:
+      'Avatare wachsen mit Erinnerungen, Eigenschaften und Meilensteinen. So bleibt jede Story emotional verankert.',
+    points: [
+      'Avatar Wizard fuer schnelle Erstellung',
+      'Persoenlichkeit, Tagebuch und Schatzkammer',
+      'Bearbeitungsmodus mit sauberer Profilstruktur',
+    ],
+    image: '/landing-assets/avatars.png',
+    icon: Users,
+    tag: 'Insel 03',
+  },
+  {
+    title: 'Tavi Copilot',
+    subtitle: 'Eine KI-Figur fuer Fragen, Ideen und Produktion',
+    description:
+      'Tavi hilft beim Generieren, erklaert Funktionen und begleitet den kreativen Flow in Story und Doku.',
+    points: [
+      'Fragen stellen und direkt Antworten bekommen',
+      'Stories und Dokus aus einer Konversation starten',
+      'Schneller Zugriff ohne Kontextwechsel',
+    ],
+    image: '/landing-assets/idea.png',
+    icon: MessageCircleMore,
+    tag: 'Insel 04',
+  },
 ];
 
-// Pricing configuration (without text - text comes from translations)
-const PRICING_CONFIG = [
-    { id: 'starter', popular: false },
-    { id: 'family', popular: true },
-    { id: 'premium', popular: false },
+const journeySteps = [
+  'Figuren auswaehlen und Storyziel festlegen',
+  'Ton, Tiefe und Lernfokus bestimmen',
+  'Ausgabe als Story, Doku und Audio erleben',
+  'Mit Quiz, Fakten und Erinnerungen vertiefen',
 ];
+
+const trustPoints = [
+  {
+    title: 'Dark und Light Mode',
+    description:
+      'Ein visuelles System fuer beide Modi. Umschaltbar in den Einstellungen, sauber auf allen Kernseiten.',
+    icon: MoonStar,
+  },
+  {
+    title: 'Sicher und familienfreundlich',
+    description:
+      'Klare Rollen, nachvollziehbare Bedienung und eine Umgebung, die fuer Kinder sowie Erwachsene ruhig bleibt.',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'Admin Ready',
+    description:
+      'Interne Bereiche bleiben erreichbar, waehrend die Hauptnavigation schlank und kundenfreundlich bleibt.',
+    icon: Compass,
+  },
+];
+
+const floatDots = Array.from({ length: 16 }, (_, index) => ({
+  left: `${(index * 17) % 96 + 2}%`,
+  top: `${(index * 23) % 80 + 8}%`,
+  delay: `${(index % 6) * 0.45}s`,
+  duration: `${4 + (index % 5) * 1.1}s`,
+}));
+
+const sectionVariant = {
+  hidden: { opacity: 0, y: 36 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.55,
+      ease: [0.21, 0.47, 0.32, 0.98] as const,
+    },
+  },
+};
+
+const cardVariant = {
+  hidden: { opacity: 0, y: 24 },
+  show: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: index * 0.08,
+      duration: 0.5,
+      ease: [0.2, 0.65, 0.3, 0.95] as const,
+    },
+  }),
+};
 
 const LandingPage: React.FC = () => {
-    const navigate = useNavigate();
-    const { t } = useTranslation();
-    const containerRef = useRef<HTMLDivElement>(null);
-    const bookRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
-    const [scrollProgress, setScrollProgress] = useState(0);
+  const { scrollYProgress } = useScroll({
+    target: pageRef,
+    offset: ['start start', 'end end'],
+  });
 
-    // Book animation with ScrollTrigger
-    useEffect(() => {
-        const ctx = gsap.context(() => {
-            // Main scroll progress
-            ScrollTrigger.create({
-                trigger: containerRef.current,
-                start: 'top top',
-                end: 'bottom bottom',
-                scrub: 0.5,
-                onUpdate: (self) => {
-                    setScrollProgress(self.progress);
-                },
-            });
+  const skyY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    [0, shouldReduceMotion ? 0 : -220]
+  );
+  const cloudY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    [0, shouldReduceMotion ? 0 : -90]
+  );
+  const castleY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    [0, shouldReduceMotion ? 0 : -130]
+  );
+  const headlineY = useTransform(
+    scrollYProgress,
+    [0, 0.4],
+    [0, shouldReduceMotion ? 0 : -60]
+  );
 
-            // Book cover opening animation
-            const frontCover = document.querySelector('.book-cover-front');
-            if (frontCover) {
-                gsap.to(frontCover, {
-                    rotateY: -160,
-                    scrollTrigger: {
-                        trigger: '.book-section',
-                        start: 'top top',
-                        end: '30% top',
-                        scrub: 1,
-                    },
-                });
-            }
+  return (
+    <div ref={pageRef} className="landing-root">
+      <motion.div className="landing-progress" style={{ scaleX: scrollYProgress }} />
 
-            // Pages animation - each page turns one after another
-            const pages = document.querySelectorAll('.book-page');
-            pages.forEach((page, index) => {
-                gsap.to(page, {
-                    rotateY: -160,
-                    scrollTrigger: {
-                        trigger: '.book-section',
-                        start: `${15 + index * 10}% top`,
-                        end: `${35 + index * 10}% top`,
-                        scrub: 1,
-                    },
-                });
-            });
-
-        }, containerRef);
-
-        return () => ctx.revert();
-    }, []);
-
-    // Calculate section visibility
-    const bookProgress = Math.min(scrollProgress * 4, 1);
-    const showFeatures = scrollProgress > 0.2;
-    const showPricing = scrollProgress > 0.75;
-
-    return (
-        <div
-            ref={containerRef}
-            className="landing-container"
+      <header className="landing-nav">
+        <button
+          type="button"
+          className="landing-logo"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Zurueck zum Anfang"
         >
-            {/* Fixed Navigation */}
-            <nav className="landing-nav">
-                <div className="nav-logo">
-                    <Sparkles className="nav-icon" />
-                    <span>Talea</span>
-                </div>
-                <button
-                    className="nav-cta"
-                    onClick={() => navigate('/story')}
-                >
-                    {t('landing.nav.start')}
-                </button>
-            </nav>
+          <img src="/talea_logo.png?v=20260209" alt="Talea Logo" />
+          <span>
+            Talea
+            <small>Storytelling Platform</small>
+          </span>
+        </button>
 
-            {/* Progress Bar */}
-            <div
-                className="progress-bar"
-                style={{ width: `${scrollProgress * 100}%` }}
-            />
+        <nav className="landing-links" aria-label="Landing Navigation">
+          <a href="#islands">Funktionen</a>
+          <a href="#flow">Ablauf</a>
+          <a href="#trust">Qualitaet</a>
+          <button type="button" onClick={() => navigate('/')} className="landing-start-ghost">
+            App starten
+          </button>
+        </nav>
+      </header>
 
-            {/* Sticky Content Container */}
-            <div className="sticky-container">
+      <main>
+        <section className="landing-hero">
+          <motion.div className="hero-layer hero-sky-layer" style={{ y: skyY }} />
+          <motion.div className="hero-layer hero-cloud-layer" style={{ y: cloudY }} />
 
-                {/* Stars Background */}
-                <div className="stars-bg">
-                    {[...Array(50)].map((_, i) => (
-                        <div
-                            key={i}
-                            className="star"
-                            style={{
-                                left: `${Math.random() * 100}%`,
-                                top: `${Math.random() * 100}%`,
-                                animationDelay: `${Math.random() * 3}s`,
-                                width: `${2 + Math.random() * 3}px`,
-                                height: `${2 + Math.random() * 3}px`,
-                            }}
-                        />
-                    ))}
-                </div>
+          <div className="hero-dots" aria-hidden="true">
+            {floatDots.map((dot, index) => (
+              <span
+                key={index}
+                style={{
+                  left: dot.left,
+                  top: dot.top,
+                  animationDelay: dot.delay,
+                  animationDuration: dot.duration,
+                }}
+              />
+            ))}
+          </div>
 
-                {/* SECTION 1: Book Animation */}
-                <section
-                    className="book-section"
-                    style={{
-                        opacity: bookProgress < 0.8 ? 1 : 1 - (bookProgress - 0.8) * 5,
-                        transform: `scale(${1 - bookProgress * 0.15})`,
-                        pointerEvents: bookProgress > 0.9 ? 'none' : 'auto',
-                    }}
-                >
-                    {/* Hero Text above book */}
-                    <div
-                        className="hero-text"
-                        style={{ opacity: Math.max(0, 1 - bookProgress * 2) }}
-                    >
-                        <h1>Talea</h1>
-                        <p>{t('landing.hero.tagline')}</p>
-                    </div>
+          <motion.div className="hero-content" style={{ y: headlineY }}>
+            <p className="hero-kicker">
+              <Sparkles size={16} />
+              Creative Learning Universe
+            </p>
+            <h1>
+              Die Geschichtenwelt,
+              <br />
+              die sich wie ein Freizeitpark fuer Fantasie anfuehlt.
+            </h1>
+            <p>
+              Talea verbindet Storys, Wissensdokus, Avatare und Audio zu einer einzigen
+              Erlebnisreise. Modern, klar und bereit fuer echte Familiennutzung.
+            </p>
 
-                    {/* The 3D Book */}
-                    <div ref={bookRef} className="book-3d">
-                        <div className="book-wrapper">
-                            {/* Back Cover (always visible) */}
-                            <div className="book-cover-back">
-                                <div className="cover-pattern" />
-                            </div>
-
-                            {/* Inner Pages */}
-                            <div className="book-pages">
-                                {[1, 2, 3].map((pageNum) => (
-                                    <div key={pageNum} className={`book-page page-${pageNum}`}>
-                                        <div className="page-front">
-                                            <div className="page-content">
-                                                {pageNum === 1 && (
-                                                    <>
-                                                        <span className="page-emoji">✨</span>
-                                                        <p className="page-text">{t('landing.hero.page1')}</p>
-                                                    </>
-                                                )}
-                                                {pageNum === 2 && (
-                                                    <>
-                                                        <span className="page-emoji">🏰</span>
-                                                        <p className="page-text">{t('landing.hero.page2')}</p>
-                                                    </>
-                                                )}
-                                                {pageNum === 3 && (
-                                                    <>
-                                                        <span className="page-emoji">🌟</span>
-                                                        <p className="page-text">{t('landing.hero.page3')}</p>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="page-back" />
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Front Cover (opens first) */}
-                            <div className="book-cover-front">
-                                <div className="cover-front-face">
-                                    <div className="cover-border" />
-                                    <div className="cover-title">
-                                        <Star className="cover-star" />
-                                        <h2>Talea</h2>
-                                        <p>{t('landing.hero.coverTitle')}</p>
-                                        <div className="cover-emojis">
-                                            <span>🌟</span>
-                                            <span>📖</span>
-                                            <span>🌟</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="cover-back-face" />
-                            </div>
-
-                            {/* Spine */}
-                            <div className="book-spine">
-                                <span>T A L E A</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Scroll Hint */}
-                    <div
-                        className="scroll-hint"
-                        style={{ opacity: Math.max(0, 1 - bookProgress * 3) }}
-                    >
-                        <span>{t('landing.hero.scrollHint')}</span>
-                        <div className="scroll-mouse">
-                            <div className="scroll-wheel" />
-                        </div>
-                    </div>
-                </section>
-
-                {/* SECTION 2: Features */}
-                {showFeatures && (
-                    <section
-                        className="features-section"
-                        style={{
-                            opacity: showPricing ? Math.max(0, 1 - (scrollProgress - 0.75) * 4) : Math.min((scrollProgress - 0.2) * 3, 1),
-                        }}
-                    >
-                        <h2 className="section-title">
-                            <span className="title-emoji">🌍</span>
-                            {t('landing.features.title')}
-                        </h2>
-
-                        <div className="features-grid">
-                            {FEATURE_CONFIG.map((feature, index) => {
-                                const isVisible = scrollProgress > 0.2 + index * 0.06;
-                                const Icon = feature.icon;
-
-                                return (
-                                    <div
-                                        key={feature.id}
-                                        className={`feature-card ${isVisible ? 'visible' : ''}`}
-                                        style={{
-                                            '--feature-color': feature.color,
-                                            transitionDelay: `${index * 0.1}s`,
-                                        } as React.CSSProperties}
-                                    >
-                                        <div className="feature-icon">
-                                            <span className="feature-emoji">{feature.emoji}</span>
-                                        </div>
-                                        <h3>{t(`landing.features.${feature.id}.title`)}</h3>
-                                        <p className="feature-subtitle">{t(`landing.features.${feature.id}.subtitle`)}</p>
-                                        <p className="feature-description">{t(`landing.features.${feature.id}.description`)}</p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
-
-                {/* SECTION 3: Pricing */}
-                {showPricing && (
-                    <section
-                        className="pricing-section"
-                        style={{
-                            opacity: Math.min((scrollProgress - 0.75) * 4, 1),
-                        }}
-                    >
-                        <h2 className="section-title">
-                            <span className="title-emoji">💎</span>
-                            {t('landing.pricing.title')}
-                        </h2>
-
-                        <div className="pricing-grid">
-                            {PRICING_CONFIG.map((plan, index) => {
-                                const features = t(`landing.pricing.${plan.id}.features`, { returnObjects: true }) as string[];
-                                return (
-                                    <div
-                                        key={plan.id}
-                                        className={`pricing-card ${plan.popular ? 'popular' : ''}`}
-                                        style={{ transitionDelay: `${index * 0.15}s` }}
-                                    >
-                                        {plan.popular && <div className="popular-badge">{t('landing.pricing.popular')}</div>}
-                                        <h3>{t(`landing.pricing.${plan.id}.name`)}</h3>
-                                        <div className="price">
-                                            <span className="amount">{t(`landing.pricing.${plan.id}.price`)}</span>
-                                            <span className="period">{t(`landing.pricing.${plan.id}.period`, { defaultValue: '' })}</span>
-                                        </div>
-                                        <ul className="features-list">
-                                            {Array.isArray(features) && features.map((feature: string) => (
-                                                <li key={feature}>
-                                                    <Sparkles size={14} />
-                                                    {feature}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                        <button
-                                            className={`pricing-cta ${plan.popular ? 'primary' : ''}`}
-                                            onClick={() => navigate('/story')}
-                                        >
-                                            {t(`landing.pricing.${plan.id}.cta`)}
-                                            <ArrowRight size={18} />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
+            <div className="hero-actions">
+              <button type="button" className="landing-start-solid" onClick={() => navigate('/')}>
+                App starten
+                <ArrowRight size={16} />
+              </button>
+              <a href="#islands" className="landing-inline-link">
+                Funktionen entdecken
+              </a>
             </div>
 
-            {/* Footer */}
-            <footer className="landing-footer">
-                <div className="footer-content">
-                    <div className="footer-logo">
-                        <Sparkles />
-                        <span>Talea</span>
+            <div className="hero-character-row" aria-label="Beispielcharaktere">
+              <span>Lio</span>
+              <span>Mila</span>
+              <span>Noru</span>
+              <span>Tavi</span>
+              <span>+ eigene Figuren</span>
+            </div>
+          </motion.div>
+
+          <motion.div className="hero-visual-shell" style={{ y: castleY }}>
+            <div className="hero-visual-glow" />
+            <div className="hero-visual-frame">
+              <img src="/landing-assets/hero.png" alt="Magische Inselwelt fuer Talea" />
+              <div className="hero-visual-badges">
+                <span>Story</span>
+                <span>Doku</span>
+                <span>Audio</span>
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        <motion.section
+          id="islands"
+          className="landing-section"
+          variants={sectionVariant}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.25 }}
+        >
+          <div className="section-head">
+            <p>Funktionen als Inseln</p>
+            <h2>Jede Insel loest einen echten Teil der Nutzerreise</h2>
+          </div>
+
+          <div className="island-grid">
+            {islandFeatures.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <motion.article
+                  key={feature.title}
+                  className="island-card"
+                  variants={cardVariant}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.2 }}
+                  custom={index}
+                >
+                  <div className="island-card-top">
+                    <span className="island-tag">{feature.tag}</span>
+                    <span className="island-icon-wrap">
+                      <Icon size={18} />
+                    </span>
+                  </div>
+
+                  <h3>{feature.title}</h3>
+                  <h4>{feature.subtitle}</h4>
+                  <p>{feature.description}</p>
+
+                  <ul>
+                    {feature.points.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+
+                  <div className="island-image-frame">
+                    <img src={feature.image} alt={`${feature.title} Vorschau`} />
+                  </div>
+                </motion.article>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        <section id="flow" className="landing-section split-layout">
+          <motion.article
+            className="panel-card"
+            variants={sectionVariant}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+          >
+            <p className="panel-label">
+              <WandSparkles size={16} />
+              Produktionsfluss
+            </p>
+            <h2>Von Idee bis fertigem Audio in einem String</h2>
+            <p>
+              Der Ablauf ist bewusst einfach gehalten: Charaktere waehlen, Modus setzen,
+              generieren, lesen oder hoeren. Das reduziert Reibung und fuehlt sich professionell
+              statt technisch an.
+            </p>
+
+            <ol className="journey-list">
+              {journeySteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </motion.article>
+
+          <motion.article
+            className="panel-card panel-card-visual"
+            variants={sectionVariant}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+          >
+            <div className="panel-image">
+              <img src="/landing-assets/cine_2_magic.png" alt="Workflow Visual fuer Talea" />
+            </div>
+            <div className="panel-audio-chip">
+              <AudioLines size={16} />
+              Audio-Player integriert in mobile Navigation
+            </div>
+          </motion.article>
+        </section>
+
+        <section id="trust" className="landing-section split-layout">
+          <motion.article
+            className="panel-card panel-card-visual"
+            variants={sectionVariant}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+          >
+            <div className="panel-image">
+              <img src="/landing-assets/cine_3_avatars.png" alt="Avatar und Profilwelt in Talea" />
+            </div>
+            <div className="hero-character-row">
+              <span>Profil</span>
+              <span>Tagebuch</span>
+              <span>Schatzkammer</span>
+              <span>Persoenlichkeit</span>
+            </div>
+          </motion.article>
+
+          <motion.article
+            className="panel-card"
+            variants={sectionVariant}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+          >
+            <p className="panel-label">
+              <ShieldCheck size={16} />
+              Produktqualitaet
+            </p>
+            <h2>Robust fuer Alltag, Schule und Admin-Betrieb</h2>
+            <div className="trust-grid">
+              {trustPoints.map((point) => {
+                const Icon = point.icon;
+                return (
+                  <div key={point.title} className="trust-item">
+                    <span>
+                      <Icon size={16} />
+                    </span>
+                    <div>
+                      <h4>{point.title}</h4>
+                      <p>{point.description}</p>
                     </div>
-                    <p>{t('landing.footer.copyright')}</p>
-                    <div className="footer-links">
-                        <a href="/privacy">{t('landing.footer.privacy')}</a>
-                        <a href="/terms">{t('landing.footer.terms')}</a>
-                        <a href="/contact">{t('landing.footer.contact')}</a>
-                    </div>
-                </div>
-            </footer>
-        </div>
-    );
+                  </div>
+                );
+              })}
+            </div>
+          </motion.article>
+        </section>
+
+        <motion.section
+          className="landing-section final-cta"
+          variants={sectionVariant}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.25 }}
+        >
+          <div className="final-cta-panel">
+            <p>Bereit fuer den Launch?</p>
+            <h2>Startet jetzt in Talea und baut eure eigene Story-Welt.</h2>
+            <div className="final-cta-actions">
+              <button type="button" className="landing-start-solid" onClick={() => navigate('/')}>
+                Zur App
+                <ArrowRight size={16} />
+              </button>
+              <button type="button" className="landing-start-ghost" onClick={() => navigate('/auth')}>
+                Login / Account
+              </button>
+            </div>
+          </div>
+        </motion.section>
+      </main>
+    </div>
+  );
 };
 
 export default LandingPage;

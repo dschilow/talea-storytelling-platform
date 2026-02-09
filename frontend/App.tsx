@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { Toaster } from 'sonner';
@@ -46,11 +46,14 @@ import { useLanguageSync } from './hooks/useLanguageSync';
 
 // Inner component that uses router hooks
 const RouterContent = () => {
+  const location = useLocation();
+  const isLandingRoute = location.pathname.startsWith('/landing');
+
   return (
     <>
       <Routes>
+        <Route path="/landing" element={<LandingPage />} />
         <Route element={<AppLayout />}>
-          <Route path="/landing" element={<LandingPage />} />
           <Route path="/" element={<HomeScreen />} />
           <Route path="/avatar" element={<AvatarsScreen />} />
           <Route path="/avatar/create" element={<AvatarWizardScreen />} />
@@ -79,7 +82,7 @@ const RouterContent = () => {
           <Route path="/_admin" element={<AdminDashboard />} />
         </Route>
       </Routes>
-      <TaviButton />
+      {!isLandingRoute && <TaviButton />}
       <Toaster
         position="top-right"
         richColors
