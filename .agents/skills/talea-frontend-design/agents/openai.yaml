@@ -1,0 +1,4 @@
+interface:
+  display_name: "Talea Frontend Design"
+  short_description: "Build polished Talea frontend UX and visual systems"
+  default_prompt: "Design and implement distinctive, production-ready Talea frontend interfaces with strong visual direction, robust UX states, and responsive behavior."

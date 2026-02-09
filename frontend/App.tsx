@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { Toaster } from 'sonner';
+import { MotionConfig } from 'framer-motion';
 import { store } from './store/store';
 
 import HomeScreen from './screens/Home/TaleaHomeScreen';
@@ -101,11 +102,13 @@ const AppContent = () => {
   useLanguageSync(); // Sync language on load
 
   return (
-    <Router>
-      <div className="min-h-screen">
-        <RouterContent />
-      </div>
-    </Router>
+    <MotionConfig reducedMotion="user">
+      <Router>
+        <div className="min-h-screen">
+          <RouterContent />
+        </div>
+      </Router>
+    </MotionConfig>
   );
 };
 

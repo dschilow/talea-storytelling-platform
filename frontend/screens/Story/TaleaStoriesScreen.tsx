@@ -1,717 +1,349 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import {
-  BookOpen, Trash2, Clock, Download, Plus, Search,
-  Sparkles, Filter, Grid3X3, LayoutList, BookMarked,
-  ChevronDown, Star, Eye, FileText, Wand2
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  BookOpen,
+  Clock3,
+  Download,
+  Grid3X3,
+  LayoutList,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react';
+
 import { useBackend } from '../../hooks/useBackend';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import type { Story } from '../../types/story';
 
-// =====================================================
-// ANIMATED BACKGROUND
-// =====================================================
-const StoryBackground: React.FC = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    <motion.div
-      className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-20"
-      style={{
-        background: 'radial-gradient(circle, rgba(255,107,157,0.4) 0%, rgba(169,137,242,0.2) 50%, transparent 70%)',
-      }}
-      animate={{
-        scale: [1, 1.2, 1],
-        x: [0, 30, 0],
-        y: [0, -20, 0],
-      }}
-      transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    <motion.div
-      className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-20"
-      style={{
-        background: 'radial-gradient(circle, rgba(169,137,242,0.3) 0%, rgba(45,212,191,0.15) 50%, transparent 70%)',
-      }}
-      animate={{
-        scale: [1, 1.15, 1],
-        x: [0, -25, 0],
-        y: [0, 20, 0],
-      }}
-      transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-    />
+const palette = {
+  page: '#f5f2ec',
+  text: '#17212d',
+  muted: '#5d6772',
+  border: '#ddd5c8',
+  surface: '#ffffff',
+  accent: '#0f766e',
+  accentSoft: '#d7ece8',
+  warning: '#8a5a24',
+  danger: '#9d3f3f',
+};
 
-    {/* Floating book emojis */}
-    {Array.from({ length: 8 }).map((_, i) => (
-      <motion.div
-        key={i}
-        className="absolute text-2xl select-none opacity-10"
-        style={{
-          left: `${10 + i * 12}%`,
-          top: `${15 + (i % 3) * 25}%`,
-        }}
-        animate={{
-          y: [0, -20, 0],
-          rotate: [0, 10, -10, 0],
-          opacity: [0.05, 0.15, 0.05],
-        }}
-        transition={{
-          duration: 8 + i * 2,
-          delay: i * 0.8,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      >
-        {['📖', '📚', '✨', '🌟', '📕', '📗', '📘', '🦋'][i]}
-      </motion.div>
-    ))}
+const headingFont = '"Fraunces", "Times New Roman", serif';
+const bodyFont = '"Manrope", "Segoe UI", sans-serif';
+
+const StoriesAtmosphere: React.FC = () => (
+  <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
+    <div
+      className="absolute inset-0"
+      style={{
+        background: `radial-gradient(1200px 520px at 100% 0%, #e8ddd0 0%, transparent 55%),
+                     radial-gradient(900px 420px at 0% 15%, #d9e9e6 0%, transparent 60%),
+                     ${palette.page}`,
+      }}
+    />
   </div>
 );
 
-// =====================================================
-// HERO HEADER
-// =====================================================
-const StoriesHeader: React.FC<{
-  total: number;
-  viewMode: 'grid' | 'list';
-  setViewMode: (mode: 'grid' | 'list') => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  onCreateNew: () => void;
-}> = ({ total, viewMode, setViewMode, searchQuery, setSearchQuery, onCreateNew }) => {
-  const { t } = useTranslation();
+const StoryParticipants: React.FC<{ story: Story }> = ({ story }) => {
+  const participants = [
+    ...((story.config?.avatars || []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      imageUrl: p.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p.name)}`,
+    })) || []),
+    ...((story.config?.characters || []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      imageUrl: p.imageUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.name)}`,
+    })) || []),
+  ];
+
+  if (participants.length === 0) return null;
+
+  const visible = participants.slice(0, 5);
+  const hiddenCount = participants.length - visible.length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-8"
-    >
-      {/* Title Row */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF6B9D] to-[#A989F2] flex items-center justify-center shadow-xl shadow-[#A989F2]/25"
-          >
-            <BookMarked className="w-7 h-7 text-white" />
-          </motion.div>
-          <div>
-            <h1
-              className="text-3xl md:text-4xl font-bold text-foreground tracking-tight"
-              style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
-            >
-              {t('story.myStories', 'Meine Geschichten')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {total} {total === 1 ? 'Geschichte' : 'Geschichten'} in deiner Bibliothek
-            </p>
-          </div>
-        </div>
-
-        {/* Create New Story Button */}
-        <motion.button
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onCreateNew}
-          className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-bold shadow-lg shadow-[#A989F2]/25 hover:shadow-xl hover:shadow-[#A989F2]/35 transition-shadow"
-          style={{ background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 100%)' }}
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      {visible.map((p) => (
+        <div
+          key={`${story.id}-${p.id}`}
+          className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs"
+          style={{ borderColor: palette.border, color: palette.text, background: '#faf8f4' }}
         >
-          <Wand2 className="w-5 h-5" />
-          <span className="hidden md:inline">{t('story.create', 'Neue Geschichte')}</span>
-        </motion.button>
-      </div>
-
-      {/* Search & Filter Bar */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/60" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('story.searchPlaceholder', 'Geschichten durchsuchen...')}
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#A989F2]/40 focus:border-[#A989F2]/40 transition-all shadow-sm"
-            style={{ fontFamily: '"Nunito", sans-serif' }}
-          />
+          <img src={p.imageUrl} alt={p.name} className="h-5 w-5 rounded-full object-cover" />
+          <span className="max-w-[96px] truncate">{p.name}</span>
         </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-white/[0.06] backdrop-blur-lg rounded-2xl border border-white/10 p-1.5 shadow-sm">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2.5 rounded-xl transition-all ${
-              viewMode === 'grid'
-                ? 'bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] text-white shadow-md'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Grid3X3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2.5 rounded-xl transition-all ${
-              viewMode === 'list'
-                ? 'bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] text-white shadow-md'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <LayoutList className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </motion.div>
+      ))}
+      {hiddenCount > 0 && (
+        <span
+          className="inline-flex h-7 items-center rounded-full border px-2 text-xs font-semibold"
+          style={{ borderColor: palette.border, color: palette.muted, background: '#faf8f4' }}
+        >
+          +{hiddenCount}
+        </span>
+      )}
+    </div>
   );
 };
 
-// =====================================================
-// STORY GRID CARD - Immersive book-style card
-// =====================================================
+const StatusBadge: React.FC<{ status: Story['status'] }> = ({ status }) => {
+  if (status === 'complete') {
+    return (
+      <span
+        className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
+        style={{ background: '#ddf0ea', color: palette.accent }}
+      >
+        Fertig
+      </span>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <span
+        className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
+        style={{ background: '#f7dfdf', color: palette.danger }}
+      >
+        Fehler
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
+      style={{ background: '#f5e8d7', color: palette.warning }}
+    >
+      In Arbeit
+    </span>
+  );
+};
+
 const StoryGridCard: React.FC<{
   story: Story;
   index: number;
   onRead: () => void;
   onDelete: () => void;
 }> = ({ story, index, onRead, onDelete }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isExportingPDF, setIsExportingPDF] = useState(false);
   const backend = useBackend();
+  const [exporting, setExporting] = useState(false);
+  const reduceMotion = useReducedMotion();
 
-  const handleDownloadPDF = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownloadPdf = async (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (!isPDFExportSupported() || story.status !== 'complete') return;
 
     try {
-      setIsExportingPDF(true);
+      setExporting(true);
       const fullStory = await backend.story.get({ id: story.id });
       if (!fullStory.chapters || fullStory.chapters.length === 0) return;
       await exportStoryAsPDF(fullStory as any);
     } catch (error) {
-      console.error('PDF export error:', error);
+      console.error('PDF export failed:', error);
     } finally {
-      setIsExportingPDF(false);
+      setExporting(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: 0.5,
-        delay: index * 0.08,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      whileHover={{ y: -8 }}
-      whileTap={{ scale: 0.98 }}
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: index * 0.04 }}
+      whileHover={reduceMotion ? undefined : { y: -4 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
       onClick={onRead}
-      className="cursor-pointer group"
+      className="group cursor-pointer overflow-hidden rounded-2xl border shadow-sm"
+      style={{ borderColor: palette.border, background: palette.surface }}
     >
-      <div className="relative overflow-hidden rounded-3xl bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] shadow-lg group-hover:shadow-2xl transition-all duration-500">
-        {/* Book spine accent */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1.5 z-10"
-          style={{
-            background: `linear-gradient(180deg, #A989F2 0%, #FF6B9D 50%, #FF9B5C 100%)`,
-          }}
-        />
-
-        {/* Cover Image */}
-        <div className="relative h-[240px] overflow-hidden">
-          {story.coverImageUrl ? (
-            <motion.img
-              src={story.coverImageUrl}
-              alt={story.title}
-              className="w-full h-full object-cover"
-              animate={{ scale: isHovered ? 1.1 : 1 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#A989F2]/10 via-[#FF6B9D]/10 to-[#FF9B5C]/10">
-              <motion.div
-                animate={{
-                  rotate: isHovered ? [0, -5, 5, 0] : 0,
-                }}
-                transition={{ duration: 0.5 }}
-              >
-                <BookOpen className="w-20 h-20 text-[#A989F2]/30" />
-              </motion.div>
-            </div>
-          )}
-
-          {/* Cinematic gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-          {/* Title on image */}
-          <div className="absolute bottom-0 left-0 right-0 p-5">
-            <h3
-              className="text-xl font-bold text-white line-clamp-2 drop-shadow-lg"
-              style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
-            >
-              {story.title}
-            </h3>
+      <div className="relative h-52 overflow-hidden">
+        {story.coverImageUrl ? (
+          <img src={story.coverImageUrl} alt={story.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center" style={{ background: '#ece6dc', color: '#7d7568' }}>
+            <BookOpen className="h-11 w-11" />
           </div>
-
-          {/* Status Badge */}
-          {story.status === 'generating' && (
-            <motion.div
-              animate={{ opacity: [0.7, 1, 0.7] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="absolute top-4 left-6 px-3 py-1.5 rounded-full bg-amber-400/90 backdrop-blur-sm text-xs font-bold text-amber-900 flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Wird erstellt...
-            </motion.div>
-          )}
-
-          {/* Action buttons overlay */}
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute top-4 right-4 flex gap-2 z-10"
-              >
-                {story.status === 'complete' && (
-                  <motion.button
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    transition={{ type: 'spring', stiffness: 300 }}
-                    onClick={handleDownloadPDF}
-                    disabled={isExportingPDF}
-                    className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white hover:bg-[#A989F2]/80 transition-colors shadow-lg"
-                    title="Als PDF herunterladen"
-                  >
-                    {isExportingPDF ? (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                      >
-                        <Download className="w-4 h-4" />
-                      </motion.div>
-                    ) : (
-                      <Download className="w-4 h-4" />
-                    )}
-                  </motion.button>
-                )}
-                <motion.button
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, delay: 0.05 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                  className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white hover:bg-red-500/80 transition-colors shadow-lg"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Read overlay */}
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              >
-                <div className="w-16 h-16 rounded-full bg-white/15 backdrop-blur-xl flex items-center justify-center shadow-2xl border border-white/20">
-                  <BookOpen className="w-7 h-7 text-white" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Content */}
-        <div className="p-5 pl-6">
-          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-4">
-            {story.summary || story.description || 'Eine magische Geschichte voller Abenteuer und Entdeckungen.'}
-          </p>
-
-          {/* Participants */}
-          {((story.config?.avatars && story.config.avatars.length > 0) ||
-            (story.config?.characters && story.config.characters.length > 0)) && (
-            <div className="mb-2">
-              <ParticipantAvatars story={story} />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{new Date(story.createdAt).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-              </div>
-              {story.chapters && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>{story.chapters.length} Seiten</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="w-3 h-3 fill-amber-400 text-amber-400" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// =====================================================
-// PARTICIPANT AVATARS - Animated avatar group with click-to-view
-// =====================================================
-const ParticipantAvatars: React.FC<{ story: Story }> = ({ story }) => {
-  const [selected, setSelected] = useState<{ src: string; name: string } | null>(null);
-
-  const participants = [
-    ...(story.config?.avatars || []).map(a => ({
-      src: a.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${a.name}`,
-      name: a.name,
-    })),
-    ...(story.config?.characters || []).map(c => ({
-      src: c.imageUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${c.name}`,
-      name: c.name,
-    })),
-  ];
-
-  if (participants.length === 0) return null;
-
-  return (
-    <>
-      <div className="flex items-center flex-wrap gap-1">
-        {participants.map((p, i) => (
-          <motion.button
-            key={i}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1, type: 'spring', stiffness: 300 }}
-            whileHover={{ scale: 1.15, zIndex: 20 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelected(p);
-            }}
-            className="relative w-10 h-10 rounded-full border-2 border-[#13102B] overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer ring-1 ring-white/10"
-            style={{ zIndex: participants.length - i }}
-          >
-            <img src={p.src} alt={p.name} className="w-full h-full object-cover" />
-          </motion.button>
-        ))}
-      </div>
-
-      {/* Selected participant overlay */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4"
-            onClick={(e) => { e.stopPropagation(); setSelected(null); }}
-          >
-            <motion.div
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.8 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-[#13102B]/95 backdrop-blur-xl rounded-3xl p-8 text-center shadow-2xl border border-white/10 max-w-xs"
-            >
-              <motion.img
-                src={selected.src}
-                alt={selected.name}
-                className="w-40 h-40 rounded-full object-cover mx-auto border-4 border-[#A989F2]/20 shadow-xl"
-                layoutId={`participant-${selected.name}`}
-              />
-              <h3 className="text-xl font-bold text-foreground mt-4" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                {selected.name}
-              </h3>
-              <button
-                onClick={(e) => { e.stopPropagation(); setSelected(null); }}
-                className="mt-4 px-4 py-2 rounded-xl bg-muted text-sm font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
-              >
-                Schließen
-              </button>
-            </motion.div>
-          </motion.div>
         )}
-      </AnimatePresence>
-    </>
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+
+        <div className="absolute left-3 top-3">
+          <StatusBadge status={story.status} />
+        </div>
+
+        <div className="absolute right-3 top-3 flex items-center gap-2">
+          {story.status === 'complete' && (
+            <button
+              onClick={handleDownloadPdf}
+              className="rounded-lg border p-1.5 text-white transition-colors hover:bg-black/70"
+              style={{ borderColor: 'rgba(255,255,255,0.35)', background: 'rgba(23,33,45,0.45)' }}
+              aria-label="PDF herunterladen"
+            >
+              {exporting ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            </button>
+          )}
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}
+            className="rounded-lg border p-1.5 text-white transition-colors hover:bg-red-700"
+            style={{ borderColor: 'rgba(255,255,255,0.35)', background: 'rgba(23,33,45,0.45)' }}
+            aria-label="Story loeschen"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <h3 className="line-clamp-2 text-xl font-semibold leading-tight" style={{ color: palette.text, fontFamily: headingFont }}>
+          {story.title}
+        </h3>
+        <p className="mt-2 line-clamp-2 text-sm leading-relaxed" style={{ color: palette.muted }}>
+          {story.summary || story.description || 'Noch keine Zusammenfassung verfuegbar.'}
+        </p>
+
+        <StoryParticipants story={story} />
+
+        <div className="mt-4 flex items-center justify-between text-xs" style={{ color: palette.muted }}>
+          <span>{new Date(story.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          <span className="font-semibold" style={{ color: palette.accent }}>
+            Oeffnen
+          </span>
+        </div>
+      </div>
+    </motion.article>
   );
 };
 
-// =====================================================
-// STORY LIST CARD - Compact horizontal view
-// =====================================================
-const StoryListCard: React.FC<{
+const StoryListRow: React.FC<{
   story: Story;
   index: number;
   onRead: () => void;
   onDelete: () => void;
 }> = ({ story, index, onRead, onDelete }) => {
-  const [isExportingPDF, setIsExportingPDF] = useState(false);
-  const backend = useBackend();
-
-  const handleDownloadPDF = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isPDFExportSupported() || story.status !== 'complete') return;
-
-    try {
-      setIsExportingPDF(true);
-      const fullStory = await backend.story.get({ id: story.id });
-      if (!fullStory.chapters || fullStory.chapters.length === 0) return;
-      await exportStoryAsPDF(fullStory as any);
-    } catch (error) {
-      console.error('PDF export error:', error);
-    } finally {
-      setIsExportingPDF(false);
-    }
-  };
+  const reduceMotion = useReducedMotion();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.06 }}
-      whileHover={{ x: 4 }}
-      whileTap={{ scale: 0.99 }}
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, x: -14 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.03 }}
+      whileHover={reduceMotion ? undefined : { x: 2 }}
       onClick={onRead}
-      className="cursor-pointer group"
+      className="group cursor-pointer overflow-hidden rounded-2xl border shadow-sm"
+      style={{ borderColor: palette.border, background: palette.surface }}
     >
-      <div className="flex gap-4 p-4 rounded-2xl bg-white/[0.06] backdrop-blur-lg border border-white/[0.08] shadow-sm hover:shadow-lg transition-all duration-300">
-        {/* Thumbnail */}
-        <div className="relative w-24 h-24 md:w-28 md:h-28 flex-shrink-0 rounded-xl overflow-hidden">
-          {story.coverImageUrl ? (
-            <img src={story.coverImageUrl} alt={story.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#A989F2]/10 to-[#FF6B9D]/10">
-              <BookOpen className="w-8 h-8 text-[#A989F2]/30" />
-            </div>
-          )}
-          {/* Spine accent */}
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1"
-            style={{ background: 'linear-gradient(180deg, #A989F2, #FF6B9D)' }}
-          />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-          <div>
-            <h3
-              className="text-base font-bold text-foreground line-clamp-1 mb-1 group-hover:text-[#A989F2] transition-colors"
-              style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
-            >
-              {story.title}
-            </h3>
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {story.summary || story.description || 'Eine magische Geschichte voller Abenteuer.'}
-            </p>
-
-            {/* Participants */}
-            {((story.config?.avatars && story.config.avatars.length > 0) ||
-              (story.config?.characters && story.config.characters.length > 0)) && (
-              <div className="mt-2">
-                <ParticipantAvatars story={story} />
-              </div>
-            )}
+    <div className="flex flex-col md:flex-row">
+      <div className="relative h-40 w-full md:h-auto md:w-56">
+        {story.coverImageUrl ? (
+          <img src={story.coverImageUrl} alt={story.title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center" style={{ background: '#ece6dc', color: '#7d7568' }}>
+            <BookOpen className="h-9 w-9" />
           </div>
+        )}
+      </div>
 
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70">
-              <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {new Date(story.createdAt).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}
-              </div>
-              {story.chapters && (
-                <div className="flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {story.chapters.length} Seiten
-                </div>
-              )}
-            </div>
-
-            {/* Status */}
-            {story.status === 'generating' && (
-              <motion.span
-                animate={{ opacity: [0.6, 1, 0.6] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300"
-              >
-                Erstellt...
-              </motion.span>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col gap-2 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          {story.status === 'complete' && (
+      <div className="flex-1 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="line-clamp-1 text-lg font-semibold" style={{ color: palette.text, fontFamily: headingFont }}>
+            {story.title}
+          </h3>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={story.status} />
             <button
-              onClick={(e) => { e.stopPropagation(); handleDownloadPDF(e); }}
-              disabled={isExportingPDF}
-              className="p-2 rounded-xl bg-[#A989F2]/10 text-[#A989F2] hover:bg-[#A989F2]/20 transition-colors"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+              className="rounded-lg border p-1.5 transition-colors hover:bg-black/5"
+              style={{ borderColor: palette.border, color: palette.danger }}
+              aria-label="Story loeschen"
             >
-              <Download className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// =====================================================
-// EMPTY STATE
-// =====================================================
-const StoriesEmptyState: React.FC<{ onCreateNew: () => void }> = ({ onCreateNew }) => {
-  const { t } = useTranslation();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.6 }}
-      className="text-center py-20 px-8"
-    >
-      <motion.div
-        className="text-7xl mb-6"
-        animate={{
-          y: [0, -12, 0],
-          rotate: [0, 5, -5, 0],
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        📖
-      </motion.div>
-
-      <h2
-        className="text-2xl md:text-3xl font-bold text-foreground mb-3"
-        style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
-      >
-        {t('story.noStories', 'Deine Bibliothek ist noch leer')}
-      </h2>
-      <p className="text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
-        {t('home.createFirstStory', 'Erstelle deine erste magische Geschichte und lass deine Avatare zum Leben erwecken!')}
-      </p>
-
-      <motion.button
-        whileHover={{ scale: 1.05, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={onCreateNew}
-        className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-white text-lg font-bold shadow-xl shadow-[#A989F2]/30 hover:shadow-[#A989F2]/50 transition-shadow"
-        style={{ background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 100%)' }}
-      >
-        <Wand2 className="w-6 h-6" />
-        {t('story.create', 'Erste Geschichte erstellen')}
-      </motion.button>
-
-      {/* Decorative floating elements */}
-      <div className="relative mt-12 h-20">
-        {['📚', '✨', '🌟', '🦋', '🌸'].map((emoji, i) => (
-          <motion.span
-            key={i}
-            className="absolute text-2xl"
-            style={{ left: `${15 + i * 17}%` }}
-            animate={{
-              y: [0, -20, 0],
-              opacity: [0.3, 0.7, 0.3],
-            }}
-            transition={{
-              duration: 3 + i * 0.5,
-              delay: i * 0.4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          >
-            {emoji}
-          </motion.span>
-        ))}
-      </div>
-    </motion.div>
-  );
-};
-
-// =====================================================
-// LOADING SKELETON
-// =====================================================
-const LoadingSkeleton: React.FC = () => (
-  <div className="space-y-8">
-    {/* Header skeleton */}
-    <div className="flex items-center gap-4">
-      <div className="w-14 h-14 rounded-2xl bg-muted animate-pulse" />
-      <div className="space-y-2">
-        <div className="w-48 h-8 rounded-xl bg-muted animate-pulse" />
-        <div className="w-32 h-4 rounded-lg bg-muted animate-pulse" />
-      </div>
-    </div>
-
-    {/* Grid skeleton */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="rounded-3xl overflow-hidden bg-white/[0.05] backdrop-blur-lg border border-white/[0.06]">
-          <div className="h-[240px] bg-muted animate-pulse" />
-          <div className="p-5 space-y-3">
-            <div className="w-3/4 h-5 rounded-lg bg-muted animate-pulse" />
-            <div className="w-full h-4 rounded-lg bg-muted animate-pulse" />
-            <div className="w-1/2 h-3 rounded-lg bg-muted animate-pulse" />
           </div>
         </div>
-      ))}
+
+        <p className="mt-2 line-clamp-2 text-sm leading-relaxed" style={{ color: palette.muted }}>
+          {story.summary || story.description || 'Noch keine Zusammenfassung verfuegbar.'}
+        </p>
+
+        <StoryParticipants story={story} />
+
+        <div className="mt-4 text-xs" style={{ color: palette.muted }}>
+          {new Date(story.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </div>
+      </div>
     </div>
+    </motion.article>
+  );
+};
+
+const EmptyState: React.FC<{ onCreateNew: () => void }> = ({ onCreateNew }) => (
+  <div
+    className="rounded-3xl border px-8 py-14 text-center shadow-sm"
+    style={{ borderColor: palette.border, background: palette.surface }}
+  >
+    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: palette.accentSoft, color: palette.accent }}>
+      <BookOpen className="h-7 w-7" />
+    </div>
+    <h2 className="text-3xl font-semibold" style={{ color: palette.text, fontFamily: headingFont }}>
+      Noch keine Geschichten
+    </h2>
+    <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed" style={{ color: palette.muted }}>
+      Starte mit deiner ersten Story. Teilnehmer bleiben in jeder Story-Karte sichtbar und helfen dir bei der Orientierung.
+    </p>
+    <button
+      onClick={onCreateNew}
+      className="mt-7 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+      style={{ background: palette.accent }}
+    >
+      <Plus className="h-4 w-4" />
+      Erste Story erstellen
+    </button>
   </div>
 );
 
-// =====================================================
-// MAIN STORIES SCREEN
-// =====================================================
+const LoadingState: React.FC = () => (
+  <div className="space-y-4">
+    {Array.from({ length: 6 }).map((_, index) => (
+      <div
+        key={index}
+        className="h-64 animate-pulse rounded-2xl border"
+        style={{ borderColor: palette.border, background: '#ece6dc' }}
+      />
+    ))}
+  </div>
+);
+
 const TaleaStoriesScreen: React.FC = () => {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
   const backend = useBackend();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const reduceMotion = useReducedMotion();
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const loadStories = async () => {
     try {
       setLoading(true);
       const response = await backend.story.list({ limit: 12, offset: 0 });
-      setStories(response.stories as any[]);
-      setTotal(response.total);
-      setHasMore(response.hasMore);
+      setStories((response.stories as Story[]) || []);
+      setTotal(response.total || 0);
+      setHasMore(response.hasMore || false);
     } catch (error) {
       console.error('Error loading stories:', error);
     } finally {
@@ -720,188 +352,198 @@ const TaleaStoriesScreen: React.FC = () => {
   };
 
   const loadMoreStories = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (!hasMore || loadingMore) return;
 
     try {
       setLoadingMore(true);
-      const response = await backend.story.list({
-        limit: 12,
-        offset: stories.length,
-      });
-      setStories((prev) => [...prev, ...(response.stories as any[])]);
-      setHasMore(response.hasMore);
+      const response = await backend.story.list({ limit: 12, offset: stories.length });
+      setStories((prev) => [...prev, ...((response.stories as Story[]) || [])]);
+      setHasMore(response.hasMore || false);
     } catch (error) {
       console.error('Error loading more stories:', error);
     } finally {
       setLoadingMore(false);
     }
-  }, [backend, stories.length, hasMore, loadingMore]);
+  }, [backend, hasMore, loadingMore, stories.length]);
 
   useEffect(() => {
     loadStories();
   }, []);
 
-  // Infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+        if (entries[0]?.isIntersecting && hasMore && !loadingMore && !loading) {
           loadMoreStories();
         }
       },
       { threshold: 0.1 }
     );
 
-    const currentTarget = observerTarget.current;
-    if (currentTarget) observer.observe(currentTarget);
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
     return () => {
-      if (currentTarget) observer.unobserve(currentTarget);
+      observer.disconnect();
     };
   }, [hasMore, loadingMore, loading, loadMoreStories]);
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
-    if (window.confirm(`${t('common.delete', 'Löschen')} "${storyTitle}"?`)) {
-      try {
-        await backend.story.deleteStory({ id: storyId });
-        setStories(stories.filter((s) => s.id !== storyId));
-        setTotal((prev) => prev - 1);
-      } catch (error) {
-        console.error('Error deleting story:', error);
-      }
+    if (!window.confirm(`${t('common.delete', 'Loeschen')} "${storyTitle}"?`)) return;
+
+    try {
+      await backend.story.deleteStory({ id: storyId });
+      setStories((prev) => prev.filter((story) => story.id !== storyId));
+      setTotal((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error deleting story:', error);
     }
   };
 
-  // Filter stories by search
-  const filteredStories = searchQuery
-    ? stories.filter(
-        (s) =>
-          s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (s.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : stories;
+  const filteredStories = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return stories;
+    return stories.filter((story) => {
+      const title = story.title?.toLowerCase() || '';
+      const summary = story.summary?.toLowerCase() || '';
+      const description = story.description?.toLowerCase() || '';
+      return title.includes(query) || summary.includes(query) || description.includes(query);
+    });
+  }, [stories, searchQuery]);
 
   return (
-    <div className="min-h-screen relative pb-28">
-      <StoryBackground />
+    <div className="relative min-h-screen pb-28" style={{ fontFamily: bodyFont }}>
+      <StoriesAtmosphere />
 
       <SignedOut>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="min-h-[60vh] flex items-center justify-center text-center px-6"
-        >
-          <div>
-            <div className="text-6xl mb-6">🔒</div>
-            <h2 className="text-2xl font-bold text-foreground mb-4" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              {t('errors.unauthorized', 'Bitte melde dich an')}
+        <div className="flex min-h-[70vh] items-center justify-center px-6">
+          <div
+            className="max-w-xl rounded-3xl border px-8 py-10 text-center shadow-sm"
+            style={{ borderColor: palette.border, background: palette.surface }}
+          >
+            <h2 className="text-3xl font-semibold" style={{ color: palette.text, fontFamily: headingFont }}>
+              Zugriff erforderlich
             </h2>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: palette.muted }}>
+              Melde dich an, um deine Story-Bibliothek zu sehen.
+            </p>
+            <button
               onClick={() => navigate('/auth')}
-              className="px-6 py-3 rounded-2xl text-white font-bold shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 100%)' }}
+              className="mt-6 rounded-xl px-4 py-2 text-sm font-semibold text-white"
+              style={{ background: palette.accent }}
             >
-              {t('auth.signIn', 'Anmelden')}
-            </motion.button>
+              Anmelden
+            </button>
           </div>
-        </motion.div>
+        </div>
       </SignedOut>
 
       <SignedIn>
-        <div className="relative z-10 pt-6">
-          {loading ? (
-            <LoadingSkeleton />
-          ) : (
-            <>
-              <StoriesHeader
-                total={total}
-                viewMode={viewMode}
-                setViewMode={setViewMode}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                onCreateNew={() => navigate('/story')}
-              />
+        <div className="pt-6">
+          <motion.header
+            initial={reduceMotion ? false : { opacity: 0, y: -14 }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            className="rounded-3xl border px-5 py-5 shadow-sm md:px-6"
+            style={{ borderColor: palette.border, background: palette.surface }}
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h1 className="text-4xl font-semibold tracking-tight" style={{ color: palette.text, fontFamily: headingFont }}>
+                  Story-Bibliothek
+                </h1>
+                <p className="mt-1 text-sm" style={{ color: palette.muted }}>
+                  {total} gespeicherte Geschichten
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/story')}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ background: palette.accent }}
+              >
+                <Plus className="h-4 w-4" />
+                Neue Story
+              </button>
+            </div>
 
-              {filteredStories.length === 0 && !searchQuery ? (
-                <StoriesEmptyState onCreateNew={() => navigate('/story')} />
-              ) : filteredStories.length === 0 && searchQuery ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-16"
+            <div className="mt-5 flex flex-col gap-3 md:flex-row">
+              <label className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: palette.muted }} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Nach Titel oder Inhalt suchen..."
+                  className="w-full rounded-xl border py-2 pl-10 pr-3 text-sm outline-none transition-colors focus:ring-2"
+                  style={{ borderColor: palette.border, color: palette.text, background: '#faf8f4' }}
+                />
+              </label>
+              <div className="inline-flex rounded-xl border p-1" style={{ borderColor: palette.border, background: '#faf8f4' }}>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`rounded-lg p-2 ${viewMode === 'grid' ? 'text-white' : ''}`}
+                  style={viewMode === 'grid' ? { background: palette.accent } : { color: palette.muted }}
+                  aria-label="Rasteransicht"
                 >
-                  <div className="text-5xl mb-4">🔍</div>
-                  <h3 className="text-lg font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                    Keine Ergebnisse
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Keine Geschichten gefunden für "{searchQuery}"
-                  </p>
-                </motion.div>
-              ) : viewMode === 'grid' ? (
-                <motion.div
-                  layout
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  <Grid3X3 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`rounded-lg p-2 ${viewMode === 'list' ? 'text-white' : ''}`}
+                  style={viewMode === 'list' ? { background: palette.accent } : { color: palette.muted }}
+                  aria-label="Listenansicht"
                 >
-                  <AnimatePresence mode="popLayout">
-                    {filteredStories.map((story, index) => (
-                      <StoryGridCard
-                        key={story.id}
-                        story={story}
-                        index={index}
-                        onRead={() => navigate(`/story-reader/${story.id}`)}
-                        onDelete={() => handleDeleteStory(story.id, story.title)}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </motion.div>
-              ) : (
-                <motion.div layout className="space-y-3">
-                  <AnimatePresence mode="popLayout">
-                    {filteredStories.map((story, index) => (
-                      <StoryListCard
-                        key={story.id}
-                        story={story}
-                        index={index}
-                        onRead={() => navigate(`/story-reader/${story.id}`)}
-                        onDelete={() => handleDeleteStory(story.id, story.title)}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </motion.div>
-              )}
+                  <LayoutList className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </motion.header>
 
-              {/* Infinite scroll trigger */}
-              {hasMore && (
-                <div ref={observerTarget} className="h-8 mt-6">
-                  {loadingMore && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-center justify-center gap-3 py-4"
-                    >
-                      <motion.div
-                        className="w-2 h-2 rounded-full bg-[#A989F2]"
-                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                      />
-                      <motion.div
-                        className="w-2 h-2 rounded-full bg-[#FF6B9D]"
-                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                      />
-                      <motion.div
-                        className="w-2 h-2 rounded-full bg-[#FF9B5C]"
-                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                      />
-                    </motion.div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
+          <div className="mt-6">
+            {loading ? (
+              <LoadingState />
+            ) : filteredStories.length === 0 ? (
+              <EmptyState onCreateNew={() => navigate('/story')} />
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {filteredStories.map((story, index) => (
+                  <StoryGridCard
+                    key={story.id}
+                    story={story}
+                    index={index}
+                    onRead={() => navigate(`/story-reader/${story.id}`)}
+                    onDelete={() => handleDeleteStory(story.id, story.title)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredStories.map((story, index) => (
+                  <StoryListRow
+                    key={story.id}
+                    story={story}
+                    index={index}
+                    onRead={() => navigate(`/story-reader/${story.id}`)}
+                    onDelete={() => handleDeleteStory(story.id, story.title)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {hasMore && (
+              <div ref={observerTarget} className="mt-6 flex justify-center">
+                {loadingMore && (
+                  <div
+                    className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold"
+                    style={{ borderColor: palette.border, background: palette.surface, color: palette.muted }}
+                  >
+                    <Clock3 className="h-3.5 w-3.5 animate-spin" />
+                    Weitere Stories werden geladen...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </SignedIn>
     </div>
