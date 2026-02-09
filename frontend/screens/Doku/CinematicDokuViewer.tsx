@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useSpring } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Sparkles, Brain, Lightbulb } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
@@ -12,339 +12,398 @@ import { cn } from '../../lib/utils';
 import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
+import { useTheme } from '../../contexts/ThemeContext';
+
+type DokuPalette = {
+  page: string;
+  topBar: string;
+  topBarBorder: string;
+  heroOverlay: string;
+  card: string;
+  cardBorder: string;
+  title: string;
+  body: string;
+  sub: string;
+  accent: string;
+  accentSoft: string;
+};
+
+const headingFont = '"Cormorant Garamond", "Merriweather", serif';
+
+const getDokuPalette = (isDark: boolean): DokuPalette => {
+  if (isDark) {
+    return {
+      page:
+        'radial-gradient(980px 520px at 100% 0%, rgba(66,112,130,0.28) 0%, transparent 56%), radial-gradient(980px 620px at 0% 12%, rgba(80,95,139,0.24) 0%, transparent 62%), #111b27',
+      topBar: 'rgba(18,27,40,0.78)',
+      topBarBorder: '#2f435f',
+      heroOverlay: 'linear-gradient(180deg, rgba(10,16,24,0.15) 0%, rgba(10,16,24,0.78) 100%)',
+      card: 'rgba(22,34,50,0.9)',
+      cardBorder: '#324a68',
+      title: '#e7f0fd',
+      body: '#c8d7eb',
+      sub: '#9fb2cc',
+      accent: '#78a9bb',
+      accentSoft: 'rgba(120,169,187,0.2)',
+    };
+  }
+
+  return {
+    page:
+      'radial-gradient(980px 520px at 100% 0%, #e7e5f3 0%, transparent 56%), radial-gradient(980px 620px at 0% 12%, #deece6 0%, transparent 62%), #f8f2ea',
+    topBar: 'rgba(255,250,243,0.82)',
+    topBarBorder: '#dfd2c2',
+    heroOverlay: 'linear-gradient(180deg, rgba(32,41,58,0.08) 0%, rgba(32,41,58,0.56) 100%)',
+    card: 'rgba(255,250,243,0.92)',
+    cardBorder: '#dccdbb',
+    title: '#253448',
+    body: '#51657f',
+    sub: '#6d7f95',
+    accent: '#5d8f98',
+    accentSoft: 'rgba(122,165,174,0.2)',
+  };
+};
 
 const CinematicDokuViewer: React.FC = () => {
-    const { dokuId } = useParams<{ dokuId: string }>();
-    const navigate = useNavigate();
-    const backend = useBackend();
-    const { getToken } = useAuth();
-    const containerRef = useRef<HTMLDivElement>(null);
+  const { dokuId } = useParams<{ dokuId: string }>();
+  const navigate = useNavigate();
+  const backend = useBackend();
+  const { getToken } = useAuth();
+  const { resolvedTheme } = useTheme();
 
-    const [doku, setDoku] = useState<Doku | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [started, setStarted] = useState(false);
-    const [dokuCompleted, setDokuCompleted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-    // Scroll Progress for the whole container
-    const { scrollYProgress } = useScroll({
-        container: containerRef,
-    });
+  const [doku, setDoku] = useState<Doku | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
+  const [dokuCompleted, setDokuCompleted] = useState(false);
 
-    const scaleX = useSpring(scrollYProgress, {
-        stiffness: 100,
-        damping: 30,
-        restDelta: 0.001
-    });
+  const isDark = resolvedTheme === 'dark';
+  const palette = useMemo(() => getDokuPalette(isDark), [isDark]);
 
-    useEffect(() => {
-        if (dokuId) {
-            loadDoku();
-        }
-    }, [dokuId]);
+  const { scrollYProgress } = useScroll({ container: containerRef });
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 34,
+    restDelta: 0.001,
+  });
 
-    const loadDoku = async () => {
-        if (!dokuId) return;
-        try {
-            setLoading(true);
-            setError(null);
-            const dokuData = await backend.doku.getDoku({ id: dokuId });
-            setDoku(dokuData as unknown as Doku);
-        } catch (err) {
-            console.error('Error loading doku:', err);
-            setError('Doku konnte nicht geladen werden.');
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => {
+    if (dokuId) {
+      void loadDoku();
+    }
+  }, [dokuId]);
 
-    const handleStart = () => {
-        setStarted(true);
-        setTimeout(() => {
-            const firstSection = document.getElementById('section-0');
-            firstSection?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-    };
-
-    const handleDokuCompletion = async () => {
-        if (!doku || !dokuId || dokuCompleted) return;
-
-        try {
-            setDokuCompleted(true);
-            const token = await getToken();
-            const { getBackendUrl } = await import('../../config');
-            const target = getBackendUrl();
-
-            const response = await fetch(`${target}/doku/mark-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({
-                    dokuId: dokuId,
-                    dokuTitle: doku.title,
-                    topic: doku.topic,
-                })
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-                    showSuccessToast(`🎉 Doku abgeschlossen! Wissen erweitert.`);
-                });
-            }
-        } catch (error) {
-            console.error('Error completing doku:', error);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-black text-white">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-t-4 border-teal-500 border-solid rounded-full animate-spin" />
-                    <p className="text-xl font-serif tracking-widest animate-pulse">LADEN...</p>
-                </div>
-            </div>
-        );
+  const loadDoku = async () => {
+    if (!dokuId) {
+      return;
     }
 
-    if (!doku) return null;
+    try {
+      setLoading(true);
+      setError(null);
+      const dokuData = await backend.doku.getDoku({ id: dokuId });
+      setDoku(dokuData as unknown as Doku);
+    } catch (err) {
+      console.error('Error loading doku:', err);
+      setError('Doku konnte nicht geladen werden.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleStart = () => {
+    setStarted(true);
+    setTimeout(() => {
+      const firstSection = document.getElementById('section-0');
+      firstSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleDokuCompletion = async () => {
+    if (!doku || !dokuId || dokuCompleted) {
+      return;
+    }
+
+    try {
+      setDokuCompleted(true);
+      const token = await getToken();
+      const { getBackendUrl } = await import('../../config');
+      const target = getBackendUrl();
+
+      const response = await fetch(`${target}/doku/mark-read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          dokuId,
+          dokuTitle: doku.title,
+          topic: doku.topic,
+        }),
+      });
+
+      if (response.ok) {
+        const { showSuccessToast } = await import('../../utils/toastUtils');
+        showSuccessToast('Doku abgeschlossen. Wissen erweitert.');
+      }
+    } catch (error) {
+      console.error('Error completing doku:', error);
+    }
+  };
+
+  if (loading) {
     return (
-        <div className="fixed inset-0 bg-black text-white overflow-hidden font-sans">
-            {/* Progress Bar */}
-            {started && (
-                <motion.div
-                    className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 z-50 origin-left"
-                    style={{ scaleX }}
-                />
-            )}
-
-            {/* Navigation Controls */}
-            <div className="fixed top-6 left-6 z-50 flex gap-4">
-                <button
-                    onClick={() => navigate('/doku')}
-                    className="p-3 bg-black/40 backdrop-blur-md rounded-full hover:bg-white/10 transition-all border border-white/10 group"
-                >
-                    <ArrowLeft className="w-6 h-6 text-white group-hover:-translate-x-1 transition-transform" />
-                </button>
-            </div>
-
-            {/* Main Scroll Container */}
-            <div
-                ref={containerRef}
-                className="h-full overflow-y-auto scroll-smooth snap-y snap-mandatory"
-            >
-                {/* INTRO SECTION */}
-                <section className="h-screen w-full relative flex items-center justify-center snap-start overflow-hidden">
-                    <div className="absolute inset-0 z-0">
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black z-10" />
-                        <motion.img
-                            initial={{ scale: 1.1 }}
-                            animate={{ scale: 1 }}
-                            transition={{ duration: 10, ease: "easeOut" }}
-                            src={doku.coverImageUrl || '/placeholder-doku.jpg'}
-                            alt="Cover"
-                            className="w-full h-full object-cover"
-                        />
-                    </div>
-
-                    <div className="relative z-20 text-center px-4 max-w-5xl mx-auto">
-                        <motion.div
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 1, delay: 0.5 }}
-                        >
-                            <span className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-medium tracking-widest mb-6 uppercase">
-                                {doku.topic}
-                            </span>
-                            <h1 className="text-5xl md:text-7xl lg:text-9xl font-serif font-bold mb-8 tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 drop-shadow-2xl">
-                                {doku.title}
-                            </h1>
-                            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-12 font-light">
-                                {doku.summary}
-                            </p>
-
-                            <motion.button
-                                onClick={handleStart}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="group relative px-8 py-4 bg-white text-black rounded-full font-bold text-lg tracking-wide overflow-hidden"
-                            >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    WISSEN STARTEN <ChevronDown className="w-5 h-5 animate-bounce" />
-                                </span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            </motion.button>
-                        </motion.div>
-                    </div>
-                </section>
-
-                {/* SECTIONS */}
-                {doku.content?.sections?.map((section, index) => (
-                    <SectionView
-                        key={index}
-                        section={section}
-                        index={index}
-                        total={doku.content?.sections?.length || 0}
-                        dokuTitle={doku.title}
-                        dokuId={dokuId || ''}
-                        coverImageUrl={doku.coverImageUrl}
-                        onComplete={index === (doku.content?.sections?.length || 0) - 1 ? handleDokuCompletion : undefined}
-                        isCompleted={dokuCompleted}
-                    />
-                ))}
-
-                {/* Footer */}
-                <section className="h-[50vh] snap-start flex items-center justify-center bg-black relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-teal-900/20 via-black to-black" />
-                    <div className="text-center z-10">
-                        <h2 className="text-4xl font-serif text-white mb-4">Ende der Doku</h2>
-                        <button
-                            onClick={() => navigate('/doku')}
-                            className="text-gray-400 hover:text-white transition-colors underline underline-offset-4"
-                        >
-                            Zurück zur Übersicht
-                        </button>
-                    </div>
-                </section>
-            </div>
+      <div className="flex h-screen items-center justify-center" style={{ background: palette.page }}>
+        <div className="rounded-3xl border px-8 py-7 text-center" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+          <div className="mx-auto mb-3 h-12 w-12 animate-spin rounded-full border-4 border-transparent" style={{ borderTopColor: palette.accent, borderRightColor: palette.accent }} />
+          <p className="text-sm tracking-[0.18em] uppercase" style={{ color: palette.sub }}>
+            Doku wird geladen
+          </p>
         </div>
+      </div>
     );
+  }
+
+  if (!doku) {
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ background: palette.page }}>
+        <div className="rounded-3xl border px-8 py-7 text-center" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+          <p className="text-lg font-semibold" style={{ color: palette.title }}>
+            {error || 'Doku wurde nicht gefunden.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/doku')}
+            className="mt-4 rounded-full border px-4 py-2 text-sm"
+            style={{ borderColor: palette.cardBorder, color: palette.sub }}
+          >
+            Zurueck zu Dokus
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const sections = doku.content?.sections ?? [];
+
+  return (
+    <div className="fixed inset-0 overflow-hidden" style={{ background: palette.page }}>
+      {started && (
+        <motion.div
+          className="fixed left-0 right-0 top-0 z-[80] h-1 origin-left"
+          style={{
+            scaleX,
+            background: `linear-gradient(90deg, ${palette.accent} 0%, #7f9dcf 100%)`,
+          }}
+        />
+      )}
+
+      <header
+        className="fixed left-1/2 top-3 z-[70] flex w-[min(980px,calc(100vw-1.2rem))] -translate-x-1/2 items-center justify-between rounded-2xl border px-3 py-2 backdrop-blur-xl"
+        style={{ borderColor: palette.topBarBorder, background: palette.topBar }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate('/doku')}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
+          style={{ borderColor: palette.topBarBorder, color: palette.title, background: palette.card }}
+          aria-label="Zurueck zu Dokus"
+        >
+          <ArrowLeft className="h-4.5 w-4.5" />
+        </button>
+
+        <div className="min-w-0 px-3 text-center">
+          <p className="truncate text-xs uppercase tracking-[0.18em]" style={{ color: palette.sub }}>
+            {doku.topic || 'Wissensdoku'}
+          </p>
+          <p className="truncate text-sm font-semibold" style={{ color: palette.title }}>
+            {doku.title}
+          </p>
+        </div>
+
+        <span className="inline-flex h-10 items-center rounded-full border px-3 text-xs" style={{ borderColor: palette.topBarBorder, color: palette.sub }}>
+          {sections.length} Abschnitte
+        </span>
+      </header>
+
+      <div ref={containerRef} className="h-full overflow-y-auto scroll-smooth pt-0">
+        <section className="relative flex min-h-[100svh] items-center justify-center px-4 pb-16 pt-24">
+          <div className="absolute inset-0 z-0">
+            <img
+              src={doku.coverImageUrl || '/placeholder-doku.jpg'}
+              alt={doku.title}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0" style={{ background: palette.heroOverlay }} />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="relative z-10 mx-auto w-full max-w-4xl rounded-[30px] border p-6 text-center shadow-[0_24px_52px_rgba(16,22,34,0.28)] backdrop-blur"
+            style={{ borderColor: palette.cardBorder, background: palette.card }}
+          >
+            <span className="inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.14em]" style={{ borderColor: palette.cardBorder, color: palette.sub, background: palette.accentSoft }}>
+              Lernmodus
+            </span>
+            <h1 className="mt-4 text-4xl leading-tight md:text-6xl" style={{ fontFamily: headingFont, color: palette.title }}>
+              {doku.title}
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed md:text-lg" style={{ color: palette.body }}>
+              {doku.summary}
+            </p>
+
+            <motion.button
+              type="button"
+              onClick={handleStart}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              className="mt-8 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(69,102,128,0.34)]"
+              style={{ background: `linear-gradient(135deg, ${palette.accent} 0%, #7f9dcf 100%)` }}
+            >
+              Wissen starten
+              <ChevronDown className="h-4 w-4" />
+            </motion.button>
+          </motion.div>
+        </section>
+
+        {sections.map((section, index) => (
+          <SectionView
+            key={`${section.title}-${index}`}
+            section={section}
+            index={index}
+            total={sections.length}
+            dokuTitle={doku.title}
+            dokuId={dokuId || ''}
+            coverImageUrl={doku.coverImageUrl}
+            palette={palette}
+            onComplete={index === sections.length - 1 ? handleDokuCompletion : undefined}
+            isCompleted={dokuCompleted}
+          />
+        ))}
+
+        <section className="relative flex min-h-[40svh] items-center justify-center px-4 pb-24 pt-12">
+          <div className="w-full max-w-3xl rounded-[26px] border p-6 text-center" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+            <h2 className="text-3xl" style={{ fontFamily: headingFont, color: palette.title }}>
+              Ende der Doku
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: palette.body }}>
+              Du kannst jederzeit weitere Dokus starten oder diese erneut lesen.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/doku')}
+              className="mt-5 rounded-full border px-4 py-2 text-sm font-semibold"
+              style={{ borderColor: palette.cardBorder, color: palette.sub }}
+            >
+              Zurueck zur Uebersicht
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 };
 
 const SectionView: React.FC<{
-    section: DokuSection;
-    index: number;
-    total: number;
-    dokuTitle: string;
-    dokuId: string;
-    coverImageUrl?: string;
-    onComplete?: () => void;
-    isCompleted?: boolean;
-}> = ({ section, index, total, dokuTitle, dokuId, coverImageUrl, onComplete, isCompleted }) => {
-    const [headerInView, setHeaderInView] = useState(false);
+  section: DokuSection;
+  index: number;
+  total: number;
+  dokuTitle: string;
+  dokuId: string;
+  coverImageUrl?: string;
+  palette: DokuPalette;
+  onComplete?: () => void;
+  isCompleted?: boolean;
+}> = ({ section, index, total, dokuTitle, dokuId, coverImageUrl, palette, onComplete, isCompleted }) => {
+  const [headerInView, setHeaderInView] = useState(false);
 
-    return (
-        <div id={`section-${index}`} className="min-h-screen w-full relative bg-black snap-start flex flex-col">
-            {/* Section Header */}
-            <div className="relative h-[60vh] w-full overflow-hidden shrink-0">
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40 z-10" />
-                <motion.img
-                    initial={{ scale: 1.2 }}
-                    whileInView={{ scale: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
-                    transition={{ duration: 1.5 }}
-                    src={section.imageUrl || coverImageUrl || '/placeholder-doku.jpg'}
-                    alt={section.title}
-                    className="w-full h-full object-cover"
-                />
-                <div className="absolute bottom-0 left-0 right-0 p-4 pb-2 md:px-16 md:pb-4 z-20">
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.8 }}
-                        onViewportEnter={() => setHeaderInView(true)}
-                    >
-                        <span className="text-teal-400 font-bold tracking-widest uppercase text-sm mb-2 block h-6">
-                            {headerInView && (
-                                <Typewriter
-                                    text={`Abschnitt ${index + 1} von ${total}`}
-                                    speed={50}
-                                    cursor=""
-                                />
-                            )}
-                        </span>
-                        <h2 className="text-4xl md:text-6xl font-serif font-bold text-white mb-4 leading-tight min-h-[1.2em]">
-                            {headerInView && (
-                                <Typewriter
-                                    text={section.title}
-                                    speed={70}
-                                    delay={1000}
-                                    cursor="|"
-                                    className="font-['Merriweather']"
-                                />
-                            )}
-                        </h2>
-                    </motion.div>
-                </div>
+  return (
+    <section id={`section-${index}`} className="relative px-4 py-10 md:px-6 md:py-14">
+      <motion.article
+        initial={{ opacity: 0, y: 22 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.46 }}
+        className="mx-auto w-full max-w-6xl overflow-hidden rounded-[30px] border shadow-[0_18px_44px_rgba(21,30,44,0.2)]"
+        style={{ borderColor: palette.cardBorder, background: palette.card }}
+      >
+        <div className="relative h-56 overflow-hidden md:h-[320px]">
+          <img
+            src={section.imageUrl || coverImageUrl || '/placeholder-doku.jpg'}
+            alt={section.title}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0" style={{ background: palette.heroOverlay }} />
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+            <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.14em]" style={{ borderColor: 'rgba(255,255,255,0.28)', color: '#f2f6fb', background: 'rgba(10,14,22,0.34)' }}>
+              Abschnitt {index + 1} / {total}
+            </span>
+            <h2 className="mt-3 text-3xl leading-tight text-white md:text-5xl" style={{ fontFamily: headingFont }}>
+              {headerInView ? (
+                <Typewriter text={section.title} speed={48} delay={300} cursor="" />
+              ) : (
+                section.title
+              )}
+            </h2>
+          </div>
+          <div className="absolute inset-0" onMouseEnter={() => setHeaderInView(true)} onFocus={() => setHeaderInView(true)} />
+        </div>
+
+        <div className="space-y-7 p-5 md:p-8">
+          <CinematicText
+            text={section.content}
+            paragraphClassName="!text-base md:!text-lg lg:!text-xl !leading-relaxed !tracking-normal !drop-shadow-none"
+            paragraphStyle={{ color: palette.title }}
+            className="space-y-5"
+          />
+
+          <FactsComponent section={section} variant="inline" />
+          <ActivityComponent section={section} variant="inline" />
+          <QuizComponent
+            section={section}
+            dokuTitle={dokuTitle}
+            dokuId={dokuId}
+            variant="inline"
+            onPersonalityChange={(changes) => {
+              import('../../utils/toastUtils').then(({ showPersonalityUpdateToast }) => {
+                showPersonalityUpdateToast(changes);
+              });
+            }}
+          />
+
+          {onComplete && (
+            <div className="pt-2">
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                onClick={onComplete}
+                disabled={isCompleted}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition-transform',
+                  isCompleted ? 'cursor-default' : 'hover:-translate-y-[1px]'
+                )}
+                style={{
+                  borderColor: palette.cardBorder,
+                  color: isCompleted ? '#7fb591' : palette.title,
+                  background: isCompleted ? 'rgba(119,172,141,0.16)' : palette.accentSoft,
+                }}
+              >
+                <Sparkles className="h-4 w-4" />
+                {isCompleted ? 'Abgeschlossen' : 'Doku abschliessen'}
+              </motion.button>
             </div>
-
-            {/* Section Content */}
-            <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-16 pb-64">
-                <div className="max-w-3xl mx-auto space-y-16">
-                    <CinematicText text={section.content} />
-
-                    {/* Key Facts */}
-                    {section.keyFacts && section.keyFacts.length > 0 && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-8 backdrop-blur-sm">
-                            <div className="flex items-center gap-3 mb-6 text-teal-400">
-                                <Lightbulb className="w-6 h-6" />
-                                <h3 className="text-xl font-bold uppercase tracking-wider">Wichtige Fakten</h3>
-                            </div>
-                            <ul className="space-y-4">
-                                {section.keyFacts.map((fact, i) => (
-                                    <li key={i} className="flex gap-4 text-gray-300 text-lg leading-relaxed">
-                                        <span className="text-teal-500 font-bold">•</span>
-                                        {fact}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {/* Interactive Elements */}
-                    {section.interactive?.quiz?.enabled && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-8 backdrop-blur-sm">
-                            <div className="flex items-center gap-3 mb-6 text-purple-400">
-                                <Brain className="w-6 h-6" />
-                                <h3 className="text-xl font-bold uppercase tracking-wider">Quiz Zeit</h3>
-                            </div>
-                            <QuizComponent
-                                section={section}
-                                dokuTitle={dokuTitle}
-                                dokuId={dokuId}
-                                onPersonalityChange={(changes) => {
-                                    import('../../utils/toastUtils').then(({ showPersonalityUpdateToast }) => {
-                                        showPersonalityUpdateToast(changes);
-                                    });
-                                }}
-                            />
-                        </div>
-                    )}
-
-                    {onComplete && (
-                        <div className="mt-32 flex justify-center">
-                            <motion.button
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                onClick={onComplete}
-                                disabled={isCompleted}
-                                className={cn(
-                                    "px-16 py-8 rounded-none text-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)] border-2 border-white",
-                                    isCompleted
-                                        ? "bg-green-600 border-green-600 text-white cursor-default"
-                                        : "bg-transparent text-white hover:bg-white hover:text-black hover:scale-105"
-                                )}
-                            >
-                                {isCompleted ? (
-                                    <>
-                                        <Sparkles className="w-6 h-6 mr-2" /> ABGESCHLOSSEN
-                                    </>
-                                ) : (
-                                    "DOKU ABSCHLIESSEN"
-                                )}
-                            </motion.button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div >
-    );
+          )}
+        </div>
+      </motion.article>
+    </section>
+  );
 };
 
 export default CinematicDokuViewer;

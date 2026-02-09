@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, useScroll, useTransform, AnimatePresence, useSpring } from 'framer-motion';
-import { ArrowLeft, BookOpen, ChevronDown, Sparkles } from 'lucide-react';
+import { motion, useScroll, useSpring } from 'framer-motion';
+import { ArrowLeft, ChevronDown, Sparkles, Volume2 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
@@ -10,514 +10,550 @@ import { Typewriter } from '../../components/ui/typewriter-text';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
 import type { Story, Chapter } from '../../types/story';
-import type { InventoryItem, Skill } from '../../types/avatar';
+import type { InventoryItem } from '../../types/avatar';
 import { cn } from '../../lib/utils';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const CinematicStoryViewer: React.FC = () => {
-    const { storyId } = useParams<{ storyId: string }>();
-    const navigate = useNavigate();
-    const backend = useBackend();
-    const { getToken } = useAuth();
-    const containerRef = useRef<HTMLDivElement>(null);
+type StoryPalette = {
+  page: string;
+  topBar: string;
+  topBarBorder: string;
+  heroOverlay: string;
+  card: string;
+  cardBorder: string;
+  title: string;
+  body: string;
+  sub: string;
+  accent: string;
+  accentSoft: string;
+};
 
-    const [story, setStory] = useState<Story | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [started, setStarted] = useState(false);
-    const [storyCompleted, setStoryCompleted] = useState(false);
-    const [participants, setParticipants] = useState<any[]>([]);
+const headingFont = '"Cormorant Garamond", "Merriweather", serif';
 
-    // Artifact reward display queue
-    const [artifactQueue, setArtifactQueue] = useState<{ item: InventoryItem; isUpgrade: boolean }[]>([]);
-    const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
-    const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
-    const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
-
-    // Scroll Progress for the whole container
-    const { scrollYProgress } = useScroll({
-        container: containerRef,
-    });
-
-    const scaleX = useSpring(scrollYProgress, {
-        stiffness: 100,
-        damping: 30,
-        restDelta: 0.001
-    });
-
-    useEffect(() => {
-        if (storyId) {
-            loadStory();
-        }
-    }, [storyId]);
-
-    // Process artifact queue - show next artifact when current one is closed
-    useEffect(() => {
-        console.log('🔄 Artifact queue effect triggered:', { currentArtifact, queueLength: artifactQueue.length, queue: artifactQueue });
-        if (!currentArtifact && artifactQueue.length > 0) {
-            const [next, ...rest] = artifactQueue;
-            console.log('🔄 Setting currentArtifact:', next);
-            setCurrentArtifact(next);
-            setArtifactQueue(rest);
-        }
-    }, [currentArtifact, artifactQueue]);
-
-    const handleCloseArtifact = () => {
-        setCurrentArtifact(null);
+const getStoryPalette = (isDark: boolean): StoryPalette => {
+  if (isDark) {
+    return {
+      page:
+        'radial-gradient(980px 520px at 100% 0%, rgba(122,92,144,0.28) 0%, transparent 56%), radial-gradient(980px 620px at 0% 12%, rgba(88,114,154,0.24) 0%, transparent 62%), #121b2a',
+      topBar: 'rgba(20,29,43,0.78)',
+      topBarBorder: '#354960',
+      heroOverlay: 'linear-gradient(180deg, rgba(10,16,24,0.16) 0%, rgba(10,16,24,0.78) 100%)',
+      card: 'rgba(24,35,51,0.9)',
+      cardBorder: '#3a5069',
+      title: '#e9f0fc',
+      body: '#c4d2e5',
+      sub: '#9aacbf',
+      accent: '#8ba3ce',
+      accentSoft: 'rgba(139,163,206,0.2)',
     };
+  }
 
-    const loadStory = async () => {
-        if (!storyId) return;
-        try {
-            setLoading(true);
-            setError(null);
-            const storyData = await backend.story.get({ id: storyId });
-            const rawStory = storyData as any;
-            setStory(rawStory as Story);
+  return {
+    page:
+      'radial-gradient(980px 520px at 100% 0%, #efdfe7 0%, transparent 56%), radial-gradient(980px 620px at 0% 12%, #dbe7ef 0%, transparent 62%), #f8f1e8',
+    topBar: 'rgba(255,250,243,0.82)',
+    topBarBorder: '#dfd2c2',
+    heroOverlay: 'linear-gradient(180deg, rgba(32,41,58,0.08) 0%, rgba(32,41,58,0.56) 100%)',
+    card: 'rgba(255,250,243,0.92)',
+    cardBorder: '#dccdbb',
+    title: '#253448',
+    body: '#51657f',
+    sub: '#6d7f95',
+    accent: '#8e7bb7',
+    accentSoft: 'rgba(142,123,183,0.2)',
+  };
+};
 
-            // Fetch participants if not present but IDs are available
-            if (!rawStory.avatarParticipants && rawStory.config?.avatarIds?.length > 0) {
-                try {
-                    const avatars = await Promise.all(
-                        rawStory.config.avatarIds.map((id: string) => backend.avatar.get({ id }))
-                    );
-                    setParticipants(avatars.filter(Boolean));
-                } catch (err) {
-                    console.error('Error loading participants:', err);
-                }
-            } else if (rawStory.avatarParticipants) {
-                setParticipants(rawStory.avatarParticipants);
-            } else if (rawStory.config?.avatars) {
-                setParticipants(rawStory.config.avatars);
-            }
-        } catch (err) {
-            console.error('Error loading story:', err);
-            setError('Geschichte konnte nicht geladen werden.');
-        } finally {
-            setLoading(false);
-        }
-    };
+const collectArtifactsFromChanges = (personalityChanges: any[]): Array<{ item: InventoryItem; isUpgrade: boolean }> => {
+  if (!Array.isArray(personalityChanges)) {
+    return [];
+  }
 
-    const handleStart = () => {
-        setStarted(true);
-        // Smooth scroll to first chapter after a small delay
-        setTimeout(() => {
-            const firstChapter = document.getElementById('chapter-0');
-            firstChapter?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-    };
+  const collected: Array<{ item: InventoryItem; isUpgrade: boolean }> = [];
 
-    const handleStoryCompletion = async () => {
-        console.log('📖 Story completed - triggering personality updates for all eligible avatars');
-        if (!story || !storyId || storyCompleted) {
-            console.log('Story completion aborted - missing requirements or already completed');
-            return;
-        }
-
-        try {
-            setStoryCompleted(true);
-            const token = await getToken();
-            const { getBackendUrl } = await import('../../config');
-            const target = getBackendUrl();
-
-            const response = await fetch(`${target}/story/mark-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({
-                    storyId: storyId,
-                    storyTitle: story.title,
-                    genre: story.config.genre,
-                })
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ Personality updates applied:', result);
-                console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
-
-                // Handle pool artifact unlock (artifact_pool system)
-                console.log('Pool artifact in response?', !!result.unlockedArtifact);
-                if (result.unlockedArtifact) {
-                    console.log('Setting pool artifact:', result.unlockedArtifact.name);
-                    setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
-                    setTimeout(() => {
-                        setShowPoolArtifactModal(true);
-                    }, 250);
-                } else {
-                    console.log('No unlockedArtifact in response');
-                }
-
-                // Collect all artifacts (new and upgraded) for toast notifications
-                const collectedArtifacts: { item: InventoryItem; isUpgrade: boolean }[] = [];
-
-                if (result.personalityChanges) {
-                    console.log('📦 Processing personality changes:', result.personalityChanges.length);
-                    result.personalityChanges.forEach((pc: any, i: number) => {
-                        console.log(`📦 Avatar ${i + 1} rewards:`, pc.rewards);
-                        if (pc.rewards) {
-                            // New Items
-                            if (pc.rewards.newItems) {
-                                pc.rewards.newItems.forEach((item: InventoryItem) => {
-                                    collectedArtifacts.push({ item, isUpgrade: false });
-                                });
-                            }
-                            // Upgraded Items
-                            if (pc.rewards.upgradedItems) {
-                                pc.rewards.upgradedItems.forEach((item: InventoryItem) => {
-                                    collectedArtifacts.push({ item, isUpgrade: true });
-                                });
-                            }
-                        }
-                    });
-                }
-
-                // Show FULLSCREEN artifact display for each artifact earned or upgraded
-                if (collectedArtifacts.length > 0) {
-                    console.log('🏆 Artifacts earned/upgraded:', collectedArtifacts.map(a => `${a.item.name} (${a.isUpgrade ? 'upgrade' : 'new'})`));
-                    console.log('🏆 Setting artifactQueue with', collectedArtifacts.length, 'items:', collectedArtifacts);
-                    // Add all artifacts to the queue - they will be shown one by one
-                    setArtifactQueue(collectedArtifacts);
-                    // Debug: Show first artifact directly as a test
-                    console.log('🏆 First artifact to show:', collectedArtifacts[0]);
-                } else {
-                    console.log('📦 No artifacts collected in this session');
-                    console.log('📦 Full result.personalityChanges:', result.personalityChanges);
-                }
-
-                // Show personality update notifications for each avatar
-                console.log('🔔 Checking for personality changes to show:', {
-                    hasPersonalityChanges: !!result.personalityChanges,
-                    length: result.personalityChanges?.length || 0,
-                    updatedAvatars: result.updatedAvatars
-                });
-
-                if (result.personalityChanges && result.personalityChanges.length > 0) {
-                    const { showPersonalityUpdateToast, showSuccessToast } = await import('../../utils/toastUtils');
-
-                    // First show the completion message immediately
-                    console.log('🎉 Showing completion toast for', result.updatedAvatars, 'avatars');
-                    showSuccessToast(`🎉 Geschichte abgeschlossen! ${result.updatedAvatars} Avatar(e) entwickelt`);
-
-                    // Then show individual personality updates for each avatar with a delay
-                    result.personalityChanges.forEach((avatarChange: any, index: number) => {
-                        console.log(`🔔 Avatar ${index + 1} changes:`, {
-                            avatarName: avatarChange.avatarName,
-                            hasChanges: !!avatarChange.changes,
-                            changesLength: avatarChange.changes?.length || 0,
-                            changes: avatarChange.changes
-                        });
-
-                        if (avatarChange.changes && avatarChange.changes.length > 0) {
-                            setTimeout(() => {
-                                console.log(`🔔 Showing personality toast for ${avatarChange.avatarName}:`, avatarChange.changes);
-                                showPersonalityUpdateToast(avatarChange.changes);
-                            }, 800 + (index * 600));
-                        }
-                    });
-                } else {
-                    // No personality changes, just show completion
-                    console.log('🔔 No personality changes found, showing only completion toast');
-                    const { showSuccessToast } = await import('../../utils/toastUtils');
-                    showSuccessToast(`🎉 Geschichte abgeschlossen!`);
-                }
-            } else {
-                const errorText = await response.text();
-                console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-                const { showSuccessToast } = await import('../../utils/toastUtils');
-                showSuccessToast(`🎉 Geschichte abgeschlossen!`);
-            }
-        } catch (error) {
-            console.error('Error completing story:', error);
-            const { showSuccessToast } = await import('../../utils/toastUtils');
-            showSuccessToast(`🎉 Geschichte abgeschlossen!`);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-black text-white">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-t-4 border-purple-500 border-solid rounded-full animate-spin" />
-                    <p className="text-xl font-serif tracking-widest animate-pulse">LADEN...</p>
-                </div>
-            </div>
-        );
+  personalityChanges.forEach((avatarChange) => {
+    const rewards = avatarChange?.rewards;
+    if (!rewards) {
+      return;
     }
 
-    if (!story) return null;
+    if (Array.isArray(rewards.newItems)) {
+      rewards.newItems.forEach((item: InventoryItem) => {
+        collected.push({ item, isUpgrade: false });
+      });
+    }
 
+    if (Array.isArray(rewards.upgradedItems)) {
+      rewards.upgradedItems.forEach((item: InventoryItem) => {
+        collected.push({ item, isUpgrade: true });
+      });
+    }
+  });
+
+  return collected;
+};
+
+const CinematicStoryViewer: React.FC = () => {
+  const { storyId } = useParams<{ storyId: string }>();
+  const navigate = useNavigate();
+  const backend = useBackend();
+  const { getToken } = useAuth();
+  const { resolvedTheme } = useTheme();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [story, setStory] = useState<Story | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
+  const [storyCompleted, setStoryCompleted] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
+
+  const [artifactQueue, setArtifactQueue] = useState<Array<{ item: InventoryItem; isUpgrade: boolean }>>([]);
+  const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
+  const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
+  const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
+
+  const isDark = resolvedTheme === 'dark';
+  const palette = useMemo(() => getStoryPalette(isDark), [isDark]);
+
+  const { scrollYProgress } = useScroll({ container: containerRef });
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 34,
+    restDelta: 0.001,
+  });
+
+  useEffect(() => {
+    if (storyId) {
+      void loadStory();
+    }
+  }, [storyId]);
+
+  useEffect(() => {
+    if (!currentArtifact && artifactQueue.length > 0) {
+      const [next, ...rest] = artifactQueue;
+      setCurrentArtifact(next);
+      setArtifactQueue(rest);
+    }
+  }, [currentArtifact, artifactQueue]);
+
+  const loadStory = async () => {
+    if (!storyId) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const storyData = await backend.story.get({ id: storyId });
+      const rawStory = storyData as any;
+      setStory(rawStory as Story);
+
+      if (rawStory?.avatarParticipants?.length) {
+        setParticipants(rawStory.avatarParticipants);
+      } else if (Array.isArray(rawStory?.config?.avatars) && rawStory.config.avatars.length > 0) {
+        setParticipants(rawStory.config.avatars);
+      } else if (Array.isArray(rawStory?.config?.avatarIds) && rawStory.config.avatarIds.length > 0) {
+        try {
+          const avatars = await Promise.all(
+            rawStory.config.avatarIds.map((id: string) => backend.avatar.get({ id }))
+          );
+          setParticipants(avatars.filter(Boolean));
+        } catch (participantError) {
+          console.error('Error loading participants:', participantError);
+        }
+      } else {
+        setParticipants([]);
+      }
+    } catch (err) {
+      console.error('Error loading story:', err);
+      setError('Geschichte konnte nicht geladen werden.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStart = () => {
+    setStarted(true);
+    setTimeout(() => {
+      const firstChapter = document.getElementById('chapter-0');
+      firstChapter?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleStoryCompletion = async () => {
+    if (!story || !storyId || storyCompleted) {
+      return;
+    }
+
+    try {
+      setStoryCompleted(true);
+
+      const token = await getToken();
+      const { getBackendUrl } = await import('../../config');
+      const target = getBackendUrl();
+
+      const response = await fetch(`${target}/story/mark-read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          storyId,
+          storyTitle: story.title,
+          genre: story.config.genre,
+        }),
+      });
+
+      const { showSuccessToast, showPersonalityUpdateToast } = await import('../../utils/toastUtils');
+
+      if (!response.ok) {
+        showSuccessToast('Geschichte abgeschlossen.');
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result?.unlockedArtifact) {
+        setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
+        setTimeout(() => {
+          setShowPoolArtifactModal(true);
+        }, 260);
+      }
+
+      const collectedArtifacts = collectArtifactsFromChanges(result?.personalityChanges ?? []);
+      if (collectedArtifacts.length > 0) {
+        setArtifactQueue(collectedArtifacts);
+      }
+
+      if (Array.isArray(result?.personalityChanges) && result.personalityChanges.length > 0) {
+        showSuccessToast(
+          `Geschichte abgeschlossen. ${result.updatedAvatars ?? result.personalityChanges.length} Avatar(e) aktualisiert.`
+        );
+
+        result.personalityChanges.forEach((avatarChange: any, index: number) => {
+          if (Array.isArray(avatarChange?.changes) && avatarChange.changes.length > 0) {
+            setTimeout(() => {
+              showPersonalityUpdateToast(avatarChange.changes);
+            }, 700 + index * 500);
+          }
+        });
+      } else {
+        showSuccessToast('Geschichte abgeschlossen.');
+      }
+    } catch (error) {
+      console.error('Error completing story:', error);
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+      showSuccessToast('Geschichte abgeschlossen.');
+    }
+  };
+
+  const handleCloseArtifact = () => {
+    setCurrentArtifact(null);
+  };
+
+  if (loading) {
     return (
-        <div className="fixed inset-0 bg-black text-white overflow-hidden font-sans">
-            {/* Progress Bar */}
-            {started && (
-                <motion.div
-                    className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 z-50 origin-left"
-                    style={{ scaleX }}
-                />
-            )}
-
-            {/* Navigation Controls */}
-            <div className="fixed top-6 left-6 z-50 flex gap-4">
-                <button
-                    onClick={() => navigate('/stories')}
-                    className="p-3 bg-black/40 backdrop-blur-md rounded-full hover:bg-white/10 transition-all border border-white/10 group"
-                >
-                    <ArrowLeft className="w-6 h-6 text-white group-hover:-translate-x-1 transition-transform" />
-                </button>
-            </div>
-
-            {/* Main Scroll Container */}
-            <div
-                ref={containerRef}
-                className="h-full overflow-y-auto scroll-smooth snap-y snap-mandatory"
-            >
-                {/* INTRO SECTION */}
-                <section className="h-screen w-full relative flex items-center justify-center snap-start overflow-hidden">
-                    {/* Background Image with Parallax-like effect (fixed) */}
-                    <div className="absolute inset-0 z-0">
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black z-10" />
-                        <motion.img
-                            initial={{ scale: 1.1 }}
-                            animate={{ scale: 1 }}
-                            transition={{ duration: 10, ease: "easeOut" }}
-                            src={story.coverImageUrl || '/placeholder-story.jpg'}
-                            alt="Cover"
-                            className="w-full h-full object-cover"
-                        />
-                    </div>
-
-                    {/* Content */}
-                    <div className="relative z-20 text-center px-4 max-w-5xl mx-auto">
-                        <motion.div
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 1, delay: 0.5 }}
-                        >
-                            <span className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-medium tracking-widest mb-6 uppercase">
-                                {story.config.genre}
-                            </span>
-                            <h1 className="text-5xl md:text-7xl lg:text-9xl font-serif font-bold mb-8 tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 drop-shadow-2xl">
-                                {story.title}
-                            </h1>
-                            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-12 font-light">
-                                {story.summary}
-                            </p>
-
-                            <motion.button
-                                onClick={handleStart}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="group relative px-8 py-4 bg-white text-black rounded-full font-bold text-lg tracking-wide overflow-hidden"
-                            >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    GESCHICHTE STARTEN <ChevronDown className="w-5 h-5 animate-bounce" />
-                                </span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            </motion.button>
-                        </motion.div>
-                    </div>
-                </section>
-
-                {/* CHAPTERS */}
-                {story.chapters?.map((chapter, index) => (
-                    <ChapterSection
-                        key={chapter.id || index}
-                        chapter={chapter}
-                        index={index}
-                        total={story.chapters?.length || 0}
-                        onComplete={index === (story.chapters?.length || 0) - 1 ? handleStoryCompletion : undefined}
-                        isCompleted={storyCompleted}
-                    />
-                ))}
-
-                {/* Participants / Cast Section */}
-                {((story.avatarParticipants?.length ?? 0) > 0 || (story.config.avatars?.length ?? 0) > 0) && (
-                    <section className="min-h-screen snap-start flex flex-col items-center justify-center bg-black relative overflow-hidden py-20">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-black" />
-
-                        <div className="z-10 max-w-6xl mx-auto px-4 w-full">
-                            <motion.div
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.8 }}
-                                className="text-center mb-16"
-                            >
-                                <h2 className="text-3xl md:text-5xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 mb-4">
-                                    Die Helden der Geschichte
-                                </h2>
-                                <div className="h-1 w-24 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto" />
-                            </motion.div>
-
-                            <div className="flex flex-wrap justify-center gap-12 md:gap-20">
-                                {(story.avatarParticipants || story.config.avatars)?.map((avatar, index) => (
-                                    <motion.div
-                                        key={avatar.id || index}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        whileInView={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.5, delay: index * 0.2 }}
-                                        className="flex flex-col items-center group"
-                                    >
-                                        <div className="relative w-48 h-48 md:w-64 md:h-64 mb-6 rounded-full p-1 bg-gradient-to-b from-purple-500/50 to-blue-500/50 group-hover:from-purple-400 group-hover:to-blue-400 transition-colors duration-500">
-                                            <div className="absolute inset-0 rounded-full bg-black m-1 overflow-hidden">
-                                                <img
-                                                    src={avatar.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatar.name}`}
-                                                    alt={avatar.name}
-                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                />
-                                            </div>
-                                            {/* Glow effect */}
-                                            <div className="absolute inset-0 rounded-full blur-xl bg-purple-500/20 group-hover:bg-purple-500/40 transition-colors duration-500 -z-10" />
-                                        </div>
-
-                                        <h3 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2 tracking-wide">
-                                            {avatar.name}
-                                        </h3>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Footer / End Screen */}
-                <section className="h-[50vh] snap-start flex items-center justify-center bg-black relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-black to-black" />
-                    <div className="text-center z-10">
-                        <h2 className="text-4xl font-serif text-white mb-4">Ende</h2>
-                        <button
-                            onClick={() => navigate('/stories')}
-                            className="text-gray-400 hover:text-white transition-colors underline underline-offset-4"
-                        >
-                            Zurück zur Übersicht
-                        </button>
-                    </div>
-                </section>
-            </div>
-
-            {/* Fullscreen Artifact Reward Display */}
-            <ArtifactRewardToast
-                item={currentArtifact?.item || null}
-                isVisible={!!currentArtifact}
-                onClose={handleCloseArtifact}
-                isUpgrade={currentArtifact?.isUpgrade}
-            />
-
-            <ArtifactCelebrationModal
-                artifact={poolArtifact}
-                isVisible={showPoolArtifactModal}
-                onClose={() => {
-                    setShowPoolArtifactModal(false);
-                    setPoolArtifact(null);
-                }}
-                onViewTreasureRoom={() => {
-                    setShowPoolArtifactModal(false);
-                    setPoolArtifact(null);
-                    navigate('/treasure-room');
-                }}
-            />
+      <div className="flex h-screen items-center justify-center" style={{ background: palette.page }}>
+        <div className="rounded-3xl border px-8 py-7 text-center" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+          <div className="mx-auto mb-3 h-12 w-12 animate-spin rounded-full border-4 border-transparent" style={{ borderTopColor: palette.accent, borderRightColor: palette.accent }} />
+          <p className="text-sm tracking-[0.18em] uppercase" style={{ color: palette.sub }}>
+            Geschichte wird geladen
+          </p>
         </div>
+      </div>
     );
+  }
+
+  if (!story) {
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ background: palette.page }}>
+        <div className="rounded-3xl border px-8 py-7 text-center" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+          <p className="text-lg font-semibold" style={{ color: palette.title }}>
+            {error || 'Geschichte wurde nicht gefunden.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/stories')}
+            className="mt-4 rounded-full border px-4 py-2 text-sm"
+            style={{ borderColor: palette.cardBorder, color: palette.sub }}
+          >
+            Zurueck zu Geschichten
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const chapters = story.chapters?.length ? story.chapters : story.pages || [];
+  const castMembers = participants.length > 0 ? participants : story.avatarParticipants || story.config.avatars || [];
+
+  return (
+    <div className="fixed inset-0 overflow-hidden" style={{ background: palette.page }}>
+      {started && (
+        <motion.div
+          className="fixed left-0 right-0 top-0 z-[80] h-1 origin-left"
+          style={{
+            scaleX,
+            background: `linear-gradient(90deg, ${palette.accent} 0%, #b087c8 100%)`,
+          }}
+        />
+      )}
+
+      <header
+        className="fixed left-1/2 top-3 z-[70] flex w-[min(980px,calc(100vw-1.2rem))] -translate-x-1/2 items-center justify-between rounded-2xl border px-3 py-2 backdrop-blur-xl"
+        style={{ borderColor: palette.topBarBorder, background: palette.topBar }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate('/stories')}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
+          style={{ borderColor: palette.topBarBorder, color: palette.title, background: palette.card }}
+          aria-label="Zurueck zu Geschichten"
+        >
+          <ArrowLeft className="h-4.5 w-4.5" />
+        </button>
+
+        <div className="min-w-0 px-3 text-center">
+          <p className="truncate text-xs uppercase tracking-[0.18em]" style={{ color: palette.sub }}>
+            {story.config.genre || 'Story'}
+          </p>
+          <p className="truncate text-sm font-semibold" style={{ color: palette.title }}>
+            {story.title}
+          </p>
+        </div>
+
+        <span className="inline-flex h-10 items-center rounded-full border px-3 text-xs" style={{ borderColor: palette.topBarBorder, color: palette.sub }}>
+          {chapters.length} Kapitel
+        </span>
+      </header>
+
+      <div ref={containerRef} className="h-full overflow-y-auto scroll-smooth pt-0">
+        <section className="relative flex min-h-[100svh] items-center justify-center px-4 pb-16 pt-24">
+          <div className="absolute inset-0 z-0">
+            <img
+              src={story.coverImageUrl || '/placeholder-story.jpg'}
+              alt={story.title}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0" style={{ background: palette.heroOverlay }} />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="relative z-10 mx-auto w-full max-w-4xl rounded-[30px] border p-6 text-center shadow-[0_24px_52px_rgba(16,22,34,0.28)] backdrop-blur"
+            style={{ borderColor: palette.cardBorder, background: palette.card }}
+          >
+            <span className="inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.14em]" style={{ borderColor: palette.cardBorder, color: palette.sub, background: palette.accentSoft }}>
+              Vorlese-Modus
+            </span>
+            <h1 className="mt-4 text-4xl leading-tight md:text-6xl" style={{ fontFamily: headingFont, color: palette.title }}>
+              {story.title}
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed md:text-lg" style={{ color: palette.body }}>
+              {story.summary}
+            </p>
+
+            <motion.button
+              type="button"
+              onClick={handleStart}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              className="mt-8 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(69,102,128,0.34)]"
+              style={{ background: `linear-gradient(135deg, ${palette.accent} 0%, #b087c8 100%)` }}
+            >
+              Geschichte starten
+              <ChevronDown className="h-4 w-4" />
+            </motion.button>
+          </motion.div>
+        </section>
+
+        {chapters.map((chapter, index) => (
+          <ChapterSection
+            key={chapter.id || `${chapter.title}-${index}`}
+            chapter={chapter}
+            index={index}
+            total={chapters.length}
+            palette={palette}
+            onComplete={index === chapters.length - 1 ? handleStoryCompletion : undefined}
+            isCompleted={storyCompleted}
+          />
+        ))}
+
+        {castMembers.length > 0 && (
+          <section className="px-4 pb-8 pt-3 md:px-6">
+            <div className="mx-auto w-full max-w-6xl rounded-[28px] border p-6 md:p-8" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+              <div className="mb-6 text-center">
+                <h2 className="text-3xl md:text-4xl" style={{ fontFamily: headingFont, color: palette.title }}>
+                  Teilnehmende Charaktere
+                </h2>
+                <p className="mt-1 text-sm" style={{ color: palette.body }}>
+                  Wer in dieser Geschichte eine Rolle spielt.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {castMembers.map((avatar: any, index: number) => (
+                  <motion.div
+                    key={`${avatar.id || avatar.name}-${index}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.4 }}
+                    transition={{ duration: 0.28, delay: index * 0.04 }}
+                    className="rounded-2xl border p-3 text-center"
+                    style={{ borderColor: palette.cardBorder, background: palette.accentSoft }}
+                  >
+                    <div className="mx-auto h-16 w-16 overflow-hidden rounded-full border" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+                      {avatar.imageUrl ? (
+                        <img src={avatar.imageUrl} alt={avatar.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center" style={{ color: palette.sub }}>
+                          <Volume2 className="h-5 w-5" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-2 text-sm font-semibold" style={{ color: palette.title }}>
+                      {avatar.name || 'Unbekannt'}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="relative flex min-h-[40svh] items-center justify-center px-4 pb-24 pt-12">
+          <div className="w-full max-w-3xl rounded-[26px] border p-6 text-center" style={{ borderColor: palette.cardBorder, background: palette.card }}>
+            <h2 className="text-3xl" style={{ fontFamily: headingFont, color: palette.title }}>
+              Ende der Geschichte
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: palette.body }}>
+              Du kannst zur Uebersicht zurueckkehren oder direkt die naechste Geschichte lesen.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/stories')}
+              className="mt-5 rounded-full border px-4 py-2 text-sm font-semibold"
+              style={{ borderColor: palette.cardBorder, color: palette.sub }}
+            >
+              Zurueck zur Uebersicht
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <ArtifactRewardToast
+        item={currentArtifact?.item || null}
+        isVisible={!!currentArtifact}
+        onClose={handleCloseArtifact}
+        isUpgrade={currentArtifact?.isUpgrade}
+      />
+
+      <ArtifactCelebrationModal
+        artifact={poolArtifact}
+        isVisible={showPoolArtifactModal}
+        onClose={() => {
+          setShowPoolArtifactModal(false);
+          setPoolArtifact(null);
+        }}
+        onViewTreasureRoom={() => {
+          setShowPoolArtifactModal(false);
+          setPoolArtifact(null);
+          navigate('/treasure-room');
+        }}
+      />
+    </div>
+  );
 };
 
 const ChapterSection: React.FC<{
-    chapter: Chapter;
-    index: number;
-    total: number;
-    onComplete?: () => void;
-    isCompleted?: boolean;
-}> = ({ chapter, index, total, onComplete, isCompleted }) => {
-    const [headerInView, setHeaderInView] = useState(false);
+  chapter: Chapter;
+  index: number;
+  total: number;
+  palette: StoryPalette;
+  onComplete?: () => void;
+  isCompleted?: boolean;
+}> = ({ chapter, index, total, palette, onComplete, isCompleted }) => {
+  const [headerInView, setHeaderInView] = useState(false);
 
-    return (
-        <div id={`chapter-${index}`} className="min-h-screen w-full relative bg-black snap-start flex flex-col">
-            {/* Chapter Header / Title Card */}
-            <div className="relative h-[60vh] w-full overflow-hidden shrink-0">
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40 z-10" />
-                <motion.img
-                    initial={{ scale: 1.2 }}
-                    whileInView={{ scale: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
-                    transition={{ duration: 1.5 }}
-                    src={chapter.imageUrl || `https://picsum.photos/seed/${index}/1920/1080`}
-                    alt={chapter.title}
-                    className="w-full h-full object-contain"
-                />
-                <div className="absolute bottom-0 left-0 right-0 p-4 pb-2 md:px-16 md:pb-4 z-20">
-                    <motion.div
-                        initial={{ opacity: 0, y: 40 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.8 }}
-                        onViewportEnter={() => setHeaderInView(true)}
-                    >
-                        <span className="text-purple-400 font-bold tracking-widest uppercase text-sm mb-2 block h-6">
-                            {headerInView && (
-                                <Typewriter
-                                    text={`Kapitel ${index + 1} von ${total}`}
-                                    speed={50}
-                                    cursor=""
-                                />
-                            )}
-                        </span>
-                        <h2 className="text-4xl md:text-6xl font-serif font-bold text-white mb-4 leading-tight min-h-[1.2em]">
-                            {headerInView && (
-                                <Typewriter
-                                    text={chapter.title}
-                                    speed={70}
-                                    delay={1000}
-                                    cursor="|"
-                                    className="font-['Merriweather']"
-                                />
-                            )}
-                        </h2>
-                    </motion.div>
-                </div>
-            </div>
-
-            {/* Chapter Content */}
-            <div className="flex-1 bg-black px-6 py-12 md:px-20 md:py-16 pb-64">
-                <div className="max-w-3xl mx-auto">
-                    <div className="flex justify-end mb-4">
-                        <AudioPlayer text={chapter.content} className="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md" />
-                    </div>
-                    <CinematicText text={chapter.content} />
-
-
-                    {onComplete && (
-                        <div className="mt-32 flex justify-center">
-                            <motion.button
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                onClick={() => {
-                                    console.log('🔘 GESCHICHTE ABSCHLIESSEN button clicked!');
-                                    onComplete();
-                                }}
-                                disabled={isCompleted}
-                                className={cn(
-                                    "px-16 py-8 rounded-none text-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)] border-2 border-white",
-                                    isCompleted
-                                        ? "bg-green-600 border-green-600 text-white cursor-default"
-                                        : "bg-transparent text-white hover:bg-white hover:text-black hover:scale-105"
-                                )}
-                            >
-                                {isCompleted ? (
-                                    <>
-                                        <Sparkles className="w-6 h-6 mr-2" /> ABGESCHLOSSEN
-                                    </>
-                                ) : (
-                                    "GESCHICHTE ABSCHLIESSEN"
-                                )}
-                            </motion.button>
-                        </div>
-                    )}
-                </div>
-            </div>
+  return (
+    <section id={`chapter-${index}`} className="relative px-4 py-10 md:px-6 md:py-14">
+      <motion.article
+        initial={{ opacity: 0, y: 22 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.46 }}
+        className="mx-auto w-full max-w-6xl overflow-hidden rounded-[30px] border shadow-[0_18px_44px_rgba(21,30,44,0.2)]"
+        style={{ borderColor: palette.cardBorder, background: palette.card }}
+      >
+        <div className="relative h-56 overflow-hidden md:h-[320px]">
+          <img
+            src={chapter.imageUrl || `https://picsum.photos/seed/chapter-${index}/1920/1080`}
+            alt={chapter.title}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0" style={{ background: palette.heroOverlay }} />
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+            <span className="inline-flex rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.14em]" style={{ borderColor: 'rgba(255,255,255,0.28)', color: '#f2f6fb', background: 'rgba(10,14,22,0.34)' }}>
+              Kapitel {index + 1} / {total}
+            </span>
+            <h2 className="mt-3 text-3xl leading-tight text-white md:text-5xl" style={{ fontFamily: headingFont }}>
+              {headerInView ? (
+                <Typewriter text={chapter.title} speed={48} delay={300} cursor="" />
+              ) : (
+                chapter.title
+              )}
+            </h2>
+          </div>
+          <div className="absolute inset-0" onMouseEnter={() => setHeaderInView(true)} onFocus={() => setHeaderInView(true)} />
         </div>
-    );
+
+        <div className="space-y-7 p-5 md:p-8">
+          <div className="flex justify-end">
+            <AudioPlayer text={chapter.content} className="bg-transparent" />
+          </div>
+
+          <CinematicText
+            text={chapter.content}
+            paragraphClassName="!text-base md:!text-lg lg:!text-xl !leading-relaxed !tracking-normal !drop-shadow-none"
+            paragraphStyle={{ color: palette.title }}
+            className="space-y-5"
+          />
+
+          {onComplete && (
+            <div className="pt-2">
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                onClick={onComplete}
+                disabled={isCompleted}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition-transform',
+                  isCompleted ? 'cursor-default' : 'hover:-translate-y-[1px]'
+                )}
+                style={{
+                  borderColor: palette.cardBorder,
+                  color: isCompleted ? '#7fb591' : palette.title,
+                  background: isCompleted ? 'rgba(119,172,141,0.16)' : palette.accentSoft,
+                }}
+              >
+                <Sparkles className="h-4 w-4" />
+                {isCompleted ? 'Abgeschlossen' : 'Geschichte abschliessen'}
+              </motion.button>
+            </div>
+          )}
+        </div>
+      </motion.article>
+    </section>
+  );
 };
 
 export default CinematicStoryViewer;

@@ -5,10 +5,18 @@ import { cn } from '../../lib/utils';
 interface CinematicTextProps {
     text: string;
     className?: string;
+    paragraphClassName?: string;
+    paragraphStyle?: React.CSSProperties;
     delay?: number;
 }
 
-export const CinematicText: React.FC<CinematicTextProps> = ({ text, className, delay = 0 }) => {
+export const CinematicText: React.FC<CinematicTextProps> = ({
+    text,
+    className,
+    paragraphClassName,
+    paragraphStyle,
+    delay = 0,
+}) => {
     // Split text into paragraphs
     const paragraphs = text.split('\n').filter(p => p.trim() !== '');
 
@@ -20,13 +28,21 @@ export const CinematicText: React.FC<CinematicTextProps> = ({ text, className, d
                     text={paragraph}
                     index={index}
                     baseDelay={delay}
+                    paragraphClassName={paragraphClassName}
+                    paragraphStyle={paragraphStyle}
                 />
             ))}
         </div>
     );
 };
 
-const Paragraph: React.FC<{ text: string; index: number; baseDelay: number }> = ({ text, index, baseDelay }) => {
+const Paragraph: React.FC<{
+    text: string;
+    index: number;
+    baseDelay: number;
+    paragraphClassName?: string;
+    paragraphStyle?: React.CSSProperties;
+}> = ({ text, index, baseDelay, paragraphClassName, paragraphStyle }) => {
     const ref = useRef(null);
     const isInView = useInView(ref, {
         once: true,
@@ -43,7 +59,11 @@ const Paragraph: React.FC<{ text: string; index: number; baseDelay: number }> = 
                 ease: [0.2, 0.65, 0.3, 0.9], // Elegant easing
                 delay: baseDelay + (index * 0.1)
             }}
-            className="leading-relaxed text-lg md:text-xl lg:text-2xl text-gray-300 font-['Merriweather'] tracking-wide drop-shadow-sm"
+            className={cn(
+                "leading-relaxed text-lg md:text-xl lg:text-2xl text-gray-300 font-['Merriweather'] tracking-wide drop-shadow-sm",
+                paragraphClassName
+            )}
+            style={paragraphStyle}
         >
             {text}
         </motion.p>

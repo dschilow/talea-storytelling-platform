@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, X, HelpCircle } from 'lucide-react';
+import { Check, CheckCircle2, HelpCircle, RotateCcw, X } from 'lucide-react';
+
 import type { DokuSection } from '../../types/doku';
-import type { Avatar } from '../../types/avatar';
 import { useAvatarMemory } from '../../hooks/useAvatarMemory';
 import { usePersonalityAI } from '../../hooks/usePersonalityAI';
 import { useBackend } from '../../hooks/useBackend';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface QuizComponentProps {
   section: DokuSection;
@@ -13,283 +14,450 @@ interface QuizComponentProps {
   dokuTitle?: string;
   dokuId?: string;
   onPersonalityChange?: (changes: Array<{ trait: string; change: number }>) => void;
+  variant?: 'page' | 'inline';
 }
+
+type NormalizedQuestion = {
+  question: string;
+  options: string[];
+  answerIndex: number;
+  explanation?: string;
+};
+
+const normalizeText = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.replace(/\s+/g, ' ').replace(/^[-*\u2022\u00b7]\s*/, '').trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeText).filter(Boolean).join(', ');
+  }
+
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const candidate =
+      source.text ??
+      source.label ??
+      source.title ??
+      source.value ??
+      source.answer ??
+      source.option ??
+      source.description;
+
+    if (candidate != null) {
+      return normalizeText(candidate);
+    }
+  }
+
+  if (value == null) {
+    return '';
+  }
+
+  return String(value).trim();
+};
+
+const normalizeQuestions = (rawQuestions: unknown[]): NormalizedQuestion[] => {
+  return rawQuestions
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+
+      const source = entry as Record<string, unknown>;
+
+      const question = normalizeText(source.question ?? source.prompt ?? source.title);
+      const rawOptions = Array.isArray(source.options)
+        ? source.options
+        : Array.isArray(source.answers)
+          ? source.answers
+          : [];
+
+      const options = rawOptions.map(normalizeText).filter((option) => option.length > 0);
+
+      if (!question || options.length < 2) {
+        return null;
+      }
+
+      const rawIndex = Number(
+        source.answerIndex ?? source.correctIndex ?? source.correctOption ?? source.correctAnswerIndex
+      );
+
+      let answerIndex = Number.isFinite(rawIndex) ? rawIndex : -1;
+
+      if (answerIndex < 0 || answerIndex >= options.length) {
+        const answerText = normalizeText(source.correctAnswer ?? source.answer ?? source.correct);
+        if (answerText) {
+          answerIndex = options.findIndex(
+            (option) => option.toLowerCase().trim() === answerText.toLowerCase().trim()
+          );
+        }
+      }
+
+      if (answerIndex < 0 || answerIndex >= options.length) {
+        answerIndex = 0;
+      }
+
+      const explanation = normalizeText(source.explanation ?? source.reason ?? source.hint);
+
+      return {
+        question,
+        options,
+        answerIndex,
+        explanation: explanation || undefined,
+      };
+    })
+    .filter((question): question is NormalizedQuestion => question != null);
+};
+
+const calculateScore = (questions: NormalizedQuestion[], selectedAnswers: Array<number | null>) => {
+  const correctAnswers = questions.reduce((count, question, index) => {
+    return selectedAnswers[index] === question.answerIndex ? count + 1 : count;
+  }, 0);
+
+  const percentage = questions.length > 0 ? Math.round((correctAnswers / questions.length) * 100) : 0;
+
+  return { correctAnswers, percentage };
+};
 
 export const QuizComponent: React.FC<QuizComponentProps> = ({
   section,
   avatarId,
   dokuTitle,
   dokuId,
-  onPersonalityChange
+  onPersonalityChange,
+  variant = 'page',
 }) => {
   const quiz = section.interactive?.quiz;
   const backend = useBackend();
   const { addMemory, updatePersonality } = useAvatarMemory();
   const { analyzeQuizCompletion } = usePersonalityAI();
+  const { resolvedTheme } = useTheme();
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>(() => quiz ? Array(quiz.questions.length).fill(null) : []);
+  const [selectedAnswers, setSelectedAnswers] = useState<Array<number | null>>([]);
   const [submitted, setSubmitted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!quiz || !quiz.enabled || quiz.questions.length === 0) {
+  const questions = useMemo(() => {
+    if (!quiz?.enabled || !Array.isArray(quiz.questions)) {
+      return [];
+    }
+
+    return normalizeQuestions(quiz.questions as unknown[]);
+  }, [quiz]);
+
+  useEffect(() => {
+    setCurrentQuestionIndex(0);
+    setSubmitted(false);
+    setQuizCompleted(false);
+    setIsSubmitting(false);
+    setSelectedAnswers(Array(questions.length).fill(null));
+  }, [questions.length, section.title]);
+
+  if (!quiz?.enabled || questions.length === 0) {
     return null;
   }
 
-  const currentQuestion = quiz.questions[currentQuestionIndex];
+  const isDark = resolvedTheme === 'dark';
+  const colors = isDark
+    ? {
+        panel: 'rgba(24,34,48,0.88)',
+        border: '#355072',
+        title: '#e8f1fe',
+        body: '#adbed4',
+        option: 'rgba(34,47,66,0.68)',
+        selected: 'rgba(74,104,151,0.3)',
+        correct: 'rgba(56,132,102,0.32)',
+        wrong: 'rgba(156,84,91,0.3)',
+      }
+    : {
+        panel: 'rgba(255,250,242,0.9)',
+        border: '#decfbf',
+        title: '#24364b',
+        body: '#63778f',
+        option: 'rgba(255,255,255,0.72)',
+        selected: 'rgba(108,137,183,0.2)',
+        correct: 'rgba(108,175,146,0.24)',
+        wrong: 'rgba(200,122,132,0.24)',
+      };
+
+  const currentQuestion = questions[currentQuestionIndex];
+  const selectedAnswer = selectedAnswers[currentQuestionIndex];
+  const isLastQuestion = currentQuestionIndex === questions.length - 1;
+
+  const { correctAnswers, percentage } = calculateScore(questions, selectedAnswers);
 
   const handleAnswerSelect = (optionIndex: number) => {
-    if (submitted) return;
-    const newAnswers = [...selectedAnswers];
-    newAnswers[currentQuestionIndex] = optionIndex;
-    setSelectedAnswers(newAnswers);
+    if (submitted || quizCompleted || isSubmitting) {
+      return;
+    }
+
+    setSelectedAnswers((prev) => {
+      const next = [...prev];
+      next[currentQuestionIndex] = optionIndex;
+      return next;
+    });
   };
 
-  const handleSubmit = () => {
+  const handleSubmitCurrent = () => {
+    if (selectedAnswer == null || quizCompleted || isSubmitting) {
+      return;
+    }
     setSubmitted(true);
   };
 
-  const handleNext = async () => {
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSubmitted(false);
-    } else if (!quizCompleted) {
-      // Quiz completed - process results for avatar development
-      await handleQuizCompletion();
-    }
-  };
-
   const handleQuizCompletion = async () => {
-    if (!avatarId || !dokuTitle || !dokuId || quizCompleted) return;
+    if (quizCompleted || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setQuizCompleted(true);
 
     try {
-      setQuizCompleted(true);
+      const { showQuizCompletionToast } = await import('../../utils/toastUtils');
+      showQuizCompletionToast(percentage);
+    } catch {
+      // Optional UI toast only
+    }
 
-      console.log('🧠 Starting KI quiz analysis...');
+    if (!avatarId || !dokuTitle || !dokuId) {
+      setIsSubmitting(false);
+      return;
+    }
 
-      // Load avatar data
+    try {
       const avatar = await backend.avatar.get({ id: avatarId });
       if (!avatar) {
-        console.error('❌ Avatar not found for quiz analysis');
+        setIsSubmitting(false);
         return;
       }
 
-      // Calculate quiz performance
-      const correctAnswers = quiz.questions.reduce((count, question, index) => {
-        return selectedAnswers[index] === question.answerIndex ? count + 1 : count;
-      }, 0);
-
-      const percentage = Math.round((correctAnswers / quiz.questions.length) * 100);
-
-      // Prepare quiz data for KI analysis
-      const questions = quiz.questions.map((question, index) => ({
+      const questionPayload = questions.map((question, index) => ({
         question: question.question,
         correctAnswer: question.options[question.answerIndex],
-        userAnswer: question.options[selectedAnswers[index] || 0],
-        isCorrect: selectedAnswers[index] === question.answerIndex
+        userAnswer:
+          selectedAnswers[index] != null
+            ? question.options[selectedAnswers[index] as number]
+            : 'Keine Antwort',
+        isCorrect: selectedAnswers[index] === question.answerIndex,
       }));
 
-      // Use KI to analyze personality development
       const aiResult = await analyzeQuizCompletion(
         avatar,
         dokuId,
         section.title,
-        questions,
+        questionPayload,
         percentage
       );
 
       if (aiResult.alreadyProcessed) {
-        console.log('⚠️ Avatar already received updates from this quiz');
-        import('../../utils/toastUtils').then(({ showWarningToast }) => {
-          showWarningToast('Du hast bereits Persönlichkeitsupdates von diesem Quiz erhalten!');
-        });
+        const { showWarningToast } = await import('../../utils/toastUtils');
+        showWarningToast('Dieses Quiz wurde fuer diesen Avatar bereits ausgewertet.');
+        setIsSubmitting(false);
         return;
       }
 
       if (aiResult.success && aiResult.changes.length > 0) {
-        console.log('✅ KI quiz analysis successful, applying', aiResult.changes.length, 'personality changes');
-
-        // Convert KI changes to our format
-        const personalityChanges = aiResult.changes.map(change => ({
+        const personalityChanges = aiResult.changes.map((change) => ({
           trait: change.trait,
-          change: change.change
+          change: change.change,
         }));
 
-        // Create memory entry
-        const experience = `Ich habe ein Quiz zu "${section.title}" in "${dokuTitle}" absolviert und ${percentage}% der Fragen richtig beantwortet. ${aiResult.summary}`;
+        const experience = `Quiz zu "${section.title}" in "${dokuTitle}" mit ${percentage}% abgeschlossen.`;
 
         await addMemory(avatarId, {
           storyId: dokuId,
           storyTitle: `Quiz: ${dokuTitle}`,
           experience,
           emotionalImpact: percentage >= 70 ? 'positive' : percentage >= 40 ? 'neutral' : 'negative',
-          personalityChanges
+          personalityChanges,
         });
 
-        // Apply personality updates
         await updatePersonality(
           avatarId,
           personalityChanges,
-          `KI-Analyse: Quiz "${section.title}" (${percentage}% korrekt)`,
+          `Quiz-Auswertung "${section.title}" (${percentage}% korrekt)`,
           dokuId
         );
 
-        // Notify parent component
         if (onPersonalityChange) {
           onPersonalityChange(personalityChanges);
         }
 
-        console.log(`🎉 KI quiz completed: ${percentage}% correct, personality changes:`, personalityChanges);
-
-        // Show toast notifications
-        import('../../utils/toastUtils').then(({ showQuizCompletionToast, showPersonalityUpdateToast }) => {
-          showQuizCompletionToast(percentage);
-          showPersonalityUpdateToast(personalityChanges);
-        });
-      } else {
-        console.log('🤔 KI quiz analysis completed but no personality changes suggested');
-        import('../../utils/toastUtils').then(({ showQuizCompletionToast }) => {
-          showQuizCompletionToast(percentage);
-        });
+        const { showPersonalityUpdateToast } = await import('../../utils/toastUtils');
+        showPersonalityUpdateToast(personalityChanges);
       }
     } catch (error) {
-      console.error('❌ Error processing quiz completion with KI:', error);
-      import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Fehler beim Verarbeiten der Persönlichkeitsentwicklung');
-      });
+      console.error('Quiz evaluation failed:', error);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast('Fehler bei der Quiz-Auswertung.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const analyzeQuizForPersonality = (topic: string, percentage: number): Array<{ trait: string; change: number }> => {
-    const changes: Array<{ trait: string; change: number }> = [];
-
-    // Base intelligence boost for learning
-    if (percentage >= 50) {
-      changes.push({ trait: 'Intelligenz', change: Math.min(5, Math.floor(percentage / 20)) });
+  const handleNext = async () => {
+    if (!submitted || isSubmitting) {
+      return;
     }
 
-    // Topic-specific personality development
-    const topicLower = topic.toLowerCase();
-
-    if (topicLower.includes('wissenschaft') || topicLower.includes('technik') || topicLower.includes('mathematik')) {
-      if (percentage >= 60) changes.push({ trait: 'Intelligenz', change: 3 });
+    if (isLastQuestion) {
+      await handleQuizCompletion();
+      return;
     }
 
-    if (topicLower.includes('kunst') || topicLower.includes('kreativ') || topicLower.includes('musik')) {
-      if (percentage >= 60) changes.push({ trait: 'Kreativität', change: 4 });
-    }
-
-    if (topicLower.includes('sozial') || topicLower.includes('gesellschaft') || topicLower.includes('gemeinschaft')) {
-      if (percentage >= 60) changes.push({ trait: 'Sozialität', change: 3 });
-      if (percentage >= 70) changes.push({ trait: 'Empathie', change: 2 });
-    }
-
-    if (topicLower.includes('abenteuer') || topicLower.includes('sport') || topicLower.includes('reisen')) {
-      if (percentage >= 60) changes.push({ trait: 'Mut', change: 3 });
-      if (percentage >= 70) changes.push({ trait: 'Energie', change: 2 });
-    }
-
-    // Performance-based confidence boost
-    if (percentage >= 80) {
-      changes.push({ trait: 'Mut', change: 1 });
-    }
-
-    return changes;
+    setCurrentQuestionIndex((prev) => prev + 1);
+    setSubmitted(false);
   };
 
-  const getOptionStyling = (optionIndex: number) => {
+  const restartQuiz = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers(Array(questions.length).fill(null));
+    setSubmitted(false);
+    setQuizCompleted(false);
+    setIsSubmitting(false);
+  };
+
+  const getOptionStyle = (optionIndex: number): React.CSSProperties => {
     if (!submitted) {
-      return selectedAnswers[currentQuestionIndex] === optionIndex
-        ? 'bg-blue-200 dark:bg-blue-800 border-blue-500'
-        : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600';
+      return {
+        borderColor: colors.border,
+        background: selectedAnswer === optionIndex ? colors.selected : colors.option,
+      };
     }
 
-    const isCorrect = optionIndex === currentQuestion.answerIndex;
-    const isSelected = optionIndex === selectedAnswers[currentQuestionIndex];
+    if (optionIndex === currentQuestion.answerIndex) {
+      return { borderColor: '#4a9676', background: colors.correct };
+    }
 
-    if (isCorrect) {
-      return 'bg-green-200 dark:bg-green-800 border-green-500';
+    if (selectedAnswer === optionIndex && optionIndex !== currentQuestion.answerIndex) {
+      return { borderColor: '#b86b75', background: colors.wrong };
     }
-    if (isSelected && !isCorrect) {
-      return 'bg-red-200 dark:bg-red-800 border-red-500';
-    }
-    return 'bg-white dark:bg-gray-700 opacity-60';
+
+    return { borderColor: colors.border, background: colors.option, opacity: 0.72 };
   };
 
-  const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
+  const wrapperClass =
+    variant === 'page'
+      ? 'w-full min-h-full flex flex-col items-center justify-center p-4 md:p-8'
+      : 'w-full';
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-3xl">
-        <div className="text-center mb-6">
-          <div className="inline-block p-3 bg-white/10 backdrop-blur-md rounded-full shadow-md mb-4 border border-white/20">
-            <HelpCircle className="w-10 h-10 text-blue-500" />
+    <div className={wrapperClass}>
+      <div className="w-full max-w-3xl rounded-3xl border p-5 md:p-6" style={{ borderColor: colors.border, background: colors.panel }}>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: colors.option }}>
+            <HelpCircle className="h-5 w-5" style={{ color: colors.body }} />
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Quiz Time!</h2>
-          <p className="text-gray-600 dark:text-gray-300">Teste dein Wissen</p>
+          <div>
+            <h3 className="text-xl font-semibold" style={{ color: colors.title }}>
+              Quiz
+            </h3>
+            <p className="text-sm" style={{ color: colors.body }}>
+              Frage {currentQuestionIndex + 1} von {questions.length}
+            </p>
+          </div>
         </div>
 
-        <div className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/20">
-          <p className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-            Frage {currentQuestionIndex + 1} von {quiz.questions.length}: {currentQuestion.question}
-          </p>
+        {!quizCompleted ? (
+          <>
+            <p className="mb-4 text-lg font-medium leading-relaxed" style={{ color: colors.title }}>
+              {currentQuestion.question}
+            </p>
 
-          <div className="space-y-3">
-            {currentQuestion.options.map((option, index) => (
+            <div className="space-y-2.5">
+              {currentQuestion.options.map((option, optionIndex) => {
+                const isSelected = selectedAnswer === optionIndex;
+                const isCorrect = submitted && optionIndex === currentQuestion.answerIndex;
+                const isWrong = submitted && isSelected && !isCorrect;
+
+                return (
+                  <motion.button
+                    key={`${option}-${optionIndex}`}
+                    type="button"
+                    onClick={() => handleAnswerSelect(optionIndex)}
+                    whileTap={{ scale: submitted ? 1 : 0.992 }}
+                    className="flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors"
+                    style={getOptionStyle(optionIndex)}
+                  >
+                    <span className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border" style={{ borderColor: colors.border, color: colors.body }}>
+                      {submitted ? (
+                        isCorrect ? (
+                          <Check className="h-4 w-4 text-emerald-500" />
+                        ) : isWrong ? (
+                          <X className="h-4 w-4 text-rose-500" />
+                        ) : null
+                      ) : isSelected ? (
+                        <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                      ) : null}
+                    </span>
+                    <span style={{ color: colors.title }}>{option}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {submitted && currentQuestion.explanation && (
               <motion.div
-                key={index}
-                onClick={() => handleAnswerSelect(index)}
-                className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 ${getOptionStyling(index)}`}
-                whileTap={{ scale: submitted ? 1 : 0.98 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 rounded-2xl border px-3.5 py-3 text-sm"
+                style={{ borderColor: colors.border, background: colors.option, color: colors.body }}
               >
-                <div className="w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center mr-4 flex-shrink-0">
-                  {submitted && (selectedAnswers[currentQuestionIndex] === index || index === currentQuestion.answerIndex) && (
-                    index === currentQuestion.answerIndex
-                      ? <Check className="w-5 h-5 text-green-600" />
-                      : <X className="w-5 h-5 text-red-600" />
-                  )}
-                  {!submitted && selectedAnswers[currentQuestionIndex] === index && <div className="w-3 h-3 bg-blue-500 rounded-full" />}
-                </div>
-                <span className="flex-1">{option}</span>
+                <strong>Erklaerung:</strong> {currentQuestion.explanation}
               </motion.div>
-            ))}
-          </div>
-
-          {submitted && currentQuestion.explanation && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-300"
-            >
-              <strong>Erklärung:</strong> {currentQuestion.explanation}
-            </motion.div>
-          )}
-
-          <div className="mt-6 text-right">
-            {!submitted ? (
-              <button
-                onClick={handleSubmit}
-                disabled={selectedAnswers[currentQuestionIndex] === null}
-                className="px-6 py-2 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
-              >
-                Antworten
-              </button>
-            ) : (
-              <button
-                onClick={handleNext}
-                disabled={quizCompleted}
-                className={`px-6 py-2 text-white font-bold rounded-full shadow-lg transition-all ${currentQuestionIndex === quiz.questions.length - 1
-                    ? 'bg-purple-600 hover:bg-purple-700'
-                    : 'bg-green-600 hover:bg-green-700'
-                  } disabled:bg-gray-400 disabled:cursor-not-allowed`}
-              >
-                {currentQuestionIndex === quiz.questions.length - 1
-                  ? (quizCompleted ? 'Quiz abgeschlossen!' : 'Quiz abschließen')
-                  : 'Nächste Frage'}
-              </button>
             )}
+
+            <div className="mt-5 flex justify-end gap-2.5">
+              {!submitted ? (
+                <button
+                  type="button"
+                  onClick={handleSubmitCurrent}
+                  disabled={selectedAnswer == null || isSubmitting}
+                  className="rounded-full border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ borderColor: colors.border, background: colors.option, color: colors.title }}
+                >
+                  Antwort pruefen
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isSubmitting}
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg,#6b8fc5 0%,#8f78b4 100%)' }}
+                >
+                  {isLastQuestion ? (isSubmitting ? 'Wird ausgewertet...' : 'Quiz abschliessen') : 'Naechste Frage'}
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border p-4" style={{ borderColor: colors.border, background: colors.option }}>
+            <div className="mb-3 flex items-center gap-2" style={{ color: colors.title }}>
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <h4 className="text-lg font-semibold">Quiz abgeschlossen</h4>
+            </div>
+
+            <p style={{ color: colors.body }}>
+              Ergebnis: <strong>{correctAnswers}</strong> von <strong>{questions.length}</strong> richtig ({percentage}%).
+            </p>
+
+            <button
+              type="button"
+              onClick={restartQuiz}
+              className="mt-4 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold"
+              style={{ borderColor: colors.border, color: colors.title }}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Quiz wiederholen
+            </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 };
+
