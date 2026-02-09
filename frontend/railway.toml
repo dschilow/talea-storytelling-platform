@@ -1,0 +1,17 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[build.buildArgs]
+VITE_BACKEND_URL = "${{VITE_BACKEND_URL}}"
+VITE_CLERK_PUBLISHABLE_KEY = "${{VITE_CLERK_PUBLISHABLE_KEY}}"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[environmentVariables]]
+name = "PORT"
+value = "80"

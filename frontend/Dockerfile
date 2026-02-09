@@ -1,57 +1,40 @@
-# Stage 1: Build the frontend
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Accept build arg from Railway, but default to env var if available
 ARG VITE_BACKEND_URL
 ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
 
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
-# Copy package files first for better caching
-COPY frontend/package*.json ./
+COPY package*.json ./
 
-# Install dependencies
 RUN npm install
 
-# Copy all frontend source files
-COPY frontend/ ./
+COPY . ./
 
-# Remove any pre-built dist directory to ensure fresh build
 RUN rm -rf dist
-
-# Build the frontend with production mode
-# Note: Vite doesn't fail on TypeScript errors during build, only reports them
 RUN NODE_ENV=production npm run build
 
-# Stage 2: Serve with nginx
 FROM nginx:alpine
 
-# Install envsubst utility (required by docker-entrypoint.sh)
 RUN apk add --no-cache gettext
 
-# Accept env var at runtime
 ARG VITE_BACKEND_URL
 ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
 
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
-# Copy the built frontend
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration as template (will be processed by entrypoint)
 COPY nginx.conf /etc/nginx/conf.d/default.conf.template
 
-# Generate config.js with placeholder that will be replaced at runtime
 RUN echo "window.ENV = { BACKEND_URL: '${VITE_BACKEND_URL:-http://localhost:4000}', CLERK_PUBLISHABLE_KEY: '${VITE_CLERK_PUBLISHABLE_KEY}' };" > /usr/share/nginx/html/config.js
 
 EXPOSE 80
 ENV PORT=80
 
-# Use a custom entrypoint to regenerate config.js at runtime
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 ENTRYPOINT ["/docker-entrypoint.sh"]
