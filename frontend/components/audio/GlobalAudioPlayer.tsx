@@ -1,11 +1,16 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Volume2 } from 'lucide-react';
+
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { AudioPlaybackControls } from './AudioPlaybackControls';
 
 export const GlobalAudioPlayer: React.FC = () => {
-  const { track } = useAudioPlayer();
+  const { track, isPlaying } = useAudioPlayer();
+  const { resolvedTheme } = useTheme();
+
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <AnimatePresence>
@@ -14,39 +19,49 @@ export const GlobalAudioPlayer: React.FC = () => {
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="fixed left-1/2 -translate-x-1/2 bottom-24 md:bottom-6 z-[1200] w-[min(920px,92vw)]"
+          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+          className="fixed bottom-5 left-1/2 z-[1200] hidden w-[min(920px,86vw)] -translate-x-1/2 md:block"
         >
-          <div className="bg-[#13102B]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-purple-500/10 px-5 py-4">
-            {/* Track info */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#A989F2]/20 to-[#FF6B9D]/20 flex-shrink-0 flex items-center justify-center shadow-sm">
+          <div
+            className="rounded-2xl border px-5 py-4 shadow-2xl backdrop-blur-2xl"
+            style={{
+              borderColor: isDark ? '#33465f' : '#e4d8c9',
+              background: isDark ? 'rgba(23,31,43,0.94)' : 'rgba(255,250,244,0.95)',
+              boxShadow: isDark
+                ? '0 24px 50px rgba(9,14,24,0.45)'
+                : '0 20px 44px rgba(44,57,75,0.16)',
+            }}
+          >
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/20 bg-slate-200/40 dark:bg-slate-700/30">
                 {track.coverImageUrl ? (
-                  <img src={track.coverImageUrl} alt={track.title} className="w-full h-full object-cover" />
+                  <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
                 ) : (
-                  <Volume2 size={20} className="text-[#A989F2]" />
+                  <Volume2 size={20} className="text-[#7f8fa8]" />
                 )}
               </div>
 
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-white truncate" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+              <div className="min-w-0 flex-1">
+                <h4
+                  className="truncate text-sm font-semibold"
+                  style={{ color: isDark ? '#e7eef9' : '#203047', fontFamily: '"Sora", sans-serif' }}
+                >
                   {track.title}
                 </h4>
                 {track.description && (
-                  <p className="text-[11px] text-white/50 truncate">
+                  <p className="truncate text-[11px]" style={{ color: isDark ? '#9fb0c7' : '#64758a' }}>
                     {track.description}
                   </p>
                 )}
               </div>
 
-              {/* Animated equalizer bars */}
-              <div className="flex items-end gap-0.5 h-5 flex-shrink-0">
+              <div className="flex h-5 flex-shrink-0 items-end gap-0.5">
                 {[0, 1, 2].map((i) => (
                   <motion.div
                     key={i}
-                    className="w-1 rounded-full bg-gradient-to-t from-[#A989F2] to-[#FF6B9D]"
-                    animate={{ height: ['8px', '18px', '8px'] }}
-                    transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+                    className="w-1 rounded-full bg-gradient-to-t from-[#7699d6] to-[#b087c8]"
+                    animate={isPlaying ? { height: ['7px', '16px', '7px'] } : { height: '7px' }}
+                    transition={{ duration: 0.8, repeat: isPlaying ? Infinity : 0, delay: i * 0.15, ease: 'easeInOut' }}
                   />
                 ))}
               </div>

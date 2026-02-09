@@ -27,10 +27,7 @@ import {
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
-
-const palette = {
-  page: "#f8f1e8",
-};
+import { useTheme } from "@/contexts/ThemeContext";
 
 const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
 const bodyFont = '"Sora", "Manrope", "Segoe UI", sans-serif';
@@ -73,15 +70,20 @@ function getStoryPreviewText(story: Story) {
   return story.summary || story.description || "Noch keine Zusammenfassung verfuegbar.";
 }
 
-const StoriesBackground: React.FC = () => (
+const StoriesBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
     <div
       className="absolute inset-0"
       style={{
-        background: `radial-gradient(1080px 540px at 100% 0%, #f0ddd9 0%, transparent 57%),
-                     radial-gradient(920px 450px at 0% 16%, #d8e5dc 0%, transparent 62%),
-                     radial-gradient(760px 420px at 40% 100%, #e2deef 0%, transparent 60%),
-                     ${palette.page}`,
+        background: isDark
+          ? `radial-gradient(1080px 540px at 100% 0%, rgba(95,81,135,0.28) 0%, transparent 57%),
+             radial-gradient(920px 450px at 0% 16%, rgba(56,94,96,0.24) 0%, transparent 62%),
+             radial-gradient(760px 420px at 40% 100%, rgba(81,104,145,0.2) 0%, transparent 60%),
+             #141d2b`
+          : `radial-gradient(1080px 540px at 100% 0%, #f0ddd9 0%, transparent 57%),
+             radial-gradient(920px 450px at 0% 16%, #d8e5dc 0%, transparent 62%),
+             radial-gradient(760px 420px at 40% 100%, #e2deef 0%, transparent 60%),
+             #f8f1e8`,
       }}
     />
   </div>
@@ -118,7 +120,7 @@ const GridStoryCard: React.FC<{
       onClick={onRead}
       className="group cursor-pointer"
     >
-      <Card className="overflow-hidden border-[#e1d3c1] bg-[#fff9f0] shadow-[0_12px_30px_rgba(21,32,44,0.08)] transition-shadow group-hover:shadow-[0_18px_44px_rgba(21,32,44,0.12)]">
+      <Card className="overflow-hidden border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_12px_30px_rgba(21,32,44,0.08)] transition-shadow group-hover:shadow-[0_18px_44px_rgba(21,32,44,0.12)]">
         <div className="relative h-56 overflow-hidden">
           {story.coverImageUrl ? (
             <img
@@ -127,7 +129,7 @@ const GridStoryCard: React.FC<{
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] text-[#7b7468]">
+            <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] dark:bg-[#2b3b51] text-[#7b7468]">
               <BookOpen className="h-10 w-10" />
             </div>
           )}
@@ -170,19 +172,19 @@ const GridStoryCard: React.FC<{
         <CardContent className="space-y-3 p-5">
           <div className="space-y-1">
             <h3
-              className="line-clamp-2 text-xl leading-tight text-[#243246]"
+              className="line-clamp-2 text-xl leading-tight text-[#243246] dark:text-[#e6edf8]"
               style={{ fontFamily: headingFont }}
             >
               {story.title}
             </h3>
-            <p className="line-clamp-2 text-sm leading-relaxed text-[#617387]">
+            <p className="line-clamp-2 text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">
               {getStoryPreviewText(story)}
             </p>
           </div>
 
           <StoryParticipantsDialog story={story} maxVisible={5} />
 
-          <div className="flex items-center justify-between text-xs text-[#677688]">
+          <div className="flex items-center justify-between text-xs text-[#677688] dark:text-[#9fb0c7]">
             <span>{formatDate(story.createdAt)}</span>
             <span className="font-semibold text-[#4f7f78]">Oeffnen</span>
           </div>
@@ -210,13 +212,13 @@ const ListStoryRow: React.FC<{
       onClick={onRead}
       className="group cursor-pointer"
     >
-      <Card className="overflow-hidden border-[#e1d3c1] bg-[#fff9f0] shadow-[0_10px_26px_rgba(21,32,44,0.06)] transition-shadow group-hover:shadow-[0_14px_34px_rgba(21,32,44,0.12)]">
+      <Card className="overflow-hidden border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_10px_26px_rgba(21,32,44,0.06)] transition-shadow group-hover:shadow-[0_14px_34px_rgba(21,32,44,0.12)]">
         <div className="flex flex-col md:flex-row">
           <div className="relative h-44 w-full md:h-auto md:w-56">
             {story.coverImageUrl ? (
               <img src={story.coverImageUrl} alt={story.title} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] text-[#7b7468]">
+              <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] dark:bg-[#2b3b51] text-[#7b7468]">
                 <BookOpen className="h-9 w-9" />
               </div>
             )}
@@ -225,7 +227,7 @@ const ListStoryRow: React.FC<{
           <div className="flex flex-1 flex-col p-5">
             <div className="flex items-start justify-between gap-3">
               <h3
-                className="line-clamp-2 text-xl leading-tight text-[#243246]"
+                className="line-clamp-2 text-xl leading-tight text-[#243246] dark:text-[#e6edf8]"
                 style={{ fontFamily: headingFont }}
               >
                 {story.title}
@@ -261,13 +263,13 @@ const ListStoryRow: React.FC<{
               </div>
             </div>
 
-            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[#617387]">
+            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">
               {getStoryPreviewText(story)}
             </p>
 
             <StoryParticipantsDialog story={story} maxVisible={6} className="mt-4" />
 
-            <div className="mt-4 flex items-center justify-between text-xs text-[#677688]">
+            <div className="mt-4 flex items-center justify-between text-xs text-[#677688] dark:text-[#9fb0c7]">
               <span>{formatDate(story.createdAt)}</span>
               <span className="font-semibold text-[#4f7f78]">Oeffnen</span>
             </div>
@@ -284,19 +286,19 @@ const EmptyState: React.FC<{
   title: string;
   description: string;
 }> = ({ onPrimary, primaryLabel, title, description }) => (
-  <Card className="border-[#e1d3c1] bg-[#fff9f0] text-center shadow-[0_12px_30px_rgba(21,32,44,0.06)]">
+  <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] text-center shadow-[0_12px_30px_rgba(21,32,44,0.06)]">
     <CardContent className="px-8 py-14">
       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#dfe8f4] text-[#5472a1]">
         <BookOpen className="h-7 w-7" />
       </div>
-      <h2 className="text-3xl text-[#243246]" style={{ fontFamily: headingFont }}>
+      <h2 className="text-3xl text-[#243246] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
         {title}
       </h2>
-      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#617387]">{description}</p>
+      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">{description}</p>
       <button
         type="button"
         onClick={onPrimary}
-        className="mt-7 inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-5 py-3 text-sm font-semibold text-[#2f3c4f] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
+        className="mt-7 inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-5 py-3 text-sm font-semibold text-[#2f3c4f] dark:text-[#dce7f8] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
       >
         <Plus className="h-4 w-4 text-[#556f8d]" />
         {primaryLabel}
@@ -310,7 +312,7 @@ const LoadingState: React.FC = () => (
     {Array.from({ length: 6 }).map((_, index) => (
       <div
         key={index}
-        className="h-72 animate-pulse rounded-2xl border border-[#ddd5c8] bg-[#ece7de]"
+        className="h-72 animate-pulse rounded-2xl border border-[#ddd5c8] dark:border-[#33465e] bg-[#ece7de] dark:bg-[#27364b]"
       />
     ))}
   </div>
@@ -320,8 +322,10 @@ const TaleaStoriesScreen: React.FC = () => {
   const backend = useBackend();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
   const { isLoaded: authLoaded, isSignedIn } = useUser();
   const reduceMotion = useReducedMotion();
+  const isDark = resolvedTheme === "dark";
 
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
@@ -460,16 +464,16 @@ const TaleaStoriesScreen: React.FC = () => {
 
   return (
     <div className="relative min-h-screen pb-24" style={{ fontFamily: bodyFont }}>
-      <StoriesBackground />
+      <StoriesBackground isDark={isDark} />
 
       <SignedOut>
         <div className="flex min-h-[72vh] items-center justify-center px-6">
-          <Card className="w-full max-w-xl border-[#e1d3c1] bg-[#fff9f0] text-center shadow-[0_12px_30px_rgba(21,32,44,0.08)]">
+          <Card className="w-full max-w-xl border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] text-center shadow-[0_12px_30px_rgba(21,32,44,0.08)]">
             <CardHeader>
-              <CardTitle className="text-3xl text-[#243246]" style={{ fontFamily: headingFont }}>
+              <CardTitle className="text-3xl text-[#243246] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
                 Zugriff erforderlich
               </CardTitle>
-              <CardDescription className="text-sm text-[#617387]">
+              <CardDescription className="text-sm text-[#617387] dark:text-[#9fb0c7]">
                 Melde dich an, um deine Story-Bibliothek zu sehen.
               </CardDescription>
             </CardHeader>
@@ -477,7 +481,7 @@ const TaleaStoriesScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate("/auth")}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 py-2 text-sm font-semibold text-[#2f3c4f]"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 py-2 text-sm font-semibold text-[#2f3c4f] dark:text-[#dce7f8]"
               >
                 Anmelden
               </button>
@@ -492,20 +496,20 @@ const TaleaStoriesScreen: React.FC = () => {
             initial={reduceMotion ? false : { opacity: 0, y: -12 }}
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
           >
-            <Card className="border-[#e1d3c1] bg-[#fff9f0]/95 shadow-[0_20px_40px_rgba(39,49,66,0.13)] backdrop-blur">
+            <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636]/95 dark:bg-[#1d2636]/95 shadow-[0_20px_40px_rgba(39,49,66,0.13)] backdrop-blur">
               <CardHeader className="gap-5 pb-4 md:flex-row md:items-end md:justify-between">
                 <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#e3d7c8] bg-white/75 px-2.5 py-1">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[#e3d7c8] dark:border-[#3a4d66] bg-white/75 px-2.5 py-1">
                     <img src={taleaLogo} alt="Talea Logo" className="h-5 w-5 rounded-md object-cover" />
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b7888]">Story Library</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b7888] dark:text-[#9fb0c7]">Story Library</p>
                   </div>
                   <CardTitle
-                    className="text-4xl leading-tight text-[#253246] md:text-5xl"
+                    className="text-4xl leading-tight text-[#253246] dark:text-[#e6edf8] md:text-5xl"
                     style={{ fontFamily: headingFont }}
                   >
                     Geschichten mit klarer Struktur
                   </CardTitle>
-                  <CardDescription className="max-w-2xl text-sm leading-relaxed text-[#617387]">
+                  <CardDescription className="max-w-2xl text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">
                     Uebersichtlich filtern, Teilnehmer vergroessern und jede Story direkt oeffnen oder als PDF exportieren.
                   </CardDescription>
                 </div>
@@ -513,7 +517,7 @@ const TaleaStoriesScreen: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate("/story")}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] dark:text-[#dce7f8] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
                 >
                   <Plus className="h-4 w-4 text-[#556f8d]" />
                   Neue Story
@@ -521,40 +525,40 @@ const TaleaStoriesScreen: React.FC = () => {
               </CardHeader>
 
               <CardContent className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
-                <div className="rounded-xl border border-[#e3d7c8] bg-[#f8efe2] p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#647486]">Gesamt</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#17212d]">{total}</p>
+                <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">Gesamt</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{total}</p>
                 </div>
-                <div className="rounded-xl border border-[#e3d7c8] bg-[#f8efe2] p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#647486]">Fertig</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#17212d]">{completeCount}</p>
+                <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">Fertig</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{completeCount}</p>
                 </div>
-                <div className="rounded-xl border border-[#e3d7c8] bg-[#f8efe2] p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#647486]">In Arbeit</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#17212d]">{generatingCount}</p>
+                <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">In Arbeit</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{generatingCount}</p>
                 </div>
               </CardContent>
             </Card>
           </motion.section>
 
-          <Card className="border-[#e1d3c1] bg-[#fff9f0] shadow-[0_14px_28px_rgba(39,49,66,0.1)]">
+          <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_14px_28px_rgba(39,49,66,0.1)]">
             <CardContent className="space-y-4 p-4 md:p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <label className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6c788a]" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6c788a] dark:text-[#9fb0c7]" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Nach Titel oder Inhalt suchen..."
-                    className="h-11 w-full rounded-xl border border-[#e1d3c1] bg-[#f8f0e3] py-2 pl-10 pr-3 text-sm text-[#243246] outline-none transition-colors focus:border-[#5e7fae]"
+                    className="h-11 w-full rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] py-2 pl-10 pr-3 text-sm text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#5e7fae]"
                   />
                 </label>
 
                 <select
                   value={sortMode}
                   onChange={(event) => setSortMode(event.target.value as SortMode)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] bg-[#f8f0e3] px-3 text-sm font-medium text-[#243246] outline-none transition-colors focus:border-[#5e7fae]"
+                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#5e7fae]"
                   aria-label="Sortierung"
                 >
                   <option value="newest">Neueste zuerst</option>
@@ -562,13 +566,13 @@ const TaleaStoriesScreen: React.FC = () => {
                   <option value="title">Titel A-Z</option>
                 </select>
 
-                <div className="inline-flex rounded-xl border border-[#e1d3c1] bg-[#f8f0e3] p-1">
+                <div className="inline-flex rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] p-1">
                   <button
                     type="button"
                     onClick={() => setViewMode("grid")}
                     className={cn(
                       "rounded-lg p-2",
-                      viewMode === "grid" ? "bg-[#4f7f78] text-white" : "text-[#6c788a]"
+                      viewMode === "grid" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
                     )}
                     aria-label="Rasteransicht"
                   >
@@ -579,7 +583,7 @@ const TaleaStoriesScreen: React.FC = () => {
                     onClick={() => setViewMode("list")}
                     className={cn(
                       "rounded-lg p-2",
-                      viewMode === "list" ? "bg-[#4f7f78] text-white" : "text-[#6c788a]"
+                      viewMode === "list" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
                     )}
                     aria-label="Listenansicht"
                   >
@@ -598,7 +602,7 @@ const TaleaStoriesScreen: React.FC = () => {
                       "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
                       statusFilter === filter
                         ? "border-[#5e7fae] bg-[#dfe6f4] text-[#4e6f9c]"
-                        : "border-[#e1d3c1] bg-[#f8f0e3] text-[#6c788a] hover:bg-[#f1e7d8]"
+                        : "border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] text-[#6c788a] dark:text-[#9fb0c7] hover:bg-[#f1e7d8]"
                     )}
                   >
                     {filterLabels[filter]}
@@ -662,7 +666,7 @@ const TaleaStoriesScreen: React.FC = () => {
             {hasMore && !loading && (
               <div ref={observerTarget} className="mt-6 flex justify-center">
                 {loadingMore && (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#e1d3c1] bg-[#fff9f0] px-4 py-2 text-xs font-semibold text-[#617387]">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] px-4 py-2 text-xs font-semibold text-[#617387] dark:text-[#9fb0c7]">
                     <Clock3 className="h-3.5 w-3.5 animate-spin" />
                     Weitere Stories werden geladen...
                   </div>

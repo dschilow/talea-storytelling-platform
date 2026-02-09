@@ -1,8 +1,6 @@
-﻿// Step 6: Summary & Create â€” Dark magical theme with glowing summary cards
-
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, User, BookOpen, Clock, Heart, CheckCircle } from 'lucide-react';
+import { BookOpen, CheckCircle2, Clock3, Heart, Sparkles, Users2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -31,6 +29,13 @@ interface Props {
   generateDisabledMessage?: string;
 }
 
+const summaryRows = [
+  { key: 'avatars', icon: Users2, tone: '#6f8fbf' },
+  { key: 'category', icon: BookOpen, tone: '#8e7daf' },
+  { key: 'ageLength', icon: Clock3, tone: '#be8f55' },
+  { key: 'feelings', icon: Heart, tone: '#c5828c' },
+] as const;
+
 export default function Step6Summary({
   state,
   onGenerate,
@@ -40,180 +45,119 @@ export default function Step6Summary({
 }: Props) {
   const { t } = useTranslation();
 
-  const CATEGORY_NAMES: Record<string, string> = {
-    'fairy-tales': `ðŸ° ${t('wizard.categories.fairy_tales.title')}`,
-    'adventure': `ðŸ—ºï¸ ${t('wizard.categories.adventure.title')}`,
-    'magic': `âœ¨ ${t('wizard.categories.magic.title')}`,
-    'animals': `ðŸ¦Š ${t('wizard.categories.animals.title')}`,
-    'scifi': `ðŸš€ ${t('wizard.categories.scifi.title')}`,
-    'modern': `ðŸ¡ ${t('wizard.categories.modern.title')}`,
-  };
-
-  const AGE_LABELS: Record<string, string> = {
-    '3-5': t('wizard.ageGroups.3-5.title'), '6-8': t('wizard.ageGroups.6-8.title'),
-    '9-12': t('wizard.ageGroups.9-12.title'), '13+': t('wizard.ageGroups.13+.title'),
-  };
-
-  const LENGTH_LABELS: Record<string, string> = {
-    'short': `âš¡ ${t('wizard.lengths.short.title')} (${t('wizard.lengths.short.duration')})`,
-    'medium': `ðŸ“– ${t('wizard.lengths.medium.title')} (${t('wizard.lengths.medium.duration')})`,
-    'long': `ðŸ“š ${t('wizard.lengths.long.title')} (${t('wizard.lengths.long.duration')})`,
-  };
-
-  const FEELING_EMOJIS: Record<string, string> = {
-    'funny': `ðŸ˜‚ ${t('wizard.feelings.funny.title')}`, 'warm': `â¤ï¸ ${t('wizard.feelings.warm.title')}`,
-    'exciting': `âš¡ ${t('wizard.feelings.exciting.title')}`, 'crazy': `ðŸ¤ª ${t('wizard.feelings.crazy.title')}`,
-    'meaningful': `ðŸ’­ ${t('wizard.feelings.meaningful.title')}`,
-  };
+  const categoryLabel = state.mainCategory
+    ? t(`wizard.categories.${state.mainCategory.replace('-', '_')}.title`)
+    : t('wizard.common.notSelected');
+  const ageLabel = state.ageGroup ? t(`wizard.ageGroups.${state.ageGroup}.title`) : t('wizard.common.notSelected');
+  const lengthLabel = state.length ? t(`wizard.lengths.${state.length}.title`) : t('wizard.common.notSelected');
+  const feelingsLabel =
+    state.feelings.length > 0
+      ? state.feelings.map((item) => t(`wizard.feelings.${item}.title`)).join(', ')
+      : t('wizard.common.notSelected');
 
   const activeWishes = [
-    state.rhymes && `ðŸŽµ ${t('wizard.wishes.rhymes.title')}`,
-    state.moral && `ðŸ“– ${t('wizard.wishes.moral.title')}`,
-    state.avatarIsHero && `â­ ${t('wizard.wishes.avatarIsHero.title')}`,
-    state.famousCharacters && `ðŸ‘‘ ${t('wizard.wishes.famousCharacters.title')}`,
-    state.happyEnd && `ðŸ˜Š ${t('wizard.wishes.happyEnd.title')}`,
-    state.surpriseEnd && `â— ${t('wizard.wishes.surpriseEnd.title')}`,
-  ].filter(Boolean);
+    state.rhymes && t('wizard.wishes.rhymes.title'),
+    state.moral && t('wizard.wishes.moral.title'),
+    state.avatarIsHero && t('wizard.wishes.avatarIsHero.title'),
+    state.famousCharacters && t('wizard.wishes.famousCharacters.title'),
+    state.happyEnd && t('wizard.wishes.happyEnd.title'),
+    state.surpriseEnd && t('wizard.wishes.surpriseEnd.title'),
+  ].filter(Boolean) as string[];
 
-  const summaryItems = [
-    { icon: User, color: '#A989F2', label: t('wizard.summary.avatars'), value: `${state.selectedAvatars.length} ${t('wizard.summary.avatars')} ${t('wizard.common.selected')}` },
-    { icon: BookOpen, color: '#60A5FA', label: t('wizard.summary.category'), value: state.mainCategory ? CATEGORY_NAMES[state.mainCategory] : t('wizard.common.notSelected') },
-    { icon: Clock, color: '#34D399', label: `${t('wizard.summary.age')} & ${t('wizard.summary.length')}`, value: `${state.ageGroup && AGE_LABELS[state.ageGroup]}, ${state.length && LENGTH_LABELS[state.length]}` },
-    { icon: Heart, color: '#FF6B9D', label: t('wizard.summary.feelings'), value: state.feelings.map(f => FEELING_EMOJIS[f]).join(', ') },
-  ];
+  const values: Record<(typeof summaryRows)[number]['key'], string> = {
+    avatars: `${state.selectedAvatars.length} ${t('wizard.summary.avatars')} ${t('wizard.common.selected')}`,
+    category: categoryLabel,
+    ageLength: `${ageLabel} - ${lengthLabel}`,
+    feelings: feelingsLabel,
+  };
+
+  const labels: Record<(typeof summaryRows)[number]['key'], string> = {
+    avatars: t('wizard.summary.avatars'),
+    category: t('wizard.summary.category'),
+    ageLength: `${t('wizard.summary.age')} & ${t('wizard.summary.length')}`,
+    feelings: t('wizard.summary.feelings'),
+  };
 
   return (
     <div className="space-y-6">
-      {/* Title */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
-          ðŸŽ‰ {t('wizard.titles.summary')}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+        <h2 className="mb-1 text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+          {t('wizard.titles.summary')}
         </h2>
-        <p className="text-muted-foreground text-sm">{t('wizard.subtitles.summary')}</p>
+        <p className="text-sm text-muted-foreground">{t('wizard.subtitles.summary')}</p>
       </motion.div>
 
-      {/* Summary Cards */}
       <div className="space-y-3">
-        {summaryItems.map((item, i) => {
-          const Icon = item.icon;
+        {summaryRows.map((row, index) => {
+          const Icon = row.icon;
           return (
             <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -20 }}
+              key={row.key}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.08, type: 'spring' as const, damping: 20 }}
-              className="flex items-start gap-4 p-4 rounded-2xl bg-card/70 border border-border"
+              transition={{ delay: index * 0.05 }}
+              className="flex items-start gap-3 rounded-2xl border border-border bg-card/70 p-4"
             >
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${item.color}20` }}>
-                <Icon size={22} style={{ color: item.color }} />
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${row.tone}1f` }}>
+                <Icon className="h-4 w-4" style={{ color: row.tone }} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{labels[row.key]}</p>
+                <p className="mt-0.5 text-sm text-foreground">{values[row.key]}</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground text-sm mb-0.5">{item.label}</p>
-                <p className="text-xs text-muted-foreground">{item.value}</p>
-              </div>
-              <CheckCircle size={18} className="text-emerald-400 flex-shrink-0 mt-1" />
+              <CheckCircle2 className="mt-1 h-4 w-4 text-[#4f8f7c]" />
             </motion.div>
           );
         })}
 
-        {/* Special Wishes */}
         {(activeWishes.length > 0 || state.customWish) && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.35, type: 'spring' as const, damping: 20 }}
-            className="flex items-start gap-4 p-4 rounded-2xl bg-card/70 border border-border"
-          >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(251,191,36,0.15)' }}>
-              <Sparkles size={22} className="text-amber-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground text-sm mb-0.5">{t('wizard.titles.wishes')}</p>
-              {activeWishes.length > 0 && <p className="text-xs text-muted-foreground">{activeWishes.join(', ')}</p>}
-              {state.customWish && <p className="text-xs text-muted-foreground/80 italic mt-1">"{state.customWish}"</p>}
-            </div>
-            <CheckCircle size={18} className="text-emerald-400 flex-shrink-0 mt-1" />
-          </motion.div>
+          <div className="rounded-2xl border border-border bg-card/70 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('wizard.titles.wishes')}</p>
+            {activeWishes.length > 0 && (
+              <p className="mt-1 text-sm text-foreground">{activeWishes.join(', ')}</p>
+            )}
+            {state.customWish && (
+              <p className="mt-1 text-sm italic text-muted-foreground">"{state.customWish}"</p>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Ready Box */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-        className="rounded-2xl p-5 border border-[#A989F2]/30"
-        style={{ background: 'linear-gradient(135deg, rgba(169,137,242,0.1), rgba(255,107,157,0.08))' }}
-      >
-        <div className="flex items-start gap-4">
-          <Sparkles size={28} className="text-[#A989F2] flex-shrink-0" />
-          <div>
-            <p className="font-bold text-foreground mb-1">âœ¨ {t('wizard.summary.ready')}</p>
-            <p className="text-sm text-muted-foreground">{t('wizard.common.summaryNote')}</p>
-          </div>
-        </div>
-      </motion.div>
-
       {storyCredits && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-[#A989F2]/30 bg-[#A989F2]/10 p-4"
-        >
-          <p className="text-xs uppercase tracking-wider text-foreground/80 font-semibold mb-2">StoryCredits</p>
-          <div className="flex items-end justify-between">
+        <div className="rounded-2xl border border-[#6f8fbf45] bg-[#6f8fbf14] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">StoryCredits</p>
+          <div className="mt-2 flex items-end justify-between gap-4">
             <div>
               <p className="text-2xl font-bold text-foreground">
                 {storyCredits.remaining === null ? 'unbegrenzt' : storyCredits.remaining}
               </p>
-              <p className="text-xs text-foreground/70">verbleibend</p>
+              <p className="text-xs text-muted-foreground">verbleibend</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-foreground">
                 {storyCredits.used} / {storyCredits.limit === null ? 'unbegrenzt' : storyCredits.limit}
               </p>
-              <p className="text-xs text-foreground/70">verbraucht / limit</p>
+              <p className="text-xs text-muted-foreground">verbraucht / limit</p>
             </div>
           </div>
-          <p className="text-xs text-foreground/70 mt-2">Kosten pro Generierung: {storyCredits.costPerGeneration} StoryCredit</p>
-        </motion.div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Kosten pro Generierung: {storyCredits.costPerGeneration} StoryCredit
+          </p>
+        </div>
       )}
 
-      {/* Big Create Button */}
-      <motion.button
+      <button
+        type="button"
         onClick={onGenerate}
         disabled={generateDisabled}
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        className={`w-full py-5 rounded-2xl font-bold text-xl text-white flex items-center justify-center gap-4 relative overflow-hidden ${
-          generateDisabled ? 'opacity-60 cursor-not-allowed' : ''
-        }`}
-        style={{
-          fontFamily: '"Fredoka", sans-serif',
-          background: 'linear-gradient(135deg, #A989F2, #FF6B9D, #FF9B5C)',
-          boxShadow: '0 8px 40px rgba(169,137,242,0.4), 0 0 60px rgba(255,107,157,0.2)',
-        }}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border px-6 py-4 text-base font-bold text-[#233347] shadow-[0_12px_24px_rgba(43,57,77,0.16)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+        style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
       >
-        {/* Shimmer overlay */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -inset-full animate-[shimmer_3s_ease-in-out_infinite]"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', transform: 'translateX(-100%)' }} />
-        </div>
-        <Sparkles size={28} className="relative z-10" />
-        <span className="relative z-10">
-          {generateDisabled ? 'Nicht verfuegbar' : `${t('wizard.buttons.generate')} (1 StoryCredit)`}
-        </span>
-        <Sparkles size={28} className="relative z-10" />
-      </motion.button>
+        <Sparkles className="h-5 w-5" />
+        {generateDisabled ? 'Nicht verfuegbar' : `${t('wizard.buttons.generate')} (1 StoryCredit)`}
+      </button>
 
-      {generateDisabledMessage && (
-        <p className="text-xs text-rose-300 text-center">{generateDisabledMessage}</p>
-      )}
+      {generateDisabledMessage && <p className="text-center text-xs text-rose-500">{generateDisabledMessage}</p>}
     </div>
   );
 }
-
-

@@ -2,6 +2,7 @@
 import {
   BookMarked,
   BookOpen,
+  Bot,
   ChevronDown,
   Code,
   FlaskConical,
@@ -11,7 +12,6 @@ import {
   Settings,
   Sparkles,
   User,
-  Wand2,
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
@@ -24,15 +24,16 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  labelKey: string;
   path: string;
   tone: string;
+  labelKey?: string;
+  label?: string;
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
   { icon: Home, labelKey: "navigation.home", path: "/", tone: "#7390cf" },
   { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#cf6f85" },
-  { icon: FlaskConical, labelKey: "navigation.doku", path: "/doku", tone: "#c98a5d" },
+  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#c98a5d" },
   { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#5a8f84" },
 ];
 
@@ -42,6 +43,13 @@ const ADMIN_ITEMS: NavItem[] = [
   { icon: BookMarked, labelKey: "navigation.fairytales", path: "/fairytales", tone: "#6d9a8e" },
   { icon: Code, labelKey: "navigation.logs", path: "/logs", tone: "#6f7b92" },
 ];
+
+const SETTINGS_ITEM: NavItem = {
+  icon: Settings,
+  labelKey: "navigation.settings",
+  path: "/settings",
+  tone: "#826fb3",
+};
 
 const Sidebar: React.FC = () => {
   const { signOut } = useClerk();
@@ -57,7 +65,7 @@ const Sidebar: React.FC = () => {
   const canExpand = useMemo(() => expanded, [expanded]);
 
   const isDark = resolvedTheme === "dark";
-  const isAdmin = user?.publicMetadata?.role !== 'customer';
+  const isAdmin = user?.publicMetadata?.role !== "customer";
 
   const colors = useMemo(
     () =>
@@ -67,13 +75,9 @@ const Sidebar: React.FC = () => {
               "linear-gradient(180deg, rgba(21,27,38,0.98) 0%, rgba(18,24,34,0.99) 52%, rgba(15,21,31,1) 100%)",
             panelBorder: "#263348",
             surface: "rgba(34,43,58,0.82)",
-            surfaceHover: "rgba(38,49,66,0.96)",
             textPrimary: "#e8eef8",
             textSecondary: "#9ba9be",
             indicator: "#b6c4da",
-            cta:
-              "linear-gradient(135deg,#8ca7d9 0%,#b089c8 42%,#6fa29a 100%)",
-            ctaText: "#0f1828",
             borderSoft: "#314158",
             logoutBg: "rgba(176,97,97,0.18)",
             logoutBorder: "#5f3b3b",
@@ -84,13 +88,9 @@ const Sidebar: React.FC = () => {
               "linear-gradient(180deg, rgba(253,248,241,0.96) 0%, rgba(246,238,226,0.98) 52%, rgba(241,234,224,0.99) 100%)",
             panelBorder: "#e8ddcf",
             surface: "rgba(255,255,255,0.72)",
-            surfaceHover: "rgba(255,255,255,0.9)",
             textPrimary: "#1f2a3a",
             textSecondary: "#6d7a8d",
             indicator: "#7d8794",
-            cta:
-              "linear-gradient(135deg,#f2d9d6 0%,#ecd9c9 42%,#d8e4d4 100%)",
-            ctaText: "#2e3746",
             borderSoft: "#ddd1bf",
             logoutBg: "rgba(255,236,236,0.86)",
             logoutBorder: "#ecd3d3",
@@ -99,6 +99,8 @@ const Sidebar: React.FC = () => {
     [isDark]
   );
 
+  const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
+
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -106,6 +108,12 @@ const Sidebar: React.FC = () => {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleOpenTavi = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("tavi:open"));
+    }
   };
 
   const renderNavItem = (item: NavItem) => {
@@ -122,7 +130,7 @@ const Sidebar: React.FC = () => {
           active ? "shadow-[0_4px_14px_rgba(65,72,90,0.14)]" : ""
         )}
         style={{ background: active ? colors.surface : "transparent" }}
-        aria-label={t(item.labelKey)}
+        aria-label={labelOf(item)}
       >
         {active && (
           <motion.span
@@ -145,13 +153,10 @@ const Sidebar: React.FC = () => {
         <motion.span
           initial={false}
           animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-          className={cn(
-            "overflow-hidden whitespace-nowrap text-sm font-medium",
-            active ? "font-semibold" : ""
-          )}
-          style={{ color: active ? colors.textPrimary : colors.textSecondary }}
+          className="overflow-hidden whitespace-nowrap text-sm"
+          style={{ color: active ? colors.textPrimary : colors.textSecondary, fontWeight: active ? 600 : 500 }}
         >
-          {t(item.labelKey)}
+          {labelOf(item)}
         </motion.span>
       </button>
     );
@@ -161,7 +166,7 @@ const Sidebar: React.FC = () => {
     <aside className="fixed left-0 top-0 z-40 hidden h-screen md:block">
       <motion.div
         initial={false}
-        animate={{ width: canExpand ? 264 : 88 }}
+        animate={{ width: canExpand ? 258 : 88 }}
         transition={{ type: "spring", stiffness: 280, damping: 30 }}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
@@ -172,17 +177,6 @@ const Sidebar: React.FC = () => {
           boxShadow: isDark ? "12px 0 40px rgba(3,8,14,0.52)" : "10px 0 40px rgba(52,61,74,0.08)",
         }}
       >
-        <div className="pointer-events-none absolute inset-0 opacity-60" aria-hidden>
-          <div
-            className="absolute left-1/2 top-0 h-[360px] w-[360px] -translate-x-1/2 rounded-full"
-            style={{
-              background: isDark
-                ? "radial-gradient(circle, rgba(87,119,173,0.35), transparent 70%)"
-                : "radial-gradient(circle, rgba(229,216,196,0.55), transparent 70%)",
-            }}
-          />
-        </div>
-
         <div className="relative flex flex-1 flex-col overflow-hidden">
           <button
             type="button"
@@ -208,25 +202,6 @@ const Sidebar: React.FC = () => {
               </p>
             </motion.div>
           </button>
-
-          <motion.button
-            type="button"
-            onClick={() => navigate("/story")}
-            whileTap={{ scale: 0.97 }}
-            className="mb-5 inline-flex items-center gap-2.5 rounded-2xl border px-2.5 py-2.5 text-sm font-semibold shadow-[0_8px_18px_rgba(65,72,90,0.15)]"
-            style={{ borderColor: colors.borderSoft, background: colors.cta, color: colors.ctaText }}
-          >
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/55 dark:bg-slate-900/45">
-              <Wand2 className="h-4 w-4 text-[#506a86] dark:text-[#bfd3f2]" />
-            </span>
-            <motion.span
-              initial={false}
-              animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-              className="overflow-hidden whitespace-nowrap"
-            >
-              Neue Geschichte
-            </motion.span>
-          </motion.button>
 
           <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             <section>
@@ -259,7 +234,7 @@ const Sidebar: React.FC = () => {
                     Werkstatt
                   </motion.span>
                   <span className="text-sm" style={{ color: colors.indicator }}>
-                    {adminOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", adminOpen && "rotate-180")} />
                   </span>
                 </button>
 
@@ -271,7 +246,30 @@ const Sidebar: React.FC = () => {
           </div>
 
           <div className="mt-4 border-t pt-3" style={{ borderColor: colors.panelBorder }}>
-            {renderNavItem({ icon: Settings, labelKey: "navigation.settings", path: "/settings", tone: "#826fb3" })}
+            {renderNavItem(SETTINGS_ITEM)}
+
+            <button
+              type="button"
+              onClick={handleOpenTavi}
+              className="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-2.5 text-left transition-colors"
+              aria-label="Tavi Assistant"
+              style={{ background: colors.surface }}
+            >
+              <span
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border"
+                style={{ borderColor: colors.borderSoft, background: colors.surface }}
+              >
+                <Bot className="h-4 w-4" style={{ color: colors.textSecondary }} />
+              </span>
+              <motion.span
+                initial={false}
+                animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
+                className="overflow-hidden whitespace-nowrap text-sm font-medium"
+                style={{ color: colors.textSecondary }}
+              >
+                Tavi
+              </motion.span>
+            </button>
 
             <button
               type="button"
@@ -315,5 +313,3 @@ const AnimateAdmin: React.FC<{ open: boolean; children: React.ReactNode }> = ({ 
 };
 
 export default Sidebar;
-
-

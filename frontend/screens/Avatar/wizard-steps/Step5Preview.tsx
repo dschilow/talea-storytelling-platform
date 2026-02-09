@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { motion } from 'framer-motion';
-import { Wand2, RefreshCw, Rocket } from 'lucide-react';
+import { Wand2, RefreshCw, Rocket, Sparkles, Image as ImageIcon } from 'lucide-react';
 import {
   CHARACTER_TYPES,
   isHumanCharacter,
@@ -51,7 +51,7 @@ export default function Step5Preview({
       <div className="text-center">
         <h2
           className="text-2xl font-extrabold text-foreground mb-1"
-          style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
+          style={{ fontFamily: '"Cormorant Garamond", serif' }}
         >
           Vorschau & Erstellen
         </h2>
@@ -69,14 +69,14 @@ export default function Step5Preview({
             />
           ) : (
             <div className="w-16 h-16 rounded-xl bg-card/70 border-2 border-dashed border-border flex items-center justify-center">
-              <span className="text-2xl">{characterType?.icon || 'ðŸŽ¨'}</span>
+              {characterType?.icon ? <span className="text-2xl">{characterType.icon}</span> : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
             </div>
           )}
           <div>
             <h3 className="text-lg font-bold text-foreground">{formData.name || 'Ohne Name'}</h3>
             <p className="text-sm text-muted-foreground/80">
-              {characterType?.labelDe || 'Avatar'} Â· {formData.age} Jahre
-              {isHuman && ` Â· ${formData.height} cm`}
+              {characterType?.labelDe || 'Avatar'} - {formData.age} Jahre
+              {isHuman && ` - ${formData.height} cm`}
             </p>
           </div>
         </div>
@@ -150,14 +150,14 @@ export default function Step5Preview({
             <motion.div
               animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="absolute -top-3 -right-3 text-3xl"
+              className="absolute -top-3 -right-3 rounded-full border border-[#cad7e8] bg-[#f8f0e3] p-2 text-[#6f8fbf]"
             >
-              âœ¨
+              <Sparkles className="h-5 w-5" />
             </motion.div>
           </motion.div>
         ) : (
           <div className="w-48 h-48 rounded-3xl bg-card/60 border-2 border-dashed border-border flex flex-col items-center justify-center gap-2">
-            <span className="text-5xl">ðŸŽ¨</span>
+            <ImageIcon className="h-10 w-10 text-muted-foreground/75" />
             <span className="text-xs text-muted-foreground/70">Noch kein Bild</span>
           </div>
         )}
@@ -172,9 +172,9 @@ export default function Step5Preview({
           style={{
             background: isGeneratingPreview
               ? 'rgba(255,255,255,0.06)'
-              : 'linear-gradient(135deg, #A989F2, #FF6B9D)',
-            boxShadow: isGeneratingPreview ? 'none' : '0 4px 20px rgba(169,137,242,0.3)',
-            color: 'white',
+              : 'linear-gradient(135deg, #f2d9d6 0%, #e8d8e9 42%, #d6e3cf 100%)',
+            boxShadow: isGeneratingPreview ? 'none' : '0 8px 20px rgba(43,57,77,0.16)',
+            color: '#233347',
           }}
         >
           {isGeneratingPreview ? (

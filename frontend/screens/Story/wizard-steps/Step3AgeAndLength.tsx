@@ -1,9 +1,9 @@
-﻿// Step 3: Age Group, Story Length & AI Model â€” Dark magical theme
-
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Baby, Users, GraduationCap, UserCheck, Clock } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Baby, Clock3, GraduationCap, Sparkles, UserCheck, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+import { cn } from '@/lib/utils';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
@@ -14,205 +14,175 @@ interface Props {
   updateState: (updates: any) => void;
 }
 
-export default function Step3AgeAndLength({ state, updateState }: Props) {
-  const { t } = useTranslation();
+const ageGroups = [
+  { id: '3-5', icon: Baby, tone: '#c5828c' },
+  { id: '6-8', icon: Users, tone: '#6f8fbf' },
+  { id: '9-12', icon: GraduationCap, tone: '#7a78ab' },
+  { id: '13+', icon: UserCheck, tone: '#4f8f7c' },
+] as const;
 
-  const AGE_GROUPS = [
-    { id: '3-5', title: t('wizard.ageGroups.3-5.title'), icon: Baby, description: t('wizard.ageGroups.3-5.description'), color: '#FF6B9D', glow: 'rgba(255,107,157,0.35)' },
-    { id: '6-8', title: t('wizard.ageGroups.6-8.title'), icon: Users, description: t('wizard.ageGroups.6-8.description'), color: '#6366F1', glow: 'rgba(99,102,241,0.35)' },
-    { id: '9-12', title: t('wizard.ageGroups.9-12.title'), icon: GraduationCap, description: t('wizard.ageGroups.9-12.description'), color: '#A989F2', glow: 'rgba(169,137,242,0.35)' },
-    { id: '13+', title: t('wizard.ageGroups.13+.title'), icon: UserCheck, description: t('wizard.ageGroups.13+.description'), color: '#2DD4BF', glow: 'rgba(45,212,191,0.35)' },
-  ];
+const lengths = [
+  { id: 'short', tone: '#4f8f7c' },
+  { id: 'medium', tone: '#be8f55' },
+  { id: 'long', tone: '#c5828c' },
+] as const;
 
-  const LENGTHS = [
-    { id: 'short', title: 'âš¡', label: t('wizard.lengths.short.title'), duration: t('wizard.lengths.short.duration'), chapters: t('wizard.lengths.short.chapters'), color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
-    { id: 'medium', title: 'ðŸ“–', label: t('wizard.lengths.medium.title'), duration: t('wizard.lengths.medium.duration'), chapters: t('wizard.lengths.medium.chapters'), color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' },
-    { id: 'long', title: 'ðŸ“š', label: t('wizard.lengths.long.title'), duration: t('wizard.lengths.long.duration'), chapters: t('wizard.lengths.long.chapters'), color: '#FF9B5C', glow: 'rgba(255,155,92,0.35)' },
-  ];
+const models = [
+  {
+    id: 'gemini-3-flash-preview',
+    title: 'Gemini 3 Flash',
+    subtitle: 'Google AI',
+    cost: 'FREE',
+    tone: '#4f8f7c',
+    recommended: true,
+  },
+  {
+    id: 'gpt-5-nano',
+    title: 'GPT-5 Nano',
+    subtitle: 'Schnell und guenstig',
+    cost: '$0.05 / 1M',
+    tone: '#6f8fbf',
+  },
+  {
+    id: 'gpt-5-mini',
+    title: 'GPT-5 Mini',
+    subtitle: 'Ausgewogen',
+    cost: '$0.25 / 1M',
+    tone: '#8e7daf',
+  },
+  {
+    id: 'gpt-5.2',
+    title: 'GPT-5.2',
+    subtitle: 'Beste Qualitaet',
+    cost: '$1.25 / 1M',
+    tone: '#c5828c',
+  },
+] as const;
 
-  const AI_MODELS = [
-    { id: 'gemini-3-flash-preview', title: 'ðŸ”¥ Gemini 3 Flash', description: 'KOSTENLOS - Google AI', cost: 'FREE', recommended: true, color: '#34D399', glow: 'rgba(52,211,153,0.35)' },
-    { id: 'gpt-5-nano', title: 'âš¡ GPT-5 Nano', description: 'Schnell & gÃ¼nstig', cost: '$0.05/1M', color: '#60A5FA', glow: 'rgba(96,165,250,0.35)' },
-    { id: 'gpt-5-mini', title: 'âœ¨ GPT-5 Mini', description: 'BewÃ¤hrt', cost: '$0.25/1M', color: '#A989F2', glow: 'rgba(169,137,242,0.35)' },
-    { id: 'gpt-5.2', title: 'ðŸŒŸ GPT-5.2', description: 'Beste QualitÃ¤t', cost: '$1.25/1M', color: '#F472B6', glow: 'rgba(244,114,182,0.35)' },
-  ];
-
-  const handleSelectAge = (ageGroup: AgeGroup) => updateState({ ageGroup });
-  const handleSelectLength = (length: Length) => updateState({ length });
-  const handleSelectAiModel = (aiModel: AIModel) => updateState({ aiModel });
-
+function SelectionBadge() {
   return (
-    <div className="space-y-8">
-      {/* Title */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: '"Fredoka", sans-serif' }}>
-          ðŸŽ¯ {t('wizard.titles.ageLength')}
-        </h2>
-        <p className="text-muted-foreground text-sm">{t('wizard.subtitles.ageLength')}</p>
-      </motion.div>
-
-      {/* Age Group Selection */}
-      <div>
-        <h3 className="text-base font-semibold text-foreground/90 mb-3 flex items-center gap-2">
-          <Users size={18} className="text-foreground/70" /> {t('wizard.steps.ageLength')}
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {AGE_GROUPS.map((group, i) => {
-            const isSelected = state.ageGroup === group.id;
-            const Icon = group.icon;
-            return (
-              <motion.button
-                key={group.id}
-                onClick={() => handleSelectAge(group.id as AgeGroup)}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, type: 'spring' as const, damping: 20 }}
-                whileHover={{ y: -4, scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="relative"
-              >
-                {isSelected && (
-                  <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                    className="absolute -inset-1 rounded-2xl z-0"
-                    style={{ background: group.glow, filter: 'blur(12px)' }} />
-                )}
-                <div className={`relative z-10 p-4 rounded-2xl transition-all duration-300 flex flex-col items-center text-center gap-2 ${
-                  isSelected ? 'border-2 shadow-xl' : 'bg-card/70 border border-border hover:bg-accent/70'
-                }`} style={isSelected ? { background: `${group.color}12`, borderColor: `${group.color}60` } : undefined}>
-                  <AnimatePresence>
-                    {isSelected && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
-                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>âœ“</motion.div>
-                    )}
-                  </AnimatePresence>
-                  <Icon size={28} style={{ color: isSelected ? group.color : 'rgba(255,255,255,0.4)' }} />
-                  <p className="font-bold text-sm text-foreground">{group.title}</p>
-                  <p className="text-[11px] text-muted-foreground/80">{group.description}</p>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Length Selection */}
-      <div>
-        <h3 className="text-base font-semibold text-foreground/90 mb-3 flex items-center gap-2">
-          <Clock size={18} className="text-foreground/70" /> {t('wizard.summary.length')}
-        </h3>
-        <div className="grid grid-cols-3 gap-3">
-          {LENGTHS.map((length, i) => {
-            const isSelected = state.length === length.id;
-            return (
-              <motion.button
-                key={length.id}
-                onClick={() => handleSelectLength(length.id as Length)}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, type: 'spring' as const, damping: 20 }}
-                whileHover={{ y: -4, scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="relative"
-              >
-                {isSelected && (
-                  <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                    className="absolute -inset-1 rounded-2xl z-0"
-                    style={{ background: length.glow, filter: 'blur(12px)' }} />
-                )}
-                <div className={`relative z-10 p-5 rounded-2xl transition-all duration-300 text-center ${
-                  isSelected ? 'border-2 shadow-xl' : 'bg-card/70 border border-border hover:bg-accent/70'
-                }`} style={isSelected ? { background: `${length.color}12`, borderColor: `${length.color}60` } : undefined}>
-                  <AnimatePresence>
-                    {isSelected && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
-                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>âœ“</motion.div>
-                    )}
-                  </AnimatePresence>
-                  <p className="text-3xl mb-2">{length.title}</p>
-                  <p className="font-bold text-sm text-foreground">{length.label}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{length.duration}</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{length.chapters}</p>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* AI Model Selection */}
-      <div>
-        <h3 className="text-base font-semibold text-foreground/90 mb-1 flex items-center gap-2">
-          ðŸ¤– AI Model
-        </h3>
-        <p className="text-xs text-muted-foreground/80 mb-3">WÃ¤hle das KI-Modell fÃ¼r die Story-Generierung</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {AI_MODELS.map((model, i) => {
-            const isSelected = state.aiModel === model.id;
-            return (
-              <motion.button
-                key={model.id}
-                onClick={() => handleSelectAiModel(model.id as AIModel)}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, type: 'spring' as const, damping: 20 }}
-                whileHover={{ y: -4, scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="relative"
-              >
-                {isSelected && (
-                  <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                    className="absolute -inset-1 rounded-2xl z-0"
-                    style={{ background: model.glow, filter: 'blur(12px)' }} />
-                )}
-                <div className={`relative z-10 p-4 rounded-2xl transition-all duration-300 text-center ${
-                  isSelected ? 'border-2 shadow-xl' : 'bg-card/70 border border-border hover:bg-accent/70'
-                }`} style={isSelected ? { background: `${model.color}12`, borderColor: `${model.color}60` } : undefined}>
-                  {model.recommended && (
-                    <div className="absolute -top-2 -left-2 text-[10px] px-2 py-0.5 rounded-full font-bold text-foreground shadow-md z-20"
-                      style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>â­ NEU</div>
-                  )}
-                  <AnimatePresence>
-                    {isSelected && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg z-20"
-                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)' }}>âœ“</motion.div>
-                    )}
-                  </AnimatePresence>
-                  <p className="text-lg mb-1">{model.title}</p>
-                  <p className="text-[11px] text-muted-foreground/80 mb-1">{model.description}</p>
-                  <p className={`text-xs font-bold ${model.cost === 'FREE' ? 'text-emerald-400' : 'text-muted-foreground/70'}`}>
-                    {model.cost}
-                  </p>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Selection Summary */}
-      <AnimatePresence>
-        {state.ageGroup && state.length && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-            className="rounded-2xl p-4 border border-emerald-500/30 bg-emerald-500/10"
-          >
-            <p className="font-semibold text-emerald-300 mb-1">âœ“ {t('wizard.common.selected')}</p>
-            <p className="text-sm text-emerald-400/80">
-              {t('wizard.summary.age')}: {state.ageGroup}, {t('wizard.summary.length')}: {
-                state.length === 'short' ? t('wizard.lengths.short.duration') :
-                  state.length === 'medium' ? t('wizard.lengths.medium.duration') :
-                    t('wizard.lengths.long.duration')
-              }
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <motion.span
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      exit={{ scale: 0 }}
+      className="absolute right-2 top-2 rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[11px] font-bold text-white"
+    >
+      OK
+    </motion.span>
   );
 }
 
+export default function Step3AgeAndLength({ state, updateState }: Props) {
+  const { t } = useTranslation();
 
+  return (
+    <div className="space-y-7">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+        <h2 className="mb-1 text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+          {t('wizard.titles.ageLength')}
+        </h2>
+        <p className="text-sm text-muted-foreground">{t('wizard.subtitles.ageLength')}</p>
+      </motion.div>
 
+      <section>
+        <h3 className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          {t('wizard.summary.age')}
+        </h3>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {ageGroups.map((item) => {
+            const selected = state.ageGroup === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => updateState({ ageGroup: item.id })}
+                className={cn(
+                  'relative rounded-2xl border p-3 text-left transition-colors',
+                  selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                )}
+                style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
+              >
+                <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${item.tone}1f` }}>
+                  <Icon className="h-4 w-4" style={{ color: item.tone }} />
+                </div>
+                <p className="text-sm font-semibold text-foreground">{t(`wizard.ageGroups.${item.id}.title`)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.ageGroups.${item.id}.description`)}</p>
+                <AnimatePresence>{selected && <SelectionBadge />}</AnimatePresence>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
+          <Clock3 className="h-4 w-4 text-muted-foreground" />
+          {t('wizard.summary.length')}
+        </h3>
+        <div className="grid grid-cols-3 gap-3">
+          {lengths.map((item) => {
+            const selected = state.length === item.id;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => updateState({ length: item.id })}
+                className={cn(
+                  'relative rounded-2xl border p-3 text-center transition-colors',
+                  selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                )}
+                style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
+              >
+                <p className="text-sm font-semibold text-foreground">{t(`wizard.lengths.${item.id}.title`)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.lengths.${item.id}.duration`)}</p>
+                <p className="text-[11px] text-muted-foreground/80">{t(`wizard.lengths.${item.id}.chapters`)}</p>
+                <AnimatePresence>{selected && <SelectionBadge />}</AnimatePresence>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-1 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          AI Modell
+        </h3>
+        <p className="mb-3 text-xs text-muted-foreground">Waehle das Modell fuer die Story-Generierung.</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {models.map((model) => {
+            const selected = state.aiModel === model.id;
+            return (
+              <button
+                key={model.id}
+                type="button"
+                onClick={() => updateState({ aiModel: model.id as AIModel })}
+                className={cn(
+                  'relative rounded-2xl border p-3 text-left transition-colors',
+                  selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                )}
+                style={{ borderColor: selected ? `${model.tone}60` : 'var(--color-border)' }}
+              >
+                {model.recommended && (
+                  <span className="mb-2 inline-flex rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Empfohlen
+                  </span>
+                )}
+                <p className="text-sm font-semibold text-foreground">{model.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{model.subtitle}</p>
+                <p className="mt-1 text-xs font-semibold" style={{ color: model.tone }}>
+                  {model.cost}
+                </p>
+                <AnimatePresence>{selected && <SelectionBadge />}</AnimatePresence>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { X, Send, Sparkles, Bot, ArrowRight } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+
 import { useBackend } from '../../hooks/useBackend';
+import { useTheme } from '../../contexts/ThemeContext';
 import type { TaviChatAction, TaviChatResponse } from '../../types/tavi';
 
 interface Message {
@@ -20,30 +22,25 @@ interface TaviChatProps {
   onClose: () => void;
 }
 
-/* ─── Typing indicator dots ─── */
-const TypingDots: React.FC = () => (
+const TypingDots: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
-    className="flex items-center gap-2 self-start max-w-[80%]"
+    className="flex max-w-[80%] items-end gap-2 self-start"
   >
-    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] flex items-center justify-center shadow-md flex-shrink-0">
+    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6f8fbf] to-[#4f8f7c] shadow-md">
       <Bot size={14} className="text-white" />
     </div>
-    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/[0.06] backdrop-blur-md border border-white/[0.08] shadow-sm">
+    <div className="rounded-2xl rounded-bl-sm border border-border bg-card/90 px-4 py-3 shadow-sm backdrop-blur-md">
       <div className="flex items-center gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            className="w-2 h-2 rounded-full bg-[#A989F2]"
+            className="h-2 w-2 rounded-full"
+            style={{ background: isDark ? '#9eb3d9' : '#7e96c7' }}
             animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
-            transition={{
-              duration: 0.8,
-              repeat: Infinity,
-              delay: i * 0.15,
-              ease: 'easeInOut',
-            }}
+            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
           />
         ))}
       </div>
@@ -51,11 +48,10 @@ const TypingDots: React.FC = () => (
   </motion.div>
 );
 
-/* ─── Message bubble ─── */
 const MessageBubble: React.FC<{
   message: Message;
   onAction: (route: string) => void;
-  t: any;
+  t: (key: string, fallback?: string) => string;
 }> = ({ message, onAction, t }) => {
   const isTavi = message.sender === 'tavi';
 
@@ -63,42 +59,39 @@ const MessageBubble: React.FC<{
     <motion.div
       initial={{ opacity: 0, y: 12, x: isTavi ? -20 : 20 }}
       animate={{ opacity: 1, y: 0, x: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className={`flex items-end gap-2 ${isTavi ? 'self-start' : 'self-end flex-row-reverse'} max-w-[85%]`}
+      transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+      className={`flex max-w-[85%] items-end gap-2 ${isTavi ? 'self-start' : 'self-end flex-row-reverse'}`}
     >
-      {/* Avatar */}
       {isTavi && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] flex items-center justify-center shadow-md flex-shrink-0 mb-1">
+        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6f8fbf] to-[#4f8f7c] shadow-md">
           <Bot size={14} className="text-white" />
         </div>
       )}
 
       <div className="flex flex-col gap-1">
-        {/* Bubble */}
         <div
-          className={`px-4 py-2.5 leading-relaxed text-sm whitespace-pre-wrap ${
+          className={`whitespace-pre-wrap px-4 py-2.5 text-sm leading-relaxed ${
             isTavi
-              ? 'rounded-2xl rounded-bl-sm bg-white/[0.06] backdrop-blur-md border border-white/[0.08] text-white/90 shadow-sm'
-              : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/20'
+              ? 'rounded-2xl rounded-bl-sm border border-border bg-card/90 text-foreground shadow-sm backdrop-blur-md'
+              : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[#6f8fbf] to-[#4f8f7c] text-white shadow-lg shadow-slate-500/20'
           }`}
         >
           {message.text}
         </div>
 
-        {/* Action button */}
         {message.action && (
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.25 }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onAction(message.action?.route || '/')}
-            className="mt-1 self-start flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#A989F2]/15 to-[#FF6B9D]/15 dark:from-[#A989F2]/25 dark:to-[#FF6B9D]/25 border border-[#A989F2]/30 text-[#7C5CE0] dark:text-[#A989F2] text-xs font-semibold hover:from-[#A989F2]/25 hover:to-[#FF6B9D]/25 transition-colors"
+            className="mt-1 inline-flex items-center gap-2 self-start rounded-xl border border-border bg-accent/80 px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
           >
             {message.action.type === 'story'
-              ? t('chat.openStory', 'Story öffnen')
-              : t('chat.openDoku', 'Doku öffnen')}
+              ? t('chat.openStory', 'Story oeffnen')
+              : t('chat.openDoku', 'Doku oeffnen')}
             <ArrowRight size={13} />
           </motion.button>
         )}
@@ -107,13 +100,12 @@ const MessageBubble: React.FC<{
   );
 };
 
-/* ─── Quick suggestion pills ─── */
 const QuickSuggestions: React.FC<{
   onSelect: (text: string) => void;
-  t: any;
+  t: (key: string, fallback?: string) => string;
 }> = ({ onSelect, t }) => {
   const suggestions = [
-    { text: t('chat.suggestion_story', 'Erzähl mir eine Geschichte'), emoji: '📖' },
+    { text: t('chat.suggestion_story', 'Erzaehl mir eine Geschichte'), emoji: '📖' },
     { text: t('chat.suggestion_doku', 'Erstelle eine Doku'), emoji: '📚' },
     { text: t('chat.suggestion_avatar', 'Neuen Avatar erstellen'), emoji: '✨' },
   ];
@@ -123,33 +115,34 @@ const QuickSuggestions: React.FC<{
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.5 }}
-      className="flex flex-wrap gap-2 px-1 mt-2"
+      className="mt-2 flex flex-wrap gap-2 px-1"
     >
-      {suggestions.map((s, i) => (
+      {suggestions.map((suggestion, i) => (
         <motion.button
           key={i}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6 + i * 0.1 }}
-          whileHover={{ scale: 1.05, y: -1 }}
+          whileHover={{ scale: 1.04, y: -1 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => onSelect(s.text)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/[0.06] backdrop-blur-sm border border-white/[0.08] text-white/70 hover:border-[#A989F2]/40 hover:text-[#A989F2] transition-colors shadow-sm"
+          onClick={() => onSelect(suggestion.text)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/85 px-3 py-1.5 text-xs font-medium text-foreground/80 shadow-sm transition-colors hover:border-[#6f8fbf]/45 hover:text-[#4f8f7c] dark:hover:text-[#6f8fbf]"
         >
-          <span>{s.emoji}</span>
-          {s.text}
+          <span>{suggestion.emoji}</span>
+          {suggestion.text}
         </motion.button>
       ))}
     </motion.div>
   );
 };
 
-/* ─── Main Chat Component ─── */
 const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const { resolvedTheme } = useTheme();
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -164,8 +157,11 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const [pendingIntent, setPendingIntent] = useState<'story' | 'doku' | null>(null);
   const [pendingRequest, setPendingRequest] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isDark = resolvedTheme === 'dark';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -177,14 +173,14 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      setTimeout(() => inputRef.current?.focus(), 260);
     }
   }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setInputMessage(text);
-    const words = text.trim().split(/\s+/).filter((w) => w.length > 0);
+    const words = text.trim().split(/\s+/).filter((word) => word.length > 0);
     setWordCount(words.length);
   };
 
@@ -192,6 +188,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     if (!text.trim() || isLoading || wordCount > 50) return;
 
     setShowSuggestions(false);
+
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: 'user',
@@ -213,18 +210,21 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       };
 
       const token = await getToken();
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
+      if (token) headers.Authorization = `Bearer ${token}`;
 
       const intentHint = pendingIntent ?? undefined;
       const pendingRequestText = pendingRequest ?? undefined;
+
       const response = await fetch(`${baseUrl}/tavi/chat`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           message: userMessage.text,
-          context: { language: i18n.language, intentHint, pendingRequest: pendingRequestText },
+          context: {
+            language: i18n.language,
+            intentHint,
+            pendingRequest: pendingRequestText,
+          },
         }),
       });
 
@@ -244,16 +244,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       };
 
       setMessages((prev) => [...prev, taviMessage]);
+
       if (data.action) {
         setPendingIntent(null);
         setPendingRequest(null);
       } else if (data.intentHint) {
         setPendingIntent(data.intentHint);
-        if (data.awaitingConfirmation) {
-          setPendingRequest(userMessage.text);
-        } else {
-          setPendingRequest(null);
-        }
+        setPendingRequest(data.awaitingConfirmation ? userMessage.text : null);
       } else if (intentHint) {
         setPendingIntent(null);
         setPendingRequest(null);
@@ -295,7 +292,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
 
   const handleSuggestion = (text: string) => {
     setInputMessage(text);
-    const words = text.trim().split(/\s+/).filter((w) => w.length > 0);
+    const words = text.trim().split(/\s+/).filter((word) => word.length > 0);
     setWordCount(words.length);
     sendMessage(text);
   };
@@ -314,71 +311,64 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
           className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
           onClick={onClose}
         >
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm dark:bg-black/50"
           />
 
-          {/* Chat card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+            initial={{ opacity: 0, scale: 0.92, y: 34 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            exit={{ opacity: 0, scale: 0.96, y: 20 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-[460px] max-w-[92vw] h-[680px] max-h-[88vh] flex flex-col overflow-hidden rounded-3xl bg-[#13102B]/95 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-purple-500/10"
+            className="relative flex h-[680px] max-h-[88vh] w-[460px] max-w-[92vw] flex-col overflow-hidden rounded-3xl border shadow-2xl backdrop-blur-2xl"
+            style={{
+              background: isDark ? 'rgba(23,31,44,0.95)' : 'rgba(255,251,245,0.96)',
+              borderColor: isDark ? '#33465f' : '#e3d7c8',
+              boxShadow: isDark
+                ? '0 24px 52px rgba(7,13,23,0.5)'
+                : '0 24px 52px rgba(52,61,78,0.2)',
+            }}
           >
-            {/* ── Header ── */}
-            <div className="relative flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
-              {/* Gradient stripe */}
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#A989F2] via-[#FF6B9D] to-[#FF9B5C]" />
+            <div className="relative flex items-center justify-between border-b border-border px-5 py-4">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#6f8fbf] via-[#c68c95] to-[#4f8f7c]" />
 
               <div className="flex items-center gap-3">
-                {/* Tavi avatar */}
-                <motion.div
-                  animate={{ rotate: [0, 5, -5, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative"
-                >
-                  <div className="w-11 h-11 rounded-full bg-cover bg-center border-[2.5px] border-[#A989F2]/60 shadow-lg shadow-purple-500/20" style={{ backgroundImage: 'url(/tavi.png)' }} />
-                  {/* Online dot */}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#13102B]" />
-                </motion.div>
+                <div className="relative">
+                  <div
+                    className="h-11 w-11 rounded-full border-[2.5px] border-[#6f8fbf]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
+                    style={{ backgroundImage: 'url(/tavi.png)' }}
+                  />
+                  <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#13102B]" />
+                </div>
 
                 <div>
-                  <h3 className="text-base font-bold text-white font-[Fredoka]">
-                    {t('chat.title')}
-                  </h3>
-                  <p className="text-[11px] text-white/50 font-medium">
-                    {t('chat.subtitle')}
-                  </p>
+                  <h3 className="font-[Fredoka] text-base font-bold text-foreground">{t('chat.title')}</h3>
+                  <p className="text-[11px] font-medium text-muted-foreground">{t('chat.subtitle')}</p>
                 </div>
               </div>
 
               <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileHover={{ scale: 1.08, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.12] transition-colors shadow-sm"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card/80 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <X size={16} />
               </motion.button>
             </div>
 
-            {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 scroll-smooth">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
               <AnimatePresence mode="popLayout">
                 {messages.map((message) => (
                   <MessageBubble key={message.id} message={message} onAction={handleAction} t={t} />
                 ))}
-
-                {isLoading && <TypingDots key="typing" />}
+                {isLoading && <TypingDots isDark={isDark} key="typing" />}
               </AnimatePresence>
 
-              {/* Quick suggestions after welcome */}
               {showSuggestions && messages.length === 1 && (
                 <QuickSuggestions onSelect={handleSuggestion} t={t} />
               )}
@@ -386,15 +376,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* ── Input area ── */}
-            <div className="px-4 pt-3 pb-4 border-t border-white/[0.08] bg-white/[0.03]">
-              {/* Word count */}
-              <div className={`text-[10px] font-semibold mb-1.5 text-right ${isOverLimit ? 'text-red-500' : 'text-white/40'}`}>
+            <div className="border-t border-border bg-card/40 px-4 pb-4 pt-3">
+              <div className={`mb-1.5 text-right text-[10px] font-semibold ${isOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}>
                 {wordCount}/50 {t('chat.words')}
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex-1 relative">
+                <div className="relative flex-1">
                   <input
                     ref={inputRef}
                     value={inputMessage}
@@ -403,11 +391,11 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                     placeholder={t('chat.placeholder')}
                     disabled={isLoading}
                     maxLength={300}
-                    className="w-full px-4 py-3 rounded-2xl text-sm bg-white/[0.06] backdrop-blur-sm border border-white/[0.08] text-white placeholder-white/30 outline-none focus:border-[#A989F2]/50 focus:ring-2 focus:ring-[#A989F2]/20 transition-all"
+                    className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-[#6f8fbf]/50 focus:ring-2 focus:ring-[#6f8fbf]/20"
                   />
                   {isLoading && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Sparkles size={14} className="text-[#A989F2] animate-pulse" />
+                      <Sparkles size={14} className="animate-pulse text-[#6f8fbf]" />
                     </div>
                   )}
                 </div>
@@ -417,19 +405,18 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                   whileTap={{ scale: 0.92 }}
                   onClick={handleSendMessage}
                   disabled={!canSend}
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${
+                  className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl transition-all ${
                     canSend
-                      ? 'bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40'
-                      : 'bg-white/[0.06] text-white/30 cursor-not-allowed'
+                      ? 'bg-gradient-to-br from-[#6f8fbf] to-[#4f8f7c] text-white shadow-lg shadow-slate-500/25 hover:shadow-slate-500/40'
+                      : 'cursor-not-allowed border border-border bg-card/70 text-muted-foreground'
                   }`}
                 >
-                  <Send size={16} className={canSend ? '' : ''} />
+                  <Send size={16} />
                 </motion.button>
               </div>
             </div>
 
-            {/* ── Decorative bottom glow ── */}
-            <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-[#A989F2]/5 to-transparent pointer-events-none" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#6f8fbf]/10 to-transparent" />
           </motion.div>
         </motion.div>
       )}

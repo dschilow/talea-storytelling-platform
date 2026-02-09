@@ -1,21 +1,14 @@
-﻿// Talea Doku Wizard - Immersive, Professional, Child-Friendly
-// Redesigned with Talea design system: glass-morphism, gradient accents, framer-motion
-
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, ArrowRight, Sparkles, CheckCircle, FlaskConical,
-  Loader2, Check, X, Wand2, GraduationCap
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
 
-// =====================================================
-// TYPES
-// =====================================================
-interface DokuWizardState {
+import { useBackend } from '../../hooks/useBackend';
+import { useTheme } from '../../contexts/ThemeContext';
+
+type DokuWizardState = {
   topic: string;
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
   depth: 'basic' | 'standard' | 'deep';
@@ -25,508 +18,7 @@ interface DokuWizardState {
   includeInteractive: boolean;
   quizQuestions: number;
   handsOnActivities: number;
-}
-
-// =====================================================
-// ANIMATED BACKGROUND
-// =====================================================
-const DokuWizardBackground: React.FC = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    <motion.div
-      className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-20"
-      style={{ background: 'radial-gradient(circle, rgba(255,155,92,0.4) 0%, rgba(255,107,157,0.2) 50%, transparent 70%)' }}
-      animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
-      transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    <motion.div
-      className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full opacity-20"
-      style={{ background: 'radial-gradient(circle, rgba(169,137,242,0.3) 0%, transparent 70%)' }}
-      animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
-      transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    {['ðŸ”¬', 'ðŸŒ', 'ðŸ“š', 'â­', 'ðŸ§ª', 'ðŸŒ±'].map((emoji, i) => (
-      <motion.div
-        key={i}
-        className="absolute text-2xl select-none opacity-10"
-        style={{ left: `${10 + i * 15}%`, top: `${20 + (i % 3) * 25}%` }}
-        animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0], opacity: [0.05, 0.12, 0.05] }}
-        transition={{ duration: 8 + i * 2, delay: i * 0.8, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        {emoji}
-      </motion.div>
-    ))}
-  </div>
-);
-
-// =====================================================
-// SELECTION CARD - Reusable animated selection
-// =====================================================
-const SelectionCard: React.FC<{
-  selected: boolean;
-  onClick: () => void;
-  emoji: string;
-  label: string;
-  desc?: string;
-  detail?: string;
-  compact?: boolean;
-}> = ({ selected, onClick, emoji, label, desc, detail, compact }) => (
-  <motion.button
-    whileHover={{ scale: 1.03, y: -2 }}
-    whileTap={{ scale: 0.97 }}
-    onClick={onClick}
-    className={`flex flex-col items-center gap-2 ${compact ? 'p-3' : 'p-4'} rounded-2xl border-2 transition-all text-center ${
-      selected
-        ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
-        : 'border-border bg-card/70 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-accent/60'
-    }`}
-  >
-    <span className={compact ? 'text-xl' : 'text-2xl'}>{emoji}</span>
-    <span className="font-bold text-sm text-foreground">{label}</span>
-    {desc && <span className="text-xs text-muted-foreground">{desc}</span>}
-    {detail && <span className="text-[10px] text-muted-foreground/60">{detail}</span>}
-    {selected && (
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        className="absolute -top-1 -right-1 w-5 h-5 bg-[#FF9B5C] rounded-full flex items-center justify-center shadow-sm"
-      >
-        <Check className="w-3 h-3 text-white" />
-      </motion.div>
-    )}
-  </motion.button>
-);
-
-// =====================================================
-// STEP 1 - TOPIC
-// =====================================================
-function Step1Topic({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
-  const topicSuggestions = [
-    { emoji: 'ðŸ¦•', label: 'Dinosaurier', topic: 'Dinosaurier' },
-    { emoji: 'ðŸŒ‹', label: 'Vulkane', topic: 'Vulkane' },
-    { emoji: 'ðŸš€', label: 'Weltraum', topic: 'Das Sonnensystem' },
-    { emoji: 'ðŸ¦', label: 'Tiere Afrikas', topic: 'Tiere in Afrika' },
-    { emoji: 'âš¡', label: 'ElektrizitÃ¤t', topic: 'Wie funktioniert Strom?' },
-    { emoji: 'ðŸ°', label: 'Ritter & Burgen', topic: 'Das Leben im Mittelalter' },
-    { emoji: 'ðŸŒŠ', label: 'Ozeane', topic: 'Die Geheimnisse der Ozeane' },
-    { emoji: 'ðŸ§¬', label: 'Menschlicher KÃ¶rper', topic: 'Wie funktioniert unser KÃ¶rper?' },
-    { emoji: 'ðŸŒ±', label: 'Pflanzen', topic: 'Wie wachsen Pflanzen?' },
-    { emoji: 'ðŸ', label: 'Bienen', topic: 'Warum sind Bienen so wichtig?' },
-    { emoji: 'ðŸŒ', label: 'Klimawandel', topic: 'Klimawandel einfach erklÃ¤rt' },
-    { emoji: 'ðŸ”¬', label: 'Chemie', topic: 'Chemie im Alltag' },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Was mÃ¶chtest du entdecken?
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Gib ein Thema ein oder wÃ¤hle eine Idee aus
-        </p>
-      </div>
-
-      {/* Topic Input */}
-      <div className="relative">
-        <input
-          type="text"
-          value={state.topic}
-          onChange={(e) => updateState({ topic: e.target.value })}
-          placeholder="z.B. Dinosaurier, Vulkane, Weltraum..."
-          className="w-full px-6 py-4 text-lg rounded-2xl border-2 border-border bg-card/70 backdrop-blur-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#FF9B5C]/40 focus:border-[#FF9B5C]/40 transition-all shadow-sm"
-          style={{ fontFamily: '"Nunito", sans-serif' }}
-          autoFocus
-        />
-        {state.topic && (
-          <motion.button
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            onClick={() => updateState({ topic: '' })}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </motion.button>
-        )}
-      </div>
-
-      {/* Topic Suggestions */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">Ideen zum Entdecken</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {topicSuggestions.map((s) => (
-            <motion.button
-              key={s.label}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => updateState({ topic: s.topic })}
-              className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
-                state.topic === s.topic
-                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
-                  : 'border-border bg-card/70 backdrop-blur-lg hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-accent/60'
-              }`}
-            >
-              <span className="text-xl flex-shrink-0">{s.emoji}</span>
-              <span className="text-sm font-semibold text-foreground">{s.label}</span>
-            </motion.button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================
-// STEP 2 - AGE & DEPTH
-// =====================================================
-function Step2AgeAndDepth({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
-  const ageGroups = [
-    { value: '3-5' as const, emoji: 'ðŸ§’', label: '3-5 Jahre', desc: 'Ganz einfach' },
-    { value: '6-8' as const, emoji: 'ðŸ‘§', label: '6-8 Jahre', desc: 'Spielerisch' },
-    { value: '9-12' as const, emoji: 'ðŸ§‘', label: '9-12 Jahre', desc: 'Tiefere ZusammenhÃ¤nge' },
-    { value: '13+' as const, emoji: 'ðŸ§‘â€ðŸŽ“', label: '13+ Jahre', desc: 'Komplexe Themen' },
-  ];
-
-  const depths = [
-    { value: 'basic' as const, emoji: 'ðŸŒ±', label: 'Grundlagen', desc: 'Einfacher Einstieg' },
-    { value: 'standard' as const, emoji: 'ðŸŒ¿', label: 'Standard', desc: 'Ausgewogene Tiefe' },
-    { value: 'deep' as const, emoji: 'ðŸŒ³', label: 'Tief', desc: 'Experten-Wissen' },
-  ];
-
-  return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          FÃ¼r wen ist die Doku?
-        </h2>
-        <p className="text-sm text-muted-foreground">WÃ¤hle die passende Altersgruppe</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {ageGroups.map((ag) => (
-          <SelectionCard
-            key={ag.value}
-            selected={state.ageGroup === ag.value}
-            onClick={() => updateState({ ageGroup: ag.value })}
-            emoji={ag.emoji}
-            label={ag.label}
-            desc={ag.desc}
-          />
-        ))}
-      </div>
-
-      <div>
-        <h3 className="text-lg font-bold text-foreground mb-3" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Wie tief soll es gehen?
-        </h3>
-        <div className="grid grid-cols-3 gap-3">
-          {depths.map((d) => (
-            <SelectionCard
-              key={d.value}
-              selected={state.depth === d.value}
-              onClick={() => updateState({ depth: d.value })}
-              emoji={d.emoji}
-              label={d.label}
-              desc={d.desc}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================
-// STEP 3 - PERSPECTIVE & TONE
-// =====================================================
-function Step3PerspectiveAndTone({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
-  const perspectives = [
-    { value: 'science' as const, emoji: 'ðŸ”¬', label: 'Naturwissenschaft', desc: 'Wie funktioniert es?' },
-    { value: 'history' as const, emoji: 'ðŸ“œ', label: 'Geschichte', desc: 'Wie war es frÃ¼her?' },
-    { value: 'technology' as const, emoji: 'âš™ï¸', label: 'Technik', desc: 'Wie wird es gebaut?' },
-    { value: 'nature' as const, emoji: 'ðŸŒ¿', label: 'Natur', desc: 'Was lebt und wÃ¤chst?' },
-    { value: 'culture' as const, emoji: 'ðŸŽ­', label: 'Kultur', desc: 'Was bedeutet es?' },
-  ];
-
-  const tones = [
-    { value: 'fun' as const, emoji: 'ðŸ˜„', label: 'Lustig', desc: 'Mit Witz und Humor' },
-    { value: 'curious' as const, emoji: 'ðŸ¤”', label: 'Neugierig', desc: 'Checker Tobi Style' },
-    { value: 'neutral' as const, emoji: 'ðŸ“–', label: 'Sachlich', desc: 'Klar und informativ' },
-  ];
-
-  return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Welcher Blickwinkel?
-        </h2>
-        <p className="text-sm text-muted-foreground">Aus welcher Perspektive soll erzÃ¤hlt werden?</p>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        {perspectives.map((p) => (
-          <SelectionCard
-            key={p.value}
-            selected={state.perspective === p.value}
-            onClick={() => updateState({ perspective: p.value })}
-            emoji={p.emoji}
-            label={p.label}
-            desc={p.desc}
-            compact
-          />
-        ))}
-      </div>
-
-      <div>
-        <h3 className="text-lg font-bold text-foreground mb-3" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Wie soll es klingen?
-        </h3>
-        <div className="grid grid-cols-3 gap-3">
-          {tones.map((t) => (
-            <SelectionCard
-              key={t.value}
-              selected={state.tone === t.value}
-              onClick={() => updateState({ tone: t.value })}
-              emoji={t.emoji}
-              label={t.label}
-              desc={t.desc}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================
-// STEP 4 - CONTENT SETTINGS
-// =====================================================
-function Step4ContentSettings({ state, updateState }: { state: DokuWizardState; updateState: (u: Partial<DokuWizardState>) => void }) {
-  const lengths = [
-    { value: 'short' as const, emoji: 'ðŸ“„', label: 'Kurz', desc: '3 Abschnitte', detail: 'Schneller Ãœberblick' },
-    { value: 'medium' as const, emoji: 'ðŸ“‘', label: 'Mittel', desc: '5 Abschnitte', detail: 'Ausgewogen' },
-    { value: 'long' as const, emoji: 'ðŸ“š', label: 'Lang', desc: '7 Abschnitte', detail: 'AusfÃ¼hrliches Wissen' },
-  ];
-
-  return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Wie umfangreich?
-        </h2>
-        <p className="text-sm text-muted-foreground">WÃ¤hle die LÃ¤nge deiner Wissensdoku</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        {lengths.map((l) => (
-          <SelectionCard
-            key={l.value}
-            selected={state.length === l.value}
-            onClick={() => updateState({ length: l.value })}
-            emoji={l.emoji}
-            label={l.label}
-            desc={l.desc}
-            detail={l.detail}
-          />
-        ))}
-      </div>
-
-      {/* Interactive Toggle */}
-      <div className="rounded-2xl bg-card/70 backdrop-blur-lg border border-border p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-base font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              ðŸ§© Interaktive Elemente
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Quiz-Fragen und Mitmach-AktivitÃ¤ten</p>
-          </div>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => updateState({ includeInteractive: !state.includeInteractive })}
-            className={`relative w-14 h-7 rounded-full transition-colors shadow-inner ${
-              state.includeInteractive ? 'bg-[#FF9B5C]' : 'bg-muted'
-            }`}
-          >
-            <motion.span
-              animate={{ x: state.includeInteractive ? 28 : 2 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md"
-            />
-          </motion.button>
-        </div>
-
-        <AnimatePresence>
-          {state.includeInteractive && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
-                {/* Quiz Questions */}
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                    Quiz-Fragen
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })}
-                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
-                    >
-                      -
-                    </motion.button>
-                    <span className="text-2xl font-bold text-[#FF9B5C] w-8 text-center">
-                      {state.quizQuestions}
-                    </span>
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })}
-                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
-                    >
-                      +
-                    </motion.button>
-                  </div>
-                </div>
-
-                {/* Hands-on Activities */}
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                    Mitmach-AktivitÃ¤ten
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })}
-                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
-                    >
-                      -
-                    </motion.button>
-                    <span className="text-2xl font-bold text-[#FF9B5C] w-8 text-center">
-                      {state.handsOnActivities}
-                    </span>
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })}
-                      className="w-10 h-10 rounded-xl bg-card/70 border border-border font-bold text-lg text-foreground hover:bg-white/[0.15] transition-colors shadow-sm"
-                    >
-                      +
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================
-// STEP 5 - SUMMARY
-// =====================================================
-function Step5Summary({
-  state,
-  onGenerate,
-  dokuCredits,
-  generateDisabled,
-  generateDisabledMessage,
-}: {
-  state: DokuWizardState;
-  onGenerate: () => void;
-  dokuCredits: { limit: number | null; used: number; remaining: number | null; costPerGeneration: 1 } | null;
-  generateDisabled: boolean;
-  generateDisabledMessage?: string;
-}) {
-  const labels: Record<string, Record<string, string>> = {
-    perspective: { science: 'Naturwissenschaft', history: 'Geschichte', technology: 'Technik', nature: 'Natur', culture: 'Kultur' },
-    tone: { fun: 'Lustig', neutral: 'Sachlich', curious: 'Neugierig' },
-    depth: { basic: 'Grundlagen', standard: 'Standard', deep: 'Tief' },
-    length: { short: 'Kurz (3)', medium: 'Mittel (5)', long: 'Lang (7)' },
-  };
-
-  const items = [
-    { icon: 'ðŸŽ¯', label: 'Thema', value: state.topic },
-    { icon: 'ðŸ‘¤', label: 'Altersgruppe', value: state.ageGroup + ' Jahre' },
-    { icon: 'ðŸ“Š', label: 'Tiefe', value: labels.depth[state.depth] },
-    { icon: 'ðŸ”¬', label: 'Perspektive', value: labels.perspective[state.perspective] },
-    { icon: 'ðŸŽ¨', label: 'TonalitÃ¤t', value: labels.tone[state.tone] },
-    { icon: 'ðŸ“', label: 'Abschnitte', value: labels.length[state.length] },
-    { icon: 'ðŸ§©', label: 'Interaktiv', value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} AktivitÃ¤ten` : 'Ohne' },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          Deine Wissensdoku
-        </h2>
-        <p className="text-sm text-muted-foreground">ÃœberprÃ¼fe deine Einstellungen</p>
-      </div>
-
-      <div className="rounded-2xl bg-card/70 backdrop-blur-xl border border-border shadow-lg p-6">
-        <div className="space-y-3">
-          {items.map((item, i) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="flex items-center gap-3 py-2.5 border-b border-border last:border-0"
-            >
-              <span className="text-xl flex-shrink-0">{item.icon}</span>
-              <span className="text-sm font-medium text-muted-foreground w-28 flex-shrink-0">{item.label}</span>
-              <span className="text-sm font-bold text-foreground flex-1">{item.value}</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      <motion.button
-        whileHover={{ scale: 1.03, y: -2 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={onGenerate}
-        disabled={generateDisabled}
-        className={`w-full flex items-center justify-center gap-3 px-8 py-5 rounded-2xl font-bold text-lg text-white shadow-xl shadow-[#FF9B5C]/25 hover:shadow-2xl hover:shadow-[#FF9B5C]/35 transition-shadow ${
-          generateDisabled ? 'opacity-60 cursor-not-allowed' : ''
-        }`}
-        style={{ background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' }}
-      >
-        <Sparkles className="w-6 h-6" />
-        {generateDisabled ? 'Nicht verfuegbar' : 'Doku erstellen (1 DokuCredit)'}
-      </motion.button>
-
-      {dokuCredits && (
-        <div className="rounded-2xl border border-[#FF9B5C]/30 bg-[#FF9B5C]/10 p-4">
-          <p className="text-xs uppercase tracking-wider text-foreground/80 font-semibold mb-2">DokuCredits</p>
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {dokuCredits.remaining === null ? 'unbegrenzt' : dokuCredits.remaining}
-              </p>
-              <p className="text-xs text-muted-foreground">verbleibend</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-foreground">
-                {dokuCredits.used} / {dokuCredits.limit === null ? 'unbegrenzt' : dokuCredits.limit}
-              </p>
-              <p className="text-xs text-muted-foreground">verbraucht / limit</p>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Kosten pro Generierung: {dokuCredits.costPerGeneration} DokuCredit
-          </p>
-        </div>
-      )}
-
-      {generateDisabledMessage && (
-        <p className="text-xs text-rose-300 text-center">{generateDisabledMessage}</p>
-      )}
-    </div>
-  );
-}
+};
 
 type DokuCredits = {
   limit: number | null;
@@ -540,174 +32,107 @@ type BillingPermissions = {
   freeTrialDaysRemaining: number;
 };
 
-// =====================================================
-// STEP INDICATOR
-// =====================================================
-const STEPS = ['Thema', 'Alter & Tiefe', 'Perspektive', 'Inhalt', 'Zusammenfassung'];
+type GenerationPhase = 'text' | 'cover' | 'sections' | 'personality' | 'complete';
 
-const StepIndicator: React.FC<{ activeStep: number }> = ({ activeStep }) => (
-  <div className="flex items-center justify-center gap-2 mb-8">
-    {STEPS.map((label, i) => (
-      <React.Fragment key={i}>
-        <motion.div className="relative group" whileHover={{ scale: 1.1 }}>
-          <motion.div
-            animate={{
-              width: i === activeStep ? 40 : 32,
-              height: 32,
-            }}
-            className={`rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-              i < activeStep
-                ? 'bg-emerald-500 text-white'
-                : i === activeStep
-                ? 'bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] text-white shadow-lg shadow-[#FF9B5C]/25'
-                : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            {i < activeStep ? <Check className="w-4 h-4" /> : i + 1}
-          </motion.div>
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-muted-foreground font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-            {label}
-          </div>
-        </motion.div>
-        {i < STEPS.length - 1 && (
-          <div className={`w-6 h-0.5 rounded-full transition-colors ${i < activeStep ? 'bg-emerald-500' : 'bg-muted'}`} />
-        )}
-      </React.Fragment>
-    ))}
-  </div>
-);
+const steps = ['Thema', 'Alter & Tiefe', 'Perspektive', 'Inhalt', 'Zusammenfassung'] as const;
 
-// =====================================================
-// GENERATION PROGRESS
-// =====================================================
-const GenerationProgress: React.FC<{ phase: string }> = ({ phase }) => {
-  const phases = [
-    { key: 'text', icon: 'ðŸ“', title: 'Wissen wird zusammengestellt...', desc: 'KI recherchiert und schreibt deine Doku' },
-    { key: 'cover', icon: 'ðŸŽ¨', title: 'Cover-Bild wird gemalt...', desc: 'Kindgerechte Illustration' },
-    { key: 'sections', icon: 'ðŸ–¼ï¸', title: 'Kapitel-Bilder entstehen...', desc: 'Jeder Abschnitt bekommt ein Bild' },
-    { key: 'personality', icon: 'ðŸ§ ', title: 'Wissen wird verteilt...', desc: 'Deine Avatare lernen dazu' },
-    { key: 'complete', icon: 'âœ…', title: 'Fertig!', desc: 'Deine Wissensdoku ist bereit' },
-  ];
+const topics = [
+  'Dinosaurier',
+  'Vulkane',
+  'Weltraum',
+  'Ozeane',
+  'Pflanzen',
+  'Bienen',
+  'Klimawandel',
+  'Chemie im Alltag',
+];
 
-  const currentIdx = phases.findIndex(p => p.key === phase);
-  const current = phases[currentIdx] || phases[0];
+const ageOptions = [
+  { value: '3-5', label: '3-5 Jahre', desc: 'Sehr einfach' },
+  { value: '6-8', label: '6-8 Jahre', desc: 'Spielerisch' },
+  { value: '9-12', label: '9-12 Jahre', desc: 'Mehr Zusammenhaenge' },
+  { value: '13+', label: '13+ Jahre', desc: 'Komplex' },
+] as const;
 
-  return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md text-center"
-      >
-        {/* Central icon */}
-        <motion.div
-          animate={{ rotate: [0, 360] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-          className="w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center shadow-2xl"
-          style={{ background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' }}
-        >
-          <FlaskConical className="w-10 h-10 text-white" />
-        </motion.div>
+const depthOptions = [
+  { value: 'basic', label: 'Grundlagen', desc: 'Kurz und klar' },
+  { value: 'standard', label: 'Standard', desc: 'Ausgewogen' },
+  { value: 'deep', label: 'Tief', desc: 'Ausfuehrlich' },
+] as const;
 
-        <h2 className="text-2xl font-bold text-foreground mb-2" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-          {current.title}
-        </h2>
-        <p className="text-sm text-muted-foreground mb-10">{current.desc}</p>
+const perspectiveOptions = [
+  { value: 'science', label: 'Naturwissenschaft', desc: 'Wie funktioniert es?' },
+  { value: 'history', label: 'Geschichte', desc: 'Wie war es frueher?' },
+  { value: 'technology', label: 'Technik', desc: 'Wie wird es gebaut?' },
+  { value: 'nature', label: 'Natur', desc: 'Was lebt und waechst?' },
+  { value: 'culture', label: 'Kultur', desc: 'Was bedeutet es?' },
+] as const;
 
-        {/* Progress steps */}
-        <div className="space-y-3 text-left">
-          {phases.map((p, idx) => {
-            const isActive = idx === currentIdx;
-            const isComplete = idx < currentIdx;
+const toneOptions = [
+  { value: 'fun', label: 'Lustig', desc: 'Mit Humor' },
+  { value: 'curious', label: 'Neugierig', desc: 'Entdeckerstil' },
+  { value: 'neutral', label: 'Sachlich', desc: 'Klar und ruhig' },
+] as const;
 
-            return (
-              <motion.div
-                key={p.key}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className={`flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 ${
-                  isActive
-                    ? 'bg-card/70 backdrop-blur-lg border border-[#FF9B5C]/30 shadow-lg shadow-[#FF9B5C]/10'
-                    : isComplete
-                    ? 'bg-card/60'
-                    : 'opacity-40'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  isComplete
-                    ? 'bg-emerald-500 text-white'
-                    : isActive
-                    ? 'bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] text-white'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {isComplete ? (
-                    <Check className="w-5 h-5" />
-                  ) : isActive ? (
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}>
-                      <Loader2 className="w-5 h-5" />
-                    </motion.div>
-                  ) : (
-                    <span className="text-base">{p.icon}</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${isActive ? 'text-foreground' : isComplete ? 'text-foreground/70' : 'text-muted-foreground'}`}>
-                    {p.title}
-                  </p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+const lengthOptions = [
+  { value: 'short', label: 'Kurz', desc: '3 Abschnitte' },
+  { value: 'medium', label: 'Mittel', desc: '5 Abschnitte' },
+  { value: 'long', label: 'Lang', desc: '7 Abschnitte' },
+] as const;
 
-        {/* Progress bar */}
-        <div className="mt-8 w-full h-2 rounded-full bg-muted overflow-hidden">
-          <motion.div
-            className="h-full rounded-full"
-            style={{ background: 'linear-gradient(90deg, #FF9B5C, #FF6B9D)' }}
-            animate={{ width: `${((currentIdx + 1) / phases.length) * 100}%` }}
-            transition={{ duration: 0.5, ease: 'easeInOut' }}
-          />
-        </div>
-      </motion.div>
-    </div>
-  );
+const phaseLabels: Record<GenerationPhase, string> = {
+  text: 'Text wird erstellt',
+  cover: 'Cover wird erstellt',
+  sections: 'Kapitelbilder werden erstellt',
+  personality: 'Wissen wird verteilt',
+  complete: 'Fertig',
 };
 
-// =====================================================
-// MAIN WIZARD
-// =====================================================
+function Choice({
+  selected,
+  onClick,
+  title,
+  description,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative rounded-2xl border p-3 text-left transition-colors ${
+        selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+      }`}
+      style={{ borderColor: selected ? '#6f8fbf66' : 'var(--color-border)' }}
+    >
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      {selected && (
+        <span className="absolute right-2 top-2 rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[10px] font-bold text-white">
+          OK
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function ModernDokuWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
   const { userId } = useAuth();
   const { user } = useUser();
   const { i18n } = useTranslation();
+  const { resolvedTheme } = useTheme();
 
   const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);
-  const [generationPhase, setGenerationPhase] = useState<'text' | 'cover' | 'sections' | 'personality' | 'complete'>('text');
-  const [userLanguage, setUserLanguage] = useState<string>('de');
-  const [dokuCredits, setDokuCredits] = useState<DokuCredits | null>(null);
-  const [billingPermissions, setBillingPermissions] = useState<BillingPermissions | null>(null);
-
-  useEffect(() => {
-    if (i18n.language) setUserLanguage(i18n.language);
-  }, [i18n.language]);
-
-  useEffect(() => {
-    const loadLang = async () => {
-      try {
-        const profile = await backend.user.me();
-        if (profile.preferredLanguage) setUserLanguage(profile.preferredLanguage);
-        setDokuCredits((profile as any).billing?.dokuCredits ?? null);
-        setBillingPermissions((profile as any).billing?.permissions ?? null);
-      } catch { /* fallback to i18n */ }
-    };
-    if (backend && user) loadLang();
-  }, [backend, user]);
-
+  const [phase, setPhase] = useState<GenerationPhase>('text');
+  const [language, setLanguage] = useState<'de' | 'en' | 'fr' | 'es' | 'it' | 'nl'>('de');
+  const [credits, setCredits] = useState<DokuCredits | null>(null);
+  const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
   const [state, setState] = useState<DokuWizardState>({
     topic: '',
     ageGroup: '6-8',
@@ -720,34 +145,37 @@ export default function ModernDokuWizard() {
     handsOnActivities: 1,
   });
 
-  const updateState = (updates: Partial<DokuWizardState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  };
+  const headingColor = useMemo(() => (resolvedTheme === 'dark' ? '#e7eef9' : '#1b2838'), [resolvedTheme]);
+  const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
 
-  const handleNext = () => {
-    if (activeStep < STEPS.length - 1) setActiveStep(prev => prev + 1);
-  };
+  useEffect(() => {
+    const lang = i18n.language as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
+    if (lang) setLanguage(lang);
+  }, [i18n.language]);
 
-  const handleBack = () => {
-    if (activeStep > 0) setActiveStep(prev => prev - 1);
-  };
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!backend || !user) return;
+      try {
+        const profile = await backend.user.me();
+        if (profile.preferredLanguage) setLanguage(profile.preferredLanguage);
+        setCredits((profile as any).billing?.dokuCredits ?? null);
+        setPermissions((profile as any).billing?.permissions ?? null);
+      } catch (error) {
+        console.error('[ModernDokuWizard] Failed to load profile:', error);
+      }
+    };
+    void loadProfile();
+  }, [backend, user]);
 
-  const canProceed = () => {
-    switch (activeStep) {
-      case 0: return state.topic.trim().length >= 3;
-      case 1: return true;
-      case 2: return true;
-      case 3: return true;
-      case 4: return true;
-      default: return false;
-    }
-  };
+  const updateState = (updates: Partial<DokuWizardState>) => setState((prev) => ({ ...prev, ...updates }));
+  const canProceed = activeStep === 0 ? state.topic.trim().length >= 3 : true;
+  const generationBlocked = Boolean(credits && credits.remaining !== null && credits.remaining <= 0);
 
-  const handleGenerate = async () => {
-    if (!userId) return;
-    if (!state.topic.trim()) return;
-    if (dokuCredits && dokuCredits.remaining !== null && dokuCredits.remaining <= 0) {
-      if (billingPermissions && !billingPermissions.freeTrialActive) {
+  const createDoku = async () => {
+    if (!userId || !state.topic.trim()) return;
+    if (generationBlocked) {
+      if (permissions && !permissions.freeTrialActive) {
         alert('Free-Testphase abgelaufen. Bitte im Profil auf Starter, Familie oder Premium wechseln.');
       } else {
         alert('Keine DokuCredits mehr fuer diesen Monat. Bitte im Profil dein Abo upgraden.');
@@ -755,34 +183,37 @@ export default function ModernDokuWizard() {
       return;
     }
 
+    let timer: ReturnType<typeof setInterval> | null = null;
+
     try {
       setGenerating(true);
-      setGenerationPhase('text');
-
-      const config = {
-        topic: state.topic.trim(),
-        ageGroup: state.ageGroup,
-        depth: state.depth,
-        perspective: state.perspective,
-        tone: state.tone,
-        length: state.length,
-        includeInteractive: state.includeInteractive,
-        quizQuestions: state.includeInteractive ? state.quizQuestions : 0,
-        handsOnActivities: state.includeInteractive ? state.handsOnActivities : 0,
-        language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl',
-      };
-
-      const phaseTimer = setInterval(() => {
-        setGenerationPhase(prev => {
+      setPhase('text');
+      timer = setInterval(() => {
+        setPhase((prev) => {
           if (prev === 'text') return 'cover';
           if (prev === 'cover') return 'sections';
           if (prev === 'sections') return 'personality';
           return prev;
         });
-      }, 4000);
+      }, 3200);
 
-      const created = await backend.doku.generateDoku({ userId, config });
-      setDokuCredits((prev) =>
+      const created = await backend.doku.generateDoku({
+        userId,
+        config: {
+          topic: state.topic.trim(),
+          ageGroup: state.ageGroup,
+          depth: state.depth,
+          perspective: state.perspective,
+          tone: state.tone,
+          length: state.length,
+          includeInteractive: state.includeInteractive,
+          quizQuestions: state.includeInteractive ? state.quizQuestions : 0,
+          handsOnActivities: state.includeInteractive ? state.handsOnActivities : 0,
+          language,
+        },
+      });
+
+      setCredits((prev) =>
         prev
           ? {
               ...prev,
@@ -792,143 +223,185 @@ export default function ModernDokuWizard() {
           : prev
       );
 
-      clearInterval(phaseTimer);
-      setGenerationPhase('complete');
-      await new Promise(r => setTimeout(r, 800));
-
+      if (timer) clearInterval(timer);
+      setPhase('complete');
+      await new Promise((resolve) => setTimeout(resolve, 850));
       navigate(`/doku-reader/${created.id}`);
     } catch (error) {
-      console.error('[DokuWizard] Error generating doku:', error);
-      let message = 'Doku konnte nicht erstellt werden. Bitte versuche es erneut.';
-      if (error instanceof Error && error.message.includes('Abo-Limit erreicht')) {
-        message = 'Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.';
-      }
-      alert(message);
+      console.error('[ModernDokuWizard] Error generating doku:', error);
+      alert('Doku konnte nicht erstellt werden. Bitte versuche es erneut.');
     } finally {
+      if (timer) clearInterval(timer);
       setGenerating(false);
-      setGenerationPhase('text');
+      setPhase('text');
     }
   };
 
-  const renderStep = () => {
-    const dokuGenerationBlocked = Boolean(dokuCredits && dokuCredits.remaining !== null && dokuCredits.remaining <= 0);
-    const blockedMessage = dokuGenerationBlocked
-      ? billingPermissions && !billingPermissions.freeTrialActive
-        ? 'Free-Testphase abgelaufen. Upgrade im Profil noetig.'
-        : 'DokuCredits fuer diesen Monat aufgebraucht.'
-      : undefined;
-
-    switch (activeStep) {
-      case 0: return <Step1Topic state={state} updateState={updateState} />;
-      case 1: return <Step2AgeAndDepth state={state} updateState={updateState} />;
-      case 2: return <Step3PerspectiveAndTone state={state} updateState={updateState} />;
-      case 3: return <Step4ContentSettings state={state} updateState={updateState} />;
-      case 4:
-        return (
-          <Step5Summary
-            state={state}
-            onGenerate={handleGenerate}
-            dokuCredits={dokuCredits}
-            generateDisabled={dokuGenerationBlocked}
-            generateDisabledMessage={blockedMessage}
-          />
-        );
-      default: return null;
-    }
-  };
-
-  // Generation screen
-  if (generating) {
-    return (
-      <div className="min-h-screen relative pb-28">
-        <DokuWizardBackground />
-        <div className="relative z-10 pt-6">
-          <GenerationProgress phase={generationPhase} />
-        </div>
-      </div>
-    );
-  }
+  const summary = [
+    { label: 'Thema', value: state.topic },
+    { label: 'Altersgruppe', value: `${state.ageGroup} Jahre` },
+    { label: 'Tiefe', value: depthOptions.find((item) => item.value === state.depth)?.label || '-' },
+    { label: 'Perspektive', value: perspectiveOptions.find((item) => item.value === state.perspective)?.label || '-' },
+    { label: 'Ton', value: toneOptions.find((item) => item.value === state.tone)?.label || '-' },
+    { label: 'Abschnitte', value: lengthOptions.find((item) => item.value === state.length)?.desc || '-' },
+    {
+      label: 'Interaktiv',
+      value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aktivitaeten` : 'Ohne',
+    },
+  ];
 
   return (
-    <div className="min-h-screen relative pb-28">
-      <DokuWizardBackground />
+    <div className="relative min-h-screen pb-24">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(980px_560px_at_100%_0%,#f2dfdc_0%,transparent_58%),radial-gradient(980px_520px_at_0%_18%,#dae8de_0%,transparent_62%),linear-gradient(180deg,#f8f1e8_0%,#f6efe4_100%)] dark:bg-[radial-gradient(980px_520px_at_100%_0%,rgba(108,94,145,0.28)_0%,transparent_58%),radial-gradient(920px_520px_at_0%_18%,rgba(84,128,121,0.25)_0%,transparent_62%),linear-gradient(180deg,#121a26_0%,#0f1723_100%)]" />
 
-      <div className="relative z-10 pt-4">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-4"
-        >
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] flex items-center justify-center shadow-lg shadow-[#FF9B5C]/20">
-              <GraduationCap className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              Neue Wissensdoku
+      <div className="pt-4">
+        <header className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: mutedColor }}>
+              Doku Wizard
+            </p>
+            <h1 className="text-4xl leading-none" style={{ color: headingColor, fontFamily: '"Cormorant Garamond", serif' }}>
+              Neue Doku
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Schritt {activeStep + 1} von {STEPS.length}
-          </p>
-        </motion.div>
-
-        {/* Step indicator */}
-        <StepIndicator activeStep={activeStep} />
-
-        {/* Step content with glass container */}
-        <motion.div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl p-6 md:p-8 min-h-[400px]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {renderStep()}
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Navigation */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex justify-between items-center mt-6"
-        >
-          <motion.button
-            whileHover={{ x: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={activeStep === 0 ? () => navigate('/doku') : handleBack}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold text-foreground bg-card/70 backdrop-blur-lg border border-border hover:bg-accent/70 shadow-sm transition-all"
+          <button
+            type="button"
+            onClick={() => navigate('/doku')}
+            className="inline-flex h-10 items-center rounded-xl border border-border bg-card/70 px-3 text-sm font-semibold text-foreground"
           >
-            <ArrowLeft className="w-4 h-4" />
-            ZurÃ¼ck
-          </motion.button>
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Zur Doku-Ansicht
+          </button>
+        </header>
 
-          {activeStep < STEPS.length - 1 && (
-            <motion.button
-              whileHover={{ x: 2, scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
-                !canProceed()
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'text-white shadow-lg shadow-[#FF9B5C]/25 hover:shadow-xl hover:shadow-[#FF9B5C]/35'
-              }`}
-              style={canProceed() ? { background: 'linear-gradient(135deg, #FF9B5C 0%, #FF6B9D 100%)' } : undefined}
-            >
-              Weiter
-              <ArrowRight className="w-4 h-4" />
-            </motion.button>
-          )}
-        </motion.div>
+        {generating ? (
+          <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card/70 p-6">
+            <div className="mb-6 text-center">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }} className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#6f8fbf1f]">
+                <Loader2 className="h-7 w-7 text-[#6f8fbf]" />
+              </motion.div>
+              <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+                {phaseLabels[phase]}
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {(Object.keys(phaseLabels) as GenerationPhase[]).map((item, index) => (
+                <div key={item} className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${item === phase ? 'border-[#6f8fbf66] bg-[#6f8fbf14]' : 'border-border bg-card/60'}`}>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    {index < (Object.keys(phaseLabels) as GenerationPhase[]).indexOf(phase) ? <Check className="h-4 w-4 text-[#4f8f7c]" /> : <Sparkles className="h-4 w-4" />}
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">{phaseLabels[item]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mb-7 flex items-center justify-center gap-2">
+              {steps.map((label, index) => (
+                <React.Fragment key={label}>
+                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${index < activeStep ? 'bg-[#4f8f7c] text-white' : index === activeStep ? 'bg-[#6f8fbf] text-white' : 'bg-muted text-muted-foreground'}`}>
+                    {index < activeStep ? <Check className="h-4 w-4" /> : index + 1}
+                  </span>
+                  {index < steps.length - 1 && <span className={`h-px w-6 rounded-full ${index < activeStep ? 'bg-[#4f8f7c]' : 'bg-border'}`} />}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card/70 p-5 md:p-7">
+              <AnimatePresence mode="wait">
+                <motion.div key={activeStep} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}>
+                  {activeStep === 0 && (
+                    <div className="space-y-5">
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Thema waehlen</h2>
+                      <input type="text" value={state.topic} onChange={(e) => updateState({ topic: e.target.value })} placeholder="z.B. Vulkane oder Sonnensystem" className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[#6f8fbf]" />
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                        {topics.map((topic) => (
+                          <button key={topic} type="button" onClick={() => updateState({ topic })} className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${state.topic === topic ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'}`} style={{ borderColor: state.topic === topic ? '#6f8fbf66' : 'var(--color-border)' }}>
+                            {topic}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {activeStep === 1 && (
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Alter und Tiefe</h2>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{ageOptions.map((item) => <Choice key={item.value} selected={state.ageGroup === item.value} onClick={() => updateState({ ageGroup: item.value })} title={item.label} description={item.desc} />)}</div>
+                      <div className="grid grid-cols-3 gap-3">{depthOptions.map((item) => <Choice key={item.value} selected={state.depth === item.value} onClick={() => updateState({ depth: item.value })} title={item.label} description={item.desc} />)}</div>
+                    </div>
+                  )}
+                  {activeStep === 2 && (
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Perspektive und Ton</h2>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">{perspectiveOptions.map((item) => <Choice key={item.value} selected={state.perspective === item.value} onClick={() => updateState({ perspective: item.value })} title={item.label} description={item.desc} />)}</div>
+                      <div className="grid grid-cols-3 gap-3">{toneOptions.map((item) => <Choice key={item.value} selected={state.tone === item.value} onClick={() => updateState({ tone: item.value })} title={item.label} description={item.desc} />)}</div>
+                    </div>
+                  )}
+                  {activeStep === 3 && (
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Inhalt</h2>
+                      <div className="grid grid-cols-3 gap-3">{lengthOptions.map((item) => <Choice key={item.value} selected={state.length === item.value} onClick={() => updateState({ length: item.value })} title={item.label} description={item.desc} />)}</div>
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <div><p className="text-sm font-semibold text-foreground">Interaktive Elemente</p><p className="text-xs text-muted-foreground">Quizfragen und Aktivitaeten</p></div>
+                          <button type="button" onClick={() => updateState({ includeInteractive: !state.includeInteractive })} className={`relative h-7 w-14 rounded-full ${state.includeInteractive ? 'bg-[#6f8fbf]' : 'bg-muted'}`}><motion.span animate={{ x: state.includeInteractive ? 28 : 2 }} className="absolute top-0.5 h-6 w-6 rounded-full bg-white" /></button>
+                        </div>
+                        {state.includeInteractive && (
+                          <div className="grid grid-cols-2 gap-4 border-t border-border pt-3">
+                            <div>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quizfragen</p>
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">-</button>
+                                <span className="w-6 text-center">{state.quizQuestions}</span>
+                                <button type="button" onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">+</button>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aktivitaeten</p>
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">-</button>
+                                <span className="w-6 text-center">{state.handsOnActivities}</span>
+                                <button type="button" onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">+</button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {activeStep === 4 && (
+                    <div className="space-y-5">
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Zusammenfassung</h2>
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
+                        <div className="space-y-2">{summary.map((item) => <div key={item.label} className="flex items-center justify-between gap-4 border-b border-border/70 py-2 text-sm last:border-0"><span className="font-semibold text-muted-foreground">{item.label}</span><span className="text-right font-semibold text-foreground">{item.value}</span></div>)}</div>
+                      </div>
+                      <button type="button" onClick={createDoku} disabled={generationBlocked} className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-6 py-4 text-base font-bold text-[#233347] shadow-[0_12px_24px_rgba(43,57,77,0.16)] ${generationBlocked ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5'}`} style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}>
+                        <Sparkles className="h-5 w-5" />
+                        {generationBlocked ? 'Nicht verfuegbar' : 'Doku erstellen (1 DokuCredit)'}
+                      </button>
+                      {credits && <p className="text-xs text-muted-foreground">Credits: {credits.remaining === null ? 'unbegrenzt' : credits.remaining} verbleibend</p>}
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between">
+              <button type="button" onClick={activeStep === 0 ? () => navigate('/doku') : () => setActiveStep((prev) => prev - 1)} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/70 px-4 py-2.5 text-sm font-semibold text-foreground">
+                <ArrowLeft className="h-4 w-4" />
+                Zurueck
+              </button>
+              {activeStep < steps.length - 1 && (
+                <button type="button" onClick={() => setActiveStep((prev) => prev + 1)} disabled={!canProceed} className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45" style={{ background: canProceed ? 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' : '#dbe3ef', color: canProceed ? '#233347' : '#7a8799' }}>
+                  Weiter
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
-

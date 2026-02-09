@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 
 import type { Story } from "@/types/story";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   Dialog,
   DialogContent,
@@ -53,9 +54,11 @@ export function StoryParticipantsDialog({
   maxVisible = 4,
   className,
 }: StoryParticipantsDialogProps) {
+  const { resolvedTheme } = useTheme();
   const participants = useMemo(() => getParticipants(story), [story]);
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const isDark = resolvedTheme === "dark";
 
   if (participants.length === 0) return null;
 
@@ -92,8 +95,12 @@ export function StoryParticipantsDialog({
             key={`${story.id}-${participant.id}`}
             type="button"
             onClick={(event) => openDialogForParticipant(participant.id, event)}
-            className="inline-flex items-center gap-2 rounded-full border bg-[#f7f4ef] px-2 py-1 pr-3 text-xs font-medium text-[#1d2836] transition-colors hover:bg-[#ece7dd]"
-            style={{ borderColor: "#d7d0c3" }}
+            className="inline-flex items-center gap-2 rounded-full border px-2 py-1 pr-3 text-xs font-medium transition-colors"
+            style={{
+              borderColor: isDark ? "#33465f" : "#d7d0c3",
+              background: isDark ? "rgba(34,45,61,0.9)" : "#f7f4ef",
+              color: isDark ? "#dde8f9" : "#1d2836",
+            }}
             aria-label={`${participant.name} vergroessern`}
           >
             <img
@@ -108,8 +115,12 @@ export function StoryParticipantsDialog({
           <button
             type="button"
             onClick={openDialogForList}
-            className="inline-flex h-8 items-center rounded-full border bg-[#f7f4ef] px-2 text-xs font-semibold text-[#526174] transition-colors hover:bg-[#ece7dd]"
-            style={{ borderColor: "#d7d0c3" }}
+            className="inline-flex h-8 items-center rounded-full border px-2 text-xs font-semibold transition-colors"
+            style={{
+              borderColor: isDark ? "#33465f" : "#d7d0c3",
+              background: isDark ? "rgba(34,45,61,0.9)" : "#f7f4ef",
+              color: isDark ? "#a7bbd6" : "#526174",
+            }}
             aria-label={`Weitere ${hiddenCount} Teilnehmer anzeigen`}
           >
             +{hiddenCount}
@@ -118,29 +129,50 @@ export function StoryParticipantsDialog({
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[440px] border-[#d7d0c3] bg-[#fcfbf8] p-0">
-          <DialogHeader className="border-b border-[#e5dfd4] px-6 py-4">
-            <DialogTitle className="flex items-center gap-2 text-[#1a2633]">
-              <Users className="h-4 w-4 text-[#1f6f67]" />
+        <DialogContent
+          className="max-w-[440px] p-0"
+          style={{
+            borderColor: isDark ? "#33465f" : "#d7d0c3",
+            background: isDark ? "rgba(24,34,48,0.98)" : "#fcfbf8",
+          }}
+        >
+          <DialogHeader
+            className="border-b px-6 py-4"
+            style={{ borderColor: isDark ? "#32455f" : "#e5dfd4" }}
+          >
+            <DialogTitle className="flex items-center gap-2" style={{ color: isDark ? "#e6eef8" : "#1a2633" }}>
+              <Users className="h-4 w-4" style={{ color: isDark ? "#7faea3" : "#1f6f67" }} />
               Teilnehmer
             </DialogTitle>
-            <DialogDescription className="text-[#627180]">
+            <DialogDescription style={{ color: isDark ? "#9db0c8" : "#627180" }}>
               Charaktere und Avatare dieser Geschichte.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 p-6">
-            <div className="flex items-center gap-4 rounded-2xl border border-[#e4ddd1] bg-white p-4">
+            <div
+              className="flex items-center gap-4 rounded-2xl border p-4"
+              style={{
+                borderColor: isDark ? "#33465f" : "#e4ddd1",
+                background: isDark ? "rgba(31,43,59,0.95)" : "#ffffff",
+              }}
+            >
               <img
                 src={activeParticipant.imageUrl}
                 alt={activeParticipant.name}
                 className="h-20 w-20 rounded-2xl object-cover"
               />
               <div className="min-w-0">
-                <p className="truncate text-lg font-semibold text-[#1a2633]">
+                <p
+                  className="truncate text-lg font-semibold"
+                  style={{ color: isDark ? "#e6eef8" : "#1a2633" }}
+                >
                   {activeParticipant.name}
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#1f6f67]">
+                <p
+                  className="mt-1 text-sm font-medium"
+                  style={{ color: isDark ? "#7faea3" : "#1f6f67" }}
+                >
                   {activeParticipant.roleLabel}
                 </p>
               </div>
@@ -159,10 +191,24 @@ export function StoryParticipantsDialog({
                     }}
                     className={cn(
                       "rounded-xl border p-1 transition-transform hover:-translate-y-0.5",
-                      isActive
-                        ? "border-[#1f6f67] bg-[#e3efec]"
-                        : "border-[#ded6c8] bg-[#f8f5ef]"
+                      isActive ? "" : ""
                     )}
+                    style={{
+                      borderColor: isActive
+                        ? isDark
+                          ? "#7faea3"
+                          : "#1f6f67"
+                        : isDark
+                          ? "#3a4e6a"
+                          : "#ded6c8",
+                      background: isActive
+                        ? isDark
+                          ? "rgba(127,174,163,0.18)"
+                          : "#e3efec"
+                        : isDark
+                          ? "rgba(32,44,60,0.92)"
+                          : "#f8f5ef",
+                    }}
                     aria-label={`${participant.name} auswaehlen`}
                   >
                     <img

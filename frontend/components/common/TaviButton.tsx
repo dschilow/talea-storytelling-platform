@@ -1,80 +1,70 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+
+import { useTheme } from '../../contexts/ThemeContext';
 import TaviChat from './TaviChat';
 
 const TaviButton: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { resolvedTheme } = useTheme();
+
+  const isDark = resolvedTheme === 'dark';
+
+  useEffect(() => {
+    const openHandler = () => setIsChatOpen(true);
+    const toggleHandler = () => setIsChatOpen((prev) => !prev);
+
+    window.addEventListener('tavi:open', openHandler);
+    window.addEventListener('tavi:toggle', toggleHandler);
+
+    return () => {
+      window.removeEventListener('tavi:open', openHandler);
+      window.removeEventListener('tavi:toggle', toggleHandler);
+    };
+  }, []);
 
   return (
     <>
-      {/* Floating Tavi button — always visible */}
       <motion.div
-        initial={{ opacity: 0, scale: 0, y: 20 }}
+        initial={{ opacity: 0, scale: 0.92, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        className="fixed bottom-[120px] right-5 z-[1001]"
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+        className="fixed bottom-6 right-6 z-[1001] hidden md:block"
       >
-        {/* Float animation wrapper */}
-        <motion.div
-          animate={{ y: isChatOpen ? 0 : [0, -8, 0] }}
-          transition={isChatOpen ? { duration: 0.2 } : { duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        >
+        <motion.div animate={{ y: isChatOpen ? 0 : [0, -4, 0] }} transition={isChatOpen ? { duration: 0.2 } : { duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
           <div className="relative">
-            {/* Pulse ring — only when chat is closed */}
             <AnimatePresence>
               {!isChatOpen && (
                 <motion.div
                   initial={{ opacity: 0 }}
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.2, 0.5] }}
+                  animate={{ scale: [1, 1.08, 1], opacity: [0.45, 0.18, 0.45] }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="absolute -inset-1.5 rounded-full border-2 border-[#A989F2]/50"
+                  className="absolute -inset-1.5 rounded-full border-2"
+                  style={{ borderColor: isDark ? 'rgba(125,157,198,0.45)' : 'rgba(88,131,125,0.45)' }}
                 />
               )}
             </AnimatePresence>
 
-            {/* Outer glow */}
-            <div className={`absolute -inset-3 rounded-full blur-xl transition-colors duration-300 ${isChatOpen ? 'bg-[#A989F2]/25' : 'bg-[#A989F2]/15'}`} />
-
-            {/* Button */}
             <motion.button
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
-              animate={isChatOpen ? { rotate: 0 } : {}}
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className={`relative w-[68px] h-[68px] rounded-full bg-cover bg-center border-[3px] shadow-xl transition-all duration-300 cursor-pointer ${
-                isChatOpen
-                  ? 'border-[#A989F2]/70 shadow-purple-500/40 ring-4 ring-[#A989F2]/20'
-                  : 'border-[#A989F2]/40 shadow-purple-500/25 hover:shadow-purple-500/40 hover:border-[#A989F2]/60'
-              }`}
-              style={{ backgroundImage: 'url(/tavi.png)' }}
+              onClick={() => setIsChatOpen((prev) => !prev)}
+              className="relative h-[58px] w-[58px] rounded-full border-[2px] bg-cover bg-center shadow-xl transition-all"
+              style={{
+                backgroundImage: 'url(/tavi.png)',
+                borderColor: isDark ? 'rgba(126,161,201,0.62)' : 'rgba(88,131,125,0.62)',
+                boxShadow: isDark
+                  ? '0 12px 30px rgba(7,13,23,0.45)'
+                  : '0 12px 26px rgba(55,68,88,0.25)',
+              }}
+              aria-label="Tavi Chat oeffnen"
             >
-              {/* Notification sparkle — only when chat is closed */}
-              <AnimatePresence>
-                {!isChatOpen && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-                    exit={{ scale: 0 }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FF9B5C] border-2 border-white dark:border-slate-900 flex items-center justify-center"
-                  >
-                    <span className="text-white text-[9px] font-bold">✦</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Active indicator when chat is open */}
-              <AnimatePresence>
-                {isChatOpen && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-900"
-                  />
-                )}
-              </AnimatePresence>
+              {!isChatOpen && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-emerald-400 text-[9px] font-bold text-white">
+                  +
+                </span>
+              )}
             </motion.button>
           </div>
         </motion.div>

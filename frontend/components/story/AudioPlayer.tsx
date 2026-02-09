@@ -1,90 +1,118 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Loader, AlertCircle } from 'lucide-react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Loader2, Volume2 } from 'lucide-react';
+
 import { useBackend } from '../../hooks/useBackend';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 
 interface AudioPlayerProps {
-    text: string;
-    className?: string;
+  text: string;
+  className?: string;
+}
+
+const MAX_SNIPPET = 72;
+
+function buildSnippet(text: string) {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (cleaned.length <= MAX_SNIPPET) return cleaned;
+  return `${cleaned.slice(0, MAX_SNIPPET)}...`;
 }
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, className = '' }) => {
-    const backend = useBackend();
-    const [isLoading, setIsLoading] = useState(false);
-    const [audioSrc, setAudioSrc] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+  const backend = useBackend();
+  const { playTrack } = useAudioPlayer();
 
-    // Reset when text changes
-    useEffect(() => {
-        setAudioSrc(null);
-        setError(null);
-    }, [text]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-    const loadAudio = async () => {
-        if (audioSrc) return; // Already loaded
-        if (!text) return;
+  const trackDescription = useMemo(() => buildSnippet(text), [text]);
 
-        try {
-            setIsLoading(true);
-            setError(null);
+  useEffect(() => {
+    setError(null);
+    setAudioSrc((prev) => {
+      if (prev && prev.startsWith('blob:')) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+  }, [text]);
 
-            // @ts-ignore
-            const response = await backend.tts.generateSpeech({ text });
-
-            if (response && response.audioData) {
-                // Create a Blob from the base64 data to avoid huge strings in memory/DOM
-                const fetchRes = await fetch(response.audioData);
-                const blob = await fetchRes.blob();
-                const objectUrl = URL.createObjectURL(blob);
-                setAudioSrc(objectUrl);
-            } else {
-                throw new Error("Keine Audiodaten empfangen");
-            }
-        } catch (err) {
-            console.error("Failed to load audio:", err);
-            setError("Fehler beim Laden");
-        } finally {
-            setIsLoading(false);
-        }
+  useEffect(() => {
+    return () => {
+      if (audioSrc && audioSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(audioSrc);
+      }
     };
+  }, [audioSrc]);
 
-    return (
-        <div className={`flex items-center gap-2 ${className}`}>
-            {!audioSrc && !isLoading && !error && (
-                <button
-                    onClick={loadAudio}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-colors shadow-sm"
-                >
-                    <span className="text-lg">🔊</span> Vorlesen
-                </button>
-            )}
+  const openInGlobalPlayer = (src: string) => {
+    playTrack({
+      id: `story-tts-${Date.now()}`,
+      title: 'Story Audio',
+      description: trackDescription,
+      audioUrl: src,
+    });
+  };
 
-            {isLoading && (
-                <div className="flex items-center gap-2 text-blue-400 px-3 py-1">
-                    <Loader className="w-4 h-4 animate-spin" />
-                    <span className="text-xs">Generiere Audio...</span>
-                </div>
-            )}
+  const generateAudio = async () => {
+    if (!text.trim()) return null;
 
-            {error && (
-                <div className="flex items-center gap-2 text-red-400 px-3 py-1" title={error}>
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="text-xs">Fehler</span>
-                </div>
-            )}
+    try {
+      setIsLoading(true);
+      setError(null);
 
-            {audioSrc && (
-                <audio
-                    ref={audioRef}
-                    controls
-                    autoPlay
-                    src={audioSrc}
-                    className="h-10 w-full max-w-[300px] outline-none rounded-full shadow-md"
-                    title="Audio Player"
-                >
-                    Ihr Browser unterstützt dieses Audio-Element nicht.
-                </audio>
-            )}
-        </div>
-    );
+      // @ts-ignore - legacy backend typing for tts endpoint
+      const response = await backend.tts.generateSpeech({ text });
+      if (!response?.audioData) {
+        throw new Error('Keine Audiodaten empfangen');
+      }
+
+      const fetchRes = await fetch(response.audioData);
+      const blob = await fetchRes.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      setAudioSrc(objectUrl);
+      return objectUrl;
+    } catch (err) {
+      console.error('Failed to generate story audio:', err);
+      setError('Audio konnte nicht erstellt werden');
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePlay = async () => {
+    if (isLoading) return;
+
+    if (audioSrc) {
+      openInGlobalPlayer(audioSrc);
+      return;
+    }
+
+    const generated = await generateAudio();
+    if (generated) {
+      openInGlobalPlayer(generated);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={handlePlay}
+        disabled={isLoading}
+        className={`inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-accent/80 disabled:cursor-not-allowed disabled:opacity-70 ${className}`}
+      >
+        {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Volume2 className="h-3.5 w-3.5" />}
+        <span>{audioSrc ? 'Im Player abspielen' : 'Vorlesen'}</span>
+      </button>
+
+      {error && (
+        <span className="inline-flex items-center gap-1 text-xs text-rose-500" title={error}>
+          <AlertCircle className="h-3.5 w-3.5" />
+          {error}
+        </span>
+      )}
+    </div>
+  );
 };

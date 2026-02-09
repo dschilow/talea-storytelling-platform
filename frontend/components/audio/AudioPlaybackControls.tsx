@@ -1,7 +1,9 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { FastForward, Pause, Play, Rewind, X } from 'lucide-react';
+
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface AudioPlaybackControlsProps {
   variant?: 'compact' | 'full';
@@ -29,11 +31,31 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
     seek,
     close,
   } = useAudioPlayer();
+  const { resolvedTheme } = useTheme();
 
   if (!track) return null;
 
   const isCompact = variant === 'compact';
   const iconSize = isCompact ? 16 : 20;
+  const isDark = resolvedTheme === 'dark';
+
+  const colors = isDark
+    ? {
+        surface: 'rgba(33,42,58,0.75)',
+        border: '#34455d',
+        text: '#d9e5f8',
+        sub: '#95a7bf',
+        accentStart: '#86a7db',
+        accentEnd: '#b084c7',
+      }
+    : {
+        surface: 'rgba(255,255,255,0.72)',
+        border: '#decfbf',
+        text: '#2a3b52',
+        sub: '#687a91',
+        accentStart: '#7e9cd1',
+        accentEnd: '#b183c4',
+      };
 
   const handleSeekChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     seek(parseFloat(event.target.value));
@@ -45,82 +67,80 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
 
   return (
     <div className="space-y-2">
-      {/* Controls */}
       <div className="flex items-center gap-2">
-        {/* Rewind */}
         <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
           onClick={() => handleSkip(-15)}
-          title="15 Sekunden zurück"
-          className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] text-white/70 hover:bg-white/[0.12] transition-colors shadow-sm`}
+          title="15 Sekunden zurueck"
+          className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} rounded-full border shadow-sm`}
+          style={{ borderColor: colors.border, background: colors.surface, color: colors.sub }}
         >
-          <Rewind size={iconSize} />
+          <Rewind size={iconSize} className="mx-auto" />
         </motion.button>
 
-        {/* Play/Pause */}
         <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
           onClick={togglePlay}
           title={isPlaying ? 'Pause' : 'Play'}
-          className={`${isCompact ? 'w-10 h-10' : 'w-12 h-12'} rounded-full flex items-center justify-center bg-gradient-to-br from-[#A989F2] to-[#7C5CE0] text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow`}
+          className={`${isCompact ? 'h-10 w-10' : 'h-12 w-12'} rounded-full text-white shadow-lg`}
+          style={{ background: `linear-gradient(135deg, ${colors.accentStart}, ${colors.accentEnd})` }}
         >
           <AnimatePresence mode="wait">
             {isPlaying ? (
               <motion.div key="pause" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Pause size={iconSize} />
+                <Pause size={iconSize} className="mx-auto" />
               </motion.div>
             ) : (
               <motion.div key="play" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Play size={iconSize} className="ml-0.5" />
+                <Play size={iconSize} className="mx-auto ml-[2px]" />
               </motion.div>
             )}
           </AnimatePresence>
         </motion.button>
 
-        {/* Forward */}
         <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
           onClick={() => handleSkip(15)}
           title="15 Sekunden vor"
-          className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] text-white/70 hover:bg-white/[0.12] transition-colors shadow-sm`}
+          className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} rounded-full border shadow-sm`}
+          style={{ borderColor: colors.border, background: colors.surface, color: colors.sub }}
         >
-          <FastForward size={iconSize} />
+          <FastForward size={iconSize} className="mx-auto" />
         </motion.button>
 
-        {/* Close */}
         {showClose && (
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
             onClick={close}
-            title="Schließen"
-            className={`${isCompact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full flex items-center justify-center ml-auto bg-red-500/10 border border-red-400/20 text-red-400 hover:bg-red-500/20 transition-colors shadow-sm`}
+            title="Schliessen"
+            className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} ml-auto rounded-full border shadow-sm`}
+            style={{ borderColor: '#cd9a9a', background: 'rgba(205,123,123,0.16)', color: '#b16464' }}
           >
-            <X size={iconSize} />
+            <X size={iconSize} className="mx-auto" />
           </motion.button>
         )}
       </div>
 
-      {/* Seek bar */}
       <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-medium text-white/40 min-w-[38px] tabular-nums">
+        <span className="min-w-[38px] text-[11px] font-medium tabular-nums" style={{ color: colors.sub }}>
           {formatTime(currentTime)}
         </span>
 
-        <div className="relative flex-1 h-6 flex items-center group">
-          {/* Track background */}
-          <div className="absolute inset-x-0 h-1.5 rounded-full bg-white/10" />
+        <div className="group relative flex h-6 flex-1 items-center">
+          <div className="absolute inset-x-0 h-1.5 rounded-full" style={{ background: isDark ? 'rgba(137,156,184,0.26)' : 'rgba(147,155,168,0.25)' }} />
 
-          {/* Progress fill */}
           <motion.div
-            className="absolute left-0 h-1.5 rounded-full bg-gradient-to-r from-[#A989F2] to-[#FF6B9D]"
-            style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }}
+            className="absolute left-0 h-1.5 rounded-full"
+            style={{
+              width: duration ? `${(currentTime / duration) * 100}%` : '0%',
+              background: `linear-gradient(90deg, ${colors.accentStart}, ${colors.accentEnd})`,
+            }}
           />
 
-          {/* Input range (invisible, on top) */}
           <input
             type="range"
             min={0}
@@ -129,17 +149,20 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             value={currentTime}
             onChange={handleSeekChange}
             disabled={!isReady}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
 
-          {/* Thumb indicator */}
           <motion.div
-            className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-[#A989F2] shadow-md pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ left: duration ? `calc(${(currentTime / duration) * 100}% - 7px)` : '0%' }}
+            className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+            style={{
+              left: duration ? `calc(${(currentTime / duration) * 100}% - 7px)` : '0%',
+              borderColor: colors.accentStart,
+              background: isDark ? '#d7e4f9' : '#ffffff',
+            }}
           />
         </div>
 
-        <span className="text-[11px] font-medium text-white/40 min-w-[38px] tabular-nums text-right">
+        <span className="min-w-[38px] text-right text-[11px] font-medium tabular-nums" style={{ color: colors.sub }}>
           {formatTime(duration || 0)}
         </span>
       </div>

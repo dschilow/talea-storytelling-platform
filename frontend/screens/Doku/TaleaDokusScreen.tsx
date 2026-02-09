@@ -510,7 +510,7 @@ const TaleaDokusScreen: React.FC = () => {
                     Knowledge Studio
                   </p>
                   <h1 className="text-4xl leading-none" style={{ fontFamily: headingFont, color: palette.text }}>
-                    Wissens-Dokus
+                    Dokus
                   </h1>
                 </div>
               </div>

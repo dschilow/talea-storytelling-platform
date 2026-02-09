@@ -1,17 +1,22 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   BookMarked,
   BookOpen,
-  ChevronUp,
+  Bot,
   Code,
+  FastForward,
   FlaskConical,
   Gem,
   Home,
   LogOut,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Rewind,
   Settings,
   Sparkles,
   User,
-  Wand2,
+  Volume2,
   X,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -20,20 +25,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useClerk, useUser } from "@clerk/clerk-react";
 
 import { cn } from "@/lib/utils";
-import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  labelKey: string;
   path: string;
   tone: string;
+  labelKey?: string;
+  label?: string;
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
   { icon: Home, labelKey: "navigation.home", path: "/", tone: "#6d8bc9" },
   { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#c86f8a" },
-  { icon: FlaskConical, labelKey: "navigation.doku", path: "/doku", tone: "#c78857" },
+  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#c78857" },
   { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#5f9488" },
 ];
 
@@ -51,21 +57,39 @@ const SETTINGS_ITEM: NavItem = {
   tone: "#846fb4",
 };
 
-const MoreSheet: React.FC<{
+const formatTime = (value: number) => {
+  if (!Number.isFinite(value) || value < 0) return "0:00";
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.floor(value % 60);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
+type MoreSheetProps = {
   open: boolean;
   isAdmin: boolean;
   onClose: () => void;
   onNavigate: (path: string) => void;
   isActive: (path: string) => boolean;
   onSignOut: () => Promise<void>;
+  onOpenTavi: () => void;
+  labelOf: (item: NavItem) => string;
   isDark: boolean;
-}> = ({ open, isAdmin, onClose, onNavigate, isActive, onSignOut, isDark }) => {
-  const { t } = useTranslation();
+};
 
+const MoreSheet: React.FC<MoreSheetProps> = ({
+  open,
+  isAdmin,
+  onClose,
+  onNavigate,
+  isActive,
+  onSignOut,
+  onOpenTavi,
+  labelOf,
+  isDark,
+}) => {
   const colors = isDark
     ? {
-        panel:
-          "linear-gradient(180deg,rgba(24,31,43,0.98)_0%,rgba(20,27,39,1)_100%)",
+        panel: "linear-gradient(180deg,rgba(24,31,43,0.98)_0%,rgba(20,27,39,1)_100%)",
         border: "#2d3a50",
         card: "rgba(34,44,60,0.92)",
         cardBorder: "#30425c",
@@ -73,10 +97,9 @@ const MoreSheet: React.FC<{
         sub: "#96a7bf",
       }
     : {
-        panel:
-          "linear-gradient(180deg,#fff9f1_0%,#f7efe2_100%)",
+        panel: "linear-gradient(180deg,#fff9f1_0%,#f7efe2_100%)",
         border: "#e5d9c9",
-        card: "rgba(255,255,255,0.75)",
+        card: "rgba(255,255,255,0.78)",
         cardBorder: "#dfd3c2",
         text: "#2c394d",
         sub: "#748195",
@@ -103,26 +126,17 @@ const MoreSheet: React.FC<{
             animate={{ y: 0 }}
             exit={{ y: "102%" }}
             transition={{ type: "spring", stiffness: 300, damping: 32 }}
-            className="fixed bottom-0 left-0 right-0 z-[73] rounded-t-[28px] border px-5 pb-8 pt-3 shadow-[0_-18px_40px_rgba(41,50,64,0.22)]"
+            className="fixed bottom-0 left-0 right-0 z-[73] rounded-t-[24px] border px-4 pb-6 pt-3 shadow-[0_-18px_40px_rgba(41,50,64,0.22)]"
             style={{ borderColor: colors.border, background: colors.panel }}
           >
             <div className="mb-2 flex justify-center">
               <div className="h-1 w-12 rounded-full" style={{ background: colors.sub }} />
             </div>
 
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src={taleaLogo} alt="Talea Logo" className="h-8 w-8 rounded-lg object-cover" />
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: colors.sub }}>
-                    Navigation
-                  </p>
-                  <p className="text-lg leading-none" style={{ color: colors.text, fontFamily: '"Cormorant Garamond", serif' }}>
-                    TALEA
-                  </p>
-                </div>
-              </div>
-
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: colors.sub }}>
+                Werkzeuge
+              </p>
               <button
                 type="button"
                 onClick={onClose}
@@ -167,7 +181,7 @@ const MoreSheet: React.FC<{
                       <Icon className="h-4 w-4" style={{ color: active ? item.tone : colors.sub }} />
                     </span>
                     <span className="mt-1.5 block text-[11px] font-semibold leading-tight" style={{ color: colors.text }}>
-                      {t(item.labelKey)}
+                      {labelOf(item)}
                     </span>
                   </motion.button>
                 );
@@ -179,6 +193,27 @@ const MoreSheet: React.FC<{
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: visibleItems.length * 0.03 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  onOpenTavi();
+                  onClose();
+                }}
+                className="rounded-2xl border px-2 py-3 text-center"
+                style={{ borderColor: colors.cardBorder, background: colors.card }}
+              >
+                <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: isDark ? "rgba(92,107,145,0.26)" : "rgba(216,224,236,0.9)" }}>
+                  <Bot className="h-4 w-4" style={{ color: "#6d7f9c" }} />
+                </span>
+                <span className="mt-1.5 block text-[11px] font-semibold leading-tight" style={{ color: colors.text }}>
+                  Tavi
+                </span>
+              </motion.button>
+
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: (visibleItems.length + 1) * 0.03 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={async () => {
                   await onSignOut();
                   onClose();
@@ -189,7 +224,9 @@ const MoreSheet: React.FC<{
                 <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: isDark ? "rgba(139,74,74,0.24)" : "rgba(255,216,216,0.9)" }}>
                   <LogOut className="h-4 w-4 text-[#a76060]" />
                 </span>
-                <span className="mt-1.5 block text-[11px] font-semibold leading-tight text-[#a76060]">{t("navigation.logout")}</span>
+                <span className="mt-1.5 block text-[11px] font-semibold leading-tight text-[#a76060]">
+                  Logout
+                </span>
               </motion.button>
             </div>
           </motion.div>
@@ -206,31 +243,37 @@ const BottomNav: React.FC = () => {
   const { signOut } = useClerk();
   const { user } = useUser();
   const { resolvedTheme } = useTheme();
+  const { track, isPlaying, togglePlay, close, currentTime, duration, seek } = useAudioPlayer();
 
   const [moreOpen, setMoreOpen] = useState(false);
+  const [playerExpanded, setPlayerExpanded] = useState(false);
 
   const isDark = resolvedTheme === "dark";
-  const isAdmin = user?.publicMetadata?.role !== 'customer';
+  const isAdmin = user?.publicMetadata?.role !== "customer";
 
   const colors = isDark
     ? {
-        nav:
-          "linear-gradient(180deg,rgba(23,30,42,0.94)_0%,rgba(19,26,38,0.98)_100%)",
+        nav: "linear-gradient(180deg,rgba(23,30,42,0.96)_0%,rgba(19,26,38,0.99)_100%)",
         border: "#2f3d53",
         text: "#9fb0c8",
         textActive: "#dde7f8",
-        badge: "#8f7cae",
-        logoRow: "rgba(33,42,58,0.78)",
+        more: "#8f7cae",
+        audioBg: "rgba(31,40,56,0.9)",
+        audioBorder: "#3a4962",
+        audioSurface: "rgba(18,24,35,0.36)",
       }
     : {
-        nav:
-          "linear-gradient(180deg,rgba(255,251,243,0.94)_0%,rgba(246,237,224,0.98)_100%)",
+        nav: "linear-gradient(180deg,rgba(255,251,243,0.96)_0%,rgba(246,237,224,0.99)_100%)",
         border: "#e5d9c9",
-        text: "#7a8697",
-        textActive: "#4e637b",
-        badge: "#8f7cae",
-        logoRow: "rgba(255,255,255,0.62)",
+        text: "#6f7e92",
+        textActive: "#31455e",
+        more: "#8f7cae",
+        audioBg: "rgba(255,255,255,0.9)",
+        audioBorder: "#e3d7c8",
+        audioSurface: "rgba(255,255,255,0.5)",
       };
+
+  const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -242,6 +285,28 @@ const BottomNav: React.FC = () => {
     [location.pathname, isAdmin]
   );
 
+  const openTaviChat = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("tavi:open"));
+    }
+  };
+
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  useEffect(() => {
+    if (!track) {
+      setPlayerExpanded(false);
+    }
+  }, [track]);
+
+  const toggleExpanded = () => {
+    setPlayerExpanded((value) => !value);
+  };
+
+  const handleSkip = (delta: number) => {
+    seek((currentTime || 0) + delta);
+  };
+
   const renderPrimaryItem = (item: NavItem) => {
     const Icon = item.icon;
     const active = isActive(item.path);
@@ -251,26 +316,26 @@ const BottomNav: React.FC = () => {
         key={item.path}
         type="button"
         onClick={() => navigate(item.path)}
-        className="relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2"
-        aria-label={t(item.labelKey)}
+        className="relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1"
+        aria-label={labelOf(item)}
       >
         {active && (
           <motion.span
             layoutId="talea-mobile-active"
-            className="absolute -top-1 h-[3px] w-5 rounded-full"
+            className="absolute -top-[2px] h-[3px] w-5 rounded-full"
             style={{ background: item.tone }}
           />
         )}
 
         <span
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
-          style={{ background: active ? `${item.tone}22` : "transparent" }}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-lg"
+          style={{ background: active ? `${item.tone}20` : "transparent" }}
         >
-          <Icon className="h-[19px] w-[19px]" style={{ color: active ? item.tone : colors.text }} />
+          <Icon className="h-4 w-4" style={{ color: active ? item.tone : colors.text }} />
         </span>
 
-        <span className="text-[10px] font-semibold" style={{ color: active ? colors.textActive : colors.text }}>
-          {t(item.labelKey)}
+        <span className="text-[10px] font-semibold leading-none" style={{ color: active ? colors.textActive : colors.text }}>
+          {labelOf(item)}
         </span>
       </button>
     );
@@ -285,70 +350,186 @@ const BottomNav: React.FC = () => {
         onNavigate={navigate}
         isActive={isActive}
         onSignOut={signOut}
+        onOpenTavi={openTaviChat}
+        labelOf={labelOf}
         isDark={isDark}
       />
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-3 md:hidden">
-        <div className={cn("h-9", isDark ? "bg-gradient-to-t from-[#1b2433] to-transparent" : "bg-gradient-to-t from-[#f8f1e5] to-transparent")} />
-
-        <nav
-          className="pointer-events-auto rounded-[26px] border px-2 pb-2 pt-1 shadow-[0_16px_34px_rgba(52,60,73,0.2)] backdrop-blur"
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2.5 pb-1.5 md:hidden">
+        <div
+          className="pointer-events-auto overflow-hidden rounded-[20px] border shadow-[0_10px_24px_rgba(52,60,73,0.2)] backdrop-blur"
           style={{ borderColor: colors.border, background: colors.nav }}
-          aria-label="Mobile Navigation"
         >
-          <div className="flex items-end">
-            {PRIMARY_ITEMS.map(renderPrimaryItem)}
+          <AnimatePresence>
+            {track && (
+              <motion.div
+                layout
+                initial={{ y: 12, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 12, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 360, damping: 32 }}
+                className="mx-1.5 mt-1.5 mb-1 overflow-hidden rounded-2xl border"
+                style={{ borderColor: colors.audioBorder, background: colors.audioBg }}
+              >
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={toggleExpanded}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleExpanded();
+                    }
+                  }}
+                  className="cursor-pointer px-2.5 pt-2.5"
+                  aria-label={playerExpanded ? "Audio-Player einklappen" : "Audio-Player ausklappen"}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-9 w-9 overflow-hidden rounded-lg border border-white/20 bg-slate-200/40 dark:bg-slate-700/40">
+                      {track.coverImageUrl ? (
+                        <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Volume2 className="h-4 w-4 text-[#6d7f9c]" />
+                        </div>
+                      )}
+                    </div>
 
-            <div className="flex flex-1 flex-col items-center">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11px] font-semibold leading-tight" style={{ color: colors.textActive }}>
+                        {track.title}
+                      </p>
+                      <p className="truncate text-[10px]" style={{ color: colors.text }}>
+                        {isPlaying ? "Wird abgespielt" : "Pausiert"} - {formatTime(currentTime)} / {formatTime(duration)}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        togglePlay();
+                      }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                      style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
+                      aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
+                    >
+                      {isPlaying ? (
+                        <Pause className="h-4 w-4" style={{ color: colors.textActive }} />
+                      ) : (
+                        <Play className="h-4 w-4" style={{ color: colors.textActive }} />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        close();
+                      }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                      style={{ borderColor: "#c58f8f", background: "rgba(197,111,111,0.14)" }}
+                      aria-label="Audio schliessen"
+                    >
+                      <X className="h-4 w-4 text-[#b36363]" />
+                    </button>
+                  </div>
+
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: isDark ? "rgba(120,138,167,0.28)" : "rgba(123,135,152,0.24)" }}>
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: "linear-gradient(90deg,#7e9cd1 0%,#b184c5 100%)", width: `${progress}%` }}
+                      transition={{ ease: "easeOut", duration: 0.2 }}
+                    />
+                  </div>
+                </div>
+
+                <AnimatePresence initial={false}>
+                  {playerExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.24, ease: "easeOut" }}
+                      className="overflow-hidden border-t"
+                      style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
+                    >
+                      <div className="px-2.5 pb-2.5 pt-2">
+                        <p className="line-clamp-2 text-[10px] leading-relaxed" style={{ color: colors.text }}>
+                          {track.description || "Audio aus Talea"}
+                        </p>
+
+                        <div className="mt-2 flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSkip(-15)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                            style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                            aria-label="15 Sekunden zurueck"
+                          >
+                            <Rewind className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={togglePlay}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                            style={{ background: "linear-gradient(135deg,#7e9cd1 0%,#b184c5 100%)", color: "white" }}
+                            aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
+                          >
+                            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-[1px] h-4 w-4" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSkip(15)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                            style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                            aria-label="15 Sekunden vor"
+                          >
+                            <FastForward className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <nav className={cn("px-1", track ? "pb-1 pt-0.5" : "py-0.5")} aria-label="Mobile Navigation">
+            <div className="flex items-center">
+              {PRIMARY_ITEMS.map(renderPrimaryItem)}
+
               <button
                 type="button"
-                onClick={() => navigate("/story")}
-                className="relative -mt-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d9cab5] bg-[linear-gradient(140deg,#f2d9d6_0%,#e6d8ea_45%,#d8e4d4_100%)] shadow-[0_10px_22px_rgba(58,67,83,0.24)]"
-                aria-label="Neue Story erstellen"
+                onClick={() => setMoreOpen(true)}
+                className="relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1"
+                aria-label="Mehr Menue oeffnen"
               >
-                <span className="absolute inset-0 rounded-2xl border border-white/60" />
-                <Wand2 className="relative h-5 w-5 text-[#465a72]" />
+                {(moreIsActive || moreOpen) && (
+                  <motion.span className="absolute -top-[2px] h-[3px] w-5 rounded-full" style={{ background: colors.more }} />
+                )}
+
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-lg"
+                  style={{ background: moreIsActive || moreOpen ? "rgba(144,117,184,0.18)" : "transparent" }}
+                >
+                  <MoreHorizontal className="h-4 w-4" style={{ color: moreIsActive || moreOpen ? colors.more : colors.text }} />
+                </span>
+
+                <span className="text-[10px] font-semibold leading-none" style={{ color: moreIsActive || moreOpen ? colors.more : colors.text }}>
+                  Mehr
+                </span>
               </button>
-              <span className="mt-1 text-[10px] font-semibold" style={{ color: colors.text }}>
-                Neu
-              </span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              className="relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2"
-              aria-label="Mehr Menue oeffnen"
-            >
-              {(moreIsActive || moreOpen) && (
-                <motion.span className="absolute -top-1 h-[3px] w-5 rounded-full" style={{ background: colors.badge }} />
-              )}
-
-              <span
-                className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
-                style={{ background: moreIsActive || moreOpen ? "rgba(144,117,184,0.18)" : "transparent" }}
-              >
-                <ChevronUp className="h-[19px] w-[19px]" style={{ color: moreIsActive || moreOpen ? colors.badge : colors.text }} />
-              </span>
-
-              <span className="text-[10px] font-semibold" style={{ color: moreIsActive || moreOpen ? colors.badge : colors.text }}>
-                Mehr
-              </span>
-            </button>
-          </div>
-
-          <div className="mt-1 flex items-center justify-center gap-2 rounded-xl border px-3 py-1" style={{ borderColor: colors.border, background: colors.logoRow }}>
-            <img src={taleaLogo} alt="Talea Logo" className="h-4 w-4 rounded-md object-cover" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: colors.text }}>
-              Talea
-            </span>
-          </div>
-        </nav>
+          </nav>
+        </div>
       </div>
     </>
   );
 };
 
 export default BottomNav;
-
 
