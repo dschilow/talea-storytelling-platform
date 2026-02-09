@@ -10,13 +10,13 @@ const AppLayout: React.FC = () => {
         <div className="min-h-screen text-foreground flex flex-col md:flex-row">
             {/* Desktop Sidebar - Only visible when signed in */}
             <SignedIn>
-                <div className="hidden md:block w-[60px] flex-shrink-0" />
+                <div className="hidden md:block w-[86px] flex-shrink-0" />
                 <Sidebar />
             </SignedIn>
 
             {/* Main Content Area */}
             <main className="flex-1 min-h-screen transition-all duration-300">
-                <div className="pb-24 md:pb-8 md:pt-8 px-4 md:px-8 max-w-[1000px] mx-auto w-full">
+                <div className="pb-28 md:pb-10 md:pt-10 px-4 md:px-10 max-w-[1120px] mx-auto w-full">
                     <Outlet />
                 </div>
             </main>

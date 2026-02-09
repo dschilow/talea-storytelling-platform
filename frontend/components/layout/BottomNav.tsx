@@ -1,298 +1,282 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from "react";
 import {
-  Home, BookOpen, User, FlaskConical, Sparkles, Gem, BookMarked,
-  Code, Settings, X, ChevronUp, Wand2,
-} from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'framer-motion';
+  BookMarked,
+  BookOpen,
+  ChevronUp,
+  Code,
+  FlaskConical,
+  Gem,
+  Plus,
+  Settings,
+  Sparkles,
+  User,
+  Wand2,
+  X,
+} from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from "framer-motion";
 
-// ─── "More" sheet items ───
-const MORE_ITEMS = [
-  { icon: User, labelKey: 'navigation.avatars', path: '/avatar', color: '#2DD4BF' },
-  { icon: Sparkles, labelKey: 'navigation.characters', path: '/characters', color: '#A989F2' },
-  { icon: Gem, labelKey: 'navigation.artifacts', path: '/artifacts', color: '#FF6B9D' },
-  { icon: BookMarked, labelKey: 'navigation.fairytales', path: '/fairytales', color: '#2DD4BF' },
-  { icon: Code, labelKey: 'navigation.logs', path: '/logs', color: '#64748B' },
-  { icon: Settings, labelKey: 'navigation.settings', path: '/settings', color: '#A989F2' },
+import { cn } from "@/lib/utils";
+import taleaLogo from "@/img/talea_logo.png";
+
+interface NavItem {
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  labelKey: string;
+  path: string;
+  tone: string;
+}
+
+const PRIMARY_ITEMS: NavItem[] = [
+  { icon: HomeIcon, labelKey: "navigation.home", path: "/", tone: "#6d8bc9" },
+  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#c86f8a" },
+  { icon: FlaskConical, labelKey: "navigation.doku", path: "/doku", tone: "#c78857" },
 ];
 
-// ─── "More" Bottom Sheet ───
+const MORE_ITEMS: NavItem[] = [
+  { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#5f9488" },
+  { icon: Sparkles, labelKey: "navigation.characters", path: "/characters", tone: "#8e7ecf" },
+  { icon: Gem, labelKey: "navigation.artifacts", path: "/artifacts", tone: "#cf7a99" },
+  { icon: BookMarked, labelKey: "navigation.fairytales", path: "/fairytales", tone: "#6d9a8f" },
+  { icon: Code, labelKey: "navigation.logs", path: "/logs", tone: "#6f7b93" },
+  { icon: Settings, labelKey: "navigation.settings", path: "/settings", tone: "#846fb4" },
+];
+
+function HomeIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6.5 9.5V20h11V9.5" />
+      <path d="M10 20v-6h4v6" />
+    </svg>
+  );
+}
+
 const MoreSheet: React.FC<{
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onNavigate: (path: string) => void;
-  currentPath: string;
-  t: (key: string) => string;
-}> = ({ isOpen, onClose, onNavigate, currentPath, t }) => (
-  <AnimatePresence>
-    {isOpen && (
-      <>
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-          onClick={onClose}
-        />
+  isActive: (path: string) => boolean;
+}> = ({ open, onClose, onNavigate, isActive }) => {
+  const { t } = useTranslation();
 
-        {/* Sheet */}
-        <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-          className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-3xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(180deg, rgba(26,16,51,0.98), rgba(15,10,30,0.99))',
-            borderTop: '1px solid rgba(169,137,242,0.15)',
-            boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
-          }}
-        >
-          {/* Handle bar */}
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-white/20" />
-          </div>
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.button
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[72] bg-black/35 backdrop-blur-[2px]"
+            onClick={onClose}
+            aria-label="Mehr Menue schliessen"
+          />
 
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-3">
-            <h3
-              className="text-lg font-bold text-white/90"
-              style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}
-            >
-              Mehr entdecken
-            </h3>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-white/50"
-            >
-              <X size={16} />
-            </motion.button>
-          </div>
+          <motion.div
+            initial={{ y: "102%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "102%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 32 }}
+            className="fixed bottom-0 left-0 right-0 z-[73] rounded-t-[28px] border border-[#e5d9c9] bg-[linear-gradient(180deg,#fff9f1_0%,#f7efe2_100%)] px-5 pb-8 pt-3 shadow-[0_-18px_40px_rgba(41,50,64,0.22)]"
+          >
+            <div className="mb-2 flex justify-center">
+              <div className="h-1 w-12 rounded-full bg-[#cbbca8]" />
+            </div>
 
-          {/* Grid of items */}
-          <div className="grid grid-cols-3 gap-3 px-5 pb-8 pt-2">
-            {MORE_ITEMS.map((item, i) => {
-              const active = currentPath === item.path;
-              return (
-                <motion.button
-                  key={item.path}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04, duration: 0.3 }}
-                  whileTap={{ scale: 0.93 }}
-                  onClick={() => {
-                    onNavigate(item.path);
-                    onClose();
-                  }}
-                  className={`flex flex-col items-center gap-2 py-4 px-2 rounded-2xl transition-all ${
-                    active
-                      ? 'bg-white/[0.08] border border-white/[0.12]'
-                      : 'bg-white/[0.03] border border-transparent hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center"
-                    style={
-                      active
-                        ? { background: `${item.color}20`, boxShadow: `0 0 16px ${item.color}25` }
-                        : { background: 'rgba(255,255,255,0.04)' }
-                    }
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={taleaLogo} alt="Talea Logo" className="h-8 w-8 rounded-lg object-cover" />
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-[#758090]">Navigation</p>
+                  <p className="text-lg leading-none text-[#2c394d]" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+                    TALEA
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e2d5c4] bg-white/75 text-[#6f7a8b]"
+                aria-label="Sheet schliessen"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              {MORE_ITEMS.map((item, index) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+
+                return (
+                  <motion.button
+                    key={item.path}
+                    type="button"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, delay: index * 0.03 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      onNavigate(item.path);
+                      onClose();
+                    }}
+                    className={cn(
+                      "rounded-2xl border px-2 py-3 text-center",
+                      active ? "bg-white/85 shadow-[0_8px_18px_rgba(60,69,88,0.16)]" : "bg-white/55"
+                    )}
+                    style={{ borderColor: active ? `${item.tone}55` : "#dfd3c2" }}
                   >
-                    <item.icon
-                      size={20}
-                      style={{ color: active ? item.color : 'rgba(255,255,255,0.45)' }}
-                    />
-                  </div>
-                  <span
-                    className="text-[11px] font-semibold text-center leading-tight"
-                    style={{ color: active ? item.color : 'rgba(255,255,255,0.55)' }}
-                  >
-                    {t(item.labelKey)}
-                  </span>
-                </motion.button>
-              );
-            })}
-          </div>
-        </motion.div>
-      </>
-    )}
-  </AnimatePresence>
-);
+                    <span
+                      className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                      style={{ background: active ? `${item.tone}24` : "#f4ece1" }}
+                    >
+                      <Icon className="h-4 w-4" style={{ color: active ? item.tone : "#6e7a8f" }} />
+                    </span>
+                    <span className="mt-1.5 block text-[11px] font-semibold leading-tight text-[#4c5a6d]">
+                      {t(item.labelKey)}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
 
-// ─── Main Bottom Nav ───
 const BottomNav: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
 
-  // Check if any "more" item is currently active
-  const moreIsActive = MORE_ITEMS.some((item) => location.pathname === item.path);
+  const moreIsActive = useMemo(
+    () => MORE_ITEMS.some((item) => isActive(item.path)),
+    [location.pathname]
+  );
 
-  // Primary nav items (left side of center button)
-  const leftItems = [
-    { icon: Home, label: t('navigation.home'), path: '/', color: '#A989F2' },
-    { icon: BookOpen, label: t('navigation.stories'), path: '/stories', color: '#FF6B9D' },
-  ];
-
-  // Primary nav items (right side of center button)
-  const rightItems = [
-    { icon: FlaskConical, label: t('navigation.doku'), path: '/doku', color: '#FF9B5C' },
-  ];
-
-  const renderNavItem = (item: (typeof leftItems)[0]) => {
+  const renderPrimaryItem = (item: NavItem) => {
+    const Icon = item.icon;
     const active = isActive(item.path);
+
     return (
-      <motion.button
+      <button
         key={item.path}
-        whileTap={{ scale: 0.85 }}
+        type="button"
         onClick={() => navigate(item.path)}
-        className="relative flex flex-col items-center justify-center flex-1 py-2 rounded-xl"
+        className="relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2"
+        aria-label={t(item.labelKey)}
       >
-        {/* Active indicator pill */}
         {active && (
-          <motion.div
-            layoutId="bottomNavPill"
-            className="absolute -top-1 w-5 h-[3px] rounded-full"
-            style={{ background: item.color, boxShadow: `0 0 12px ${item.color}80` }}
-            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+          <motion.span
+            layoutId="talea-mobile-active"
+            className="absolute -top-1 h-[3px] w-5 rounded-full"
+            style={{ background: item.tone }}
           />
         )}
 
-        <item.icon
-          size={22}
-          className="transition-all duration-300"
-          style={
-            active
-              ? { color: item.color, filter: `drop-shadow(0 0 6px ${item.color}60)` }
-              : { color: 'rgba(255,255,255,0.3)' }
-          }
-          strokeWidth={active ? 2.5 : 1.8}
-        />
-
         <span
-          className="text-[10px] font-semibold mt-1 transition-colors duration-200"
-          style={active ? { color: item.color } : { color: 'rgba(255,255,255,0.25)' }}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
+          style={{ background: active ? `${item.tone}22` : "transparent" }}
         >
-          {item.label}
+          <Icon className="h-[19px] w-[19px]" style={{ color: active ? item.tone : "#687689" }} />
         </span>
-      </motion.button>
+
+        <span className="text-[10px] font-semibold" style={{ color: active ? item.tone : "#7a8697" }}>
+          {t(item.labelKey)}
+        </span>
+      </button>
     );
   };
 
   return (
     <>
-      {/* More Sheet */}
       <MoreSheet
-        isOpen={moreOpen}
+        open={moreOpen}
         onClose={() => setMoreOpen(false)}
         onNavigate={navigate}
-        currentPath={location.pathname}
-        t={t}
+        isActive={isActive}
       />
 
-      {/* Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-        {/* Gradient fade above nav */}
-        <div className="pointer-events-none h-6 bg-gradient-to-t from-[#0F0A1A]/90 to-transparent" />
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-3 md:hidden">
+        <div className="h-9 bg-gradient-to-t from-[#f8f1e5] to-transparent" />
 
         <nav
-          className="pointer-events-auto mx-3 mb-3 rounded-2xl flex items-end justify-around px-2 pt-2 pb-2 border border-white/[0.06]"
-          style={{
-            background: 'linear-gradient(180deg, rgba(26,16,51,0.95), rgba(15,10,30,0.98))',
-            backdropFilter: 'blur(24px) saturate(180%)',
-            boxShadow:
-              '0 -2px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 0.5px rgba(169,137,242,0.08)',
-          }}
+          className="pointer-events-auto rounded-[26px] border border-[#e5d9c9] bg-[linear-gradient(180deg,rgba(255,251,243,0.94)_0%,rgba(246,237,224,0.98)_100%)] px-2 pb-2 pt-1 shadow-[0_16px_34px_rgba(52,60,73,0.2)] backdrop-blur"
+          aria-label="Mobile Navigation"
         >
-          {/* Left items */}
-          {leftItems.map(renderNavItem)}
+          <div className="flex items-end">
+            {renderPrimaryItem(PRIMARY_ITEMS[0])}
+            {renderPrimaryItem(PRIMARY_ITEMS[1])}
 
-          {/* ── Center Create Button ── */}
-          <div className="flex flex-col items-center justify-end flex-1 -mt-5">
-            <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.92 }}
-              onClick={() => navigate('/story')}
-              className="relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl"
-              style={{
-                background: 'linear-gradient(135deg, #A989F2 0%, #FF6B9D 50%, #FF9B5C 100%)',
-                boxShadow:
-                  '0 4px 24px rgba(169,137,242,0.4), 0 2px 8px rgba(255,107,157,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-              }}
-            >
-              {/* Animated glow ring */}
-              <motion.div
-                className="absolute inset-0 rounded-2xl"
-                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                style={{
-                  boxShadow: '0 0 20px rgba(169,137,242,0.5), 0 0 40px rgba(255,107,157,0.2)',
-                }}
-              />
-              <Wand2 className="w-6 h-6 text-white relative z-10" strokeWidth={2.5} />
-            </motion.button>
-            <span className="text-[10px] font-bold mt-1.5 bg-gradient-to-r from-[#A989F2] to-[#FF6B9D] bg-clip-text text-transparent">
-              Neu
-            </span>
-          </div>
-
-          {/* Right items */}
-          {rightItems.map(renderNavItem)}
-
-          {/* ── More Button ── */}
-          <motion.button
-            whileTap={{ scale: 0.85 }}
-            onClick={() => setMoreOpen(true)}
-            className="relative flex flex-col items-center justify-center flex-1 py-2 rounded-xl"
-          >
-            {/* Active indicator for "more" sub-pages */}
-            {moreIsActive && (
-              <motion.div
-                className="absolute -top-1 w-5 h-[3px] rounded-full"
-                style={{ background: '#FF9B5C', boxShadow: '0 0 12px rgba(255,155,92,0.8)' }}
-              />
-            )}
-
-            <div className="relative">
-              <ChevronUp
-                size={22}
-                className="transition-all duration-300"
-                style={
-                  moreIsActive || moreOpen
-                    ? { color: '#FF9B5C', filter: 'drop-shadow(0 0 6px rgba(255,155,92,0.6))' }
-                    : { color: 'rgba(255,255,255,0.3)' }
-                }
-                strokeWidth={moreIsActive || moreOpen ? 2.5 : 1.8}
-              />
-              {/* Notification dot if a "more" page is active */}
-              {moreIsActive && !moreOpen && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full"
-                  style={{ background: '#FF9B5C', boxShadow: '0 0 6px rgba(255,155,92,0.8)' }}
-                />
-              )}
+            <div className="flex flex-1 flex-col items-center">
+              <button
+                type="button"
+                onClick={() => navigate("/story")}
+                className="relative -mt-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d9cab5] bg-[linear-gradient(140deg,#f2d9d6_0%,#e6d8ea_45%,#d8e4d4_100%)] shadow-[0_10px_22px_rgba(58,67,83,0.24)]"
+                aria-label="Neue Story erstellen"
+              >
+                <span className="absolute inset-0 rounded-2xl border border-white/60" />
+                <Wand2 className="relative h-5 w-5 text-[#465a72]" />
+              </button>
+              <span className="mt-1 text-[10px] font-semibold text-[#6f7c8d]">Neu</span>
             </div>
 
-            <span
-              className="text-[10px] font-semibold mt-1 transition-colors duration-200"
-              style={
-                moreIsActive || moreOpen
-                  ? { color: '#FF9B5C' }
-                  : { color: 'rgba(255,255,255,0.25)' }
-              }
+            {renderPrimaryItem(PRIMARY_ITEMS[2])}
+
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              className="relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2"
+              aria-label="Mehr Menue oeffnen"
             >
-              Mehr
-            </span>
-          </motion.button>
+              {(moreIsActive || moreOpen) && (
+                <motion.span
+                  className="absolute -top-1 h-[3px] w-5 rounded-full"
+                  style={{ background: "#9075b8" }}
+                />
+              )}
+
+              <span
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
+                style={{ background: moreIsActive || moreOpen ? "rgba(144,117,184,0.18)" : "transparent" }}
+              >
+                <ChevronUp
+                  className="h-[19px] w-[19px]"
+                  style={{ color: moreIsActive || moreOpen ? "#9075b8" : "#687689" }}
+                />
+              </span>
+
+              <span className="text-[10px] font-semibold" style={{ color: moreIsActive || moreOpen ? "#9075b8" : "#7a8697" }}>
+                Mehr
+              </span>
+            </button>
+          </div>
+
+          <div className="mt-1 flex items-center justify-center gap-2 rounded-xl border border-[#e5d9c9] bg-white/60 px-3 py-1">
+            <img src={taleaLogo} alt="Talea Logo" className="h-4 w-4 rounded-md object-cover" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a8594]">Talea</span>
+            <Plus className="h-3.5 w-3.5 text-[#8f7cae]" />
+          </div>
         </nav>
       </div>
     </>

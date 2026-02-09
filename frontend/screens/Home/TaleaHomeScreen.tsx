@@ -10,7 +10,6 @@ import {
   LogIn,
   Plus,
   RefreshCw,
-  Sparkles,
   Trash2,
   UserPlus,
   WandSparkles,
@@ -20,6 +19,7 @@ import { useBackend } from "../../hooks/useBackend";
 import type { Story } from "../../types/story";
 import { cn } from "@/lib/utils";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
+import taleaLogo from "@/img/talea_logo.png";
 import {
   Card,
   CardContent,
@@ -42,15 +42,15 @@ interface Doku {
 }
 
 const palette = {
-  page: "#f2efe8",
-  panel: "#fbfaf7",
-  muted: "#5f6d7d",
-  border: "#d8d0c4",
-  accent: "#1f6f67",
+  page: "#f8f1e8",
+  panel: "#fff9f0",
+  muted: "#617387",
+  border: "#e1d3c1",
+  accent: "#4f7f78",
 };
 
-const headingFont = '"Fraunces", "Times New Roman", serif';
-const bodyFont = '"Manrope", "Segoe UI", sans-serif';
+const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
+const bodyFont = '"Sora", "Manrope", "Segoe UI", sans-serif';
 
 const storyStatusLabel: Record<Story["status"], string> = {
   complete: "Fertig",
@@ -77,16 +77,16 @@ const StudioBackground: React.FC = () => (
     <div
       className="absolute inset-0"
       style={{
-        background: `radial-gradient(920px 460px at 100% 0%, #e8dfd1 0%, transparent 58%),
-                     radial-gradient(980px 540px at 0% 18%, #dce9e7 0%, transparent 63%),
+        background: `radial-gradient(980px 520px at 100% 0%, #f0ddd9 0%, transparent 58%),
+                     radial-gradient(980px 560px at 0% 18%, #d8e5dc 0%, transparent 63%),
+                     radial-gradient(760px 420px at 45% 100%, #e2deef 0%, transparent 60%),
                      ${palette.page}`,
       }}
     />
     <div
       className="absolute inset-x-0 top-0 h-[360px]"
       style={{
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0) 90%)",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 90%)",
       }}
     />
   </div>
@@ -112,22 +112,22 @@ const SignedOutStart: React.FC = () => {
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-5">
-      <Card className="w-full max-w-3xl border-[#d8d0c4] bg-[#fbfaf7] shadow-[0_18px_40px_rgba(21,32,44,0.1)]">
+      <Card className="w-full max-w-3xl border-[#e1d3c1] bg-[#fff9f0] shadow-[0_22px_44px_rgba(47,58,77,0.14)]">
         <CardContent className="grid gap-7 p-7 md:grid-cols-[1.25fr_1fr] md:p-9">
           <div>
-            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#1f6f67]">
-              <Sparkles className="h-3.5 w-3.5" />
-              Talea Story Studio
-            </p>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#e3d7c8] bg-white/70 px-2.5 py-1.5">
+              <img src={taleaLogo} alt="Talea Logo" className="h-6 w-6 rounded-md object-cover" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637286]">Talea Story Studio</p>
+            </div>
             <h1
-              className="mt-3 text-4xl leading-tight text-[#16212c] md:text-5xl"
+              className="mt-4 text-4xl leading-tight text-[#243247] md:text-5xl"
               style={{ fontFamily: headingFont }}
             >
               Geschichten gestalten,
               <br />
               nicht nur generieren
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-[#5f6d7d] md:text-base">
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-[#617387] md:text-base">
               {t(
                 "home.subtitle",
                 "Organisiere Avatare, Geschichten und Dokus in einer klaren Arbeitsoberflaeche mit professionellem Look."
@@ -136,21 +136,21 @@ const SignedOutStart: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate("/auth")}
-              className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#1f6f67] px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              className="mt-7 inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-5 py-3 text-sm font-semibold text-[#2f3c4f] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
             >
               <LogIn className="h-4 w-4" />
               Anmelden
             </button>
           </div>
 
-          <div className="rounded-2xl border border-[#e1d8cb] bg-[#f6f1e7] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#607083]">
+          <div className="rounded-2xl border border-[#e6d9c9] bg-[#f8f0e4] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#617387]">
               Workspace Fokus
             </p>
-            <ul className="mt-4 space-y-3 text-sm text-[#364554]">
-              <li className="rounded-xl bg-white/60 px-3 py-2">Story-Streams mit Teilnehmern</li>
-              <li className="rounded-xl bg-white/60 px-3 py-2">Schneller Zugriff auf Avatare</li>
-              <li className="rounded-xl bg-white/60 px-3 py-2">Wissens-Dokus im gleichen Stil</li>
+            <ul className="mt-4 space-y-3 text-sm text-[#425165]">
+              <li className="rounded-xl border border-[#eadfce] bg-white/70 px-3 py-2">Story-Streams mit Teilnehmern</li>
+              <li className="rounded-xl border border-[#eadfce] bg-white/70 px-3 py-2">Schneller Zugriff auf Avatare</li>
+              <li className="rounded-xl border border-[#eadfce] bg-white/70 px-3 py-2">Wissens-Dokus im gleichen Stil</li>
             </ul>
           </div>
         </CardContent>
@@ -173,13 +173,13 @@ const SectionHeading: React.FC<{
       >
         {title}
       </h2>
-      <p className="text-sm text-[#5f6d7d]">{subtitle}</p>
+      <p className="text-sm text-[#617387]">{subtitle}</p>
     </div>
     {actionLabel && onAction && (
       <button
         type="button"
         onClick={onAction}
-        className="inline-flex items-center gap-2 rounded-xl border border-[#d8d0c4] bg-[#fbfaf7] px-3 py-2 text-sm font-semibold text-[#17212d] transition-colors hover:bg-[#f3eee4]"
+        className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] bg-[#fff9f0] px-3 py-2 text-sm font-semibold text-[#17212d] transition-colors hover:bg-[#f3eee4]"
       >
         {actionLabel}
         <ArrowRight className="h-4 w-4" />
@@ -192,7 +192,7 @@ const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => (
   <span
     className={cn(
       "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-      status === "complete" && "border-[#bfdcd5] bg-[#deece8] text-[#1f6f67]",
+      status === "complete" && "border-[#bfdcd5] bg-[#dfe8f4] text-[#4f7f78]",
       status === "generating" && "border-[#e5d2b9] bg-[#f6ead8] text-[#8f6036]",
       status === "error" && "border-[#e6c4c4] bg-[#f6e2e2] text-[#9d4545]"
     )}
@@ -215,7 +215,7 @@ const StoryCard: React.FC<{
       className="group cursor-pointer"
       onClick={onRead}
     >
-      <Card className="overflow-hidden border-[#d8d0c4] bg-[#fbfaf7] shadow-[0_14px_32px_rgba(21,32,44,0.08)] transition-shadow group-hover:shadow-[0_18px_42px_rgba(21,32,44,0.12)]">
+      <Card className="overflow-hidden border-[#e1d3c1] bg-[#fff9f0] shadow-[0_14px_32px_rgba(21,32,44,0.08)] transition-shadow group-hover:shadow-[0_18px_42px_rgba(21,32,44,0.12)]">
         <div className="relative h-52 overflow-hidden">
           {story.coverImageUrl ? (
             <img
@@ -256,16 +256,16 @@ const StoryCard: React.FC<{
             >
               {story.title}
             </h3>
-            <p className="line-clamp-2 text-sm leading-relaxed text-[#5f6d7d]">
+            <p className="line-clamp-2 text-sm leading-relaxed text-[#617387]">
               {story.summary || story.description || "Noch keine Zusammenfassung verfuegbar."}
             </p>
           </div>
 
           <StoryParticipantsDialog story={story} maxVisible={4} />
 
-          <div className="flex items-center justify-between pt-1 text-xs text-[#5f6d7d]">
+          <div className="flex items-center justify-between pt-1 text-xs text-[#617387]">
             <span>{formatDate(story.createdAt)}</span>
-            <span className="font-semibold text-[#1f6f67]">Lesen</span>
+            <span className="font-semibold text-[#4f7f78]">Lesen</span>
           </div>
         </CardContent>
       </Card>
@@ -288,7 +288,7 @@ const AvatarTile: React.FC<{
         onOpen();
       }
     }}
-    className="group rounded-2xl border border-[#d8d0c4] bg-[#fbfaf7] p-4 text-left shadow-[0_10px_24px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(21,32,44,0.1)]"
+    className="group rounded-2xl border border-[#e1d3c1] bg-[#fff9f0] p-4 text-left shadow-[0_10px_24px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(21,32,44,0.1)]"
   >
     <div className="relative inline-flex">
       <img
@@ -299,14 +299,14 @@ const AvatarTile: React.FC<{
         alt={avatar.name}
         className="h-16 w-16 rounded-2xl object-cover"
       />
-      <span className="absolute -bottom-1 -right-1 rounded-full border border-[#deece8] bg-[#1f6f67] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+      <span className="absolute -bottom-1 -right-1 rounded-full border border-[#dfe8f4] bg-[#4f7f78] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
         {avatar.creationType === "ai-generated" ? "AI" : "Foto"}
       </span>
       <span className="sr-only">{avatar.name}</span>
     </div>
 
     <p className="mt-3 truncate text-sm font-semibold text-[#17212d]">{avatar.name}</p>
-    <p className="text-xs text-[#5f6d7d]">Zum Bearbeiten oeffnen</p>
+    <p className="text-xs text-[#617387]">Zum Bearbeiten oeffnen</p>
 
     <button
       type="button"
@@ -329,7 +329,7 @@ const DokuRow: React.FC<{
   onDelete: () => void;
 }> = ({ doku, onRead, onDelete }) => (
   <article
-    className="group rounded-2xl border border-[#d8d0c4] bg-[#fbfaf7] p-3 shadow-[0_10px_24px_rgba(21,32,44,0.06)]"
+    className="group rounded-2xl border border-[#e1d3c1] bg-[#fff9f0] p-3 shadow-[0_10px_24px_rgba(21,32,44,0.06)]"
     role="button"
     tabIndex={0}
     onClick={onRead}
@@ -355,7 +355,7 @@ const DokuRow: React.FC<{
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="line-clamp-1 text-sm font-semibold text-[#17212d]">{doku.title}</p>
-            <p className="line-clamp-1 text-xs text-[#5f6d7d]">{doku.topic}</p>
+            <p className="line-clamp-1 text-xs text-[#617387]">{doku.topic}</p>
           </div>
           <button
             type="button"
@@ -371,10 +371,10 @@ const DokuRow: React.FC<{
         </div>
 
         <div className="mt-2 flex items-center justify-between text-[11px]">
-          <span className="rounded-full border border-[#e2d9cc] bg-[#f7f2e8] px-2 py-0.5 font-semibold uppercase tracking-wide text-[#607083]">
+          <span className="rounded-full border border-[#e2d9cc] bg-[#f7f2e8] px-2 py-0.5 font-semibold uppercase tracking-wide text-[#617387]">
             {dokuStatusLabel[doku.status]}
           </span>
-          <span className="text-[#607083]">{formatDate(doku.createdAt)}</span>
+          <span className="text-[#617387]">{formatDate(doku.createdAt)}</span>
         </div>
       </div>
     </div>
@@ -387,17 +387,17 @@ const EmptyBlock: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ title, description, actionLabel, onAction }) => (
-  <Card className="border-dashed border-[#d8d0c4] bg-[#fbfaf7]">
+  <Card className="border-dashed border-[#e1d3c1] bg-[#fff9f0]">
     <CardContent className="p-8 text-center">
       <h3 className="text-xl text-[#17212d]" style={{ fontFamily: headingFont }}>
         {title}
       </h3>
-      <p className="mx-auto mt-2 max-w-xl text-sm text-[#5f6d7d]">{description}</p>
+      <p className="mx-auto mt-2 max-w-xl text-sm text-[#617387]">{description}</p>
       {actionLabel && onAction && (
         <button
           type="button"
           onClick={onAction}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#1f6f67] px-4 py-2 text-sm font-semibold text-white"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#4f7f78] px-4 py-2 text-sm font-semibold text-white"
         >
           {actionLabel}
         </button>
@@ -510,12 +510,19 @@ const TaleaHomeScreen: React.FC = () => {
             initial={reduceMotion ? false : { opacity: 0, y: -14 }}
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
           >
-            <Card className="border-[#d8d0c4] bg-[#fbfaf7]/95 shadow-[0_18px_38px_rgba(21,32,44,0.09)] backdrop-blur">
+            <Card className="border-[#e1d3c1] bg-[#fff9f0]/95 shadow-[0_20px_42px_rgba(39,49,66,0.13)] backdrop-blur">
               <CardContent className="grid gap-6 p-5 md:p-6 lg:grid-cols-[1.35fr_1fr]">
                 <div>
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#e2d5c5] bg-white/75 px-2.5 py-1.5">
+                    <img src={taleaLogo} alt="Talea Logo" className="h-5 w-5 rounded-md object-cover" />
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b7888]">
+                      Talea Atelier
+                    </span>
+                  </div>
+
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-2xl border border-[#d8d0c4] p-1.5">
+                      <div className="rounded-2xl border border-[#e1d3c1] bg-white/75 p-1.5">
                         <UserButton
                           afterSignOutUrl="/"
                           userProfileMode="navigation"
@@ -524,9 +531,9 @@ const TaleaHomeScreen: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[#607083]">{greeting}</p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-[#6b7888]">{greeting}</p>
                         <h1
-                          className="text-3xl leading-tight text-[#16212c] md:text-4xl"
+                          className="text-3xl leading-tight text-[#253246] md:text-4xl"
                           style={{ fontFamily: headingFont }}
                         >
                           {user?.firstName || "Talea Nutzer"}
@@ -537,63 +544,63 @@ const TaleaHomeScreen: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleRefresh}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#d8d0c4] bg-[#f6f1e7] px-3 py-2 text-sm font-semibold text-[#17212d] transition-colors hover:bg-[#ece7dd]"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] bg-[#f7efe2] px-3 py-2 text-sm font-semibold text-[#2e3c4f] transition-colors hover:bg-[#efe5d7]"
                     >
                       <RefreshCw
-                        className={cn("h-4 w-4 text-[#1f6f67]", refreshing && "animate-spin")}
+                        className={cn("h-4 w-4 text-[#4f7f78]", refreshing && "animate-spin")}
                       />
                       Aktualisieren
                     </button>
                   </div>
 
-                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#5f6d7d]">
-                    Dein Story-Workspace fuer Avatare, Geschichten und Wissensformate. Reduziertes,
-                    professionelles Design mit direktem Zugriff auf alle Kernaktionen.
+                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#617387]">
+                    Dein Story-Workspace fuer Avatare, Geschichten und Wissensformate. Editoriale
+                    Typografie, pastellige Oberflaechen und direkte Kernaktionen ohne visuelle Unruhe.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-2.5">
                     <button
                       type="button"
                       onClick={() => navigate("/story")}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#1f6f67] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f1d7d5_0%,#e8d8e8_42%,#d6e2d0_100%)] px-4 py-2.5 text-sm font-semibold text-[#2e3b4d] shadow-[0_8px_20px_rgba(54,63,82,0.15)] transition-transform hover:-translate-y-0.5"
                     >
-                      <WandSparkles className="h-4 w-4" />
+                      <WandSparkles className="h-4 w-4 text-[#4f6786]" />
                       Neue Story
                     </button>
                     <button
                       type="button"
                       onClick={() => navigate("/avatar/create")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#d8d0c4] bg-[#fbfaf7] px-4 py-2.5 text-sm font-semibold text-[#17212d] transition-colors hover:bg-[#f3eee4]"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] bg-white/70 px-4 py-2.5 text-sm font-semibold text-[#2f3d52] transition-colors hover:bg-[#f5ebde]"
                     >
-                      <UserPlus className="h-4 w-4 text-[#1f6f67]" />
+                      <UserPlus className="h-4 w-4 text-[#6a809f]" />
                       Avatar erstellen
                     </button>
                     <button
                       type="button"
                       onClick={() => navigate("/doku/create")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#d8d0c4] bg-[#fbfaf7] px-4 py-2.5 text-sm font-semibold text-[#17212d] transition-colors hover:bg-[#f3eee4]"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] bg-white/70 px-4 py-2.5 text-sm font-semibold text-[#2f3d52] transition-colors hover:bg-[#f5ebde]"
                     >
-                      <Library className="h-4 w-4 text-[#1f6f67]" />
+                      <Library className="h-4 w-4 text-[#5f9388]" />
                       Doku schreiben
                     </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-[#e0d8cb] bg-[#f6f1e7] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#607083]">
+                  <div className="rounded-xl border border-[#e3d7c8] bg-[#f8efe2] p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387]">
                       Geschichten
                     </p>
                     <p className="mt-1 text-3xl font-semibold text-[#17212d]">{stories.length}</p>
                   </div>
-                  <div className="rounded-xl border border-[#e0d8cb] bg-[#f6f1e7] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#607083]">
+                  <div className="rounded-xl border border-[#e3d7c8] bg-[#f8efe2] p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387]">
                       Avatare
                     </p>
                     <p className="mt-1 text-3xl font-semibold text-[#17212d]">{avatars.length}</p>
                   </div>
-                  <div className="rounded-xl border border-[#e0d8cb] bg-[#f6f1e7] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#607083]">
+                  <div className="rounded-xl border border-[#e3d7c8] bg-[#f8efe2] p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387]">
                       Dokus
                     </p>
                     <p className="mt-1 text-3xl font-semibold text-[#17212d]">{dokus.length}</p>
@@ -601,12 +608,12 @@ const TaleaHomeScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate("/stories")}
-                    className="rounded-xl border border-[#bfdcd5] bg-[#deece8] p-3 text-left transition-colors hover:bg-[#d3e8e3]"
+                    className="rounded-xl border border-[#cad9cc] bg-[#e6eee4] p-3 text-left transition-colors hover:bg-[#dce8dd]"
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#356f69]">
                       Bibliothek
                     </p>
-                    <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1f6f67]">
+                    <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-[#4d7f78]">
                       Alle Stories
                       <ArrowRight className="h-4 w-4" />
                     </p>
@@ -620,15 +627,15 @@ const TaleaHomeScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate("/story")}
-              className="rounded-2xl border border-[#d8d0c4] bg-[#fbfaf7] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
+              className="rounded-2xl border border-[#e1d3c1] bg-[#fff9f0] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#deece8] text-[#1f6f67]">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#dfe8f4] text-[#4f7f78]">
                 <BookOpen className="h-5 w-5" />
               </div>
               <h3 className="text-lg text-[#16212c]" style={{ fontFamily: headingFont }}>
                 Neue Geschichte
               </h3>
-              <p className="mt-1 text-sm text-[#5f6d7d]">
+              <p className="mt-1 text-sm text-[#617387]">
                 Mit Avataren und Charakteren direkt in den Story-Flow starten.
               </p>
             </button>
@@ -636,15 +643,15 @@ const TaleaHomeScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate("/avatar")}
-              className="rounded-2xl border border-[#d8d0c4] bg-[#fbfaf7] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
+              className="rounded-2xl border border-[#e1d3c1] bg-[#fff9f0] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#deece8] text-[#1f6f67]">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#dfe8f4] text-[#4f7f78]">
                 <UserPlus className="h-5 w-5" />
               </div>
               <h3 className="text-lg text-[#16212c]" style={{ fontFamily: headingFont }}>
                 Avatar Verwaltung
               </h3>
-              <p className="mt-1 text-sm text-[#5f6d7d]">
+              <p className="mt-1 text-sm text-[#617387]">
                 Teilnehmer pflegen, bearbeiten und wiederverwendbar halten.
               </p>
             </button>
@@ -652,15 +659,15 @@ const TaleaHomeScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate("/doku")}
-              className="rounded-2xl border border-[#d8d0c4] bg-[#fbfaf7] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
+              className="rounded-2xl border border-[#e1d3c1] bg-[#fff9f0] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#deece8] text-[#1f6f67]">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#dfe8f4] text-[#4f7f78]">
                 <Library className="h-5 w-5" />
               </div>
               <h3 className="text-lg text-[#16212c]" style={{ fontFamily: headingFont }}>
                 Wissens-Dokus
               </h3>
-              <p className="mt-1 text-sm text-[#5f6d7d]">
+              <p className="mt-1 text-sm text-[#617387]">
                 Inhalte erstellen und als strukturierte Bibliothek bereitstellen.
               </p>
             </button>
@@ -725,13 +732,13 @@ const TaleaHomeScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate("/avatar/create")}
-                    className="rounded-2xl border border-dashed border-[#d8d0c4] bg-[#fbfaf7] p-4 text-left transition-colors hover:bg-[#f4efe5]"
+                    className="rounded-2xl border border-dashed border-[#e1d3c1] bg-[#fff9f0] p-4 text-left transition-colors hover:bg-[#f4efe5]"
                   >
-                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#deece8] text-[#1f6f67]">
+                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#dfe8f4] text-[#4f7f78]">
                       <Plus className="h-6 w-6" />
                     </div>
                     <p className="mt-3 text-sm font-semibold text-[#17212d]">Neuer Avatar</p>
-                    <p className="text-xs text-[#5f6d7d]">Direkt im Wizard anlegen</p>
+                    <p className="text-xs text-[#617387]">Direkt im Wizard anlegen</p>
                   </button>
                 </div>
               )}
@@ -773,3 +780,4 @@ const TaleaHomeScreen: React.FC = () => {
 };
 
 export default TaleaHomeScreen;
+
