@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import {
   motion,
   useReducedMotion,
@@ -153,8 +154,10 @@ const cardVariant = {
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isSignedIn } = useUser();
   const pageRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+  const startTarget = isSignedIn ? '/' : '/auth';
 
   const { scrollYProgress } = useScroll({
     target: pageRef,
@@ -204,7 +207,7 @@ const LandingPage: React.FC = () => {
           <a href="#islands">Funktionen</a>
           <a href="#flow">Ablauf</a>
           <a href="#trust">Qualitaet</a>
-          <button type="button" onClick={() => navigate('/')} className="landing-start-ghost">
+          <button type="button" onClick={() => navigate(startTarget)} className="landing-start-ghost">
             App starten
           </button>
         </nav>
@@ -245,7 +248,7 @@ const LandingPage: React.FC = () => {
             </p>
 
             <div className="hero-actions">
-              <button type="button" className="landing-start-solid" onClick={() => navigate('/')}>
+              <button type="button" className="landing-start-solid" onClick={() => navigate(startTarget)}>
                 App starten
                 <ArrowRight size={16} />
               </button>
@@ -432,7 +435,7 @@ const LandingPage: React.FC = () => {
             <p>Bereit fuer den Launch?</p>
             <h2>Startet jetzt in Talea und baut eure eigene Story-Welt.</h2>
             <div className="final-cta-actions">
-              <button type="button" className="landing-start-solid" onClick={() => navigate('/')}>
+              <button type="button" className="landing-start-solid" onClick={() => navigate(startTarget)}>
                 Zur App
                 <ArrowRight size={16} />
               </button>
