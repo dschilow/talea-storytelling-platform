@@ -8,6 +8,7 @@ interface AgeHeightSlidersProps {
   characterType: CharacterTypeId;
   onAgeChange: (age: number) => void;
   onHeightChange: (height: number) => void;
+  darkMode?: boolean;
 }
 
 export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
@@ -16,6 +17,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
   characterType,
   onAgeChange,
   onHeightChange,
+  darkMode = false,
 }) => {
   const isHuman = isHumanCharacter(characterType);
   const ageDescription = getAgeDescription(age, characterType);
@@ -64,13 +66,13 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
       {/* Age Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-gray-700">Alter</label>
+          <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Alter</label>
           <div className="flex items-center gap-2">
             <span className="text-2xl">{getAgeEmoji(age, characterType)}</span>
-            <span className="text-lg font-bold text-purple-600">
+            <span className={`text-lg font-bold ${darkMode ? 'text-[#2DD4BF]' : 'text-purple-600'}`}>
               {age < 1 ? `${Math.round(age * 12)} Monate` : `${age} Jahre`}
             </span>
-            <span className="text-sm text-gray-500">({ageDescription})</span>
+            <span className={`text-sm ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>({ageDescription})</span>
           </div>
         </div>
 
@@ -87,8 +89,12 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                 px-3 py-2 rounded-lg text-sm font-medium transition-all
                 flex items-center gap-1.5
                 ${Math.abs(age - preset.value) < 1
-                  ? 'bg-purple-500 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700'
+                  ? darkMode
+                    ? 'bg-[#2DD4BF] text-white shadow-md shadow-[#2DD4BF]/30'
+                    : 'bg-purple-500 text-white shadow-md'
+                  : darkMode
+                    ? 'bg-white/[0.08] text-white/60 hover:bg-white/[0.15] hover:text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700'
                 }
               `}
             >
@@ -107,9 +113,16 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             step={isHuman ? 1 : 0.5}
             value={age}
             onChange={(e) => onAgeChange(Number(e.target.value))}
-            className="w-full h-2 bg-gradient-to-r from-purple-200 via-purple-300 to-purple-400 rounded-full appearance-none cursor-pointer slider-thumb"
+            className={`w-full h-2 rounded-full appearance-none cursor-pointer ${
+              darkMode ? 'slider-thumb-dark' : 'slider-thumb'
+            }`}
+            style={{
+              background: darkMode
+                ? 'linear-gradient(to right, rgba(45,212,191,0.3), rgba(169,137,242,0.3))'
+                : 'linear-gradient(to right, #E9D5FF, #C084FC, #A855F7)',
+            }}
           />
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
+          <div className={`flex justify-between text-xs mt-1 ${darkMode ? 'text-white/30' : 'text-gray-400'}`}>
             <span>{isHuman ? '1' : '0.5'}</span>
             <span>{isHuman ? '150' : '20'} Jahre</span>
           </div>
@@ -120,17 +133,19 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
       {isHuman && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-gray-700">Größe</label>
+            <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Groesse</label>
             <div className="flex items-center gap-2">
               <span className="text-2xl">📏</span>
-              <span className="text-lg font-bold text-purple-600">{height} cm</span>
-              <span className="text-sm text-gray-500">({getHeightComparison(height, age)})</span>
+              <span className={`text-lg font-bold ${darkMode ? 'text-[#2DD4BF]' : 'text-purple-600'}`}>{height} cm</span>
+              <span className={`text-sm ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>({getHeightComparison(height, age)})</span>
             </div>
           </div>
 
           {/* Visual Height Indicator */}
-          <div className="flex items-end gap-4 py-4 px-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
-            <HeightVisualization height={height} age={age} />
+          <div className={`flex items-end gap-4 py-4 px-6 rounded-xl ${
+            darkMode ? 'bg-white/[0.04] border border-white/[0.06]' : 'bg-gradient-to-r from-purple-50 to-pink-50'
+          }`}>
+            <HeightVisualization height={height} age={age} darkMode={darkMode} />
             <div className="flex-1">
               <input
                 type="range"
@@ -139,9 +154,16 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                 step={1}
                 value={height}
                 onChange={(e) => onHeightChange(Number(e.target.value))}
-                className="w-full h-2 bg-gradient-to-r from-blue-200 via-purple-300 to-pink-400 rounded-full appearance-none cursor-pointer slider-thumb"
+                className={`w-full h-2 rounded-full appearance-none cursor-pointer ${
+                  darkMode ? 'slider-thumb-dark' : 'slider-thumb'
+                }`}
+                style={{
+                  background: darkMode
+                    ? 'linear-gradient(to right, rgba(45,212,191,0.3), rgba(169,137,242,0.3))'
+                    : 'linear-gradient(to right, #BFDBFE, #C084FC, #F9A8D4)',
+                }}
               />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <div className={`flex justify-between text-xs mt-1 ${darkMode ? 'text-white/30' : 'text-gray-400'}`}>
                 <span>50 cm</span>
                 <span>220 cm</span>
               </div>
@@ -154,10 +176,12 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onHeightChange(getRecommendedHeight(age))}
-            className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+            className={`text-sm font-medium flex items-center gap-1 ${
+              darkMode ? 'text-[#A989F2] hover:text-[#C4B5FD]' : 'text-purple-600 hover:text-purple-700'
+            }`}
           >
             <span>🔄</span>
-            <span>Altersgerechte Größe setzen (~{getRecommendedHeight(age)} cm)</span>
+            <span>Altersgerechte Groesse setzen (~{getRecommendedHeight(age)} cm)</span>
           </motion.button>
         </div>
       )}
@@ -186,6 +210,29 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
           cursor: pointer;
           border: none;
           box-shadow: 0 2px 6px rgba(168, 85, 247, 0.4);
+        }
+        .slider-thumb-dark::-webkit-slider-thumb {
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          background: linear-gradient(135deg, #2DD4BF, #A989F2);
+          border-radius: 50%;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(45, 212, 191, 0.5);
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .slider-thumb-dark::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 4px 14px rgba(45, 212, 191, 0.6);
+        }
+        .slider-thumb-dark::-moz-range-thumb {
+          width: 24px;
+          height: 24px;
+          background: linear-gradient(135deg, #2DD4BF, #A989F2);
+          border-radius: 50%;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 8px rgba(45, 212, 191, 0.5);
         }
       `}</style>
     </div>
@@ -230,12 +277,12 @@ function getHeightComparison(height: number, age: number): string {
   if (diff < -15) return 'sehr klein';
   if (diff < -5) return 'etwas kleiner';
   if (diff <= 5) return 'durchschnittlich';
-  if (diff <= 15) return 'etwas größer';
-  return 'sehr groß';
+  if (diff <= 15) return 'etwas groesser';
+  return 'sehr gross';
 }
 
 // Visual height indicator component
-const HeightVisualization: React.FC<{ height: number; age: number }> = ({ height, age }) => {
+const HeightVisualization: React.FC<{ height: number; age: number; darkMode?: boolean }> = ({ height, darkMode = false }) => {
   // Scale height for display (max 100px visual height)
   const visualHeight = Math.min(100, Math.max(20, (height / 220) * 100));
 
@@ -244,12 +291,21 @@ const HeightVisualization: React.FC<{ height: number; age: number }> = ({ height
       <motion.div
         animate={{ height: visualHeight }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        className="w-8 bg-gradient-to-t from-purple-500 to-pink-400 rounded-t-full relative"
+        className="w-8 rounded-t-full relative"
+        style={{
+          background: darkMode
+            ? 'linear-gradient(to top, #2DD4BF, #A989F2)'
+            : 'linear-gradient(to top, #A855F7, #EC4899)',
+        }}
       >
         {/* Head */}
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-6 h-6 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full border-2 border-amber-400" />
+        <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2 ${
+          darkMode
+            ? 'bg-gradient-to-br from-[#2DD4BF]/60 to-[#A989F2]/60 border-[#2DD4BF]/40'
+            : 'bg-gradient-to-br from-amber-200 to-amber-300 border-amber-400'
+        }`} />
       </motion.div>
-      <div className="w-10 h-1 bg-gray-300 rounded-full mt-1" />
+      <div className={`w-10 h-1 rounded-full mt-1 ${darkMode ? 'bg-white/20' : 'bg-gray-300'}`} />
     </div>
   );
 };

@@ -6,6 +6,7 @@ interface ImageUploadCameraProps {
   onImageSelected: (imageDataUrl: string) => void;
   currentImage?: string;
   onClearImage?: () => void;
+  darkMode?: boolean;
 }
 
 // Helper function to resize and compress image
@@ -72,6 +73,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   onImageSelected,
   currentImage,
   onClearImage,
+  darkMode = false,
 }) => {
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -146,7 +148,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
     const file = event.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Bitte wähle eine Bilddatei aus.');
+        alert('Bitte waehle eine Bilddatei aus.');
         return;
       }
 
@@ -164,7 +166,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <p className="text-sm font-medium text-gray-600">
+        <p className={`text-sm font-medium ${darkMode ? 'text-white/50' : 'text-gray-600'}`}>
           Optional: Foto hochladen oder aufnehmen
         </p>
       </div>
@@ -177,7 +179,11 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors"
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
+              darkMode
+                ? 'bg-white/[0.08] text-[#A989F2] border border-white/10 hover:bg-white/[0.12]'
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+            }`}
           >
             <Upload className="w-5 h-5" />
             <span className="font-medium">Bild hochladen</span>
@@ -188,7 +194,11 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={startCamera}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-pink-100 text-pink-700 rounded-xl hover:bg-pink-200 transition-colors"
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
+              darkMode
+                ? 'bg-white/[0.08] text-[#FF6B9D] border border-white/10 hover:bg-white/[0.12]'
+                : 'bg-pink-100 text-pink-700 hover:bg-pink-200'
+            }`}
           >
             <Camera className="w-5 h-5" />
             <span className="font-medium">Foto aufnehmen</span>
@@ -230,7 +240,8 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={capturePhoto}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-semibold"
+                style={{ background: 'linear-gradient(135deg, #A989F2, #FF6B9D)' }}
               >
                 <Camera className="w-5 h-5" />
                 <span>Foto aufnehmen</span>
@@ -240,7 +251,11 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={stopCamera}
-                className="px-4 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors"
+                className={`px-4 py-3 rounded-xl transition-colors ${
+                  darkMode
+                    ? 'bg-white/10 text-white/70 hover:bg-white/15'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
               >
                 <X className="w-5 h-5" />
               </motion.button>
@@ -258,7 +273,9 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             exit={{ opacity: 0, scale: 0.9 }}
             className="relative"
           >
-            <div className="relative rounded-2xl overflow-hidden border-4 border-purple-200 bg-white">
+            <div className={`relative rounded-2xl overflow-hidden border-4 ${
+              darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-purple-200 bg-white'
+            }`}>
               <img
                 src={currentImage}
                 alt="Referenzbild"
@@ -276,11 +293,15 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
                 </motion.button>
               </div>
             </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 bg-purple-50 rounded-lg p-2">
-              <ImageIcon className="w-4 h-4 text-purple-500" />
+            <div className={`mt-2 flex items-center gap-2 text-xs rounded-lg p-2 ${
+              darkMode
+                ? 'text-white/40 bg-white/[0.04]'
+                : 'text-gray-500 bg-purple-50'
+            }`}>
+              <ImageIcon className={`w-4 h-4 ${darkMode ? 'text-[#A989F2]' : 'text-purple-500'}`} />
               <div className="flex-1">
-                <div>Dieses Foto wird als Referenz für die AI-Bildgenerierung verwendet</div>
-                <div className="text-purple-600 font-medium mt-0.5">
+                <div>Dieses Foto wird als Referenz fuer die AI-Bildgenerierung verwendet</div>
+                <div className={`font-medium mt-0.5 ${darkMode ? 'text-[#2DD4BF]' : 'text-purple-600'}`}>
                   Optimiert: max. 1024px, JPEG-Komprimierung
                 </div>
               </div>

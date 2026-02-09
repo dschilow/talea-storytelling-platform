@@ -21,6 +21,7 @@ interface ColorChipProps {
   isSelected: boolean;
   onClick: () => void;
   size?: 'sm' | 'md' | 'lg';
+  darkMode?: boolean;
 }
 
 const ColorChip: React.FC<ColorChipProps> = ({
@@ -30,6 +31,7 @@ const ColorChip: React.FC<ColorChipProps> = ({
   isSelected,
   onClick,
   size = 'md',
+  darkMode = false,
 }) => {
   const sizeClasses = {
     sm: 'w-10 h-10',
@@ -49,8 +51,12 @@ const ColorChip: React.FC<ColorChipProps> = ({
         ${sizeClasses[size]} rounded-full relative flex items-center justify-center
         transition-all duration-200 border-4
         ${isSelected
-          ? 'border-purple-500 shadow-lg shadow-purple-200/50 ring-2 ring-purple-300 ring-offset-2'
-          : 'border-white shadow-md hover:shadow-lg hover:border-purple-200'
+          ? darkMode
+            ? 'border-[#2DD4BF] shadow-lg shadow-[#2DD4BF]/30 ring-2 ring-[#2DD4BF]/40 ring-offset-2 ring-offset-[#13102B]'
+            : 'border-purple-500 shadow-lg shadow-purple-200/50 ring-2 ring-purple-300 ring-offset-2'
+          : darkMode
+            ? 'border-white/20 shadow-md hover:shadow-lg hover:border-white/40'
+            : 'border-white shadow-md hover:shadow-lg hover:border-purple-200'
         }
       `}
       style={{
@@ -65,7 +71,9 @@ const ColorChip: React.FC<ColorChipProps> = ({
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center shadow-md"
+          className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-md ${
+            darkMode ? 'bg-[#2DD4BF]' : 'bg-purple-500'
+          }`}
         >
           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -80,12 +88,13 @@ const ColorChip: React.FC<ColorChipProps> = ({
 interface HairColorSelectorProps {
   value: HairColorId;
   onChange: (value: HairColorId) => void;
+  darkMode?: boolean;
 }
 
-export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onChange }) => {
+export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onChange, darkMode = false }) => {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-gray-700">Haarfarbe</label>
+      <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Haarfarbe</label>
       <div className="flex flex-wrap gap-3">
         {HAIR_COLORS.map((color) => (
           <div key={color.id} className="flex flex-col items-center gap-1">
@@ -95,8 +104,13 @@ export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onC
               icon={color.icon}
               isSelected={value === color.id}
               onClick={() => onChange(color.id)}
+              darkMode={darkMode}
             />
-            <span className={`text-xs ${value === color.id ? 'text-purple-600 font-medium' : 'text-gray-500'}`}>
+            <span className={`text-xs ${
+              value === color.id
+                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-purple-600 font-medium'
+                : darkMode ? 'text-white/40' : 'text-gray-500'
+            }`}>
               {color.labelDe}
             </span>
           </div>
@@ -110,12 +124,13 @@ export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onC
 interface HairStyleSelectorProps {
   value: HairStyleId;
   onChange: (value: HairStyleId) => void;
+  darkMode?: boolean;
 }
 
-export const HairStyleSelector: React.FC<HairStyleSelectorProps> = ({ value, onChange }) => {
+export const HairStyleSelector: React.FC<HairStyleSelectorProps> = ({ value, onChange, darkMode = false }) => {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-gray-700">Frisur</label>
+      <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Frisur</label>
       <div className="flex flex-wrap gap-2">
         {HAIR_STYLES.map((style) => (
           <motion.button
@@ -128,8 +143,12 @@ export const HairStyleSelector: React.FC<HairStyleSelectorProps> = ({ value, onC
               px-4 py-2 rounded-xl flex items-center gap-2
               transition-all duration-200 border-2
               ${value === style.id
-                ? 'border-purple-500 bg-purple-50 text-purple-700'
-                : 'border-gray-100 bg-white text-gray-600 hover:border-purple-200 hover:bg-purple-50/50'
+                ? darkMode
+                  ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-[#2DD4BF]'
+                  : 'border-purple-500 bg-purple-50 text-purple-700'
+                : darkMode
+                  ? 'border-white/10 bg-white/[0.06] text-white/60 hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
+                  : 'border-gray-100 bg-white text-gray-600 hover:border-purple-200 hover:bg-purple-50/50'
               }
             `}
           >
@@ -146,12 +165,13 @@ export const HairStyleSelector: React.FC<HairStyleSelectorProps> = ({ value, onC
 interface EyeColorSelectorProps {
   value: EyeColorId;
   onChange: (value: EyeColorId) => void;
+  darkMode?: boolean;
 }
 
-export const EyeColorSelector: React.FC<EyeColorSelectorProps> = ({ value, onChange }) => {
+export const EyeColorSelector: React.FC<EyeColorSelectorProps> = ({ value, onChange, darkMode = false }) => {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-gray-700">Augenfarbe</label>
+      <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Augenfarbe</label>
       <div className="flex flex-wrap gap-3">
         {EYE_COLORS.map((color) => (
           <div key={color.id} className="flex flex-col items-center gap-1">
@@ -161,8 +181,13 @@ export const EyeColorSelector: React.FC<EyeColorSelectorProps> = ({ value, onCha
               icon={color.icon}
               isSelected={value === color.id}
               onClick={() => onChange(color.id)}
+              darkMode={darkMode}
             />
-            <span className={`text-xs ${value === color.id ? 'text-purple-600 font-medium' : 'text-gray-500'}`}>
+            <span className={`text-xs ${
+              value === color.id
+                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-purple-600 font-medium'
+                : darkMode ? 'text-white/40' : 'text-gray-500'
+            }`}>
               {color.labelDe}
             </span>
           </div>
@@ -177,12 +202,14 @@ interface SkinFurColorSelectorProps {
   value: string;
   onChange: (value: string) => void;
   characterType: CharacterTypeId;
+  darkMode?: boolean;
 }
 
 export const SkinFurColorSelector: React.FC<SkinFurColorSelectorProps> = ({
   value,
   onChange,
   characterType,
+  darkMode = false,
 }) => {
   const isHuman = isHumanCharacter(characterType);
   const isAnimal = isAnimalCharacter(characterType);
@@ -192,7 +219,7 @@ export const SkinFurColorSelector: React.FC<SkinFurColorSelectorProps> = ({
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
+      <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>{label}</label>
       <div className="flex flex-wrap gap-3">
         {options.map((option) => (
           <div key={option.id} className="flex flex-col items-center gap-1">
@@ -202,8 +229,13 @@ export const SkinFurColorSelector: React.FC<SkinFurColorSelectorProps> = ({
               isSelected={value === option.id}
               onClick={() => onChange(option.id)}
               size="md"
+              darkMode={darkMode}
             />
-            <span className={`text-xs ${value === option.id ? 'text-purple-600 font-medium' : 'text-gray-500'}`}>
+            <span className={`text-xs ${
+              value === option.id
+                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-purple-600 font-medium'
+                : darkMode ? 'text-white/40' : 'text-gray-500'
+            }`}>
               {option.labelDe}
             </span>
           </div>

@@ -7,6 +7,7 @@ interface CharacterTypeSelectorProps {
   onChange: (value: CharacterTypeId) => void;
   customValue?: string;
   onCustomChange?: (value: string) => void;
+  darkMode?: boolean;
 }
 
 export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
@@ -14,6 +15,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
   onChange,
   customValue,
   onCustomChange,
+  darkMode = false,
 }) => {
   // Group by category
   const categories = {
@@ -33,13 +35,14 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
             type={type}
             isSelected={value === type.id}
             onClick={() => onChange(type.id)}
+            darkMode={darkMode}
           />
         ))}
       </div>
 
       {/* Animals */}
       <div>
-        <p className="text-xs text-gray-500 mb-2 font-medium">Tiere</p>
+        <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Tiere</p>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {categories.animal.map((type) => (
             <CharacterTypeButton
@@ -47,6 +50,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
               type={type}
               isSelected={value === type.id}
               onClick={() => onChange(type.id)}
+              darkMode={darkMode}
             />
           ))}
         </div>
@@ -54,7 +58,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
 
       {/* Fantasy */}
       <div>
-        <p className="text-xs text-gray-500 mb-2 font-medium">Fantasiewesen</p>
+        <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Fantasiewesen</p>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {categories.fantasy.map((type) => (
             <CharacterTypeButton
@@ -62,6 +66,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
               type={type}
               isSelected={value === type.id}
               onClick={() => onChange(type.id)}
+              darkMode={darkMode}
             />
           ))}
         </div>
@@ -75,6 +80,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
             type={type}
             isSelected={value === type.id}
             onClick={() => onChange(type.id)}
+            darkMode={darkMode}
           />
         ))}
       </div>
@@ -92,7 +98,11 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
             value={customValue || ''}
             onChange={(e) => onCustomChange(e.target.value)}
             placeholder="Beschreibe deinen Charakter (z.B. sprechender Baum, Geist)"
-            className="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-400 focus:outline-none bg-white text-gray-700 placeholder-gray-400 transition-colors"
+            className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-colors ${
+              darkMode
+                ? 'border-white/10 bg-white/[0.06] text-white placeholder-white/30 focus:border-[#2DD4BF]/50'
+                : 'border-purple-200 focus:border-purple-400 bg-white text-gray-700 placeholder-gray-400'
+            }`}
           />
         </motion.div>
       )}
@@ -104,12 +114,14 @@ interface CharacterTypeButtonProps {
   type: typeof CHARACTER_TYPES[number];
   isSelected: boolean;
   onClick: () => void;
+  darkMode?: boolean;
 }
 
 const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
   type,
   isSelected,
   onClick,
+  darkMode = false,
 }) => {
   return (
     <motion.button
@@ -121,13 +133,21 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
         relative flex flex-col items-center justify-center p-3 rounded-xl
         transition-all duration-200 border-2
         ${isSelected
-          ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200/50'
-          : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+          ? darkMode
+            ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
+            : 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200/50'
+          : darkMode
+            ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
+            : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
         }
       `}
     >
       <span className="text-2xl mb-1">{type.icon}</span>
-      <span className={`text-xs font-medium ${isSelected ? 'text-purple-700' : 'text-gray-600'}`}>
+      <span className={`text-xs font-medium ${
+        isSelected
+          ? darkMode ? 'text-[#2DD4BF]' : 'text-purple-700'
+          : darkMode ? 'text-white/60' : 'text-gray-600'
+      }`}>
         {type.labelDe}
       </span>
 
@@ -135,7 +155,9 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
       {isSelected && (
         <motion.div
           layoutId="character-type-indicator"
-          className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center"
+          className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
+            darkMode ? 'bg-[#2DD4BF]' : 'bg-purple-500'
+          }`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
