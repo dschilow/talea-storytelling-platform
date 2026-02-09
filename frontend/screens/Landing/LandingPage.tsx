@@ -33,6 +33,13 @@ type IslandFeature = {
   tag: string;
 };
 
+type CharacterSpot = {
+  name: string;
+  image: string;
+  mood: string;
+  className: string;
+};
+
 const islandFeatures: IslandFeature[] = [
   {
     title: 'Story Engine',
@@ -44,7 +51,7 @@ const islandFeatures: IslandFeature[] = [
       'Vorlese- und Lesemodus fuer Kinder und Eltern',
       'Quiz und Fakten direkt im Lesefluss integriert',
     ],
-    image: '/landing-assets/stories.png',
+    image: '/landing-assets/generated/story-engine-island.webp',
     icon: BookOpenText,
     tag: 'Insel 01',
   },
@@ -58,7 +65,7 @@ const islandFeatures: IslandFeature[] = [
       'Klar strukturierter Reader mit Kapiteln',
       'Themen von Natur bis Raumfahrt moeglich',
     ],
-    image: '/landing-assets/cine_5_dokus.png',
+    image: '/landing-assets/generated/doku-studio-island.webp',
     icon: AudioLines,
     tag: 'Insel 02',
   },
@@ -72,7 +79,7 @@ const islandFeatures: IslandFeature[] = [
       'Persoenlichkeit, Tagebuch und Schatzkammer',
       'Bearbeitungsmodus mit sauberer Profilstruktur',
     ],
-    image: '/landing-assets/avatars.png',
+    image: '/landing-assets/generated/avatar-atelier-island.webp',
     icon: Users,
     tag: 'Insel 03',
   },
@@ -86,9 +93,48 @@ const islandFeatures: IslandFeature[] = [
       'Stories und Dokus aus einer Konversation starten',
       'Schneller Zugriff ohne Kontextwechsel',
     ],
-    image: '/landing-assets/idea.png',
+    image: '/landing-assets/generated/tavi-copilot-orbit.webp',
     icon: MessageCircleMore,
     tag: 'Insel 04',
+  },
+];
+
+const characterSpots: CharacterSpot[] = [
+  {
+    name: 'Detektive',
+    image: '/landing-assets/generated/characters/detektive.webp',
+    mood: 'Story Team',
+    className: 'hero-character-a',
+  },
+  {
+    name: 'Wilhelm',
+    image: '/landing-assets/generated/characters/wilhelm.webp',
+    mood: 'Mentor',
+    className: 'hero-character-b',
+  },
+  {
+    name: 'Drache',
+    image: '/landing-assets/generated/characters/drache.webp',
+    mood: 'Abenteuer',
+    className: 'hero-character-c',
+  },
+  {
+    name: 'Oma',
+    image: '/landing-assets/generated/characters/oma.webp',
+    mood: 'Geborgenheit',
+    className: 'hero-character-d',
+  },
+  {
+    name: 'Troll',
+    image: '/landing-assets/generated/characters/troll.webp',
+    mood: 'Humor',
+    className: 'hero-character-e',
+  },
+  {
+    name: 'Raeuber',
+    image: '/landing-assets/generated/characters/rauber2.webp',
+    mood: 'Spannung',
+    className: 'hero-character-f',
   },
 ];
 
@@ -184,6 +230,11 @@ const LandingPage: React.FC = () => {
     [0, 0.4],
     [0, shouldReduceMotion ? 0 : -60]
   );
+  const charactersY = useTransform(
+    scrollYProgress,
+    [0, 0.5],
+    [0, shouldReduceMotion ? 0 : -42]
+  );
 
   return (
     <div ref={pageRef} className="landing-root">
@@ -269,13 +320,35 @@ const LandingPage: React.FC = () => {
           <motion.div className="hero-visual-shell" style={{ y: castleY }}>
             <div className="hero-visual-glow" />
             <div className="hero-visual-frame">
-              <img src="/landing-assets/hero.png" alt="Magische Inselwelt fuer Talea" />
+              <img src="/landing-assets/generated/hero-castle-island.webp" alt="Magische Inselwelt fuer Talea" />
               <div className="hero-visual-badges">
                 <span>Story</span>
                 <span>Doku</span>
                 <span>Audio</span>
               </div>
             </div>
+          </motion.div>
+
+          <motion.div className="hero-character-cloud" style={{ y: charactersY }}>
+            {characterSpots.map((character, index) => (
+              <motion.figure
+                key={character.name}
+                className={`hero-character-card ${character.className}`}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: 0.35 + index * 0.08,
+                  duration: 0.45,
+                  ease: [0.2, 0.65, 0.3, 0.95],
+                }}
+              >
+                <img src={character.image} alt={`${character.name} Charakter`} />
+                <figcaption>
+                  <span>{character.name}</span>
+                  <small>{character.mood}</small>
+                </figcaption>
+              </motion.figure>
+            ))}
           </motion.div>
         </section>
 
@@ -364,8 +437,13 @@ const LandingPage: React.FC = () => {
             whileInView="show"
             viewport={{ once: true, amount: 0.25 }}
           >
-            <div className="panel-image">
-              <img src="/landing-assets/cine_2_magic.png" alt="Workflow Visual fuer Talea" />
+            <div className="panel-image-stack">
+              <div className="panel-image panel-image-main">
+                <img src="/landing-assets/generated/journey-map.webp" alt="Workflow Visual fuer Talea" />
+              </div>
+              <div className="panel-image panel-image-floating">
+                <img src="/landing-assets/generated/audio-wave-garden.webp" alt="Audio Visual fuer Talea" />
+              </div>
             </div>
             <div className="panel-audio-chip">
               <AudioLines size={16} />
@@ -383,7 +461,7 @@ const LandingPage: React.FC = () => {
             viewport={{ once: true, amount: 0.25 }}
           >
             <div className="panel-image">
-              <img src="/landing-assets/cine_3_avatars.png" alt="Avatar und Profilwelt in Talea" />
+              <img src="/landing-assets/generated/trust-guardian-arch.webp" alt="Sicherheit und Stabilitaet in Talea" />
             </div>
             <div className="hero-character-row">
               <span>Profil</span>
@@ -431,7 +509,8 @@ const LandingPage: React.FC = () => {
           whileInView="show"
           viewport={{ once: true, amount: 0.25 }}
         >
-          <div className="final-cta-panel">
+          <div className="final-cta-panel final-cta-panel-image">
+            <img src="/landing-assets/generated/final-panorama.webp" alt="" aria-hidden="true" />
             <p>Bereit fuer den Launch?</p>
             <h2>Startet jetzt in Talea und baut eure eigene Story-Welt.</h2>
             <div className="final-cta-actions">

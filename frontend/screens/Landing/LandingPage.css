@@ -281,7 +281,7 @@
   position: relative;
   z-index: 2;
   width: min(940px, calc(100% - 1.2rem));
-  margin: 0 auto;
+  margin: 0 auto 7rem;
 }
 
 .hero-visual-glow {
@@ -329,6 +329,81 @@
   letter-spacing: 0.03em;
   font-weight: 700;
   padding: 0.35rem 0.7rem;
+}
+
+.hero-character-cloud {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 4;
+  min-height: 130px;
+  pointer-events: none;
+}
+
+.hero-character-card {
+  position: absolute;
+  width: clamp(86px, 10vw, 132px);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--landing-card-border) 74%, transparent);
+  background: color-mix(in oklab, var(--landing-card) 88%, transparent);
+  box-shadow: 0 18px 34px rgba(35, 24, 61, 0.22);
+}
+
+.hero-character-card img {
+  width: 100%;
+  height: clamp(108px, 13vw, 156px);
+  object-fit: cover;
+}
+
+.hero-character-card figcaption {
+  padding: 0.38rem 0.42rem 0.44rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+  text-align: center;
+}
+
+.hero-character-card figcaption span {
+  font-size: clamp(0.62rem, 1vw, 0.74rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--landing-ink);
+}
+
+.hero-character-card figcaption small {
+  font-size: clamp(0.56rem, 0.85vw, 0.63rem);
+  color: var(--landing-ink-soft);
+  line-height: 1;
+}
+
+.hero-character-a {
+  left: 4%;
+  bottom: 6px;
+}
+
+.hero-character-b {
+  left: 17%;
+  bottom: 30px;
+}
+
+.hero-character-c {
+  left: 30%;
+  bottom: -4px;
+}
+
+.hero-character-d {
+  right: 31%;
+  bottom: -2px;
+}
+
+.hero-character-e {
+  right: 17%;
+  bottom: 28px;
+}
+
+.hero-character-f {
+  right: 4%;
+  bottom: 4px;
 }
 
 .landing-section {
@@ -509,6 +584,28 @@
   flex-direction: column;
 }
 
+.panel-image-stack {
+  position: relative;
+  min-height: 268px;
+  padding-bottom: 2.8rem;
+}
+
+.panel-image-main {
+  margin-top: 0;
+  min-height: 260px;
+}
+
+.panel-image-floating {
+  position: absolute;
+  right: 1rem;
+  bottom: 0;
+  width: min(220px, 54%);
+  min-height: 132px;
+  margin-top: 0;
+  border-radius: 14px;
+  box-shadow: 0 16px 30px rgba(14, 16, 30, 0.35);
+}
+
 .panel-audio-chip {
   margin-top: 0.8rem;
   display: inline-flex;
@@ -571,6 +668,46 @@
   text-align: center;
 }
 
+.final-cta-panel-image {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.final-cta-panel-image > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -3;
+}
+
+.final-cta-panel-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(165deg, rgba(17, 16, 31, 0.68), rgba(26, 19, 45, 0.42));
+}
+
+.final-cta-panel-image::after {
+  content: '';
+  position: absolute;
+  inset: auto 8% 12% 8%;
+  height: 58%;
+  border-radius: 999px;
+  z-index: -1;
+  filter: blur(28px);
+  background: linear-gradient(90deg, rgba(255, 145, 137, 0.3), rgba(162, 146, 255, 0.3), rgba(96, 198, 182, 0.26));
+}
+
+.final-cta-panel-image p,
+.final-cta-panel-image h2 {
+  color: #f8f6ff;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.35);
+}
+
 .final-cta-panel p {
   margin: 0;
   text-transform: uppercase;
@@ -612,6 +749,22 @@
     max-width: 20ch;
   }
 
+  .hero-visual-shell {
+    margin-bottom: 5.8rem;
+  }
+
+  .hero-character-cloud {
+    min-height: 114px;
+  }
+
+  .hero-character-card {
+    width: clamp(72px, 12vw, 108px);
+  }
+
+  .hero-character-card img {
+    height: clamp(90px, 14vw, 128px);
+  }
+
   .island-grid,
   .split-layout {
     grid-template-columns: 1fr;
@@ -646,6 +799,35 @@
     padding: 0.7rem 0.95rem;
   }
 
+  .hero-visual-shell {
+    margin-bottom: 0.7rem;
+  }
+
+  .hero-character-cloud {
+    position: static;
+    min-height: auto;
+    margin: -0.45rem auto 0;
+    width: min(520px, calc(100% - 1.1rem));
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    transform: none !important;
+  }
+
+  .hero-character-card {
+    position: relative;
+    inset: auto !important;
+    width: 100%;
+  }
+
+  .hero-character-card img {
+    height: clamp(100px, 26vw, 132px);
+  }
+
+  .hero-character-card figcaption small {
+    display: none;
+  }
+
   .hero-visual-frame {
     border-radius: 20px;
   }
@@ -665,6 +847,21 @@
   .panel-card {
     border-radius: 18px;
     padding: 0.88rem;
+  }
+
+  .panel-image-stack {
+    min-height: 220px;
+    padding-bottom: 2.3rem;
+  }
+
+  .panel-image-main {
+    min-height: 200px;
+  }
+
+  .panel-image-floating {
+    right: 0.7rem;
+    width: min(188px, 52%);
+    min-height: 110px;
   }
 }
 
