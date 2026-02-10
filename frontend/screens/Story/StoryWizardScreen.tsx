@@ -19,6 +19,7 @@ import StoryFlavorStep, {
 } from './steps/StoryFlavorStep';
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 
 type StepType = 'avatar' | 'genre' | 'soul' | 'experience' | 'parameters' | 'learning' | 'generation';
 
@@ -81,6 +82,7 @@ const StoryWizardScreen: React.FC = () => {
 
   const backend = useBackend();
   const { user } = useUser();
+  const { isAdmin } = useOptionalUserAccess();
 
   // UPDATED: Neue Steps eingefügt
   const steps = [
@@ -181,6 +183,12 @@ const StoryWizardScreen: React.FC = () => {
 
     try {
       setGenerating(true);
+      const effectiveStoryConfig = isAdmin
+        ? storyConfig
+        : {
+            ...storyConfig,
+            aiModel: 'gpt-5-mini' as const,
+          };
 
       setGenerationStep('profiles');
       await new Promise(r => setTimeout(r, 1200));
@@ -191,7 +199,7 @@ const StoryWizardScreen: React.FC = () => {
       // Story-Experience-Einstellungen werden ueber storyConfig uebergeben.
       const story = await backend.story.generate({
         userId: user.id,
-        config: storyConfig,
+        config: effectiveStoryConfig,
       });
 
       setGenerationStep('validation');
@@ -269,10 +277,15 @@ const StoryWizardScreen: React.FC = () => {
             complexity={storyConfig.complexity}
             ageGroup={storyConfig.ageGroup}
             aiModel={storyConfig.aiModel}
+            showAiModelSelection={isAdmin}
             onLengthChange={(length) => updateStoryConfig({ length })}
             onComplexityChange={(complexity) => updateStoryConfig({ complexity })}
             onAgeGroupChange={(ageGroup) => updateStoryConfig({ ageGroup })}
-            onAiModelChange={(aiModel) => updateStoryConfig({ aiModel })}
+            onAiModelChange={(aiModel) => {
+              if (isAdmin) {
+                updateStoryConfig({ aiModel });
+              }
+            }}
           />
         );
       case 'learning':

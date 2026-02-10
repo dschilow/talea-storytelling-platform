@@ -21,6 +21,7 @@ type ModelOption = {
 interface Props {
   state: { ageGroup: AgeGroup; length: Length; aiModel: AIModel };
   updateState: (updates: any) => void;
+  showModelSelection?: boolean;
 }
 
 const ageGroups = [
@@ -81,7 +82,11 @@ function SelectionBadge() {
   );
 }
 
-export default function Step3AgeAndLength({ state, updateState }: Props) {
+export default function Step3AgeAndLength({
+  state,
+  updateState,
+  showModelSelection = true,
+}: Props) {
   const { t } = useTranslation();
 
   return (
@@ -156,42 +161,44 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
         </div>
       </section>
 
-      <section>
-        <h3 className="mb-1 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          AI Modell
-        </h3>
-        <p className="mb-3 text-xs text-muted-foreground">Waehle das Modell fuer die Story-Generierung.</p>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {models.map((model) => {
-            const selected = state.aiModel === model.id;
-            return (
-              <button
-                key={model.id}
-                type="button"
-                onClick={() => updateState({ aiModel: model.id as AIModel })}
-                className={cn(
-                  'relative rounded-2xl border p-3 text-left transition-colors',
-                  selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
-                )}
-                style={{ borderColor: selected ? `${model.tone}60` : 'var(--color-border)' }}
-              >
-                {model.recommended && (
-                  <span className="mb-2 inline-flex rounded-full bg-[#b79f8e] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                    Empfohlen
-                  </span>
-                )}
-                <p className="text-sm font-semibold text-foreground">{model.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{model.subtitle}</p>
-                <p className="mt-1 text-xs font-semibold" style={{ color: model.tone }}>
-                  {model.cost}
-                </p>
-                <AnimatePresence>{selected && <SelectionBadge />}</AnimatePresence>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      {showModelSelection && (
+        <section>
+          <h3 className="mb-1 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            AI Modell
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">Waehle das Modell fuer die Story-Generierung.</p>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {models.map((model) => {
+              const selected = state.aiModel === model.id;
+              return (
+                <button
+                  key={model.id}
+                  type="button"
+                  onClick={() => updateState({ aiModel: model.id as AIModel })}
+                  className={cn(
+                    'relative rounded-2xl border p-3 text-left transition-colors',
+                    selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                  )}
+                  style={{ borderColor: selected ? `${model.tone}60` : 'var(--color-border)' }}
+                >
+                  {model.recommended && (
+                    <span className="mb-2 inline-flex rounded-full bg-[#b79f8e] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Empfohlen
+                    </span>
+                  )}
+                  <p className="text-sm font-semibold text-foreground">{model.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{model.subtitle}</p>
+                  <p className="mt-1 text-xs font-semibold" style={{ color: model.tone }}>
+                    {model.cost}
+                  </p>
+                  <AnimatePresence>{selected && <SelectionBadge />}</AnimatePresence>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

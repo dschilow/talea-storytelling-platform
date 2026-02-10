@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
@@ -227,6 +228,7 @@ export default function TaleaStoryWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
   const { userId } = useAuth();
+  const { isAdmin } = useOptionalUserAccess();
   const { t, i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
 
@@ -270,12 +272,18 @@ export default function TaleaStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: '',
-    aiModel: 'gemini-3-flash-preview',
+    aiModel: 'gpt-5-mini',
   });
 
   useEffect(() => {
     if (i18n.language) setUserLanguage(i18n.language);
   }, [i18n.language]);
+
+  useEffect(() => {
+    if (!isAdmin && state.aiModel !== 'gpt-5-mini') {
+      setState((prev) => ({ ...prev, aiModel: 'gpt-5-mini' }));
+    }
+  }, [isAdmin, state.aiModel]);
 
   useEffect(() => {
     let active = true;
@@ -353,7 +361,7 @@ export default function TaleaStoryWizard() {
       await new Promise((r) => setTimeout(r, 1200));
       setGenerationStep('text');
 
-      const storyConfig = mapWizardStateToAPI(state, userLanguage);
+      const storyConfig = mapWizardStateToAPI(state, userLanguage, isAdmin);
       const story = await backend.story.generate({ userId, config: storyConfig });
 
       setStoryCredits((prev) =>
@@ -440,7 +448,7 @@ export default function TaleaStoryWizard() {
       case 1:
         return <Step2CategorySelection state={state} updateState={updateState} />;
       case 2:
-        return <Step3AgeAndLength state={state} updateState={updateState} />;
+        return <Step3AgeAndLength state={state} updateState={updateState} showModelSelection={isAdmin} />;
       case 3:
         return <Step4StoryFeeling state={state} updateState={updateState} />;
       case 4:
@@ -569,7 +577,7 @@ export default function TaleaStoryWizard() {
   );
 }
 
-function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
+function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin: boolean) {
   const genreMap: Record<string, string> = {
     'fairy-tales': 'fairy_tales',
     adventure: 'adventure',
@@ -604,7 +612,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',
-    aiModel: state.aiModel,
+    aiModel: isAdmin ? state.aiModel : 'gpt-5-mini',
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
