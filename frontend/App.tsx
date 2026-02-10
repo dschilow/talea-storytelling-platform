@@ -117,7 +117,7 @@ const RouterContent = () => {
               <Route path="/community" element={<ModernHomeScreen />} />
               <Route path="/logs" element={<AdminOnlyRoute><LogViewerScreen /></AdminOnlyRoute>} />
               <Route path="/doku" element={<DokusScreen />} />
-              <Route path="/createaudiodoku" element={<CreateAudioDokuScreen />} />
+              <Route path="/createaudiodoku" element={<AdminOnlyRoute><CreateAudioDokuScreen /></AdminOnlyRoute>} />
               <Route path="/quiz" element={<CommunityQuizScreen />} />
               <Route path="/characters" element={<AdminOnlyRoute><CharacterPoolScreen /></AdminOnlyRoute>} />
               <Route path="/artifacts" element={<AdminOnlyRoute><ArtifactPoolScreen /></AdminOnlyRoute>} />
@@ -133,7 +133,7 @@ const RouterContent = () => {
           </>
         )}
       </Routes>
-      {isSignedIn && !isLandingRoute && <TaviButton />}
+      {isSignedIn && !isLandingRoute && <TaviButton showLauncher={false} />}
       <Toaster
         position="top-right"
         richColors

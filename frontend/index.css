@@ -369,3 +369,42 @@
 .cl-modalContent {
   z-index: 5002 !important;
 }
+
+/* Settings: Clerk user profile full-height, dark/light parity, no duplicate billing nav */
+.talea-settings-profile .cl-cardBox,
+.talea-settings-profile .cl-card {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.talea-settings-profile .cl-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.talea-settings-profile .cl-navbar {
+  background: rgba(245, 235, 224, 0.75) !important;
+  border-right: 1px solid #d6ccc2 !important;
+}
+
+.dark .talea-settings-profile .cl-navbar {
+  background: rgba(26, 39, 57, 0.82) !important;
+  border-right: 1px solid #415a75 !important;
+}
+
+.talea-settings-profile .cl-pageScrollBox,
+.talea-settings-profile .cl-page {
+  background: transparent !important;
+}
+
+.talea-settings-profile .cl-scrollBox {
+  max-height: none !important;
+}
+
+.talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-page="billing"],
+.talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-localization-key*="billing"],
+.talea-settings-profile .cl-navbarButtons > button:nth-child(3),
+.talea-settings-profile .cl-navbarButtons > a:nth-child(3) {
+  display: none !important;
+}

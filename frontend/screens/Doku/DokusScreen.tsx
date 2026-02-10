@@ -14,6 +14,7 @@ import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackControls';
 import type { Doku } from '../../types/doku';
 import type { AudioDoku } from '../../types/audio-doku';
@@ -24,6 +25,7 @@ const DokusScreen: React.FC = () => {
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
   const { isSignedIn, isLoaded } = useUser();
+  const { isAdmin } = useOptionalUserAccess();
 
   const [myDokus, setMyDokus] = useState<Doku[]>([]);
   const [publicDokus, setPublicDokus] = useState<Doku[]>([]);
@@ -603,35 +605,37 @@ const DokusScreen: React.FC = () => {
                   </div>
                   <div style={sectionSubtitleStyle}>{t('doku.audioDokusSubtitle')} ({totalAudio})</div>
                 </div>
-                <button
-                  onClick={() => navigate('/createaudiodoku')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 18px',
-                    borderRadius: `${radii.lg}px`,
-                    background: `linear-gradient(135deg, ${colors.lavender[500]}, ${colors.lavender[600]})`,
-                    color: '#fff',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '14px',
-                    boxShadow: shadows.md,
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = shadows.lg;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = shadows.md;
-                  }}
-                >
-                  <Plus size={18} />
-                  {t('doku.audioCreateButton')}
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate('/createaudiodoku')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      borderRadius: `${radii.lg}px`,
+                      background: `linear-gradient(135deg, ${colors.lavender[500]}, ${colors.lavender[600]})`,
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '14px',
+                      boxShadow: shadows.md,
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = shadows.lg;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = shadows.md;
+                    }}
+                  >
+                    <Plus size={18} />
+                    {t('doku.audioCreateButton')}
+                  </button>
+                )}
               </div>
 
               {loadingAudioDokus ? (

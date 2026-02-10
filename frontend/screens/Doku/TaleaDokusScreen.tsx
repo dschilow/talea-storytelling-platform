@@ -24,6 +24,7 @@ import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackContr
 import type { Doku } from '../../types/doku';
 import type { AudioDoku } from '../../types/audio-doku';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import taleaLogo from '@/img/talea_logo.png';
 
 type Palette = {
@@ -262,6 +263,7 @@ const TaleaDokusScreen: React.FC = () => {
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
   const { isSignedIn, isLoaded } = useUser();
+  const { isAdmin } = useOptionalUserAccess();
   const { resolvedTheme } = useTheme();
 
   const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
@@ -539,15 +541,17 @@ const TaleaDokusScreen: React.FC = () => {
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={() => navigate('/createaudiodoku')}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold"
-                style={{ borderColor: palette.border, background: palette.soft, color: palette.text }}
-              >
-                <Headphones className="h-3.5 w-3.5" />
-                Audio erstellen
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/createaudiodoku')}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold"
+                  style={{ borderColor: palette.border, background: palette.soft, color: palette.text }}
+                >
+                  <Headphones className="h-3.5 w-3.5" />
+                  Audio erstellen
+                </button>
+              )}
 
               <div className="rounded-xl border px-3 py-2 text-xs" style={{ borderColor: palette.border, background: palette.soft, color: palette.muted }}>
                 {totalMy + totalPublic} Artikel / {totalAudio} Audio
@@ -640,8 +644,8 @@ const TaleaDokusScreen: React.FC = () => {
                   subtitle={t('doku.audioDokusSubtitle', 'Zum Anhoeren')}
                   count={totalAudio}
                   palette={palette}
-                  actionLabel={t('doku.audioCreateButton', 'Audio erstellen')}
-                  onAction={() => navigate('/createaudiodoku')}
+                  actionLabel={isAdmin ? t('doku.audioCreateButton', 'Audio erstellen') : undefined}
+                  onAction={isAdmin ? () => navigate('/createaudiodoku') : undefined}
                 />
 
                 {loadingAudio ? (

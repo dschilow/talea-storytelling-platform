@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PricingTable, UserProfile } from '@clerk/clerk-react';
+import { PricingTable, UserProfile, useClerk, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { useBackend } from '../../hooks/useBackend';
-import { useUser } from '@clerk/clerk-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../src/i18n';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -24,6 +23,7 @@ import {
   Lock,
   Monitor,
   Moon,
+  LogOut,
   Plus,
   RefreshCcw,
   Settings,
@@ -142,22 +142,35 @@ const PLAN_META: Record<
   },
 };
 
-const SettingsBackground: React.FC = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    <motion.div
-      className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-15"
-      style={{ background: 'radial-gradient(circle, rgba(227,213,202,0.55) 0%, rgba(214,204,194,0.28) 52%, transparent 74%)' }}
-      animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
-      transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    <motion.div
-      className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full opacity-15"
-      style={{ background: 'radial-gradient(circle, rgba(245,235,224,0.6) 0%, rgba(213,189,175,0.22) 55%, transparent 75%)' }}
-      animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
-      transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-    />
-  </div>
-);
+const SettingsBackground: React.FC = () => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      <motion.div
+        className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-20"
+        style={{
+          background: isDark
+            ? 'radial-gradient(circle, rgba(94,128,166,0.42) 0%, rgba(34,56,82,0.26) 55%, transparent 76%)'
+            : 'radial-gradient(circle, rgba(227,213,202,0.55) 0%, rgba(214,204,194,0.28) 52%, transparent 74%)',
+        }}
+        animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute -bottom-32 -left-32 w-[420px] h-[420px] rounded-full opacity-20"
+        style={{
+          background: isDark
+            ? 'radial-gradient(circle, rgba(83,118,152,0.35) 0%, rgba(20,34,52,0.3) 56%, transparent 76%)'
+            : 'radial-gradient(circle, rgba(245,235,224,0.6) 0%, rgba(213,189,175,0.22) 55%, transparent 75%)',
+        }}
+        animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </div>
+  );
+};
 
 function LanguageSelector() {
   const { t, i18n } = useTranslation();
@@ -167,24 +180,34 @@ function LanguageSelector() {
     (i18n.language as SupportedLanguage) || 'de'
   );
   const [isSaving, setIsSaving] = useState(false);
+  const loadedForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isLoaded && user && backend) {
-      loadUserLanguage();
-    }
-  }, [isLoaded, user, backend]);
+    if (!isLoaded || !user?.id) return;
+    if (loadedForUserRef.current === user.id) return;
+    loadedForUserRef.current = user.id;
 
-  const loadUserLanguage = async () => {
-    try {
-      const profile = await backend.user.me();
-      if (profile.preferredLanguage) {
-        setSelectedLanguage(profile.preferredLanguage);
-        i18n.changeLanguage(profile.preferredLanguage);
+    let mounted = true;
+    const loadUserLanguage = async () => {
+      try {
+        const profile = await backend.user.me();
+        const nextLanguage = profile.preferredLanguage as SupportedLanguage | undefined;
+        if (!mounted || !nextLanguage) return;
+
+        setSelectedLanguage(nextLanguage);
+        if (i18n.language !== nextLanguage) {
+          await i18n.changeLanguage(nextLanguage);
+        }
+      } catch (err) {
+        console.error('Failed to load user language:', err);
       }
-    } catch (err) {
-      console.error('Failed to load user language:', err);
-    }
-  };
+    };
+
+    void loadUserLanguage();
+    return () => {
+      mounted = false;
+    };
+  }, [backend, i18n, isLoaded, user?.id]);
 
   const handleLanguageChange = async (language: SupportedLanguage) => {
     setIsSaving(true);
@@ -219,12 +242,9 @@ function LanguageSelector() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {SUPPORTED_LANGUAGES.map((lang, i) => (
+        {SUPPORTED_LANGUAGES.map((lang) => (
           <motion.button
             key={lang.code}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => handleLanguageChange(lang.code)}
@@ -936,6 +956,48 @@ function UsageCard(props: {
   );
 }
 
+function SignOutPanel() {
+  const { signOut } = useClerk();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d5bdaf] to-[#e3d5ca] flex items-center justify-center shadow-md">
+            <LogOut className="w-5 h-5 text-[#2f4058]" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+              Abmelden
+            </h2>
+            <p className="text-xs text-muted-foreground">Sichere Abmeldung von deinem Talea Konto.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-5 dark:border-[#4b5f79] dark:bg-[#17263a]">
+        <p className="text-sm text-muted-foreground mb-4">
+          Du kannst dich jederzeit abmelden und spaeter mit demselben Konto wieder einloggen.
+        </p>
+        <Button type="button" onClick={handleSignOut} disabled={isSigningOut} className="bg-[#c68d8d] hover:bg-[#b87878] text-white">
+          <LogOut className="mr-2 h-4 w-4" />
+          {isSigningOut ? 'Abmeldung...' : 'Jetzt abmelden'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function BillingPanel() {
   const backend = useBackend();
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
@@ -1160,7 +1222,7 @@ export default function SettingsScreen() {
   }, [location.search]);
 
   return (
-    <div className="min-h-screen relative pb-28">
+    <div className="min-h-screen relative pb-28 bg-[linear-gradient(180deg,#f5ebe0_0%,#edede9_100%)] dark:bg-[linear-gradient(180deg,#111b29_0%,#152235_100%)]">
       <SettingsBackground />
 
       <div className="relative z-10 pt-6">
@@ -1188,18 +1250,19 @@ export default function SettingsScreen() {
           </div>
         </motion.div>
 
-        <div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-visible">
+        <div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-hidden min-h-[72vh] md:min-h-[calc(100vh-170px)]">
           <UserProfile
             appearance={{
               baseTheme: undefined,
               elements: {
-                rootBox: 'w-full',
-                card: 'shadow-none bg-transparent',
+                rootBox: 'talea-settings-profile w-full !max-w-none',
+                cardBox: '!w-full !max-w-none !h-[72vh] md:!h-[calc(100vh-170px)]',
+                card: '!h-full !w-full !max-w-none shadow-none bg-transparent',
                 navbar: 'bg-card/70 backdrop-blur-lg border-r border-[#d6ccc2] dark:border-[#4a5f78]',
                 navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
                 navbarButtonActive: 'bg-[#f5ebe0] text-[#425b78] dark:bg-[#223850] dark:text-[#c9dbf1] font-semibold',
-                pageScrollBox: 'bg-transparent',
-                page: 'bg-transparent',
+                pageScrollBox: '!h-full bg-transparent',
+                page: '!h-full bg-transparent',
                 formButtonPrimary: 'bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] hover:opacity-90 text-[#22344c] rounded-xl shadow-lg',
                 formFieldInput: 'rounded-xl border-[#d6ccc2] dark:border-[#4a617a] bg-card/70 backdrop-blur-lg',
               },
@@ -1221,11 +1284,7 @@ export default function SettingsScreen() {
               <ThemeSelector />
             </UserProfile.Page>
 
-            <UserProfile.Page
-              label={`${t('settings.subscription')} & ${t('settings.billing')}`}
-              labelIcon={<CreditCard className="w-4 h-4" />}
-              url="billing"
-            >
+            <UserProfile.Page label="Zahlung" labelIcon={<CreditCard className="w-4 h-4" />} url="billing">
               <BillingPanel />
             </UserProfile.Page>
 
@@ -1235,6 +1294,10 @@ export default function SettingsScreen() {
               url="parental"
             >
               <ParentalDashboardPanel />
+            </UserProfile.Page>
+
+            <UserProfile.Page label={t('navigation.logout')} labelIcon={<LogOut className="w-4 h-4" />} url="logout">
+              <SignOutPanel />
             </UserProfile.Page>
           </UserProfile>
         </div>

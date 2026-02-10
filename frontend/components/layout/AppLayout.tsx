@@ -14,6 +14,7 @@ const AppLayout: React.FC = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const showSettingsButton = location.pathname !== "/settings";
+  const isSettingsRoute = location.pathname.startsWith("/settings");
 
   return (
     <div className="min-h-screen text-foreground flex flex-col md:flex-row">
@@ -23,7 +24,11 @@ const AppLayout: React.FC = () => {
       </SignedIn>
 
       <main className="flex-1 min-h-screen transition-all duration-300">
-        <div className="pb-20 md:pb-10 md:pt-10 px-4 md:px-10 max-w-[1120px] mx-auto w-full">
+        <div
+          className={`pb-20 md:pb-10 px-4 w-full mx-auto ${
+            isSettingsRoute ? "md:pt-6 md:px-6 max-w-[1480px]" : "md:pt-10 md:px-10 max-w-[1120px]"
+          }`}
+        >
           <Outlet />
         </div>
       </main>
@@ -57,4 +62,3 @@ const AppLayout: React.FC = () => {
 };
 
 export default AppLayout;
-

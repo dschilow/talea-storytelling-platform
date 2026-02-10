@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Bot,
   BookOpen,
   Brain,
   FastForward,
@@ -22,10 +23,11 @@ import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  path: string;
+  path?: string;
   tone: string;
   labelKey?: string;
   label?: string;
+  onClick?: () => void;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -34,6 +36,14 @@ const NAV_ITEMS: NavItem[] = [
   { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#9b8a7d" },
   { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#bf9f8c" },
   { icon: Brain, label: "Quiz", path: "/quiz", tone: "#a38978" },
+  {
+    icon: Bot,
+    label: "Tavi",
+    tone: "#9a8f85",
+    onClick: () => {
+      window.dispatchEvent(new Event("tavi:open"));
+    },
+  },
 ];
 
 const formatTime = (value: number) => {
@@ -85,7 +95,8 @@ const BottomNav: React.FC = () => {
     }
   }, [track]);
 
-  const isActive = (path: string) => {
+  const isActive = (path?: string) => {
+    if (!path) return false;
     if (path === "/") return location.pathname === "/";
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
@@ -103,9 +114,9 @@ const BottomNav: React.FC = () => {
 
     return (
       <button
-        key={item.path}
+        key={item.path ?? item.label ?? item.labelKey ?? "tavi"}
         type="button"
-        onClick={() => navigate(item.path)}
+        onClick={() => (item.onClick ? item.onClick() : item.path ? navigate(item.path) : undefined)}
         className="relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1"
         aria-label={labelOf(item)}
       >
@@ -297,4 +308,3 @@ const BottomNav: React.FC = () => {
 };
 
 export default BottomNav;
-
