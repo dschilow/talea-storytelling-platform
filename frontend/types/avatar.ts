@@ -27,6 +27,7 @@ export interface AvatarMemory {
   storyTitle: string;
   experience: string;
   emotionalImpact: 'positive' | 'negative' | 'neutral';
+  contentType?: 'story' | 'doku' | 'quiz' | 'activity';
   personalityChanges: Array<{
     trait: string;
     change: number;

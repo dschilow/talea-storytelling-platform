@@ -272,6 +272,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
           storyTitle: `Quiz: ${dokuTitle}`,
           experience,
           emotionalImpact: percentage >= 70 ? 'positive' : percentage >= 40 ? 'neutral' : 'negative',
+          contentType: 'quiz',
           personalityChanges,
         });
 

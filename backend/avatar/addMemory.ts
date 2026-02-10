@@ -1,21 +1,23 @@
 import { api, APIError } from "encore.dev/api";
 import { avatarDB } from "./db";
 
+type MemoryContentType = "story" | "doku" | "quiz" | "activity";
+
 export interface PersonalityChange {
   trait: string;
   change: number;
-  description?: string; // Why this trait developed
+  description?: string;
 }
 
 export interface AddMemoryRequest {
-  id: string; // avatar ID
+  id: string;
   storyId: string;
   storyTitle: string;
   experience: string;
-  emotionalImpact: 'positive' | 'negative' | 'neutral';
+  emotionalImpact: "positive" | "negative" | "neutral";
   personalityChanges: PersonalityChange[];
-  developmentDescription?: string; // Overall description of character development
-  contentType?: 'story' | 'doku'; // Type of content that caused this memory
+  developmentDescription?: string;
+  contentType?: MemoryContentType;
 }
 
 export interface AddMemoryResponse {
@@ -23,16 +25,21 @@ export interface AddMemoryResponse {
   memoryId: string;
 }
 
-// Adds a new memory entry for an avatar
+function normalizeContentType(value?: string): MemoryContentType {
+  if (value === "doku" || value === "quiz" || value === "activity") {
+    return value;
+  }
+  return "story";
+}
+
 export const addMemory = api(
   { expose: true, method: "POST", path: "/avatar/memory", auth: true },
   async (req: AddMemoryRequest): Promise<AddMemoryResponse> => {
-    const { id } = req;
-    const { storyId, storyTitle, experience, emotionalImpact, personalityChanges } = req;
+    const { id, storyId, storyTitle, experience, emotionalImpact, personalityChanges } = req;
+    const contentType = normalizeContentType(req.contentType);
 
-    console.log(`🧠 Adding memory for avatar ${id}:`, { storyId, storyTitle, emotionalImpact });
+    console.log("Adding memory entry", { id, storyId, storyTitle, emotionalImpact, contentType });
 
-    // Create avatar_memories table if it doesn't exist
     try {
       await avatarDB.exec`
         CREATE TABLE IF NOT EXISTS avatar_memories (
@@ -43,16 +50,20 @@ export const addMemory = api(
           experience TEXT,
           emotional_impact TEXT CHECK (emotional_impact IN ('positive', 'negative', 'neutral')),
           personality_changes TEXT,
+          content_type TEXT NOT NULL DEFAULT 'story',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (avatar_id) REFERENCES avatars(id) ON DELETE CASCADE
         )
       `;
-      console.log(`✅ avatar_memories table ready for addMemory`);
+
+      await avatarDB.exec`
+        ALTER TABLE avatar_memories
+        ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'story'
+      `;
     } catch (tableError) {
-      console.error(`❌ Error creating table in addMemory:`, tableError);
+      console.error("Error preparing avatar_memories table", tableError);
     }
 
-    // Check if avatar exists
     const existingAvatar = await avatarDB.queryRow<{ id: string }>`
       SELECT id FROM avatars WHERE id = ${id}
     `;
@@ -61,33 +72,49 @@ export const addMemory = api(
       throw APIError.notFound("Avatar not found");
     }
 
-    // Check for duplicate memory (same avatar + story combination)
     const existingMemory = await avatarDB.queryRow<{ id: string }>`
-      SELECT id FROM avatar_memories WHERE avatar_id = ${id} AND story_id = ${storyId}
+      SELECT id
+      FROM avatar_memories
+      WHERE avatar_id = ${id}
+        AND content_type = ${contentType}
+        AND story_id = ${storyId}
     `;
 
     if (existingMemory) {
-      console.log(`⚠️ Memory already exists for avatar ${id} and story ${storyId}`);
       return {
         success: true,
-        memoryId: existingMemory.id
+        memoryId: existingMemory.id,
       };
     }
 
-    // Generate unique memory ID
-    const memoryId = `memory_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const memoryId = `memory_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
-    // Insert memory record
     await avatarDB.exec`
-      INSERT INTO avatar_memories (id, avatar_id, story_id, story_title, experience, emotional_impact, personality_changes)
-      VALUES (${memoryId}, ${id}, ${storyId}, ${storyTitle}, ${experience}, ${emotionalImpact}, ${JSON.stringify(personalityChanges)})
+      INSERT INTO avatar_memories (
+        id,
+        avatar_id,
+        story_id,
+        story_title,
+        experience,
+        emotional_impact,
+        personality_changes,
+        content_type
+      )
+      VALUES (
+        ${memoryId},
+        ${id},
+        ${storyId},
+        ${storyTitle},
+        ${experience},
+        ${emotionalImpact},
+        ${JSON.stringify(personalityChanges)},
+        ${contentType}
+      )
     `;
-
-    console.log(`✅ Memory added successfully for avatar ${id}: ${memoryId}`);
 
     return {
       success: true,
-      memoryId
+      memoryId,
     };
   }
 );

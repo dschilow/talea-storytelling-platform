@@ -666,8 +666,8 @@ export const generate = api<GenerateStoryRequest, Story>(
           } else {
             // Fallback: Genre-based updates when AI doesn't provide specific developments
             const baseTraits = req.config.genre === 'adventure' ? ['courage', 'curiosity'] :
-              req.config.genre === 'educational' ? ['intelligence', 'curiosity'] :
-                req.config.genre === 'mystery' ? ['curiosity', 'intelligence'] :
+              req.config.genre === 'educational' ? ['logic', 'curiosity'] :
+                req.config.genre === 'mystery' ? ['curiosity', 'logic'] :
                   req.config.genre === 'friendship' ? ['empathy', 'teamwork'] :
                     ['empathy', 'curiosity'];
             changes = baseTraits.map(trait => {

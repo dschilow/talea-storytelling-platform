@@ -15,7 +15,7 @@ import { useBackend } from '../../hooks/useBackend';
 import { useAvatarMemory } from '../../hooks/useAvatarMemory';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Avatar, AvatarMemory } from '../../types/avatar';
-import { PersonalityRadarChart } from '../../components/avatar/PersonalityRadarChart';
+import { PersonalityProgressBoard } from '../../components/avatar/PersonalityProgressBoard';
 import TreasureRoom from '../../components/gamification/TreasureRoom';
 
 type PersonalityTab = 'personality' | 'diary' | 'treasure';
@@ -60,12 +60,29 @@ const TRAIT_NAME_MAP: Record<string, string> = {
 };
 
 const getMasteryLabel = (value: number) => {
-  const normalized = Math.max(0, Math.min(100, value));
+  const normalized = Math.max(0, value);
+  if (normalized >= 220) return 'Ikone';
+  if (normalized >= 140) return 'Veteran';
+  if (normalized >= 101) return 'Legende+';
   if (normalized >= 81) return 'Legende';
   if (normalized >= 61) return 'Meister';
   if (normalized >= 41) return 'Geselle';
   if (normalized >= 21) return 'Lehrling';
   return 'Anfaenger';
+};
+
+const getTraitProgress = (traitId: string, value: number) => {
+  const sanitized = Math.max(0, value);
+  if (traitId !== 'knowledge') {
+    return Math.min(100, Math.round(sanitized));
+  }
+
+  if (sanitized <= 100) {
+    return Math.round(sanitized);
+  }
+
+  const normalized = (Math.log10(sanitized + 10) / Math.log10(1010)) * 100;
+  return Math.min(100, Math.max(0, Math.round(normalized)));
 };
 
 const toDisplayLabel = (key: string) => TRAIT_NAME_MAP[key] || key;
@@ -123,6 +140,7 @@ const normalizeTraits = (rawTraits: Record<string, unknown> | null): TraitModel[
 const getMemoryTypeLabel = (type?: string) => {
   if (type === 'doku') return 'Doku';
   if (type === 'quiz') return 'Quiz';
+  if (type === 'activity') return 'Aktivitaet';
   return 'Story';
 };
 
@@ -407,15 +425,9 @@ const AvatarDetailScreen: React.FC = () => {
                 Kompetenzprofil
               </h2>
               <p className="mb-4 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
-                Die Radar-Ansicht zeigt alle neun Kernbereiche mit einer adaptiven Skala.
+                Klare Progress-Ansicht fuer Kernkompetenzen und Wissensbereiche.
               </p>
-              <PersonalityRadarChart
-                traits={rawTraits || {}}
-                size={330}
-                showMasteryBadges
-                showLegend={false}
-                animate
-              />
+              <PersonalityProgressBoard traits={traitModels} />
             </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -445,7 +457,7 @@ const AvatarDetailScreen: React.FC = () => {
                     <div
                       className="h-full rounded-full"
                       style={{
-                        width: `${Math.min(100, Math.round((trait.value / Math.max(100, trait.value)) * 100))}%`,
+                        width: `${getTraitProgress(trait.id, trait.value)}%`,
                         background:
                           'linear-gradient(90deg, #7d98c7 0%, #a985c5 50%, #c88b79 100%)',
                       }}
@@ -627,7 +639,7 @@ const MemoryTimeline: React.FC<{
                       {memory.storyTitle}
                     </h4>
                     <p className="mt-0.5 text-xs" style={{ color: isDark ? '#9db2cc' : '#6c8098' }}>
-                      {getMemoryTypeLabel((memory as any).contentType)} · {getMemoryImpactLabel(memory.emotionalImpact)}
+                      {getMemoryTypeLabel(memory.contentType)} · {getMemoryImpactLabel(memory.emotionalImpact)}
                     </p>
                   </div>
 

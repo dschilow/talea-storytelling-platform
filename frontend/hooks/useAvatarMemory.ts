@@ -1,253 +1,250 @@
 import { useState, useCallback } from 'react';
 import { useBackend } from './useBackend';
-import { PersonalityTrait, AvatarMemory } from '../types/avatar';
+import { AvatarMemory } from '../types/avatar';
 
 export interface MemoryEntry {
   storyId: string;
   storyTitle: string;
   experience: string;
   emotionalImpact: 'positive' | 'negative' | 'neutral';
+  contentType?: 'story' | 'doku' | 'quiz' | 'activity';
   personalityChanges: Array<{
     trait: string;
     change: number;
   }>;
 }
 
+function normalizeTraitName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+const TRAIT_MAPPING: Record<string, string> = {
+  mut: 'courage',
+  kreativitat: 'creativity',
+  kreativitaet: 'creativity',
+  empathie: 'empathy',
+  intelligenz: 'logic',
+  sozialitat: 'teamwork',
+  sozialitaet: 'teamwork',
+  energie: 'persistence',
+  courage: 'courage',
+  creativity: 'creativity',
+  empathy: 'empathy',
+  logic: 'logic',
+  persistence: 'persistence',
+  curiosity: 'curiosity',
+  vocabulary: 'vocabulary',
+  teamwork: 'teamwork',
+};
+
 export const useAvatarMemory = () => {
   const backend = useBackend();
   const [loading, setLoading] = useState(false);
 
-  const addMemory = useCallback(async (avatarId: string, memoryEntry: MemoryEntry) => {
-    try {
-      setLoading(true);
+  const addMemory = useCallback(
+    async (avatarId: string, memoryEntry: MemoryEntry) => {
+      try {
+        setLoading(true);
 
-      console.log('📝 Adding memory to database:', avatarId, memoryEntry);
+        const result = await backend.avatar.addMemory({
+          id: avatarId,
+          storyId: memoryEntry.storyId,
+          storyTitle: memoryEntry.storyTitle,
+          experience: memoryEntry.experience,
+          emotionalImpact: memoryEntry.emotionalImpact,
+          contentType: memoryEntry.contentType,
+          personalityChanges: memoryEntry.personalityChanges,
+        });
 
-      const result = await backend.avatar.addMemory({
-        id: avatarId,
-        storyId: memoryEntry.storyId,
-        storyTitle: memoryEntry.storyTitle,
-        experience: memoryEntry.experience,
-        emotionalImpact: memoryEntry.emotionalImpact,
-        personalityChanges: memoryEntry.personalityChanges
-      });
+        return {
+          success: result.success,
+          memoryId: result.memoryId,
+        };
+      } catch (error) {
+        console.error('Error in addMemory:', error);
+        return { success: false, error };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [backend]
+  );
 
-      console.log('✅ Memory added successfully:', result);
+  const updatePersonality = useCallback(
+    async (
+      avatarId: string,
+      personalityChanges: Array<{ trait: string; change: number }>,
+      reason: string,
+      storyId?: string
+    ) => {
+      try {
+        setLoading(true);
 
-      return {
-        success: result.success,
-        memoryId: result.memoryId,
-      };
-    } catch (error) {
-      console.error('❌ Error in addMemory:', error);
-      return { success: false, error };
-    } finally {
-      setLoading(false);
-    }
-  }, [backend]);
+        const backendChanges = personalityChanges.map((change) => {
+          const normalizedTrait = normalizeTraitName(change.trait);
+          return {
+            trait: TRAIT_MAPPING[normalizedTrait] || normalizedTrait,
+            change: change.change,
+          };
+        });
 
-  const updatePersonality = useCallback(async (
-    avatarId: string,
-    personalityChanges: Array<{ trait: string; change: number }>,
-    reason: string,
-    storyId?: string
-  ) => {
-    try {
-      setLoading(true);
+        const result = await backend.avatar.updatePersonality({
+          id: avatarId,
+          changes: backendChanges,
+          storyId,
+        });
 
-      console.log('🎭 PERSONALITY UPDATE START (Backend Only)');
-      console.log('Avatar ID:', avatarId);
-      console.log('Changes:', personalityChanges);
-      console.log('Reason:', reason);
-      console.log('Story ID:', storyId);
+        window.dispatchEvent(
+          new CustomEvent('personalityUpdated', {
+            detail: { avatarId, updatedTraits: result.updatedTraits, reason },
+          })
+        );
 
-      // Mapping from German frontend trait names to English backend trait names
-      const traitMapping: Record<string, string> = {
-        'Mut': 'courage',
-        'Kreativität': 'creativity',
-        'Empathie': 'empathy',
-        'Intelligenz': 'intelligence',
-        'Sozialität': 'strength', // Map to closest backend trait
-        'Energie': 'adventure', // Map to closest backend trait
-      };
+        return {
+          success: true,
+          updatedTraits: result.updatedTraits,
+          appliedChanges: result.appliedChanges,
+        };
+      } catch (error) {
+        console.error('Error updating personality:', error);
+        return { success: false, error };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [backend]
+  );
 
-      // Convert German trait changes to English backend trait names
-      const backendChanges = personalityChanges.map(change => ({
-        trait: traitMapping[change.trait] || change.trait.toLowerCase(),
-        change: change.change
-      }));
+  const getMemories = useCallback(
+    async (avatarId: string): Promise<AvatarMemory[]> => {
+      try {
+        setLoading(true);
+        const result = await backend.avatar.getMemories({ id: avatarId });
+        return result.memories;
+      } catch (error) {
+        console.error('Error getting memories:', error);
+        return [];
+      } finally {
+        setLoading(false);
+      }
+    },
+    [backend]
+  );
 
-      console.log('🔄 Sending personality changes to backend:', backendChanges);
+  const processStoryResponse = useCallback(
+    async (avatarId: string, storyId: string, storyTitle: string, userChoice: string, storyContext: string) => {
+      try {
+        setLoading(true);
 
-      // Update personality directly via backend API
-      const result = await backend.avatar.updatePersonality({
-        id: avatarId,
-        changes: backendChanges,
-        storyId
-      });
+        const analysis = analyzeChoiceForPersonality(userChoice, storyContext);
 
-      console.log('✅ Backend personality update successful:', result);
+        const memoryEntry: MemoryEntry = {
+          storyId,
+          storyTitle,
+          experience: generateExperienceDescription(userChoice),
+          emotionalImpact: analysis.emotionalImpact,
+          contentType: 'story',
+          personalityChanges: analysis.personalityChanges,
+        };
 
-      // Trigger event to notify UI components to refresh
-      window.dispatchEvent(new CustomEvent('personalityUpdated', {
-        detail: { avatarId, updatedTraits: result.updatedTraits }
-      }));
+        const memoryResult = await addMemory(avatarId, memoryEntry);
 
-      return {
-        success: true,
-        updatedTraits: result.updatedTraits,
-        appliedChanges: result.appliedChanges
-      };
-    } catch (error) {
-      console.error('❌ Error updating personality:', error);
-      return { success: false, error };
-    } finally {
-      setLoading(false);
-    }
-  }, [backend]);
+        const personalityResult = await updatePersonality(
+          avatarId,
+          analysis.personalityChanges,
+          `Story choice in "${storyTitle}"`,
+          storyId
+        );
 
-  const getMemories = useCallback(async (avatarId: string): Promise<AvatarMemory[]> => {
-    try {
-      setLoading(true);
-
-      console.log('🔍 Getting memories from database for avatar:', avatarId);
-
-      const result = await backend.avatar.getMemories({ id: avatarId });
-
-      console.log('✅ Retrieved memories from database:', result.memories.length);
-
-      return result.memories;
-    } catch (error) {
-      console.error('❌ Error getting memories:', error);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [backend]);
-
-  const processStoryResponse = useCallback(async (
-    avatarId: string,
-    storyId: string,
-    storyTitle: string,
-    userChoice: string,
-    storyContext: string
-  ) => {
-    try {
-      setLoading(true);
-      
-      // Analyze the story choice and context to determine personality changes
-      // This would typically be done by an AI service
-      console.log('Processing story response for personality development:', {
-        avatarId,
-        storyId,
-        storyTitle,
-        userChoice,
-        storyContext
-      });
-      
-      // Mock analysis - in reality this would call an AI service
-      const analysis = analyzeChoiceForPersonality(userChoice, storyContext);
-      
-      // Create memory entry
-      const memoryEntry: MemoryEntry = {
-        storyId,
-        storyTitle,
-        experience: generateExperienceDescription(userChoice, analysis),
-        emotionalImpact: analysis.emotionalImpact,
-        personalityChanges: analysis.personalityChanges
-      };
-      
-      // Add memory
-      const memoryResult = await addMemory(avatarId, memoryEntry);
-      
-      // Update personality
-      const personalityResult = await updatePersonality(
-        avatarId,
-        analysis.personalityChanges,
-        `Story choice in "${storyTitle}"`,
-        storyId
-      );
-      
-      return {
-        success: memoryResult.success && personalityResult.success,
-        memoryId: memoryResult.memoryId,
-        personalityChanges: analysis.personalityChanges
-      };
-      
-    } catch (error) {
-      console.error('Error processing story response:', error);
-      return { success: false, error };
-    } finally {
-      setLoading(false);
-    }
-  }, [addMemory, updatePersonality]);
+        return {
+          success: memoryResult.success && personalityResult.success,
+          memoryId: memoryResult.memoryId,
+          personalityChanges: analysis.personalityChanges,
+        };
+      } catch (error) {
+        console.error('Error processing story response:', error);
+        return { success: false, error };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [addMemory, updatePersonality]
+  );
 
   return {
     addMemory,
     updatePersonality,
     getMemories,
     processStoryResponse,
-    loading
+    loading,
   };
 };
 
-// Helper functions for personality analysis
 function analyzeChoiceForPersonality(choice: string, context: string) {
-  // Mock analysis - in a real implementation, this would use AI
-  const personalityChanges = [];
+  const personalityChanges: Array<{ trait: string; change: number }> = [];
   let emotionalImpact: 'positive' | 'negative' | 'neutral' = 'neutral';
-  
-  // Simple keyword-based analysis for demonstration
+
   const lowerChoice = choice.toLowerCase();
   const lowerContext = context.toLowerCase();
-  
-  console.log('🔍 Analyzing choice for personality:', choice, context);
-  
-  // Story completion gets general development boost
-  if (lowerChoice.includes('story_completed')) {
-    personalityChanges.push({ trait: 'Kreativität', change: 2 });
-    personalityChanges.push({ trait: 'Empathie', change: 1 });
-    emotionalImpact = 'positive';
-    console.log('📚 Story completion detected - adding creativity and empathy boost');
-  }
-  
-  if (lowerChoice.includes('hilf') || lowerChoice.includes('helfen')) {
-    personalityChanges.push({ trait: 'Empathie', change: 3 });
-    personalityChanges.push({ trait: 'Sozialität', change: 2 });
+  const text = `${lowerChoice} ${lowerContext}`;
+
+  if (text.includes('story_completed')) {
+    personalityChanges.push({ trait: 'creativity', change: 2 });
+    personalityChanges.push({ trait: 'empathy', change: 1 });
     emotionalImpact = 'positive';
   }
-  
-  if (lowerChoice.includes('mutig') || lowerChoice.includes('kämpf')) {
-    personalityChanges.push({ trait: 'Mut', change: 4 });
-    personalityChanges.push({ trait: 'Energie', change: 2 });
+
+  if (/(hilf|helfen|mitgefuehl|freund)/.test(text)) {
+    personalityChanges.push({ trait: 'empathy', change: 2 });
+    personalityChanges.push({ trait: 'teamwork', change: 1 });
     emotionalImpact = 'positive';
   }
-  
-  if (lowerChoice.includes('denk') || lowerChoice.includes('überlege')) {
-    personalityChanges.push({ trait: 'Intelligenz', change: 3 });
-    personalityChanges.push({ trait: 'Kreativität', change: 1 });
+
+  if (/(mutig|kaempf|risiko|abwaeg)/.test(text)) {
+    personalityChanges.push({ trait: 'courage', change: 2 });
+    personalityChanges.push({ trait: 'persistence', change: 1 });
     emotionalImpact = 'positive';
   }
-  
-  if (lowerChoice.includes('kreativ') || lowerChoice.includes('neue idee')) {
-    personalityChanges.push({ trait: 'Kreativität', change: 5 });
-    personalityChanges.push({ trait: 'Intelligenz', change: 2 });
+
+  if (/(denk|ueberlege|logik|strategie|plan)/.test(text)) {
+    personalityChanges.push({ trait: 'logic', change: 2 });
+    personalityChanges.push({ trait: 'curiosity', change: 1 });
     emotionalImpact = 'positive';
   }
-  
+
+  if (/(kreativ|neue idee|erfind)/.test(text)) {
+    personalityChanges.push({ trait: 'creativity', change: 2 });
+    personalityChanges.push({ trait: 'vocabulary', change: 1 });
+    emotionalImpact = 'positive';
+  }
+
   return {
-    personalityChanges,
-    emotionalImpact
+    personalityChanges: mergeChanges(personalityChanges),
+    emotionalImpact,
   };
 }
 
-function generateExperienceDescription(choice: string, analysis: any): string {
+function mergeChanges(changes: Array<{ trait: string; change: number }>) {
+  const merged = new Map<string, number>();
+
+  for (const change of changes) {
+    const existing = merged.get(change.trait) || 0;
+    merged.set(change.trait, existing + change.change);
+  }
+
+  return Array.from(merged.entries()).map(([trait, change]) => ({ trait, change }));
+}
+
+function generateExperienceDescription(choice: string) {
   const experiences = [
-    `Ich habe mich entschieden: "${choice}" - Das hat meine Sichtweise verändert.`,
-    `Meine Wahl "${choice}" hat mir neue Erkenntnisse gebracht.`,
-    `Durch meine Entscheidung "${choice}" habe ich etwas über mich gelernt.`,
-    `Die Erfahrung mit "${choice}" wird mich weiter begleiten.`
+    `Ich habe mich entschieden: "${choice}" und dabei etwas Neues gelernt.`,
+    `Meine Wahl "${choice}" hat mein Denken veraendert.`,
+    `Durch "${choice}" habe ich eine neue Perspektive entdeckt.`,
+    `Die Erfahrung "${choice}" hat mich weitergebracht.`,
   ];
-  
+
   return experiences[Math.floor(Math.random() * experiences.length)];
 }
