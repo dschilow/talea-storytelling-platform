@@ -1,5 +1,6 @@
 ﻿import React, { useMemo, useState } from "react";
 import {
+  Brain,
   BookMarked,
   BookOpen,
   Bot,
@@ -13,7 +14,7 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-import { useClerk, useUser } from "@clerk/clerk-react";
+import { useClerk } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -21,6 +22,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -33,8 +35,9 @@ interface NavItem {
 const PRIMARY_ITEMS: NavItem[] = [
   { icon: Home, labelKey: "navigation.home", path: "/", tone: "#a88f80" },
   { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#b69684" },
-  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#bf9f8c" },
   { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#9b8a7d" },
+  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#bf9f8c" },
+  { icon: Brain, label: "Quiz", path: "/quiz", tone: "#a38978" },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -53,7 +56,7 @@ const SETTINGS_ITEM: NavItem = {
 
 const Sidebar: React.FC = () => {
   const { signOut } = useClerk();
-  const { user } = useUser();
+  const { isAdmin } = useOptionalUserAccess();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,7 +68,6 @@ const Sidebar: React.FC = () => {
   const canExpand = useMemo(() => expanded, [expanded]);
 
   const isDark = resolvedTheme === "dark";
-  const isAdmin = user?.publicMetadata?.role !== "customer";
 
   const colors = useMemo(
     () =>

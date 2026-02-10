@@ -37,12 +37,25 @@ import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
 import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
+import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
+import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
+
+const AdminOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { isLoading, isAdmin } = useOptionalUserAccess();
+  if (isLoading) {
+    return null;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
 
 // Inner component that uses router hooks
 const RouterContent = () => {
@@ -82,18 +95,19 @@ const RouterContent = () => {
               <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
               <Route path="/stories" element={<StoriesScreen />} />
               <Route path="/community" element={<ModernHomeScreen />} />
-              <Route path="/logs" element={<LogViewerScreen />} />
+              <Route path="/logs" element={<AdminOnlyRoute><LogViewerScreen /></AdminOnlyRoute>} />
               <Route path="/doku" element={<DokusScreen />} />
               <Route path="/createaudiodoku" element={<CreateAudioDokuScreen />} />
-              <Route path="/characters" element={<CharacterPoolScreen />} />
-              <Route path="/artifacts" element={<ArtifactPoolScreen />} />
-              <Route path="/fairytales" element={<FairyTalesScreen />} />
+              <Route path="/quiz" element={<CommunityQuizScreen />} />
+              <Route path="/characters" element={<AdminOnlyRoute><CharacterPoolScreen /></AdminOnlyRoute>} />
+              <Route path="/artifacts" element={<AdminOnlyRoute><ArtifactPoolScreen /></AdminOnlyRoute>} />
+              <Route path="/fairytales" element={<AdminOnlyRoute><FairyTalesScreen /></AdminOnlyRoute>} />
               <Route path="/doku/create" element={<ModernDokuWizard />} />
               <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
               <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
               <Route path="/auth" element={<Navigate to="/" replace />} />
               <Route path="/settings" element={<SettingsScreen />} />
-              <Route path="/_admin" element={<AdminDashboard />} />
+              <Route path="/_admin" element={<AdminOnlyRoute><AdminDashboard /></AdminOnlyRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
@@ -205,7 +219,9 @@ export default function App() {
       <ClerkProvider publishableKey={clerkPublishableKey}>
         <ThemeProvider>
           <AudioPlayerProvider>
-            <AppContent />
+            <UserAccessProvider>
+              <AppContent />
+            </UserAccessProvider>
           </AudioPlayerProvider>
         </ThemeProvider>
       </ClerkProvider>

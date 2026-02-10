@@ -253,6 +253,18 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         model: MODEL,
         processingTime,
         imagesGenerated,
+        configSnapshot: {
+          topic: req.config.topic,
+          ageGroup: req.config.ageGroup,
+          depth: req.config.depth,
+          perspective: req.config.perspective ?? "science",
+          tone: req.config.tone ?? "curious",
+          length: req.config.length ?? "medium",
+          includeInteractive: req.config.includeInteractive ?? false,
+          quizQuestions: req.config.quizQuestions ?? 0,
+          handsOnActivities: req.config.handsOnActivities ?? 0,
+          language: req.config.language ?? "de",
+        },
         totalCost: {
           text: textCost,
           images: imagesCost,

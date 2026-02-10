@@ -62,6 +62,18 @@ export interface Doku {
     model?: string;
     processingTime?: number;
     imagesGenerated?: number;
+    configSnapshot?: {
+      topic?: string;
+      ageGroup?: "3-5" | "6-8" | "9-12" | "13+";
+      depth?: "basic" | "standard" | "deep";
+      perspective?: "science" | "history" | "technology" | "nature" | "culture";
+      tone?: "fun" | "neutral" | "curious";
+      length?: "short" | "medium" | "long";
+      includeInteractive?: boolean;
+      quizQuestions?: number;
+      handsOnActivities?: number;
+      language?: string;
+    };
     totalCost?: {
       text: number;
       images: number;
