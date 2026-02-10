@@ -429,9 +429,6 @@ export namespace avatar {
             this.upgradeAllPersonalityTraits = this.upgradeAllPersonalityTraits.bind(this)
         }
 
-        /**
-         * Adds a new memory entry for an avatar
-         */
         public async addMemory(params: RequestType<typeof api_avatar_addMemory_addMemory>): Promise<ResponseType<typeof api_avatar_addMemory_addMemory>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/memory`, {method: "POST", body: JSON.stringify(params)})
@@ -467,9 +464,6 @@ export namespace avatar {
             await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
         }
 
-        /**
-         * Deletes a specific memory and recalculates personality traits
-         */
         public async deleteMemory(params: { avatarId: string, memoryId: string }): Promise<ResponseType<typeof api_avatar_deleteMemory_deleteMemory>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.avatarId)}/memory/${encodeURIComponent(params.memoryId)}`, {method: "DELETE", body: undefined})
@@ -494,9 +488,6 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_get_get>
         }
 
-        /**
-         * Gets all memories for an avatar
-         */
         public async getMemories(params: { id: string }): Promise<ResponseType<typeof api_avatar_getMemories_getMemories>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/memories`, {method: "GET", body: undefined})
@@ -589,9 +580,6 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_update_update>
         }
 
-        /**
-         * Updates an avatar's personality traits with delta changes
-         */
         public async updatePersonality(params: RequestType<typeof api_avatar_updatePersonality_updatePersonality>): Promise<ResponseType<typeof api_avatar_updatePersonality_updatePersonality>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/personality`, {method: "POST", body: JSON.stringify(params)})
@@ -612,12 +600,17 @@ export namespace avatar {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
-import { createAudioDoku as api_doku_audio_createAudioDoku, listAudioDokus as api_doku_audio_listAudioDokus, createAudioUploadUrl as api_doku_audio_createAudioUploadUrl, generateAudioCover as api_doku_audio_generateAudioCover } from "~backend/doku/audio-doku";
+import {
+    createAudioDoku as api_doku_audio_doku_createAudioDoku,
+    createAudioUploadUrl as api_doku_audio_doku_createAudioUploadUrl,
+    generateAudioCover as api_doku_audio_doku_generateAudioCover,
+    listAudioDokus as api_doku_audio_doku_listAudioDokus
+} from "~backend/doku/audio-doku";
 import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
 import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
 import { listDokus as api_doku_list_listDokus } from "~backend/doku/list";
-import { listPublicDokus as api_doku_listPublic_listPublicDokus } from "~backend/doku/list-public";
+import { listPublicDokus as api_doku_list_public_listPublicDokus } from "~backend/doku/list-public";
 import { markRead as api_doku_markRead_markRead } from "~backend/doku/markRead";
 import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
 
@@ -629,7 +622,9 @@ export namespace doku {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.createAudioDoku = this.createAudioDoku.bind(this)
+            this.createAudioUploadUrl = this.createAudioUploadUrl.bind(this)
             this.deleteDoku = this.deleteDoku.bind(this)
+            this.generateAudioCover = this.generateAudioCover.bind(this)
             this.generateDoku = this.generateDoku.bind(this)
             this.getDoku = this.getDoku.bind(this)
             this.listAudioDokus = this.listAudioDokus.bind(this)
@@ -639,21 +634,26 @@ export namespace doku {
             this.updateDoku = this.updateDoku.bind(this)
         }
 
-        public async createAudioDoku(params: RequestType<typeof api_doku_audio_createAudioDoku>): Promise<ResponseType<typeof api_doku_audio_createAudioDoku>> {
+        public async createAudioDoku(params: RequestType<typeof api_doku_audio_doku_createAudioDoku>): Promise<ResponseType<typeof api_doku_audio_doku_createAudioDoku>> {
+            // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_createAudioDoku>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_createAudioDoku>
         }
-        public async createAudioUploadUrl(params: RequestType<typeof api_doku_audio_createAudioUploadUrl>): Promise<ResponseType<typeof api_doku_audio_createAudioUploadUrl>> {
+
+        public async createAudioUploadUrl(params: RequestType<typeof api_doku_audio_doku_createAudioUploadUrl>): Promise<ResponseType<typeof api_doku_audio_doku_createAudioUploadUrl>> {
+            // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus/upload-url`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_createAudioUploadUrl>
-        }
-        public async generateAudioCover(params: RequestType<typeof api_doku_audio_generateAudioCover>): Promise<ResponseType<typeof api_doku_audio_generateAudioCover>> {
-            const resp = await this.baseClient.callTypedAPI(`/audio-dokus/generate-cover`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_generateAudioCover>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_createAudioUploadUrl>
         }
 
         public async deleteDoku(params: { id: string }): Promise<void> {
             await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        }
+
+        public async generateAudioCover(params: RequestType<typeof api_doku_audio_doku_generateAudioCover>): Promise<ResponseType<typeof api_doku_audio_doku_generateAudioCover>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/audio-dokus/generate-cover`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_generateAudioCover>
         }
 
         public async generateDoku(params: RequestType<typeof api_doku_generate_generateDoku>): Promise<ResponseType<typeof api_doku_generate_generateDoku>> {
@@ -671,10 +671,7 @@ export namespace doku {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_get_getDoku>
         }
 
-        /**
-         * Lists public audio dokus across all users with pagination.
-         */
-        public async listAudioDokus(params: RequestType<typeof api_doku_audio_listAudioDokus>): Promise<ResponseType<typeof api_doku_audio_listAudioDokus>> {
+        public async listAudioDokus(params: RequestType<typeof api_doku_audio_doku_listAudioDokus>): Promise<ResponseType<typeof api_doku_audio_doku_listAudioDokus>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 limit:  params.limit === undefined ? undefined : String(params.limit),
@@ -683,7 +680,7 @@ export namespace doku {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus`, {query, method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_listAudioDokus>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_listAudioDokus>
         }
 
         /**
@@ -702,9 +699,9 @@ export namespace doku {
         }
 
         /**
-         * Lists public dokus across all users with pagination.
+         * Lists public dokus with pagination.
          */
-        public async listPublicDokus(params: RequestType<typeof api_doku_listPublic_listPublicDokus>): Promise<ResponseType<typeof api_doku_listPublic_listPublicDokus>> {
+        public async listPublicDokus(params: RequestType<typeof api_doku_list_public_listPublicDokus>): Promise<ResponseType<typeof api_doku_list_public_listPublicDokus>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 limit:  params.limit === undefined ? undefined : String(params.limit),
@@ -713,12 +710,9 @@ export namespace doku {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/dokus/public`, {query, method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_listPublic_listPublicDokus>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_list_public_listPublicDokus>
         }
 
-        /**
-         * Marks a doku as read and applies personality development to all user avatars
-         */
         public async markRead(params: RequestType<typeof api_doku_markRead_markRead>): Promise<ResponseType<typeof api_doku_markRead_markRead>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, {method: "POST", body: JSON.stringify(params)})
@@ -1316,6 +1310,7 @@ import {
 } from "~backend/story/generate-from-fairytale";
 import { get as api_story_get_get } from "~backend/story/get";
 import { list as api_story_list_list } from "~backend/story/list";
+import { dumpStoryLogs as api_story_log_dump_dumpStoryLogs } from "~backend/story/log-dump";
 import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
 import { proxyImage as api_story_proxy_image_proxyImage } from "~backend/story/proxy-image";
 import { runMigrationSQL as api_story_run_migration_sql_runMigrationSQL } from "~backend/story/run-migration-sql";
@@ -1347,6 +1342,7 @@ export namespace story {
             this.deleteArtifact = this.deleteArtifact.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
+            this.dumpStoryLogs = this.dumpStoryLogs.bind(this)
             this.exportArtifacts = this.exportArtifacts.bind(this)
             this.exportCharacters = this.exportCharacters.bind(this)
             this.generate = this.generate.bind(this)
@@ -1466,6 +1462,10 @@ export namespace story {
          */
         public async deleteStory(params: { id: string }): Promise<void> {
             await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        }
+
+        public async dumpStoryLogs(params: { storyId: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/story/debug-logs/${encodeURIComponent(params.storyId)}`, {method: "GET", body: undefined})
         }
 
         /**
@@ -1628,9 +1628,6 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_test_story_generation_listTestConfigs>
         }
 
-        /**
-         * Marks a story as read and applies personality development to all user avatars
-         */
         public async markRead(params: RequestType<typeof api_story_markRead_markRead>): Promise<ResponseType<typeof api_story_markRead_markRead>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/mark-read`, {method: "POST", body: JSON.stringify(params)})
@@ -1832,9 +1829,12 @@ export namespace tts {
 import {
     create as api_user_profile_create,
     get as api_user_profile_get,
+    getParentalControls as api_user_profile_getParentalControls,
     me as api_user_profile_me,
+    saveParentalControls as api_user_profile_saveParentalControls,
     updateLanguage as api_user_profile_updateLanguage,
-    updateTheme as api_user_profile_updateTheme
+    updateTheme as api_user_profile_updateTheme,
+    verifyParentalPin as api_user_profile_verifyParentalPin
 } from "~backend/user/profile";
 import { runMigrationSql as api_user_run_migration_sql_runMigrationSql } from "~backend/user/run-migration-sql";
 
@@ -1847,10 +1847,13 @@ export namespace user {
             this.baseClient = baseClient
             this.create = this.create.bind(this)
             this.get = this.get.bind(this)
+            this.getParentalControls = this.getParentalControls.bind(this)
             this.me = this.me.bind(this)
             this.runMigrationSql = this.runMigrationSql.bind(this)
+            this.saveParentalControls = this.saveParentalControls.bind(this)
             this.updateLanguage = this.updateLanguage.bind(this)
             this.updateTheme = this.updateTheme.bind(this)
+            this.verifyParentalPin = this.verifyParentalPin.bind(this)
         }
 
         /**
@@ -1869,6 +1872,12 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_get>
+        }
+
+        public async getParentalControls(): Promise<ResponseType<typeof api_user_profile_getParentalControls>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/parental-controls`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_getParentalControls>
         }
 
         /**
@@ -1891,6 +1900,12 @@ export namespace user {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_run_migration_sql_runMigrationSql>
         }
 
+        public async saveParentalControls(params: RequestType<typeof api_user_profile_saveParentalControls>): Promise<ResponseType<typeof api_user_profile_saveParentalControls>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/parental-controls`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_saveParentalControls>
+        }
+
         /**
          * Updates the authenticated user's preferred language.
          */
@@ -1907,6 +1922,12 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/theme`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_updateTheme>
+        }
+
+        public async verifyParentalPin(params: RequestType<typeof api_user_profile_verifyParentalPin>): Promise<ResponseType<typeof api_user_profile_verifyParentalPin>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/parental-controls/verify`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_verifyParentalPin>
         }
     }
 }

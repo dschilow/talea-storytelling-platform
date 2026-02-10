@@ -8,6 +8,12 @@ import { normalizeLanguage } from "../story/avatar-image-optimization";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { getAuthData } from "~encore/auth";
 import { claimGenerationUsage } from "../helpers/billing";
+import {
+  assertParentalDailyLimit,
+  buildGenerationGuidanceFromControls,
+  getParentalControlsForUser,
+  sanitizeTextWithBlockedTerms,
+} from "../helpers/parental-controls";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -67,6 +73,7 @@ export interface DokuConfig {
   tone?: "fun" | "neutral" | "curious";
   length?: "short" | "medium" | "long";
   language?: DokuLanguage;
+  parentalGuidance?: string;
 }
 
 export interface Doku {
@@ -130,6 +137,29 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       throw APIError.unauthenticated("Missing Clerk token for billing");
     }
 
+    const parentalControls = await getParentalControlsForUser(currentUserId);
+    const dayStartUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    const usageToday = await dokuDB.queryRow<{ count: number }>`
+      SELECT COUNT(*)::int AS count
+      FROM dokus
+      WHERE user_id = ${currentUserId}
+        AND created_at >= ${dayStartUtc}
+    `;
+    assertParentalDailyLimit({
+      controls: parentalControls,
+      kind: "doku",
+      usedToday: usageToday?.count ?? 0,
+    });
+
+    const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
+    const config: DokuConfig = {
+      ...req.config,
+      parentalGuidance: parentalGuidance || undefined,
+    };
+    const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
+
     await claimGenerationUsage({
       userId: currentUserId,
       kind: "doku",
@@ -138,14 +168,14 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
     await dokuDB.exec`
       INSERT INTO dokus (id, user_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
-      VALUES (${id}, ${currentUserId}, 'Wird generiert...', ${req.config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
+      VALUES (${id}, ${currentUserId}, 'Wird generiert...', ${config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
     `;
 
     const startTime = Date.now();
     let imagesGenerated = 0;
 
     try {
-      const payload = buildOpenAIPayload(req.config);
+      const payload = buildOpenAIPayload(config);
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -181,6 +211,24 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         sections: DokuSection[];
         coverImagePrompt: string;
       };
+
+      if (blockedTerms.length > 0) {
+        const titleSanitized = sanitizeTextWithBlockedTerms(parsed.title, blockedTerms);
+        const summarySanitized = sanitizeTextWithBlockedTerms(parsed.summary, blockedTerms);
+        parsed.title = titleSanitized.text;
+        parsed.summary = summarySanitized.text;
+        parsed.sections = parsed.sections.map((section) => {
+          const sectionTitle = sanitizeTextWithBlockedTerms(section.title, blockedTerms);
+          const sectionContent = sanitizeTextWithBlockedTerms(section.content, blockedTerms);
+          const keyFacts = section.keyFacts.map((fact) => sanitizeTextWithBlockedTerms(fact, blockedTerms).text);
+          return {
+            ...section,
+            title: sectionTitle.text,
+            content: sectionContent.text,
+            keyFacts,
+          };
+        });
+      }
 
       // Optional: generate a cover image
       // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
@@ -254,16 +302,17 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         processingTime,
         imagesGenerated,
         configSnapshot: {
-          topic: req.config.topic,
-          ageGroup: req.config.ageGroup,
-          depth: req.config.depth,
-          perspective: req.config.perspective ?? "science",
-          tone: req.config.tone ?? "curious",
-          length: req.config.length ?? "medium",
-          includeInteractive: req.config.includeInteractive ?? false,
-          quizQuestions: req.config.quizQuestions ?? 0,
-          handsOnActivities: req.config.handsOnActivities ?? 0,
-          language: req.config.language ?? "de",
+          topic: config.topic,
+          ageGroup: config.ageGroup,
+          depth: config.depth,
+          perspective: config.perspective ?? "science",
+          tone: config.tone ?? "curious",
+          length: config.length ?? "medium",
+          includeInteractive: config.includeInteractive ?? false,
+          quizQuestions: config.quizQuestions ?? 0,
+          handsOnActivities: config.handsOnActivities ?? 0,
+          language: config.language ?? "de",
+          parentalGuidanceActive: Boolean(config.parentalGuidance),
         },
         totalCost: {
           text: textCost,
@@ -285,15 +334,15 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
       // Apply personality & memory updates for ALL user avatars based on Doku topic
       try {
-        const knowledgeTrait = inferKnowledgeSubcategory(req.config.topic, req.config.perspective);
+        const knowledgeTrait = inferKnowledgeSubcategory(config.topic, config.perspective);
         const basePoints = 2
-          + (req.config.depth === "standard" ? 1 : 0)
-          + (req.config.depth === "deep" ? 2 : 0)
-          + (req.config.length === "long" ? 1 : 0);
+          + (config.depth === "standard" ? 1 : 0)
+          + (config.depth === "deep" ? 2 : 0)
+          + (config.length === "long" ? 1 : 0);
         const knowledgePoints = Math.max(1, Math.min(10, basePoints));
 
         // Build changes with detailed descriptions
-        const subjectName = req.config.topic;
+        const subjectName = config.topic;
         const changes = [
           {
             trait: knowledgeTrait,
@@ -331,7 +380,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
               id: a.id,
               storyId: id,
               storyTitle: parsed.title,
-              experience: `Ich habe die Doku "${parsed.title}" gelesen. Thema: ${req.config.topic}.`,
+              experience: `Ich habe die Doku "${parsed.title}" gelesen. Thema: ${config.topic}.`,
               emotionalImpact: "positive",
               personalityChanges: changes,
               developmentDescription: `Wissensentwicklung: ${developmentSummary}`,
@@ -362,7 +411,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         id,
         userId: currentUserId,
         title: parsed.title,
-        topic: req.config.topic,
+        topic: config.topic,
         summary: parsed.summary,
         content: { sections: resolvedSections },
         coverImageUrl: resolvedCoverImageUrl ?? coverImageUrl,
@@ -391,8 +440,10 @@ function buildOpenAIPayload(config: DokuConfig) {
   const prompts = getLanguagePrompts(language);
 
   const system = prompts.system;
-
-  const user = prompts.user(config, sectionsCount, quizCount, activitiesCount);
+  const parentalSection = config.parentalGuidance
+    ? `\n\nPARENTAL SAFETY AND LEARNING RULES (MUST FOLLOW):\n${config.parentalGuidance}\n`
+    : "";
+  const user = `${prompts.user(config, sectionsCount, quizCount, activitiesCount)}${parentalSection}`;
 
   return {
     model: MODEL,

@@ -96,7 +96,18 @@ export class StoryPipelineOrchestrator {
       pacing: normalized.rawConfig?.pacing ?? "balanced",
     });
     const stylePack = await loadStylePack({ language: normalized.language, category: normalized.category });
-    const stylePackText = formatStylePackPrompt(stylePack);
+    const parentalGuidance =
+      typeof normalized.rawConfig?.parentalGuidance === "string"
+        ? normalized.rawConfig.parentalGuidance.trim()
+        : "";
+    const stylePackText = [
+      formatStylePackPrompt(stylePack),
+      parentalGuidance
+        ? `PARENTAL SAFETY RULES:\n${parentalGuidance}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     const phaseGates: Array<{ phase: string; success: boolean; schemaValid?: boolean; issues?: any[]; attempts?: number; artifactRef?: any }> = [];
     let validationReport: any | undefined;
 

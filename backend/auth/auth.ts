@@ -145,7 +145,7 @@ function decodeTokenPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-const auth = authHandler<AuthParams, AuthData>(async (data) => {
+export const auth = authHandler<AuthParams, AuthData>(async (data) => {
   const token = data.authorization?.replace("Bearer ", "") ?? data.session?.value;
   if (!token) {
     throw APIError.unauthenticated("missing token");

@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { PricingTable, UserProfile } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { useBackend } from '../../hooks/useBackend';
 import { useUser } from '@clerk/clerk-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../src/i18n';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import {
+  Ban,
   BookOpen,
   Check,
   Clock3,
@@ -16,14 +18,21 @@ import {
   FileText,
   Globe,
   Headphones,
+  Info,
+  KeyRound,
   Languages,
+  Lock,
   Monitor,
   Moon,
+  Plus,
   RefreshCcw,
   Settings,
+  Shield,
   Sparkles,
   Sun,
+  Target,
   Users,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -55,6 +64,32 @@ type BillingSnapshot = {
 type ProfileSnapshot = {
   subscription: SubscriptionPlan;
   billing: BillingSnapshot;
+};
+
+type KeywordPreset = {
+  id: string;
+  label: string;
+  keywords: string[];
+};
+
+type ParentalPresets = {
+  blockedThemePresets: KeywordPreset[];
+  blockedWordPresets: KeywordPreset[];
+  goalPresets: KeywordPreset[];
+};
+
+type ParentalControlsSnapshot = {
+  enabled: boolean;
+  onboardingCompleted: boolean;
+  hasPin: boolean;
+  blockedThemes: string[];
+  blockedWords: string[];
+  learningGoals: string[];
+  profileKeywords: string[];
+  dailyLimits: {
+    stories: number | null;
+    dokus: number | null;
+  };
 };
 
 const PLAN_META: Record<
@@ -111,13 +146,13 @@ const SettingsBackground: React.FC = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
     <motion.div
       className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-15"
-      style={{ background: 'radial-gradient(circle, rgba(169,137,242,0.4) 0%, rgba(255,107,157,0.2) 50%, transparent 70%)' }}
+      style={{ background: 'radial-gradient(circle, rgba(227,213,202,0.55) 0%, rgba(214,204,194,0.28) 52%, transparent 74%)' }}
       animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
       transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
     />
     <motion.div
       className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full opacity-15"
-      style={{ background: 'radial-gradient(circle, rgba(45,212,191,0.3) 0%, transparent 70%)' }}
+      style={{ background: 'radial-gradient(circle, rgba(245,235,224,0.6) 0%, rgba(213,189,175,0.22) 55%, transparent 75%)' }}
       animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
       transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
     />
@@ -297,6 +332,560 @@ function ThemeSelector() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function mergeKeywords(current: string[], incoming: string[]): string[] {
+  const dedup = new Set<string>(current.map((item) => item.trim().toLowerCase()).filter(Boolean));
+  incoming.forEach((item) => {
+    const normalized = item.trim().toLowerCase();
+    if (normalized) dedup.add(normalized);
+  });
+  return Array.from(dedup).slice(0, 32);
+}
+
+function TagPill(props: { value: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#d5bdaf] bg-[#f9f1e7] px-2.5 py-1 text-[11px] font-semibold text-[#4d6178] dark:border-[#4c6077] dark:bg-[#1b2a3f] dark:text-[#b8c9df]">
+      {props.value}
+      <button
+        type="button"
+        onClick={props.onRemove}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#e6d8cb] text-[#4d6178] dark:bg-[#2a3d55] dark:text-[#b8c9df]"
+        aria-label={`Remove ${props.value}`}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
+}
+
+function KeywordPresetChips(props: {
+  presets: KeywordPreset[];
+  onApply: (keywords: string[]) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {props.presets.map((preset) => (
+        <button
+          key={preset.id}
+          type="button"
+          onClick={() => props.onApply(preset.keywords)}
+          className="rounded-full border border-[#d6ccc2] bg-[#f5ebe0] px-3 py-1 text-xs font-semibold text-[#3a4a61] transition hover:bg-[#edede9] dark:border-[#4a617c] dark:bg-[#1c2b42] dark:text-[#c3d4ea] dark:hover:bg-[#233754]"
+        >
+          {preset.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function KeywordEditor(props: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  values: string[];
+  presets?: KeywordPreset[];
+  inputValue: string;
+  inputPlaceholder: string;
+  onInputChange: (value: string) => void;
+  onAdd: () => void;
+  onRemove: (value: string) => void;
+  onApplyPreset?: (keywords: string[]) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#d6ccc2] bg-[#fffaf3] p-4 dark:border-[#425874] dark:bg-[#17263a]">
+      <div className="mb-3 flex items-start gap-2">
+        <div className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5ebe0] text-[#556d88] dark:bg-[#24364d] dark:text-[#bfd1e8]">
+          {props.icon}
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{props.title}</p>
+          <p className="text-xs text-muted-foreground">{props.subtitle}</p>
+        </div>
+      </div>
+
+      {props.presets && props.presets.length > 0 && props.onApplyPreset && (
+        <div className="mb-3">
+          <KeywordPresetChips presets={props.presets} onApply={props.onApplyPreset} />
+        </div>
+      )}
+
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {props.values.length === 0 ? (
+          <span className="text-xs text-muted-foreground">Noch keine Eintraege.</span>
+        ) : (
+          props.values.map((value) => (
+            <TagPill key={value} value={value} onRemove={() => props.onRemove(value)} />
+          ))
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          value={props.inputValue}
+          onChange={(event) => props.onInputChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              props.onAdd();
+            }
+          }}
+          placeholder={props.inputPlaceholder}
+          className="h-9 flex-1 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm text-[#2a3a4d] outline-none placeholder:text-[#93a3b8] focus:border-[#b79f8e] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd] dark:placeholder:text-[#8ea3bf]"
+        />
+        <button
+          type="button"
+          onClick={props.onAdd}
+          className="inline-flex h-9 items-center justify-center rounded-xl border border-[#d5bdaf] bg-[#f5ebe0] px-3 text-sm font-semibold text-[#2f4058] hover:bg-[#edede9] dark:border-[#496381] dark:bg-[#243850] dark:text-[#d5e4f8] dark:hover:bg-[#2b425f]"
+        >
+          <Plus className="mr-1 h-4 w-4" />
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ParentalDashboardPanel() {
+  const backend = useBackend();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [controls, setControls] = useState<ParentalControlsSnapshot | null>(null);
+  const [presets, setPresets] = useState<ParentalPresets>({
+    blockedThemePresets: [],
+    blockedWordPresets: [],
+    goalPresets: [],
+  });
+
+  const [currentPin, setCurrentPin] = useState('');
+  const [unlockPin, setUnlockPin] = useState('');
+  const [setupPin, setSetupPin] = useState('');
+  const [setupPinConfirm, setSetupPinConfirm] = useState('');
+  const [nextPin, setNextPin] = useState('');
+  const [nextPinConfirm, setNextPinConfirm] = useState('');
+
+  const [enabled, setEnabled] = useState(false);
+  const [blockedThemes, setBlockedThemes] = useState<string[]>([]);
+  const [blockedWords, setBlockedWords] = useState<string[]>([]);
+  const [learningGoals, setLearningGoals] = useState<string[]>([]);
+  const [profileKeywords, setProfileKeywords] = useState<string[]>([]);
+  const [dailyStoryLimit, setDailyStoryLimit] = useState<number | null>(null);
+  const [dailyDokuLimit, setDailyDokuLimit] = useState<number | null>(null);
+
+  const [themeInput, setThemeInput] = useState('');
+  const [wordInput, setWordInput] = useState('');
+  const [goalInput, setGoalInput] = useState('');
+  const [profileInput, setProfileInput] = useState('');
+
+  const loadParental = async () => {
+    try {
+      setLoading(true);
+      const response = await backend.user.getParentalControls();
+      const nextControls = (response as any).controls as ParentalControlsSnapshot;
+      const nextPresets = (response as any).presets as ParentalPresets;
+      setControls(nextControls);
+      setPresets(nextPresets);
+      setEnabled(nextControls.enabled);
+      setBlockedThemes(nextControls.blockedThemes ?? []);
+      setBlockedWords(nextControls.blockedWords ?? []);
+      setLearningGoals(nextControls.learningGoals ?? []);
+      setProfileKeywords(nextControls.profileKeywords ?? []);
+      setDailyStoryLimit(nextControls.dailyLimits?.stories ?? null);
+      setDailyDokuLimit(nextControls.dailyLimits?.dokus ?? null);
+      if (!nextControls.hasPin) {
+        setCurrentPin('');
+      }
+    } catch (error) {
+      console.error('Failed to load parental controls:', error);
+      toast.error('Eltern-Dashboard konnte nicht geladen werden.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadParental();
+  }, [backend]);
+
+  const unlocked = !controls?.hasPin || currentPin.length > 0;
+
+  const addKeyword = (
+    input: string,
+    values: string[],
+    setter: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    const next = mergeKeywords(values, [input]);
+    setter(next);
+  };
+
+  const validatePin = (pin: string) => /^\d{4,8}$/.test(pin);
+
+  const saveControls = async () => {
+    if (!controls) return;
+
+    const payload: any = {
+      enabled,
+      onboardingCompleted: true,
+      blockedThemes,
+      blockedWords,
+      learningGoals,
+      profileKeywords,
+      dailyStoryLimit,
+      dailyDokuLimit,
+    };
+
+    if (controls.hasPin) {
+      if (!currentPin) {
+        toast.error('Bitte zuerst Eltern-PIN eingeben.');
+        return;
+      }
+      payload.currentPin = currentPin;
+      if (nextPin || nextPinConfirm) {
+        if (nextPin !== nextPinConfirm) {
+          toast.error('Neuer PIN und Bestaetigung stimmen nicht ueberein.');
+          return;
+        }
+        if (!validatePin(nextPin)) {
+          toast.error('PIN muss 4 bis 8 Ziffern haben.');
+          return;
+        }
+        payload.newPin = nextPin;
+      }
+    } else {
+      if (setupPin !== setupPinConfirm) {
+        toast.error('PIN und Bestaetigung stimmen nicht ueberein.');
+        return;
+      }
+      if (!validatePin(setupPin)) {
+        toast.error('Bitte einen PIN mit 4 bis 8 Ziffern setzen.');
+        return;
+      }
+      payload.newPin = setupPin;
+    }
+
+    try {
+      setSaving(true);
+      const response = await backend.user.saveParentalControls(payload);
+      const nextControls = (response as any).controls as ParentalControlsSnapshot;
+      setControls(nextControls);
+      setEnabled(nextControls.enabled);
+      setBlockedThemes(nextControls.blockedThemes ?? []);
+      setBlockedWords(nextControls.blockedWords ?? []);
+      setLearningGoals(nextControls.learningGoals ?? []);
+      setProfileKeywords(nextControls.profileKeywords ?? []);
+      setDailyStoryLimit(nextControls.dailyLimits?.stories ?? null);
+      setDailyDokuLimit(nextControls.dailyLimits?.dokus ?? null);
+
+      if (payload.newPin) {
+        setCurrentPin(payload.newPin);
+        setUnlockPin('');
+        setSetupPin('');
+        setSetupPinConfirm('');
+        setNextPin('');
+        setNextPinConfirm('');
+      }
+      toast.success('Eltern-Dashboard gespeichert.');
+    } catch (error) {
+      console.error('Failed to save parental controls:', error);
+      toast.error(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const unlock = async () => {
+    if (!unlockPin.trim()) {
+      toast.error('Bitte PIN eingeben.');
+      return;
+    }
+
+    try {
+      const response = await backend.user.verifyParentalPin({ pin: unlockPin.trim() });
+      if ((response as any).ok) {
+        setCurrentPin(unlockPin.trim());
+        setUnlockPin('');
+        toast.success('Eltern-Dashboard entsperrt.');
+      } else {
+        toast.error('PIN ungueltig.');
+      }
+    } catch (error) {
+      console.error('Failed to verify parental pin:', error);
+      toast.error('PIN konnte nicht geprueft werden.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
+          Lade Eltern-Dashboard...
+        </div>
+      </div>
+    );
+  }
+
+  if (!controls) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
+          Eltern-Dashboard nicht verfuegbar.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d5bdaf] via-[#e3d5ca] to-[#d6ccc2] text-[#2f4058]">
+          <Shield className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+            Eltern-Dashboard
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Sicherheit, Lernziele und Tageslimits fuer Storys und Dokus.
+          </p>
+        </div>
+      </div>
+
+      {controls.hasPin && !unlocked && (
+        <div className="rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Lock className="h-4 w-4" />
+            PIN-Schutz aktiv
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Bitte Eltern-PIN eingeben, um Regeln und Limits zu bearbeiten.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              value={unlockPin}
+              onChange={(event) => setUnlockPin(event.target.value)}
+              type="password"
+              inputMode="numeric"
+              placeholder="PIN"
+              className="h-10 flex-1 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+            />
+            <button
+              type="button"
+              onClick={unlock}
+              className="inline-flex h-10 items-center rounded-xl border border-[#d5bdaf] bg-[#f5ebe0] px-4 text-sm font-semibold text-[#2f4058] dark:border-[#496381] dark:bg-[#243850] dark:text-[#d5e4f8]"
+            >
+              Entsperren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {unlocked && (
+        <>
+          <div className="rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-foreground">Kinderschutz aktivieren</p>
+                <p className="text-xs text-muted-foreground">
+                  Aktiv steuert Tabu-Themen, Lernziele und Tageslimits in Story- und Doku-Prompts.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnabled((prev) => !prev)}
+                className={`relative h-7 w-14 rounded-full transition ${enabled ? 'bg-[#b79f8e]' : 'bg-muted'}`}
+              >
+                <motion.span
+                  animate={{ x: enabled ? 28 : 2 }}
+                  className="absolute top-0.5 h-6 w-6 rounded-full bg-white"
+                />
+              </button>
+            </div>
+            <div className="mt-3 rounded-xl border border-[#e3d5ca] bg-[#f8f1e8] px-3 py-2 text-xs text-[#586b84] dark:border-[#3f546f] dark:bg-[#1b2d43] dark:text-[#a7bdd8]">
+              <Info className="mr-1 inline h-3.5 w-3.5" />
+              Regeln greifen bei neuen Generierungen. Bestehende Inhalte bleiben unveraendert.
+            </div>
+          </div>
+
+          <KeywordEditor
+            title="Tabu-Themen"
+            subtitle="Diese Themen sollen in Storys und Dokus vermieden werden."
+            icon={<Ban className="h-4 w-4" />}
+            values={blockedThemes}
+            presets={presets.blockedThemePresets}
+            inputValue={themeInput}
+            inputPlaceholder="z.B. horror"
+            onInputChange={setThemeInput}
+            onAdd={() => {
+              addKeyword(themeInput, blockedThemes, setBlockedThemes);
+              setThemeInput('');
+            }}
+            onRemove={(value) => setBlockedThemes((prev) => prev.filter((item) => item !== value))}
+            onApplyPreset={(keywords) => setBlockedThemes((prev) => mergeKeywords(prev, keywords))}
+          />
+
+          <KeywordEditor
+            title="Tabu-Woerter"
+            subtitle="Diese Begriffe werden in neu generierten Texten geblockt."
+            icon={<Ban className="h-4 w-4" />}
+            values={blockedWords}
+            presets={presets.blockedWordPresets}
+            inputValue={wordInput}
+            inputPlaceholder="z.B. beleidigung"
+            onInputChange={setWordInput}
+            onAdd={() => {
+              addKeyword(wordInput, blockedWords, setBlockedWords);
+              setWordInput('');
+            }}
+            onRemove={(value) => setBlockedWords((prev) => prev.filter((item) => item !== value))}
+            onApplyPreset={(keywords) => setBlockedWords((prev) => mergeKeywords(prev, keywords))}
+          />
+
+          <KeywordEditor
+            title="Lernziele"
+            subtitle="Diese Ziele werden bei neuen Storys und Dokus bevorzugt."
+            icon={<Target className="h-4 w-4" />}
+            values={learningGoals}
+            presets={presets.goalPresets}
+            inputValue={goalInput}
+            inputPlaceholder="z.B. teamarbeit"
+            onInputChange={setGoalInput}
+            onAdd={() => {
+              addKeyword(goalInput, learningGoals, setLearningGoals);
+              setGoalInput('');
+            }}
+            onRemove={(value) => setLearningGoals((prev) => prev.filter((item) => item !== value))}
+            onApplyPreset={(keywords) => setLearningGoals((prev) => mergeKeywords(prev, keywords))}
+          />
+
+          <KeywordEditor
+            title="Profil-/Pfad-Schlagwoerter"
+            subtitle="Zusatz-Keywords fuer die inhaltliche Ausrichtung."
+            icon={<Target className="h-4 w-4" />}
+            values={profileKeywords}
+            inputValue={profileInput}
+            inputPlaceholder="z.B. natur"
+            onInputChange={setProfileInput}
+            onAdd={() => {
+              addKeyword(profileInput, profileKeywords, setProfileKeywords);
+              setProfileInput('');
+            }}
+            onRemove={(value) => setProfileKeywords((prev) => prev.filter((item) => item !== value))}
+          />
+
+          <div className="rounded-2xl border border-[#d6ccc2] bg-[#fffaf3] p-4 dark:border-[#425874] dark:bg-[#17263a]">
+            <p className="text-sm font-bold text-foreground">Tageslimits (unabhaengig vom Abo)</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Schuetzt Credits davor, an einem einzigen Tag komplett verbraucht zu werden.
+            </p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-[#e3d5ca] bg-[#f8f1e8] p-3 dark:border-[#3f546f] dark:bg-[#1b2d43]">
+                <p className="text-xs font-semibold text-muted-foreground">Storys pro Tag</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDailyStoryLimit(null)}
+                    className={`rounded-lg px-2 py-1 text-xs font-semibold ${dailyStoryLimit === null ? 'bg-[#d5bdaf] text-white' : 'bg-white text-[#49617c] dark:bg-[#20324a] dark:text-[#b5c9e2]'}`}
+                  >
+                    Unbegrenzt
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={dailyStoryLimit ?? ''}
+                    onChange={(event) =>
+                      setDailyStoryLimit(event.target.value === '' ? null : Number(event.target.value))
+                    }
+                    className="h-8 w-20 rounded-lg border border-[#d6ccc2] bg-white px-2 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+                    placeholder="z.B. 4"
+                  />
+                </div>
+              </div>
+              <div className="rounded-xl border border-[#e3d5ca] bg-[#f8f1e8] p-3 dark:border-[#3f546f] dark:bg-[#1b2d43]">
+                <p className="text-xs font-semibold text-muted-foreground">Dokus pro Tag</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDailyDokuLimit(null)}
+                    className={`rounded-lg px-2 py-1 text-xs font-semibold ${dailyDokuLimit === null ? 'bg-[#d5bdaf] text-white' : 'bg-white text-[#49617c] dark:bg-[#20324a] dark:text-[#b5c9e2]'}`}
+                  >
+                    Unbegrenzt
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={dailyDokuLimit ?? ''}
+                    onChange={(event) =>
+                      setDailyDokuLimit(event.target.value === '' ? null : Number(event.target.value))
+                    }
+                    className="h-8 w-20 rounded-lg border border-[#d6ccc2] bg-white px-2 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+                    placeholder="z.B. 3"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
+            <div className="mb-2 flex items-center gap-2 text-sm font-bold text-foreground">
+              <KeyRound className="h-4 w-4" />
+              Eltern-PIN
+            </div>
+            {!controls.hasPin ? (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={setupPin}
+                  onChange={(event) => setSetupPin(event.target.value)}
+                  placeholder="Neuer PIN (4-8 Ziffern)"
+                  className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+                />
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={setupPinConfirm}
+                  onChange={(event) => setSetupPinConfirm(event.target.value)}
+                  placeholder="PIN bestaetigen"
+                  className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={nextPin}
+                  onChange={(event) => setNextPin(event.target.value)}
+                  placeholder="Neuer PIN (optional)"
+                  className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+                />
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={nextPinConfirm}
+                  onChange={(event) => setNextPinConfirm(event.target.value)}
+                  placeholder="Neuer PIN bestaetigen"
+                  className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#45607e] dark:bg-[#20324a]"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" onClick={loadParental}>
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Neu laden
+            </Button>
+            <Button type="button" onClick={saveControls} disabled={saving}>
+              {saving ? 'Speichere...' : 'Speichern'}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -560,6 +1149,15 @@ function BillingPanel() {
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.search.includes('section=billing')) return;
+    const handle = window.setTimeout(() => {
+      document.getElementById('billing-plan-switcher')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+    return () => window.clearTimeout(handle);
+  }, [location.search]);
 
   return (
     <div className="min-h-screen relative pb-28">
@@ -577,9 +1175,9 @@ export default function SettingsScreen() {
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-              className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] flex items-center justify-center shadow-xl shadow-[#A989F2]/25"
+              className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#d5bdaf] via-[#e3d5ca] to-[#d6ccc2] flex items-center justify-center shadow-xl shadow-[#d5bdaf]/35"
             >
-              <Settings className="w-7 h-7 text-white" />
+              <Settings className="w-7 h-7 text-[#2f4058]" />
             </motion.div>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
@@ -597,13 +1195,13 @@ export default function SettingsScreen() {
               elements: {
                 rootBox: 'w-full',
                 card: 'shadow-none bg-transparent',
-                navbar: 'bg-card/70 backdrop-blur-lg border-r border-border',
+                navbar: 'bg-card/70 backdrop-blur-lg border-r border-[#d6ccc2] dark:border-[#4a5f78]',
                 navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
-                navbarButtonActive: 'bg-[#A989F2]/10 text-[#A989F2] font-semibold',
+                navbarButtonActive: 'bg-[#f5ebe0] text-[#425b78] dark:bg-[#223850] dark:text-[#c9dbf1] font-semibold',
                 pageScrollBox: 'bg-transparent',
                 page: 'bg-transparent',
-                formButtonPrimary: 'bg-gradient-to-r from-[#A989F2] to-[#FF6B9D] hover:opacity-90 text-white rounded-xl shadow-lg',
-                formFieldInput: 'rounded-xl border-border bg-card/70 backdrop-blur-lg',
+                formButtonPrimary: 'bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] hover:opacity-90 text-[#22344c] rounded-xl shadow-lg',
+                formFieldInput: 'rounded-xl border-[#d6ccc2] dark:border-[#4a617a] bg-card/70 backdrop-blur-lg',
               },
             }}
           >
@@ -629,6 +1227,14 @@ export default function SettingsScreen() {
               url="billing"
             >
               <BillingPanel />
+            </UserProfile.Page>
+
+            <UserProfile.Page
+              label="Eltern Dashboard"
+              labelIcon={<Shield className="w-4 h-4" />}
+              url="parental"
+            >
+              <ParentalDashboardPanel />
             </UserProfile.Page>
           </UserProfile>
         </div>

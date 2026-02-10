@@ -67,6 +67,13 @@ const migrations: Array<{
     dir: "backend/user/migrations",
     service: "user",
   },
+  {
+    file: "8_add_parental_controls.up.sql",
+    name: "8_add_parental_controls",
+    group: "user",
+    dir: "backend/user/migrations",
+    service: "user",
+  },
 ];
 
 async function runMigration(

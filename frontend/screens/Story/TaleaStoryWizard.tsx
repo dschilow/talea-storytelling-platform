@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
 import { useTheme } from '../../contexts/ThemeContext';
+import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
@@ -250,6 +251,10 @@ export default function TaleaStoryWizard() {
   const [lootArtifact, setLootArtifact] = useState<InventoryItem | null>(null);
   const [showLootModal, setShowLootModal] = useState(false);
   const [pendingStoryId, setPendingStoryId] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState(
+    'Dein aktueller Plan hat keine freien StoryCredits mehr. Wechsle in den Einstellungen den Plan.'
+  );
 
   const [state, setState] = useState<WizardState>({
     selectedAvatars: [],
@@ -332,10 +337,11 @@ export default function TaleaStoryWizard() {
 
     if (storyCredits && storyCredits.remaining !== null && storyCredits.remaining <= 0) {
       if (billingPermissions && !billingPermissions.freeTrialActive) {
-        alert('Free-Testphase abgelaufen. Bitte im Profil auf Starter, Familie oder Premium wechseln.');
+        setUpgradeMessage('Deine Free-Testphase ist abgelaufen. Wechsle auf Starter, Familie oder Premium, um weiter Storys zu generieren.');
       } else {
-        alert('Keine StoryCredits mehr fuer diesen Monat. Bitte im Profil dein Abo upgraden.');
+        setUpgradeMessage('Keine StoryCredits mehr fuer diesen Monat. Wechsle den Plan in den Einstellungen.');
       }
+      setShowUpgradeModal(true);
       return;
     }
 
@@ -395,7 +401,11 @@ export default function TaleaStoryWizard() {
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) errorMessage = t('story.wizard.alerts.tooLong');
         else if (error.message.includes('timeout')) errorMessage = t('story.wizard.alerts.timeout');
-        else if (error.message.includes('Abo-Limit erreicht')) errorMessage = 'Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.';
+        else if (error.message.includes('Abo-Limit erreicht')) {
+          setUpgradeMessage(error.message);
+          setShowUpgradeModal(true);
+          return;
+        }
       }
       alert(errorMessage);
     } finally {
@@ -549,6 +559,11 @@ export default function TaleaStoryWizard() {
         onClose={handleLootModalClose}
         item={lootArtifact || undefined}
         type="new_item"
+      />
+      <UpgradePlanModal
+        open={showUpgradeModal}
+        message={upgradeMessage}
+        onClose={() => setShowUpgradeModal(false)}
       />
     </div>
   );

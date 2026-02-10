@@ -10,6 +10,8 @@ type UserAccessState = {
   role: UserRole | null;
   subscription: SubscriptionPlan | null;
   isAdmin: boolean;
+  parentalOnboardingCompleted: boolean | null;
+  hasParentalPin: boolean;
   refresh: () => Promise<void>;
 };
 
@@ -20,6 +22,8 @@ const defaultState: UserAccessState = {
   role: null,
   subscription: null,
   isAdmin: false,
+  parentalOnboardingCompleted: null,
+  hasParentalPin: false,
   refresh: async () => {},
 };
 
@@ -30,6 +34,8 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isLoading, setIsLoading] = useState(true);
   const [role, setRole] = useState<UserRole | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionPlan | null>(null);
+  const [parentalOnboardingCompleted, setParentalOnboardingCompleted] = useState<boolean | null>(null);
+  const [hasParentalPin, setHasParentalPin] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!isLoaded) {
@@ -39,6 +45,8 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!isSignedIn) {
       setRole(null);
       setSubscription(null);
+      setParentalOnboardingCompleted(null);
+      setHasParentalPin(false);
       setIsLoading(false);
       return;
     }
@@ -48,10 +56,14 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const profile = await backend.user.me();
       setRole((profile.role as UserRole) ?? "user");
       setSubscription((profile.subscription as SubscriptionPlan) ?? "free");
+      setParentalOnboardingCompleted((profile as any).parentalControls?.onboardingCompleted ?? false);
+      setHasParentalPin(Boolean((profile as any).parentalControls?.hasPin));
     } catch (error) {
       console.error("Failed to load user access profile", error);
       setRole(null);
       setSubscription(null);
+      setParentalOnboardingCompleted(null);
+      setHasParentalPin(false);
     } finally {
       setIsLoading(false);
     }
@@ -67,9 +79,11 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       role,
       subscription,
       isAdmin: role === "admin",
+      parentalOnboardingCompleted,
+      hasParentalPin,
       refresh: loadProfile,
     }),
-    [isLoading, loadProfile, role, subscription]
+    [hasParentalPin, isLoading, loadProfile, parentalOnboardingCompleted, role, subscription]
   );
 
   return <UserAccessContext.Provider value={value}>{children}</UserAccessContext.Provider>;
@@ -86,4 +100,3 @@ export const useUserAccess = () => {
 export const useOptionalUserAccess = () => {
   return useContext(UserAccessContext) ?? defaultState;
 };
-

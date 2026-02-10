@@ -16,6 +16,12 @@ import { buildStoryChapterImageUrlForClient, buildArtifactImageUrlForClient } fr
 import { updateStoryInstanceStatus } from "./pipeline/repository";
 import { claimGenerationUsage } from "../helpers/billing";
 import {
+  assertParentalDailyLimit,
+  buildGenerationGuidanceFromControls,
+  getParentalControlsForUser,
+  sanitizeTextWithBlockedTerms,
+} from "../helpers/parental-controls";
+import {
   createStructuredMemory,
   filterPersonalityChangesWithCooldown,
   summarizeMemoryCategory,
@@ -125,6 +131,9 @@ export interface StoryConfig {
   preferences?: {
     useFairyTaleTemplate?: boolean;
   };
+
+  // Injected safety/goals guidance from parental controls.
+  parentalGuidance?: string;
 }
 
 export interface LearningMode {
@@ -245,6 +254,32 @@ export const generate = api<GenerateStoryRequest, Story>(
       throw APIError.unauthenticated("Missing Clerk token for MCP operations");
     }
 
+    const parentalControls = await getParentalControlsForUser(currentUserId);
+    const dayStartUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    const todayUsage = await storyDB.queryRow<{ count: number }>`
+      SELECT COUNT(*)::int AS count
+      FROM stories
+      WHERE user_id = ${currentUserId}
+        AND created_at >= ${dayStartUtc}
+    `;
+    assertParentalDailyLimit({
+      controls: parentalControls,
+      kind: "story",
+      usedToday: todayUsage?.count ?? 0,
+    });
+
+    const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
+    const config: StoryConfig = {
+      ...req.config,
+      parentalGuidance: parentalGuidance || undefined,
+      customPrompt: parentalGuidance
+        ? [req.config.customPrompt, parentalGuidance].filter(Boolean).join("\n\n")
+        : req.config.customPrompt,
+    };
+    const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
+
     await claimGenerationUsage({
       userId: currentUserId,
       kind: "story",
@@ -264,30 +299,31 @@ export const generate = api<GenerateStoryRequest, Story>(
       storyId: id,
       userId: currentUserId,
       config: req?.config ? {
-        avatarIdsCount: req.config.avatarIds?.length ?? 0,
-        genre: req.config.genre,
-        setting: req.config.setting,
-        length: req.config.length,
-        complexity: req.config.complexity,
-        ageGroup: req.config.ageGroup,
-        aiModel: req.config.aiModel ?? 'not-set',
-        stylePreset: req.config.stylePreset,
-        tone: req.config.tone,
-        language: req.config.language,
-        allowRhymes: req.config.allowRhymes ?? false,
-        suspenseLevel: req.config.suspenseLevel ?? 1,
-        humorLevel: req.config.humorLevel ?? 2,
-        pacing: req.config.pacing ?? "balanced",
-        pov: req.config.pov ?? "personale",
-        hooksCount: req.config.hooks?.length ?? 0,
-        hasTwist: req.config.hasTwist ?? false,
-        learningMode: req.config.learningMode ? {
-          enabled: req.config.learningMode.enabled,
-          subjectsCount: req.config.learningMode.subjects?.length ?? 0,
-          difficulty: req.config.learningMode.difficulty,
-          objectivesCount: req.config.learningMode.learningObjectives?.length ?? 0,
-          assessmentType: req.config.learningMode.assessmentType,
+        avatarIdsCount: config.avatarIds?.length ?? 0,
+        genre: config.genre,
+        setting: config.setting,
+        length: config.length,
+        complexity: config.complexity,
+        ageGroup: config.ageGroup,
+        aiModel: config.aiModel ?? 'not-set',
+        stylePreset: config.stylePreset,
+        tone: config.tone,
+        language: config.language,
+        allowRhymes: config.allowRhymes ?? false,
+        suspenseLevel: config.suspenseLevel ?? 1,
+        humorLevel: config.humorLevel ?? 2,
+        pacing: config.pacing ?? "balanced",
+        pov: config.pov ?? "personale",
+        hooksCount: config.hooks?.length ?? 0,
+        hasTwist: config.hasTwist ?? false,
+        learningMode: config.learningMode ? {
+          enabled: config.learningMode.enabled,
+          subjectsCount: config.learningMode.subjects?.length ?? 0,
+          difficulty: config.learningMode.difficulty,
+          objectivesCount: config.learningMode.learningObjectives?.length ?? 0,
+          assessmentType: config.learningMode.assessmentType,
         } : undefined,
+        hasParentalGuidance: Boolean(config.parentalGuidance),
       } : undefined,
     });
 
@@ -297,16 +333,16 @@ export const generate = api<GenerateStoryRequest, Story>(
         id, user_id, title, description, config, status, created_at, updated_at
       ) VALUES (
         ${id}, ${currentUserId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
-        ${JSON.stringify(req.config)}, 'generating', ${now}, ${now}
+        ${JSON.stringify(config)}, 'generating', ${now}, ${now}
       )
     `;
 
     try {
-      console.log("[story.generate] Loading avatar details...", { count: req.config.avatarIds.length });
+      console.log("[story.generate] Loading avatar details...", { count: config.avatarIds.length });
       // Fetch avatar details directly from the avatar database to avoid cross-service auth issues
       const avatarDetails: StoryAvatar[] = [];
 
-      for (const avatarId of req.config.avatarIds) {
+      for (const avatarId of config.avatarIds) {
         const row = await avatarDB.queryRow<{
           id: string;
           user_id: string;
@@ -388,7 +424,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       })));
 
       // Check if we should use the Story Pipeline v2
-      const useCharacterPool = req.config.useCharacterPool ?? true; // Default to true
+      const useCharacterPool = config.useCharacterPool ?? true; // Default to true
       let generatedStory: any;
 
       if (useCharacterPool) {
@@ -398,9 +434,9 @@ export const generate = api<GenerateStoryRequest, Story>(
         const pipelineResult = await orchestrator.run({
           storyId: id,
           userId: currentUserId,
-          config: req.config,
+          config,
           avatars: avatarDetails,
-          enableVisionValidation: Boolean((req.config as any).enableVisionValidation),
+          enableVisionValidation: Boolean((config as any).enableVisionValidation),
         });
 
         const imageByChapter = new Map(
@@ -428,16 +464,16 @@ export const generate = api<GenerateStoryRequest, Story>(
               inputCostUSD: pipelineResult.tokenUsage.inputCostUSD,
               outputCostUSD: pipelineResult.tokenUsage.outputCostUSD,
               totalCostUSD: pipelineResult.tokenUsage.totalCostUSD,
-              modelUsed: pipelineResult.tokenUsage.model || req.config.aiModel || "gpt-5-mini",
+              modelUsed: pipelineResult.tokenUsage.model || config.aiModel || "gpt-5-mini",
             }
           : { prompt: 0, completion: 0, total: 0 };
 
         const pendingArtifact = pipelineResult.artifactMeta
           ? {
               id: pipelineResult.artifactMeta.id,
-              name: req.config.language === "en" ? pipelineResult.artifactMeta.name.en : pipelineResult.artifactMeta.name.de,
+              name: config.language === "en" ? pipelineResult.artifactMeta.name.en : pipelineResult.artifactMeta.name.de,
               nameEn: pipelineResult.artifactMeta.name.en,
-              description: req.config.language === "en" ? pipelineResult.artifactMeta.description.en : pipelineResult.artifactMeta.description.de,
+              description: config.language === "en" ? pipelineResult.artifactMeta.description.en : pipelineResult.artifactMeta.description.de,
               category: pipelineResult.artifactMeta.category,
               rarity: pipelineResult.artifactMeta.rarity,
               storyRole: pipelineResult.artifactMeta.storyRole,
@@ -477,7 +513,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         // Generate story content using AI with avatar canonical appearance
         console.log("[story.generate] Calling generateStoryContent with MCP context...");
         generatedStory = await generateStoryContent({
-          config: req.config,
+          config,
           avatarDetails,
           clerkToken,
         });
@@ -508,12 +544,37 @@ export const generate = api<GenerateStoryRequest, Story>(
         console.warn("[story.generate] Avatar development validation warning:", validationError);
       }
 
+      let parentalFilterReplacements = 0;
+      if (blockedTerms.length > 0) {
+        const sanitizedTitle = sanitizeTextWithBlockedTerms(generatedStory.title ?? "", blockedTerms);
+        const sanitizedDescription = sanitizeTextWithBlockedTerms(generatedStory.description ?? "", blockedTerms);
+        parentalFilterReplacements += sanitizedTitle.replacements + sanitizedDescription.replacements;
+
+        generatedStory = {
+          ...generatedStory,
+          title: sanitizedTitle.text,
+          description: sanitizedDescription.text,
+          chapters: Array.isArray(generatedStory.chapters)
+            ? generatedStory.chapters.map((chapter: any) => {
+                const chapterTitle = sanitizeTextWithBlockedTerms(chapter?.title ?? "", blockedTerms);
+                const chapterContent = sanitizeTextWithBlockedTerms(chapter?.content ?? "", blockedTerms);
+                parentalFilterReplacements += chapterTitle.replacements + chapterContent.replacements;
+                return {
+                  ...chapter,
+                  title: chapterTitle.text,
+                  content: chapterContent.text,
+                };
+              })
+            : generatedStory.chapters,
+        };
+      }
+
       // Extract cost data from metadata (now properly calculated in four-phase-orchestrator)
       const tokensUsed = generatedStory.metadata?.tokensUsed || { prompt: 0, completion: 0, total: 0 };
       const inputCost = (generatedStory.metadata?.tokensUsed as any)?.inputCostUSD || 0;
       const outputCost = (generatedStory.metadata?.tokensUsed as any)?.outputCostUSD || 0;
       const totalCost = (generatedStory.metadata?.tokensUsed as any)?.totalCostUSD || 0;
-      const modelUsed = (generatedStory.metadata?.tokensUsed as any)?.modelUsed || req.config.aiModel || 'gpt-5-mini';
+      const modelUsed = (generatedStory.metadata?.tokensUsed as any)?.modelUsed || config.aiModel || 'gpt-5-mini';
       const mcpCost = 0; // TODO: Track MCP costs separately
 
       console.log("[story.generate] Cost tracking:", {
@@ -530,7 +591,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         timestamp: new Date(),
         request: {
           storyId: id,
-          userId: req.userId,
+          userId: currentUserId,
           model: modelUsed,
         },
         response: {
@@ -554,6 +615,13 @@ export const generate = api<GenerateStoryRequest, Story>(
         ...generatedStory.metadata,
         newArtifact: generatedStory.newArtifact || undefined,
         pendingArtifact: generatedStory.pendingArtifact || undefined,
+        parentalFilters:
+          parentalFilterReplacements > 0
+            ? {
+                active: true,
+                replacements: parentalFilterReplacements,
+              }
+            : undefined,
       };
       
       console.log("[story.generate] ðŸŽ artifact in response:", {
@@ -615,7 +683,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         const convertedDevelopments = convertAvatarDevelopmentsToPersonalityChanges(validatedDevelopments);
 
         // Determine which avatars actively participated
-        const participatingAvatarIds = new Set(req.config.avatarIds);
+        const participatingAvatarIds = new Set(config.avatarIds);
 
         // Apply updates to ALL avatars
         for (const userAvatar of allUserAvatars) {
@@ -631,7 +699,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             // AI-generated specific trait changes for this avatar with detailed descriptions
             changes = aiDevelopment.changedTraits.map((change: any) => {
               const adjustedChange = isParticipating ? change.change : Math.max(1, Math.floor(change.change / 2));
-              const isEnglish = req.config.language === 'en';
+              const isEnglish = config.language === 'en';
               const modeText = isParticipating
                 ? (isEnglish ? 'active participation' : 'aktive Teilnahme')
                 : (isEnglish ? 'reading' : 'Lesen');
@@ -641,8 +709,8 @@ export const generate = api<GenerateStoryRequest, Story>(
               if (change.trait.startsWith('knowledge.')) {
                 const subject = change.trait.split('.')[1];
                 description = isEnglish
-                  ? `+${adjustedChange} ${subject} through ${modeText} of ${req.config.genre} story "${generatedStory.title}"`
-                  : `+${adjustedChange} ${subject} durch ${modeText} der ${req.config.genre}-Geschichte "${generatedStory.title}"`;
+                  ? `+${adjustedChange} ${subject} through ${modeText} of ${config.genre} story "${generatedStory.title}"`
+                  : `+${adjustedChange} ${subject} durch ${modeText} der ${config.genre}-Geschichte "${generatedStory.title}"`;
               } else {
                 description = isEnglish
                   ? `+${adjustedChange} ${change.trait} developed through ${modeText} in "${generatedStory.title}"`
@@ -655,24 +723,24 @@ export const generate = api<GenerateStoryRequest, Story>(
                 description: description
               };
             });
-            const isEnglish = req.config.language === 'en';
+            const isEnglish = config.language === 'en';
             experienceDescription = isParticipating
               ? (isEnglish
-                ? `I was an active participant in the story "${generatedStory.title}". Genre: ${req.config.genre}.`
-                : `Ich war aktiver Teilnehmer in der Geschichte "${generatedStory.title}". Genre: ${req.config.genre}.`)
+                ? `I was an active participant in the story "${generatedStory.title}". Genre: ${config.genre}.`
+                : `Ich war aktiver Teilnehmer in der Geschichte "${generatedStory.title}". Genre: ${config.genre}.`)
               : (isEnglish
-                ? `I read the story "${generatedStory.title}". Genre: ${req.config.genre}.`
-                : `Ich habe die Geschichte "${generatedStory.title}" gelesen. Genre: ${req.config.genre}.`);
+                ? `I read the story "${generatedStory.title}". Genre: ${config.genre}.`
+                : `Ich habe die Geschichte "${generatedStory.title}" gelesen. Genre: ${config.genre}.`);
           } else {
             // Fallback: Genre-based updates when AI doesn't provide specific developments
-            const baseTraits = req.config.genre === 'adventure' ? ['courage', 'curiosity'] :
-              req.config.genre === 'educational' ? ['logic', 'curiosity'] :
-                req.config.genre === 'mystery' ? ['curiosity', 'logic'] :
-                  req.config.genre === 'friendship' ? ['empathy', 'teamwork'] :
+            const baseTraits = config.genre === 'adventure' ? ['courage', 'curiosity'] :
+              config.genre === 'educational' ? ['logic', 'curiosity'] :
+                config.genre === 'mystery' ? ['curiosity', 'logic'] :
+                  config.genre === 'friendship' ? ['empathy', 'teamwork'] :
                     ['empathy', 'curiosity'];
             changes = baseTraits.map(trait => {
               const points = isParticipating ? 2 : 1;
-              const isEnglish = req.config.language === 'en';
+              const isEnglish = config.language === 'en';
               const modeText = isParticipating
                 ? (isEnglish ? 'active participation' : 'aktive Teilnahme')
                 : (isEnglish ? 'reading' : 'Lesen');
@@ -681,14 +749,14 @@ export const generate = api<GenerateStoryRequest, Story>(
                 trait,
                 change: points,
                 description: isEnglish
-                  ? `+${points} ${trait} through ${modeText} in ${req.config.genre} story`
-                  : `+${points} ${trait} durch ${modeText} in ${req.config.genre}-Geschichte`
+                  ? `+${points} ${trait} through ${modeText} in ${config.genre} story`
+                  : `+${points} ${trait} durch ${modeText} in ${config.genre}-Geschichte`
               };
             });
-            const isEnglish = req.config.language === 'en';
+            const isEnglish = config.language === 'en';
             experienceDescription = isEnglish
-              ? `Experienced story "${generatedStory.title}" (${req.config.genre}).`
-              : `Geschichte "${generatedStory.title}" (${req.config.genre}) erlebt.`;
+              ? `Experienced story "${generatedStory.title}" (${config.genre}).`
+              : `Geschichte "${generatedStory.title}" (${config.genre}) erlebt.`;
           }
 
           if (changes.length > 0) {
@@ -834,7 +902,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         await publishWithTimeout(logTopic, {
           source: 'openai-story-generation',
           timestamp: new Date(),
-          request: { storyId: id, userId: currentUserId, config: req.config },
+          request: { storyId: id, userId: currentUserId, config },
           response: { error: String((error as any)?.message || error), stack: (error as any)?.stack?.slice(0, 2000) }
         });
       } catch (e) {

@@ -43,6 +43,7 @@ import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
+import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScreen';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
@@ -60,11 +61,24 @@ const AdminOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 // Inner component that uses router hooks
 const RouterContent = () => {
   const { isLoaded, isSignedIn } = useUser();
+  const userAccess = useOptionalUserAccess();
   const location = useLocation();
-  const isLandingRoute = location.pathname.startsWith('/landing') || (!isSignedIn && location.pathname === '/');
+  const isLandingRoute =
+    location.pathname.startsWith('/landing') ||
+    location.pathname.startsWith('/parental-onboarding') ||
+    (!isSignedIn && location.pathname === '/');
 
   if (!isLoaded) {
     return null;
+  }
+
+  if (
+    isSignedIn &&
+    !userAccess.isLoading &&
+    userAccess.parentalOnboardingCompleted === false &&
+    location.pathname !== '/parental-onboarding'
+  ) {
+    return <Navigate to="/parental-onboarding" replace />;
   }
 
   return (
@@ -80,6 +94,7 @@ const RouterContent = () => {
         ) : (
           <>
             <Route path="/landing" element={<Navigate to="/" replace />} />
+            <Route path="/parental-onboarding" element={<ParentalOnboardingScreen />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomeScreen />} />
               <Route path="/avatar" element={<AvatarsScreen />} />

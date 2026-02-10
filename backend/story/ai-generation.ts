@@ -1667,6 +1667,8 @@ ${settingAtmosphere}
 3. Gegenstaende: Jeder wichtige Gegenstand mindestens 2x
 4. Charaktere: Alle genannten Charaktere in jedem Kapitel aktiv handeln oder sprechen
 
+${config.customPrompt ? `### ZUSAETZLICHE VORGABEN\n${config.customPrompt}\n` : ""}
+
 ${qualityFeedback ? `### FEEDBACK AUS LETZTEM VERSUCH\n${qualityFeedback}\n` : ""}
 
 ### AUSGABE-FORMAT

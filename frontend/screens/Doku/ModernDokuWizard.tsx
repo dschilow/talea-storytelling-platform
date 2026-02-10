@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
 
@@ -144,6 +145,10 @@ export default function ModernDokuWizard() {
   const [language, setLanguage] = useState<DokuApiLanguage>('de');
   const [credits, setCredits] = useState<DokuCredits | null>(null);
   const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState(
+    'Keine DokuCredits verfuegbar. Bitte den Plan in den Einstellungen wechseln.'
+  );
   const [state, setState] = useState<DokuWizardState>({
     topic: '',
     ageGroup: '6-8',
@@ -188,10 +193,11 @@ export default function ModernDokuWizard() {
     if (!userId || !state.topic.trim()) return;
     if (generationBlocked) {
       if (permissions && !permissions.freeTrialActive) {
-        alert('Free-Testphase abgelaufen. Bitte im Profil auf Starter, Familie oder Premium wechseln.');
+        setUpgradeMessage('Deine Free-Testphase ist abgelaufen. Wechsle auf Starter, Familie oder Premium, um weitere Dokus zu generieren.');
       } else {
-        alert('Keine DokuCredits mehr fuer diesen Monat. Bitte im Profil dein Abo upgraden.');
+        setUpgradeMessage('Keine DokuCredits mehr fuer diesen Monat. Wechsle den Plan in den Einstellungen.');
       }
+      setShowUpgradeModal(true);
       return;
     }
 
@@ -241,7 +247,12 @@ export default function ModernDokuWizard() {
       navigate(`/doku-reader/${created.id}`);
     } catch (error) {
       console.error('[ModernDokuWizard] Error generating doku:', error);
-      alert('Doku konnte nicht erstellt werden. Bitte versuche es erneut.');
+      if (error instanceof Error && error.message.includes('Abo-Limit erreicht')) {
+        setUpgradeMessage(error.message);
+        setShowUpgradeModal(true);
+      } else {
+        alert('Doku konnte nicht erstellt werden. Bitte versuche es erneut.');
+      }
     } finally {
       if (timer) clearInterval(timer);
       setGenerating(false);
@@ -414,6 +425,11 @@ export default function ModernDokuWizard() {
           </>
         )}
       </div>
+      <UpgradePlanModal
+        open={showUpgradeModal}
+        message={upgradeMessage}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   );
 }

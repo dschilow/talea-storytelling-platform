@@ -2,6 +2,16 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { userDB } from "./db";
 import { getBillingOverview, type BillingOverview } from "../helpers/billing";
+import {
+  PARENTAL_BLOCKED_THEME_PRESETS,
+  PARENTAL_BLOCKED_WORD_PRESETS,
+  PARENTAL_GOAL_PRESETS,
+  getParentalControlsForUser,
+  saveParentalControlsForUser,
+  verifyParentalPinForUser,
+  type ParentalControls,
+  type SaveParentalControlsPayload,
+} from "../helpers/parental-controls";
 
 export type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type Theme = "light" | "dark" | "system";
@@ -56,6 +66,7 @@ export interface UserProfile {
   preferredLanguage: SupportedLanguage;
   theme: Theme;
   billing: BillingOverview;
+  parentalControls: ParentalControls;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,7 +96,11 @@ async function getUserRowById(userId: string): Promise<UserRow> {
   return user;
 }
 
-function mapUserProfile(row: UserRow, billing: BillingOverview): UserProfile {
+function mapUserProfile(
+  row: UserRow,
+  billing: BillingOverview,
+  parentalControls: ParentalControls
+): UserProfile {
   return {
     id: row.id,
     email: row.email,
@@ -95,15 +110,19 @@ function mapUserProfile(row: UserRow, billing: BillingOverview): UserProfile {
     preferredLanguage: row.preferred_language,
     theme: row.theme,
     billing,
+    parentalControls,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 async function buildUserProfile(userId: string, clerkToken?: string | null): Promise<UserProfile> {
-  const billing = await getBillingOverview({ userId, clerkToken });
-  const row = await getUserRowById(userId);
-  return mapUserProfile(row, billing);
+  const [billing, row, parentalControls] = await Promise.all([
+    getBillingOverview({ userId, clerkToken }),
+    getUserRowById(userId),
+    getParentalControlsForUser(userId),
+  ]);
+  return mapUserProfile(row, billing, parentalControls);
 }
 
 interface CreateUserRequest {
@@ -201,5 +220,70 @@ export const updateTheme = api<UpdateThemeRequest, UserProfile>(
     `;
 
     return buildUserProfile(auth.userID, auth.clerkToken);
+  }
+);
+
+type ParentalPresets = {
+  blockedThemePresets: typeof PARENTAL_BLOCKED_THEME_PRESETS;
+  blockedWordPresets: typeof PARENTAL_BLOCKED_WORD_PRESETS;
+  goalPresets: typeof PARENTAL_GOAL_PRESETS;
+};
+
+type ParentalControlsResponse = {
+  controls: ParentalControls;
+  presets: ParentalPresets;
+};
+
+function parentalPresets(): ParentalPresets {
+  return {
+    blockedThemePresets: PARENTAL_BLOCKED_THEME_PRESETS,
+    blockedWordPresets: PARENTAL_BLOCKED_WORD_PRESETS,
+    goalPresets: PARENTAL_GOAL_PRESETS,
+  };
+}
+
+export const getParentalControls = api<void, ParentalControlsResponse>(
+  { expose: true, method: "GET", path: "/user/parental-controls", auth: true },
+  async () => {
+    const auth = getAuthData()!;
+    const controls = await getParentalControlsForUser(auth.userID);
+    return {
+      controls,
+      presets: parentalPresets(),
+    };
+  }
+);
+
+type VerifyParentalPinRequest = {
+  pin: string;
+};
+
+type VerifyParentalPinResponse = {
+  ok: boolean;
+  hasPin: boolean;
+};
+
+export const verifyParentalPin = api<VerifyParentalPinRequest, VerifyParentalPinResponse>(
+  { expose: true, method: "POST", path: "/user/parental-controls/verify", auth: true },
+  async (req) => {
+    const auth = getAuthData()!;
+    return verifyParentalPinForUser({
+      userId: auth.userID,
+      pin: req.pin,
+    });
+  }
+);
+
+type SaveParentalControlsRequest = SaveParentalControlsPayload;
+
+export const saveParentalControls = api<SaveParentalControlsRequest, ParentalControlsResponse>(
+  { expose: true, method: "POST", path: "/user/parental-controls", auth: true },
+  async (req) => {
+    const auth = getAuthData()!;
+    const controls = await saveParentalControlsForUser(auth.userID, req);
+    return {
+      controls,
+      presets: parentalPresets(),
+    };
   }
 );
