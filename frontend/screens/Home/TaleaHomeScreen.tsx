@@ -441,6 +441,8 @@ const TaleaHomeScreen: React.FC = () => {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [dokus, setDokus] = useState<Doku[]>([]);
+  const [storiesTotal, setStoriesTotal] = useState(0);
+  const [dokusTotal, setDokusTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -463,6 +465,8 @@ const TaleaHomeScreen: React.FC = () => {
       setAvatars((avatarsResponse.avatars as Avatar[]) || []);
       setStories((storiesResponse.stories as Story[]) || []);
       setDokus((dokusResponse.dokus as Doku[]) || []);
+      setStoriesTotal((storiesResponse as any).total ?? ((storiesResponse.stories as Story[]) || []).length);
+      setDokusTotal((dokusResponse as any).total ?? ((dokusResponse.dokus as Doku[]) || []).length);
     } catch (error) {
       console.error("Error loading home data:", error);
     } finally {
@@ -616,7 +620,7 @@ const TaleaHomeScreen: React.FC = () => {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387] dark:text-[#9fb0c7]">
                       Geschichten
                     </p>
-                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{stories.length}</p>
+                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{storiesTotal}</p>
                   </div>
                   <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387] dark:text-[#9fb0c7]">
@@ -628,7 +632,7 @@ const TaleaHomeScreen: React.FC = () => {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387] dark:text-[#9fb0c7]">
                       Dokus
                     </p>
-                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{dokus.length}</p>
+                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{dokusTotal}</p>
                   </div>
                   <button
                     type="button"
@@ -648,60 +652,10 @@ const TaleaHomeScreen: React.FC = () => {
             </Card>
           </motion.section>
 
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => navigate("/story")}
-              className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
-            >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ece3d9] text-[#4f7f78]">
-                <BookOpen className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg text-[#16212c] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
-                Neue Geschichte
-              </h3>
-              <p className="mt-1 text-sm text-[#617387] dark:text-[#9fb0c7]">
-                Mit Avataren und Charakteren direkt in den Story-Flow starten.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate("/avatar")}
-              className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
-            >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ece3d9] text-[#4f7f78]">
-                <UserPlus className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg text-[#16212c] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
-                Avatar Verwaltung
-              </h3>
-              <p className="mt-1 text-sm text-[#617387] dark:text-[#9fb0c7]">
-                Teilnehmer pflegen, bearbeiten und wiederverwendbar halten.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate("/doku")}
-              className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
-            >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ece3d9] text-[#4f7f78]">
-                <Library className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg text-[#16212c] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
-                Dokus
-              </h3>
-              <p className="mt-1 text-sm text-[#617387] dark:text-[#9fb0c7]">
-                Inhalte erstellen und als strukturierte Bibliothek bereitstellen.
-              </p>
-            </button>
-          </section>
-
           <section>
             <SectionHeading
               title="Aktuelle Geschichten"
-              subtitle={`${stories.length} Eintraege in deiner Story-Bibliothek`}
+              subtitle={`${storiesTotal} Eintraege in deiner Story-Bibliothek`}
               actionLabel="Alle Geschichten"
               onAction={() => navigate("/stories")}
             />
@@ -776,7 +730,7 @@ const TaleaHomeScreen: React.FC = () => {
             <div>
             <SectionHeading
               title="Dokus"
-              subtitle={`${dokus.length} Dokumente und Entwuerfe`}
+              subtitle={`${dokusTotal} Dokumente und Entwuerfe`}
               actionLabel="Doku-Ansicht"
               onAction={() => navigate("/doku")}
             />
@@ -809,5 +763,4 @@ const TaleaHomeScreen: React.FC = () => {
 };
 
 export default TaleaHomeScreen;
-
 

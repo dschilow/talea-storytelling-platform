@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -223,7 +223,7 @@ const CommunityQuizScreen: React.FC = () => {
 
   const score = deck.length > 0 ? Math.round((correctCount / deck.length) * 100) : 0;
 
-  const loadPublicDokus = async () => {
+  const loadPublicDokus = React.useCallback(async () => {
     setIsLoadingList(true);
     setLoadError(null);
     try {
@@ -238,7 +238,11 @@ const CommunityQuizScreen: React.FC = () => {
     } finally {
       setIsLoadingList(false);
     }
-  };
+  }, [backend]);
+
+  useEffect(() => {
+    void loadPublicDokus();
+  }, [loadPublicDokus]);
 
   const buildDeck = async () => {
     setIsBuildingDeck(true);
@@ -442,16 +446,11 @@ const CommunityQuizScreen: React.FC = () => {
               Das Quiz zieht Fragen aus Community-Dokus. Nach jeder Antwort bekommst du direkt eine Erklaerung und kannst
               bei Bedarf die Quelle sofort oeffnen.
             </p>
-            <button
-              type="button"
-              onClick={loadPublicDokus}
-              disabled={isLoadingList}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold"
-              style={{ borderColor: colors.cardBorder, background: colors.card, color: colors.text }}
-            >
-              <Search className="h-4 w-4" />
-              {isLoadingList ? "Lade Community-Dokus..." : "Community-Dokus laden"}
-            </button>
+            {isLoadingList && (
+              <p className="mt-3 text-xs" style={{ color: colors.muted }}>
+                Lade Community-Dokus...
+              </p>
+            )}
           </section>
         )}
 
