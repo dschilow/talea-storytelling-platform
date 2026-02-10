@@ -1262,8 +1262,10 @@ export default function SettingsScreen() {
                 navbarButtons: '!flex !flex-col !gap-1.5',
                 navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
                 navbarButtonActive: 'bg-[#f5ebe0] text-[#425b78] dark:bg-[#223850] dark:text-[#c9dbf1] font-semibold',
-                navbarMobileMenuRow: 'hidden',
-                navbarMobileMenuButton: 'hidden',
+                navbarMobileMenuRow:
+                  'flex items-center justify-between px-3 py-2 border-b border-[#d6ccc2] dark:border-[#4a5f78] bg-card/70',
+                navbarMobileMenuButton:
+                  'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d6ccc2] dark:border-[#4a5f78] bg-[#f5ebe0] dark:bg-[#223850] text-[#425b78] dark:text-[#c9dbf1]',
                 pageScrollBox: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 page: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 formButtonPrimary: 'bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] hover:opacity-90 text-[#22344c] rounded-xl shadow-lg',

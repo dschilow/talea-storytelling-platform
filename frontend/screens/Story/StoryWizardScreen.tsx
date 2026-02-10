@@ -54,6 +54,35 @@ interface StoryConfig {
     useFairyTaleTemplate?: boolean;
   };
 }
+
+function getStoryGenerationErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const message = error.message?.trim() || '';
+  if (!message) {
+    return fallback;
+  }
+
+  if (message.includes('length limit exceeded')) {
+    return 'Die Geschichte ist zu lang. Bitte waehle eine kuerzere Laenge.';
+  }
+  if (message.includes('timeout')) {
+    return 'Die Generierung hat zu lange gedauert. Bitte erneut versuchen.';
+  }
+  if (message.includes('Abo-Limit erreicht')) {
+    return 'Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.';
+  }
+  if (message.includes('invalid token') || message.includes('unauthenticated')) {
+    return 'Deine Sitzung ist abgelaufen. Bitte Seite neu laden und erneut anmelden.';
+  }
+  if (message.includes('Story generation failed')) {
+    return `Story-Generierung fehlgeschlagen:\n${message}`;
+  }
+  return `${fallback}\n\n${message}`;
+}
+
 const StoryWizardScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [currentStep, setCurrentStep] = useState<StepType>('avatar');
@@ -213,16 +242,8 @@ const StoryWizardScreen: React.FC = () => {
       window.location.href = '/';
     } catch (error) {
       console.error('❌ Error generating story:', error);
-      let errorMessage = t('story.wizard.alerts.error');
-      if (error instanceof Error) {
-        if (error.message.includes('length limit exceeded')) {
-          errorMessage = t('story.wizard.alerts.tooLong');
-        } else if (error.message.includes('timeout')) {
-          errorMessage = t('story.wizard.alerts.timeout');
-        } else if (error.message.includes('Abo-Limit erreicht')) {
-          errorMessage = 'Abo-Limit erreicht. Bitte im Profil dein Abo upgraden.';
-        }
-      }
+      const fallback = t('story.wizard.alerts.error');
+      const errorMessage = getStoryGenerationErrorMessage(error, fallback);
       alert(errorMessage);
     } finally {
       setGenerating(false);

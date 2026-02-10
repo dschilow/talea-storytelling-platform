@@ -433,7 +433,7 @@
 
   .talea-settings-profile .cl-navbarMobileMenuRow,
   .talea-settings-profile .cl-navbarMobileMenuButton {
-    display: none !important;
+    display: flex !important;
   }
 
   .talea-settings-profile .cl-navbarButtons {

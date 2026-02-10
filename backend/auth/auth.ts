@@ -145,11 +145,40 @@ function decodeTokenPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function parseNameFromTokenPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) {
+    return null;
+  }
+
+  const fullName = firstString(payload["name"], payload["full_name"]);
+  if (fullName) {
+    return fullName;
+  }
+
+  const given = firstString(payload["given_name"], payload["first_name"]);
+  const family = firstString(payload["family_name"], payload["last_name"]);
+  if (given && family) {
+    return `${given} ${family}`;
+  }
+
+  return given ?? family ?? firstString(payload["username"], payload["preferred_username"]);
+}
+
 export const auth = authHandler<AuthParams, AuthData>(async (data) => {
   const token = data.authorization?.replace("Bearer ", "") ?? data.session?.value;
   if (!token) {
     throw APIError.unauthenticated("missing token");
   }
+  const decodedPayload = decodeTokenPayload(token);
 
   try {
     console.log("Starting Clerk token verification...");
@@ -190,34 +219,65 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
         exp: new Date(verifiedToken.exp * 1000).toISOString(),
     });
 
-    const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
-    const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+    const tokenRecord = verifiedToken as unknown as Record<string, unknown>;
+    let email =
+      firstString(
+        tokenRecord["email"],
+        tokenRecord["email_address"],
+        decodedPayload?.["email"],
+        decodedPayload?.["email_address"],
+      ) ?? null;
+    let imageUrl =
+      firstString(
+        tokenRecord["image_url"],
+        tokenRecord["picture"],
+        decodedPayload?.["image_url"],
+        decodedPayload?.["picture"],
+      ) ?? null;
+    let nameFromToken = parseNameFromTokenPayload(tokenRecord) ?? parseNameFromTokenPayload(decodedPayload);
 
-    // Check if user exists in our DB, create if not (upsert-like logic).
-    let user = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
-      SELECT id, role FROM users WHERE id = ${clerkUser.id}
+    // Prefer local DB record first to avoid failing auth on transient Clerk API issues.
+    let user = await userDB.queryRow<{ id: string; role: "admin" | "user"; email: string | null }>`
+      SELECT id, role, email FROM users WHERE id = ${verifiedToken.sub}
     `;
+    if (user?.email && !email) {
+      email = user.email;
+    }
 
     if (!user) {
+      try {
+        const clerkUser = await clerkClient.users.getUser(verifiedToken.sub);
+        email = clerkUser.emailAddresses?.[0]?.emailAddress ?? email;
+        imageUrl = clerkUser.imageUrl ?? imageUrl;
+        nameFromToken =
+          clerkUser.firstName ||
+          clerkUser.username ||
+          nameFromToken;
+      } catch (clerkProfileError) {
+        console.warn("Clerk user profile fetch failed, continuing with token claims", {
+          userId: verifiedToken.sub,
+          error: clerkProfileError instanceof Error ? clerkProfileError.message : String(clerkProfileError),
+        });
+      }
+
       const now = new Date();
       const name =
-        clerkUser.firstName ||
-        clerkUser.username ||
+        nameFromToken ||
         (email ? email.split("@")[0] : null) ||
         "New User";
       const role: "admin" | "user" = "user";
 
-      let existingByEmail: { id: string; role: "admin" | "user" } | null = null;
+      let existingByEmail: { id: string; role: "admin" | "user"; email: string | null } | null = null;
       if (email) {
-        existingByEmail = await userDB.queryRow<{ id: string; role: "admin" | "user" }>`
-          SELECT id, role FROM users WHERE email = ${email}
+        existingByEmail = await userDB.queryRow<{ id: string; role: "admin" | "user"; email: string | null }>`
+          SELECT id, role, email FROM users WHERE email = ${email}
         `;
       }
 
-      if (existingByEmail && existingByEmail.id !== clerkUser.id) {
+      if (existingByEmail && existingByEmail.id !== verifiedToken.sub) {
         console.log("Merging Clerk identities by email", {
           from: existingByEmail.id,
-          to: clerkUser.id,
+          to: verifiedToken.sub,
           email,
         });
 
@@ -225,7 +285,7 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
         await userDB.exec`
           UPDATE users
-          SET id = ${clerkUser.id},
+          SET id = ${verifiedToken.sub},
               email = ${email},
               name = ${name},
               updated_at = ${now}
@@ -235,45 +295,45 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
         await Promise.all([
           avatarDB.exec`
             UPDATE avatars
-            SET user_id = ${clerkUser.id}
+            SET user_id = ${verifiedToken.sub}
             WHERE user_id = ${oldId}
           `,
           storyDB.exec`
             UPDATE stories
-            SET user_id = ${clerkUser.id}
+            SET user_id = ${verifiedToken.sub}
             WHERE user_id = ${oldId}
           `,
           dokuDB.exec`
             UPDATE dokus
-            SET user_id = ${clerkUser.id}
+            SET user_id = ${verifiedToken.sub}
             WHERE user_id = ${oldId}
           `,
         ]);
 
-        user = { id: clerkUser.id, role: existingByEmail.role };
+        user = { id: verifiedToken.sub, role: existingByEmail.role, email };
       }
 
       if (!user) {
-        console.log("Creating new user in database:", clerkUser.id);
+        console.log("Creating new user in database:", verifiedToken.sub);
 
         await userDB.exec`
           INSERT INTO users (id, email, name, subscription, role, created_at, updated_at)
-          VALUES (${clerkUser.id}, ${email}, ${name}, 'free', ${role}, ${now}, ${now})
+          VALUES (${verifiedToken.sub}, ${email}, ${name}, 'free', ${role}, ${now}, ${now})
           ON CONFLICT (id) DO UPDATE
             SET email = EXCLUDED.email,
                 name = EXCLUDED.name,
                 updated_at = EXCLUDED.updated_at
         `;
-        user = { id: clerkUser.id, role };
+        user = { id: verifiedToken.sub, role, email };
       }
     }
 
     console.log("Authentication successful for user:", user.id);
 
       return {
-        userID: clerkUser.id,
+        userID: verifiedToken.sub,
         email,
-        imageUrl: clerkUser.imageUrl,
+        imageUrl,
         role: user.role,
         clerkToken: token,
       };
@@ -303,11 +363,10 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
       console.error("  3. Test Clerk API: curl https://api.clerk.com/v1/jwks");
     }
 
-    const payload = decodeTokenPayload(token);
-    if (payload) {
-      console.error("Token azp claim:", payload["azp"]);
-      console.error("Token iss claim:", payload["iss"]);
-      console.error("Token aud claim:", payload["aud"]);
+    if (decodedPayload) {
+      console.error("Token azp claim:", decodedPayload["azp"]);
+      console.error("Token iss claim:", decodedPayload["iss"]);
+      console.error("Token aud claim:", decodedPayload["aud"]);
     } else {
       console.error("Could not decode token for debugging");
     }
@@ -324,8 +383,8 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
         : typeof err.message === "string"
         ? err.message
         : "unknown";
-    const detail = payload
-      ? `azp=${payload["azp"] ?? "n/a"}, aud=${payload["aud"] ?? "n/a"}`
+    const detail = decodedPayload
+      ? `azp=${decodedPayload["azp"] ?? "n/a"}, aud=${decodedPayload["aud"] ?? "n/a"}`
       : "payload=unavailable";
 
     throw APIError.unauthenticated(`invalid token (${sanitizedReason}; ${detail})`);
