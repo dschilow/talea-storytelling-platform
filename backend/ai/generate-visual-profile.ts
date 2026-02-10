@@ -98,7 +98,7 @@ export interface GenerateVisualProfileResponse {
 
 // Character type mappings to English
 const CHARACTER_TYPE_MAP: Record<string, string> = {
-  human: "human child",
+  human: "human",
   dog: "dog",
   cat: "cat",
   rabbit: "rabbit",
@@ -304,7 +304,7 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
 
     // 8. Human-specific
     if (isHumanChar) {
-      consistentDescriptors.push("human child");
+      consistentDescriptors.push("human");
       consistentDescriptors.push("natural skin");
     }
 
@@ -443,7 +443,7 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
       clothingCanonical: {
         top: null,
         bottom: null,
-        outfit: isHumanChar ? "casual children clothing" : null,
+        outfit: isHumanChar ? "casual clothing" : null,
         colors: [],
         patterns: [],
       },

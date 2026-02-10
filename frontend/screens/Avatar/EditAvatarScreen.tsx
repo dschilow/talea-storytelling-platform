@@ -22,6 +22,7 @@ import {
   formDataToDescription,
   formDataToVisualProfile,
   isHumanCharacter,
+  isAnimalCharacter,
 } from '../../types/avatarForm';
 
 const TRAIT_LABELS: Record<string, string> = {
@@ -36,22 +37,87 @@ const TRAIT_LABELS: Record<string, string> = {
   logic: 'Logik',
 };
 
+function parseAgeFromText(text: string | undefined): number | undefined {
+  if (!text) return undefined;
+  const directMatch = text.match(/(\d+)\s*(years?\s*old|years?|jahre?)/i);
+  if (directMatch) {
+    const age = Number(directMatch[1]);
+    if (Number.isFinite(age) && age >= 1 && age <= 150) return age;
+  }
+
+  const lower = text.toLowerCase();
+  if (lower.includes('baby') || lower.includes('infant')) return 1;
+  if (lower.includes('toddler')) return 3;
+  if (lower.includes('young child')) return 7;
+  if (lower.includes('child')) return 10;
+  if (lower.includes('teen')) return 15;
+  if (lower.includes('young adult')) return 24;
+  if (lower.includes('adult')) return 32;
+  if (lower.includes('elderly') || lower.includes('senior')) return 70;
+
+  const anyNumber = text.match(/(\d+)/);
+  if (!anyNumber) return undefined;
+  const value = Number(anyNumber[1]);
+  if (!Number.isFinite(value)) return undefined;
+  if (value >= 1 && value <= 150) return value;
+  return undefined;
+}
+
+function parseHeightFromText(text: string | undefined): number | undefined {
+  if (!text) return undefined;
+  const cmMatch = text.match(/(\d{2,3})\s*cm/i);
+  if (!cmMatch) return undefined;
+  const height = Number(cmMatch[1]);
+  if (!Number.isFinite(height)) return undefined;
+  if (height < 50 || height > 250) return undefined;
+  return height;
+}
+
 function avatarToFormData(avatar: any): Partial<AvatarFormData> {
   const formData: Partial<AvatarFormData> = {
     name: avatar.name || '',
   };
 
   const visualProfile = avatar.visualProfile;
+  const physicalTraits = avatar.physicalTraits || {};
+  const appearanceText = [physicalTraits.appearance, avatar.description].filter(Boolean).join(' ');
+  const fallbackAge = parseAgeFromText(appearanceText);
+  const fallbackHeight = parseHeightFromText(appearanceText);
+
   if (visualProfile) {
-    const characterType = String(visualProfile.characterType || '').toLowerCase();
+    const characterType = String(
+      visualProfile.characterType || physicalTraits.characterType || ''
+    ).toLowerCase();
     const matchedType = CHARACTER_TYPES.find((type) => characterType.includes(type.id) || characterType.includes(type.labelEn));
     formData.characterType = matchedType?.id || 'human';
 
     const genderValue = String(visualProfile.gender || '').toLowerCase();
-    formData.gender = genderValue.includes('female') ? 'female' : 'male';
+    if (genderValue.includes('female')) {
+      formData.gender = 'female';
+    } else if (genderValue.includes('male')) {
+      formData.gender = 'male';
+    }
 
-    const ageMatch = String(visualProfile.ageApprox || '').match(/(\d+)/);
-    formData.age = ageMatch ? Number(ageMatch[1]) : 8;
+    const explicitAge = Number(visualProfile.ageNumeric);
+    const parsedAge = parseAgeFromText(String(visualProfile.ageApprox || ''));
+    formData.age =
+      Number.isFinite(explicitAge) && explicitAge >= 1 && explicitAge <= 150
+        ? explicitAge
+        : parsedAge ?? fallbackAge ?? 8;
+
+    const explicitHeight = Number(visualProfile.heightCm);
+    formData.height =
+      Number.isFinite(explicitHeight) && explicitHeight >= 50 && explicitHeight <= 250
+        ? explicitHeight
+        : fallbackHeight ?? DEFAULT_AVATAR_FORM_DATA.height;
+
+    const bodyBuildValue = String(visualProfile.bodyBuild || '').toLowerCase();
+    const matchedBodyBuild = BODY_BUILDS.find(
+      (entry) => bodyBuildValue.includes(entry.id) || bodyBuildValue.includes(entry.labelEn.toLowerCase())
+    );
+    if (matchedBodyBuild) {
+      formData.bodyBuild = matchedBodyBuild.id;
+    }
 
     const hairColor = String(visualProfile.hair?.color || '').toLowerCase();
     const matchedHairColor = HAIR_COLORS.find((entry) => hairColor.includes(entry.labelEn.toLowerCase()));
@@ -88,7 +154,6 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
   }
 
   if (!visualProfile && avatar.physicalTraits) {
-    const physicalTraits = avatar.physicalTraits;
     const characterType = String(physicalTraits.characterType || '').toLowerCase();
     const matchedType = CHARACTER_TYPES.find(
       (type) =>
@@ -98,8 +163,23 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
     );
 
     formData.characterType = matchedType?.id || 'human';
-    const ageMatch = String(physicalTraits.appearance || '').match(/(\d+)/);
-    formData.age = ageMatch ? Number(ageMatch[1]) : 8;
+    formData.age = fallbackAge ?? 8;
+    formData.height = fallbackHeight ?? DEFAULT_AVATAR_FORM_DATA.height;
+
+    const appearanceLower = String(physicalTraits.appearance || '').toLowerCase();
+    if (appearanceLower.includes('female') || appearanceLower.includes('weiblich')) {
+      formData.gender = 'female';
+    } else if (appearanceLower.includes('male') || appearanceLower.includes('maennlich')) {
+      formData.gender = 'male';
+    }
+
+    const matchedBodyBuild = BODY_BUILDS.find(
+      (entry) =>
+        appearanceLower.includes(entry.id) || appearanceLower.includes(entry.labelEn.toLowerCase())
+    );
+    if (matchedBodyBuild) {
+      formData.bodyBuild = matchedBodyBuild.id;
+    }
   }
 
   if (avatar.description) {
@@ -192,7 +272,7 @@ const EditAvatarScreen: React.FC = () => {
         characterType:
           data.characterType === 'other' && data.customCharacterType
             ? data.customCharacterType
-            : characterType?.labelEn || 'human child',
+            : characterType?.labelEn || 'human',
         appearance: description,
         personalityTraits: {},
         style: 'disney',
@@ -247,14 +327,34 @@ const EditAvatarScreen: React.FC = () => {
         hints: { name: formData.name },
       });
 
+      const characterType = CHARACTER_TYPES.find((type) => type.id === formData.characterType);
+      const mergedVisualProfile = {
+        ...analysis.visualProfile,
+        characterType:
+          formData.characterType === 'other' && formData.customCharacterType
+            ? formData.customCharacterType
+            : characterType?.labelEn || 'human',
+        speciesCategory: isHumanCharacter(formData.characterType)
+          ? 'human'
+          : isAnimalCharacter(formData.characterType)
+          ? 'animal'
+          : 'fantasy',
+        locomotion: isAnimalCharacter(formData.characterType) ? 'quadruped' : 'bipedal',
+        ageApprox: `${formData.age} years old`,
+        ageNumeric: formData.age,
+        gender: formData.gender === 'male' ? 'male' : 'female',
+        heightCm: isHumanCharacter(formData.characterType) ? formData.height : undefined,
+        bodyBuild: isHumanCharacter(formData.characterType) ? formData.bodyBuild : undefined,
+      };
+
       await backend.avatar.update({
         id: avatarId,
-        visualProfile: analysis.visualProfile,
+        visualProfile: mergedVisualProfile,
       });
 
       setAvatar((previous: any) => ({
         ...previous,
-        visualProfile: analysis.visualProfile,
+        visualProfile: mergedVisualProfile,
       }));
 
       const { showSuccessToast } = await import('../../utils/toastUtils');

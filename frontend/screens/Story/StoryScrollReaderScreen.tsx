@@ -9,6 +9,7 @@ import { TracingBeam } from '../../components/ui/tracing-beam';
 import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Story, Chapter } from '../../types/story';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
+import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 
 
 const StoryScrollReaderScreen: React.FC = () => {
@@ -69,11 +70,15 @@ const StoryScrollReaderScreen: React.FC = () => {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         credentials: 'include',
-        body: JSON.stringify({
-          storyId: storyId,
-          storyTitle: story.title,
-          genre: story.config.genre,
-        })
+        body: JSON.stringify((() => {
+          const participantAvatarIds = extractStoryParticipantIds(story);
+          return {
+            storyId: storyId,
+            storyTitle: story.title,
+            genre: story.config.genre,
+            ...(participantAvatarIds.length > 0 ? { avatarIds: participantAvatarIds } : {}),
+          };
+        })())
       });
 
       if (response.ok) {

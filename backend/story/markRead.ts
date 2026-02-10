@@ -13,6 +13,7 @@ interface MarkStoryReadRequest {
   storyTitle: string;
   genre?: string;
   avatarId?: string;
+  avatarIds?: string[];
 }
 
 interface MarkStoryReadResponse {
@@ -80,7 +81,17 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
     console.log(`Story finished by user ${userId}: "${req.storyTitle}"`);
 
     let userAvatars: { id: string; name: string }[] = [];
-    if (req.avatarId) {
+    const requestedAvatarIds = Array.from(
+      new Set((req.avatarIds || []).filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0))
+    );
+
+    if (requestedAvatarIds.length > 0) {
+      userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
+        SELECT id, name
+        FROM avatars
+        WHERE user_id = ${userId} AND id = ANY(${requestedAvatarIds})
+      `;
+    } else if (req.avatarId) {
       const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
         SELECT id, name, user_id
         FROM avatars

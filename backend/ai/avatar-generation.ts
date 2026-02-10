@@ -138,7 +138,7 @@ function inferSpeciesTag(characterType?: string, appearance?: string): string {
   if (isAnthro) return "fantasy creature with unique anatomy";
   if (isCat) return "feline quadruped with natural anatomy";
   if (isDog) return "canine quadruped companion";
-  if (isHuman) return "human child with no animal traits";
+  if (isHuman) return "human with no animal traits";
   return "character with consistent anatomy";
 }
 

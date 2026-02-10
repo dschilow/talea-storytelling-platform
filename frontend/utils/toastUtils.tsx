@@ -4,26 +4,31 @@ import { Alert, AlertIcon, AlertTitle, AlertIcons } from '../components/ui/Alert
 import { Brain, BookOpen, User, Sparkles, Trophy, Gift } from 'lucide-react';
 import { InventoryItem } from '../types/avatar';
 
-// Show personality update notification with German trait labels
-export const showPersonalityUpdateToast = async (changes: Array<{ trait: string; change: number }>) => {
-  // Import trait utilities dynamically to avoid circular dependencies
+interface PersonalityToastOptions {
+  title?: string;
+  subtitle?: string;
+  durationMs?: number;
+}
+
+export const showPersonalityUpdateToast = async (
+  changes: Array<{ trait: string; change: number }>,
+  options: PersonalityToastOptions = {}
+) => {
   const { getTraitLabel, getTraitIcon, getSubcategoryLabel, getSubcategoryIcon } = await import('../constants/traits');
 
   const totalChanges = changes.reduce((sum, change) => sum + Math.abs(change.change), 0);
-  const message = `Persönlichkeit entwickelt sich! ${totalChanges} Änderungen`;
+  const title = options.title || `Persoenlichkeit entwickelt sich: ${totalChanges} Punkte`;
+  const subtitle = options.subtitle || 'Die Werte wurden nach deinem letzten Inhalt aktualisiert.';
 
-  // Format changes with German labels and icons
-  const formattedChanges = changes.map(change => {
+  const formattedChanges = changes.map((change) => {
     let label: string;
     let icon: string;
 
-    // Handle hierarchical traits (e.g., "knowledge.physik")
     if (change.trait.includes('.')) {
-      const [mainCategory, subcategory] = change.trait.split('.');
+      const [, subcategory] = change.trait.split('.');
       label = getSubcategoryLabel(subcategory, 'de');
       icon = getSubcategoryIcon(subcategory);
     } else {
-      // Handle main category traits
       label = getTraitLabel(change.trait, 'de');
       icon = getTraitIcon(change.trait);
     }
@@ -39,10 +44,11 @@ export const showPersonalityUpdateToast = async (changes: Array<{ trait: string;
           <Brain className="w-5 h-5 text-green-600" />
         </AlertIcon>
         <div>
-          <AlertTitle>{message}</AlertTitle>
-          <div className="text-xs space-y-1 mt-2">
+          <AlertTitle>{title}</AlertTitle>
+          <p className="mt-1 text-xs text-gray-600">{subtitle}</p>
+          <div className="mt-2 space-y-1 text-xs">
             {formattedChanges.map((change, index) => (
-              <div key={index} className="flex items-center gap-2">
+              <div key={`${change.label}-${index}`} className="flex items-center gap-2">
                 <span className="text-sm">{change.icon}</span>
                 <span className="font-medium">{change.label}:</span>
                 <span className={`font-bold ${change.value.startsWith('+') ? 'text-green-700' : 'text-red-700'}`}>
@@ -54,11 +60,10 @@ export const showPersonalityUpdateToast = async (changes: Array<{ trait: string;
         </div>
       </Alert>
     ),
-    { duration: 8000 }
+    { duration: options.durationMs || 8000 }
   );
 };
 
-// Show story completion notification
 export const showStoryCompletionToast = (storyTitle: string) => {
   toast.custom(
     (t) => (
@@ -73,7 +78,6 @@ export const showStoryCompletionToast = (storyTitle: string) => {
   );
 };
 
-// Show doku completion notification
 export const showDokuCompletionToast = (dokuTitle: string) => {
   toast.custom(
     (t) => (
@@ -88,15 +92,14 @@ export const showDokuCompletionToast = (dokuTitle: string) => {
   );
 };
 
-// Show quiz completion notification
 export const showQuizCompletionToast = (score: number) => {
   const isGoodScore = score >= 70;
-  
+
   toast.custom(
     (t) => (
-      <Alert variant={isGoodScore ? "success" : "info"} onClose={() => toast.dismiss(t)}>
+      <Alert variant={isGoodScore ? 'success' : 'info'} onClose={() => toast.dismiss(t)}>
         <AlertIcon>
-          <Trophy className={`w-5 h-5 ${isGoodScore ? 'text-green-600' : 'text-blue-600'}`} />
+          <Trophy className={`h-5 w-5 ${isGoodScore ? 'text-green-600' : 'text-blue-600'}`} />
         </AlertIcon>
         <AlertTitle>Quiz abgeschlossen: {score}% richtig!</AlertTitle>
       </Alert>
@@ -105,7 +108,6 @@ export const showQuizCompletionToast = (score: number) => {
   );
 };
 
-// Show avatar created notification
 export const showAvatarCreatedToast = (avatarName: string) => {
   toast.custom(
     (t) => (
@@ -120,7 +122,6 @@ export const showAvatarCreatedToast = (avatarName: string) => {
   );
 };
 
-// Show new character discovery notification (for auto-generated characters)
 export const showNewCharacterToast = (characterNames: string) => {
   toast.custom(
     (t) => (
@@ -129,8 +130,8 @@ export const showNewCharacterToast = (characterNames: string) => {
           <Sparkles className="w-5 h-5 text-purple-600" />
         </AlertIcon>
         <div>
-          <AlertTitle>Neue Freunde gefunden! 🌟</AlertTitle>
-          <p className="text-sm text-gray-600 mt-1">
+          <AlertTitle>Neue Freunde gefunden!</AlertTitle>
+          <p className="mt-1 text-sm text-gray-600">
             Passend zur Geschichte wurden neue Charaktere erstellt: <strong>{characterNames}</strong>
           </p>
         </div>
@@ -140,7 +141,6 @@ export const showNewCharacterToast = (characterNames: string) => {
   );
 };
 
-// Show general success notification
 export const showSuccessToast = (message: string) => {
   toast.custom(
     (t) => (
@@ -155,7 +155,6 @@ export const showSuccessToast = (message: string) => {
   );
 };
 
-// Show warning notification
 export const showWarningToast = (message: string) => {
   toast.custom(
     (t) => (
@@ -170,7 +169,6 @@ export const showWarningToast = (message: string) => {
   );
 };
 
-// Show error notification
 export const showErrorToast = (message: string) => {
   toast.custom(
     (t) => (
@@ -185,63 +183,57 @@ export const showErrorToast = (message: string) => {
   );
 };
 
-// Show artifact earned notification with image and description
 export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: string, isUpgrade?: boolean) => {
-  const headerText = isUpgrade 
-    ? `⬆️ Artefakt verstärkt! (Stufe ${artifact.level})` 
-    : '🎁 Neues Artefakt erhalten!';
-  
+  const headerText = isUpgrade
+    ? `Artefakt verstaerkt! (Stufe ${artifact.level})`
+    : 'Neues Artefakt erhalten!';
+
   const headerColor = isUpgrade ? 'text-emerald-400' : 'text-yellow-400';
   const headerBgColor = isUpgrade ? 'bg-emerald-500/20' : 'bg-yellow-500/20';
-  
+
   toast.custom(
     (t) => (
-      <div 
-        className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 rounded-xl p-4 shadow-2xl border border-purple-500/30 max-w-md cursor-pointer"
+      <div
+        className="max-w-md cursor-pointer rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 p-4 shadow-2xl"
         onClick={() => toast.dismiss(t)}
       >
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className={`p-1.5 ${headerBgColor} rounded-full`}>
-            <Gift className={`w-5 h-5 ${headerColor}`} />
+        <div className="mb-3 flex items-center gap-2">
+          <div className={`rounded-full p-1.5 ${headerBgColor}`}>
+            <Gift className={`h-5 w-5 ${headerColor}`} />
           </div>
-          <span className={`${headerColor} font-bold text-sm`}>{headerText}</span>
+          <span className={`${headerColor} text-sm font-bold`}>{headerText}</span>
         </div>
-        
-        {/* Content with Image */}
+
         <div className="flex gap-3">
-          {/* Artifact Image */}
           {artifact.imageUrl && (
             <div className="flex-shrink-0">
-              <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-purple-400/50 shadow-lg">
-                <img 
-                  src={artifact.imageUrl} 
+              <div className="h-24 w-24 overflow-hidden rounded-lg border-2 border-purple-400/50 shadow-lg">
+                <img
+                  src={artifact.imageUrl}
                   alt={artifact.name}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
               </div>
             </div>
           )}
-          
-          {/* Artifact Details */}
-          <div className="flex-1 min-w-0">
-            <h4 className="text-white font-bold text-base truncate">{artifact.name}</h4>
+
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate text-base font-bold text-white">{artifact.name}</h4>
             {avatarName && (
-              <p className="text-purple-300 text-xs mb-1">für {avatarName}</p>
+              <p className="mb-1 text-xs text-purple-300">fuer {avatarName}</p>
             )}
-            <p className="text-purple-200 text-xs line-clamp-2">
+            <p className="line-clamp-2 text-xs text-purple-200">
               {artifact.description || 'Ein magisches Artefakt aus deinem Abenteuer!'}
             </p>
             {artifact.storyEffect && (
-              <p className="text-yellow-300/80 text-xs mt-1 italic line-clamp-1">
-                ✨ {artifact.storyEffect}
+              <p className="mt-1 line-clamp-1 text-xs italic text-yellow-300/80">
+                * {artifact.storyEffect}
               </p>
             )}
           </div>
         </div>
-        
-        {/* Footer hint */}
-        <p className="text-purple-400/60 text-xs text-center mt-3">Tippe zum Schließen • Finde es in der Schatzkammer</p>
+
+        <p className="mt-3 text-center text-xs text-purple-400/60">Tippe zum Schliessen - Finde es in der Schatzkammer</p>
       </div>
     ),
     { duration: 8000 }

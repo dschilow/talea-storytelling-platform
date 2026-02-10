@@ -176,7 +176,7 @@ const AvatarWizardScreen: React.FC = () => {
         characterType:
           formData.characterType === 'other' && formData.customCharacterType
             ? formData.customCharacterType
-            : characterType?.labelEn || 'human child',
+            : characterType?.labelEn || 'human',
         appearance: description,
         personalityTraits: {},
         style: 'disney',
@@ -224,8 +224,21 @@ const AvatarWizardScreen: React.FC = () => {
           if (analysis.visualProfile) {
             visualProfile = {
               ...analysis.visualProfile,
+              characterType:
+                formData.characterType === 'other' && formData.customCharacterType
+                  ? formData.customCharacterType
+                  : characterType?.labelEn || 'human',
+              speciesCategory: isHumanCharacter(formData.characterType)
+                ? 'human'
+                : isAnimalCharacter(formData.characterType)
+                ? 'animal'
+                : 'fantasy',
+              locomotion: isAnimalCharacter(formData.characterType) ? 'quadruped' : 'bipedal',
               ageApprox: `${formData.age} years old`,
+              ageNumeric: formData.age,
               gender: formData.gender === 'male' ? 'male' : 'female',
+              heightCm: isHumanCharacter(formData.characterType) ? formData.height : undefined,
+              bodyBuild: isHumanCharacter(formData.characterType) ? formData.bodyBuild : undefined,
             };
           }
         } catch (err) {

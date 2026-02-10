@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   BookOpen,
   Brain,
+  CircleHelp,
   Gem,
   PencilLine,
   Trash2,
@@ -329,27 +330,30 @@ const AvatarDetailScreen: React.FC = () => {
             background: isDark ? 'rgba(24,35,50,0.9)' : 'rgba(255,251,245,0.93)',
           }}
         >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="h-20 w-20 overflow-hidden rounded-2xl border" style={{ borderColor: isDark ? '#3f5771' : '#d8cab9' }}>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div
+              className="h-32 w-32 overflow-hidden rounded-3xl border shadow-[0_14px_30px_rgba(24,35,49,0.24)]"
+              style={{ borderColor: isDark ? '#3f5771' : '#d8cab9' }}
+            >
               {avatar.imageUrl ? (
                 <img src={avatar.imageUrl} alt={avatar.name} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center" style={{ background: isDark ? 'rgba(66,90,118,0.45)' : '#ece4d9', color: isDark ? '#d6e2f5' : '#4b6078' }}>
-                  <User className="h-7 w-7" />
+                  <User className="h-10 w-10" />
                 </div>
               )}
             </div>
 
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-2xl font-semibold" style={{ color: isDark ? '#e8effb' : '#213247' }}>
+            <div className="min-w-0 max-w-2xl">
+              <h1 className="text-3xl font-semibold" style={{ color: isDark ? '#e8effb' : '#213247' }}>
                 {avatar.name}
               </h1>
-              <p className="mt-1 text-sm leading-relaxed" style={{ color: isDark ? '#a6b8d1' : '#647991' }}>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: isDark ? '#a6b8d1' : '#647991' }}>
                 {avatar.description || 'Dieses Profil zeigt Entwicklung, Tagebuch und gesammelte Artefakte.'}
               </p>
             </div>
 
-            <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-1">
+            <div className="grid w-full max-w-md grid-cols-2 gap-2">
               <StatPill label="Eintraege" value={memories.length} isDark={isDark} />
               <StatPill label="Artefakte" value={inventoryCount} isDark={isDark} />
             </div>
@@ -397,8 +401,32 @@ const AvatarDetailScreen: React.FC = () => {
                 background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
               }}
             >
-              <h2 className="mb-2 text-xl font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+              <h2 className="mb-2 inline-flex items-center gap-2 text-xl font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
                 Kompetenzprofil
+                <span className="group relative inline-flex">
+                  <button
+                    type="button"
+                    aria-label="Info zum Kompetenzprofil"
+                    className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full border"
+                    style={{
+                      borderColor: isDark ? '#3e546d' : '#d6cab9',
+                      color: isDark ? '#a7b9d0' : '#657d98',
+                      background: isDark ? 'rgba(31,45,64,0.72)' : 'rgba(255,251,245,0.86)',
+                    }}
+                  >
+                    <CircleHelp className="h-3.5 w-3.5" />
+                  </button>
+                  <span
+                    className="pointer-events-none absolute left-0 top-[120%] z-20 w-64 rounded-xl border px-2.5 py-2 text-[11px] leading-snug opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                    style={{
+                      borderColor: isDark ? '#415973' : '#d6cab9',
+                      color: isDark ? '#c9d8eb' : '#465c77',
+                      background: isDark ? 'rgba(19,29,42,0.96)' : 'rgba(255,252,247,0.98)',
+                    }}
+                  >
+                    Dieses Profil zeigt, wie sich dein Avatar beim Lesen entwickelt: Punkte, Rangaufstieg, Vorteile und Ziele.
+                  </span>
+                </span>
               </h2>
               <p className="mb-4 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
                 Dynamische Growth-Ansicht mit Ringen, Perks und Quests.
@@ -414,8 +442,32 @@ const AvatarDetailScreen: React.FC = () => {
                   background: isDark ? 'rgba(23,34,49,0.88)' : 'rgba(255,251,245,0.92)',
                 }}
               >
-                <h3 className="text-sm font-semibold" style={{ color: isDark ? '#e6eefb' : '#223347' }}>
+                <h3 className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: isDark ? '#e6eefb' : '#223347' }}>
                   Starke Wissensfelder
+                  <span className="group relative inline-flex">
+                    <button
+                      type="button"
+                      aria-label="Info zu Wissensfeldern"
+                      className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full border"
+                      style={{
+                        borderColor: isDark ? '#3e546d' : '#d6cab9',
+                        color: isDark ? '#a7b9d0' : '#657d98',
+                        background: isDark ? 'rgba(31,45,64,0.72)' : 'rgba(255,251,245,0.86)',
+                      }}
+                    >
+                      <CircleHelp className="h-3.5 w-3.5" />
+                    </button>
+                    <span
+                      className="pointer-events-none absolute left-0 top-[120%] z-20 w-64 rounded-xl border px-2.5 py-2 text-[11px] leading-snug opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      style={{
+                        borderColor: isDark ? '#415973' : '#d6cab9',
+                        color: isDark ? '#c9d8eb' : '#465c77',
+                        background: isDark ? 'rgba(19,29,42,0.96)' : 'rgba(255,252,247,0.98)',
+                      }}
+                    >
+                      Das sind die staerksten Unterbereiche in Wissen, z. B. Geschichte oder Biologie.
+                    </span>
+                  </span>
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {progression.topKnowledgeDomains.map((entry) => (

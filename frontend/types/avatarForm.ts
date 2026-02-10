@@ -5,7 +5,7 @@
 
 // Character Types with icons and English translations for image generation
 export const CHARACTER_TYPES = [
-  { id: 'human', labelDe: 'Mensch', labelEn: 'human child', icon: '👦', category: 'common' },
+  { id: 'human', labelDe: 'Mensch', labelEn: 'human', icon: '👦', category: 'common' },
   { id: 'dog', labelDe: 'Hund', labelEn: 'dog', icon: '🐕', category: 'animal' },
   { id: 'cat', labelDe: 'Katze', labelEn: 'cat', icon: '🐱', category: 'animal' },
   { id: 'rabbit', labelDe: 'Hase', labelEn: 'rabbit', icon: '🐰', category: 'animal' },
@@ -33,7 +33,7 @@ export type GenderId = typeof GENDERS[number]['id'];
 // Body builds
 export const BODY_BUILDS = [
   { id: 'slim', labelDe: 'Schlank', labelEn: 'slim', icon: '🏃' },
-  { id: 'normal', labelDe: 'Normal', labelEn: 'normal build', icon: '🧍' },
+  { id: 'normal', labelDe: 'Normal', labelEn: 'average', icon: '🧍' },
   { id: 'sturdy', labelDe: 'Kräftig', labelEn: 'sturdy', icon: '💪' },
 ] as const;
 
@@ -327,7 +327,7 @@ export function formDataToVisualProfile(data: AvatarFormData): any {
 
   // Human-specific
   if (isHuman) {
-    consistentDescriptors.push('human child');
+    consistentDescriptors.push('human');
     consistentDescriptors.push('natural skin');
   }
 
@@ -346,7 +346,11 @@ export function formDataToVisualProfile(data: AvatarFormData): any {
     speciesCategory: isHuman ? 'human' : isAnimal ? 'animal' : 'fantasy',
     locomotion: isAnimal ? 'quadruped' : 'bipedal',
     ageApprox: `${data.age} years old`,
+    ageNumeric: data.age,
     gender: gender?.labelEn || 'unknown',
+    heightCm: isHuman ? data.height : undefined,
+    heightDescription: isHuman ? getHeightDescription(data.height, data.age) : undefined,
+    bodyBuild: isHuman ? (bodyBuild?.labelEn || 'normal') : undefined,
     skin: {
       tone: isHuman
         ? (SKIN_TONES_HUMAN.find(s => s.id === data.skinTone)?.labelEn || 'medium skin')
@@ -386,7 +390,7 @@ export function formDataToVisualProfile(data: AvatarFormData): any {
     clothingCanonical: {
       top: null,
       bottom: null,
-      outfit: isHuman ? 'casual children clothing' : null,
+      outfit: isHuman ? 'casual clothing' : null,
       colors: [],
       patterns: [],
     },

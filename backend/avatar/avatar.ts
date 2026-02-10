@@ -41,11 +41,19 @@ export interface InvariantFeature {
 }
 
 export interface AvatarVisualProfile {
+  characterType?: string;
+  speciesCategory?: string;
+  locomotion?: string;
+
   // ===== NEW: Explicit Measurements for Image Consistency =====
   /** Explicit numeric age in years (e.g., 5 for a 5-year-old) */
   ageNumeric?: number;
   /** Explicit height in centimeters (e.g., 120 for 120cm) */
   heightCm?: number;
+  heightDescription?: string;
+  ageDescription?: string;
+  bodyBuild?: string;
+  bodyFeatures?: string[];
 
   // ===== NEW: Character Invariants for Feature Consistency =====
   /** Features that MUST appear in every generated image */

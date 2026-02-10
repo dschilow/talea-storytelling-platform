@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Compass, Crown, Sparkles, Target, Trophy } from 'lucide-react';
+import { CircleHelp, Compass, Crown, Sparkles, Target, Trophy } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import type { AvatarProgression } from '../../types/avatar';
@@ -22,6 +22,7 @@ interface TraitCardData {
   label: string;
   value: number;
   displayProgress: number;
+  rankProgress: number;
   rankName: string;
   nextRankAt: number | null;
   progressToNext: number;
@@ -75,6 +76,7 @@ const toTraitCards = (
         label: entry.label,
         value: Math.round(entry.value),
         displayProgress: clamp(Math.round(entry.displayProgress), 0, 100),
+        rankProgress: clamp(Math.round(entry.progressToNext), 0, 100),
         rankName: entry.rank.name,
         nextRankAt: entry.nextRankAt,
         progressToNext: clamp(Math.round(entry.progressToNext), 0, 100),
@@ -88,12 +90,43 @@ const toTraitCards = (
       label: trait.label,
       value: Math.round(trait.value),
       displayProgress: toDisplayProgress(trait.id, trait.value),
+      rankProgress: toDisplayProgress(trait.id, trait.value),
       rankName: fallbackRankName(trait.value),
       nextRankAt: null,
       progressToNext: toDisplayProgress(trait.id, trait.value),
     }))
     .sort((left, right) => right.value - left.value);
 };
+
+const InfoHint: React.FC<{
+  text: string;
+  isDark: boolean;
+}> = ({ text, isDark }) => (
+  <span className="group relative inline-flex">
+    <button
+      type="button"
+      aria-label="Info"
+      className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full border transition-colors focus:outline-none"
+      style={{
+        borderColor: isDark ? '#415973' : '#d6cab9',
+        color: isDark ? '#a9bdd8' : '#6b8099',
+        background: isDark ? 'rgba(31,45,64,0.7)' : 'rgba(255,251,245,0.85)',
+      }}
+    >
+      <CircleHelp className="h-3.5 w-3.5" />
+    </button>
+    <span
+      className="pointer-events-none absolute right-0 top-[120%] z-20 w-64 rounded-xl border px-2.5 py-2 text-[11px] leading-snug opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      style={{
+        borderColor: isDark ? '#415973' : '#d6cab9',
+        color: isDark ? '#c9d8eb' : '#465c77',
+        background: isDark ? 'rgba(19,29,42,0.96)' : 'rgba(255,252,247,0.98)',
+      }}
+    >
+      {text}
+    </span>
+  </span>
+);
 
 const MeterRing: React.FC<{
   progress: number;
@@ -153,7 +186,7 @@ const MeterRing: React.FC<{
       </svg>
 
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/75">Score</p>
+        <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/75">Punkte</p>
         <p className="text-lg font-semibold text-foreground">{value}</p>
       </div>
     </div>
@@ -209,21 +242,29 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
           <div className="space-y-1">
             <p className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.16em]" style={{ color: isDark ? '#9cb1cb' : '#6f8299' }}>
               <Compass className="h-3.5 w-3.5" />
-              Growth Navigation
+              Entwicklungs-Navigation
+              <InfoHint
+                isDark={isDark}
+                text="Hier siehst du den aktuellen Entwicklungsstand, den naechsten Fokus und die wichtigsten Ziele fuer den Avatar."
+              />
             </p>
             <h3 className="text-lg font-semibold" style={{ color: isDark ? '#e8f0fb' : '#24364b' }}>
               {progression?.headline || 'Kompetenzprofil'}
             </h3>
             <p className="text-xs" style={{ color: isDark ? '#9db2cd' : '#6c8098' }}>
-              {progression?.memoryFocusHint || 'Skill-Ringe zeigen Staerke, Rang und naechstes Ziel.'}
+              {progression?.memoryFocusHint || 'Die Ringe zeigen den Rang-Fortschritt, nicht das Punktelimit.'}
             </p>
           </div>
 
           <div className="flex items-center gap-2 rounded-full border px-3 py-1.5" style={{ borderColor: isDark ? '#415973' : '#d6cab9', background: isDark ? 'rgba(31,45,64,0.7)' : 'rgba(255,251,245,0.86)' }}>
             <Crown className="h-4 w-4" style={{ color: isDark ? '#c6d8ef' : '#4f657f' }} />
             <span className="text-sm font-semibold" style={{ color: isDark ? '#e8f0fb' : '#2b425b' }}>
-              Level {progression?.overallLevel || 1}
+              Stufe {progression?.overallLevel || 1}
             </span>
+            <InfoHint
+              isDark={isDark}
+              text="Die Stufe ergibt sich aus Rangstufen aller Eigenschaften, abgeschlossenen Zielen und freigeschalteten Vorteilen."
+            />
           </div>
         </div>
 
@@ -231,6 +272,10 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
           <div className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: isDark ? '#415973' : '#d5c8b7', color: isDark ? '#c5d6ec' : '#4d627b' }}>
             <Sparkles className="h-3.5 w-3.5" />
             Fokus: {focusTrait.label} ({focusTrait.rankName})
+            <InfoHint
+              isDark={isDark}
+              text="Fokus bedeutet: Das ist aktuell die staerkste oder am weitesten entwickelte Eigenschaft."
+            />
           </div>
         )}
       </section>
@@ -253,15 +298,19 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: isDark ? '#e8f0fb' : '#25384e' }}>
+                  <p className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: isDark ? '#e8f0fb' : '#25384e' }}>
                     {trait.label}
+                    <InfoHint
+                      isDark={isDark}
+                      text="Punkte steigen durch Lesen, Quiz und Aktionen. Der Rang steigt in Stufen (Anfaenger, Lehrling, ...)."
+                    />
                   </p>
                   <p className="text-xs" style={{ color: isDark ? '#9bb0cc' : '#6d8198' }}>
                     Rang: {trait.rankName}
                   </p>
                 </div>
                 <MeterRing
-                  progress={trait.displayProgress}
+                  progress={trait.rankProgress}
                   accentStart={accent.start}
                   accentEnd={accent.end}
                   label={trait.id}
@@ -271,8 +320,11 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
 
               <p className="mt-2 text-[11px]" style={{ color: isDark ? '#98acc8' : '#6a7f98' }}>
                 {trait.nextRankAt
-                  ? `Naechster Rang bei ${trait.nextRankAt} (${trait.progressToNext}%)`
+                  ? `Naechster Rang ab ${trait.nextRankAt} (${trait.progressToNext}%)`
                   : 'Hoechster Rang erreicht'}
+              </p>
+              <p className="mt-1 text-[11px]" style={{ color: isDark ? '#8ea5c4' : '#7289a2' }}>
+                Gesamtstaerke (skaliert): {trait.displayProgress}%
               </p>
             </motion.article>
           );
@@ -289,7 +341,11 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
         >
           <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: isDark ? '#97abc6' : '#6c819a' }}>
             <Trophy className="h-4 w-4" />
-            Perks
+            Vorteile
+            <InfoHint
+              isDark={isDark}
+              text="Vorteile werden ab bestimmten Punktestufen automatisch freigeschaltet und staerken die Avatar-Entwicklung."
+            />
           </p>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {perks.map((perk) => (
@@ -340,7 +396,11 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
         >
           <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: isDark ? '#97abc6' : '#6c819a' }}>
             <Target className="h-4 w-4" />
-            Quests
+            Ziele
+            <InfoHint
+              isDark={isDark}
+              text="Ziele sind klare Aufgaben mit Fortschritt. Wenn ein Ziel voll ist, gilt es als abgeschlossen."
+            />
           </p>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {quests.map((quest) => (

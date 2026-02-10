@@ -17,6 +17,7 @@ import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
+import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 
 
 const StoryReaderScreen: React.FC = () => {
@@ -201,12 +202,15 @@ const StoryReaderScreen: React.FC = () => {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         credentials: 'include',
-        body: JSON.stringify({
-          storyId: storyId,
-          storyTitle: story.title,
-          genre: story.config.genre,
-          // No avatarId = update all eligible avatars
-        })
+        body: JSON.stringify((() => {
+          const participantAvatarIds = extractStoryParticipantIds(story);
+          return {
+            storyId: storyId,
+            storyTitle: story.title,
+            genre: story.config.genre,
+            ...(participantAvatarIds.length > 0 ? { avatarIds: participantAvatarIds } : {}),
+          };
+        })())
       });
 
       if (response.ok) {
@@ -311,23 +315,32 @@ const StoryReaderScreen: React.FC = () => {
           console.log('🎉 Showing completion toast for', result.updatedAvatars, 'avatars');
           showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
 
-          // Then show individual personality updates for each avatar with a delay
-          result.personalityChanges.forEach((avatarChange: any, index: number) => {
-            console.log(`🔔 Avatar ${index + 1} changes:`, {
-              avatarName: avatarChange.avatarName,
-              hasChanges: !!avatarChange.changes,
-              changesLength: avatarChange.changes?.length || 0,
-              changes: avatarChange.changes
-            });
-
-            if (avatarChange.changes && avatarChange.changes.length > 0) {
-              setTimeout(() => {
-                console.log(`🔔 Showing personality toast for ${avatarChange.avatarName}:`, avatarChange.changes);
-                // Show personality update toast with trait changes
-                showPersonalityUpdateToast(avatarChange.changes);
-              }, 800 + (index * 600)); // Faster timing - 0.8s initial, 0.6s between each
+          const mergedByTrait = new Map<string, number>();
+          result.personalityChanges.forEach((avatarChange: any) => {
+            if (!Array.isArray(avatarChange?.changes)) {
+              return;
             }
+            avatarChange.changes.forEach((change: any) => {
+              if (!change?.trait || typeof change.change !== 'number') {
+                return;
+              }
+              mergedByTrait.set(change.trait, (mergedByTrait.get(change.trait) || 0) + change.change);
+            });
           });
+
+          const mergedChanges = Array.from(mergedByTrait.entries()).map(([trait, change]) => ({
+            trait,
+            change,
+          }));
+
+          if (mergedChanges.length > 0) {
+            setTimeout(() => {
+              showPersonalityUpdateToast(mergedChanges, {
+                title: 'Persoenlichkeit entwickelt sich',
+                subtitle: `${result.updatedAvatars} Avatar(e) aktualisiert`,
+              });
+            }, 800);
+          }
 
           // 🎉 Trigger growth celebration modal (especially for mastery tier-ups)
           triggerCelebration(result.personalityChanges, 'story', story?.title);
@@ -338,25 +351,6 @@ const StoryReaderScreen: React.FC = () => {
           showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
         }
 
-        // Helper function to get translated trait names
-        function getTraitDisplayName(trait: string): string {
-          // Handle subcategories like "knowledge.history"
-          const parts = trait.split('.');
-          const subcategory = parts.length > 1 ? parts[1] : null;
-          const mainTrait = parts[0];
-
-          // If it's a subcategory, try to translate it directly
-          if (subcategory) {
-            const key = `traits.${subcategory.toLowerCase()}`;
-            const translation = t(key);
-            // If translation exists and is different from key, return it. Otherwise fallback.
-            return translation !== key ? translation : subcategory;
-          }
-
-          const key = `traits.${mainTrait.toLowerCase()}`;
-          const translation = t(key);
-          return translation !== key ? translation : trait;
-        }
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);

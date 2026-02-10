@@ -285,10 +285,10 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
         if (onPersonalityChange) {
           onPersonalityChange(personalityChanges);
+        } else {
+          const { showPersonalityUpdateToast } = await import('../../utils/toastUtils');
+          showPersonalityUpdateToast(personalityChanges);
         }
-
-        const { showPersonalityUpdateToast } = await import('../../utils/toastUtils');
-        showPersonalityUpdateToast(personalityChanges);
       }
     } catch (error) {
       console.error('Quiz evaluation failed:', error);

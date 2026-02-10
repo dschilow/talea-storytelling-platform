@@ -14,6 +14,7 @@ import type { InventoryItem } from '../../types/avatar';
 import { cn } from '../../lib/utils';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { useTheme } from '../../contexts/ThemeContext';
+import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 
 type StoryPalette = {
   page: string;
@@ -202,11 +203,15 @@ const CinematicStoryViewer: React.FC = () => {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          storyId,
-          storyTitle: story.title,
-          genre: story.config.genre,
-        }),
+        body: JSON.stringify((() => {
+          const participantAvatarIds = extractStoryParticipantIds(story);
+          return {
+            storyId,
+            storyTitle: story.title,
+            genre: story.config.genre,
+            ...(participantAvatarIds.length > 0 ? { avatarIds: participantAvatarIds } : {}),
+          };
+        })()),
       });
 
       const { showSuccessToast, showPersonalityUpdateToast } = await import('../../utils/toastUtils');
@@ -235,13 +240,32 @@ const CinematicStoryViewer: React.FC = () => {
           `Geschichte abgeschlossen. ${result.updatedAvatars ?? result.personalityChanges.length} Avatar(e) aktualisiert.`
         );
 
-        result.personalityChanges.forEach((avatarChange: any, index: number) => {
-          if (Array.isArray(avatarChange?.changes) && avatarChange.changes.length > 0) {
-            setTimeout(() => {
-              showPersonalityUpdateToast(avatarChange.changes);
-            }, 700 + index * 500);
+        const mergedByTrait = new Map<string, number>();
+        result.personalityChanges.forEach((avatarChange: any) => {
+          if (!Array.isArray(avatarChange?.changes)) {
+            return;
           }
+          avatarChange.changes.forEach((change: any) => {
+            if (!change?.trait || typeof change.change !== 'number') {
+              return;
+            }
+            mergedByTrait.set(change.trait, (mergedByTrait.get(change.trait) || 0) + change.change);
+          });
         });
+
+        const mergedChanges = Array.from(mergedByTrait.entries()).map(([trait, change]) => ({
+          trait,
+          change,
+        }));
+
+        if (mergedChanges.length > 0) {
+          setTimeout(() => {
+            showPersonalityUpdateToast(mergedChanges, {
+              title: 'Persoenlichkeit entwickelt sich',
+              subtitle: `${result.updatedAvatars ?? result.personalityChanges.length} Avatar(e) aktualisiert`,
+            });
+          }, 700);
+        }
       } else {
         showSuccessToast('Geschichte abgeschlossen.');
       }

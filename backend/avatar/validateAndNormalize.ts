@@ -141,8 +141,18 @@ export async function validateAndNormalizeVisualProfile(
   console.log('[validateAndNormalize] Starting visual profile normalization');
 
   const normalized: AvatarVisualProfile = {
+    characterType: profile.characterType ? await translateToEnglish(profile.characterType) : undefined,
+    speciesCategory: profile.speciesCategory ? await translateToEnglish(profile.speciesCategory) : undefined,
+    locomotion: profile.locomotion ? await translateToEnglish(profile.locomotion) : undefined,
+
     ageApprox: await translateToEnglish(profile.ageApprox || ''),
+    ageNumeric: typeof profile.ageNumeric === 'number' ? profile.ageNumeric : undefined,
+    ageDescription: profile.ageDescription ? await translateToEnglish(profile.ageDescription) : undefined,
     gender: await translateToEnglish(profile.gender || ''),
+    heightCm: typeof profile.heightCm === 'number' ? profile.heightCm : undefined,
+    heightDescription: profile.heightDescription ? await translateToEnglish(profile.heightDescription) : undefined,
+    bodyBuild: profile.bodyBuild ? await translateToEnglish(profile.bodyBuild) : undefined,
+    bodyFeatures: profile.bodyFeatures ? await translateArray(profile.bodyFeatures) : undefined,
 
     skin: {
       tone: await translateToEnglish(profile.skin?.tone || ''),
@@ -206,7 +216,13 @@ export function detectNonEnglishFields(profile: AvatarVisualProfile | undefined)
   const nonEnglishFields: string[] = [];
 
   if (containsNonEnglish(profile.ageApprox)) nonEnglishFields.push('ageApprox');
+  if (containsNonEnglish(profile.characterType)) nonEnglishFields.push('characterType');
+  if (containsNonEnglish(profile.speciesCategory)) nonEnglishFields.push('speciesCategory');
+  if (containsNonEnglish(profile.locomotion)) nonEnglishFields.push('locomotion');
+  if (containsNonEnglish(profile.ageDescription)) nonEnglishFields.push('ageDescription');
   if (containsNonEnglish(profile.gender)) nonEnglishFields.push('gender');
+  if (containsNonEnglish(profile.heightDescription)) nonEnglishFields.push('heightDescription');
+  if (containsNonEnglish(profile.bodyBuild)) nonEnglishFields.push('bodyBuild');
   if (containsNonEnglish(profile.skin?.tone)) nonEnglishFields.push('skin.tone');
   if (containsNonEnglish(profile.skin?.undertone)) nonEnglishFields.push('skin.undertone');
   if (containsNonEnglish(profile.hair?.color)) nonEnglishFields.push('hair.color');
@@ -231,6 +247,10 @@ export function detectNonEnglishFields(profile: AvatarVisualProfile | undefined)
 
   profile.consistentDescriptors?.forEach((descriptor, idx) => {
     if (containsNonEnglish(descriptor)) nonEnglishFields.push(`consistentDescriptors[${idx}]`);
+  });
+
+  profile.bodyFeatures?.forEach((feature, idx) => {
+    if (containsNonEnglish(feature)) nonEnglishFields.push(`bodyFeatures[${idx}]`);
   });
 
   return nonEnglishFields;

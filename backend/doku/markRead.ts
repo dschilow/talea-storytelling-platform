@@ -11,6 +11,7 @@ interface MarkDokuReadRequest {
   topic: string;
   perspective?: string;
   avatarId?: string;
+  avatarIds?: string[];
 }
 
 interface MarkDokuReadResponse {
@@ -61,8 +62,17 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
     const userId = auth.userID;
 
     let userAvatars: { id: string; name: string }[] = [];
+    const requestedAvatarIds = Array.from(
+      new Set((req.avatarIds || []).filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0))
+    );
 
-    if (req.avatarId) {
+    if (requestedAvatarIds.length > 0) {
+      userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
+        SELECT id, name
+        FROM avatars
+        WHERE user_id = ${userId} AND id = ANY(${requestedAvatarIds})
+      `;
+    } else if (req.avatarId) {
       const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
         SELECT id, name, user_id
         FROM avatars
