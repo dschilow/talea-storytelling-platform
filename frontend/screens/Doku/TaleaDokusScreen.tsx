@@ -174,14 +174,22 @@ const AudioDokuCard: React.FC<{
   isSavingOffline?: boolean;
   onToggleOffline?: () => void;
 }> = ({ doku, index, onPlay, palette, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => (
-  <motion.button
-    type="button"
+  <motion.article
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.03, duration: 0.24 }}
     whileHover={{ y: -4 }}
     onClick={onPlay}
-    className="group w-full overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]"
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onPlay();
+      }
+    }}
+    role="button"
+    tabIndex={0}
+    aria-label={`Audio-Doku abspielen: ${doku.title}`}
+    className="group w-full cursor-pointer overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]"
     style={{ borderColor: palette.border, background: palette.panel }}
   >
     <div className="relative h-44 overflow-hidden" style={{ background: palette.soft }}>
@@ -208,7 +216,7 @@ const AudioDokuCard: React.FC<{
             onToggleOffline();
           }}
           disabled={isSavingOffline}
-          className="absolute right-3 top-3 rounded-xl border p-2 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute right-3 top-3 rounded-xl border p-2"
           style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
           aria-label={isSavedOffline ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
         >
@@ -222,7 +230,7 @@ const AudioDokuCard: React.FC<{
         </button>
       )}
 
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
           <Play className="h-5 w-5 ml-0.5" />
         </div>
@@ -238,7 +246,7 @@ const AudioDokuCard: React.FC<{
         {doku.description}
       </p>
     </div>
-  </motion.button>
+  </motion.article>
 );
 
 const AudioModal: React.FC<{
