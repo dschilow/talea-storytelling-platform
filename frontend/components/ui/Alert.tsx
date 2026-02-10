@@ -34,7 +34,7 @@ const Alert: React.FC<AlertProps> = ({
       case 'mono':
         return 'bg-white border-gray-200 text-gray-800 shadow-lg';
       default:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-stone-50 border-stone-200 text-stone-800';
     }
   };
 

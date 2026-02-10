@@ -44,17 +44,17 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
             ${value === build.id
               ? darkMode
                 ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
-                : 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200/50'
+                : 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-200/50'
               : darkMode
                 ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+                : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/50'
             }
           `}
         >
           <BodySilhouette build={build.id} isSelected={value === build.id} />
           <span className={`text-sm font-medium ${
             value === build.id
-              ? darkMode ? 'text-[#2DD4BF]' : 'text-purple-700'
+              ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'
               : darkMode ? 'text-white/60' : 'text-gray-600'
           }`}>
             {build.labelDe}
@@ -66,3 +66,4 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
 };
 
 export default BodyBuildSelector;
+

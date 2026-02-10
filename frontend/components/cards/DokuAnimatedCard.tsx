@@ -38,10 +38,10 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
 
   const getTopicBadgeClass = (topic: string) => {
     const colorMap: { [key: string]: string } = {
-      'Wissenschaft': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300',
-      'Technologie': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300',
+      'Wissenschaft': 'bg-stone-50 text-stone-700 border-stone-200 dark:bg-stone-900/20 dark:text-stone-300',
+      'Technologie': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300',
       'Geschichte': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300',
-      'Kunst': 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/20 dark:text-pink-300',
+      'Kunst': 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300',
       'Sport': 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300',
       'Natur': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300',
     }
@@ -70,9 +70,9 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
   const getDepthColor = (depth?: string) => {
     switch (depth) {
       case 'basic': return 'text-green-600'
-      case 'standard': return 'text-blue-600'
-      case 'deep': return 'text-purple-600'
-      default: return 'text-blue-600'
+      case 'standard': return 'text-stone-600'
+      case 'deep': return 'text-amber-600'
+      default: return 'text-stone-600'
     }
   }
 
@@ -208,12 +208,12 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
             
             {doku.content?.sections && (
               <motion.div 
-                className="flex items-center p-3 rounded-xl bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20"
+                className="flex items-center p-3 rounded-xl bg-gradient-to-r from-stone-50 to-stone-50 dark:from-stone-900/20 dark:to-stone-900/20"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <Activity className="w-4 h-4 mr-2 text-indigo-600" />
-                <span className="text-sm font-medium text-indigo-800 dark:text-indigo-200">Kapitel:</span>
+                <Activity className="w-4 h-4 mr-2 text-stone-600" />
+                <span className="text-sm font-medium text-stone-800 dark:text-stone-200">Kapitel:</span>
                 <span className="ml-1 text-sm text-gray-700 dark:text-gray-300">{doku.content.sections.length}</span>
               </motion.div>
             )}
@@ -246,7 +246,7 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
               transition={{ delay: 0.2 }}
             >
               <h4 className="font-medium text-sm text-gray-800 dark:text-gray-100 flex items-center">
-                <Users className="w-4 h-4 mr-2 text-purple-500" />
+                <Users className="w-4 h-4 mr-2 text-amber-500" />
                 Interaktive Inhalte:
               </h4>
               <div className="flex flex-wrap gap-2">
@@ -261,7 +261,7 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
                           transition={{ delay: 0.3 + index * 0.05 }}
                           whileHover={{ scale: 1.05 }}
                         >
-                          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 shadow-sm">
+                          <Badge variant="outline" className="bg-stone-50 dark:bg-stone-900/20 text-stone-700 dark:text-stone-300 border-stone-200 shadow-sm">
                             <Brain className="w-3 h-3 mr-1" />
                             Quiz
                           </Badge>
@@ -306,7 +306,7 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
                 )}
                 {doku.metadata.processingTime && (
                   <div className="flex items-center">
-                    <Activity className="w-3 h-3 mr-1 text-blue-500" />
+                    <Activity className="w-3 h-3 mr-1 text-stone-500" />
                     <span className="text-gray-600 dark:text-gray-400">Zeit:</span>
                     <span className="ml-1 font-semibold text-gray-800 dark:text-gray-200">
                       {Math.round(doku.metadata.processingTime / 1000)}s
@@ -315,7 +315,7 @@ export const DokuAnimatedCard: React.FC<DokuAnimatedCardProps> = ({
                 )}
                 {doku.metadata.imagesGenerated && (
                   <div className="flex items-center">
-                    <div className="w-3 h-3 mr-1 bg-purple-500 rounded-sm" />
+                    <div className="w-3 h-3 mr-1 bg-amber-500 rounded-sm" />
                     <span className="text-gray-600 dark:text-gray-400">Bilder:</span>
                     <span className="ml-1 font-semibold text-gray-800 dark:text-gray-200">
                       {doku.metadata.imagesGenerated}

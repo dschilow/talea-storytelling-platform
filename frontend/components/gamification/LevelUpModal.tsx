@@ -74,9 +74,9 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
                 />
             );
         }
-        if (item) return <Shield className="w-16 h-16 text-purple-500" />;
+        if (item) return <Shield className="w-16 h-16 text-amber-500" />;
         if (skill) return <Zap className="w-16 h-16 text-yellow-500" />;
-        return <Star className="w-16 h-16 text-purple-500" />;
+        return <Star className="w-16 h-16 text-amber-500" />;
     };
 
     const getName = () => item?.name || skill?.name || 'Unbekannt';
@@ -94,11 +94,11 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className="w-full max-w-md"
                     >
-                        <Card variant="glass" className="relative overflow-hidden border-2 border-purple-400/50 shadow-2xl">
+                        <Card variant="glass" className="relative overflow-hidden border-2 border-amber-400/50 shadow-2xl">
                             {/* Background Glow Effects */}
                             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                                <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-                                <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+                                <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl animate-pulse"></div>
+                                <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
                             </div>
 
                             <div className="relative z-10 p-8 text-center">
@@ -113,7 +113,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ delay: 0.2, type: "spring" }}
-                                    className="mx-auto mb-6 w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-purple-100"
+                                    className="mx-auto mb-6 w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-amber-100"
                                 >
                                     {getIcon()}
                                 </motion.div>
@@ -123,12 +123,12 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.3 }}
                                 >
-                                    <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
+                                    <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-600 to-orange-600 mb-2">
                                         {getTitle()}
                                     </h2>
 
                                     <div className="flex items-center justify-center gap-2 mb-4">
-                                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-bold flex items-center">
+                                        <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-bold flex items-center">
                                             <ArrowUp className="w-3 h-3 mr-1" />
                                             Level {getLevel()}
                                         </span>
@@ -158,3 +158,4 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
 };
 
 export default LevelUpModal;
+

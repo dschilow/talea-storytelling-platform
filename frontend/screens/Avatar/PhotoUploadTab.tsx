@@ -48,12 +48,12 @@ const PhotoUploadTab: React.FC = () => {
 
   const personalityLabels = {
     courage: { label: 'Mut', icon: '🦁', color: 'bg-red-500' },
-    intelligence: { label: 'Intelligenz', icon: '🧠', color: 'bg-purple-500' },
+    intelligence: { label: 'Intelligenz', icon: '🧠', color: 'bg-amber-500' },
     creativity: { label: 'Kreativität', icon: '🎨', color: 'bg-orange-500' },
     empathy: { label: 'Empathie', icon: '❤️', color: 'bg-green-500' },
     strength: { label: 'Stärke', icon: '💪', color: 'bg-gray-600' },
     humor: { label: 'Humor', icon: '😄', color: 'bg-yellow-500' },
-    adventure: { label: 'Abenteuer', icon: '🗺️', color: 'bg-blue-600' },
+    adventure: { label: 'Abenteuer', icon: '🗺️', color: 'bg-stone-600' },
     patience: { label: 'Geduld', icon: '🧘', color: 'bg-green-600' },
     curiosity: { label: 'Neugier', icon: '🔍', color: 'bg-orange-600' },
     leadership: { label: 'Führung', icon: '👑', color: 'bg-yellow-600' },
@@ -136,7 +136,7 @@ const PhotoUploadTab: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Wie soll dein Avatar heißen?"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
             </div>
 
@@ -147,7 +147,7 @@ const PhotoUploadTab: React.FC = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Erzähle etwas über deinen Avatar..."
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
               />
             </div>
           </div>
@@ -175,7 +175,7 @@ const PhotoUploadTab: React.FC = () => {
               />
               <label
                 htmlFor="photo-upload"
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 cursor-pointer transition-colors"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Foto auswählen
@@ -197,7 +197,7 @@ const PhotoUploadTab: React.FC = () => {
               <div className="text-center mt-4">
                 <label
                   htmlFor="photo-upload-change"
-                  className="inline-flex items-center px-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-amber-600 text-amber-600 rounded-lg hover:bg-amber-50 cursor-pointer transition-colors"
                 >
                   Anderes Foto wählen
                 </label>
@@ -229,20 +229,20 @@ const PhotoUploadTab: React.FC = () => {
                 onClick={() => setArtStyle(style.key as any)}
                 className={`p-4 rounded-lg border-2 transition-colors text-left ${
                   artStyle === style.key
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-300 hover:border-purple-300'
+                    ? 'border-amber-500 bg-amber-50'
+                    : 'border-gray-300 hover:border-amber-300'
                 }`}
               >
                 <div className="flex items-center">
                   <span className="text-2xl mr-3">{style.icon}</span>
                   <div>
                     <h3 className={`font-semibold ${
-                      artStyle === style.key ? 'text-purple-700' : 'text-gray-800'
+                      artStyle === style.key ? 'text-amber-700' : 'text-gray-800'
                     }`}>
                       {style.label}
                     </h3>
                     <p className={`text-sm ${
-                      artStyle === style.key ? 'text-purple-600' : 'text-gray-600'
+                      artStyle === style.key ? 'text-amber-600' : 'text-gray-600'
                     }`}>
                       {style.description}
                     </p>
@@ -309,7 +309,7 @@ const PhotoUploadTab: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-800 mb-1">
               {name || 'Dein Avatar'}
             </h3>
-            <p className="text-sm text-purple-600 font-medium mb-3">
+            <p className="text-sm text-amber-600 font-medium mb-3">
               {artStyles.find(s => s.key === artStyle)?.label} Stil
             </p>
             <p className="text-gray-600 mb-4">
@@ -348,3 +348,4 @@ const PhotoUploadTab: React.FC = () => {
 };
 
 export default PhotoUploadTab;
+

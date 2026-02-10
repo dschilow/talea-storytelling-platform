@@ -25,13 +25,13 @@ interface Props {
 
 const ageGroups = [
   { id: '3-5', icon: Baby, tone: '#c5828c' },
-  { id: '6-8', icon: Users, tone: '#6f8fbf' },
+  { id: '6-8', icon: Users, tone: '#a88f80' },
   { id: '9-12', icon: GraduationCap, tone: '#7a78ab' },
-  { id: '13+', icon: UserCheck, tone: '#4f8f7c' },
+  { id: '13+', icon: UserCheck, tone: '#b79f8e' },
 ] as const;
 
 const lengths = [
-  { id: 'short', tone: '#4f8f7c' },
+  { id: 'short', tone: '#b79f8e' },
   { id: 'medium', tone: '#be8f55' },
   { id: 'long', tone: '#c5828c' },
 ] as const;
@@ -42,7 +42,7 @@ const models: ModelOption[] = [
     title: 'Gemini 3 Flash',
     subtitle: 'Google AI',
     cost: 'FREE',
-    tone: '#4f8f7c',
+    tone: '#b79f8e',
     recommended: true,
   },
   {
@@ -50,7 +50,7 @@ const models: ModelOption[] = [
     title: 'GPT-5 Nano',
     subtitle: 'Schnell und guenstig',
     cost: '$0.05 / 1M',
-    tone: '#6f8fbf',
+    tone: '#a88f80',
   },
   {
     id: 'gpt-5-mini',
@@ -74,7 +74,7 @@ function SelectionBadge() {
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
       exit={{ scale: 0 }}
-      className="absolute right-2 top-2 rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[11px] font-bold text-white"
+      className="absolute right-2 top-2 rounded-full bg-[#b79f8e] px-2 py-0.5 text-[11px] font-bold text-white"
     >
       OK
     </motion.span>
@@ -177,7 +177,7 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
                 style={{ borderColor: selected ? `${model.tone}60` : 'var(--color-border)' }}
               >
                 {model.recommended && (
-                  <span className="mb-2 inline-flex rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  <span className="mb-2 inline-flex rounded-full bg-[#b79f8e] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                     Empfohlen
                   </span>
                 )}
@@ -195,3 +195,4 @@ export default function Step3AgeAndLength({ state, updateState }: Props) {
     </div>
   );
 }
+

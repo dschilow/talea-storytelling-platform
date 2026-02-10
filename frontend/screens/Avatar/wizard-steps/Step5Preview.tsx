@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Wand2, RefreshCw, Rocket, Sparkles, Image as ImageIcon } from 'lucide-react';
 import {
@@ -150,7 +150,7 @@ export default function Step5Preview({
             <motion.div
               animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="absolute -top-3 -right-3 rounded-full border border-[#cad7e8] bg-[#f8f0e3] p-2 text-[#6f8fbf]"
+              className="absolute -top-3 -right-3 rounded-full border border-[#d6ccc2] bg-[#f5ebe0] p-2 text-[#a88f80]"
             >
               <Sparkles className="h-5 w-5" />
             </motion.div>
@@ -222,4 +222,5 @@ export default function Step5Preview({
     </div>
   );
 }
+
 

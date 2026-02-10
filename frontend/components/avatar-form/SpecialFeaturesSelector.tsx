@@ -61,7 +61,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
             className={`flex flex-wrap gap-2 p-3 rounded-xl border ${
               darkMode
                 ? 'bg-[#2DD4BF]/[0.06] border-[#2DD4BF]/20'
-                : 'bg-purple-50 border-purple-100'
+                : 'bg-amber-50 border-amber-100'
             }`}
           >
             {value.map((featureId) => {
@@ -80,7 +80,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium shadow-md transition-colors ${
                     darkMode
                       ? 'bg-[#2DD4BF] text-white hover:bg-[#2DD4BF]/80'
-                      : 'bg-purple-500 text-white hover:bg-purple-600'
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
                   }`}
                 >
                   <span>{feature.icon}</span>
@@ -122,14 +122,14 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                       ${isSelected
                         ? darkMode
                           ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-[#2DD4BF]'
-                          : 'border-purple-500 bg-purple-100 text-purple-700'
+                          : 'border-amber-500 bg-amber-100 text-amber-700'
                         : isDisabled
                           ? darkMode
                             ? 'border-white/5 bg-white/[0.02] text-white/20 cursor-not-allowed opacity-50'
                             : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
                           : darkMode
                             ? 'border-white/10 bg-white/[0.06] text-white/60 hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                            : 'border-gray-100 bg-white text-gray-600 hover:border-purple-200 hover:bg-purple-50/50'
+                            : 'border-gray-100 bg-white text-gray-600 hover:border-amber-200 hover:bg-amber-50/50'
                       }
                     `}
                   >
@@ -141,7 +141,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         className={`ml-1 w-4 h-4 rounded-full flex items-center justify-center ${
-                          darkMode ? 'bg-[#2DD4BF]' : 'bg-purple-500'
+                          darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
                         }`}
                       >
                         <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -161,3 +161,4 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
 };
 
 export default SpecialFeaturesSelector;
+

@@ -169,10 +169,10 @@ export const GrowthCelebrationModal: React.FC<GrowthCelebrationProps> = ({
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           >
             {/* Header */}
-            <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-indigo-600 px-6 pt-6 pb-8 text-white text-center relative overflow-hidden">
+            <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-stone-600 px-6 pt-6 pb-8 text-white text-center relative overflow-hidden">
               {/* Glow circles */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-0 w-32 h-32 bg-purple-300/20 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 right-0 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl" />
 
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
@@ -191,7 +191,7 @@ export const GrowthCelebrationModal: React.FC<GrowthCelebrationProps> = ({
                 {hasMasteryUp ? 'Aufstieg!' : 'Wachstum!'}
               </motion.h2>
               <motion.p
-                className="text-purple-100 text-sm"
+                className="text-amber-100 text-sm"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
@@ -305,7 +305,7 @@ export const GrowthCelebrationModal: React.FC<GrowthCelebrationProps> = ({
             <div className="px-6 pb-6 pt-2">
               <motion.button
                 onClick={onClose}
-                className="w-full py-3 px-6 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+                className="w-full py-3 px-6 bg-gradient-to-r from-amber-500 to-stone-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-shadow"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 initial={{ y: 10, opacity: 0 }}
@@ -323,3 +323,4 @@ export const GrowthCelebrationModal: React.FC<GrowthCelebrationProps> = ({
 };
 
 export default GrowthCelebrationModal;
+

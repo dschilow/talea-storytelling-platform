@@ -41,9 +41,9 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
         };
       case 'rare':
         return {
-          gradient: 'from-purple-400 via-violet-500 to-indigo-500',
-          glow: 'shadow-purple-500/50',
-          badge: 'bg-gradient-to-r from-purple-500 to-indigo-600',
+          gradient: 'from-amber-400 via-amber-500 to-stone-500',
+          glow: 'shadow-amber-500/50',
+          badge: 'bg-gradient-to-r from-amber-500 to-stone-600',
           badgeText: 'Selten',
         };
       case 'uncommon':
@@ -123,7 +123,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
               >
                 <Sparkles className={`w-6 h-6 ${
                   artifact.rarity === 'legendary' ? 'text-yellow-400' :
-                  artifact.rarity === 'rare' ? 'text-purple-400' :
+                  artifact.rarity === 'rare' ? 'text-amber-400' :
                   artifact.rarity === 'uncommon' ? 'text-emerald-400' : 'text-slate-400'
                 }`} />
               </motion.div>
@@ -236,7 +236,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
                           className="w-full h-full object-contain rounded-xl"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-xl flex items-center justify-center">
                           <span className="text-6xl">{artifact.emoji || '🎁'}</span>
                         </div>
                       )}
@@ -269,7 +269,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
                       >
                         <Star className={`w-5 h-5 fill-current drop-shadow-lg ${
                           artifact.rarity === 'legendary' ? 'text-yellow-400' :
-                          artifact.rarity === 'rare' ? 'text-purple-400' :
+                          artifact.rarity === 'rare' ? 'text-amber-400' :
                           artifact.rarity === 'uncommon' ? 'text-emerald-400' : 'text-slate-400'
                         }`} />
                       </motion.div>
@@ -351,3 +351,4 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
 };
 
 export default ArtifactCelebrationModal;
+

@@ -90,14 +90,14 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
 
   const getProgressColor = (value: number): string => {
     if (value >= 80) return 'bg-green-500';
-    if (value >= 60) return 'bg-blue-500';
+    if (value >= 60) return 'bg-stone-500';
     if (value >= 40) return 'bg-yellow-500';
     return 'bg-gray-400';
   };
 
   const getProgressTextColor = (value: number): string => {
     if (value >= 80) return 'text-green-700';
-    if (value >= 60) return 'text-blue-700';
+    if (value >= 60) return 'text-stone-700';
     if (value >= 40) return 'text-yellow-700';
     return 'text-gray-700';
   };
@@ -113,7 +113,7 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
     }
 
     return (
-      <div key={subcategory.id} className="ml-6 py-3 border-l-2 pl-4 border-blue-100">
+      <div key={subcategory.id} className="ml-6 py-3 border-l-2 pl-4 border-stone-100">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="text-lg">{subcategory.icon}</span>
@@ -151,7 +151,7 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
         {reasons.length > 0 && (
           <div className="text-xs text-gray-600 mt-2">
             <div className="flex items-start gap-1">
-              <Info className="w-3 h-3 mt-0.5 text-blue-500" />
+              <Info className="w-3 h-3 mt-0.5 text-stone-500" />
               <div>
                 {reasons.map((reason, idx) => (
                   <div key={idx} className="mb-1">• {reason}</div>
@@ -180,7 +180,7 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
         <div
           className={`p-4 rounded-lg border-2 transition-all ${
             hasSubcategories
-              ? 'cursor-pointer hover:border-purple-300 bg-gradient-to-r from-purple-50 to-blue-50'
+              ? 'cursor-pointer hover:border-amber-300 bg-gradient-to-r from-amber-50 to-stone-50'
               : 'bg-gray-50'
           }`}
           onClick={hasSubcategories ? () => toggleCategory(category.id) : undefined}
@@ -237,7 +237,7 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
           {(!hasSubcategories || !isExpanded) && mainCategoryReasons.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 mt-0.5 text-blue-500" />
+                <Info className="w-4 h-4 mt-0.5 text-stone-500" />
                 <div className="text-sm text-gray-700">
                   <p className="font-medium mb-1">Erhalten für:</p>
                   {mainCategoryReasons.map((reason, idx) => (
@@ -260,7 +260,7 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
             {mainCategoryReasons.length > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 mt-0.5 text-blue-500" />
+                  <Info className="w-4 h-4 mt-0.5 text-stone-500" />
                   <div className="text-sm text-gray-700">
                     <p className="font-medium mb-1">Allgemein erhalten für:</p>
                     {mainCategoryReasons.map((reason, idx) => (
@@ -296,9 +296,9 @@ export const HierarchicalTraitDisplay: React.FC<HierarchicalTraitDisplayProps> =
 
       {dynamicCategories.map(renderMainCategory)}
 
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="font-semibold text-blue-800 mb-2">💡 Hinweis</h4>
-        <p className="text-sm text-blue-700">
+      <div className="mt-6 p-4 bg-stone-50 rounded-lg">
+        <h4 className="font-semibold text-stone-800 mb-2">💡 Hinweis</h4>
+        <p className="text-sm text-stone-700">
           Die KI erstellt automatisch Unterbereiche basierend auf den Inhalten der Geschichten und Dokus.
           Beschreibungen zeigen, wofür die Punkte erhalten wurden.
         </p>

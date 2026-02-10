@@ -139,16 +139,16 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
                 <button
                   onClick={() => onGenreChange(genreOption.value)}
                   className={`p-4 rounded-lg border-2 transition-colors text-center w-full h-full flex flex-col items-center justify-center ${genre === genreOption.value
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-300 hover:border-purple-300'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-300 hover:border-amber-300'
                     }`}
                 >
                   <span className="text-2xl mb-2 block">{genreOption.icon}</span>
-                  <h3 className={`font-semibold mb-1 ${genre === genreOption.value ? 'text-purple-700' : 'text-gray-800'
+                  <h3 className={`font-semibold mb-1 ${genre === genreOption.value ? 'text-amber-700' : 'text-gray-800'
                     }`}>
                     {genreOption.label}
                   </h3>
-                  <p className={`text-xs ${genre === genreOption.value ? 'text-purple-600' : 'text-gray-600'
+                  <p className={`text-xs ${genre === genreOption.value ? 'text-amber-600' : 'text-gray-600'
                     }`}>
                     {genreOption.description}
                   </p>
@@ -173,16 +173,16 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
                 <button
                   onClick={() => onSettingChange(settingOption.value)}
                   className={`p-4 rounded-lg border-2 transition-colors text-center w-full h-full flex flex-col items-center justify-center ${setting === settingOption.value
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-300 hover:border-purple-300'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-300 hover:border-amber-300'
                     }`}
                 >
                   <span className="text-2xl mb-2 block">{settingOption.icon}</span>
-                  <h3 className={`font-semibold mb-1 ${setting === settingOption.value ? 'text-purple-700' : 'text-gray-800'
+                  <h3 className={`font-semibold mb-1 ${setting === settingOption.value ? 'text-amber-700' : 'text-gray-800'
                     }`}>
                     {settingOption.label}
                   </h3>
-                  <p className={`text-xs ${setting === settingOption.value ? 'text-purple-600' : 'text-gray-600'
+                  <p className={`text-xs ${setting === settingOption.value ? 'text-amber-600' : 'text-gray-600'
                     }`}>
                     {settingOption.description}
                   </p>
@@ -197,3 +197,4 @@ const GenreSettingStep: React.FC<GenreSettingStepProps> = ({
 };
 
 export default GenreSettingStep;
+

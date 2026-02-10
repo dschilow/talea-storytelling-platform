@@ -42,7 +42,7 @@ export const PersonalityChangeNotification: React.FC<PersonalityChangeNotificati
         >
           <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-6 min-w-80 max-w-md">
             <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mr-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mr-3">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -180,14 +180,14 @@ export const PersonalityDevelopmentDashboard: React.FC<PersonalityDevelopmentDas
 
   return (
     <div className={`space-y-6 ${className}`}>
-      <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-4">
+      <div className="bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-gray-800 mb-1">Gesamtentwicklung</h3>
             <p className="text-sm text-gray-600">Persönlichkeitswachstum durch Geschichten</p>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-purple-600">+{totalGrowth}</div>
+            <div className="text-2xl font-bold text-amber-600">+{totalGrowth}</div>
             <div className="text-xs text-gray-500">Punkte insgesamt</div>
           </div>
         </div>
@@ -195,7 +195,7 @@ export const PersonalityDevelopmentDashboard: React.FC<PersonalityDevelopmentDas
       
       <div className="space-y-4">
         <h4 className="font-semibold text-gray-800 flex items-center">
-          <Brain className="w-5 h-5 mr-2 text-purple-500" />
+          <Brain className="w-5 h-5 mr-2 text-amber-500" />
           Persönlichkeitsmerkmale
         </h4>
         

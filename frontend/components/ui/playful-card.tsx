@@ -94,16 +94,16 @@ export const PlayfulCard: React.FC<PlayfulCardProps> = ({
   // Farb-Themes für Kinder
   const colorThemes = {
     blue: {
-      gradient: 'from-blue-400 via-blue-500 to-blue-600',
-      accent: 'bg-blue-100',
-      border: 'border-blue-300',
-      shadow: 'shadow-blue-200/50',
+      gradient: 'from-stone-400 via-stone-500 to-stone-600',
+      accent: 'bg-stone-100',
+      border: 'border-stone-300',
+      shadow: 'shadow-stone-200/50',
     },
     pink: {
-      gradient: 'from-pink-400 via-pink-500 to-pink-600',
-      accent: 'bg-pink-100',
-      border: 'border-pink-300',
-      shadow: 'shadow-pink-200/50',
+      gradient: 'from-orange-400 via-orange-500 to-orange-600',
+      accent: 'bg-orange-100',
+      border: 'border-orange-300',
+      shadow: 'shadow-orange-200/50',
     },
     green: {
       gradient: 'from-green-400 via-green-500 to-green-600',
@@ -112,10 +112,10 @@ export const PlayfulCard: React.FC<PlayfulCardProps> = ({
       shadow: 'shadow-green-200/50',
     },
     purple: {
-      gradient: 'from-purple-400 via-purple-500 to-purple-600',
-      accent: 'bg-purple-100',
-      border: 'border-purple-300',
-      shadow: 'shadow-purple-200/50',
+      gradient: 'from-amber-400 via-amber-500 to-amber-600',
+      accent: 'bg-amber-100',
+      border: 'border-amber-300',
+      shadow: 'shadow-amber-200/50',
     },
     orange: {
       gradient: 'from-orange-400 via-orange-500 to-orange-600',
@@ -328,10 +328,10 @@ export const PlayfulButton: React.FC<PlayfulButtonProps> = ({
   });
 
   const colorClasses = {
-    blue: 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-200',
-    pink: 'bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-pink-200',
+    blue: 'bg-gradient-to-r from-stone-500 to-stone-600 hover:from-stone-600 hover:to-stone-700 shadow-stone-200',
+    pink: 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-200',
     green: 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-200',
-    purple: 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 shadow-purple-200',
+    purple: 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-amber-200',
     orange: 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-200',
     yellow: 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 shadow-yellow-200',
   };

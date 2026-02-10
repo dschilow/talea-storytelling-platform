@@ -261,7 +261,7 @@ const AvatarDetailScreen: React.FC = () => {
         <div
           className="w-full max-w-md rounded-3xl border p-6 text-center"
           style={{
-            borderColor: isDark ? '#34495f' : '#ddcfbe',
+            borderColor: isDark ? '#34495f' : '#d6ccc2',
             background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
           }}
         >
@@ -294,7 +294,7 @@ const AvatarDetailScreen: React.FC = () => {
         <header
           className="sticky top-2 z-20 flex items-center justify-between rounded-2xl border px-3 py-2.5 backdrop-blur-xl"
           style={{
-            borderColor: isDark ? '#33485f' : '#dbcdbd',
+            borderColor: isDark ? '#33485f' : '#d6ccc2',
             background: isDark ? 'rgba(21,31,45,0.8)' : 'rgba(255,251,245,0.86)',
           }}
         >
@@ -302,7 +302,7 @@ const AvatarDetailScreen: React.FC = () => {
             type="button"
             onClick={() => navigate('/avatar')}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
-            style={{ borderColor: isDark ? '#425a74' : '#d5c8b7', color: isDark ? '#d2e0f4' : '#4d627a' }}
+            style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#d2e0f4' : '#6a5c52' }}
             aria-label="Zurueck"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -316,7 +316,7 @@ const AvatarDetailScreen: React.FC = () => {
             type="button"
             onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
             className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold"
-            style={{ borderColor: isDark ? '#425a74' : '#d5c8b7', color: isDark ? '#c6d6ea' : '#4d627a' }}
+            style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#c6d6ea' : '#6a5c52' }}
           >
             <PencilLine className="h-3.5 w-3.5" />
             Bearbeiten
@@ -397,7 +397,7 @@ const AvatarDetailScreen: React.FC = () => {
             <div
               className="rounded-3xl border px-4 py-5"
               style={{
-                borderColor: isDark ? '#33495f' : '#ddcfbe',
+                borderColor: isDark ? '#33495f' : '#d6ccc2',
                 background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
               }}
             >
@@ -438,7 +438,7 @@ const AvatarDetailScreen: React.FC = () => {
               <div
                 className="rounded-2xl border px-3.5 py-3"
                 style={{
-                  borderColor: isDark ? '#344b61' : '#dbcdbd',
+                  borderColor: isDark ? '#344b61' : '#d6ccc2',
                   background: isDark ? 'rgba(23,34,49,0.88)' : 'rgba(255,251,245,0.92)',
                 }}
               >
@@ -493,7 +493,7 @@ const AvatarDetailScreen: React.FC = () => {
           <section
             className="rounded-3xl border px-4 py-5"
             style={{
-              borderColor: isDark ? '#33495f' : '#ddcfbe',
+              borderColor: isDark ? '#33495f' : '#d6ccc2',
               background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
             }}
           >
@@ -518,7 +518,7 @@ const AvatarDetailScreen: React.FC = () => {
           <section
             className="rounded-3xl border px-4 py-5"
             style={{
-              borderColor: isDark ? '#33495f' : '#ddcfbe',
+              borderColor: isDark ? '#33495f' : '#d6ccc2',
               background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
             }}
           >
@@ -604,7 +604,7 @@ const MemoryTimeline: React.FC<{
 
   if (!memories.length) {
     return (
-      <div className="rounded-2xl border px-4 py-10 text-center" style={{ borderColor: isDark ? '#34495f' : '#ddcfbe', background: isDark ? 'rgba(24,35,50,0.82)' : 'rgba(255,251,245,0.9)' }}>
+      <div className="rounded-2xl border px-4 py-10 text-center" style={{ borderColor: isDark ? '#34495f' : '#d6ccc2', background: isDark ? 'rgba(24,35,50,0.82)' : 'rgba(255,251,245,0.9)' }}>
         <BookOpen className="mx-auto h-8 w-8" style={{ color: isDark ? '#a5b8d0' : '#6a7f98' }} />
         <p className="mt-3 text-sm" style={{ color: isDark ? '#a5b8d0' : '#6a7f98' }}>
           Noch keine Tagebuch-Eintraege vorhanden.
@@ -631,7 +631,7 @@ const MemoryTimeline: React.FC<{
                 key={memory.id}
                 className="rounded-2xl border px-3.5 py-3"
                 style={{
-                  borderColor: isDark ? '#34495f' : '#dbcdbd',
+                  borderColor: isDark ? '#34495f' : '#d6ccc2',
                   background: isDark ? 'rgba(24,35,50,0.9)' : 'rgba(255,251,245,0.92)',
                 }}
               >
@@ -670,9 +670,9 @@ const MemoryTimeline: React.FC<{
                         key={`${memory.id}-change-${index}`}
                         className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
                         style={{
-                          borderColor: change.change >= 0 ? '#87b49d' : '#c99ca2',
+                          borderColor: change.change >= 0 ? '#bca390' : '#c99ca2',
                           background: change.change >= 0 ? 'rgba(127,176,147,0.15)' : 'rgba(197,125,135,0.14)',
-                          color: change.change >= 0 ? '#5c9176' : '#a25c66',
+                          color: change.change >= 0 ? '#8b7567' : '#a25c66',
                         }}
                       >
                         {change.change >= 0 ? '+' : ''}
@@ -691,3 +691,5 @@ const MemoryTimeline: React.FC<{
 };
 
 export default AvatarDetailScreen;
+
+

@@ -42,7 +42,7 @@ const TreasureRoom: React.FC<TreasureRoomProps> = ({ items }) => {
       <div
         className="rounded-3xl border px-6 py-10 text-center"
         style={{
-          borderColor: isDark ? '#34495f' : '#ddcfbe',
+          borderColor: isDark ? '#34495f' : '#d6ccc2',
           background: isDark ? 'rgba(21,32,47,0.8)' : 'rgba(255,251,245,0.9)',
         }}
       >
@@ -110,7 +110,7 @@ const StatTile: React.FC<{ icon: React.ReactNode; label: string; value: number; 
   <div
     className="rounded-2xl border px-3 py-2.5"
     style={{
-      borderColor: isDark ? '#33485f' : '#dbcdbd',
+      borderColor: isDark ? '#33485f' : '#d6ccc2',
       background: isDark ? 'rgba(23,34,49,0.82)' : 'rgba(255,251,245,0.9)',
     }}
   >
@@ -127,3 +127,4 @@ const StatTile: React.FC<{ icon: React.ReactNode; label: string; value: number; 
 );
 
 export default TreasureRoom;
+

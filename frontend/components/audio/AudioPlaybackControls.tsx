@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FastForward, Pause, Play, Rewind, X } from 'lucide-react';
 
@@ -53,7 +53,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
         border: '#decfbf',
         text: '#2a3b52',
         sub: '#687a91',
-        accentStart: '#7e9cd1',
+        accentStart: '#d5bdaf',
         accentEnd: '#b183c4',
       };
 
@@ -169,3 +169,4 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
     </div>
   );
 };
+

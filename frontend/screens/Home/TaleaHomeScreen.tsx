@@ -187,7 +187,7 @@ const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => (
   <span
     className={cn(
       "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-      status === "complete" && "border-[#bfdcd5] bg-[#dfe8f4] text-[#4f7f78]",
+      status === "complete" && "border-[#bfdcd5] bg-[#ece3d9] text-[#4f7f78]",
       status === "generating" && "border-[#e5d2b9] bg-[#f6ead8] text-[#8f6036]",
       status === "error" && "border-[#e6c4c4] bg-[#f6e2e2] text-[#9d4545]"
     )}
@@ -294,7 +294,7 @@ const AvatarTile: React.FC<{
         alt={avatar.name}
         className="h-16 w-16 rounded-2xl object-cover"
       />
-      <span className="absolute -bottom-1 -right-1 rounded-full border border-[#dfe8f4] bg-[#4f7f78] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+      <span className="absolute -bottom-1 -right-1 rounded-full border border-[#ece3d9] bg-[#4f7f78] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
         {avatar.creationType === "ai-generated" ? "AI" : "Foto"}
       </span>
       <span className="sr-only">{avatar.name}</span>
@@ -626,7 +626,7 @@ const TaleaHomeScreen: React.FC = () => {
               onClick={() => navigate("/story")}
               className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#dfe8f4] text-[#4f7f78]">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ece3d9] text-[#4f7f78]">
                 <BookOpen className="h-5 w-5" />
               </div>
               <h3 className="text-lg text-[#16212c] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
@@ -642,7 +642,7 @@ const TaleaHomeScreen: React.FC = () => {
               onClick={() => navigate("/avatar")}
               className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#dfe8f4] text-[#4f7f78]">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ece3d9] text-[#4f7f78]">
                 <UserPlus className="h-5 w-5" />
               </div>
               <h3 className="text-lg text-[#16212c] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
@@ -658,7 +658,7 @@ const TaleaHomeScreen: React.FC = () => {
               onClick={() => navigate("/doku")}
               className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-5 text-left shadow-[0_12px_28px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5"
             >
-              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#dfe8f4] text-[#4f7f78]">
+              <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ece3d9] text-[#4f7f78]">
                 <Library className="h-5 w-5" />
               </div>
               <h3 className="text-lg text-[#16212c] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
@@ -731,7 +731,7 @@ const TaleaHomeScreen: React.FC = () => {
                     onClick={() => navigate("/avatar/create")}
                     className="rounded-2xl border border-dashed border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-4 text-left transition-colors hover:bg-[#f4efe5] dark:bg-[#2a3a50]"
                   >
-                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#dfe8f4] text-[#4f7f78]">
+                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ece3d9] text-[#4f7f78]">
                       <Plus className="h-6 w-6" />
                     </div>
                     <p className="mt-3 text-sm font-semibold text-[#17212d] dark:text-[#e6edf8]">Neuer Avatar</p>
@@ -777,4 +777,5 @@ const TaleaHomeScreen: React.FC = () => {
 };
 
 export default TaleaHomeScreen;
+
 

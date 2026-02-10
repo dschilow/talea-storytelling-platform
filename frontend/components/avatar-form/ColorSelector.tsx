@@ -53,10 +53,10 @@ const ColorChip: React.FC<ColorChipProps> = ({
         ${isSelected
           ? darkMode
             ? 'border-[#2DD4BF] shadow-lg shadow-[#2DD4BF]/30 ring-2 ring-[#2DD4BF]/40 ring-offset-2 ring-offset-[#13102B]'
-            : 'border-purple-500 shadow-lg shadow-purple-200/50 ring-2 ring-purple-300 ring-offset-2'
+            : 'border-amber-500 shadow-lg shadow-amber-200/50 ring-2 ring-amber-300 ring-offset-2'
           : darkMode
             ? 'border-white/20 shadow-md hover:shadow-lg hover:border-white/40'
-            : 'border-white shadow-md hover:shadow-lg hover:border-purple-200'
+            : 'border-white shadow-md hover:shadow-lg hover:border-amber-200'
         }
       `}
       style={{
@@ -72,7 +72,7 @@ const ColorChip: React.FC<ColorChipProps> = ({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-md ${
-            darkMode ? 'bg-[#2DD4BF]' : 'bg-purple-500'
+            darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
           }`}
         >
           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,7 +108,7 @@ export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onC
             />
             <span className={`text-xs ${
               value === color.id
-                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-purple-600 font-medium'
+                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-amber-600 font-medium'
                 : darkMode ? 'text-white/40' : 'text-gray-500'
             }`}>
               {color.labelDe}
@@ -145,10 +145,10 @@ export const HairStyleSelector: React.FC<HairStyleSelectorProps> = ({ value, onC
               ${value === style.id
                 ? darkMode
                   ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-[#2DD4BF]'
-                  : 'border-purple-500 bg-purple-50 text-purple-700'
+                  : 'border-amber-500 bg-amber-50 text-amber-700'
                 : darkMode
                   ? 'border-white/10 bg-white/[0.06] text-white/60 hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                  : 'border-gray-100 bg-white text-gray-600 hover:border-purple-200 hover:bg-purple-50/50'
+                  : 'border-gray-100 bg-white text-gray-600 hover:border-amber-200 hover:bg-amber-50/50'
               }
             `}
           >
@@ -185,7 +185,7 @@ export const EyeColorSelector: React.FC<EyeColorSelectorProps> = ({ value, onCha
             />
             <span className={`text-xs ${
               value === color.id
-                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-purple-600 font-medium'
+                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-amber-600 font-medium'
                 : darkMode ? 'text-white/40' : 'text-gray-500'
             }`}>
               {color.labelDe}
@@ -233,7 +233,7 @@ export const SkinFurColorSelector: React.FC<SkinFurColorSelectorProps> = ({
             />
             <span className={`text-xs ${
               value === option.id
-                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-purple-600 font-medium'
+                ? darkMode ? 'text-[#2DD4BF] font-medium' : 'text-amber-600 font-medium'
                 : darkMode ? 'text-white/40' : 'text-gray-500'
             }`}>
               {option.labelDe}
@@ -251,3 +251,4 @@ export default {
   EyeColorSelector,
   SkinFurColorSelector,
 };
+

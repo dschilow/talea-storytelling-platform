@@ -161,7 +161,7 @@ const StoryScrollReaderScreen: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-stone-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-lg text-gray-600 dark:text-gray-300">Lade Geschichte...</p>
         </div>
       </div>
@@ -174,7 +174,7 @@ const StoryScrollReaderScreen: React.FC = () => {
         <div className="text-center p-8 bg-[#13102B]/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl">
           <h2 className="text-2xl font-bold text-red-500 mb-4">Fehler</h2>
           <p className="text-gray-700 dark:text-gray-200 mb-6">{error || 'Die Geschichte konnte nicht gefunden werden.'}</p>
-          <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center mx-auto">
+          <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-stone-500 text-white rounded hover:bg-stone-600 transition-colors flex items-center mx-auto">
             <ArrowLeft size={18} className="mr-2" /> Zurück
           </button>
         </div>
@@ -228,7 +228,7 @@ const StoryScrollReaderScreen: React.FC = () => {
             </p>
             <motion.button
               onClick={startReading}
-              className="px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transition-all"
+              className="px-10 py-4 bg-gradient-to-r from-stone-600 to-amber-600 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transition-all"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -250,7 +250,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                   {story.chapters?.map((chapter: Chapter, index: number) => (
                     <div key={`chapter-${index}`} className="mb-16">
                       {/* Chapter Badge */}
-                      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full text-sm w-fit px-6 py-2 mb-6 font-semibold shadow-lg">
+                      <div className="bg-gradient-to-r from-stone-600 to-amber-600 text-white rounded-full text-sm w-fit px-6 py-2 mb-6 font-semibold shadow-lg">
                         Kapitel {index + 1}
                       </div>
 
@@ -297,7 +297,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                       disabled={storyCompleted}
                       className={`px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${storyCompleted
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 cursor-default'
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-purple-500/50 hover:scale-105'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-amber-500/50 hover:scale-105'
                         }`}
                       whileHover={!storyCompleted ? { scale: 1.05 } : {}}
                       whileTap={!storyCompleted ? { scale: 0.95 } : {}}
@@ -325,4 +325,5 @@ const StoryScrollReaderScreen: React.FC = () => {
 };
 
 export default StoryScrollReaderScreen;
+
 

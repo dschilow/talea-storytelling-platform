@@ -30,7 +30,7 @@ interface Props {
 }
 
 const summaryRows = [
-  { key: 'avatars', icon: Users2, tone: '#6f8fbf' },
+  { key: 'avatars', icon: Users2, tone: '#a88f80' },
   { key: 'category', icon: BookOpen, tone: '#8e7daf' },
   { key: 'ageLength', icon: Clock3, tone: '#be8f55' },
   { key: 'feelings', icon: Heart, tone: '#c5828c' },
@@ -105,7 +105,7 @@ export default function Step6Summary({
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{labels[row.key]}</p>
                 <p className="mt-0.5 text-sm text-foreground">{values[row.key]}</p>
               </div>
-              <CheckCircle2 className="mt-1 h-4 w-4 text-[#4f8f7c]" />
+              <CheckCircle2 className="mt-1 h-4 w-4 text-[#b79f8e]" />
             </motion.div>
           );
         })}
@@ -124,7 +124,7 @@ export default function Step6Summary({
       </div>
 
       {storyCredits && (
-        <div className="rounded-2xl border border-[#6f8fbf45] bg-[#6f8fbf14] p-4">
+        <div className="rounded-2xl border border-[#d5bdaf45] bg-[#d5bdaf14] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">StoryCredits</p>
           <div className="mt-2 flex items-end justify-between gap-4">
             <div>
@@ -161,3 +161,4 @@ export default function Step6Summary({
     </div>
   );
 }
+

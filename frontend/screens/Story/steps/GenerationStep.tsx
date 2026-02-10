@@ -206,26 +206,26 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
           )}
 
           {storyConfig.learningMode?.enabled && (
-            <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
-              <h3 className="font-bold text-purple-700 mb-3 text-center">{t('story.wizard.summary.learningModeActive')}</h3>
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+              <h3 className="font-bold text-amber-700 mb-3 text-center">{t('story.wizard.summary.learningModeActive')}</h3>
 
               {storyConfig.learningMode.subjects.length > 0 && (
                 <div className="mb-3">
-                  <h4 className="font-semibold text-purple-600 text-sm mb-1">{t('story.wizard.summary.subjects')}:</h4>
-                  <p className="text-purple-700">{storyConfig.learningMode.subjects.join(', ')}</p>
+                  <h4 className="font-semibold text-amber-600 text-sm mb-1">{t('story.wizard.summary.subjects')}:</h4>
+                  <p className="text-amber-700">{storyConfig.learningMode.subjects.join(', ')}</p>
                 </div>
               )}
 
               <div className="mb-3">
-                <h4 className="font-semibold text-purple-600 text-sm mb-1">{t('story.wizard.summary.difficulty')}:</h4>
-                <p className="text-purple-700">{storyConfig.learningMode.difficulty}</p>
+                <h4 className="font-semibold text-amber-600 text-sm mb-1">{t('story.wizard.summary.difficulty')}:</h4>
+                <p className="text-amber-700">{storyConfig.learningMode.difficulty}</p>
               </div>
 
               {storyConfig.learningMode.learningObjectives.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-purple-600 text-sm mb-1">{t('story.wizard.summary.objectives')}:</h4>
+                  <h4 className="font-semibold text-amber-600 text-sm mb-1">{t('story.wizard.summary.objectives')}:</h4>
                   {storyConfig.learningMode.learningObjectives.map((objective, index) => (
-                    <p key={index} className="text-purple-700 text-sm">- {objective}</p>
+                    <p key={index} className="text-amber-700 text-sm">- {objective}</p>
                   ))}
                 </div>
               )}
@@ -238,7 +238,7 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
       <FadeInView delay={200}>
         <Card variant="elevated">
           <div className="text-center">
-            <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600" />
+            <Sparkles className="w-16 h-16 mx-auto mb-4 text-amber-600" />
             <h2 className="text-xl font-bold text-gray-800 mb-4">
               {generating ? t('story.wizard.generation.generatingTitle') : t('story.wizard.generation.readyTitle')}
             </h2>
@@ -297,3 +297,4 @@ const GenerationStep: React.FC<GenerationStepProps> = ({
 };
 
 export default GenerationStep;
+

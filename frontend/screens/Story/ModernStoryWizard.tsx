@@ -257,8 +257,8 @@ export default function ModernStoryWizard() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <Sparkles className="w-16 h-16 mx-auto mb-4 text-purple-600 animate-pulse" />
-            <h1 className="text-4xl font-bold text-purple-600 mb-2">
+            <Sparkles className="w-16 h-16 mx-auto mb-4 text-amber-600 animate-pulse" />
+            <h1 className="text-4xl font-bold text-amber-600 mb-2">
               {t('wizard.loading.title')}
             </h1>
             <p className="text-gray-600">
@@ -278,7 +278,7 @@ export default function ModernStoryWizard() {
       <div className="bg-white rounded-2xl shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-purple-600 mb-2">
+          <h1 className="text-4xl font-bold text-amber-600 mb-2">
             {t('story.wizard.title')}
           </h1>
           <p className="text-gray-600">{t('story.wizard.stepCounter', { current: activeStep + 1, total: STEPS.length })}</p>
@@ -292,12 +292,12 @@ export default function ModernStoryWizard() {
                 <div className={`
                   w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
                   ${index < activeStep ? 'bg-green-500 text-white' : ''}
-                  ${index === activeStep ? 'bg-purple-600 text-white ring-4 ring-purple-200' : ''}
+                  ${index === activeStep ? 'bg-amber-600 text-white ring-4 ring-amber-200' : ''}
                   ${index > activeStep ? 'bg-gray-200 text-gray-500' : ''}
                 `}>
                   {index < activeStep ? <CheckCircle size={20} /> : index + 1}
                 </div>
-                <span className={`text-xs mt-2 text-center ${index === activeStep ? 'font-bold text-purple-600' : 'text-gray-500'}`}>
+                <span className={`text-xs mt-2 text-center ${index === activeStep ? 'font-bold text-amber-600' : 'text-gray-500'}`}>
                   {label}
                 </span>
               </div>
@@ -337,7 +337,7 @@ export default function ModernStoryWizard() {
                 flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all
                 ${!canProceed()
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-purple-600 text-white hover:bg-purple-700 active:scale-95 shadow-lg'}
+                  : 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95 shadow-lg'}
               `}
             >
               {t('wizard.buttons.next')}
@@ -430,3 +430,4 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     }
   } as any; // Type assertion to bypass strict type checking
 }
+

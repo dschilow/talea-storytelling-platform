@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   BookMarked,
   BookOpen,
@@ -257,7 +257,7 @@ const BottomNav: React.FC = () => {
         border: "#2f3d53",
         text: "#9ab0ca",
         textActive: "#e6eef9",
-        more: "#8f7cae",
+        more: "#a28d7f",
         audioBg: "rgba(26,36,51,0.94)",
         audioBorder: "#3a4962",
         audioSurface: "rgba(17,24,35,0.42)",
@@ -536,4 +536,5 @@ const BottomNav: React.FC = () => {
 };
 
 export default BottomNav;
+
 

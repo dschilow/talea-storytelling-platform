@@ -192,12 +192,12 @@ export const DokuPlayfulCard: React.FC<DokuPlayfulCardProps> = ({
               </div>
               
               {doku.content?.sections && (
-                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3">
+                <div className="bg-stone-50 border-2 border-stone-200 rounded-xl p-3">
                   <div className="flex items-start gap-2">
-                    <Activity className="w-4 h-4 text-indigo-500 mt-0.5" />
+                    <Activity className="w-4 h-4 text-stone-500 mt-0.5" />
                     <div>
-                      <span className="font-medium text-indigo-800">📚 Kapitel:</span>
-                      <span className="ml-2 text-indigo-700 text-sm">{doku.content.sections.length}</span>
+                      <span className="font-medium text-stone-800">📚 Kapitel:</span>
+                      <span className="ml-2 text-stone-700 text-sm">{doku.content.sections.length}</span>
                     </div>
                   </div>
                 </div>
@@ -232,8 +232,8 @@ export const DokuPlayfulCard: React.FC<DokuPlayfulCardProps> = ({
                   .map((section, index) => (
                     <div key={index} className="flex flex-wrap gap-2">
                       {section.interactive?.quiz?.enabled && (
-                        <div className="bg-blue-50 border-2 border-blue-200 rounded-full px-3 py-2 shadow-sm">
-                          <div className="flex items-center gap-1 text-sm font-medium text-blue-800">
+                        <div className="bg-stone-50 border-2 border-stone-200 rounded-full px-3 py-2 shadow-sm">
+                          <div className="flex items-center gap-1 text-sm font-medium text-stone-800">
                             🧠 Quiz
                           </div>
                         </div>
@@ -268,19 +268,19 @@ export const DokuPlayfulCard: React.FC<DokuPlayfulCardProps> = ({
                   </div>
                 )}
                 {doku.metadata.processingTime && (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 text-center">
+                  <div className="bg-stone-50 border-2 border-stone-200 rounded-xl p-3 text-center">
                     <div className="text-2xl mb-1">⏱️</div>
-                    <div className="text-xs text-blue-600 font-medium">Zeit</div>
-                    <div className="text-sm font-semibold text-blue-800">
+                    <div className="text-xs text-stone-600 font-medium">Zeit</div>
+                    <div className="text-sm font-semibold text-stone-800">
                       {Math.round(doku.metadata.processingTime / 1000)}s
                     </div>
                   </div>
                 )}
                 {doku.metadata.imagesGenerated && (
-                  <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-3 text-center">
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 text-center">
                     <div className="text-2xl mb-1">🖼️</div>
-                    <div className="text-xs text-purple-600 font-medium">Bilder</div>
-                    <div className="text-sm font-semibold text-purple-800">
+                    <div className="text-xs text-amber-600 font-medium">Bilder</div>
+                    <div className="text-sm font-semibold text-amber-800">
                       {doku.metadata.imagesGenerated}
                     </div>
                   </div>

@@ -101,7 +101,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
             className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-colors ${
               darkMode
                 ? 'border-white/10 bg-white/[0.06] text-white placeholder-white/30 focus:border-[#2DD4BF]/50'
-                : 'border-purple-200 focus:border-purple-400 bg-white text-gray-700 placeholder-gray-400'
+                : 'border-amber-200 focus:border-amber-400 bg-white text-gray-700 placeholder-gray-400'
             }`}
           />
         </motion.div>
@@ -135,17 +135,17 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
         ${isSelected
           ? darkMode
             ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
-            : 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200/50'
+            : 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-200/50'
           : darkMode
             ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-            : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+            : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/50'
         }
       `}
     >
       <span className="text-2xl mb-1">{type.icon}</span>
       <span className={`text-xs font-medium ${
         isSelected
-          ? darkMode ? 'text-[#2DD4BF]' : 'text-purple-700'
+          ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'
           : darkMode ? 'text-white/60' : 'text-gray-600'
       }`}>
         {type.labelDe}
@@ -156,7 +156,7 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
         <motion.div
           layoutId="character-type-indicator"
           className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
-            darkMode ? 'bg-[#2DD4BF]' : 'bg-purple-500'
+            darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
           }`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -172,3 +172,4 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
 };
 
 export default CharacterTypeSelector;
+

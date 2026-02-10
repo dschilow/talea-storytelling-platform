@@ -29,15 +29,15 @@ interface TraitCardData {
 }
 
 const TRAIT_ACCENTS: Record<string, { start: string; end: string }> = {
-  creativity: { start: '#7f92d5', end: '#b08ec8' },
+  creativity: { start: '#d5bdaf', end: '#e3d5ca' },
   courage: { start: '#d49782', end: '#d2a87b' },
-  empathy: { start: '#74a7c8', end: '#8abec9' },
+  empathy: { start: '#d6ccc2', end: '#e3d5ca' },
   curiosity: { start: '#8db57f', end: '#a7c88d' },
-  teamwork: { start: '#69a79a', end: '#8dc6bd' },
+  teamwork: { start: '#d5bdaf', end: '#e3d5ca' },
   persistence: { start: '#b99674', end: '#c5a286' },
-  logic: { start: '#7e97cf', end: '#9ca9d7' },
-  vocabulary: { start: '#bc8fba', end: '#d4a4cd' },
-  knowledge: { start: '#6d8ece', end: '#9cb5e2' },
+  logic: { start: '#d6ccc2', end: '#d5bdaf' },
+  vocabulary: { start: '#d6ccc2', end: '#e3d5ca' },
+  knowledge: { start: '#d5bdaf', end: '#e3d5ca' },
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -205,7 +205,7 @@ const QuestDial: React.FC<{
     <div
       className="relative h-11 w-11 rounded-full"
       style={{
-        background: `conic-gradient(${completed ? '#5ca98f' : '#7f96c8'} ${degrees}deg, rgba(148,163,184,0.24) ${degrees}deg)`,
+        background: `conic-gradient(${completed ? '#b79f8e' : '#7f96c8'} ${degrees}deg, rgba(148,163,184,0.24) ${degrees}deg)`,
       }}
     >
       <div className="absolute inset-[4px] flex items-center justify-center rounded-full bg-card text-[10px] font-semibold text-foreground">
@@ -234,7 +234,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
       <section
         className="rounded-2xl border p-4"
         style={{
-          borderColor: isDark ? '#344b63' : '#ddcfbe',
+          borderColor: isDark ? '#344b63' : '#d6ccc2',
           background: isDark ? 'rgba(20,30,44,0.76)' : 'rgba(255,255,255,0.74)',
         }}
       >
@@ -269,7 +269,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
         </div>
 
         {focusTrait && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: isDark ? '#415973' : '#d5c8b7', color: isDark ? '#c5d6ec' : '#4d627b' }}>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: isDark ? '#415973' : '#d5bdaf', color: isDark ? '#c5d6ec' : '#6a5c52' }}>
             <Sparkles className="h-3.5 w-3.5" />
             Fokus: {focusTrait.label} ({focusTrait.rankName})
             <InfoHint
@@ -449,3 +449,5 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
 };
 
 export default PersonalityProgressBoard;
+
+

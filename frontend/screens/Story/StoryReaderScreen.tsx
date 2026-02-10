@@ -399,7 +399,7 @@ const StoryReaderScreen: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-stone-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-lg text-gray-600 dark:text-gray-300">{t('story.reader.loading')}</p>
         </div>
       </div>
@@ -412,7 +412,7 @@ const StoryReaderScreen: React.FC = () => {
         <div className="text-center p-8 bg-[#13102B]/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl">
           <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
           <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('story.reader.notFound')}</p>
-          <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center mx-auto">
+          <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-stone-500 text-white rounded hover:bg-stone-600 transition-colors flex items-center mx-auto">
             <ArrowLeft size={18} className="mr-2" /> {t('common.back')}
           </button>
         </div>
@@ -450,7 +450,7 @@ const StoryReaderScreen: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
               <button
                 onClick={startReading}
-                className="px-8 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105"
+                className="px-8 py-3 bg-stone-600 text-white font-bold rounded-full shadow-lg hover:bg-stone-700 transition-transform hover:scale-105"
               >
                 {t('story.reader.read')}
               </button>
@@ -525,7 +525,7 @@ const StoryReaderScreen: React.FC = () => {
                 <div className="flex-1 flex flex-col items-center">
                   <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
                     <motion.div
-                      className="bg-blue-600 h-2.5 rounded-full"
+                      className="bg-stone-600 h-2.5 rounded-full"
                       initial={{ width: '0%' }}
                       animate={{ width: `${((currentChapterIndex + 1) / (story.chapters?.length || 1)) * 100}%` }}
                       transition={{ ease: "easeInOut" }}
@@ -547,7 +547,7 @@ const StoryReaderScreen: React.FC = () => {
                     disabled={storyCompleted}
                     className={`px-6 py-3 rounded-full font-bold text-white transition-all ${storyCompleted
                       ? 'bg-green-600 cursor-default'
-                      : 'bg-purple-600 hover:bg-purple-700 hover:scale-105'
+                      : 'bg-amber-600 hover:bg-amber-700 hover:scale-105'
                       }`}
                     whileHover={!storyCompleted ? { scale: 1.05 } : {}}
                     whileTap={!storyCompleted ? { scale: 0.95 } : {}}
@@ -622,3 +622,4 @@ const StoryReaderScreen: React.FC = () => {
 };
 
 export default StoryReaderScreen;
+

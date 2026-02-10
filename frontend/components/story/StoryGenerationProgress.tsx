@@ -145,18 +145,19 @@ export function StoryGenerationProgress({ currentStep, className }: StoryGenerat
       </Stepper>
 
       {/* Geschätzte Gesamtzeit */}
-      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+      <div className="mt-6 p-4 bg-stone-50 dark:bg-stone-950/30 rounded-lg border border-stone-200 dark:border-stone-800">
         <div className="flex items-center gap-2 text-sm">
-          <Sparkles className="size-4 text-blue-600 dark:text-blue-400" />
-          <span className="font-medium text-blue-900 dark:text-blue-100">
+          <Sparkles className="size-4 text-stone-600 dark:text-stone-400" />
+          <span className="font-medium text-stone-900 dark:text-stone-100">
             Geschätzte Gesamtdauer: 75-90 Sekunden
           </span>
         </div>
-        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+        <p className="text-xs text-stone-700 dark:text-stone-300 mt-1">
           Die längste Phase ist die Bildgenerierung. Bitte hab etwas Geduld! 🎨
         </p>
       </div>
     </div>
   );
 }
+
 

@@ -20,10 +20,10 @@ interface Props {
 
 const wishes = [
   { id: 'rhymes', icon: Music, tone: '#c5828c' },
-  { id: 'moral', icon: BookHeart, tone: '#6f8fbf' },
+  { id: 'moral', icon: BookHeart, tone: '#a88f80' },
   { id: 'avatarIsHero', icon: Star, tone: '#be8f55' },
   { id: 'famousCharacters', icon: Shuffle, tone: '#8e7daf' },
-  { id: 'happyEnd', icon: Smile, tone: '#4f8f7c' },
+  { id: 'happyEnd', icon: Smile, tone: '#b79f8e' },
   { id: 'surpriseEnd', icon: AlertCircle, tone: '#d0885e' },
 ] as const;
 
@@ -71,7 +71,7 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute right-2 top-2 rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[11px] font-bold text-white"
+                    className="absolute right-2 top-2 rounded-full bg-[#b79f8e] px-2 py-0.5 text-[11px] font-bold text-white"
                   >
                     OK
                   </motion.span>
@@ -90,7 +90,7 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
           placeholder={t('wizard.common.customWishPlaceholder')}
           maxLength={200}
           rows={3}
-          className="w-full resize-none rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-[#6f8fbf]"
+          className="w-full resize-none rounded-2xl border border-border bg-card/70 px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-[#a88f80]"
         />
         <p className="mt-1 text-xs text-muted-foreground">
           {state.customWish.length}/200 {t('wizard.common.chars')}
@@ -99,3 +99,4 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
     </div>
   );
 }
+

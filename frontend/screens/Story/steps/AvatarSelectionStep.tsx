@@ -65,7 +65,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
     return (
       <FadeInView>
         <Card variant="elevated" className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto mb-4"></div>
           <p className="text-gray-600">{t('common.loading')}</p>
         </Card>
       </FadeInView>
@@ -94,23 +94,23 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
       <div className="space-y-6">
         {/* Story Info Card */}
         {relevantTraits.length > 0 && (
-          <Card variant="elevated" className="bg-blue-50 border-blue-200">
-            <h3 className="font-semibold text-lg mb-2 text-blue-800">📖 Story-Modus</h3>
-            <p className="text-sm text-blue-700 mb-3">
+          <Card variant="elevated" className="bg-stone-50 border-stone-200">
+            <h3 className="font-semibold text-lg mb-2 text-stone-800">📖 Story-Modus</h3>
+            <p className="text-sm text-stone-700 mb-3">
               Story-Typ bestimmt welche Eigenschaften entwickelt werden:
             </p>
             <div className="flex flex-wrap gap-2 mb-3">
               {relevantTraits.map(traitId => (
                 <span
                   key={traitId}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-stone-100 text-stone-800 rounded-full text-sm font-medium"
                 >
                   <span>{getTraitIcon(traitId)}</span>
                   <span>{getTraitLabel(traitId, i18n.language as 'de' | 'en')}</span>
                 </span>
               ))}
             </div>
-            <div className="text-xs space-y-1 text-blue-600">
+            <div className="text-xs space-y-1 text-stone-600">
               <p><strong>Mitspieler:</strong> Erhalten volle Punkte (+3)</p>
               <p><strong>Beobachter:</strong> Erhalten weniger Punkte (+1)</p>
             </div>
@@ -125,7 +125,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
           </p>
 
           <div className="text-center mb-6">
-            <span className="text-purple-600 font-semibold">
+            <span className="text-amber-600 font-semibold">
               {selectedAvatarIds.length} / 3
             </span>
           </div>
@@ -140,7 +140,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
                     onClick={() => toggleAvatarSelection(avatar.id)}
                     className={`w-full p-4 rounded-lg border-2 transition-all ${isParticipant
                         ? 'border-green-500 bg-green-50'
-                        : 'border-gray-300 bg-gray-50 hover:border-purple-300'
+                        : 'border-gray-300 bg-gray-50 hover:border-amber-300'
                       }`}
                   >
                     <div className="flex items-center gap-4">
@@ -207,3 +207,4 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
 };
 
 export default AvatarSelectionStep;
+

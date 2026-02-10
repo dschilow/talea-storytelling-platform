@@ -39,7 +39,7 @@ type SortMode = "newest" | "oldest" | "title";
 const statusMeta: Record<Story["status"], { label: string; className: string }> = {
   complete: {
     label: "Fertig",
-    className: "bg-[#dfe8f4] text-[#5472a1] border-[#cad6ea]",
+    className: "bg-[#ece3d9] text-[#7d6e62] border-[#d6ccc2]",
   },
   generating: {
     label: "In Arbeit",
@@ -288,7 +288,7 @@ const EmptyState: React.FC<{
 }> = ({ onPrimary, primaryLabel, title, description }) => (
   <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] text-center shadow-[0_12px_30px_rgba(21,32,44,0.06)]">
     <CardContent className="px-8 py-14">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#dfe8f4] text-[#5472a1]">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ece3d9] text-[#7d6e62]">
         <BookOpen className="h-7 w-7" />
       </div>
       <h2 className="text-3xl text-[#243246] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
@@ -551,14 +551,14 @@ const TaleaStoriesScreen: React.FC = () => {
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Nach Titel oder Inhalt suchen..."
-                    className="h-11 w-full rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] py-2 pl-10 pr-3 text-sm text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#5e7fae]"
+                    className="h-11 w-full rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] py-2 pl-10 pr-3 text-sm text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
                   />
                 </label>
 
                 <select
                   value={sortMode}
                   onChange={(event) => setSortMode(event.target.value as SortMode)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#5e7fae]"
+                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
                   aria-label="Sortierung"
                 >
                   <option value="newest">Neueste zuerst</option>
@@ -566,7 +566,7 @@ const TaleaStoriesScreen: React.FC = () => {
                   <option value="title">Titel A-Z</option>
                 </select>
 
-                <div className="inline-flex rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] p-1">
+                <div className="inline-flex rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] p-1">
                   <button
                     type="button"
                     onClick={() => setViewMode("grid")}
@@ -601,8 +601,8 @@ const TaleaStoriesScreen: React.FC = () => {
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
                       statusFilter === filter
-                        ? "border-[#5e7fae] bg-[#dfe6f4] text-[#4e6f9c]"
-                        : "border-[#e1d3c1] dark:border-[#33465e] bg-[#f8f0e3] dark:bg-[#243245] text-[#6c788a] dark:text-[#9fb0c7] hover:bg-[#f1e7d8]"
+                        ? "border-[#a88f80] bg-[#ece3d9] text-[#7d6e62]"
+                        : "border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] text-[#6c788a] dark:text-[#9fb0c7] hover:bg-[#f1e7d8]"
                     )}
                   >
                     {filterLabels[filter]}
@@ -681,3 +681,5 @@ const TaleaStoriesScreen: React.FC = () => {
 };
 
 export default TaleaStoriesScreen;
+
+

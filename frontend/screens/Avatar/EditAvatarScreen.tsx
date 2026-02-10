@@ -421,7 +421,7 @@ const EditAvatarScreen: React.FC = () => {
         <div
           className="w-full max-w-md rounded-3xl border p-6 text-center"
           style={{
-            borderColor: isDark ? '#34495f' : '#ddcfbe',
+            borderColor: isDark ? '#34495f' : '#d6ccc2',
             background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
           }}
         >
@@ -454,7 +454,7 @@ const EditAvatarScreen: React.FC = () => {
         <header
           className="sticky top-2 z-20 flex items-center justify-between rounded-2xl border px-3 py-2.5 backdrop-blur-xl"
           style={{
-            borderColor: isDark ? '#33485f' : '#dbcdbd',
+            borderColor: isDark ? '#33485f' : '#d6ccc2',
             background: isDark ? 'rgba(21,31,45,0.8)' : 'rgba(255,251,245,0.86)',
           }}
         >
@@ -462,7 +462,7 @@ const EditAvatarScreen: React.FC = () => {
             type="button"
             onClick={() => navigate(`/avatar/${avatar.id}`)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
-            style={{ borderColor: isDark ? '#425a74' : '#d5c8b7', color: isDark ? '#d2e0f4' : '#4d627a' }}
+            style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#d2e0f4' : '#6a5c52' }}
             aria-label="Zurueck"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -478,8 +478,8 @@ const EditAvatarScreen: React.FC = () => {
             disabled={saving || !formData.name.trim()}
             className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
             style={{
-              borderColor: isDark ? '#425a74' : '#d5c8b7',
-              color: isDark ? '#d2e0f4' : '#4d627a',
+              borderColor: isDark ? '#425a74' : '#d5bdaf',
+              color: isDark ? '#d2e0f4' : '#6a5c52',
               background: saving ? (isDark ? 'rgba(56,74,97,0.6)' : 'rgba(234,226,214,0.8)') : 'transparent',
             }}
           >
@@ -492,7 +492,7 @@ const EditAvatarScreen: React.FC = () => {
           <section
             className="rounded-3xl border p-4 sm:p-5"
             style={{
-              borderColor: isDark ? '#33495f' : '#ddcfbe',
+              borderColor: isDark ? '#33495f' : '#d6ccc2',
               background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
             }}
           >
@@ -510,7 +510,7 @@ const EditAvatarScreen: React.FC = () => {
             <section
               className="rounded-3xl border p-4"
               style={{
-                borderColor: isDark ? '#33495f' : '#ddcfbe',
+                borderColor: isDark ? '#33495f' : '#d6ccc2',
                 background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
               }}
             >
@@ -539,7 +539,7 @@ const EditAvatarScreen: React.FC = () => {
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-60"
                   style={{
                     borderColor: isDark ? '#3b5269' : '#d8cab9',
-                    color: isDark ? '#d2e0f4' : '#4d627a',
+                    color: isDark ? '#d2e0f4' : '#6a5c52',
                     background: isDark ? 'rgba(39,53,72,0.8)' : 'rgba(255,255,255,0.75)',
                   }}
                 >
@@ -552,7 +552,7 @@ const EditAvatarScreen: React.FC = () => {
             <section
               className="rounded-3xl border p-4"
               style={{
-                borderColor: isDark ? '#33495f' : '#ddcfbe',
+                borderColor: isDark ? '#33495f' : '#d6ccc2',
                 background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
               }}
             >
@@ -601,7 +601,7 @@ const EditAvatarScreen: React.FC = () => {
         <footer
           className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:justify-end"
           style={{
-            borderColor: isDark ? '#33495f' : '#ddcfbe',
+            borderColor: isDark ? '#33495f' : '#d6ccc2',
             background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
           }}
         >
@@ -635,3 +635,4 @@ const EditAvatarScreen: React.FC = () => {
 };
 
 export default EditAvatarScreen;
+

@@ -327,7 +327,7 @@ const StoryWizardScreen: React.FC = () => {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
               <div
-                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                className="bg-amber-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
               />
             </div>
@@ -337,8 +337,8 @@ const StoryWizardScreen: React.FC = () => {
                   key={step.key}
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${index <= currentStepIndex
                       ? index === currentStepIndex
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-purple-100 text-purple-600'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-amber-100 text-amber-600'
                       : 'bg-gray-200 text-gray-400'
                     }`}
                 >
@@ -380,3 +380,4 @@ const StoryWizardScreen: React.FC = () => {
 };
 
 export default StoryWizardScreen;
+

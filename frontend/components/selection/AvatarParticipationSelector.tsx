@@ -75,7 +75,7 @@ export const AvatarParticipationSelector: React.FC<AvatarParticipationSelectorPr
   return (
     <div className="space-y-6">
       {/* Content Type & Trait Info */}
-      <div className="bg-blue-50 p-4 rounded-lg">
+      <div className="bg-stone-50 p-4 rounded-lg">
         <h3 className="font-semibold text-lg mb-2">
           {contentType === 'story' ? '📖 Story-Modus' : '📚 Doku-Modus'}
         </h3>
@@ -87,7 +87,7 @@ export const AvatarParticipationSelector: React.FC<AvatarParticipationSelectorPr
               {relevantTraits.map(traitId => (
                 <span
                   key={traitId}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-stone-100 text-stone-800 rounded-full text-sm"
                 >
                   <span>{getTraitIcon(traitId)}</span>
                   <span>{getTraitLabel(traitId, 'de')}</span>

@@ -20,8 +20,8 @@ interface Props {
   updateState: (updates: any) => void;
 }
 
-const accent = '#6f8fbf';
-const success = '#4f8f7c';
+const accent = '#a88f80';
+const success = '#b79f8e';
 
 export default function Step1AvatarSelection({ state, updateState }: Props) {
   const backend = useBackend();
@@ -74,7 +74,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}
-          className="mb-3 h-10 w-10 rounded-full border-[3px] border-[#6f8fbf] border-t-transparent"
+          className="mb-3 h-10 w-10 rounded-full border-[3px] border-[#a88f80] border-t-transparent"
         />
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
@@ -173,3 +173,4 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     </div>
   );
 }
+

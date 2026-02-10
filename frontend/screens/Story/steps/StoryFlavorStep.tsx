@@ -142,8 +142,8 @@ const StoryFlavorStep: React.FC<Props> = ({
                 <label
                   key={option.key}
                   className={`border rounded-lg p-3 cursor-pointer transition ${isSelected
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 hover:border-amber-400 hover:bg-amber-50/40"
                     }`}
                 >
                   <input
@@ -176,8 +176,8 @@ const StoryFlavorStep: React.FC<Props> = ({
                   type="button"
                   onClick={() => onChange({ storyTempo: option.key })}
                   className={`border rounded-lg p-3 text-left transition ${isSelected
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 hover:border-amber-400 hover:bg-amber-50/40"
                     }`}
                 >
                   <div className="font-semibold text-sm text-gray-800">{option.label}</div>
@@ -198,8 +198,8 @@ const StoryFlavorStep: React.FC<Props> = ({
                 <label
                   key={option.key}
                   className={`border rounded-lg p-3 cursor-pointer transition ${isSelected
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 hover:border-amber-400 hover:bg-amber-50/40"
                     }`}
                 >
                   <input
@@ -237,3 +237,4 @@ const StoryFlavorStep: React.FC<Props> = ({
 };
 
 export default StoryFlavorStep;
+

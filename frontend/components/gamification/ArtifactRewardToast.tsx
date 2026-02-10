@@ -22,8 +22,8 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
 
   const getRarityColor = () => {
     if (item.level >= 3) return 'from-yellow-400 via-amber-500 to-orange-500';
-    if (item.level === 2) return 'from-blue-400 via-indigo-500 to-purple-500';
-    return 'from-purple-400 via-pink-500 to-rose-500';
+    if (item.level === 2) return 'from-stone-400 via-stone-500 to-amber-500';
+    return 'from-amber-400 via-orange-500 to-rose-500';
   };
 
   return (
@@ -147,7 +147,7 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
                         className="w-full h-full object-contain rounded-xl"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-xl flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-amber-500/30 to-orange-500/30 rounded-xl flex items-center justify-center">
                         <span className="text-7xl">🎁</span>
                       </div>
                     )}
@@ -209,9 +209,9 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 1.3 }}
-                    className="mt-4 mx-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl p-3 border border-purple-400/30"
+                    className="mt-4 mx-6 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-xl p-3 border border-amber-400/30"
                   >
-                    <p className="text-sm text-purple-200 text-center">
+                    <p className="text-sm text-amber-200 text-center">
                       <span className="font-semibold">✨ Magische Wirkung: </span>
                       {item.storyEffect}
                     </p>
@@ -236,7 +236,7 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
                 )}
                 <button
                   onClick={onClose}
-                  className={`${onViewDetails ? 'flex-1' : 'w-full'} py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg`}
+                  className={`${onViewDetails ? 'flex-1' : 'w-full'} py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg`}
                 >
                   Fantastisch! 🎉
                 </button>
@@ -250,3 +250,4 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
 };
 
 export default ArtifactRewardToast;
+

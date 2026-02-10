@@ -161,22 +161,22 @@ export const StoryPlayfulCard: React.FC<StoryPlayfulCardProps> = ({
             </h4>
             
             <div className="grid grid-cols-1 gap-3">
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+              <div className="bg-stone-50 border-2 border-stone-200 rounded-xl p-3">
                 <div className="flex items-start gap-2">
-                  <Book className="w-4 h-4 text-blue-500 mt-0.5" />
+                  <Book className="w-4 h-4 text-stone-500 mt-0.5" />
                   <div>
-                    <span className="font-medium text-blue-800">{getGenreEmoji(story.config.genre)} Genre:</span>
-                    <span className="ml-2 text-blue-700 text-sm">{story.config.genre}</span>
+                    <span className="font-medium text-stone-800">{getGenreEmoji(story.config.genre)} Genre:</span>
+                    <span className="ml-2 text-stone-700 text-sm">{story.config.genre}</span>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-3">
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3">
                 <div className="flex items-start gap-2">
-                  <Star className="w-4 h-4 text-purple-500 mt-0.5" />
+                  <Star className="w-4 h-4 text-amber-500 mt-0.5" />
                   <div>
-                    <span className="font-medium text-purple-800">🎨 Stil:</span>
-                    <span className="ml-2 text-purple-700 text-sm">{story.config.style}</span>
+                    <span className="font-medium text-amber-800">🎨 Stil:</span>
+                    <span className="ml-2 text-amber-700 text-sm">{story.config.style}</span>
                   </div>
                 </div>
               </div>

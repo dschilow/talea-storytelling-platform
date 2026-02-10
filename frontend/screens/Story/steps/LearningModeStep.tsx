@@ -105,7 +105,7 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
             </div>
             <button
               onClick={toggleLearningMode}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${learningMode?.enabled ? 'bg-purple-600' : 'bg-gray-300'
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${learningMode?.enabled ? 'bg-amber-600' : 'bg-gray-300'
                 }`}
             >
               <span
@@ -133,12 +133,12 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
                     <button
                       onClick={() => toggleSubject(subject.key)}
                       className={`p-3 rounded-lg border-2 transition-colors text-center ${learningMode.subjects.includes(subject.key)
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-300 hover:border-purple-300'
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-300 hover:border-amber-300'
                         }`}
                     >
                       <span className="text-xl mb-2 block">{subject.icon}</span>
-                      <h3 className={`font-medium text-sm ${learningMode.subjects.includes(subject.key) ? 'text-purple-700' : 'text-gray-800'
+                      <h3 className={`font-medium text-sm ${learningMode.subjects.includes(subject.key) ? 'text-amber-700' : 'text-gray-800'
                         }`}>
                         {subject.label}
                       </h3>
@@ -160,16 +160,16 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
                     <button
                       onClick={() => updateLearningMode({ difficulty: option.key as any })}
                       className={`p-4 rounded-lg border-2 transition-colors text-center ${learningMode.difficulty === option.key
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-300 hover:border-purple-300'
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-300 hover:border-amber-300'
                         }`}
                     >
                       <span className="text-2xl mb-2 block">{option.icon}</span>
-                      <h3 className={`font-semibold mb-1 ${learningMode.difficulty === option.key ? 'text-purple-700' : 'text-gray-800'
+                      <h3 className={`font-semibold mb-1 ${learningMode.difficulty === option.key ? 'text-amber-700' : 'text-gray-800'
                         }`}>
                         {option.label}
                       </h3>
-                      <p className={`text-xs ${learningMode.difficulty === option.key ? 'text-purple-600' : 'text-gray-600'
+                      <p className={`text-xs ${learningMode.difficulty === option.key ? 'text-amber-600' : 'text-gray-600'
                         }`}>
                         {option.description}
                       </p>
@@ -194,12 +194,12 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
                   value={newObjective}
                   onChange={(e) => setNewObjective(e.target.value)}
                   placeholder="Neues Lernziel hinzufügen..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 />
                 <button
                   onClick={addLearningObjective}
                   disabled={!newObjective.trim()}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -236,16 +236,16 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
                     <button
                       onClick={() => updateLearningMode({ assessmentType: option.key as any })}
                       className={`p-4 rounded-lg border-2 transition-colors text-center ${learningMode.assessmentType === option.key
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-300 hover:border-purple-300'
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-300 hover:border-amber-300'
                         }`}
                     >
                       <span className="text-2xl mb-2 block">{option.icon}</span>
-                      <h3 className={`font-semibold mb-1 ${learningMode.assessmentType === option.key ? 'text-purple-700' : 'text-gray-800'
+                      <h3 className={`font-semibold mb-1 ${learningMode.assessmentType === option.key ? 'text-amber-700' : 'text-gray-800'
                         }`}>
                         {option.label}
                       </h3>
-                      <p className={`text-xs ${learningMode.assessmentType === option.key ? 'text-purple-600' : 'text-gray-600'
+                      <p className={`text-xs ${learningMode.assessmentType === option.key ? 'text-amber-600' : 'text-gray-600'
                         }`}>
                         {option.description}
                       </p>
@@ -262,3 +262,4 @@ const LearningModeStep: React.FC<LearningModeStepProps> = ({
 };
 
 export default LearningModeStep;
+

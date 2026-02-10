@@ -41,9 +41,9 @@ export const StoryAnimatedCard: React.FC<StoryAnimatedCardProps> = ({
       case '3-5': 
         return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700'
       case '6-8': 
-        return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700'
+        return 'bg-stone-50 text-stone-700 border-stone-200 dark:bg-stone-900/20 dark:text-stone-300 dark:border-stone-700'
       case '9-12': 
-        return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-700'
+        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700'
       case '13+': 
         return 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-700'
       default: 
@@ -153,22 +153,22 @@ export const StoryAnimatedCard: React.FC<StoryAnimatedCardProps> = ({
             transition={{ delay: 0.1, staggerChildren: 0.05 }}
           >
             <motion.div 
-              className="flex items-center p-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20"
+              className="flex items-center p-3 rounded-xl bg-gradient-to-r from-stone-50 to-stone-50 dark:from-stone-900/20 dark:to-stone-900/20"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <Book className="w-4 h-4 mr-2 text-blue-500" />
-              <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Genre:</span>
+              <Book className="w-4 h-4 mr-2 text-stone-500" />
+              <span className="text-sm font-medium text-stone-800 dark:text-stone-200">Genre:</span>
               <span className="ml-1 text-sm text-gray-700 dark:text-gray-300">{story.config.genre}</span>
             </motion.div>
             
             <motion.div 
-              className="flex items-center p-3 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20"
+              className="flex items-center p-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <Star className="w-4 h-4 mr-2 text-purple-500" />
-              <span className="text-sm font-medium text-purple-800 dark:text-purple-200">Stil:</span>
+              <Star className="w-4 h-4 mr-2 text-amber-500" />
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">Stil:</span>
               <span className="ml-1 text-sm text-gray-700 dark:text-gray-300">{story.config.style}</span>
             </motion.div>
 
@@ -196,7 +196,7 @@ export const StoryAnimatedCard: React.FC<StoryAnimatedCardProps> = ({
               transition={{ delay: 0.2 }}
             >
               <h4 className="font-medium text-sm text-gray-800 dark:text-gray-100 flex items-center">
-                <Users className="w-4 h-4 mr-2 text-purple-500" />
+                <Users className="w-4 h-4 mr-2 text-amber-500" />
                 Charaktere:
               </h4>
               <div className="flex flex-wrap gap-2">
@@ -222,8 +222,8 @@ export const StoryAnimatedCard: React.FC<StoryAnimatedCardProps> = ({
                   </motion.div>
                 ))}
                 {story.config.avatars.length > 6 && (
-                  <div className="flex items-center bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full px-3 py-2 shadow-sm">
-                    <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                  <div className="flex items-center bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-full px-3 py-2 shadow-sm">
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
                       +{story.config.avatars.length - 6} weitere
                     </span>
                   </div>
@@ -240,7 +240,7 @@ export const StoryAnimatedCard: React.FC<StoryAnimatedCardProps> = ({
             transition={{ delay: 0.4 }}
           >
             <Button 
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+              className="w-full bg-gradient-to-r from-stone-600 to-amber-600 hover:from-stone-700 hover:to-amber-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
               onClick={handleRead}
             >
               <Play className="w-4 h-4 mr-2" />
@@ -249,7 +249,7 @@ export const StoryAnimatedCard: React.FC<StoryAnimatedCardProps> = ({
             
             <Button 
               variant="outline" 
-              className="w-full border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300"
+              className="w-full border-2 border-gray-200 dark:border-gray-700 hover:border-stone-300 dark:hover:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-900/20 transition-all duration-300"
               onClick={handleEdit}
             >
               <Edit className="w-4 h-4 mr-2" />

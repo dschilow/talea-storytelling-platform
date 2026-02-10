@@ -140,13 +140,13 @@ const StoryStyleStep: React.FC<Props> = ({
                 type="button"
                 onClick={() => onSelectSoul(option.key)}
                 className={`border rounded-lg p-4 text-left transition-all duration-200 ${selected
-                    ? "border-purple-500 bg-purple-50 shadow-sm"
-                    : "border-gray-200 hover:border-purple-400 hover:bg-purple-50/40"
+                    ? "border-amber-500 bg-amber-50 shadow-sm"
+                    : "border-gray-200 hover:border-amber-400 hover:bg-amber-50/40"
                   }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-gray-800">{option.label}</span>
-                  {selected && <span className="text-purple-600 text-xs font-semibold">{t('story.wizard.common.selected')}</span>}
+                  {selected && <span className="text-amber-600 text-xs font-semibold">{t('story.wizard.common.selected')}</span>}
                 </div>
                 <p className="text-sm text-gray-600 mb-1">{option.tagline}</p>
                 <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-line">
@@ -201,3 +201,4 @@ const StoryStyleStep: React.FC<Props> = ({
 };
 
 export default StoryStyleStep;
+

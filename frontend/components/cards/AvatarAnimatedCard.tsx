@@ -56,10 +56,10 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
     switch (gender?.toLowerCase()) {
       case 'male':
       case 'männlich':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border-blue-200'
+        return 'bg-stone-100 text-stone-800 dark:bg-stone-900 dark:text-stone-100 border-stone-200'
       case 'female':
       case 'weiblich':
-        return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-100 border-pink-200'
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 border-orange-200'
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100 border-gray-200'
     }
@@ -86,7 +86,7 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
     >
       <AnimatedCardHeader className="relative">
         {/* Gradient background overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-purple-900/20 dark:via-blue-900/20 dark:to-pink-900/20 opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-stone-50 to-orange-50 dark:from-amber-900/20 dark:via-stone-900/20 dark:to-orange-900/20 opacity-60" />
         
         <div className="relative flex flex-col items-center">
           {/* Avatar Image with enhanced styling */}
@@ -105,7 +105,7 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
               />
               
               {/* Animated glow effect */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 opacity-20 blur-xl scale-110 group-hover:opacity-30 transition-opacity duration-500" />
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-stone-400 opacity-20 blur-xl scale-110 group-hover:opacity-30 transition-opacity duration-500" />
               
               {/* Gender Badge */}
               <motion.div 
@@ -141,7 +141,7 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
               animate={{ opacity: isExpanded ? 1 : 0.8, y: 0 }}
               className="mb-3"
             >
-              <Badge variant="outline" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-purple-200 dark:border-purple-700">
+              <Badge variant="outline" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-amber-200 dark:border-amber-700">
                 <User className="w-3 h-3 mr-1" />
                 {avatar.config.age} Jahre alt
               </Badge>
@@ -176,13 +176,13 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
           >
             {avatar.config?.personality && (
               <motion.div 
-                className="flex items-start p-3 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20"
+                className="flex items-start p-3 rounded-xl bg-gradient-to-r from-orange-50 to-rose-50 dark:from-orange-900/20 dark:to-rose-900/20"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <Heart className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-pink-500" />
+                <Heart className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-orange-500" />
                 <div className="text-sm">
-                  <span className="font-medium text-pink-800 dark:text-pink-200">Persönlichkeit:</span>
+                  <span className="font-medium text-orange-800 dark:text-orange-200">Persönlichkeit:</span>
                   <span className="ml-1 text-gray-700 dark:text-gray-300">{avatar.config.personality}</span>
                 </div>
               </motion.div>
@@ -190,13 +190,13 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
             
             {avatar.config?.appearance && (
               <motion.div 
-                className="flex items-start p-3 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20"
+                className="flex items-start p-3 rounded-xl bg-gradient-to-r from-stone-50 to-cyan-50 dark:from-stone-900/20 dark:to-cyan-900/20"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <Palette className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-blue-500" />
+                <Palette className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-stone-500" />
                 <div className="text-sm">
-                  <span className="font-medium text-blue-800 dark:text-blue-200">Aussehen:</span>
+                  <span className="font-medium text-stone-800 dark:text-stone-200">Aussehen:</span>
                   <span className="ml-1 text-gray-700 dark:text-gray-300">{avatar.config.appearance}</span>
                 </div>
               </motion.div>
@@ -270,7 +270,7 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
             transition={{ delay: 0.4 }}
           >
             <Button 
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+              className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
               onClick={handleUse}
             >
               <Sparkles className="w-4 h-4 mr-2" />
@@ -279,7 +279,7 @@ export const AvatarAnimatedCard: React.FC<AvatarAnimatedCardProps> = ({
             
             <Button 
               variant="outline" 
-              className="w-full border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-300"
+              className="w-full border-2 border-gray-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-300"
               onClick={handleEdit}
             >
               <Edit className="w-4 h-4 mr-2" />

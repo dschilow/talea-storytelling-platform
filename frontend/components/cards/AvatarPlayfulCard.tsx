@@ -150,24 +150,24 @@ export const AvatarPlayfulCard: React.FC<AvatarPlayfulCardProps> = ({
               </h4>
               
               {avatar.config?.personality && (
-                <div className="bg-pink-50 border-2 border-pink-200 rounded-xl p-3">
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-3">
                   <div className="flex items-start gap-2">
-                    <Heart className="w-4 h-4 text-pink-500 mt-0.5 flex-shrink-0" />
+                    <Heart className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <span className="font-medium text-pink-800">❤️ Persönlichkeit:</span>
-                      <p className="text-pink-700 text-sm mt-1">{avatar.config.personality}</p>
+                      <span className="font-medium text-orange-800">❤️ Persönlichkeit:</span>
+                      <p className="text-orange-700 text-sm mt-1">{avatar.config.personality}</p>
                     </div>
                   </div>
                 </div>
               )}
               
               {avatar.config?.appearance && (
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+                <div className="bg-stone-50 border-2 border-stone-200 rounded-xl p-3">
                   <div className="flex items-start gap-2">
-                    <Palette className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <Palette className="w-4 h-4 text-stone-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <span className="font-medium text-blue-800">🎨 Aussehen:</span>
-                      <p className="text-blue-700 text-sm mt-1">{avatar.config.appearance}</p>
+                      <span className="font-medium text-stone-800">🎨 Aussehen:</span>
+                      <p className="text-stone-700 text-sm mt-1">{avatar.config.appearance}</p>
                     </div>
                   </div>
                 </div>
@@ -207,10 +207,10 @@ export const AvatarPlayfulCard: React.FC<AvatarPlayfulCardProps> = ({
               </h4>
               <div className="grid grid-cols-2 gap-3">
                 {avatar.config.gender && (
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-3 text-center">
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-200 rounded-xl p-3 text-center">
                     <div className="text-2xl mb-1">{getGenderEmoji(avatar.config.gender)}</div>
-                    <div className="text-xs text-purple-600 font-medium">Geschlecht</div>
-                    <div className="text-sm font-semibold text-purple-800">{avatar.config.gender}</div>
+                    <div className="text-xs text-amber-600 font-medium">Geschlecht</div>
+                    <div className="text-sm font-semibold text-amber-800">{avatar.config.gender}</div>
                   </div>
                 )}
                 {avatar.config.ageGroup && (

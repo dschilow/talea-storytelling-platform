@@ -24,17 +24,17 @@ export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange,
             ${value === gender.id
               ? darkMode
                 ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
-                : 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-200/50'
+                : 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-200/50'
               : darkMode
                 ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+                : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/50'
             }
           `}
         >
           <span className="text-3xl">{gender.icon}</span>
           <span className={`text-base font-medium ${
             value === gender.id
-              ? darkMode ? 'text-[#2DD4BF]' : 'text-purple-700'
+              ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'
               : darkMode ? 'text-white/60' : 'text-gray-600'
           }`}>
             {gender.labelDe}
@@ -46,7 +46,7 @@ export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange,
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               className={`ml-auto w-6 h-6 rounded-full flex items-center justify-center ${
-                darkMode ? 'bg-[#2DD4BF]' : 'bg-purple-500'
+                darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
               }`}
             >
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -61,3 +61,4 @@ export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange,
 };
 
 export default GenderSelector;
+

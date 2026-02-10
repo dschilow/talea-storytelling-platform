@@ -182,7 +182,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
               darkMode
                 ? 'bg-white/[0.08] text-[#A989F2] border border-white/10 hover:bg-white/[0.12]'
-                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
             }`}
           >
             <Upload className="w-5 h-5" />
@@ -197,7 +197,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
               darkMode
                 ? 'bg-white/[0.08] text-[#FF6B9D] border border-white/10 hover:bg-white/[0.12]'
-                : 'bg-pink-100 text-pink-700 hover:bg-pink-200'
+                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
             }`}
           >
             <Camera className="w-5 h-5" />
@@ -274,7 +274,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             className="relative"
           >
             <div className={`relative rounded-2xl overflow-hidden border-4 ${
-              darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-purple-200 bg-white'
+              darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-amber-200 bg-white'
             }`}>
               <img
                 src={currentImage}
@@ -296,12 +296,12 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             <div className={`mt-2 flex items-center gap-2 text-xs rounded-lg p-2 ${
               darkMode
                 ? 'text-white/40 bg-white/[0.04]'
-                : 'text-gray-500 bg-purple-50'
+                : 'text-gray-500 bg-amber-50'
             }`}>
-              <ImageIcon className={`w-4 h-4 ${darkMode ? 'text-[#A989F2]' : 'text-purple-500'}`} />
+              <ImageIcon className={`w-4 h-4 ${darkMode ? 'text-[#A989F2]' : 'text-amber-500'}`} />
               <div className="flex-1">
                 <div>Dieses Foto wird als Referenz fuer die AI-Bildgenerierung verwendet</div>
-                <div className={`font-medium mt-0.5 ${darkMode ? 'text-[#2DD4BF]' : 'text-purple-600'}`}>
+                <div className={`font-medium mt-0.5 ${darkMode ? 'text-[#2DD4BF]' : 'text-amber-600'}`}>
                   Optimiert: max. 1024px, JPEG-Komprimierung
                 </div>
               </div>
@@ -314,3 +314,4 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
 };
 
 export default ImageUploadCamera;
+

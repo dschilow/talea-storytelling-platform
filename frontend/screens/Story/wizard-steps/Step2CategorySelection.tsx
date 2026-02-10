@@ -13,11 +13,11 @@ interface Props {
 }
 
 const categories = [
-  { id: 'fairy-tales', icon: Sparkles, tone: '#a180bf' },
+  { id: 'fairy-tales', icon: Sparkles, tone: '#b29a8a' },
   { id: 'adventure', icon: Mountain, tone: '#d0885e' },
-  { id: 'magic', icon: Wand2, tone: '#6e90bf' },
-  { id: 'animals', icon: Dog, tone: '#4f8f7c' },
-  { id: 'scifi', icon: Rocket, tone: '#5a8db6' },
+  { id: 'magic', icon: Wand2, tone: '#ad9788' },
+  { id: 'animals', icon: Dog, tone: '#b79f8e' },
+  { id: 'scifi', icon: Rocket, tone: '#9b8a7d' },
   { id: 'modern', icon: Home, tone: '#7d8795' },
 ] as const;
 
@@ -79,7 +79,7 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                     className="absolute right-3 top-3 rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-                    style={{ background: '#4f8f7c' }}
+                    style={{ background: '#b79f8e' }}
                   >
                     OK
                   </motion.span>
@@ -92,3 +92,5 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
     </div>
   );
 }
+
+

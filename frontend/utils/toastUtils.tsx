@@ -99,7 +99,7 @@ export const showQuizCompletionToast = (score: number) => {
     (t) => (
       <Alert variant={isGoodScore ? 'success' : 'info'} onClose={() => toast.dismiss(t)}>
         <AlertIcon>
-          <Trophy className={`h-5 w-5 ${isGoodScore ? 'text-green-600' : 'text-blue-600'}`} />
+          <Trophy className={`h-5 w-5 ${isGoodScore ? 'text-green-600' : 'text-stone-600'}`} />
         </AlertIcon>
         <AlertTitle>Quiz abgeschlossen: {score}% richtig!</AlertTitle>
       </Alert>
@@ -127,7 +127,7 @@ export const showNewCharacterToast = (characterNames: string) => {
     (t) => (
       <Alert variant="success" onClose={() => toast.dismiss(t)}>
         <AlertIcon>
-          <Sparkles className="w-5 h-5 text-purple-600" />
+          <Sparkles className="w-5 h-5 text-amber-600" />
         </AlertIcon>
         <div>
           <AlertTitle>Neue Freunde gefunden!</AlertTitle>
@@ -194,7 +194,7 @@ export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: st
   toast.custom(
     (t) => (
       <div
-        className="max-w-md cursor-pointer rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 p-4 shadow-2xl"
+        className="max-w-md cursor-pointer rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-900 via-stone-900 to-amber-900 p-4 shadow-2xl"
         onClick={() => toast.dismiss(t)}
       >
         <div className="mb-3 flex items-center gap-2">
@@ -207,7 +207,7 @@ export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: st
         <div className="flex gap-3">
           {artifact.imageUrl && (
             <div className="flex-shrink-0">
-              <div className="h-24 w-24 overflow-hidden rounded-lg border-2 border-purple-400/50 shadow-lg">
+              <div className="h-24 w-24 overflow-hidden rounded-lg border-2 border-amber-400/50 shadow-lg">
                 <img
                   src={artifact.imageUrl}
                   alt={artifact.name}
@@ -220,9 +220,9 @@ export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: st
           <div className="min-w-0 flex-1">
             <h4 className="truncate text-base font-bold text-white">{artifact.name}</h4>
             {avatarName && (
-              <p className="mb-1 text-xs text-purple-300">fuer {avatarName}</p>
+              <p className="mb-1 text-xs text-amber-300">fuer {avatarName}</p>
             )}
-            <p className="line-clamp-2 text-xs text-purple-200">
+            <p className="line-clamp-2 text-xs text-amber-200">
               {artifact.description || 'Ein magisches Artefakt aus deinem Abenteuer!'}
             </p>
             {artifact.storyEffect && (
@@ -233,9 +233,10 @@ export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: st
           </div>
         </div>
 
-        <p className="mt-3 text-center text-xs text-purple-400/60">Tippe zum Schliessen - Finde es in der Schatzkammer</p>
+        <p className="mt-3 text-center text-xs text-amber-400/60">Tippe zum Schliessen - Finde es in der Schatzkammer</p>
       </div>
     ),
     { duration: 8000 }
   );
 };
+

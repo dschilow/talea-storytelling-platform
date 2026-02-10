@@ -15,9 +15,9 @@ interface Props {
 const feelingMeta: Record<Feeling, { icon: React.ComponentType<any>; tone: string }> = {
   funny: { icon: Smile, tone: '#be8f55' },
   warm: { icon: Heart, tone: '#c5828c' },
-  exciting: { icon: Zap, tone: '#6f8fbf' },
+  exciting: { icon: Zap, tone: '#a88f80' },
   crazy: { icon: Sparkles, tone: '#8e7daf' },
-  meaningful: { icon: MessageCircle, tone: '#4f8f7c' },
+  meaningful: { icon: MessageCircle, tone: '#b79f8e' },
 };
 
 export default function Step4StoryFeeling({ state, updateState }: Props) {
@@ -76,7 +76,7 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute right-2 top-2 rounded-full bg-[#4f8f7c] px-2 py-0.5 text-[11px] font-bold text-white"
+                    className="absolute right-2 top-2 rounded-full bg-[#b79f8e] px-2 py-0.5 text-[11px] font-bold text-white"
                   >
                     OK
                   </motion.span>
@@ -97,3 +97,4 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
     </div>
   );
 }
+
