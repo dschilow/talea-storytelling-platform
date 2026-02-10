@@ -261,7 +261,6 @@ export class LlmStoryWriter implements StoryWriter {
           const parsed = safeJson(result.content);
           if (parsed?.text) {
             chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
-            if (parsed.title) chapter.title = String(parsed.title);
             changed = true;
             expandCallCount++; // V2: Zähle erfolgreiche Expand-Calls
           }
@@ -428,7 +427,7 @@ export class LlmStoryWriter implements StoryWriter {
 
     // ─── Phase C: Title generation (if AI didn't return a good one) ──────────
     if (!draft.title || draft.title.length < 3) {
-      const storyText = draft.chapters.map(ch => `${ch.title}\n${ch.text}`).join("\n\n");
+      const storyText = draft.chapters.map(ch => ch.text).join("\n\n");
       try {
         if (!allowPostEdits) {
           draft.title = normalizedRequest.language === "de" ? "Neue Geschichte" : "New Story";
@@ -601,7 +600,7 @@ function extractDraftFromChapterArray(
       description: "",
       chapters: directives.map(d => ({
         chapter: d.chapter,
-        title: `${language === "de" ? "Kapitel" : "Chapter"} ${d.chapter}`,
+        title: "",
         text: "",
       })),
     };
@@ -615,7 +614,7 @@ function extractDraftFromChapterArray(
   if (Array.isArray(parsed.chapters)) {
     chapters = parsed.chapters.map((ch: any, idx: number) => ({
       chapter: ch.chapter ?? idx + 1,
-      title: ch.title || `${language === "de" ? "Kapitel" : "Chapter"} ${ch.chapter ?? idx + 1}`,
+      title: "",
       text: ch.text || "",
     }));
   }
@@ -625,7 +624,7 @@ function extractDraftFromChapterArray(
       if (!chapters.find(ch => ch.chapter === d.chapter)) {
         chapters.push({
           chapter: d.chapter,
-          title: `${language === "de" ? "Kapitel" : "Chapter"} ${d.chapter}`,
+          title: "",
           text: "",
         });
       }
@@ -641,6 +640,7 @@ function sanitizeDraft(draft: StoryDraft): StoryDraft {
     ...draft,
     chapters: draft.chapters.map(ch => ({
       ...ch,
+      title: "",
       text: sanitizeMetaStructureFromText(ch.text),
     })),
   };

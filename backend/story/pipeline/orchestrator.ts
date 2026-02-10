@@ -294,7 +294,7 @@ export class StoryPipelineOrchestrator {
           description: "",
           chapters: storedText.map((row) => ({
             chapter: row.chapter,
-            title: row.title || `Kapitel ${row.chapter}`,
+            title: row.title || "",
             text: row.text,
           })),
         };
@@ -341,7 +341,11 @@ export class StoryPipelineOrchestrator {
           totalWords: storyDraft.chapters.reduce((sum, ch) => sum + (ch.text?.split(/\s+/).filter(Boolean).length || 0), 0),
         });
 
-        await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({ chapter: ch.chapter, title: ch.title, text: ch.text })));
+        await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({
+          chapter: ch.chapter,
+          title: ch.title?.trim() || undefined,
+          text: ch.text,
+        })));
         await logPhase("phase6-story", { storyId: normalized.storyId, title: storyDraft.title }, {
           chapters: storyDraft.chapters.length,
           durationMs: Date.now() - phase6Start,

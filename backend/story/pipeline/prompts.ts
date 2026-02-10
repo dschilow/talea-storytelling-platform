@@ -459,7 +459,7 @@ Antworte NUR mit validem JSON. Kein Text davor oder danach.
 // Kompakter, fokussiert nur auf die Probleme
 
 export function buildFullStoryRewritePrompt(input: {
-  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; title: string; text: string }> };
+  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; text: string }> };
   directives: SceneDirective[];
   cast: CastSet;
   dna: TaleDNA | StoryDNA;
@@ -483,7 +483,7 @@ export function buildFullStoryRewritePrompt(input: {
     .join(", ");
 
   const originalText = originalDraft.chapters
-    .map(ch => `--- Kapitel ${ch.chapter}: ${ch.title} ---\n${ch.text}`)
+    .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
     .join("\n\n");
 
   return `# Aufgabe
@@ -494,14 +494,13 @@ ${qualityIssues}
 # Regeln (unveränderlich)
 - Erlaubte Namen: ${allowedNames}
 - Keine neuen Figuren
-- Länge: ${totalWordMin}–${totalWordMax} Wörter gesamt, **${wordsPerChapter.min}–${wordsPerChapter.max} pro Kapitel**
-- Kurze Kapitel → mit Aktion + Dialog erweitern (zeigen, nicht erzählen)
+- Länge: ${totalWordMin}–${totalWordMax} Wörter gesamt, **${wordsPerChapter.min}–${wordsPerChapter.max} pro Beat**
+- Kurze Beats → mit Aktion + Dialog erweitern (zeigen, nicht erzählen)
 - Fehlende Figur → einfügen mit Aktion + mindestens 1 Dialog-Zeile
-- Jedes Kapitel: Sinneseinstieg, Ziel, Hindernis, Aktion, Hook
+- Jeder Beat: Sinneseinstieg, Ziel, Hindernis, Aktion, Hook
 - Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}–${ageRange.max}
 ${artifactName ? `- Artefakt "${artifactName}" aktiv nutzen` : ""}
-- Kapiteltitel = Neugier-Hooks
-- Letztes Kapitel: Epilog (2–4 Sätze)
+- Letzter Beat: Epilog (2–4 Sätze)
 
 # VERBOTEN im Text
 "Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war"
@@ -516,7 +515,7 @@ Komplette überarbeitete Geschichte als JSON:
   "title": "Story-Titel",
   "description": "Teaser-Satz",
   "chapters": [
-    { "chapter": 1, "title": "...", "text": "..." },
+    { "chapter": 1, "text": "..." },
     ...
   ]
 }
@@ -583,7 +582,7 @@ ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 ${originalText}
 
 # Ausgabe
-JSON: { "title": "Kapiteltitel", "text": "Kapiteltext" }`;
+JSON: { "text": "Kapiteltext" }`;
 }
 
 // ─── Legacy functions (für Kompatibilität) ────────────────────────────────────
@@ -659,12 +658,11 @@ STRICT RULES:
 8) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 9) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 10) Avatars and supporting characters must be actively involved, not just present.
-11) Chapter title must be a curiosity hook, not "Chapter X".
-12) End with a gentle forward-looking line (except final chapter).
-${strict ? "13) Do not include any instruction text or meta commentary in the output." : ""}
+11) End with a gentle forward-looking line (except final chapter).
+${strict ? "12) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
-{ "title": "Short chapter title", "text": "Chapter text" }`;
+{ "text": "Chapter text" }`;
 }
 
 export function resolveLengthTargets(input: {
@@ -747,14 +745,13 @@ RULES:
 6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 8) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
-9) Chapter title must be a curiosity hook, not "Chapter X".
-10) Children's-book style: vivid, rhythmic, varied sentence starts.
+9) Children's-book style: vivid, rhythmic, varied sentence starts.
 
 ORIGINAL TEXT:
 ${originalText}
 
 Return JSON:
-{ "title": "Short chapter title", "text": "Chapter text" }`;
+{ "text": "Chapter text" }`;
 }
 
 export function buildTemplatePhraseRewritePrompt(input: {
@@ -811,7 +808,7 @@ ORIGINAL TEXT:
 ${originalText}
 
 Return JSON:
-{ "title": "Short chapter title", "text": "Chapter text" }`;
+{ "text": "Chapter text" }`;
 }
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {

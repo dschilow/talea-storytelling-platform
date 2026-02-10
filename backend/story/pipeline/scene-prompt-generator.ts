@@ -135,7 +135,7 @@ Rules:
     const mustShow = compactVisualHints(directive.imageMustShow || [], onStageNames).join(", ");
     const slotList = onStageSlots.map((s) => `"${s}"`).join(", ");
 
-    return `CHAPTER ${chapter.chapter}: "${chapter.title}"
+    return `CHAPTER ${chapter.chapter}
 ${truncatedText}
 Setting: ${directive.setting}
 Mood: ${directive.mood ?? "COZY"}

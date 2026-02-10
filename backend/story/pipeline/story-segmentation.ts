@@ -17,9 +17,9 @@ export function splitContinuousStoryIntoChapters(input: {
   const cleanedStory = normalizeStoryText(storyText);
 
   if (!cleanedStory) {
-    return directives.map((directive, index) => ({
+    return directives.map((directive) => ({
       chapter: directive.chapter,
-      title: fallbackChapterTitle(language, index + 1),
+      title: "",
       text: fallbackChapterText(directive, language),
     }));
   }
@@ -34,11 +34,7 @@ export function splitContinuousStoryIntoChapters(input: {
 
   return directives.map((directive, index) => ({
     chapter: directive.chapter,
-    title: buildChapterTitle({
-      directive,
-      chapterNumber: index + 1,
-      language,
-    }),
+    title: "",
     text: chapterTexts[index] || fallbackChapterText(directive, language),
   }));
 }
@@ -225,105 +221,6 @@ function splitBlock(text: string): { left: string; right: string } | null {
   return { left, right };
 }
 
-function buildChapterTitle(input: {
-  directive: SceneDirective;
-  chapterNumber: number;
-  language: string;
-}): string {
-  const { directive, chapterNumber, language } = input;
-  const seed = extractTitleSeed([
-    directive.goal,
-    directive.setting,
-    directive.outcome,
-    directive.conflict,
-  ], language);
-
-  if (!seed) return fallbackChapterTitle(language, chapterNumber);
-  return seed;
-}
-
-function extractTitleSeed(candidates: Array<string | undefined>, language: string): string {
-  const stopwords = getTitleStopwords(language);
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    const words = candidate
-      .replace(/[^a-zA-Z0-9\s]/g, " ")
-      .split(/\s+/)
-      .map((word) => word.trim())
-      .filter((word) => word.length > 2)
-      .filter((word) => !stopwords.has(word.toLowerCase()))
-      .slice(0, 5);
-
-    if (words.length === 0) continue;
-    return words.map(capitalizeWord).join(" ");
-  }
-  return "";
-}
-
-function getTitleStopwords(language: string): Set<string> {
-  if (language === "de") {
-    return new Set([
-      "und",
-      "oder",
-      "aber",
-      "dann",
-      "noch",
-      "eine",
-      "einer",
-      "eines",
-      "einem",
-      "den",
-      "dem",
-      "der",
-      "die",
-      "das",
-      "mit",
-      "ohne",
-      "durch",
-      "fuer",
-      "zum",
-      "zur",
-      "auf",
-      "aus",
-      "bei",
-      "von",
-      "nicht",
-      "diese",
-      "dieser",
-      "dieses",
-      "wird",
-      "wurde",
-    ]);
-  }
-
-  return new Set([
-    "and",
-    "or",
-    "but",
-    "the",
-    "this",
-    "that",
-    "with",
-    "from",
-    "into",
-    "over",
-    "under",
-    "for",
-    "without",
-    "about",
-    "then",
-    "when",
-    "where",
-    "there",
-    "will",
-    "would",
-  ]);
-}
-
-function fallbackChapterTitle(language: string, chapterNumber: number): string {
-  return language === "de" ? `Kapitel ${chapterNumber}` : `Chapter ${chapterNumber}`;
-}
-
 function fallbackChapterText(directive: SceneDirective, language: string): string {
   if (directive.goal?.trim()) return directive.goal.trim();
   if (directive.outcome?.trim()) return directive.outcome.trim();
@@ -331,11 +228,6 @@ function fallbackChapterText(directive: SceneDirective, language: string): strin
     return "Die Geschichte geht weiter.";
   }
   return "The story continues.";
-}
-
-function capitalizeWord(word: string): string {
-  if (!word) return word;
-  return word[0].toUpperCase() + word.slice(1).toLowerCase();
 }
 
 function toBlock(text: string): TextBlock {
