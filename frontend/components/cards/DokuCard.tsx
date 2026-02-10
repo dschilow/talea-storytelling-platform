@@ -122,14 +122,19 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
       whileHover={{ y: -4 }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
-      className="group"
+      onClick={() => onRead(doku)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onRead(doku);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Doku lesen: ${doku.title}`}
+      className="group cursor-pointer"
     >
-      <button
-        type="button"
-        onClick={() => onRead(doku)}
-        className="w-full overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]"
-        style={{ borderColor: palette.border, background: palette.card }}
-      >
+      <div className="w-full overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]" style={{ borderColor: palette.border, background: palette.card }}>
         <div className="relative h-[220px] overflow-hidden" style={{ background: palette.soft }}>
           {doku.coverImageUrl ? (
             <img
@@ -163,7 +168,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             </span>
           </div>
 
-          <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="absolute right-3 top-3 flex gap-2">
             {canUseOffline && doku.status === 'complete' && (
               <button
                 type="button"
@@ -238,7 +243,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute inset-0 flex items-center justify-center"
+                className="pointer-events-none absolute inset-0 flex items-center justify-center"
               >
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
                   <Sparkles className="h-5 w-5" />
@@ -265,7 +270,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             </span>
           </div>
         </div>
-      </button>
+      </div>
     </motion.article>
   );
 };

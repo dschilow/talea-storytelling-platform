@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { useBackend } from "../../hooks/useBackend";
-import type { Story } from "../../types/story";
+import type { Story, StoryConfig } from "../../types/story";
 import { cn } from "@/lib/utils";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import taleaLogo from "@/img/talea_logo.png";
@@ -67,6 +67,13 @@ function formatDate(value: string) {
     month: "short",
     year: "numeric",
   });
+}
+
+function normalizeDate(value: string | Date): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return value;
 }
 
 const StudioBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
@@ -462,11 +469,65 @@ const TaleaHomeScreen: React.FC = () => {
         backend.doku.listDokus({ limit: 8, offset: 0 }),
       ]);
 
-      setAvatars((avatarsResponse.avatars as Avatar[]) || []);
-      setStories((storiesResponse.stories as Story[]) || []);
-      setDokus((dokusResponse.dokus as Doku[]) || []);
-      setStoriesTotal((storiesResponse as any).total ?? ((storiesResponse.stories as Story[]) || []).length);
-      setDokusTotal((dokusResponse as any).total ?? ((dokusResponse.dokus as Doku[]) || []).length);
+      const normalizedAvatars: Avatar[] = (avatarsResponse.avatars || []).map((avatar) => ({
+        id: avatar.id,
+        name: avatar.name,
+        imageUrl: avatar.imageUrl,
+        creationType: avatar.creationType,
+      }));
+
+      const normalizedStories: Story[] = (storiesResponse.stories || []).map((storyItem) => {
+        const summary =
+          "summary" in storyItem && typeof storyItem.summary === "string"
+            ? storyItem.summary
+            : storyItem.description || "";
+        const isPublic =
+          "isPublic" in storyItem && typeof storyItem.isPublic === "boolean"
+            ? storyItem.isPublic
+            : false;
+        const rawConfig = storyItem.config as Partial<StoryConfig> & {
+          setting?: string;
+        };
+        const normalizedConfig: StoryConfig = {
+          genre: rawConfig.genre || "adventure",
+          style: rawConfig.style || rawConfig.setting || "classic",
+          ageGroup: rawConfig.ageGroup || "6-8",
+          moral: rawConfig.moral,
+          avatars: rawConfig.avatars || [],
+          characters: rawConfig.characters || [],
+        };
+
+        return {
+          id: storyItem.id,
+          userId: storyItem.userId,
+          title: storyItem.title,
+          summary,
+          description: storyItem.description,
+          config: normalizedConfig,
+          coverImageUrl: storyItem.coverImageUrl || undefined,
+          status: storyItem.status,
+          isPublic,
+          avatarDevelopments: storyItem.avatarDevelopments,
+          metadata: storyItem.metadata,
+          createdAt: normalizeDate(storyItem.createdAt),
+          updatedAt: normalizeDate(storyItem.updatedAt),
+        };
+      });
+
+      const normalizedDokus: Doku[] = (dokusResponse.dokus || []).map((dokuItem) => ({
+        id: dokuItem.id,
+        title: dokuItem.title,
+        topic: dokuItem.topic,
+        coverImageUrl: dokuItem.coverImageUrl || undefined,
+        status: dokuItem.status,
+        createdAt: normalizeDate(dokuItem.createdAt),
+      }));
+
+      setAvatars(normalizedAvatars);
+      setStories(normalizedStories);
+      setDokus(normalizedDokus);
+      setStoriesTotal(storiesResponse.total ?? normalizedStories.length);
+      setDokusTotal(dokusResponse.total ?? normalizedDokus.length);
     } catch (error) {
       console.error("Error loading home data:", error);
     } finally {
@@ -763,4 +824,3 @@ const TaleaHomeScreen: React.FC = () => {
 };
 
 export default TaleaHomeScreen;
-
