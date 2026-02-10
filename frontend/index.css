@@ -370,11 +370,13 @@
   z-index: 5002 !important;
 }
 
-/* Settings: Clerk user profile full-height, dark/light parity, no duplicate billing nav */
+/* Settings: Clerk user profile full-height, flat mobile navigation and stable layout */
 .talea-settings-profile .cl-cardBox,
 .talea-settings-profile .cl-card {
   width: 100% !important;
   max-width: none !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
 }
 
 .talea-settings-profile .cl-card {
@@ -396,15 +398,48 @@
 .talea-settings-profile .cl-pageScrollBox,
 .talea-settings-profile .cl-page {
   background: transparent !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
 }
 
 .talea-settings-profile .cl-scrollBox {
   max-height: none !important;
+  overflow-x: hidden !important;
 }
 
 .talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-page="billing"],
 .talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-localization-key*="billing"],
-.talea-settings-profile .cl-navbarButtons > button:nth-child(3),
-.talea-settings-profile .cl-navbarButtons > a:nth-child(3) {
+.talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-localization-key*="subscription"] {
   display: none !important;
+}
+
+@media (max-width: 768px) {
+  .talea-settings-profile .cl-card {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .talea-settings-profile .cl-navbar {
+    width: 100% !important;
+    max-width: none !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid #d6ccc2 !important;
+  }
+
+  .dark .talea-settings-profile .cl-navbar {
+    border-bottom: 1px solid #415a75 !important;
+  }
+
+  .talea-settings-profile .cl-navbarMobileMenuRow,
+  .talea-settings-profile .cl-navbarMobileMenuButton {
+    display: none !important;
+  }
+
+  .talea-settings-profile .cl-navbarButtons {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+    padding: 0.5rem !important;
+  }
 }

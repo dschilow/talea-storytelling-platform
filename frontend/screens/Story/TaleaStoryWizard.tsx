@@ -123,12 +123,13 @@ const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: P
   labels,
   palette,
 }) => (
-  <div className="flex items-center justify-center gap-2 mb-6 px-2 overflow-x-auto">
+  <div className="mb-6 px-1">
+    <div className="flex items-center justify-between gap-1 sm:gap-2">
     {labels.map((label, i) => (
       <React.Fragment key={label}>
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
           <div
-            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-xs"
             style={
               i < activeStep
                 ? { background: '#34D399', color: '#0f1828' }
@@ -139,15 +140,19 @@ const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: P
           >
             {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
           </div>
-          <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: i <= activeStep ? palette.text : palette.muted }}>
+          <span
+            className="hidden whitespace-nowrap text-[10px] font-medium sm:block"
+            style={{ color: i <= activeStep ? palette.text : palette.muted }}
+          >
             {label}
           </span>
         </div>
         {i < labels.length - 1 && (
-          <div className="h-px w-6 rounded-full" style={{ background: i < activeStep ? '#34D399' : palette.panelBorder }} />
+          <div className="h-px min-w-[8px] flex-1 rounded-full" style={{ background: i < activeStep ? '#34D399' : palette.panelBorder }} />
         )}
       </React.Fragment>
     ))}
+    </div>
   </div>
 );
 

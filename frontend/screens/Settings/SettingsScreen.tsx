@@ -657,7 +657,7 @@ function ParentalDashboardPanel() {
   }
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-full overflow-x-hidden">
       <div className="flex items-center gap-3">
         <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d5bdaf] via-[#e3d5ca] to-[#d6ccc2] text-[#2f4058]">
           <Shield className="h-5 w-5" />
@@ -704,8 +704,8 @@ function ParentalDashboardPanel() {
       {unlocked && (
         <>
           <div className="rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
                 <p className="text-sm font-bold text-foreground">Kinderschutz aktivieren</p>
                 <p className="text-xs text-muted-foreground">
                   Aktiv steuert Tabu-Themen, Lernziele und Tageslimits in Story- und Doku-Prompts.
@@ -1255,14 +1255,17 @@ export default function SettingsScreen() {
             appearance={{
               baseTheme: undefined,
               elements: {
-                rootBox: 'talea-settings-profile w-full !max-w-none',
-                cardBox: '!w-full !max-w-none !h-[72vh] md:!h-[calc(100vh-170px)]',
-                card: '!h-full !w-full !max-w-none shadow-none bg-transparent',
-                navbar: 'bg-card/70 backdrop-blur-lg border-r border-[#d6ccc2] dark:border-[#4a5f78]',
+                rootBox: 'talea-settings-profile w-full !max-w-none !min-w-0',
+                cardBox: '!w-full !max-w-none !min-w-0 !h-auto md:!h-[calc(100vh-170px)]',
+                card: '!h-auto md:!h-full !w-full !max-w-none !min-w-0 shadow-none bg-transparent',
+                navbar: 'bg-card/70 backdrop-blur-lg border-b md:border-b-0 md:border-r border-[#d6ccc2] dark:border-[#4a5f78]',
+                navbarButtons: '!flex !flex-col !gap-1.5',
                 navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
                 navbarButtonActive: 'bg-[#f5ebe0] text-[#425b78] dark:bg-[#223850] dark:text-[#c9dbf1] font-semibold',
-                pageScrollBox: '!h-full bg-transparent',
-                page: '!h-full bg-transparent',
+                navbarMobileMenuRow: 'hidden',
+                navbarMobileMenuButton: 'hidden',
+                pageScrollBox: '!h-auto md:!h-full !min-w-0 bg-transparent',
+                page: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 formButtonPrimary: 'bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] hover:opacity-90 text-[#22344c] rounded-xl shadow-lg',
                 formFieldInput: 'rounded-xl border-[#d6ccc2] dark:border-[#4a617a] bg-card/70 backdrop-blur-lg',
               },

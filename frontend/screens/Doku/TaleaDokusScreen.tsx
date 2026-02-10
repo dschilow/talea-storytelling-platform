@@ -728,34 +728,6 @@ const TaleaDokusScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {([
-                { key: 'mine', label: 'Meine', count: totalMy },
-                { key: 'discover', label: 'Entdecken', count: totalPublic },
-                { key: 'audio', label: 'Hoerwelt', count: totalAudio },
-              ] as const).map((tab) => {
-                const active = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors"
-                    style={{
-                      borderColor: active ? '#a88f80' : palette.border,
-                      background: active ? palette.primary : palette.soft,
-                      color: active ? palette.primaryText : palette.text,
-                    }}
-                  >
-                    <span>{tab.label}</span>
-                    <span className="rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: active ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.3)' }}>
-                      {tab.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {activeTab !== 'audio' ? (
                 <>
@@ -845,6 +817,34 @@ const TaleaDokusScreen: React.FC = () => {
               >
                 Filter zuruecksetzen
               </button>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+              {([
+                { key: 'mine', label: 'Meine', count: totalMy },
+                { key: 'discover', label: 'Entdecken', count: totalPublic },
+                { key: 'audio', label: 'Hoerwelt', count: totalAudio },
+              ] as const).map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors"
+                    style={{
+                      borderColor: active ? '#a88f80' : palette.border,
+                      background: active ? palette.primary : palette.soft,
+                      color: active ? palette.primaryText : palette.text,
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: active ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.3)' }}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </header>
 
