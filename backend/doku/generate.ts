@@ -215,8 +215,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
             const img = await ai.generateImage({
               prompt: sectionPrompt,
-              width: 1280,
-              height: 832, // 16:10 landscape for section images
+              width: 1024,
+              height: 1024,
               steps: 4,
               CFGScale: 4,
               outputFormat: "JPEG",

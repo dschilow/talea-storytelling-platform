@@ -1932,6 +1932,8 @@ export class FourPhaseOrchestrator {
         prompt,
         seed,
         negativePrompt: negativePrompt,
+        width: 1024,
+        height: 1024,
         referenceImages: refs.length > 0 ? refs : undefined,
         ipAdapterWeight: refs.length > 0 ? (ipAdapterWeight ?? 0.8) : undefined,
       });

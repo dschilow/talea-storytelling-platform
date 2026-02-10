@@ -80,6 +80,8 @@ async function generateWithRetry(input: {
       const response = await ai.generateImage({
         prompt: input.prompt,
         negativePrompt: input.negativePrompt,
+        width: 1024,
+        height: 1024,
         referenceImages: input.referenceImages.length > 0 ? input.referenceImages : undefined,
         ipAdapterWeight,
         steps: input.steps,
