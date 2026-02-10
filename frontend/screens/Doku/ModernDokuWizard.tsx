@@ -7,7 +7,17 @@ import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
-import type { SupportedLanguage } from '../../src/i18n';
+
+type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
+
+const DOKU_API_LANGUAGES: DokuApiLanguage[] = ['de', 'en', 'fr', 'es', 'it', 'nl'];
+
+const toDokuLanguage = (candidate?: string | null): DokuApiLanguage => {
+  if (!candidate) return 'de';
+  return DOKU_API_LANGUAGES.includes(candidate as DokuApiLanguage)
+    ? (candidate as DokuApiLanguage)
+    : 'de';
+};
 
 type DokuWizardState = {
   topic: string;
@@ -131,7 +141,7 @@ export default function ModernDokuWizard() {
   const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>('text');
-  const [language, setLanguage] = useState<SupportedLanguage>('de');
+  const [language, setLanguage] = useState<DokuApiLanguage>('de');
   const [credits, setCredits] = useState<DokuCredits | null>(null);
   const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
   const [state, setState] = useState<DokuWizardState>({
@@ -150,8 +160,7 @@ export default function ModernDokuWizard() {
   const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
 
   useEffect(() => {
-    const lang = i18n.language as SupportedLanguage;
-    if (lang) setLanguage(lang);
+    setLanguage(toDokuLanguage(i18n.language));
   }, [i18n.language]);
 
   useEffect(() => {
@@ -159,7 +168,9 @@ export default function ModernDokuWizard() {
       if (!backend || !user) return;
       try {
         const profile = await backend.user.me();
-        if (profile.preferredLanguage) setLanguage(profile.preferredLanguage);
+        if (profile.preferredLanguage) {
+          setLanguage(toDokuLanguage(profile.preferredLanguage));
+        }
         setCredits((profile as any).billing?.dokuCredits ?? null);
         setPermissions((profile as any).billing?.permissions ?? null);
       } catch (error) {

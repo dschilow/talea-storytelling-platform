@@ -10,6 +10,10 @@ import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
+import {
+  buildAvatarProgressionSummary,
+  selectRelevantMemoryForPrompt,
+} from "../avatar/progression";
 // MCP imports kept for potential future use, but not currently used
 import {
   type ValidationResult,
@@ -382,6 +386,29 @@ async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Pro
     personalityChanges: JSON.parse(row.personality_changes),
     createdAt: row.created_at,
   }));
+}
+
+async function getAvatarProgressStatsFromDB(avatarId: string): Promise<{
+  storiesRead: number;
+  dokusRead: number;
+  memoryCount: number;
+}> {
+  const row = await avatarDB.queryRow<{
+    stories_read: number;
+    dokus_read: number;
+    memory_count: number;
+  }>`
+    SELECT
+      (SELECT COUNT(*)::int FROM avatar_story_read WHERE avatar_id = ${avatarId}) AS stories_read,
+      (SELECT COUNT(*)::int FROM avatar_doku_read WHERE avatar_id = ${avatarId}) AS dokus_read,
+      (SELECT COUNT(*)::int FROM avatar_memories WHERE avatar_id = ${avatarId}) AS memory_count
+  `;
+
+  return {
+    storiesRead: row?.stories_read ?? 0,
+    dokusRead: row?.dokus_read ?? 0,
+    memoryCount: row?.memory_count ?? 0,
+  };
 }
 
 type ExtendedAvatarDetails = Omit<
@@ -1934,22 +1961,93 @@ You MUST implement this style consistently in ALL chapters!`
     "]"
   ].join("\n");
 
-  // Build avatar memory section for prompt injection
-  // OPTIMIZED: Ultra-compact – only titles, minimal rules to save tokens
-  const avatarMemoryLines = avatars.map((avatar) => {
-    const compressed = compressedMemoriesMap.get(avatar.id);
-    if (!compressed || compressed.length === 0) return null;
-    const titles = (compressed as any[]).map((m) => m.storyTitle).join(", ");
-    return `${avatar.name}: ${titles}`;
-  }).filter(Boolean);
+  console.log(`[ai-generation] Fetching avatar context for ${avatars.length} avatars`);
+  const avatarIds = avatars.map((avatar) => avatar.id);
+  const avatarProfiles = await getAvatarProfilesFromDB(avatarIds);
+  console.log(`[ai-generation] Loaded ${avatarProfiles.length} avatar visual profiles`);
 
-  const memorySection = avatarMemoryLines.length > 0
-    ? [
-        "PAST ADVENTURES (reference ONE naturally, don't retell):",
-        ...avatarMemoryLines,
-        ""
-      ].join("\n")
-    : "";
+  const avatarMemoriesMap = new Map<string, McpAvatarMemory[]>();
+  const avatarProgressStatsMap = new Map<
+    string,
+    { storiesRead: number; dokusRead: number; memoryCount: number }
+  >();
+
+  for (const avatarId of avatarIds) {
+    const [memories, stats] = await Promise.all([
+      getAvatarMemoriesFromDB(avatarId, MAX_TOOL_MEMORIES),
+      getAvatarProgressStatsFromDB(avatarId),
+    ]);
+    avatarMemoriesMap.set(avatarId, memories);
+    avatarProgressStatsMap.set(avatarId, stats);
+    console.log(
+      `[ai-generation] Avatar ${avatarId}: ${memories.length} memories, stats S:${stats.storiesRead} D:${stats.dokusRead} M:${stats.memoryCount}`
+    );
+  }
+
+  const compressedMemoriesMap = new Map<string, unknown[]>();
+  for (const [avatarId, memories] of avatarMemoriesMap.entries()) {
+    const compressed = compressMemories(memories);
+    if (compressed.length > 0) {
+      compressedMemoriesMap.set(avatarId, compressed);
+    }
+  }
+
+  const contextSeed = `${config.genre} ${config.setting} ${config.customPrompt || ""}`.trim();
+
+  const avatarMemoryLines = avatars
+    .map((avatar) => {
+      const memories = avatarMemoriesMap.get(avatar.id) || [];
+      const relevantMemory = selectRelevantMemoryForPrompt(memories, contextSeed);
+      if (!relevantMemory) return null;
+
+      const traitLine =
+        relevantMemory.dominantTraits.length > 0
+          ? ` | Traits: ${relevantMemory.dominantTraits.join(", ")}`
+          : "";
+
+      return `${avatar.name}: ${relevantMemory.title} -> ${relevantMemory.summary}${traitLine}`;
+    })
+    .filter(Boolean);
+
+  const memorySection =
+    avatarMemoryLines.length > 0
+      ? ["MEMORY CALLBACKS (reuse only if fitting):", ...avatarMemoryLines, ""].join("\n")
+      : "";
+
+  const progressionLines = avatars
+    .map((avatar) => {
+      const stats = avatarProgressStatsMap.get(avatar.id) || {
+        storiesRead: 0,
+        dokusRead: 0,
+        memoryCount: 0,
+      };
+      const progression = buildAvatarProgressionSummary({
+        traits: avatar.personalityTraits as any,
+        stats,
+      });
+      const focus = progression.traitMastery.find(
+        (trait) => trait.trait === progression.focusTrait
+      );
+      const topPerks = progression.perks
+        .filter((perk) => perk.unlocked)
+        .slice(0, 2)
+        .map((perk) => perk.title);
+      const activeQuest = progression.quests.find((quest) => quest.status === "active");
+
+      const perkText =
+        topPerks.length > 0 ? `Perks: ${topPerks.join(", ")}` : "Perks: none yet";
+      const questText = activeQuest
+        ? `Quest: ${activeQuest.title} ${activeQuest.progress}/${activeQuest.target}`
+        : "Quest: all tracked quests completed";
+
+      return `${avatar.name}: Focus ${focus?.label || "Wissen"} (${focus?.rank.name || "Anfaenger"}) | ${perkText} | ${questText}`;
+    })
+    .filter(Boolean);
+
+  const progressionSection =
+    progressionLines.length > 0
+      ? ["AVATAR GROWTH CONTEXT:", ...progressionLines, ""].join("\n")
+      : "";
 
   const userPrompt = [
     buildEnhancedUserPrompt(config, avatars, chapterCount, args.qualityFeedback),
@@ -1958,6 +2056,7 @@ You MUST implement this style consistently in ALL chapters!`
     avatarSummary,
     "",
     memorySection,
+    progressionSection,
     "AVATAR VISUAL CANON:",
     avatarVisualLines,
     "",
@@ -1975,35 +2074,6 @@ You MUST implement this style consistently in ALL chapters!`
   ]
     .filter(Boolean)
     .join("\n");
-
-  // TOOLS REMOVED (2025-10-27): No longer using OpenAI function calling for avatar data
-  // Avatar profiles and memories are now fetched directly from DB before prompt generation
-
-  // Fetch avatar profiles and memories directly from DB
-  console.log(`[ai-generation] 📦 Fetching avatar data from DB for ${avatars.length} avatars`);
-  const avatarIds = avatars.map(a => a.id);
-
-  const avatarProfiles = await getAvatarProfilesFromDB(avatarIds);
-  console.log(`[ai-generation] ✅ Fetched ${avatarProfiles.length} avatar profiles from DB`);
-
-  // Fetch memories for each avatar
-  const avatarMemoriesMap = new Map<string, McpAvatarMemory[]>();
-  for (const avatarId of avatarIds) {
-    const memories = await getAvatarMemoriesFromDB(avatarId, MAX_TOOL_MEMORIES);
-    avatarMemoriesMap.set(avatarId, memories);
-    console.log(`[ai-generation] ✅ Fetched ${memories.length} memories for avatar ${avatarId}`);
-  }
-
-  // Build profile and memory data for state (used later for image generation)
-  // FIX: Actually compress memories so they can be injected into prompts
-  const compressedMemoriesMap = new Map<string, unknown[]>();
-  for (const [avatarId, memories] of avatarMemoriesMap.entries()) {
-    const compressed = compressMemories(memories);
-    if (compressed.length > 0) {
-      compressedMemoriesMap.set(avatarId, compressed);
-      console.log(`[ai-generation] 🧠 Compressed ${compressed.length} memories for avatar ${avatarId}`);
-    }
-  }
 
   const state: StoryToolState = {
     avatarProfilesById: new Map(),

@@ -27,6 +27,24 @@ interface MarkDokuReadResponse {
       newTierLevel: number;
       currentValue: number;
     }>;
+    perkUnlocks?: Array<{
+      id: string;
+      title: string;
+      rarity: "core" | "rare" | "epic";
+      description: string;
+    }>;
+    questUnlocks?: Array<{
+      id: string;
+      title: string;
+      reward: string;
+    }>;
+    questProgress?: Array<{
+      id: string;
+      title: string;
+      progress: number;
+      target: number;
+      status: "active" | "completed";
+    }>;
   }>;
 }
 
@@ -140,6 +158,24 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
             newTier: entry.newTier.name,
             newTierLevel: entry.newTier.level,
             currentValue: entry.newValue,
+          })),
+          perkUnlocks: (personalityResult.perkUnlocks || []).map((entry) => ({
+            id: entry.id,
+            title: entry.title,
+            rarity: entry.rarity,
+            description: entry.description,
+          })),
+          questUnlocks: (personalityResult.questUnlocks || []).map((entry) => ({
+            id: entry.id,
+            title: entry.title,
+            reward: entry.reward,
+          })),
+          questProgress: (personalityResult.questProgress || []).map((entry) => ({
+            id: entry.id,
+            title: entry.title,
+            progress: entry.progress,
+            target: entry.target,
+            status: entry.status,
           })),
         });
 

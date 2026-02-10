@@ -1,3 +1,5 @@
+import type { AvatarProgressionSummary } from "./progression";
+
 export interface PhysicalTraits {
   characterType: string;
   appearance: string;
@@ -110,6 +112,7 @@ export interface Avatar {
   updatedAt: string;
   inventory: InventoryItem[];
   skills: Skill[];
+  progression?: AvatarProgressionSummary;
 }
 
 export interface InventoryItem {

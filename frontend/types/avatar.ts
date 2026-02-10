@@ -58,6 +58,59 @@ export interface Skill {
   description?: string;
 }
 
+export interface AvatarTraitMastery {
+  trait: string;
+  label: string;
+  value: number;
+  rank: {
+    level: number;
+    name: string;
+    minValue: number;
+    maxValue: number;
+  };
+  nextRankAt: number | null;
+  progressToNext: number;
+  displayProgress: number;
+}
+
+export interface AvatarPerk {
+  id: string;
+  title: string;
+  description: string;
+  rarity: 'core' | 'rare' | 'epic';
+  trait: string;
+  requiredValue: number;
+  currentValue: number;
+  unlocked: boolean;
+}
+
+export interface AvatarQuest {
+  id: string;
+  title: string;
+  description: string;
+  reward: string;
+  progress: number;
+  target: number;
+  status: 'active' | 'completed';
+}
+
+export interface AvatarProgression {
+  overallLevel: number;
+  headline: string;
+  focusTrait: string;
+  traitMastery: AvatarTraitMastery[];
+  perks: AvatarPerk[];
+  quests: AvatarQuest[];
+  stats: {
+    storiesRead: number;
+    dokusRead: number;
+    memoryCount: number;
+    completedQuests: number;
+  };
+  topKnowledgeDomains: Array<{ name: string; value: number }>;
+  memoryFocusHint: string;
+}
+
 export interface Avatar {
   id: string;
   userId: string;
@@ -79,6 +132,7 @@ export interface Avatar {
   memories?: AvatarMemory[];
   inventory?: InventoryItem[];
   skills?: Skill[];
+  progression?: AvatarProgression;
 
   metadata?: {
     tokensUsed?: {

@@ -144,12 +144,20 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
+  const translate = (key: string, fallback?: string): string => {
+    const translator = t as unknown as (
+      query: string,
+      options?: { defaultValue?: string }
+    ) => string;
+    const result = translator(key, { defaultValue: fallback ?? key });
+    return typeof result === 'string' ? result : fallback ?? key;
+  };
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'tavi',
-      text: t('chat.welcome'),
+      text: translate('chat.welcome', 'Hi, ich bin Tavi.'),
       timestamp: new Date(),
     },
   ]);
@@ -165,10 +173,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
 
   const isDark = resolvedTheme === 'dark';
 
-  const tWithFallback: TranslateWithFallback = (key, fallback) => {
-    const result = t(key, { defaultValue: fallback ?? key });
-    return typeof result === 'string' ? result : String(result);
-  };
+  const tWithFallback: TranslateWithFallback = (key, fallback) => translate(key, fallback);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -265,7 +270,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     } catch (error) {
       console.error('Tavi chat error:', error);
 
-      let errorText = t('chat.error');
+      let errorText = translate('chat.error', 'Etwas ist schiefgelaufen.');
       if (error instanceof Error && process.env.NODE_ENV === 'development') {
         errorText = `Debug: ${error.message}`;
       }

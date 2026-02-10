@@ -2,52 +2,26 @@ import { api, APIError } from "encore.dev/api";
 import type { PersonalityTraits } from "./avatar";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
-
-// ─── Trait Mastery Tiers ───────────────────────────────────────────────────
-export interface MasteryTier {
-  level: number;
-  name: string;
-  nameEn: string;
-  icon: string;
-  minValue: number;
-  maxValue: number;
-}
-
-export const MASTERY_TIERS: MasteryTier[] = [
-  { level: 1, name: 'Anfänger',  nameEn: 'Beginner',   icon: '🌱', minValue: 0,  maxValue: 20 },
-  { level: 2, name: 'Lehrling',  nameEn: 'Apprentice', icon: '🌿', minValue: 21, maxValue: 40 },
-  { level: 3, name: 'Geselle',   nameEn: 'Journeyman', icon: '🌳', minValue: 41, maxValue: 60 },
-  { level: 4, name: 'Meister',   nameEn: 'Master',     icon: '⭐', minValue: 61, maxValue: 80 },
-  { level: 5, name: 'Legende',   nameEn: 'Legend',      icon: '👑', minValue: 81, maxValue: 100 },
-];
-
-export function getMasteryTier(value: number) {
-  for (let i = MASTERY_TIERS.length - 1; i >= 0; i--) {
-    if (value >= MASTERY_TIERS[i].minValue) return MASTERY_TIERS[i];
-  }
-  return MASTERY_TIERS[0];
-}
-
-// Diminishing returns: the higher the trait, the less points you get
-function applyDiminishingReturns(currentValue: number, rawChange: number): number {
-  if (rawChange <= 0) return rawChange; // Reductions are always full
-  // Scale factor: 1.0 at 0, 0.5 at 50, 0.25 at 75, 0.15 at 90
-  const scaleFactor = Math.max(0.15, 1.0 - (currentValue / 130));
-  return Math.max(1, Math.round(rawChange * scaleFactor));
-}
+import {
+  evaluateProgressionEvents,
+  type AvatarProgressionSummary,
+  type MasteryTier,
+  type PerkUnlockEvent,
+  type QuestUnlockEvent,
+} from "./progression";
 
 interface TraitChange {
   trait: string;
   change: number;
-  description?: string; // Reason for this trait development
+  description?: string;
 }
 
 interface UpdatePersonalityRequest {
   id: string;
   changes: TraitChange[];
-  storyId?: string; // Track which story/content caused these updates
-  contentTitle?: string; // Title of the story/doku that caused the development
-  contentType?: 'story' | 'doku'; // Type of content
+  storyId?: string;
+  contentTitle?: string;
+  contentType?: "story" | "doku";
 }
 
 interface UpdatePersonalityResponse {
@@ -61,22 +35,92 @@ interface UpdatePersonalityResponse {
     newTier: MasteryTier;
     newValue: number;
   }>;
+  perkUnlocks: PerkUnlockEvent[];
+  questUnlocks: QuestUnlockEvent[];
+  questProgress: AvatarProgressionSummary["quests"];
+  progressionSummary: AvatarProgressionSummary;
 }
 
-// Updates an avatar's personality traits with delta changes
+const BASE_TRAITS = new Set([
+  "knowledge",
+  "creativity",
+  "vocabulary",
+  "courage",
+  "curiosity",
+  "teamwork",
+  "empathy",
+  "persistence",
+  "logic",
+]);
+
+function applyDiminishingReturns(currentValue: number, rawChange: number): number {
+  if (rawChange <= 0) return rawChange;
+  const scaleFactor = Math.max(0.12, 1 - currentValue / 220);
+  return Math.max(1, Math.round(rawChange * scaleFactor));
+}
+
+function parseTraitValue(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(0, raw);
+  }
+  if (raw && typeof raw === "object") {
+    const candidate = (raw as { value?: unknown }).value;
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      return Math.max(0, candidate);
+    }
+  }
+  return 0;
+}
+
+function normalizeStatsRow(
+  row: { stories_read: number; dokus_read: number; memory_count: number } | null
+) {
+  return {
+    storiesRead: row?.stories_read ?? 0,
+    dokusRead: row?.dokus_read ?? 0,
+    memoryCount: row?.memory_count ?? 0,
+  };
+}
+
+function mergeDuplicateChanges(changes: TraitChange[]): TraitChange[] {
+  const merged = new Map<string, TraitChange>();
+
+  for (const change of changes) {
+    if (!change.trait || !Number.isFinite(change.change) || change.change === 0) {
+      continue;
+    }
+
+    const existing = merged.get(change.trait);
+    if (!existing) {
+      merged.set(change.trait, { ...change });
+      continue;
+    }
+
+    existing.change += change.change;
+    existing.description = [existing.description, change.description]
+      .filter(Boolean)
+      .join("; ");
+    merged.set(change.trait, existing);
+  }
+
+  return Array.from(merged.values());
+}
+
 export const updatePersonality = api(
   { expose: true, method: "POST", path: "/avatar/personality" },
   async (req: UpdatePersonalityRequest): Promise<UpdatePersonalityResponse> => {
-    const { id, changes, storyId } = req;
+    const { id } = req;
+    const mergedChanges = mergeDuplicateChanges(req.changes || []);
 
-    console.log(`🧠 Updating personality for avatar ${id} via ${req.contentType || 'content'} "${req.contentTitle || 'Unknown'}":`, changes.map(c => `${c.trait}: ${c.change > 0 ? '+' : ''}${c.change}`));
+    if (mergedChanges.length === 0) {
+      throw APIError.invalidArgument("No valid trait changes provided.");
+    }
 
     const existingAvatar = await avatarDB.queryRow<{
       id: string;
-      user_id: string;
       personality_traits: string;
     }>`
-      SELECT id, user_id, personality_traits FROM avatars WHERE id = ${id}
+      SELECT id, personality_traits FROM avatars WHERE id = ${id}
     `;
 
     if (!existingAvatar) {
@@ -84,138 +128,147 @@ export const updatePersonality = api(
     }
 
     const currentTraitsRaw = JSON.parse(existingAvatar.personality_traits);
-
-    // Automatically upgrade and normalize traits to ensure all required traits exist
     const currentTraits = upgradePersonalityTraits(currentTraitsRaw);
-
-    // Log if traits were upgraded
-    const originalKeyCount = Object.keys(currentTraitsRaw).length;
-    const upgradedKeyCount = Object.keys(currentTraits).length;
-    if (upgradedKeyCount > originalKeyCount) {
-      console.log(`🔧 Avatar ${id} traits upgraded: ${originalKeyCount} → ${upgradedKeyCount} traits`);
-    }
-
-    const updatedTraits = { ...currentTraits };
+    const previousTraits = JSON.parse(JSON.stringify(currentTraits)) as PersonalityTraits;
+    const updatedTraits = JSON.parse(JSON.stringify(currentTraits)) as PersonalityTraits;
+    const mutableTraits = updatedTraits as unknown as Record<string, unknown>;
     const appliedChanges: TraitChange[] = [];
-    const masteryEvents: UpdatePersonalityResponse['masteryEvents'] = [];
 
-    // Trait display names for mastery events
-    const traitDisplayNames: Record<string, string> = {
-      courage: 'Mut', creativity: 'Kreativität', vocabulary: 'Wortschatz',
-      curiosity: 'Neugier', teamwork: 'Teamgeist', empathy: 'Empathie',
-      persistence: 'Ausdauer', logic: 'Logik', knowledge: 'Wissen',
-    };
+    for (const change of mergedChanges) {
+      const traitId = change.trait;
+      const defaultDescription =
+        change.description ||
+        `Entwicklung durch ${req.contentType || "Inhalt"}: ${req.contentTitle || "Unbekannt"}`;
 
-    // Apply trait changes
-    for (const change of changes) {
-      const traitIdentifier = change.trait;
+      if (traitId.includes(".")) {
+        const [baseKey, subcategory] = traitId.split(".");
+        if (!baseKey || !subcategory || !BASE_TRAITS.has(baseKey)) {
+          continue;
+        }
 
-      // Handle hierarchical traits (e.g. "knowledge.physics")
-      if (traitIdentifier.includes('.')) {
-        const [baseKey, subcategory] = traitIdentifier.split('.');
+        const baseTrait = mutableTraits[baseKey];
+        if (typeof baseTrait === "number" || !baseTrait || typeof baseTrait !== "object") {
+          mutableTraits[baseKey] = {
+            value: parseTraitValue(baseTrait),
+            subcategories: {},
+          };
+        }
 
-        if (baseKey in updatedTraits) {
-          const traitKey = baseKey as keyof PersonalityTraits;
-          const baseTrait = updatedTraits[traitKey];
+        const baseTraitObject = mutableTraits[baseKey] as {
+          value: number;
+          subcategories?: Record<string, number>;
+        };
 
-          // Ensure we have the hierarchical structure
-          if (typeof baseTrait === 'number') {
-            updatedTraits[traitKey] = { value: baseTrait, subcategories: {} };
-          }
+        if (!baseTraitObject.subcategories || typeof baseTraitObject.subcategories !== "object") {
+          baseTraitObject.subcategories = {};
+        }
 
-          const traitValue = updatedTraits[traitKey] as { value: number; subcategories?: Record<string, number> };
-          const currentSubcategoryValue = traitValue.subcategories?.[subcategory] || 0;
-          const maxValue = 1000; // Higher limit for subcategories
-          const newSubcategoryValue = Math.max(0, Math.min(maxValue, currentSubcategoryValue + change.change));
+        const currentSubcategoryValue = Math.max(
+          0,
+          baseTraitObject.subcategories[subcategory] || 0
+        );
+        const maxValue = 1000;
+        const nextSubcategoryValue = Math.max(
+          0,
+          Math.min(maxValue, currentSubcategoryValue + change.change)
+        );
 
-          // Update subcategory
-          if (!traitValue.subcategories) {
-            traitValue.subcategories = {};
-          }
-          traitValue.subcategories[subcategory] = newSubcategoryValue;
+        baseTraitObject.subcategories[subcategory] = nextSubcategoryValue;
 
-          // Update base value (sum of all subcategories + direct base value)
-          const subcategorySum = Object.values(traitValue.subcategories).reduce((sum: number, val: number) => sum + val, 0);
-          traitValue.value = subcategorySum;
+        const subcategoryTotal = Object.values(baseTraitObject.subcategories).reduce(
+          (sum, value) => sum + Math.max(0, value),
+          0
+        );
+        baseTraitObject.value = Math.max(baseTraitObject.value || 0, subcategoryTotal);
 
-          const actualChange = newSubcategoryValue - currentSubcategoryValue;
+        const actualChange = nextSubcategoryValue - currentSubcategoryValue;
+        if (actualChange !== 0) {
           appliedChanges.push({
-            trait: traitIdentifier,
+            trait: traitId,
             change: actualChange,
-            description: change.description || `Entwicklung durch ${req.contentType || 'Inhalt'}: ${req.contentTitle || 'Unbekannt'}`
+            description: defaultDescription,
           });
-
-          const changeIcon = actualChange > 0 ? '📈' : '📉';
-          const description = change.description ? ` (${change.description})` : '';
-          console.log(`  ${changeIcon} ${baseKey}.${subcategory}: ${currentSubcategoryValue} → ${newSubcategoryValue} (${actualChange > 0 ? '+' : ''}${actualChange})${description}`);
-          console.log(`  📊 ${baseKey} Gesamt: ${updatedTraits[baseKey].value}`);
-        } else {
-          console.warn(`⚠️ Unknown base trait: ${baseKey}`);
         }
+        continue;
+      }
+
+      if (!BASE_TRAITS.has(traitId)) {
+        continue;
+      }
+
+      const currentTraitValue = parseTraitValue(
+        mutableTraits[traitId]
+      );
+      const effectiveChange = applyDiminishingReturns(currentTraitValue, change.change);
+      const maxValue = traitId === "knowledge" ? 1000 : 250;
+      const nextValue = Math.max(
+        0,
+        Math.min(maxValue, currentTraitValue + effectiveChange)
+      );
+
+      const currentRaw = mutableTraits[traitId];
+      if (typeof currentRaw === "number" || !currentRaw || typeof currentRaw !== "object") {
+        mutableTraits[traitId] = {
+          value: nextValue,
+          subcategories: {},
+        };
       } else {
-        // Handle direct base trait updates (with diminishing returns)
-        if (traitIdentifier in updatedTraits) {
-          const currentTrait = updatedTraits[traitIdentifier];
-          const oldValue = typeof currentTrait === 'number' ? currentTrait : currentTrait.value;
+        (currentRaw as { value: number }).value = nextValue;
+      }
 
-          // Apply diminishing returns for base traits
-          const effectiveChange = applyDiminishingReturns(oldValue, change.change);
-          
-          const maxValue = 100; // Base traits have lower limit
-          const newValue = Math.max(0, Math.min(maxValue, oldValue + effectiveChange));
-
-          // Check mastery tier change
-          const oldTier = getMasteryTier(oldValue);
-          const newTier = getMasteryTier(newValue);
-          if (newTier.level > oldTier.level) {
-            masteryEvents.push({
-              trait: traitIdentifier,
-              traitDisplayName: traitDisplayNames[traitIdentifier] || traitIdentifier,
-              oldTier,
-              newTier,
-              newValue,
-            });
-            console.log(`  🏆 MASTERY UP! ${traitIdentifier}: ${oldTier.icon} ${oldTier.name} → ${newTier.icon} ${newTier.name}`);
-          }
-
-          // Preserve subcategories if they exist
-          if (typeof currentTrait === 'object') {
-            updatedTraits[traitIdentifier].value = newValue;
-          } else {
-            updatedTraits[traitIdentifier] = { value: newValue, subcategories: {} };
-          }
-
-          appliedChanges.push({
-            trait: traitIdentifier,
-            change: newValue - oldValue,
-            description: change.description || `Entwicklung durch ${req.contentType || 'Inhalt'}: ${req.contentTitle || 'Unbekannt'}`
-          });
-
-          const changeIcon = newValue - oldValue > 0 ? '📈' : '📉';
-          const description = change.description ? ` (${change.description})` : '';
-          console.log(`  ${changeIcon} ${traitIdentifier}: ${oldValue} → ${newValue} (${newValue - oldValue > 0 ? '+' : ''}${newValue - oldValue})${description}`);
-        } else {
-          console.warn(`⚠️ Unknown trait: ${traitIdentifier}`);
-        }
+      const actualChange = nextValue - currentTraitValue;
+      if (actualChange !== 0) {
+        appliedChanges.push({
+          trait: traitId,
+          change: actualChange,
+          description: defaultDescription,
+        });
       }
     }
 
-    // Update the database
-    console.log(`💾 Saving updated traits to database:`, JSON.stringify(updatedTraits, null, 2));
     await avatarDB.exec`
-      UPDATE avatars SET
-        personality_traits = ${JSON.stringify(updatedTraits)},
-        updated_at = ${new Date()}
+      UPDATE avatars
+      SET personality_traits = ${JSON.stringify(updatedTraits)},
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
-    console.log(`✅ Personality update complete for avatar ${id}${masteryEvents.length > 0 ? ` (${masteryEvents.length} mastery-ups!)` : ''}`);
+    const rawStats = await avatarDB.queryRow<{
+      stories_read: number;
+      dokus_read: number;
+      memory_count: number;
+    }>`
+      SELECT
+        (SELECT COUNT(*)::int FROM avatar_story_read WHERE avatar_id = ${id}) AS stories_read,
+        (SELECT COUNT(*)::int FROM avatar_doku_read WHERE avatar_id = ${id}) AS dokus_read,
+        (SELECT COUNT(*)::int FROM avatar_memories WHERE avatar_id = ${id}) AS memory_count
+    `;
+
+    const previousStats = normalizeStatsRow(rawStats);
+    const nextStats = {
+      storiesRead:
+        previousStats.storiesRead + (req.contentType === "story" ? 1 : 0),
+      dokusRead: previousStats.dokusRead + (req.contentType === "doku" ? 1 : 0),
+      memoryCount:
+        previousStats.memoryCount + (req.contentType === "story" || req.contentType === "doku" ? 1 : 0),
+    };
+
+    const progressionEvents = evaluateProgressionEvents({
+      previousTraits,
+      nextTraits: updatedTraits,
+      previousStats,
+      nextStats,
+    });
 
     return {
       success: true,
       updatedTraits,
       appliedChanges,
-      masteryEvents,
+      masteryEvents: progressionEvents.masteryEvents,
+      perkUnlocks: progressionEvents.perkUnlocks,
+      questUnlocks: progressionEvents.questUnlocks,
+      questProgress: progressionEvents.progressionSummary.quests,
+      progressionSummary: progressionEvents.progressionSummary,
     };
   }
 );

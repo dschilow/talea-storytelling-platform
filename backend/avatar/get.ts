@@ -4,6 +4,7 @@ import { getAuthData } from "~encore/auth";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
+import { buildAvatarProgressionSummary } from "./progression";
 
 interface GetAvatarParams {
   id: string;
@@ -104,6 +105,25 @@ export const get = api<GetAvatarParams, Avatar>(
       console.log(`[avatar.get] Successfully loaded avatar ${id}`);
 
       const imageUrl = await buildAvatarImageUrlForClient(row.id, row.image_url || undefined);
+      const progressionStats = await avatarDB.queryRow<{
+        stories_read: number;
+        dokus_read: number;
+        memory_count: number;
+      }>`
+        SELECT
+          (SELECT COUNT(*)::int FROM avatar_story_read WHERE avatar_id = ${id}) AS stories_read,
+          (SELECT COUNT(*)::int FROM avatar_doku_read WHERE avatar_id = ${id}) AS dokus_read,
+          (SELECT COUNT(*)::int FROM avatar_memories WHERE avatar_id = ${id}) AS memory_count
+      `;
+
+      const progression = buildAvatarProgressionSummary({
+        traits: upgradedPersonalityTraits as any,
+        stats: {
+          storiesRead: progressionStats?.stories_read ?? 0,
+          dokusRead: progressionStats?.dokus_read ?? 0,
+          memoryCount: progressionStats?.memory_count ?? 0,
+        },
+      });
 
       return {
         id: row.id,
@@ -121,6 +141,7 @@ export const get = api<GetAvatarParams, Avatar>(
         updatedAt: row.updated_at.toISOString(),
         inventory: row.inventory ? JSON.parse(row.inventory) : [],
         skills: row.skills ? JSON.parse(row.skills) : [],
+        progression,
       };
     } catch (error) {
       console.error(`[avatar.get] ERROR loading avatar ${id}:`, error);

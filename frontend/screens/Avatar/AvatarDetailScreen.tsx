@@ -14,7 +14,7 @@ import {
 import { useBackend } from '../../hooks/useBackend';
 import { useAvatarMemory } from '../../hooks/useAvatarMemory';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Avatar, AvatarMemory } from '../../types/avatar';
+import { Avatar, AvatarMemory, AvatarProgression } from '../../types/avatar';
 import { PersonalityProgressBoard } from '../../components/avatar/PersonalityProgressBoard';
 import TreasureRoom from '../../components/gamification/TreasureRoom';
 
@@ -57,32 +57,6 @@ const TRAIT_NAME_MAP: Record<string, string> = {
   chemistry: 'Chemie',
   mathematics: 'Mathematik',
   astronomy: 'Astronomie',
-};
-
-const getMasteryLabel = (value: number) => {
-  const normalized = Math.max(0, value);
-  if (normalized >= 220) return 'Ikone';
-  if (normalized >= 140) return 'Veteran';
-  if (normalized >= 101) return 'Legende+';
-  if (normalized >= 81) return 'Legende';
-  if (normalized >= 61) return 'Meister';
-  if (normalized >= 41) return 'Geselle';
-  if (normalized >= 21) return 'Lehrling';
-  return 'Anfaenger';
-};
-
-const getTraitProgress = (traitId: string, value: number) => {
-  const sanitized = Math.max(0, value);
-  if (traitId !== 'knowledge') {
-    return Math.min(100, Math.round(sanitized));
-  }
-
-  if (sanitized <= 100) {
-    return Math.round(sanitized);
-  }
-
-  const normalized = (Math.log10(sanitized + 10) / Math.log10(1010)) * 100;
-  return Math.min(100, Math.max(0, Math.round(normalized)));
 };
 
 const toDisplayLabel = (key: string) => TRAIT_NAME_MAP[key] || key;
@@ -161,6 +135,7 @@ const AvatarDetailScreen: React.FC = () => {
 
   const [avatar, setAvatar] = useState<Avatar | null>(null);
   const [rawTraits, setRawTraits] = useState<Record<string, unknown> | null>(null);
+  const [progression, setProgression] = useState<AvatarProgression | null>(null);
   const [memories, setMemories] = useState<AvatarMemory[]>([]);
   const [loading, setLoading] = useState(true);
   const [memoriesLoading, setMemoriesLoading] = useState(true);
@@ -182,6 +157,7 @@ const AvatarDetailScreen: React.FC = () => {
         if (!alive) return;
         setAvatar(avatarData as Avatar);
         setRawTraits(((avatarData as any).personalityTraits as Record<string, unknown>) || null);
+        setProgression((((avatarData as any).progression as AvatarProgression) || null));
       } catch (error) {
         console.error('Could not load avatar details:', error);
       } finally {
@@ -425,65 +401,39 @@ const AvatarDetailScreen: React.FC = () => {
                 Kompetenzprofil
               </h2>
               <p className="mb-4 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
-                Klare Progress-Ansicht fuer Kernkompetenzen und Wissensbereiche.
+                Dynamische Growth-Ansicht mit Ringen, Perks und Quests.
               </p>
-              <PersonalityProgressBoard traits={traitModels} />
+              <PersonalityProgressBoard traits={traitModels} progression={progression} />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {traitModels.map((trait) => (
-                <article
-                  key={trait.id}
-                  className="rounded-2xl border px-3.5 py-3"
-                  style={{
-                    borderColor: isDark ? '#344b61' : '#dbcdbd',
-                    background: isDark ? 'rgba(23,34,49,0.88)' : 'rgba(255,251,245,0.92)',
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold" style={{ color: isDark ? '#e6eefb' : '#223347' }}>
-                      {trait.label}
-                    </h3>
-                    <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: isDark ? 'rgba(68,91,120,0.5)' : '#ebe4d9', color: isDark ? '#d2e0f3' : '#4a6079' }}>
-                      {Math.round(trait.value)}
-                    </span>
-                  </div>
-
-                  <p className="mt-1 text-xs font-medium" style={{ color: isDark ? '#97abc5' : '#6d8098' }}>
-                    Stufe: {getMasteryLabel(trait.value)}
-                  </p>
-
-                  <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ background: isDark ? 'rgba(73,93,120,0.45)' : '#e6dbcd' }}>
-                    <div
-                      className="h-full rounded-full"
+            {progression?.topKnowledgeDomains?.length ? (
+              <div
+                className="rounded-2xl border px-3.5 py-3"
+                style={{
+                  borderColor: isDark ? '#344b61' : '#dbcdbd',
+                  background: isDark ? 'rgba(23,34,49,0.88)' : 'rgba(255,251,245,0.92)',
+                }}
+              >
+                <h3 className="text-sm font-semibold" style={{ color: isDark ? '#e6eefb' : '#223347' }}>
+                  Starke Wissensfelder
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {progression.topKnowledgeDomains.map((entry) => (
+                    <span
+                      key={entry.name}
+                      className="rounded-full border px-2 py-0.5 text-[11px]"
                       style={{
-                        width: `${getTraitProgress(trait.id, trait.value)}%`,
-                        background:
-                          'linear-gradient(90deg, #7d98c7 0%, #a985c5 50%, #c88b79 100%)',
+                        borderColor: isDark ? '#3a4f67' : '#d6c9b8',
+                        color: isDark ? '#9fb3cd' : '#647b95',
+                        background: isDark ? 'rgba(31,43,61,0.8)' : 'rgba(255,255,255,0.72)',
                       }}
-                    />
-                  </div>
-
-                  {trait.subcategories.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {trait.subcategories.map((subcategory) => (
-                        <span
-                          key={`${trait.id}-${subcategory.name}`}
-                          className="rounded-full border px-2 py-0.5 text-[11px]"
-                          style={{
-                            borderColor: isDark ? '#3a4f67' : '#d6c9b8',
-                            color: isDark ? '#9fb3cd' : '#647b95',
-                            background: isDark ? 'rgba(31,43,61,0.8)' : 'rgba(255,255,255,0.72)',
-                          }}
-                        >
-                          {toDisplayLabel(subcategory.name)}: {Math.round(subcategory.value)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
+                    >
+                      {toDisplayLabel(entry.name)}: {Math.round(entry.value)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
         )}
 
