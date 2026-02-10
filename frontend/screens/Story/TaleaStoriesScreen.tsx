@@ -28,6 +28,7 @@ import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDia
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 
 const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
 const bodyFont = '"Sora", "Manrope", "Segoe UI", sans-serif';
@@ -105,9 +106,10 @@ const GridStoryCard: React.FC<{
   index: number;
   onRead: () => void;
   onDelete: () => void;
+  canDownload: boolean;
   onDownloadPdf: (event: React.MouseEvent<HTMLButtonElement>) => void;
   isDownloading: boolean;
-}> = ({ story, index, onRead, onDelete, onDownloadPdf, isDownloading }) => {
+}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading }) => {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -141,7 +143,7 @@ const GridStoryCard: React.FC<{
           </div>
 
           <div className="absolute right-3 top-3 flex items-center gap-2">
-            {story.status === "complete" && (
+            {canDownload && story.status === "complete" && (
               <button
                 type="button"
                 onClick={onDownloadPdf}
@@ -199,9 +201,10 @@ const ListStoryRow: React.FC<{
   index: number;
   onRead: () => void;
   onDelete: () => void;
+  canDownload: boolean;
   onDownloadPdf: (event: React.MouseEvent<HTMLButtonElement>) => void;
   isDownloading: boolean;
-}> = ({ story, index, onRead, onDelete, onDownloadPdf, isDownloading }) => {
+}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading }) => {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -235,7 +238,7 @@ const ListStoryRow: React.FC<{
 
               <div className="flex items-center gap-2">
                 <StoryStatusChip status={story.status} />
-                {story.status === "complete" && (
+                {canDownload && story.status === "complete" && (
                   <button
                     type="button"
                     onClick={onDownloadPdf}
@@ -323,6 +326,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
+  const { isAdmin } = useOptionalUserAccess();
   const { isLoaded: authLoaded, isSignedIn } = useUser();
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
@@ -413,7 +417,7 @@ const TaleaStoriesScreen: React.FC = () => {
   ) => {
     event.stopPropagation();
 
-    if (!isPDFExportSupported() || storyStatus !== "complete") return;
+    if (!isAdmin || !isPDFExportSupported() || storyStatus !== "complete") return;
 
     try {
       setDownloadingStoryId(storyId);
@@ -642,6 +646,7 @@ const TaleaStoriesScreen: React.FC = () => {
                     index={index}
                     onRead={() => navigate(`/story-reader/${story.id}`)}
                     onDelete={() => handleDeleteStory(story.id, story.title)}
+                    canDownload={isAdmin}
                     onDownloadPdf={(event) => handleDownloadPdf(story.id, story.status, event)}
                     isDownloading={downloadingStoryId === story.id}
                   />
@@ -656,6 +661,7 @@ const TaleaStoriesScreen: React.FC = () => {
                     index={index}
                     onRead={() => navigate(`/story-reader/${story.id}`)}
                     onDelete={() => handleDeleteStory(story.id, story.title)}
+                    canDownload={isAdmin}
                     onDownloadPdf={(event) => handleDownloadPdf(story.id, story.status, event)}
                     isDownloading={downloadingStoryId === story.id}
                   />

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
@@ -27,6 +28,7 @@ const StoryReaderScreen: React.FC = () => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { t } = useTranslation();
+  const { isAdmin } = useOptionalUserAccess();
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,6 +113,10 @@ const StoryReaderScreen: React.FC = () => {
   const [exportProgress, setExportProgress] = useState(0);
 
   const handleExportPDF = async () => {
+    if (!isAdmin) {
+      return;
+    }
+
     if (!story || !isPDFExportSupported()) {
       const { showErrorToast } = await import('../../utils/toastUtils');
       showErrorToast('PDF-Export wird in diesem Browser nicht unterstützt');
@@ -455,23 +461,25 @@ const StoryReaderScreen: React.FC = () => {
                 {t('story.reader.read')}
               </button>
 
-              <button
-                onClick={handleExportPDF}
-                disabled={isExportingPDF}
-                className="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isExportingPDF ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>{exportProgress}%</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-5 h-5" />
-                    <span>PDF herunterladen</span>
-                  </>
-                )}
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={handleExportPDF}
+                  disabled={isExportingPDF}
+                  className="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isExportingPDF ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>{exportProgress}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      <span>PDF herunterladen</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </motion.div>
         ) : (
