@@ -5,6 +5,7 @@ import {
   motion,
   useReducedMotion,
   useScroll,
+  useSpring,
   useTransform,
 } from 'framer-motion';
 import {
@@ -210,9 +211,11 @@ const LandingPage: React.FC = () => {
   const shouldReduceMotion = useReducedMotion();
   const startTarget = isSignedIn ? '/' : '/auth';
 
-  const { scrollYProgress } = useScroll({
-    target: pageRef,
-    offset: ['start start', 'end end'],
+  const { scrollY, scrollYProgress } = useScroll();
+  const smoothScrollY = useSpring(scrollY, {
+    stiffness: 70,
+    damping: 24,
+    mass: 0.4,
   });
   const { scrollYProgress: islandsProgress } = useScroll({
     target: islandsRef,
@@ -231,77 +234,59 @@ const LandingPage: React.FC = () => {
     offset: ['start end', 'end start'],
   });
 
-  const skyY = useTransform(
-    scrollYProgress,
-    [0, 1],
-    [0, shouldReduceMotion ? 0 : -220]
-  );
-  const cloudY = useTransform(
-    scrollYProgress,
-    [0, 1],
-    [0, shouldReduceMotion ? 0 : -90]
-  );
-  const castleY = useTransform(
-    scrollYProgress,
-    [0, 1],
-    [0, shouldReduceMotion ? 0 : -130]
-  );
-  const headlineY = useTransform(
-    scrollYProgress,
-    [0, 0.4],
-    [0, shouldReduceMotion ? 0 : -60]
-  );
-  const charactersY = useTransform(
-    scrollYProgress,
-    [0, 0.5],
-    [0, shouldReduceMotion ? 0 : -42]
-  );
-  const ribbonAY = useTransform(scrollYProgress, [0, 1], [0, shouldReduceMotion ? 0 : -360]);
-  const ribbonBY = useTransform(scrollYProgress, [0, 1], [0, shouldReduceMotion ? 0 : -180]);
+  const motionFactor = shouldReduceMotion ? 0.35 : 1;
+  const skyY = useTransform(smoothScrollY, [0, 2200], [0, -480 * motionFactor]);
+  const cloudY = useTransform(smoothScrollY, [0, 2200], [0, -290 * motionFactor]);
+  const castleY = useTransform(smoothScrollY, [0, 1800], [0, -230 * motionFactor]);
+  const castleScale = useTransform(smoothScrollY, [0, 1800], [1, 1 + 0.12 * motionFactor]);
+  const headlineY = useTransform(smoothScrollY, [0, 1400], [0, -130 * motionFactor]);
+  const charactersY = useTransform(smoothScrollY, [0, 1400], [0, -90 * motionFactor]);
+  const ribbonAY = useTransform(smoothScrollY, [0, 3200], [0, -920 * motionFactor]);
+  const ribbonBY = useTransform(smoothScrollY, [0, 3200], [0, -560 * motionFactor]);
   const islandsHeadingY = useTransform(
     islandsProgress,
     [0, 0.5, 1],
-    [shouldReduceMotion ? 0 : 26, 0, shouldReduceMotion ? 0 : -26]
+    [35 * motionFactor, 0, -35 * motionFactor]
   );
   const islandCardYEven = useTransform(
     islandsProgress,
     [0, 1],
-    [shouldReduceMotion ? 0 : 24, shouldReduceMotion ? 0 : -24]
+    [95 * motionFactor, -95 * motionFactor]
   );
   const islandCardYOdd = useTransform(
     islandsProgress,
     [0, 1],
-    [shouldReduceMotion ? 0 : -18, shouldReduceMotion ? 0 : 18]
+    [-82 * motionFactor, 82 * motionFactor]
   );
   const flowSectionY = useTransform(
     flowProgress,
     [0, 0.5, 1],
-    [shouldReduceMotion ? 0 : 24, 0, shouldReduceMotion ? 0 : -16]
+    [36 * motionFactor, 0, -32 * motionFactor]
   );
   const flowMainImageY = useTransform(
     flowProgress,
     [0, 1],
-    [shouldReduceMotion ? 0 : 34, shouldReduceMotion ? 0 : -36]
+    [70 * motionFactor, -80 * motionFactor]
   );
   const flowFloatingImageY = useTransform(
     flowProgress,
     [0, 1],
-    [shouldReduceMotion ? 0 : -26, shouldReduceMotion ? 0 : 34]
+    [-64 * motionFactor, 92 * motionFactor]
   );
   const trustSectionY = useTransform(
     trustProgress,
     [0, 0.5, 1],
-    [shouldReduceMotion ? 0 : 20, 0, shouldReduceMotion ? 0 : -14]
+    [30 * motionFactor, 0, -28 * motionFactor]
   );
   const trustImageY = useTransform(
     trustProgress,
     [0, 1],
-    [shouldReduceMotion ? 0 : 30, shouldReduceMotion ? 0 : -30]
+    [72 * motionFactor, -70 * motionFactor]
   );
   const ctaPanoramaY = useTransform(
     ctaProgress,
     [0, 1],
-    [shouldReduceMotion ? 0 : 22, shouldReduceMotion ? 0 : -22]
+    [55 * motionFactor, -52 * motionFactor]
   );
 
   return (
@@ -387,8 +372,8 @@ const LandingPage: React.FC = () => {
             </div>
           </motion.div>
 
-          <motion.div className="hero-visual-shell" style={{ y: castleY }}>
-            <div className="hero-visual-glow" />
+          <motion.div className="hero-visual-shell" style={{ y: castleY, scale: castleScale }}>
+            <motion.div className="hero-visual-glow" style={{ y: cloudY }} />
             <div className="hero-visual-frame">
               <img src="/landing-assets/generated/hero-castle-island.webp" alt="Magische Inselwelt fuer Talea" />
               <div className="hero-visual-badges">

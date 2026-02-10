@@ -818,7 +818,11 @@
 
 @media (max-width: 720px) {
   .landing-parallax-ribbon {
-    display: none;
+    left: -34vw;
+    right: -34vw;
+    height: 170px;
+    filter: blur(34px);
+    opacity: 0.22;
   }
 
   .landing-nav {
