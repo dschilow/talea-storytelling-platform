@@ -287,7 +287,7 @@ const AvatarDetailScreen: React.FC = () => {
       style={{
         background: isDark
           ? 'radial-gradient(980px 520px at 100% 0%, rgba(102,88,138,0.26) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, rgba(80,111,148,0.23) 0%, transparent 62%), #131d2b'
-          : 'radial-gradient(980px 520px at 100% 0%, #efe1de 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, #dbe8df 0%, transparent 62%), #f8f2e9',
+          : 'radial-gradient(980px 520px at 100% 0%, #e3d5ca 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, #f5ebe0 0%, transparent 62%), #edede9',
       }}
     >
       <div className="mx-auto w-full max-w-6xl space-y-5 px-3 pt-3 sm:px-5">
@@ -549,9 +549,9 @@ const TabButton: React.FC<{
     className="inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2.5 text-xs font-semibold transition-colors"
     style={{
       background: active
-        ? 'linear-gradient(135deg, #7d98c7 0%, #a985c5 54%, #c98a78 100%)'
+        ? 'linear-gradient(135deg, #d5bdaf 0%, #e3d5ca 56%, #d6ccc2 100%)'
         : 'transparent',
-      color: active ? '#fff' : isDark ? '#aac0db' : '#5f748d',
+      color: active ? '#3a322d' : isDark ? '#aac0db' : '#6f6258',
     }}
   >
     {icon}

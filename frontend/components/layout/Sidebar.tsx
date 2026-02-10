@@ -31,24 +31,24 @@ interface NavItem {
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
-  { icon: Home, labelKey: "navigation.home", path: "/", tone: "#7390cf" },
-  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#cf6f85" },
-  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#c98a5d" },
-  { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#5a8f84" },
+  { icon: Home, labelKey: "navigation.home", path: "/", tone: "#a88f80" },
+  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#b69684" },
+  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#bf9f8c" },
+  { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#9b8a7d" },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { icon: Sparkles, labelKey: "navigation.characters", path: "/characters", tone: "#8e7ecf" },
-  { icon: Gem, labelKey: "navigation.artifacts", path: "/artifacts", tone: "#d27799" },
-  { icon: BookMarked, labelKey: "navigation.fairytales", path: "/fairytales", tone: "#6d9a8e" },
-  { icon: Code, labelKey: "navigation.logs", path: "/logs", tone: "#6f7b92" },
+  { icon: Sparkles, labelKey: "navigation.characters", path: "/characters", tone: "#b29a8a" },
+  { icon: Gem, labelKey: "navigation.artifacts", path: "/artifacts", tone: "#bca390" },
+  { icon: BookMarked, labelKey: "navigation.fairytales", path: "/fairytales", tone: "#ad9788" },
+  { icon: Code, labelKey: "navigation.logs", path: "/logs", tone: "#9f8c7e" },
 ];
 
 const SETTINGS_ITEM: NavItem = {
   icon: Settings,
   labelKey: "navigation.settings",
   path: "/settings",
-  tone: "#826fb3",
+  tone: "#a28d7f",
 };
 
 const Sidebar: React.FC = () => {
@@ -85,16 +85,16 @@ const Sidebar: React.FC = () => {
           }
         : {
             panelBackground:
-              "linear-gradient(180deg, rgba(253,248,241,0.96) 0%, rgba(246,238,226,0.98) 52%, rgba(241,234,224,0.99) 100%)",
-            panelBorder: "#e8ddcf",
-            surface: "rgba(255,255,255,0.72)",
-            textPrimary: "#1f2a3a",
-            textSecondary: "#6d7a8d",
-            indicator: "#7d8794",
-            borderSoft: "#ddd1bf",
-            logoutBg: "rgba(255,236,236,0.86)",
-            logoutBorder: "#ecd3d3",
-            logoPlate: "rgba(255,255,255,0.72)",
+              "linear-gradient(180deg, rgba(245,235,224,0.97) 0%, rgba(237,237,233,0.98) 54%, rgba(227,213,202,0.99) 100%)",
+            panelBorder: "#d6ccc2",
+            surface: "rgba(255,255,255,0.58)",
+            textPrimary: "#332b26",
+            textSecondary: "#6f6258",
+            indicator: "#8d7d70",
+            borderSoft: "#d5bdaf",
+            logoutBg: "rgba(198,160,147,0.2)",
+            logoutBorder: "#c6a093",
+            logoPlate: "rgba(255,255,255,0.62)",
           },
     [isDark]
   );
@@ -174,7 +174,7 @@ const Sidebar: React.FC = () => {
         style={{
           background: colors.panelBackground,
           borderColor: colors.panelBorder,
-          boxShadow: isDark ? "12px 0 40px rgba(3,8,14,0.52)" : "10px 0 40px rgba(52,61,74,0.08)",
+          boxShadow: isDark ? "12px 0 40px rgba(3,8,14,0.52)" : "10px 0 34px rgba(118,98,82,0.16)",
         }}
       >
         <div className="relative flex flex-1 flex-col overflow-hidden">
@@ -282,12 +282,12 @@ const Sidebar: React.FC = () => {
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border"
                 style={{ borderColor: colors.logoutBorder, background: colors.logoutBg }}
               >
-                <LogOut className="h-4 w-4 text-[#a76060]" />
+                <LogOut className="h-4 w-4 text-[#9e6d5f]" />
               </span>
               <motion.span
                 initial={false}
                 animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-                className="overflow-hidden whitespace-nowrap text-sm font-medium text-[#9a5f5f]"
+                className="overflow-hidden whitespace-nowrap text-sm font-medium text-[#9e6d5f]"
               >
                 {t("navigation.logout")}
               </motion.span>

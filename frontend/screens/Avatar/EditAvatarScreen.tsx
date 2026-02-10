@@ -447,7 +447,7 @@ const EditAvatarScreen: React.FC = () => {
       style={{
         background: isDark
           ? 'radial-gradient(980px 520px at 100% 0%, rgba(102,88,138,0.26) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, rgba(80,111,148,0.23) 0%, transparent 62%), #131d2b'
-          : 'radial-gradient(980px 520px at 100% 0%, #efe1de 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, #dbe8df 0%, transparent 62%), #f8f2e9',
+          : 'radial-gradient(980px 520px at 100% 0%, #e3d5ca 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, #f5ebe0 0%, transparent 62%), #edede9',
       }}
     >
       <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pt-3 sm:px-5">
@@ -621,7 +621,8 @@ const EditAvatarScreen: React.FC = () => {
             className="inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
             style={{
               borderColor: 'transparent',
-              background: 'linear-gradient(135deg,#7d98c7 0%,#a985c5 54%,#c98a78 100%)',
+              background: 'linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 56%,#d6ccc2 100%)',
+              color: '#3a322d',
             }}
           >
             {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

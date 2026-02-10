@@ -37,24 +37,24 @@ interface NavItem {
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
-  { icon: Home, labelKey: "navigation.home", path: "/", tone: "#6d8bc9" },
-  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#c86f8a" },
-  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#c78857" },
-  { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#5f9488" },
+  { icon: Home, labelKey: "navigation.home", path: "/", tone: "#a88f80" },
+  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#b69684" },
+  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#bf9f8c" },
+  { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#9b8a7d" },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { icon: Sparkles, labelKey: "navigation.characters", path: "/characters", tone: "#8e7ecf" },
-  { icon: Gem, labelKey: "navigation.artifacts", path: "/artifacts", tone: "#cf7a99" },
-  { icon: BookMarked, labelKey: "navigation.fairytales", path: "/fairytales", tone: "#6d9a8f" },
-  { icon: Code, labelKey: "navigation.logs", path: "/logs", tone: "#6f7b93" },
+  { icon: Sparkles, labelKey: "navigation.characters", path: "/characters", tone: "#b29a8a" },
+  { icon: Gem, labelKey: "navigation.artifacts", path: "/artifacts", tone: "#bca390" },
+  { icon: BookMarked, labelKey: "navigation.fairytales", path: "/fairytales", tone: "#ad9788" },
+  { icon: Code, labelKey: "navigation.logs", path: "/logs", tone: "#9f8c7e" },
 ];
 
 const SETTINGS_ITEM: NavItem = {
   icon: Settings,
   labelKey: "navigation.settings",
   path: "/settings",
-  tone: "#846fb4",
+  tone: "#a28d7f",
 };
 
 const formatTime = (value: number) => {
@@ -97,12 +97,12 @@ const MoreSheet: React.FC<MoreSheetProps> = ({
         sub: "#96a7bf",
       }
     : {
-        panel: "linear-gradient(180deg,#fff9f1_0%,#f7efe2_100%)",
-        border: "#e5d9c9",
-        card: "rgba(255,255,255,0.78)",
-        cardBorder: "#dfd3c2",
-        text: "#2c394d",
-        sub: "#748195",
+        panel: "linear-gradient(180deg,#f5ebe0_0%,#edede9_100%)",
+        border: "#d6ccc2",
+        card: "rgba(255,255,255,0.62)",
+        cardBorder: "#d5bdaf",
+        text: "#3a322d",
+        sub: "#7d6e62",
       };
 
   const visibleItems = [SETTINGS_ITEM, ...(isAdmin ? ADMIN_ITEMS : [])];
@@ -200,8 +200,8 @@ const MoreSheet: React.FC<MoreSheetProps> = ({
                 className="rounded-2xl border px-2 py-3 text-center"
                 style={{ borderColor: colors.cardBorder, background: colors.card }}
               >
-                <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: isDark ? "rgba(92,107,145,0.26)" : "rgba(216,224,236,0.9)" }}>
-                  <Bot className="h-4 w-4" style={{ color: "#6d7f9c" }} />
+                <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: isDark ? "rgba(92,107,145,0.26)" : "rgba(229,216,205,0.88)" }}>
+                  <Bot className="h-4 w-4" style={{ color: "#8b7567" }} />
                 </span>
                 <span className="mt-1.5 block text-[11px] font-semibold leading-tight" style={{ color: colors.text }}>
                   Tavi
@@ -263,14 +263,14 @@ const BottomNav: React.FC = () => {
         audioSurface: "rgba(17,24,35,0.42)",
       }
     : {
-        nav: "rgba(251,245,236,0.96)",
-        border: "#e5d9c9",
-        text: "#5f768f",
-        textActive: "#23384f",
-        more: "#8f7cae",
-        audioBg: "rgba(255,255,255,0.94)",
-        audioBorder: "#e3d7c8",
-        audioSurface: "rgba(255,255,255,0.66)",
+        nav: "rgba(245,235,224,0.96)",
+        border: "#d6ccc2",
+        text: "#6f6258",
+        textActive: "#3a322d",
+        more: "#a28d7f",
+        audioBg: "rgba(237,237,233,0.94)",
+        audioBorder: "#d5bdaf",
+        audioSurface: "rgba(255,255,255,0.54)",
       };
 
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
@@ -357,8 +357,12 @@ const BottomNav: React.FC = () => {
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-1 md:hidden">
         <div
-          className="pointer-events-auto overflow-hidden rounded-[18px] border shadow-[0_10px_22px_rgba(43,54,69,0.22)] backdrop-blur"
-          style={{ borderColor: colors.border, background: colors.nav }}
+          className="pointer-events-auto overflow-hidden rounded-[18px] border backdrop-blur"
+          style={{
+            borderColor: colors.border,
+            background: colors.nav,
+            boxShadow: isDark ? "0 10px 24px rgba(16,23,34,0.36)" : "0 10px 24px rgba(118,98,82,0.18)",
+          }}
         >
           <AnimatePresence>
             {track && (
@@ -390,7 +394,7 @@ const BottomNav: React.FC = () => {
                         <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
-                          <Volume2 className="h-4 w-4 text-[#6d7f9c]" />
+                          <Volume2 className="h-4 w-4 text-[#8b7567]" />
                         </div>
                       )}
                     </div>
@@ -428,17 +432,17 @@ const BottomNav: React.FC = () => {
                         close();
                       }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
-                      style={{ borderColor: "#c58f8f", background: "rgba(197,111,111,0.14)" }}
+                      style={{ borderColor: "#c6a093", background: "rgba(198,160,147,0.2)" }}
                       aria-label="Audio schliessen"
                     >
-                      <X className="h-4 w-4 text-[#b36363]" />
+                      <X className="h-4 w-4 text-[#9e6d5f]" />
                     </button>
                   </div>
 
                   <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ background: isDark ? "rgba(120,138,167,0.28)" : "rgba(123,135,152,0.24)" }}>
                     <motion.div
                       className="h-full rounded-full"
-                      style={{ background: "linear-gradient(90deg,#7e9cd1 0%,#b184c5 100%)", width: `${progress}%` }}
+                      style={{ background: "linear-gradient(90deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)", width: `${progress}%` }}
                       transition={{ ease: "easeOut", duration: 0.2 }}
                     />
                   </div>
@@ -474,7 +478,7 @@ const BottomNav: React.FC = () => {
                             type="button"
                             onClick={togglePlay}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-                            style={{ background: "linear-gradient(135deg,#7e9cd1 0%,#b184c5 100%)", color: "white" }}
+                            style={{ background: "linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)", color: "#433a34" }}
                             aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
                           >
                             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-[1px] h-4 w-4" />}

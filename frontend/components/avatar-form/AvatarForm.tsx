@@ -326,7 +326,8 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                 className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
                 style={{
                   borderColor: 'transparent',
-                  background: 'linear-gradient(135deg,#7d98c7 0%,#a985c5 54%,#c98a78 100%)',
+                  background: 'linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 56%,#d6ccc2 100%)',
+                  color: '#3a322d',
                 }}
               >
                 {isGeneratingPreview ? (
