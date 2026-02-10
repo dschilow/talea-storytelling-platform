@@ -1250,7 +1250,7 @@ export default function SettingsScreen() {
           </div>
         </motion.div>
 
-        <div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-hidden min-h-[72vh] md:min-h-[calc(100vh-170px)]">
+        <div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-visible md:overflow-hidden min-h-[72vh] md:min-h-[calc(100vh-170px)]">
           <UserProfile
             appearance={{
               baseTheme: undefined,
@@ -1258,14 +1258,14 @@ export default function SettingsScreen() {
                 rootBox: 'talea-settings-profile w-full !max-w-none !min-w-0',
                 cardBox: '!w-full !max-w-none !min-w-0 !h-auto md:!h-[calc(100vh-170px)]',
                 card: '!h-auto md:!h-full !w-full !max-w-none !min-w-0 shadow-none bg-transparent',
-                navbar: 'bg-card/70 backdrop-blur-lg border-b md:border-b-0 md:border-r border-[#d6ccc2] dark:border-[#4a5f78]',
-                navbarButtons: '!flex !flex-col !gap-1.5',
+                navbar: 'bg-card/70 backdrop-blur-lg border-b md:border-b-0 md:border-r border-[#d6ccc2] dark:border-[#4a5f78] !w-full !max-w-none',
+                navbarButtons: '!flex !flex-col !gap-1.5 !w-full',
                 navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
                 navbarButtonActive: 'bg-[#f5ebe0] text-[#425b78] dark:bg-[#223850] dark:text-[#c9dbf1] font-semibold',
                 navbarMobileMenuRow:
-                  'flex items-center justify-between px-3 py-2 border-b border-[#d6ccc2] dark:border-[#4a5f78] bg-card/70',
+                  'hidden md:flex items-center justify-between px-3 py-2 border-b border-[#d6ccc2] dark:border-[#4a5f78] bg-card/70',
                 navbarMobileMenuButton:
-                  'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d6ccc2] dark:border-[#4a5f78] bg-[#f5ebe0] dark:bg-[#223850] text-[#425b78] dark:text-[#c9dbf1]',
+                  'hidden md:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d6ccc2] dark:border-[#4a5f78] bg-[#f5ebe0] dark:bg-[#223850] text-[#425b78] dark:text-[#c9dbf1]',
                 pageScrollBox: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 page: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 formButtonPrimary: 'bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] hover:opacity-90 text-[#22344c] rounded-xl shadow-lg',
