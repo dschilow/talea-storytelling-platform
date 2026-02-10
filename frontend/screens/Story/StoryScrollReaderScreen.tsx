@@ -10,6 +10,7 @@ import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Story, Chapter } from '../../types/story';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
+import { getOfflineStory } from '../../utils/offlineDb';
 
 
 const StoryScrollReaderScreen: React.FC = () => {
@@ -36,7 +37,17 @@ const StoryScrollReaderScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const storyData = await backend.story.get({ id: storyId });
+
+      // Try to load from offline storage first
+      let storyData: any = await getOfflineStory(storyId);
+
+      // If not found offline, fetch from backend
+      if (!storyData) {
+        storyData = await backend.story.get({ id: storyId });
+      } else {
+        console.log('[StoryScrollReaderScreen] Loaded story from offline storage');
+      }
+
       setStory(storyData as unknown as Story);
     } catch (err) {
       console.error('Error loading story:', err);

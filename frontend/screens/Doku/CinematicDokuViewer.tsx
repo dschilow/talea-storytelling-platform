@@ -13,6 +13,7 @@ import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getOfflineDoku } from '../../utils/offlineDb';
 
 type DokuPalette = {
   page: string;
@@ -103,7 +104,17 @@ const CinematicDokuViewer: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const dokuData = await backend.doku.getDoku({ id: dokuId });
+
+      // Try to load from offline storage first
+      let dokuData: any = await getOfflineDoku(dokuId);
+
+      // If not found offline, fetch from backend
+      if (!dokuData) {
+        dokuData = await backend.doku.getDoku({ id: dokuId });
+      } else {
+        console.log('[CinematicDokuViewer] Loaded doku from offline storage');
+      }
+
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
       console.error('Error loading doku:', err);

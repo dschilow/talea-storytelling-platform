@@ -15,6 +15,7 @@ import { cn } from '../../lib/utils';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { useTheme } from '../../contexts/ThemeContext';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
+import { getOfflineStory } from '../../utils/offlineDb';
 
 type StoryPalette = {
   page: string;
@@ -149,8 +150,17 @@ const CinematicStoryViewer: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const storyData = await backend.story.get({ id: storyId });
-      const rawStory = storyData as any;
+      // Try to load from offline storage first
+      let rawStory: any = await getOfflineStory(storyId);
+
+      // If not found offline, fetch from backend
+      if (!rawStory) {
+        const storyData = await backend.story.get({ id: storyId });
+        rawStory = storyData as any;
+      } else {
+        console.log('[CinematicStoryViewer] Loaded story from offline storage');
+      }
+
       setStory(rawStory as Story);
 
       if (rawStory?.avatarParticipants?.length) {

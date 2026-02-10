@@ -12,6 +12,7 @@ import type { Doku, DokuSection } from '../../types/doku';
 import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
+import { getOfflineDoku } from '../../utils/offlineDb';
 
 const DokuScrollReaderScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -38,7 +39,17 @@ const DokuScrollReaderScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const dokuData = await backend.doku.getDoku({ id: dokuId });
+
+      // Try to load from offline storage first
+      let dokuData: any = await getOfflineDoku(dokuId);
+
+      // If not found offline, fetch from backend
+      if (!dokuData) {
+        dokuData = await backend.doku.getDoku({ id: dokuId });
+      } else {
+        console.log('[DokuScrollReaderScreen] Loaded doku from offline storage');
+      }
+
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
       console.error('Error loading doku:', err);

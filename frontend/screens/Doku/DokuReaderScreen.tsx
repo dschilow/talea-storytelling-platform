@@ -18,6 +18,7 @@ import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { PersonalityChangeNotification } from '../../components/common/PersonalityDevelopment';
 import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { getOfflineDoku } from '../../utils/offlineDb';
 
 // Define a new type for our flattened, displayable sections
 interface DisplayableSection {
@@ -118,7 +119,17 @@ const DokuReaderScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const dokuData = await backend.doku.getDoku({ id: dokuId });
+
+      // Try to load from offline storage first
+      let dokuData: any = await getOfflineDoku(dokuId);
+
+      // If not found offline, fetch from backend
+      if (!dokuData) {
+        dokuData = await backend.doku.getDoku({ id: dokuId });
+      } else {
+        console.log('[DokuReaderScreen] Loaded doku from offline storage');
+      }
+
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
       console.error('Error loading doku:', err);

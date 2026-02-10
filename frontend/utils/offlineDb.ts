@@ -265,17 +265,78 @@ export async function getBlobUrl(originalUrl: string): Promise<string | null> {
 export async function getOfflineStory(storyId: string): Promise<Story | null> {
   const db = await getDb();
   const entry = await db.get('offline-stories', storyId);
-  return entry?.story ?? null;
+  if (!entry) return null;
+
+  // Replace image URLs with blob URLs
+  const story = { ...entry.story };
+
+  // Replace cover image
+  if (story.coverImageUrl) {
+    const blobUrl = await getBlobUrl(story.coverImageUrl);
+    if (blobUrl) story.coverImageUrl = blobUrl;
+  }
+
+  // Replace chapter/page images
+  const items = story.chapters || story.pages || [];
+  for (let i = 0; i < items.length; i++) {
+    const imageUrl = items[i]?.imageUrl;
+    if (imageUrl) {
+      const blobUrl = await getBlobUrl(imageUrl);
+      if (blobUrl) items[i] = { ...items[i], imageUrl: blobUrl };
+    }
+  }
+
+  return story;
 }
 
 export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
   const db = await getDb();
   const entry = await db.get('offline-dokus', dokuId);
-  return entry?.doku ?? null;
+  if (!entry) return null;
+
+  const doku = { ...entry.doku };
+
+  // Replace cover image
+  if (doku.coverImageUrl) {
+    const blobUrl = await getBlobUrl(doku.coverImageUrl);
+    if (blobUrl) doku.coverImageUrl = blobUrl;
+  }
+
+  // Replace section images
+  if (doku.content?.sections) {
+    const sections = [];
+    for (const section of doku.content.sections) {
+      const newSection = { ...section };
+      if (newSection.imageUrl) {
+        const blobUrl = await getBlobUrl(newSection.imageUrl);
+        if (blobUrl) newSection.imageUrl = blobUrl;
+      }
+      sections.push(newSection);
+    }
+    doku.content = { ...doku.content, sections };
+  }
+
+  return doku;
 }
 
 export async function getOfflineAudioDoku(audioDokuId: string): Promise<AudioDoku | null> {
   const db = await getDb();
   const entry = await db.get('offline-audio-dokus', audioDokuId);
-  return entry?.audioDoku ?? null;
+  if (!entry) return null;
+
+  const audioDoku = { ...entry.audioDoku };
+
+  // Replace cover image
+  if (audioDoku.coverImageUrl) {
+    const blobUrl = await getBlobUrl(audioDoku.coverImageUrl);
+    if (blobUrl) audioDoku.coverImageUrl = blobUrl;
+  }
+
+  // Replace audio URL
+  if (audioDoku.audioUrl) {
+    const blobUrl = await getBlobUrl(audioDoku.audioUrl);
+    if (blobUrl) audioDoku.audioUrl = blobUrl;
+  }
+
+  return audioDoku;
 }
