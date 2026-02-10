@@ -63,6 +63,10 @@ const RouterContent = () => {
   const { isLoaded, isSignedIn } = useUser();
   const userAccess = useOptionalUserAccess();
   const location = useLocation();
+  const deferredUntilRaw =
+    typeof window !== 'undefined' ? window.localStorage.getItem('talea.parentalOnboardingDeferredUntil') : null;
+  const deferredUntil = deferredUntilRaw ? Number(deferredUntilRaw) : 0;
+  const onboardingDeferred = Number.isFinite(deferredUntil) && deferredUntil > Date.now();
   const isLandingRoute =
     location.pathname.startsWith('/landing') ||
     location.pathname.startsWith('/parental-onboarding') ||
@@ -76,6 +80,7 @@ const RouterContent = () => {
     isSignedIn &&
     !userAccess.isLoading &&
     userAccess.parentalOnboardingCompleted === false &&
+    !onboardingDeferred &&
     location.pathname !== '/parental-onboarding'
   ) {
     return <Navigate to="/parental-onboarding" replace />;

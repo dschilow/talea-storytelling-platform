@@ -23,6 +23,7 @@ export default function ParentalOnboardingScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [apiAvailable, setApiAvailable] = useState(true);
   const [themePresets, setThemePresets] = useState<KeywordPreset[]>([]);
   const [goalPresets, setGoalPresets] = useState<KeywordPreset[]>([]);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
@@ -32,6 +33,15 @@ export default function ParentalOnboardingScreen() {
   const [dailyStoryLimit, setDailyStoryLimit] = useState<number>(4);
   const [dailyDokuLimit, setDailyDokuLimit] = useState<number>(3);
   const [enableLimits, setEnableLimits] = useState(true);
+
+  const deferOnboarding = async () => {
+    window.localStorage.setItem(
+      'talea.parentalOnboardingDeferredUntil',
+      String(Date.now() + 24 * 60 * 60 * 1000)
+    );
+    await refresh();
+    navigate('/', { replace: true });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -46,7 +56,14 @@ export default function ParentalOnboardingScreen() {
         setGoalPresets((response as any).presets?.goalPresets ?? []);
       } catch (error) {
         console.error('Failed to load parental onboarding data:', error);
-        toast.error('Onboarding konnte nicht geladen werden.');
+        const message = error instanceof Error ? error.message.toLowerCase() : '';
+        const routeMissing = message.includes('no route for method') || message.includes('404');
+        if (routeMissing) {
+          setApiAvailable(false);
+          toast.error('Eltern-Dashboard wird nach Backend-Deploy verfuegbar.');
+        } else {
+          toast.error('Onboarding konnte nicht geladen werden.');
+        }
       } finally {
         setLoading(false);
       }
@@ -90,12 +107,19 @@ export default function ParentalOnboardingScreen() {
         dailyStoryLimit: enableLimits ? dailyStoryLimit : null,
         dailyDokuLimit: enableLimits ? dailyDokuLimit : null,
       } as any);
+      window.localStorage.removeItem('talea.parentalOnboardingDeferredUntil');
       await refresh();
       toast.success('Eltern-Dashboard aktiviert.');
       navigate('/', { replace: true });
     } catch (error) {
       console.error('Failed to complete parental onboarding:', error);
-      toast.error(error instanceof Error ? error.message : 'Onboarding fehlgeschlagen.');
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      if (message.includes('no route for method') || message.includes('404')) {
+        setApiAvailable(false);
+        toast.error('Backend ist noch nicht aktualisiert. Bitte spaeter erneut versuchen.');
+      } else {
+        toast.error(error instanceof Error ? error.message : 'Onboarding fehlgeschlagen.');
+      }
     } finally {
       setSaving(false);
     }
@@ -129,6 +153,12 @@ export default function ParentalOnboardingScreen() {
             </h1>
           </div>
         </div>
+
+        {!apiAvailable && (
+          <div className="mb-4 rounded-2xl border border-[#d5bdaf] bg-[#f5ebe0] px-4 py-3 text-sm text-[#4f6075] dark:border-[#4d627d] dark:bg-[#213650] dark:text-[#c9dcf3]">
+            Das Eltern-Dashboard ist auf dem Backend noch nicht verfuegbar. Du kannst die App jetzt nutzen und spaeter erneut konfigurieren.
+          </div>
+        )}
 
         <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="rounded-2xl border border-[#d6ccc2] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
@@ -173,6 +203,11 @@ export default function ParentalOnboardingScreen() {
         <div className="mt-4 rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
           <p className="mb-2 text-sm font-bold">Schnell-Auswahl Tabu-Themen</p>
           <div className="flex flex-wrap gap-2">
+            {themePresets.length === 0 && (
+              <p className="text-xs text-[#6c7d90] dark:text-[#b4c8df]">
+                Voreinstellungen werden geladen, sobald der Dienst verfuegbar ist.
+              </p>
+            )}
             {themePresets.map((preset) => {
               const active = preset.keywords.every((keyword) => selectedThemes.includes(keyword.toLowerCase()));
               return (
@@ -192,6 +227,11 @@ export default function ParentalOnboardingScreen() {
         <div className="mt-4 rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
           <p className="mb-2 text-sm font-bold">Schnell-Auswahl Lernziele</p>
           <div className="flex flex-wrap gap-2">
+            {goalPresets.length === 0 && (
+              <p className="text-xs text-[#6c7d90] dark:text-[#b4c8df]">
+                Lernziel-Presets erscheinen hier nach erfolgreichem API-Load.
+              </p>
+            )}
             {goalPresets.map((preset) => {
               const active = preset.keywords.every((keyword) => selectedGoals.includes(keyword.toLowerCase()));
               return (
@@ -214,9 +254,12 @@ export default function ParentalOnboardingScreen() {
             <button
               type="button"
               onClick={() => setEnableLimits((prev) => !prev)}
-              className={`relative h-7 w-14 rounded-full ${enableLimits ? 'bg-[#b79f8e]' : 'bg-[#d6ccc2]'}`}
+              className={`relative h-7 w-14 overflow-hidden rounded-full ${enableLimits ? 'bg-[#b79f8e]' : 'bg-[#d6ccc2]'}`}
             >
-              <motion.span animate={{ x: enableLimits ? 28 : 2 }} className="absolute top-0.5 h-6 w-6 rounded-full bg-white" />
+              <motion.span
+                animate={{ x: enableLimits ? 28 : 0 }}
+                className="absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white"
+              />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -246,7 +289,7 @@ export default function ParentalOnboardingScreen() {
         <div className="mt-6 flex items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => void deferOnboarding()}
             className="rounded-xl border border-[#d6ccc2] bg-white px-4 py-2 text-sm font-semibold text-[#3f526a] dark:border-[#4b617a] dark:bg-[#20324a] dark:text-[#d8e8fa]"
           >
             Spaeter
@@ -254,7 +297,7 @@ export default function ParentalOnboardingScreen() {
           <button
             type="button"
             onClick={completeOnboarding}
-            disabled={saving}
+            disabled={saving || !apiAvailable}
             className="rounded-xl bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] px-4 py-2 text-sm font-bold text-[#24354d] disabled:opacity-60"
           >
             {saving ? 'Speichere...' : 'Onboarding abschliessen'}
@@ -264,4 +307,3 @@ export default function ParentalOnboardingScreen() {
     </div>
   );
 }
-

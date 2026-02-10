@@ -54,10 +54,16 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       setIsLoading(true);
       const profile = await backend.user.me();
+      const parentalControls = (profile as any).parentalControls;
+      const onboardingCompleted =
+        typeof parentalControls?.onboardingCompleted === "boolean"
+          ? parentalControls.onboardingCompleted
+          : null;
+
       setRole((profile.role as UserRole) ?? "user");
       setSubscription((profile.subscription as SubscriptionPlan) ?? "free");
-      setParentalOnboardingCompleted((profile as any).parentalControls?.onboardingCompleted ?? false);
-      setHasParentalPin(Boolean((profile as any).parentalControls?.hasPin));
+      setParentalOnboardingCompleted(onboardingCompleted);
+      setHasParentalPin(Boolean(parentalControls?.hasPin));
     } catch (error) {
       console.error("Failed to load user access profile", error);
       setRole(null);

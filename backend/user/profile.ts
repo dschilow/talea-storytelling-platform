@@ -96,6 +96,33 @@ async function getUserRowById(userId: string): Promise<UserRow> {
   return user;
 }
 
+type AuthContext = NonNullable<ReturnType<typeof getAuthData>>;
+
+async function ensureUserRowForAuth(auth: AuthContext): Promise<UserRow> {
+  try {
+    return await getUserRowById(auth.userID);
+  } catch (error) {
+    if (!(error instanceof APIError) || error.code !== "not_found") {
+      throw error;
+    }
+
+    const now = new Date();
+    const safeEmail = auth.email ?? `${auth.userID}@local.talea`;
+    const safeName = (auth.email ?? "new-user").split("@")[0] || "new-user";
+
+    await ensurePreferenceColumns();
+    await userDB.exec`
+      INSERT INTO users (id, email, name, subscription, role, preferred_language, theme, created_at, updated_at)
+      VALUES (${auth.userID}, ${safeEmail}, ${safeName}, 'free', ${auth.role ?? "user"}, 'de', 'system', ${now}, ${now})
+      ON CONFLICT (id) DO UPDATE
+      SET email = COALESCE(EXCLUDED.email, users.email),
+          updated_at = ${now}
+    `;
+
+    return getUserRowById(auth.userID);
+  }
+}
+
 function mapUserProfile(
   row: UserRow,
   billing: BillingOverview,
@@ -173,6 +200,7 @@ export const me = api<void, UserProfile>(
     const auth = getAuthData()!;
 
     await ensurePreferenceColumns();
+    await ensureUserRowForAuth(auth);
     return buildUserProfile(auth.userID, auth.clerkToken);
   }
 );
@@ -189,6 +217,7 @@ export const updateLanguage = api<UpdateLanguageRequest, UserProfile>(
     const now = new Date();
 
     await ensurePreferenceColumns();
+    await ensureUserRowForAuth(auth);
 
     await userDB.exec`
       UPDATE users
@@ -212,6 +241,7 @@ export const updateTheme = api<UpdateThemeRequest, UserProfile>(
     const now = new Date();
 
     await ensurePreferenceColumns();
+    await ensureUserRowForAuth(auth);
 
     await userDB.exec`
       UPDATE users
@@ -246,6 +276,7 @@ export const getParentalControls = api<void, ParentalControlsResponse>(
   { expose: true, method: "GET", path: "/user/parental-controls", auth: true },
   async () => {
     const auth = getAuthData()!;
+    await ensureUserRowForAuth(auth);
     const controls = await getParentalControlsForUser(auth.userID);
     return {
       controls,
@@ -267,6 +298,7 @@ export const verifyParentalPin = api<VerifyParentalPinRequest, VerifyParentalPin
   { expose: true, method: "POST", path: "/user/parental-controls/verify", auth: true },
   async (req) => {
     const auth = getAuthData()!;
+    await ensureUserRowForAuth(auth);
     return verifyParentalPinForUser({
       userId: auth.userID,
       pin: req.pin,
@@ -280,6 +312,7 @@ export const saveParentalControls = api<SaveParentalControlsRequest, ParentalCon
   { expose: true, method: "POST", path: "/user/parental-controls", auth: true },
   async (req) => {
     const auth = getAuthData()!;
+    await ensureUserRowForAuth(auth);
     const controls = await saveParentalControlsForUser(auth.userID, req);
     return {
       controls,
