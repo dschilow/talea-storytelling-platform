@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Trash2, Clock, Download } from 'lucide-react';
+import { Bookmark, BookmarkCheck, BookOpen, Trash2, Clock, Download } from 'lucide-react';
 import type { Story } from '../../types/story';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
@@ -7,6 +7,7 @@ import { spacing, radii, shadows, animations } from '../../utils/constants/spaci
 import { AvatarGroup } from '../ui/avatar-group';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
+import { useOffline } from '../../contexts/OfflineStorageContext';
 
 interface StoryCardProps {
   story: Story;
@@ -18,6 +19,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<{ src: string; label?: string } | null>(null);
   const backend = useBackend();
+  const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -145,6 +147,27 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     opacity: isExportingPDF ? 0.6 : 1,
   };
 
+  const saveButtonOffset = (() => {
+    let offset = spacing.md;
+    if (onDelete) offset += 36 + spacing.sm;
+    offset += 36 + spacing.sm; // download button
+    return offset;
+  })();
+
+  const saveButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: `${saveButtonOffset}px`,
+    background: isStorySaved(story.id) ? colors.primary[500] + '90' : colors.glass.background,
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    border: 'none',
+    cursor: isSaving(story.id) ? 'wait' : 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+    opacity: isSaving(story.id) ? 0.6 : 1,
+  };
+
   const overlayStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -259,6 +282,42 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
           <div style={statusBadgeStyle}>
             ✨ Wird erstellt...
           </div>
+        )}
+
+        {/* Offline Save Button - Only show for familie/premium */}
+        {canUseOffline && story.status === 'complete' && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleStory(story.id);
+            }}
+            style={saveButtonStyle}
+            title={isStorySaved(story.id) ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
+            disabled={isSaving(story.id)}
+            onMouseEnter={(e) => {
+              if (!isSaving(story.id)) {
+                e.currentTarget.style.transform = 'scale(1.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            {isSaving(story.id) ? (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid white',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+            ) : isStorySaved(story.id) ? (
+              <BookmarkCheck size={16} style={{ color: colors.text.inverse }} />
+            ) : (
+              <Bookmark size={16} style={{ color: colors.text.inverse }} />
+            )}
+          </button>
         )}
 
         {/* PDF Download Button - Only show for complete stories */}

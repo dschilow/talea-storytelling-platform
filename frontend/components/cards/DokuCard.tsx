@@ -1,6 +1,8 @@
 ﻿import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Bookmark,
+  BookmarkCheck,
   Download,
   FlaskConical,
   Globe,
@@ -14,6 +16,7 @@ import type { Doku } from '../../types/doku';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOffline } from '../../contexts/OfflineStorageContext';
 
 interface DokuCardProps {
   doku: Doku;
@@ -70,6 +73,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const backend = useBackend();
   const { resolvedTheme } = useTheme();
+  const { canUseOffline, isDokuSaved, isSaving, toggleDoku } = useOffline();
 
   const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
 
@@ -160,6 +164,30 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
           </div>
 
           <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            {canUseOffline && doku.status === 'complete' && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleDoku(doku.id);
+                }}
+                disabled={isSaving(doku.id)}
+                className="rounded-xl border p-2"
+                style={{ borderColor: palette.border, background: palette.card, color: palette.text }}
+                aria-label={isDokuSaved(doku.id) ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
+              >
+                {isSaving(doku.id) ? (
+                  <motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }} className="inline-flex">
+                    <Loader2 className="h-4 w-4" />
+                  </motion.span>
+                ) : isDokuSaved(doku.id) ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </button>
+            )}
+
             {doku.status === 'complete' && (
               <button
                 type="button"

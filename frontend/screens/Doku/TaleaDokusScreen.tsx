@@ -2,10 +2,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
+  Bookmark,
+  BookmarkCheck,
   FlaskConical,
   Globe,
   GraduationCap,
   Headphones,
+  Loader2,
   Mic,
   Play,
   Plus,
@@ -25,6 +28,7 @@ import type { Doku } from '../../types/doku';
 import type { AudioDoku } from '../../types/audio-doku';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { useOffline } from '../../contexts/OfflineStorageContext';
 import taleaLogo from '@/img/talea_logo.png';
 
 type Palette = {
@@ -41,6 +45,46 @@ type Palette = {
 };
 
 const headingFont = '"Cormorant Garamond", serif';
+
+type DokuTab = 'mine' | 'discover' | 'audio';
+type DokuSortMode = 'newest' | 'oldest' | 'title';
+type AudioScope = 'all' | 'mine' | 'public';
+
+function normalizeFilterValue(value: unknown): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim().toLowerCase();
+}
+
+function getDokuTopicValue(doku: Doku): string {
+  return normalizeFilterValue(doku.topic || doku.metadata?.configSnapshot?.topic);
+}
+
+function getDokuAgeGroupValue(doku: Doku): string {
+  return normalizeFilterValue(doku.metadata?.configSnapshot?.ageGroup);
+}
+
+function getDokuDepthValue(doku: Doku): string {
+  return normalizeFilterValue(doku.metadata?.configSnapshot?.depth);
+}
+
+function formatDokuDepthLabel(depth: string): string {
+  if (depth === 'basic') return 'Basis';
+  if (depth === 'standard') return 'Standard';
+  if (depth === 'deep') return 'Tief';
+  return depth || 'Unbekannt';
+}
+
+function formatTopicLabel(topic: string): string {
+  if (!topic) return 'Unbekannt';
+  return topic
+    .replace(/[_-]+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 function getPalette(isDark: boolean): Palette {
   if (isDark) {
@@ -125,7 +169,11 @@ const AudioDokuCard: React.FC<{
   index: number;
   onPlay: () => void;
   palette: Palette;
-}> = ({ doku, index, onPlay, palette }) => (
+  canSaveOffline?: boolean;
+  isSavedOffline?: boolean;
+  isSavingOffline?: boolean;
+  onToggleOffline?: () => void;
+}> = ({ doku, index, onPlay, palette, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => (
   <motion.button
     type="button"
     initial={{ opacity: 0, y: 16 }}
@@ -151,6 +199,28 @@ const AudioDokuCard: React.FC<{
         <Mic className="h-3 w-3" />
         Audio
       </div>
+
+      {canSaveOffline && onToggleOffline && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleOffline();
+          }}
+          disabled={isSavingOffline}
+          className="absolute right-3 top-3 rounded-xl border p-2 opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+          aria-label={isSavedOffline ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
+        >
+          {isSavingOffline ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isSavedOffline ? (
+            <BookmarkCheck className="h-4 w-4" />
+          ) : (
+            <Bookmark className="h-4 w-4" />
+          )}
+        </button>
+      )}
 
       <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
@@ -262,8 +332,9 @@ const TaleaDokusScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded, user } = useUser();
   const { isAdmin } = useOptionalUserAccess();
+  const { canUseOffline, isAudioDokuSaved, isSaving, toggleAudioDoku } = useOffline();
   const { resolvedTheme } = useTheme();
 
   const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
@@ -286,6 +357,12 @@ const TaleaDokusScreen: React.FC = () => {
   const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
   const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<DokuTab>('mine');
+  const [sortMode, setSortMode] = useState<DokuSortMode>('newest');
+  const [topicFilter, setTopicFilter] = useState('all');
+  const [ageGroupFilter, setAgeGroupFilter] = useState('all');
+  const [depthFilter, setDepthFilter] = useState('all');
+  const [audioScopeFilter, setAudioScopeFilter] = useState<AudioScope>('all');
 
   const myObserverRef = useRef<HTMLDivElement>(null);
   const publicObserverRef = useRef<HTMLDivElement>(null);
@@ -322,7 +399,7 @@ const TaleaDokusScreen: React.FC = () => {
       setPublicDokus([]);
       setTotalPublic(0);
       setHasMorePublic(false);
-      setPublicAccessMessage(getErrorMessage(error, 'Community-Dokus sind in deinem aktuellen Plan nicht verfuegbar.'));
+      setPublicAccessMessage(getErrorMessage(error, 'Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfuegbar.'));
     } finally {
       setLoadingPublic(false);
     }
@@ -381,7 +458,7 @@ const TaleaDokusScreen: React.FC = () => {
   }, [isLoaded, isSignedIn]);
 
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isSignedIn || activeTab !== 'mine') return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMoreMy && !loadingMoreMy && !loadingMy) {
@@ -396,10 +473,10 @@ const TaleaDokusScreen: React.FC = () => {
     return () => {
       if (target) observer.unobserve(target);
     };
-  }, [hasMoreMy, loadingMoreMy, loadingMy, loadMoreMy, isSignedIn]);
+  }, [hasMoreMy, loadingMoreMy, loadingMy, loadMoreMy, isSignedIn, activeTab]);
 
   useEffect(() => {
-    if (!isSignedIn || publicAccessMessage) return;
+    if (!isSignedIn || publicAccessMessage || activeTab !== 'discover') return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMorePublic && !loadingMorePublic && !loadingPublic) {
@@ -414,7 +491,7 @@ const TaleaDokusScreen: React.FC = () => {
     return () => {
       if (target) observer.unobserve(target);
     };
-  }, [hasMorePublic, loadingMorePublic, loadingPublic, loadMorePublic, isSignedIn, publicAccessMessage]);
+  }, [hasMorePublic, loadingMorePublic, loadingPublic, loadMorePublic, isSignedIn, publicAccessMessage, activeTab]);
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (!window.confirm(`${t('common.delete', 'Loeschen')} "${dokuTitle}"?`)) return;
@@ -455,29 +532,110 @@ const TaleaDokusScreen: React.FC = () => {
   };
 
   const query = searchQuery.trim().toLowerCase();
-  const filteredMyDokus = useMemo(
-    () =>
-      query
-        ? myDokus.filter((d) => d.title.toLowerCase().includes(query) || (d.topic || '').toLowerCase().includes(query))
-        : myDokus,
-    [myDokus, query]
-  );
-  const filteredPublicDokus = useMemo(
-    () =>
-      query
-        ? publicDokus.filter((d) => d.title.toLowerCase().includes(query) || (d.topic || '').toLowerCase().includes(query))
-        : publicDokus,
-    [publicDokus, query]
-  );
-  const filteredAudioDokus = useMemo(
-    () =>
-      query
-        ? audioDokus.filter((d) => d.title.toLowerCase().includes(query) || (d.description || '').toLowerCase().includes(query))
-        : audioDokus,
-    [audioDokus, query]
+
+  const sortDokus = useCallback(
+    (items: Doku[]) => {
+      const sorted = [...items];
+      if (sortMode === 'title') {
+        sorted.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+        return sorted;
+      }
+      if (sortMode === 'oldest') {
+        sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return sorted;
+      }
+      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return sorted;
+    },
+    [sortMode]
   );
 
-  const isInitialLoading = isSignedIn && loadingMy && loadingPublic;
+  const sortAudioDokus = useCallback(
+    (items: AudioDoku[]) => {
+      const sorted = [...items];
+      if (sortMode === 'title') {
+        sorted.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+        return sorted;
+      }
+      if (sortMode === 'oldest') {
+        sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return sorted;
+      }
+      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return sorted;
+    },
+    [sortMode]
+  );
+
+  const activeTextDokus = useMemo(
+    () => (activeTab === 'discover' ? publicDokus : myDokus),
+    [activeTab, myDokus, publicDokus]
+  );
+
+  const topicFilterOptions = useMemo(
+    () =>
+      Array.from(new Set(activeTextDokus.map((doku) => getDokuTopicValue(doku)).filter(Boolean))).sort((a, b) =>
+        formatTopicLabel(a).localeCompare(formatTopicLabel(b), 'de')
+      ),
+    [activeTextDokus]
+  );
+
+  const ageGroupFilterOptions = useMemo(
+    () =>
+      Array.from(new Set(activeTextDokus.map((doku) => getDokuAgeGroupValue(doku)).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, 'de')
+      ),
+    [activeTextDokus]
+  );
+
+  const depthFilterOptions = useMemo(
+    () => Array.from(new Set(activeTextDokus.map((doku) => getDokuDepthValue(doku)).filter(Boolean))),
+    [activeTextDokus]
+  );
+
+  const matchesTextFilters = useCallback(
+    (doku: Doku) => {
+      if (topicFilter !== 'all' && getDokuTopicValue(doku) !== topicFilter) return false;
+      if (ageGroupFilter !== 'all' && getDokuAgeGroupValue(doku) !== ageGroupFilter) return false;
+      if (depthFilter !== 'all' && getDokuDepthValue(doku) !== depthFilter) return false;
+      return true;
+    },
+    [topicFilter, ageGroupFilter, depthFilter]
+  );
+
+  const filteredMyDokus = useMemo(() => {
+    const filtered = myDokus.filter((doku) => {
+      if (!matchesTextFilters(doku)) return false;
+      if (!query) return true;
+      return doku.title.toLowerCase().includes(query) || (doku.topic || '').toLowerCase().includes(query);
+    });
+    return sortDokus(filtered);
+  }, [myDokus, matchesTextFilters, query, sortDokus]);
+
+  const filteredPublicDokus = useMemo(() => {
+    const filtered = publicDokus.filter((doku) => {
+      if (!matchesTextFilters(doku)) return false;
+      if (!query) return true;
+      return doku.title.toLowerCase().includes(query) || (doku.topic || '').toLowerCase().includes(query);
+    });
+    return sortDokus(filtered);
+  }, [publicDokus, matchesTextFilters, query, sortDokus]);
+
+  const filteredAudioDokus = useMemo(() => {
+    const filtered = audioDokus.filter((doku) => {
+      if (audioScopeFilter === 'mine' && doku.userId !== user?.id) return false;
+      if (audioScopeFilter === 'public' && !doku.isPublic) return false;
+      if (!query) return true;
+      return doku.title.toLowerCase().includes(query) || (doku.description || '').toLowerCase().includes(query);
+    });
+    return sortAudioDokus(filtered);
+  }, [audioDokus, audioScopeFilter, query, sortAudioDokus, user?.id]);
+
+  const isInitialLoading =
+    isSignedIn &&
+    ((activeTab === 'mine' && loadingMy) ||
+      (activeTab === 'discover' && loadingPublic) ||
+      (activeTab === 'audio' && loadingAudio));
 
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text }}>
@@ -535,7 +693,11 @@ const TaleaDokusScreen: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('doku.searchPlaceholder', 'Dokus durchsuchen...')}
+                  placeholder={
+                    activeTab === 'audio'
+                      ? t('doku.searchPlaceholder', 'Audio durchsuchen...')
+                      : t('doku.searchPlaceholder', 'Dokus durchsuchen...')
+                  }
                   className="h-11 w-full rounded-2xl border py-2 pl-10 pr-3 text-sm outline-none"
                   style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
                 />
@@ -557,123 +719,252 @@ const TaleaDokusScreen: React.FC = () => {
                 {totalMy + totalPublic} Artikel / {totalAudio} Audio
               </div>
             </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {([
+                { key: 'mine', label: 'Meine', count: totalMy },
+                { key: 'discover', label: 'Entdecken', count: totalPublic },
+                { key: 'audio', label: 'Hoerwelt', count: totalAudio },
+              ] as const).map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors"
+                    style={{
+                      borderColor: active ? '#a88f80' : palette.border,
+                      background: active ? palette.primary : palette.soft,
+                      color: active ? palette.primaryText : palette.text,
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: active ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.3)' }}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {activeTab !== 'audio' ? (
+                <>
+                  <select
+                    value={topicFilter}
+                    onChange={(event) => setTopicFilter(event.target.value)}
+                    className="h-11 rounded-2xl border px-3 text-sm"
+                    style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                    aria-label="Thema filtern"
+                  >
+                    <option value="all">Alle Themen</option>
+                    {topicFilterOptions.map((topic) => (
+                      <option key={topic} value={topic}>
+                        {formatTopicLabel(topic)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={ageGroupFilter}
+                    onChange={(event) => setAgeGroupFilter(event.target.value)}
+                    className="h-11 rounded-2xl border px-3 text-sm"
+                    style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                    aria-label="Altersgruppe filtern"
+                  >
+                    <option value="all">Alle Altersgruppen</option>
+                    {ageGroupFilterOptions.map((ageGroup) => (
+                      <option key={ageGroup} value={ageGroup}>
+                        {ageGroup}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={depthFilter}
+                    onChange={(event) => setDepthFilter(event.target.value)}
+                    className="h-11 rounded-2xl border px-3 text-sm"
+                    style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                    aria-label="Tiefe filtern"
+                  >
+                    <option value="all">Alle Tiefen</option>
+                    {depthFilterOptions.map((depth) => (
+                      <option key={depth} value={depth}>
+                        {formatDokuDepthLabel(depth)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <select
+                  value={audioScopeFilter}
+                  onChange={(event) => setAudioScopeFilter(event.target.value as AudioScope)}
+                  className="h-11 rounded-2xl border px-3 text-sm"
+                  style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                  aria-label="Audio Bereich filtern"
+                >
+                  <option value="all">Alle Audio</option>
+                  <option value="mine">Meine Audio</option>
+                  <option value="public">Oeffentliche Audio</option>
+                </select>
+              )}
+
+              <select
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as DokuSortMode)}
+                className="h-11 rounded-2xl border px-3 text-sm"
+                style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                aria-label="Sortierung"
+              >
+                <option value="newest">Neueste zuerst</option>
+                <option value="oldest">Aelteste zuerst</option>
+                <option value="title">Titel A-Z</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSortMode('newest');
+                  setTopicFilter('all');
+                  setAgeGroupFilter('all');
+                  setDepthFilter('all');
+                  setAudioScopeFilter('all');
+                }}
+                className="h-11 rounded-2xl border px-3 text-xs font-semibold uppercase tracking-wide"
+                style={{ borderColor: palette.border, background: palette.soft, color: palette.text }}
+              >
+                Filter zuruecksetzen
+              </button>
+            </div>
           </header>
 
           {isInitialLoading ? (
             <SectionLoading palette={palette} />
           ) : (
             <>
-              <section>
-                <SectionHeader
-                  icon={<GraduationCap className="h-4 w-4" />}
-                  title={t('doku.myDokus', 'Meine Dokus')}
-                  subtitle={t('doku.myDokusSubtitle', 'Deine persoenlichen Wissensartikel')}
-                  count={totalMy}
-                  palette={palette}
-                />
+              {activeTab === 'mine' && (
+                <section>
+                  <SectionHeader
+                    icon={<GraduationCap className="h-4 w-4" />}
+                    title={t('doku.myDokus', 'Meine Dokus')}
+                    subtitle={t('doku.myDokusSubtitle', 'Deine persoenlichen Wissensartikel')}
+                    count={totalMy}
+                    palette={palette}
+                  />
 
-                {loadingMy ? (
-                  <SectionLoading palette={palette} />
-                ) : filteredMyDokus.length === 0 ? (
-                  <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
-                    <p className="text-sm" style={{ color: palette.muted }}>
-                      {query ? 'Keine Doku passt zum Suchbegriff.' : t('doku.noDokus', 'Noch keine Dokus')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredMyDokus.map((doku) => (
-                      <DokuCard
-                        key={doku.id}
-                        doku={doku}
-                        onRead={(item) => navigate(`/doku-reader/${item.id}`)}
-                        onDelete={handleDeleteDoku}
-                        onTogglePublic={handleTogglePublic}
-                      />
-                    ))}
-                  </div>
-                )}
+                  {loadingMy ? (
+                    <SectionLoading palette={palette} />
+                  ) : filteredMyDokus.length === 0 ? (
+                    <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
+                      <p className="text-sm" style={{ color: palette.muted }}>
+                        {query ? 'Keine Doku passt zum Suchbegriff.' : t('doku.noDokus', 'Noch keine Dokus')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredMyDokus.map((doku) => (
+                        <DokuCard
+                          key={doku.id}
+                          doku={doku}
+                          onRead={(item) => navigate(`/doku-reader/${item.id}`)}
+                          onDelete={handleDeleteDoku}
+                          onTogglePublic={handleTogglePublic}
+                        />
+                      ))}
+                    </div>
+                  )}
 
-                {hasMoreMy && !query && (
-                  <div ref={myObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
-                    {loadingMoreMy ? 'Weitere Dokus werden geladen...' : null}
-                  </div>
-                )}
-              </section>
+                  {hasMoreMy && !query && (
+                    <div ref={myObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
+                      {loadingMoreMy ? 'Weitere Dokus werden geladen...' : null}
+                    </div>
+                  )}
+                </section>
+              )}
 
-              <section>
-                <SectionHeader
-                  icon={<Globe className="h-4 w-4" />}
-                  title={t('doku.publicDokus', 'Community Dokus')}
-                  subtitle={t('doku.publicDokusSubtitle', 'Von der Community geteilt')}
-                  count={totalPublic}
-                  palette={palette}
-                />
+              {activeTab === 'discover' && (
+                <section>
+                  <SectionHeader
+                    icon={<Globe className="h-4 w-4" />}
+                    title="Entdecken"
+                    subtitle="Geteilte Dokus aus der Community"
+                    count={totalPublic}
+                    palette={palette}
+                  />
 
-                {loadingPublic ? (
-                  <SectionLoading palette={palette} />
-                ) : publicAccessMessage ? (
-                  <div className="rounded-2xl border border-rose-400/35 bg-rose-500/10 p-6 text-center text-sm text-rose-300">
-                    {publicAccessMessage}
-                  </div>
-                ) : filteredPublicDokus.length === 0 ? (
-                  <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
-                    <p className="text-sm" style={{ color: palette.muted }}>
-                      {query ? 'Keine Community-Doku passt zum Suchbegriff.' : t('doku.noPublicDokus', 'Keine oeffentlichen Artikel')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredPublicDokus.map((doku) => (
-                      <DokuCard key={doku.id} doku={doku} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
-                    ))}
-                  </div>
-                )}
+                  {loadingPublic ? (
+                    <SectionLoading palette={palette} />
+                  ) : publicAccessMessage ? (
+                    <div className="rounded-2xl border border-rose-400/35 bg-rose-500/10 p-6 text-center text-sm text-rose-300">
+                      {publicAccessMessage}
+                    </div>
+                  ) : filteredPublicDokus.length === 0 ? (
+                    <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
+                      <p className="text-sm" style={{ color: palette.muted }}>
+                        {query ? 'Keine Entdecken-Doku passt zum Suchbegriff.' : t('doku.noPublicDokus', 'Keine oeffentlichen Artikel')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredPublicDokus.map((doku) => (
+                        <DokuCard key={doku.id} doku={doku} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
+                      ))}
+                    </div>
+                  )}
 
-                {hasMorePublic && !publicAccessMessage && !query && (
-                  <div ref={publicObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
-                    {loadingMorePublic ? 'Weitere Community-Dokus werden geladen...' : null}
-                  </div>
-                )}
-              </section>
+                  {hasMorePublic && !publicAccessMessage && !query && (
+                    <div ref={publicObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
+                      {loadingMorePublic ? 'Weitere Entdecken-Dokus werden geladen...' : null}
+                    </div>
+                  )}
+                </section>
+              )}
 
-              <section>
-                <SectionHeader
-                  icon={<Headphones className="h-4 w-4" />}
-                  title={t('doku.audioDokus', 'Audio-Dokus')}
-                  subtitle={t('doku.audioDokusSubtitle', 'Zum Anhoeren')}
-                  count={totalAudio}
-                  palette={palette}
-                  actionLabel={isAdmin ? t('doku.audioCreateButton', 'Audio erstellen') : undefined}
-                  onAction={isAdmin ? () => navigate('/createaudiodoku') : undefined}
-                />
+              {activeTab === 'audio' && (
+                <section>
+                  <SectionHeader
+                    icon={<Headphones className="h-4 w-4" />}
+                    title="Hoerwelt"
+                    subtitle="Dokus zum Anhoeren"
+                    count={totalAudio}
+                    palette={palette}
+                    actionLabel={isAdmin ? t('doku.audioCreateButton', 'Audio erstellen') : undefined}
+                    onAction={isAdmin ? () => navigate('/createaudiodoku') : undefined}
+                  />
 
-                {loadingAudio ? (
-                  <SectionLoading palette={palette} />
-                ) : audioAccessMessage ? (
-                  <div className="rounded-2xl border border-rose-400/35 bg-rose-500/10 p-6 text-center text-sm text-rose-300">
-                    {audioAccessMessage}
-                  </div>
-                ) : filteredAudioDokus.length === 0 ? (
-                  <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
-                    <p className="text-sm" style={{ color: palette.muted }}>
-                      {query ? 'Keine Audio-Doku passt zum Suchbegriff.' : t('doku.noAudioDokus', 'Noch keine Audio-Dokus')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredAudioDokus.map((doku, i) => (
-                      <AudioDokuCard
-                        key={doku.id}
-                        doku={doku}
-                        index={i}
-                        onPlay={() => setAudioModal(doku)}
-                        palette={palette}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+                  {loadingAudio ? (
+                    <SectionLoading palette={palette} />
+                  ) : audioAccessMessage ? (
+                    <div className="rounded-2xl border border-rose-400/35 bg-rose-500/10 p-6 text-center text-sm text-rose-300">
+                      {audioAccessMessage}
+                    </div>
+                  ) : filteredAudioDokus.length === 0 ? (
+                    <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
+                      <p className="text-sm" style={{ color: palette.muted }}>
+                        {query ? 'Keine Audio-Doku passt zum Suchbegriff.' : t('doku.noAudioDokus', 'Noch keine Audio-Dokus')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredAudioDokus.map((doku, i) => (
+                        <AudioDokuCard
+                          key={doku.id}
+                          doku={doku}
+                          index={i}
+                          onPlay={() => setAudioModal(doku)}
+                          palette={palette}
+                          canSaveOffline={canUseOffline}
+                          isSavedOffline={isAudioDokuSaved(doku.id)}
+                          isSavingOffline={isSaving(doku.id)}
+                          onToggleOffline={() => toggleAudioDoku(doku)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
             </>
           )}
         </div>

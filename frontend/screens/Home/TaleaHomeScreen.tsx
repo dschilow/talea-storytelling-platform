@@ -5,7 +5,10 @@ import { useTranslation } from "react-i18next";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
+  Bookmark,
+  BookmarkCheck,
   BookOpen,
+  Clock3,
   Library,
   LogIn,
   Plus,
@@ -21,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
   Card,
   CardContent,
@@ -200,7 +204,11 @@ const StoryCard: React.FC<{
   story: Story;
   onRead: () => void;
   onDelete: () => void;
-}> = ({ story, onRead, onDelete }) => {
+  canSaveOffline?: boolean;
+  isSavedOffline?: boolean;
+  isSavingOffline?: boolean;
+  onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}> = ({ story, onRead, onDelete, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -230,17 +238,36 @@ const StoryCard: React.FC<{
             <StoryStatusTag status={story.status} />
           </div>
 
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-            className="absolute right-3 top-3 rounded-lg border border-white/35 bg-black/45 p-1.5 text-white transition-colors hover:bg-[#7f2d2d]"
-            aria-label="Story loeschen"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="absolute right-3 top-3 flex items-center gap-2">
+            {canSaveOffline && story.status === "complete" && onToggleOffline && (
+              <button
+                type="button"
+                onClick={onToggleOffline}
+                disabled={isSavingOffline}
+                className="rounded-lg border border-white/35 bg-black/45 p-1.5 text-white transition-colors hover:bg-black/70"
+                aria-label={isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern"}
+              >
+                {isSavingOffline ? (
+                  <Clock3 className="h-4 w-4 animate-spin" />
+                ) : isSavedOffline ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+              className="rounded-lg border border-white/35 bg-black/45 p-1.5 text-white transition-colors hover:bg-[#7f2d2d]"
+              aria-label="Story loeschen"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <CardContent className="space-y-3 p-5">
@@ -407,6 +434,7 @@ const TaleaHomeScreen: React.FC = () => {
   const { user, isLoaded, isSignedIn } = useUser();
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
+  const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
 
@@ -693,6 +721,10 @@ const TaleaHomeScreen: React.FC = () => {
                     story={story}
                     onRead={() => navigate(`/story-reader/${story.id}`)}
                     onDelete={() => handleDeleteStory(story.id, story.title)}
+                    canSaveOffline={canUseOffline}
+                    isSavedOffline={isStorySaved(story.id)}
+                    isSavingOffline={isSaving(story.id)}
+                    onToggleOffline={(event) => { event.stopPropagation(); toggleStory(story.id); }}
                   />
                 ))}
               </div>

@@ -4,6 +4,8 @@ import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { motion, useReducedMotion } from "framer-motion";
 import {
+  Bookmark,
+  BookmarkCheck,
   BookOpen,
   Clock3,
   Download,
@@ -29,12 +31,12 @@ import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
+import { useOffline } from "@/contexts/OfflineStorageContext";
 
 const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
 const bodyFont = '"Sora", "Manrope", "Segoe UI", sans-serif';
 
 type ViewMode = "grid" | "list";
-type StatusFilter = "all" | "complete" | "generating" | "error";
 type SortMode = "newest" | "oldest" | "title";
 
 const statusMeta: Record<Story["status"], { label: string; className: string }> = {
@@ -52,11 +54,13 @@ const statusMeta: Record<Story["status"], { label: string; className: string }> 
   },
 };
 
-const filterLabels: Record<StatusFilter, string> = {
-  all: "Alle",
-  complete: "Fertig",
-  generating: "In Arbeit",
-  error: "Fehler",
+const genreLabels: Record<string, string> = {
+  fairy_tales: "Maerchen",
+  adventure: "Abenteuer",
+  magic: "Magie",
+  animals: "Tiere",
+  scifi: "Sci-Fi",
+  modern: "Modern",
 };
 
 function formatDate(value: string) {
@@ -69,6 +73,86 @@ function formatDate(value: string) {
 
 function getStoryPreviewText(story: Story) {
   return story.summary || story.description || "Noch keine Zusammenfassung verfuegbar.";
+}
+
+function normalizeKey(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.trim().toLowerCase();
+}
+
+function getStoryGenreKey(story: Story): string {
+  return normalizeKey(story.config?.genre);
+}
+
+function getStoryAgeGroupKey(story: Story): string {
+  return normalizeKey(story.config?.ageGroup);
+}
+
+function getStoryLengthKey(story: Story): string {
+  const length = normalizeKey((story.config as Story["config"] & { length?: string })?.length);
+  if (length) return length;
+
+  const chapterCount = story.chapters?.length ?? story.pages?.length ?? 0;
+  if (chapterCount <= 3) return "short";
+  if (chapterCount <= 6) return "medium";
+  if (chapterCount > 6) return "long";
+  return "";
+}
+
+function formatGenreLabel(genre: string): string {
+  if (!genre) return "Unbekannt";
+  if (genreLabels[genre]) return genreLabels[genre];
+  return genre
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatAgeLabel(ageGroup: string): string {
+  if (!ageGroup) return "Unbekannt";
+  return ageGroup;
+}
+
+function formatLengthLabel(length: string): string {
+  if (length === "short") return "Kurz";
+  if (length === "medium") return "Mittel";
+  if (length === "long") return "Lang";
+  return length || "Unbekannt";
+}
+
+type StoryAvatarFilterOption = {
+  id: string;
+  name: string;
+};
+
+function getStoryAvatarParticipants(story: Story): StoryAvatarFilterOption[] {
+  const participants = new Map<string, string>();
+
+  const addParticipant = (entry: unknown) => {
+    if (!entry || typeof entry !== "object") return;
+
+    const rawId = (entry as { id?: unknown }).id;
+    const rawName = (entry as { name?: unknown }).name;
+    const id = typeof rawId === "string" ? rawId.trim() : "";
+    const name = typeof rawName === "string" ? rawName.trim() : "";
+
+    if (!id) return;
+    participants.set(id, name || id);
+  };
+
+  for (const participant of story.avatarParticipants || []) {
+    addParticipant(participant);
+  }
+
+  for (const participant of story.config?.avatars || []) {
+    addParticipant(participant);
+  }
+
+  return Array.from(participants.entries()).map(([id, name]) => ({ id, name }));
 }
 
 const StoriesBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
@@ -109,7 +193,11 @@ const GridStoryCard: React.FC<{
   canDownload: boolean;
   onDownloadPdf: (event: React.MouseEvent<HTMLButtonElement>) => void;
   isDownloading: boolean;
-}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading }) => {
+  canSaveOffline?: boolean;
+  isSavedOffline?: boolean;
+  isSavingOffline?: boolean;
+  onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -143,6 +231,23 @@ const GridStoryCard: React.FC<{
           </div>
 
           <div className="absolute right-3 top-3 flex items-center gap-2">
+            {canSaveOffline && story.status === "complete" && onToggleOffline && (
+              <button
+                type="button"
+                onClick={onToggleOffline}
+                disabled={isSavingOffline}
+                className="rounded-lg border border-white/40 bg-black/45 p-1.5 text-white transition-colors hover:bg-black/70"
+                aria-label={isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern"}
+              >
+                {isSavingOffline ? (
+                  <Clock3 className="h-4 w-4 animate-spin" />
+                ) : isSavedOffline ? (
+                  <BookmarkCheck className="h-4 w-4" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </button>
+            )}
             {canDownload && story.status === "complete" && (
               <button
                 type="button"
@@ -204,7 +309,11 @@ const ListStoryRow: React.FC<{
   canDownload: boolean;
   onDownloadPdf: (event: React.MouseEvent<HTMLButtonElement>) => void;
   isDownloading: boolean;
-}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading }) => {
+  canSaveOffline?: boolean;
+  isSavedOffline?: boolean;
+  isSavingOffline?: boolean;
+  onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -238,6 +347,23 @@ const ListStoryRow: React.FC<{
 
               <div className="flex items-center gap-2">
                 <StoryStatusChip status={story.status} />
+                {canSaveOffline && story.status === "complete" && onToggleOffline && (
+                  <button
+                    type="button"
+                    onClick={onToggleOffline}
+                    disabled={isSavingOffline}
+                    className="rounded-lg border border-[#e3d8cb] p-1.5 text-[#5f6d7d] transition-colors hover:bg-[#f2ece2]"
+                    aria-label={isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern"}
+                  >
+                    {isSavingOffline ? (
+                      <Clock3 className="h-4 w-4 animate-spin" />
+                    ) : isSavedOffline ? (
+                      <BookmarkCheck className="h-4 w-4" />
+                    ) : (
+                      <Bookmark className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
                 {canDownload && story.status === "complete" && (
                   <button
                     type="button"
@@ -327,6 +453,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const { isAdmin } = useOptionalUserAccess();
+  const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
   const { isLoaded: authLoaded, isSignedIn } = useUser();
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
@@ -338,7 +465,10 @@ const TaleaStoriesScreen: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [genreFilter, setGenreFilter] = useState("all");
+  const [ageGroupFilter, setAgeGroupFilter] = useState("all");
+  const [lengthFilter, setLengthFilter] = useState("all");
+  const [avatarFilter, setAvatarFilter] = useState("all");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [downloadingStoryId, setDownloadingStoryId] = useState<string | null>(null);
 
@@ -431,12 +561,52 @@ const TaleaStoriesScreen: React.FC = () => {
     }
   };
 
+  const genreFilterOptions = useMemo(
+    () =>
+      Array.from(new Set(stories.map((story) => getStoryGenreKey(story)).filter(Boolean))).sort((a, b) =>
+        formatGenreLabel(a).localeCompare(formatGenreLabel(b), "de")
+      ),
+    [stories]
+  );
+
+  const ageGroupFilterOptions = useMemo(
+    () =>
+      Array.from(new Set(stories.map((story) => getStoryAgeGroupKey(story)).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, "de")
+      ),
+    [stories]
+  );
+
+  const lengthFilterOptions = useMemo(
+    () => Array.from(new Set(stories.map((story) => getStoryLengthKey(story)).filter(Boolean))),
+    [stories]
+  );
+
+  const avatarFilterOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const story of stories) {
+      for (const participant of getStoryAvatarParticipants(story)) {
+        byId.set(participant.id, participant.name);
+      }
+    }
+
+    return Array.from(byId.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  }, [stories]);
+
   const filteredStories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
     const result = stories.filter((story) => {
-      const statusMatches = statusFilter === "all" || story.status === statusFilter;
-      if (!statusMatches) return false;
+      if (genreFilter !== "all" && getStoryGenreKey(story) !== genreFilter) return false;
+      if (ageGroupFilter !== "all" && getStoryAgeGroupKey(story) !== ageGroupFilter) return false;
+      if (lengthFilter !== "all" && getStoryLengthKey(story) !== lengthFilter) return false;
+
+      if (avatarFilter !== "all") {
+        const avatarIds = new Set(getStoryAvatarParticipants(story).map((participant) => participant.id));
+        if (!avatarIds.has(avatarFilter)) return false;
+      }
 
       if (!query) return true;
 
@@ -460,11 +630,16 @@ const TaleaStoriesScreen: React.FC = () => {
     return [...result].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [stories, searchQuery, statusFilter, sortMode]);
+  }, [stories, searchQuery, genreFilter, ageGroupFilter, lengthFilter, avatarFilter, sortMode]);
 
   const completeCount = stories.filter((story) => story.status === "complete").length;
   const generatingCount = stories.filter((story) => story.status === "generating").length;
-  const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== "all";
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    genreFilter !== "all" ||
+    ageGroupFilter !== "all" ||
+    lengthFilter !== "all" ||
+    avatarFilter !== "all";
 
   return (
     <div className="relative min-h-screen pb-24" style={{ fontFamily: bodyFont }}>
@@ -596,22 +771,78 @@ const TaleaStoriesScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {(Object.keys(filterLabels) as StatusFilter[]).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setStatusFilter(filter)}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
-                      statusFilter === filter
-                        ? "border-[#a88f80] bg-[#ece3d9] text-[#7d6e62]"
-                        : "border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] text-[#6c788a] dark:text-[#9fb0c7] hover:bg-[#f1e7d8]"
-                    )}
-                  >
-                    {filterLabels[filter]}
-                  </button>
-                ))}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <select
+                  value={genreFilter}
+                  onChange={(event) => setGenreFilter(event.target.value)}
+                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                  aria-label="Genre Filter"
+                >
+                  <option value="all">Alle Genres</option>
+                  {genreFilterOptions.map((genre) => (
+                    <option key={genre} value={genre}>
+                      {formatGenreLabel(genre)}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={ageGroupFilter}
+                  onChange={(event) => setAgeGroupFilter(event.target.value)}
+                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                  aria-label="Altersgruppe Filter"
+                >
+                  <option value="all">Alle Altersgruppen</option>
+                  {ageGroupFilterOptions.map((ageGroup) => (
+                    <option key={ageGroup} value={ageGroup}>
+                      {formatAgeLabel(ageGroup)}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={lengthFilter}
+                  onChange={(event) => setLengthFilter(event.target.value)}
+                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                  aria-label="Laengen Filter"
+                >
+                  <option value="all">Alle Laengen</option>
+                  {lengthFilterOptions.map((length) => (
+                    <option key={length} value={length}>
+                      {formatLengthLabel(length)}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={avatarFilter}
+                  onChange={(event) => setAvatarFilter(event.target.value)}
+                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                  aria-label="Avatar Filter"
+                >
+                  <option value="all">Alle Avatare</option>
+                  {avatarFilterOptions.map((avatar) => (
+                    <option key={avatar.id} value={avatar.id}>
+                      {avatar.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setGenreFilter("all");
+                    setAgeGroupFilter("all");
+                    setLengthFilter("all");
+                    setAvatarFilter("all");
+                  }}
+                  className="rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#6c788a] dark:text-[#9fb0c7] transition-colors hover:bg-[#f1e7d8]"
+                >
+                  Filter zuruecksetzen
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -624,7 +855,10 @@ const TaleaStoriesScreen: React.FC = () => {
                 onPrimary={() => {
                   if (hasActiveFilters) {
                     setSearchQuery("");
-                    setStatusFilter("all");
+                    setGenreFilter("all");
+                    setAgeGroupFilter("all");
+                    setLengthFilter("all");
+                    setAvatarFilter("all");
                     return;
                   }
                   navigate("/story");
@@ -649,6 +883,10 @@ const TaleaStoriesScreen: React.FC = () => {
                     canDownload={isAdmin}
                     onDownloadPdf={(event) => handleDownloadPdf(story.id, story.status, event)}
                     isDownloading={downloadingStoryId === story.id}
+                    canSaveOffline={canUseOffline}
+                    isSavedOffline={isStorySaved(story.id)}
+                    isSavingOffline={isSaving(story.id)}
+                    onToggleOffline={(event) => { event.stopPropagation(); toggleStory(story.id); }}
                   />
                 ))}
               </div>
@@ -664,6 +902,10 @@ const TaleaStoriesScreen: React.FC = () => {
                     canDownload={isAdmin}
                     onDownloadPdf={(event) => handleDownloadPdf(story.id, story.status, event)}
                     isDownloading={downloadingStoryId === story.id}
+                    canSaveOffline={canUseOffline}
+                    isSavedOffline={isStorySaved(story.id)}
+                    isSavingOffline={isSaving(story.id)}
+                    onToggleOffline={(event) => { event.stopPropagation(); toggleStory(story.id); }}
                   />
                 ))}
               </div>
@@ -687,5 +929,4 @@ const TaleaStoriesScreen: React.FC = () => {
 };
 
 export default TaleaStoriesScreen;
-
 

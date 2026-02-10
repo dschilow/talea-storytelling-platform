@@ -41,6 +41,7 @@ import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
+import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
 import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScreen';
@@ -240,7 +241,9 @@ export default function App() {
         <ThemeProvider>
           <AudioPlayerProvider>
             <UserAccessProvider>
-              <AppContent />
+              <OfflineStorageProvider>
+                <AppContent />
+              </OfflineStorageProvider>
             </UserAccessProvider>
           </AudioPlayerProvider>
         </ThemeProvider>
