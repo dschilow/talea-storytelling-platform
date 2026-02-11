@@ -342,6 +342,8 @@ export function buildFullStoryPrompt(input: {
   const emotionalFocus = focusChildNames.length > 0
     ? focusChildNames.slice(0, 2).join(", ")
     : allowedNames.slice(0, 2).join(", ");
+  const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
+  const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   // Altersgerechter Stil
   const ageStyle = ageRange.max <= 5
@@ -428,8 +430,8 @@ ${stylePackBlock}
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
 
 # Fokus-Regeln
-- Pro Beat maximal 4 aktive Figuren, ideal 3.
-- Wenn der Beat-Plan mehr Namen nennt: waehle 3-4 Fokusfiguren mit klarer Handlung.
+- Pro Beat maximal ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
+- Wenn der Beat-Plan mehr Namen nennt: waehle ${focusIdealRange} Fokusfiguren mit klarer Handlung.
 - Weitere Figuren nur kurz im Hintergrund, ohne eigene Nebenhandlung.
 
 # Dramaturgie-Pflicht (muss spuerbar sein)
@@ -455,13 +457,13 @@ ${stylePackBlock}
 6. Keine Meta-Labels: Kein "Setting:", "Ziel:", "Hook:" usw.
 7. Cast Lock: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren.
 8. Aktive Charaktere: Figuren handeln sichtbar (Verb + Objekt) oder sprechen.
-9. Figurenlimit pro Beat einhalten (max 4 aktive Figuren, ideal 3).
+9. Figurenlimit pro Beat einhalten (max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}).
 10. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
 11. Dialog: Keine Monologe. Kurze, natuerliche Rede.
 12. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
 13. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
 14. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
-15. Finale-Fokus: Im letzten Beat maximal 4 aktive Figuren, bevorzugt 3.
+15. Finale-Fokus: Im letzten Beat maximal ${focusMaxActive} aktive Figuren, bevorzugt ${focusIdealRange}.
 
 # Figuren (NUR diese erlaubt)
 Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
@@ -484,7 +486,7 @@ ${chapterOutlines}
 
 # Qualitäts-Check (intern prüfen)
 - [ ] Erster Satz macht sofort neugierig?
-- [ ] Pro Beat maximal 3-4 aktive Figuren?
+- [ ] Pro Beat maximal ${focusMaxActive} aktive Figuren?
 - [ ] Gibt es klare Stakes: "Wenn wir es nicht schaffen, dann ..."?
 - [ ] Gibt es einen echten Tiefpunkt in Beat 3 oder 4?
 - [ ] Haben die Kinder sichtbare Gefühle + innere Gedanken?
@@ -535,6 +537,8 @@ export function buildFullStoryRewritePrompt(input: {
   const emotionalFocus = focusChildNames.length > 0
     ? focusChildNames.slice(0, 2).join(", ")
     : allowedNamesList.slice(0, 2).join(", ");
+  const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
+  const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
@@ -551,9 +555,9 @@ ${qualityIssues}
 ${stylePackBlock}
 
 # 10.0 Ziele (Pflicht)
-- Figurenfokus: pro Beat max 4 aktive Figuren, ideal 3.
+- Figurenfokus: pro Beat max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
 - Aktive Figuren = spricht sichtbar oder handelt sichtbar (Verb + Objekt).
-- Wenn ein Beat mehr Namen traegt: waehle 3-4 Fokusfiguren; weitere Figuren nur kurz im Hintergrund.
+- Wenn ein Beat mehr Namen traegt: waehle ${focusIdealRange} Fokusfiguren; weitere Figuren nur kurz im Hintergrund.
 - Dramaturgie mit Eskalation:
   Beat 1 Ziel + Leitfrage.
   Beat 2 Risiko steigt (Zeitdruck ODER klare Gefahr).
@@ -627,9 +631,11 @@ export function buildChapterExpansionPrompt(input: {
   const emotionalFocus = focusChildNames.length > 0
     ? focusChildNames.slice(0, 2).join(", ")
     : characterNames.slice(0, 2).join(", ");
+  const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
+  const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const missingLine = requiredCharacters?.length
-    ? `\n**FEHLENDE FIGUREN (MUSS FOKUSSIERT EINGEBAUT WERDEN):** ${requiredCharacters.join(", ")}\nJede fehlende Figur benennen + kurze konkrete Aktion. Gesamtlimit bleibt max 4 aktive Figuren.`
+    ? `\n**FEHLENDE FIGUREN (MUSS FOKUSSIERT EINGEBAUT WERDEN):** ${requiredCharacters.join(", ")}\nJede fehlende Figur benennen + kurze konkrete Aktion. Gesamtlimit bleibt max ${focusMaxActive} aktive Figuren.`
     : "";
 
   const contextLines = [
@@ -654,7 +660,7 @@ ${missingLine}
 # Regeln
 1. Nur diese Namen: ${allowedNames}
 2. Keine neuen Figuren
-3. Pro Kapitel max 4 aktive Figuren, ideal 3.
+3. Pro Kapitel max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
 4. Keine Meta-Labels im Text.
 5. Kapitel-Rhythmus: kurz/schnell -> ruhig/emotional -> kurz/schnell.
 6. Mindestens 1 innerer Kinder-Moment von ${emotionalFocus} (Koerpersignal + Gedanke).

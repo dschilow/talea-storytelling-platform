@@ -285,7 +285,11 @@ function gateCastLock(
 }
 
 // ─── Gate 6: Repetition Limiter ─────────────────────────────────────────────────
-function gateRepetitionLimiter(draft: StoryDraft, language: string): QualityIssue[] {
+function gateRepetitionLimiter(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
 
@@ -312,6 +316,38 @@ function gateRepetitionLimiter(draft: StoryDraft, language: string): QualityIssu
           ? `Fuellwort "${filler}" ${count}x verwendet (max 3)`
           : `Filler "${filler}" used ${count}x (max 3)`,
         severity: "WARNING",
+      });
+    }
+  }
+
+  const bannedWordPatterns = isDE
+    ? [
+        { token: "plötzlich", regex: /\bpl[öo]tzlich\b/gi },
+        { token: "irgendwie", regex: /\birgendwie\b/gi },
+        { token: "ein bisschen", regex: /\bein\s+bisschen\b/gi },
+        { token: "ziemlich", regex: /\bziemlich\b/gi },
+        { token: "wirklich", regex: /\bwirklich\b/gi },
+        { token: "sehr", regex: /\bsehr\b/gi },
+        { token: "Es war einmal", regex: /\bes\s+war\s+einmal\b/gi },
+      ]
+    : [
+        { token: "suddenly", regex: /\bsuddenly\b/gi },
+        { token: "really", regex: /\breally\b/gi },
+      ];
+
+  for (const ch of draft.chapters) {
+    for (const banned of bannedWordPatterns) {
+      banned.regex.lastIndex = 0;
+      const count = (ch.text.match(banned.regex) ?? []).length;
+      if (count === 0) continue;
+      issues.push({
+        gate: "REPETITION_LIMITER",
+        chapter: ch.chapter,
+        code: "BANNED_WORD_USED",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: verbotenes Fuellwort "${banned.token}" ${count}x verwendet`
+          : `Chapter ${ch.chapter}: banned filler "${banned.token}" used ${count}x`,
+        severity: (ageRange?.max ?? 12) <= 8 ? "ERROR" : "WARNING",
       });
     }
   }
@@ -376,9 +412,9 @@ function gateReadabilityComplexity(
   if (!ageRange) return issues;
 
   const ageMax = ageRange.max;
-  const longSentenceThreshold = ageMax <= 5 ? 14 : ageMax <= 8 ? 20 : 26;
-  const maxAvgSentenceWords = ageMax <= 5 ? 11 : ageMax <= 8 ? 15 : 19;
-  const maxLongSentenceRatio = ageMax <= 5 ? 0.12 : ageMax <= 8 ? 0.18 : 0.28;
+  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 18 : 26;
+  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 14 : 19;
+  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.15 : 0.28;
 
   for (const ch of draft.chapters) {
     const sentences = splitSentences(ch.text);
@@ -391,7 +427,7 @@ function gateReadabilityComplexity(
     const avgSentenceWords = totalSentenceWords / sentenceWordCounts.length;
     const longSentenceCount = sentenceWordCounts.filter(n => n > longSentenceThreshold).length;
     const longSentenceRatio = longSentenceCount / sentenceWordCounts.length;
-    const hasVeryLongSentence = sentenceWordCounts.some(n => n >= longSentenceThreshold + 10);
+    const hasVeryLongSentence = sentenceWordCounts.some(n => n >= longSentenceThreshold + 8);
 
     if (avgSentenceWords > maxAvgSentenceWords) {
       issues.push({
@@ -648,6 +684,54 @@ function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
     }
   }
 
+  const endingUnresolvedPatterns = isDE
+    ? [
+        /\bungewiss\b/i,
+        /\bunbekannt\b/i,
+        /\boffen\b/i,
+        /\bam naechsten morgen\b/i,
+        /\bam nächsten morgen\b/i,
+        /\bneue[nr]?\s+r[aä]tsel\b/i,
+        /\bbald\b/i,
+      ]
+    : [
+        /\buncertain\b/i,
+        /\bunknown\b/i,
+        /\bopen\b/i,
+        /\bnext morning\b/i,
+        /\bnew puzzle\b/i,
+        /\bsoon\b/i,
+      ];
+
+  const closingWindow = lastSentences.slice(Math.max(0, lastSentences.length - 3)).join(" ");
+  if (endingUnresolvedPatterns.some(pattern => pattern.test(closingWindow))) {
+    issues.push({
+      gate: "ENDING_PAYOFF",
+      chapter: lastChapter.chapter,
+      code: "ENDING_UNRESOLVED",
+      message: isDE
+        ? "Letzter Abschnitt oeffnet neue Unsicherheit statt klaren warmen Abschluss."
+        : "Final section opens new uncertainty instead of a clear warm closure.",
+      severity: "WARNING",
+    });
+  }
+
+  const warmClosurePatterns = isDE
+    ? [/\bzu hause\b/i, /\bsicher\b/i, /\bgeschafft\b/i, /\bgeborgen\b/i, /\bfriedlich\b/i, /\bzusammen\b/i]
+    : [/\bhome\b/i, /\bsafe\b/i, /\bwe did it\b/i, /\btogether\b/i, /\bpeaceful\b/i];
+
+  if (!warmClosurePatterns.some(pattern => pattern.test(lastText))) {
+    issues.push({
+      gate: "ENDING_PAYOFF",
+      chapter: lastChapter.chapter,
+      code: "ENDING_WARMTH_MISSING",
+      message: isDE
+        ? "Im Schluss fehlt ein klarer warmer Anker (z. B. sicher/zu Hause/zusammen)."
+        : "Ending lacks a clear warm anchor (e.g., safe/home/together).",
+      severity: "WARNING",
+    });
+  }
+
   return issues;
 }
 
@@ -851,9 +935,12 @@ function gateCharacterFocusLoad(
   directives: SceneDirective[],
   cast: CastSet,
   language: string,
+  ageRange?: { min: number; max: number },
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const maxActive = (ageRange?.max ?? 12) <= 8 ? 3 : 4;
+  const idealActive = (ageRange?.max ?? 12) <= 8 ? 2 : 3;
 
   for (const directive of directives) {
     const chapter = draft.chapters.find(ch => ch.chapter === directive.chapter);
@@ -872,24 +959,24 @@ function gateCharacterFocusLoad(
       return checkCharacterHasAction(chapterText, name) || hasAttributedDialogueForCharacter(chapterText, name, language);
     });
 
-    if (activeNames.length > 4) {
+    if (activeNames.length > maxActive) {
       issues.push({
         gate: "CHARACTER_FOCUS",
         chapter: chapter.chapter,
         code: "TOO_MANY_ACTIVE_CHARACTERS",
         message: isDE
-          ? `Kapitel ${chapter.chapter}: ${activeNames.length} aktive Figuren (max 4). Fokus enger setzen: ${activeNames.join(", ")}`
-          : `Chapter ${chapter.chapter}: ${activeNames.length} active characters (max 4). Tighten focus: ${activeNames.join(", ")}`,
+          ? `Kapitel ${chapter.chapter}: ${activeNames.length} aktive Figuren (max ${maxActive}). Fokus enger setzen: ${activeNames.join(", ")}`
+          : `Chapter ${chapter.chapter}: ${activeNames.length} active characters (max ${maxActive}). Tighten focus: ${activeNames.join(", ")}`,
         severity: "ERROR",
       });
-    } else if (activeNames.length === 4) {
+    } else if (activeNames.length === maxActive) {
       issues.push({
         gate: "CHARACTER_FOCUS",
         chapter: chapter.chapter,
         code: "FOCUS_DENSITY_HIGH",
         message: isDE
-          ? `Kapitel ${chapter.chapter}: 4 aktive Figuren. Fuer 6-8 Jahre sind meist 3 ideal.`
-          : `Chapter ${chapter.chapter}: 4 active characters. For age 6-8, 3 is usually better.`,
+          ? `Kapitel ${chapter.chapter}: ${maxActive} aktive Figuren. Ideal sind meist ${idealActive}-${maxActive}.`
+          : `Chapter ${chapter.chapter}: ${maxActive} active characters. Ideal is usually ${idealActive}-${maxActive}.`,
         severity: "WARNING",
       });
     }
@@ -1009,7 +1096,7 @@ function gateRhythmVariation(
       });
     }
 
-    if ((ageRange?.max ?? 12) <= 8 && longCount > Math.ceil(lengths.length * 0.35)) {
+    if ((ageRange?.max ?? 12) <= 8 && longCount > Math.ceil(lengths.length * 0.28)) {
       issues.push({
         gate: "RHYTHM_VARIATION",
         chapter: chapter.chapter,
@@ -1017,7 +1104,7 @@ function gateRhythmVariation(
         message: isDE
           ? `Kapitel ${chapter.chapter}: zu viele laengere Saetze fuer 6-8 Jahre.`
           : `Chapter ${chapter.chapter}: too many longer sentences for age 6-8.`,
-        severity: "WARNING",
+        severity: "ERROR",
       });
     }
 
@@ -1199,9 +1286,9 @@ export function runQualityGates(input: {
     { name: "CHAPTER_STRUCTURE", fn: () => gateChapterStructure(draft, language) },
     { name: "DIALOGUE_QUOTE", fn: () => gateDialogueQuote(draft, language) },
     { name: "CHARACTER_INTEGRATION", fn: () => gateCharacterIntegration(draft, directives, cast, language) },
-    { name: "CHARACTER_FOCUS", fn: () => gateCharacterFocusLoad(draft, directives, cast, language) },
+    { name: "CHARACTER_FOCUS", fn: () => gateCharacterFocusLoad(draft, directives, cast, language, ageRange) },
     { name: "CAST_LOCK", fn: () => gateCastLock(draft, cast, language) },
-    { name: "REPETITION_LIMITER", fn: () => gateRepetitionLimiter(draft, language) },
+    { name: "REPETITION_LIMITER", fn: () => gateRepetitionLimiter(draft, language, ageRange) },
     { name: "TEMPLATE_PHRASES", fn: () => gateTemplatePhrases(draft, language) },
     { name: "READABILITY_COMPLEXITY", fn: () => gateReadabilityComplexity(draft, language, ageRange) },
     { name: "RHYTHM_VARIATION", fn: () => gateRhythmVariation(draft, language, ageRange) },
@@ -1262,8 +1349,8 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
 
   if (issueCodes.has("SENTENCE_COMPLEXITY_HIGH") || issueCodes.has("LONG_SENTENCE_OVERUSE") || issueCodes.has("VERY_LONG_SENTENCE")) {
     lines.push(isDE
-      ? "- Lesbarkeit reparieren: lange Schachtelsaetze in kurze Saetze aufteilen, Ziel 6-15 Woerter pro Satz (bei 6-8 Jahren)."
-      : "- Fix readability: split long nested sentences into short ones, target 6-15 words per sentence (for age 6-8).");
+      ? "- Lesbarkeit reparieren: lange Schachtelsaetze in kurze Saetze aufteilen, Ziel 6-14 Woerter pro Satz (bei 6-8 Jahren)."
+      : "- Fix readability: split long nested sentences into short ones, target 6-14 words per sentence (for age 6-8).");
   }
   if (issueCodes.has("VOICE_INDISTINCT") || issueCodes.has("ROLE_LABEL_OVERUSE")) {
     lines.push(isDE
@@ -1272,8 +1359,8 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
   }
   if (issueCodes.has("TOO_MANY_ACTIVE_CHARACTERS") || issueCodes.has("FOCUS_DENSITY_HIGH")) {
     lines.push(isDE
-      ? "- Figurenfokus enger setzen: pro Kapitel maximal 4 aktive Figuren, fuer 6-8 Jahre ideal 3; Nebenfiguren nur kurz im Hintergrund."
-      : "- Tighten character focus: max 4 active characters per chapter, ideally 3 for age 6-8; keep secondary figures in the background.");
+      ? "- Figurenfokus enger setzen: fuer 6-8 Jahre maximal 3 aktive Figuren (sonst max 4); Nebenfiguren nur kurz im Hintergrund."
+      : "- Tighten character focus: for age 6-8 use max 3 active characters (otherwise max 4); keep secondary figures in the background.");
   }
   if (issueCodes.has("MISSING_EXPLICIT_STAKES") || issueCodes.has("MISSING_LOWPOINT") || issueCodes.has("LOWPOINT_EMOTION_THIN")) {
     lines.push(isDE
@@ -1285,10 +1372,20 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Sprachrhythmus variieren: kurze, mittlere und wenige laengere Saetze mischen; Bildsprache reduzieren (max. ein Vergleich pro Absatz)."
       : "- Vary language rhythm: mix short, medium, and only a few longer sentences; reduce imagery density (max one comparison per paragraph).");
   }
+  if (issueCodes.has("BANNED_WORD_USED")) {
+    lines.push(isDE
+      ? "- Verbotene Fuellwoerter komplett entfernen (z. B. ploetzlich, irgendwie, ein bisschen, ziemlich, wirklich, sehr, Es war einmal)."
+      : "- Remove banned filler words completely (e.g., suddenly, really).");
+  }
   if (issueCodes.has("MISSING_INNER_CHILD_MOMENT") || issueCodes.has("NO_CHILD_ERROR_CORRECTION_ARC")) {
     lines.push(isDE
       ? "- Kinder-Emotionsbogen schaerfen: pro Hauptkind mindestens einen inneren Moment und mindestens einen Fehler->Korrektur-Bogen ausarbeiten."
       : "- Strengthen child emotional arc: each main child needs at least one inner moment and at least one mistake->correction beat.");
+  }
+  if (issueCodes.has("ENDING_UNRESOLVED") || issueCodes.has("ENDING_WARMTH_MISSING")) {
+    lines.push(isDE
+      ? "- Schluss stabilisieren: keine neue Unsicherheit im letzten Abschnitt; mit warmem Anker enden (z. B. sicher/zu Hause/zusammen)."
+      : "- Stabilize ending: avoid introducing new uncertainty in the final section; end on a warm anchor (e.g., safe/home/together).");
   }
 
   for (const [chapter, chIssues] of grouped) {

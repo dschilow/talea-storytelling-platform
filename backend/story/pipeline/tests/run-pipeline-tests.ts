@@ -700,6 +700,136 @@ function testStakesAndLowpointGate() {
   );
 }
 
+function testBannedWordGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "yard",
+      mood: "COZY",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "listen",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "stay calm",
+      imageMustShow: ["yard"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena ging ploetzlich los und war sehr nervoes.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "BANNED_WORD_USED"),
+    "Banned word gate should flag forbidden filler words"
+  );
+}
+
+function testEndingStabilityGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "hill",
+      mood: "TRIUMPH",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "finish",
+      conflict: "none",
+      outcome: "done",
+      artifactUsage: "none",
+      canonAnchorLine: "home",
+      imageMustShow: ["hill"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena lachte. Alle nickten. Am naechsten Morgen wartete ein neues Raetsel.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "ENDING_UNRESOLVED"),
+    "Ending gate should flag unresolved uncertainty at the end"
+  );
+}
+
 async function run() {
   testVariantDeterminism();
   testMatchingScore();
@@ -711,6 +841,8 @@ async function run() {
   testCharacterVoiceGate();
   testCharacterFocusGate();
   testStakesAndLowpointGate();
+  testBannedWordGate();
+  testEndingStabilityGate();
   await testIntegrationWithMocks();
   console.log("Pipeline tests passed.");
 }
