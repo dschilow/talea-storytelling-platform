@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { ai } from "~encore/clients";
+import { ensureAdmin } from "../admin/authz";
 import { normalizeLanguage } from "../story/avatar-image-optimization";
 import {
   maybeUploadImageUrlToBucket,
@@ -19,6 +20,8 @@ export interface AudioDoku {
   userId: string;
   title: string;
   description: string;
+  ageGroup?: string;
+  category?: string;
   coverDescription?: string;
   coverImageUrl?: string;
   audioUrl: string;
@@ -30,8 +33,24 @@ export interface AudioDoku {
 interface CreateAudioDokuRequest {
   title?: string;
   description: string;
+  ageGroup?: string;
+  category?: string;
   coverDescription: string;
   coverImageUrl?: string;
+  audioDataUrl?: string;
+  audioUrl?: string;
+  filename?: string;
+  isPublic?: boolean;
+}
+
+interface UpdateAudioDokuRequest {
+  id: string;
+  title?: string;
+  description?: string;
+  ageGroup?: string | null;
+  category?: string | null;
+  coverDescription?: string;
+  coverImageUrl?: string | null;
   audioDataUrl?: string;
   audioUrl?: string;
   filename?: string;
@@ -68,6 +87,21 @@ interface GenerateAudioCoverResponse {
   coverImageUrl: string;
 }
 
+type AudioDokuRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  age_group: string | null;
+  category: string | null;
+  cover_description: string | null;
+  cover_image_url: string | null;
+  audio_url: string;
+  is_public: boolean;
+  created_at: Date;
+  updated_at: Date;
+};
+
 const parseDataUrl = (dataUrl: string): { contentType: string; buffer: Buffer } | null => {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return null;
@@ -88,9 +122,50 @@ const inferTitleFromFilename = (filename?: string): string | undefined => {
   return trimmed || undefined;
 };
 
+const normalizeOptionalText = (value?: string | null): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const normalizePatchText = (value?: string | null): string | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+};
+
+const normalizeRequiredPatch = (value: string | undefined, fieldName: string): string | undefined => {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw APIError.invalidArgument(`${fieldName} cannot be empty.`);
+  }
+  return trimmed;
+};
+
 const buildCoverPrompt = (description: string, title: string): string => {
   const normalized = normalizeLanguage(description || title);
   return `Modern educational cover art for an audio documentary: ${normalized}. Soft gradients, friendly illustration, clean composition, no text in the image.`;
+};
+
+const resolveAudioDokuRow = async (row: AudioDokuRow): Promise<AudioDoku> => {
+  const coverImageUrl = await resolveImageUrlForClient(row.cover_image_url || undefined);
+  const audioUrl = await resolveObjectUrlForClient(row.audio_url);
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    description: row.description,
+    ageGroup: row.age_group ?? undefined,
+    category: row.category ?? undefined,
+    coverDescription: row.cover_description ?? undefined,
+    coverImageUrl: coverImageUrl ?? row.cover_image_url ?? undefined,
+    audioUrl: audioUrl ?? row.audio_url,
+    isPublic: row.is_public,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 };
 
 export const createAudioUploadUrl = api<CreateAudioUploadUrlRequest, CreateAudioUploadUrlResponse>(
@@ -145,6 +220,8 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     });
 
     const description = req.description?.trim();
+    const ageGroup = normalizeOptionalText(req.ageGroup);
+    const category = normalizeOptionalText(req.category);
     const coverDescription = req.coverDescription?.trim();
 
     if (!description) {
@@ -225,6 +302,8 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
         user_id,
         title,
         description,
+        age_group,
+        category,
         cover_description,
         cover_image_url,
         audio_url,
@@ -237,6 +316,8 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
         ${auth.userID},
         ${title},
         ${description},
+        ${ageGroup ?? null},
+        ${category ?? null},
         ${coverDescription},
         ${coverImageUrl ?? null},
         ${audioUrl},
@@ -254,6 +335,8 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
       userId: auth.userID,
       title,
       description,
+      ageGroup,
+      category,
       coverDescription,
       coverImageUrl: resolvedCoverImageUrl ?? coverImageUrl,
       audioUrl: resolvedAudioUrl ?? audioUrl,
@@ -308,59 +391,178 @@ export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCo
   }
 );
 
+export const getAudioDoku = api<{ id: string }, AudioDoku>(
+  { expose: true, method: "GET", path: "/audio-dokus/:id", auth: true },
+  async ({ id }) => {
+    const auth = getAuthData()!;
+    if (auth.role !== "admin") {
+      await assertAudioDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
+    }
+
+    const row = await dokuDB.queryRow<AudioDokuRow>`
+      SELECT * FROM audio_dokus WHERE id = ${id}
+    `;
+    if (!row) {
+      throw APIError.notFound("Audio Doku not found.");
+    }
+
+    if (!row.is_public && row.user_id !== auth.userID && auth.role !== "admin") {
+      throw APIError.permissionDenied("You do not have permission to access this audio doku.");
+    }
+
+    return resolveAudioDokuRow(row);
+  }
+);
+
+export const updateAudioDoku = api<UpdateAudioDokuRequest, AudioDoku>(
+  {
+    expose: true,
+    method: "PUT",
+    path: "/audio-dokus/:id",
+    auth: true,
+    // Allow fallback updates where audio is sent as data URL.
+    bodyLimit: 80 * 1024 * 1024,
+  },
+  async (req) => {
+    ensureAdmin();
+
+    const existing = await dokuDB.queryRow<AudioDokuRow>`
+      SELECT * FROM audio_dokus WHERE id = ${req.id}
+    `;
+    if (!existing) {
+      throw APIError.notFound("Audio Doku not found.");
+    }
+
+    const titlePatch = normalizeRequiredPatch(req.title, "Title");
+    const descriptionPatch = normalizeRequiredPatch(req.description, "Description");
+    const coverDescriptionPatch = normalizeRequiredPatch(req.coverDescription, "Cover description");
+    let audioUrlPatch = normalizeRequiredPatch(req.audioUrl, "Audio URL");
+    if (req.audioDataUrl) {
+      const parsed = parseDataUrl(req.audioDataUrl);
+      if (!parsed) {
+        throw APIError.invalidArgument("Invalid audio data format.");
+      }
+      if (!parsed.contentType.startsWith("audio/")) {
+        throw APIError.invalidArgument("Uploaded file is not an audio file.");
+      }
+      const uploaded = await uploadBufferToBucket(parsed.buffer, parsed.contentType, {
+        prefix: "audio/dokus",
+        filenameHint: sanitizeTitle(
+          titlePatch ||
+            inferTitleFromFilename(req.filename) ||
+            existing.title ||
+            "audio-doku"
+        ),
+      });
+      if (!uploaded) {
+        throw APIError.failedPrecondition("Audio upload failed or bucket not configured.");
+      }
+      audioUrlPatch = uploaded.url;
+    }
+
+    const hasAgeGroupPatch = req.ageGroup !== undefined;
+    const ageGroupPatch = normalizePatchText(req.ageGroup);
+
+    const hasCategoryPatch = req.category !== undefined;
+    const categoryPatch = normalizePatchText(req.category);
+
+    const hasCoverImagePatch = req.coverImageUrl !== undefined;
+    let coverImagePatch = normalizePatchText(req.coverImageUrl);
+    if (coverImagePatch && coverImagePatch !== null) {
+      const uploadedCover = await maybeUploadImageUrlToBucket(coverImagePatch, {
+        prefix: "images/audio-dokus",
+        filenameHint: sanitizeTitle(titlePatch || existing.title),
+        uploadMode: "always",
+      });
+      coverImagePatch = uploadedCover?.url ?? coverImagePatch;
+    }
+
+    const now = new Date();
+    await dokuDB.exec`
+      UPDATE audio_dokus
+      SET
+        title = COALESCE(${titlePatch}, title),
+        description = COALESCE(${descriptionPatch}, description),
+        age_group = CASE WHEN ${hasAgeGroupPatch} THEN ${ageGroupPatch} ELSE age_group END,
+        category = CASE WHEN ${hasCategoryPatch} THEN ${categoryPatch} ELSE category END,
+        cover_description = COALESCE(${coverDescriptionPatch}, cover_description),
+        cover_image_url = CASE WHEN ${hasCoverImagePatch} THEN ${coverImagePatch} ELSE cover_image_url END,
+        audio_url = COALESCE(${audioUrlPatch}, audio_url),
+        is_public = COALESCE(${req.isPublic}, is_public),
+        updated_at = ${now}
+      WHERE id = ${req.id}
+    `;
+
+    const updated = await dokuDB.queryRow<AudioDokuRow>`
+      SELECT * FROM audio_dokus WHERE id = ${req.id}
+    `;
+    if (!updated) {
+      throw APIError.notFound("Audio Doku not found.");
+    }
+
+    return resolveAudioDokuRow(updated);
+  }
+);
+
+export const deleteAudioDoku = api<{ id: string }, void>(
+  { expose: true, method: "DELETE", path: "/audio-dokus/:id", auth: true },
+  async ({ id }) => {
+    ensureAdmin();
+
+    const existing = await dokuDB.queryRow<{ id: string }>`
+      SELECT id FROM audio_dokus WHERE id = ${id}
+    `;
+    if (!existing) {
+      throw APIError.notFound("Audio Doku not found.");
+    }
+
+    await dokuDB.exec`
+      DELETE FROM audio_dokus WHERE id = ${id}
+    `;
+  }
+);
+
 export const listAudioDokus = api<ListAudioDokusRequest, ListAudioDokusResponse>(
   { expose: true, method: "GET", path: "/audio-dokus", auth: true },
   async (req) => {
     const auth = getAuthData()!;
-    await assertAudioDokuAccess({
-      userId: auth.userID,
-      clerkToken: auth.clerkToken,
-    });
+    const isAdmin = auth.role === "admin";
+    if (!isAdmin) {
+      await assertAudioDokuAccess({
+        userId: auth.userID,
+        clerkToken: auth.clerkToken,
+      });
+    }
 
     const limit = req.limit || 12;
     const offset = req.offset || 0;
 
-    const countResult = await dokuDB.queryRow<{ count: number }>`
-      SELECT COUNT(*) as count FROM audio_dokus WHERE is_public = true
-    `;
+    const countResult = isAdmin
+      ? await dokuDB.queryRow<{ count: number }>`
+          SELECT COUNT(*) as count FROM audio_dokus
+        `
+      : await dokuDB.queryRow<{ count: number }>`
+          SELECT COUNT(*) as count FROM audio_dokus WHERE is_public = true
+        `;
     const total = countResult?.count || 0;
 
-    const rows = await dokuDB.queryAll<{
-      id: string;
-      user_id: string;
-      title: string;
-      description: string;
-      cover_description: string | null;
-      cover_image_url: string | null;
-      audio_url: string;
-      is_public: boolean;
-      created_at: Date;
-      updated_at: Date;
-    }>`
-      SELECT * FROM audio_dokus
-      WHERE is_public = true
-      ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    const rows = isAdmin
+      ? await dokuDB.queryAll<AudioDokuRow>`
+          SELECT * FROM audio_dokus
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `
+      : await dokuDB.queryAll<AudioDokuRow>`
+          SELECT * FROM audio_dokus
+          WHERE is_public = true
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
 
-    const audioDokus = await Promise.all(
-      rows.map(async (row) => {
-        const coverImageUrl = await resolveImageUrlForClient(row.cover_image_url || undefined);
-        const audioUrl = await resolveObjectUrlForClient(row.audio_url);
-        return {
-          id: row.id,
-          userId: row.user_id,
-          title: row.title,
-          description: row.description,
-          coverDescription: row.cover_description ?? undefined,
-          coverImageUrl: coverImageUrl ?? row.cover_image_url ?? undefined,
-          audioUrl: audioUrl ?? row.audio_url,
-          isPublic: row.is_public,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        };
-      })
-    );
+    const audioDokus = await Promise.all(rows.map((row) => resolveAudioDokuRow(row)));
 
     const hasMore = offset + limit < total;
 

@@ -603,7 +603,10 @@ export namespace avatar {
 import {
     createAudioDoku as api_doku_audio_doku_createAudioDoku,
     createAudioUploadUrl as api_doku_audio_doku_createAudioUploadUrl,
+    deleteAudioDoku as api_doku_audio_doku_deleteAudioDoku,
     generateAudioCover as api_doku_audio_doku_generateAudioCover,
+    getAudioDoku as api_doku_audio_doku_getAudioDoku,
+    updateAudioDoku as api_doku_audio_doku_updateAudioDoku,
     listAudioDokus as api_doku_audio_doku_listAudioDokus
 } from "~backend/doku/audio-doku";
 import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
@@ -623,14 +626,17 @@ export namespace doku {
             this.baseClient = baseClient
             this.createAudioDoku = this.createAudioDoku.bind(this)
             this.createAudioUploadUrl = this.createAudioUploadUrl.bind(this)
+            this.deleteAudioDoku = this.deleteAudioDoku.bind(this)
             this.deleteDoku = this.deleteDoku.bind(this)
             this.generateAudioCover = this.generateAudioCover.bind(this)
             this.generateDoku = this.generateDoku.bind(this)
+            this.getAudioDoku = this.getAudioDoku.bind(this)
             this.getDoku = this.getDoku.bind(this)
             this.listAudioDokus = this.listAudioDokus.bind(this)
             this.listDokus = this.listDokus.bind(this)
             this.listPublicDokus = this.listPublicDokus.bind(this)
             this.markRead = this.markRead.bind(this)
+            this.updateAudioDoku = this.updateAudioDoku.bind(this)
             this.updateDoku = this.updateDoku.bind(this)
         }
 
@@ -644,6 +650,10 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus/upload-url`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_createAudioUploadUrl>
+        }
+
+        public async deleteAudioDoku(params: { id: string }): Promise<void> {
+            await this.baseClient.callTypedAPI(`/audio-dokus/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
         }
 
         public async deleteDoku(params: { id: string }): Promise<void> {
@@ -660,6 +670,12 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/generate`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_generate_generateDoku>
+        }
+
+        public async getAudioDoku(params: { id: string }): Promise<ResponseType<typeof api_doku_audio_doku_getAudioDoku>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/audio-dokus/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_getAudioDoku>
         }
 
         /**
@@ -729,6 +745,26 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_update_updateDoku>
+        }
+
+        public async updateAudioDoku(params: RequestType<typeof api_doku_audio_doku_updateAudioDoku>): Promise<ResponseType<typeof api_doku_audio_doku_updateAudioDoku>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                audioDataUrl:     params.audioDataUrl,
+                audioUrl:         params.audioUrl,
+                ageGroup:         params.ageGroup,
+                category:         params.category,
+                coverDescription: params.coverDescription,
+                coverImageUrl:    params.coverImageUrl,
+                description:      params.description,
+                filename:         params.filename,
+                isPublic:         params.isPublic,
+                title:            params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/audio-dokus/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_updateAudioDoku>
         }
     }
 }

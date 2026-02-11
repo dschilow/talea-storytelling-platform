@@ -157,6 +157,8 @@ const MIGRATION_STATEMENTS = [
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
+    age_group TEXT,
+    category TEXT,
     cover_description TEXT,
     cover_image_url TEXT,
     audio_url TEXT NOT NULL,
@@ -166,6 +168,17 @@ const MIGRATION_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_audio_dokus_user_id ON audio_dokus(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_audio_dokus_public ON audio_dokus(is_public)`,
+  `DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='audio_dokus' AND column_name='age_group') THEN
+      ALTER TABLE audio_dokus ADD COLUMN age_group TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='audio_dokus' AND column_name='category') THEN
+      ALTER TABLE audio_dokus ADD COLUMN category TEXT;
+    END IF;
+  END $$`,
   
   // 13. Avatar doku read tracking
   `CREATE TABLE IF NOT EXISTS avatar_doku_read (

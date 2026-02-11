@@ -1,0 +1,5 @@
+ALTER TABLE audio_dokus
+ADD COLUMN IF NOT EXISTS age_group TEXT;
+
+ALTER TABLE audio_dokus
+ADD COLUMN IF NOT EXISTS category TEXT;

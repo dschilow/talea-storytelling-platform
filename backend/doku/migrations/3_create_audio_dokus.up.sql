@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS audio_dokus (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
+  age_group TEXT,
+  category TEXT,
   cover_description TEXT,
   cover_image_url TEXT,
   audio_url TEXT NOT NULL,

@@ -10,9 +10,11 @@ import {
   Headphones,
   Loader2,
   Mic,
+  Pencil,
   Play,
   Plus,
   Search,
+  Trash2,
   Wand2,
   X,
 } from 'lucide-react';
@@ -169,11 +171,26 @@ const AudioDokuCard: React.FC<{
   index: number;
   onPlay: () => void;
   palette: Palette;
+  isAdmin?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
   canSaveOffline?: boolean;
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   onToggleOffline?: () => void;
-}> = ({ doku, index, onPlay, palette, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => (
+}> = ({
+  doku,
+  index,
+  onPlay,
+  palette,
+  isAdmin,
+  onEdit,
+  onDelete,
+  canSaveOffline,
+  isSavedOffline,
+  isSavingOffline,
+  onToggleOffline,
+}) => (
   <motion.article
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
@@ -208,27 +225,61 @@ const AudioDokuCard: React.FC<{
         Audio
       </div>
 
-      {canSaveOffline && onToggleOffline && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleOffline();
-          }}
-          disabled={isSavingOffline}
-          className="absolute right-3 top-3 rounded-xl border p-2"
-          style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-          aria-label={isSavedOffline ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
-        >
-          {isSavingOffline ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : isSavedOffline ? (
-            <BookmarkCheck className="h-4 w-4" />
-          ) : (
-            <Bookmark className="h-4 w-4" />
-          )}
-        </button>
-      )}
+      <div className="absolute right-3 top-3 flex items-center gap-2">
+        {canSaveOffline && onToggleOffline && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleOffline();
+            }}
+            disabled={isSavingOffline}
+            className="rounded-xl border p-2"
+            style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+            aria-label={isSavedOffline ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
+          >
+            {isSavingOffline ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isSavedOffline ? (
+              <BookmarkCheck className="h-4 w-4" />
+            ) : (
+              <Bookmark className="h-4 w-4" />
+            )}
+          </button>
+        )}
+
+        {isAdmin && onEdit && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
+            className="rounded-xl border p-2"
+            style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+            aria-label="Audio-Doku bearbeiten"
+            title="Audio-Doku bearbeiten"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        )}
+
+        {isAdmin && onDelete && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}
+            className="rounded-xl border p-2"
+            style={{ borderColor: '#d8a3a3', background: palette.panel, color: '#b35b5b' }}
+            aria-label="Audio-Doku loeschen"
+            title="Audio-Doku loeschen"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
@@ -245,6 +296,20 @@ const AudioDokuCard: React.FC<{
       <p className="line-clamp-2 text-sm" style={{ color: palette.muted }}>
         {doku.description}
       </p>
+      {(doku.ageGroup || doku.category) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {doku.ageGroup && (
+            <span className="rounded-full border px-2 py-1 text-[11px]" style={{ borderColor: palette.border, color: palette.text, background: palette.soft }}>
+              Alter {doku.ageGroup}
+            </span>
+          )}
+          {doku.category && (
+            <span className="rounded-full border px-2 py-1 text-[11px]" style={{ borderColor: palette.border, color: palette.text, background: palette.soft }}>
+              {doku.category}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   </motion.article>
 );
@@ -539,6 +604,30 @@ const TaleaDokusScreen: React.FC = () => {
     });
   };
 
+  const handleEditAudioDoku = (doku: AudioDoku) => {
+    if (!isAdmin) return;
+    navigate(`/createaudiodoku?edit=${encodeURIComponent(doku.id)}`);
+  };
+
+  const handleDeleteAudioDoku = async (doku: AudioDoku) => {
+    if (!isAdmin) return;
+    if (!window.confirm(`${t('common.delete', 'Loeschen')} "${doku.title}"?`)) {
+      return;
+    }
+
+    try {
+      await backend.doku.deleteAudioDoku({ id: doku.id });
+      setAudioDokus((prev) => prev.filter((item) => item.id !== doku.id));
+      setTotalAudio((prev) => Math.max(0, prev - 1));
+      if (audioModal?.id === doku.id) {
+        setAudioModal(null);
+      }
+    } catch (error) {
+      console.error(error);
+      alert(t('errors.generic', 'Fehler beim Loeschen.'));
+    }
+  };
+
   const query = searchQuery.trim().toLowerCase();
 
   const sortDokus = useCallback(
@@ -634,7 +723,12 @@ const TaleaDokusScreen: React.FC = () => {
       if (audioScopeFilter === 'mine' && doku.userId !== user?.id) return false;
       if (audioScopeFilter === 'public' && !doku.isPublic) return false;
       if (!query) return true;
-      return doku.title.toLowerCase().includes(query) || (doku.description || '').toLowerCase().includes(query);
+      return (
+        doku.title.toLowerCase().includes(query) ||
+        (doku.description || '').toLowerCase().includes(query) ||
+        (doku.category || '').toLowerCase().includes(query) ||
+        (doku.ageGroup || '').toLowerCase().includes(query)
+      );
     });
     return sortAudioDokus(filtered);
   }, [audioDokus, audioScopeFilter, query, sortAudioDokus, user?.id]);
@@ -963,6 +1057,9 @@ const TaleaDokusScreen: React.FC = () => {
                           index={i}
                           onPlay={() => setAudioModal(doku)}
                           palette={palette}
+                          isAdmin={isAdmin}
+                          onEdit={() => handleEditAudioDoku(doku)}
+                          onDelete={() => handleDeleteAudioDoku(doku)}
                           canSaveOffline={canUseOffline}
                           isSavedOffline={isAudioDokuSaved(doku.id)}
                           isSavingOffline={isSaving(doku.id)}

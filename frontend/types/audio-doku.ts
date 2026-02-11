@@ -3,6 +3,8 @@ export interface AudioDoku {
   userId: string;
   title: string;
   description: string;
+  ageGroup?: string;
+  category?: string;
   coverDescription?: string;
   coverImageUrl?: string;
   audioUrl: string;
