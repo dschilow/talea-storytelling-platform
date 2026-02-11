@@ -307,6 +307,7 @@ export class StoryPipelineOrchestrator {
           directives,
           cast: castSet,
           language: normalized.language,
+          ageRange: { min: normalized.ageMin, max: normalized.ageMax },
           wordBudget: normalized.wordBudget,
           artifactArc: canonFusionPlan.artifactArc,
         });

@@ -6,6 +6,7 @@ import { TemplateImageDirector } from "../image-director";
 import { computeWordBudget, buildLengthTargetsFromBudget } from "../word-budget";
 import { validateStoryDraft } from "../story-validator";
 import { splitContinuousStoryIntoChapters } from "../story-segmentation";
+import { runQualityGates } from "../quality-gates";
 import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryDNA } from "../types";
 
 function buildNormalized(seed: number): NormalizedRequest {
@@ -361,6 +362,160 @@ function testContinuousStorySegmentation() {
   );
 }
 
+function testReadabilityGateForYoungAudience() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "forest",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "walk ahead",
+      conflict: "fog",
+      outcome: "keeps going",
+      artifactUsage: "none",
+      canonAnchorLine: "stay brave",
+      imageMustShow: ["forest"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena ging durch den Wald und beschrieb in einem einzigen, sehr langen Satz, wie jeder Ast, jeder Geruch, jede Wolke, jedes Rascheln und jedes winzige Detail zusammen mit ihren Gedanken in einer endlosen Schachtel aus Worten weiterlief, waehrend sie kaum Luft holen konnte und der Satz einfach nicht endete.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "SENTENCE_COMPLEXITY_HIGH" || issue.code === "LONG_SENTENCE_OVERUSE"),
+    "Readability gate should flag excessive sentence complexity for age 6-8"
+  );
+}
+
+function testCharacterVoiceGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "market",
+      mood: "FUNNY",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_1", "SLOT_HELPER_2"],
+      goal: "find the clue",
+      conflict: "noise",
+      outcome: "they continue",
+      artifactUsage: "none",
+      canonAnchorLine: "work together",
+      imageMustShow: ["market"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [
+      {
+        characterId: "c1",
+        displayName: "Fanni",
+        roleType: "HELPER",
+        slotKey: "SLOT_HELPER_1",
+        visualSignature: ["helmet"],
+        outfitLock: ["helmet"],
+        forbidden: [],
+      },
+      {
+        characterId: "c2",
+        displayName: "Peter",
+        roleType: "HELPER",
+        slotKey: "SLOT_HELPER_2",
+        visualSignature: ["blue coat"],
+        outfitLock: ["blue coat"],
+        forbidden: [],
+      },
+    ],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: {
+      SLOT_AVATAR_1: "a1",
+      SLOT_HELPER_1: "c1",
+      SLOT_HELPER_2: "c2",
+      SLOT_ARTIFACT_1: "art1",
+    },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena, Fanni und Peter liefen ueber den Markt. Lena hob einen Korb. Fanni zeigte auf den Brunnen. Peter trug den Rucksack. Sie suchten weiter und fanden eine Spur im Staub.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "VOICE_INDISTINCT"),
+    "Character voice gate should flag missing distinct speakers in multi-character scenes"
+  );
+}
+
 async function run() {
   testVariantDeterminism();
   testMatchingScore();
@@ -368,6 +523,8 @@ async function run() {
   testWordBudget();
   testForbiddenCanonPhrase();
   testContinuousStorySegmentation();
+  testReadabilityGateForYoungAudience();
+  testCharacterVoiceGate();
   await testIntegrationWithMocks();
   console.log("Pipeline tests passed.");
 }

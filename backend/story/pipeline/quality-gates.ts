@@ -366,6 +366,126 @@ function gateTemplatePhrases(draft: StoryDraft, language: string): QualityIssue[
 }
 
 // ─── Gate 7: Imagery Balance ────────────────────────────────────────────────────
+function gateReadabilityComplexity(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  if (!ageRange) return issues;
+
+  const ageMax = ageRange.max;
+  const longSentenceThreshold = ageMax <= 5 ? 14 : ageMax <= 8 ? 20 : 26;
+  const maxAvgSentenceWords = ageMax <= 5 ? 11 : ageMax <= 8 ? 15 : 19;
+  const maxLongSentenceRatio = ageMax <= 5 ? 0.12 : ageMax <= 8 ? 0.18 : 0.28;
+
+  for (const ch of draft.chapters) {
+    const sentences = splitSentences(ch.text);
+    if (sentences.length === 0) continue;
+
+    const sentenceWordCounts = sentences.map(s => countWords(s)).filter(n => n > 0);
+    if (sentenceWordCounts.length === 0) continue;
+
+    const totalSentenceWords = sentenceWordCounts.reduce((a, b) => a + b, 0);
+    const avgSentenceWords = totalSentenceWords / sentenceWordCounts.length;
+    const longSentenceCount = sentenceWordCounts.filter(n => n > longSentenceThreshold).length;
+    const longSentenceRatio = longSentenceCount / sentenceWordCounts.length;
+    const hasVeryLongSentence = sentenceWordCounts.some(n => n >= longSentenceThreshold + 10);
+
+    if (avgSentenceWords > maxAvgSentenceWords) {
+      issues.push({
+        gate: "READABILITY_COMPLEXITY",
+        chapter: ch.chapter,
+        code: "SENTENCE_COMPLEXITY_HIGH",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Satzlaenge zu hoch (${avgSentenceWords.toFixed(1)} Woerter im Schnitt, max ${maxAvgSentenceWords})`
+          : `Chapter ${ch.chapter}: sentence complexity too high (${avgSentenceWords.toFixed(1)} words avg, max ${maxAvgSentenceWords})`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+
+    if (longSentenceRatio > maxLongSentenceRatio) {
+      issues.push({
+        gate: "READABILITY_COMPLEXITY",
+        chapter: ch.chapter,
+        code: "LONG_SENTENCE_OVERUSE",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: zu viele lange Saetze (${Math.round(longSentenceRatio * 100)}%, max ${Math.round(maxLongSentenceRatio * 100)}%)`
+          : `Chapter ${ch.chapter}: too many long sentences (${Math.round(longSentenceRatio * 100)}%, max ${Math.round(maxLongSentenceRatio * 100)}%)`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+
+    if (hasVeryLongSentence) {
+      issues.push({
+        gate: "READABILITY_COMPLEXITY",
+        chapter: ch.chapter,
+        code: "VERY_LONG_SENTENCE",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: mindestens ein sehr langer Satz erkannt`
+          : `Chapter ${ch.chapter}: at least one very long sentence detected`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+function gateCharacterVoiceDistinctness(
+  draft: StoryDraft,
+  directives: SceneDirective[],
+  cast: CastSet,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  for (const directive of directives) {
+    const chapter = draft.chapters.find(ch => ch.chapter === directive.chapter);
+    if (!chapter) continue;
+
+    const characterNames = directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterName(cast, slot))
+      .filter((name): name is string => Boolean(name));
+
+    if (characterNames.length < 2) continue;
+
+    const speakingCharacters = characterNames.filter(name =>
+      hasAttributedDialogueForCharacter(chapter.text, name, language)
+    );
+
+    if (speakingCharacters.length < 2) {
+      issues.push({
+        gate: "CHARACTER_VOICE",
+        chapter: chapter.chapter,
+        code: "VOICE_INDISTINCT",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: zu wenig klar unterscheidbare Sprecher (${speakingCharacters.length}/${characterNames.length})`
+          : `Chapter ${chapter.chapter}: not enough clearly distinct speakers (${speakingCharacters.length}/${characterNames.length})`,
+        severity: characterNames.length >= 3 ? "ERROR" : "WARNING",
+      });
+    }
+
+    const roleLabelCount = countRoleLabelNamePairs(chapter.text);
+    if (roleLabelCount > 4) {
+      issues.push({
+        gate: "CHARACTER_VOICE",
+        chapter: chapter.chapter,
+        code: "ROLE_LABEL_OVERUSE",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: Rollenbezeichnungen mit Namen zu oft wiederholt (${roleLabelCount}x)`
+          : `Chapter ${chapter.chapter}: role labels repeated with names too often (${roleLabelCount}x)`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
 function gateImageryBalance(draft: StoryDraft, language: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
@@ -804,10 +924,11 @@ export function runQualityGates(input: {
   directives: SceneDirective[];
   cast: CastSet;
   language: string;
+  ageRange?: { min: number; max: number };
   wordBudget?: WordBudget;
   artifactArc?: ArtifactArcPlan;
 }): QualityReport {
-  const { draft, directives, cast, language, wordBudget, artifactArc } = input;
+  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -817,6 +938,8 @@ export function runQualityGates(input: {
     { name: "CAST_LOCK", fn: () => gateCastLock(draft, cast, language) },
     { name: "REPETITION_LIMITER", fn: () => gateRepetitionLimiter(draft, language) },
     { name: "TEMPLATE_PHRASES", fn: () => gateTemplatePhrases(draft, language) },
+    { name: "READABILITY_COMPLEXITY", fn: () => gateReadabilityComplexity(draft, language, ageRange) },
+    { name: "CHARACTER_VOICE", fn: () => gateCharacterVoiceDistinctness(draft, directives, cast, language) },
     { name: "IMAGERY_BALANCE", fn: () => gateImageryBalance(draft, language) },
     { name: "TENSION_ARC", fn: () => gateTensionArc(draft, language) },
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
@@ -853,6 +976,7 @@ export function runQualityGates(input: {
 export function buildRewriteInstructions(issues: QualityIssue[], language: string): string {
   if (issues.length === 0) return "";
   const isDE = language === "de";
+  const issueCodes = new Set(issues.map(issue => issue.code));
 
   const grouped = new Map<number, QualityIssue[]>();
   for (const issue of issues) {
@@ -866,6 +990,17 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push("QUALITAETS-PROBLEME DIE BEHOBEN WERDEN MUESSEN:");
   } else {
     lines.push("QUALITY ISSUES TO FIX:");
+  }
+
+  if (issueCodes.has("SENTENCE_COMPLEXITY_HIGH") || issueCodes.has("LONG_SENTENCE_OVERUSE") || issueCodes.has("VERY_LONG_SENTENCE")) {
+    lines.push(isDE
+      ? "- Lesbarkeit reparieren: lange Schachtelsaetze in kurze Saetze aufteilen, Ziel 6-15 Woerter pro Satz (bei 6-8 Jahren)."
+      : "- Fix readability: split long nested sentences into short ones, target 6-15 words per sentence (for age 6-8).");
+  }
+  if (issueCodes.has("VOICE_INDISTINCT") || issueCodes.has("ROLE_LABEL_OVERUSE")) {
+    lines.push(isDE
+      ? "- Figurenstimmen schaerfen: mindestens zwei klar erkennbare Sprecher pro Mehrfiguren-Szene, Rollenbezeichnungen nicht dauernd wiederholen."
+      : "- Sharpen character voices: at least two clearly distinct speakers per multi-character scene, avoid constant role-label repetition.");
   }
 
   for (const [chapter, chIssues] of grouped) {
@@ -883,6 +1018,30 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
+
+function hasAttributedDialogueForCharacter(text: string, name: string, language: string): boolean {
+  if (!text || !name) return false;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const dialogueVerbsDE = "(?:sagte|fragte|fragen|rief|fluesterte|murmelte|antwortete|meinte|erklaerte|schrie|raunte|brummte|seufzte|lachte)";
+  const dialogueVerbsEN = "(?:said|asked|called|whispered|muttered|answered|replied|shouted|laughed)";
+  const dialogueVerbs = language === "de" ? dialogueVerbsDE : dialogueVerbsEN;
+
+  const patterns = [
+    new RegExp(`${escapedName}[^.!?\\n]{0,48}${dialogueVerbs}`, "i"),
+    new RegExp(`${dialogueVerbs}[^.!?\\n]{0,24}${escapedName}`, "i"),
+    new RegExp(`[""\\u201E\\u201C\\u201D\\u00BB\\u00AB][^""\\u201E\\u201C\\u201D\\u00BB\\u00AB]{3,140}[""\\u201E\\u201C\\u201D\\u00BB\\u00AB][^.!?\\n]{0,32}${escapedName}`, "i"),
+    new RegExp(`${escapedName}[^.!?\\n]{0,32}[""\\u201E\\u201C\\u201D\\u00BB\\u00AB]`, "i"),
+  ];
+
+  return patterns.some(pattern => pattern.test(text));
+}
+
+function countRoleLabelNamePairs(text: string): number {
+  if (!text) return 0;
+  const pattern = /\b(?:Feuerwehrfrau|Feuerwehrmann|Polizist|Polizistin|Lehrer|Lehrerin|Ritter|Hexe|Zauberer|Koenig|Koenigin)\s+[A-Z][a-z]+\b/g;
+  const matches = text.match(pattern);
+  return matches?.length ?? 0;
+}
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;

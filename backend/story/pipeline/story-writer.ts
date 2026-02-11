@@ -172,6 +172,7 @@ export class LlmStoryWriter implements StoryWriter {
       directives,
       cast,
       language: normalizedRequest.language,
+      ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
       wordBudget: normalizedRequest.wordBudget,
     });
 
@@ -284,6 +285,7 @@ export class LlmStoryWriter implements StoryWriter {
           directives,
           cast,
           language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
         });
       }
@@ -309,6 +311,7 @@ export class LlmStoryWriter implements StoryWriter {
           directives,
           cast,
           language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
         });
         errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
@@ -382,6 +385,7 @@ export class LlmStoryWriter implements StoryWriter {
         directives,
         cast,
         language: normalizedRequest.language,
+        ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         wordBudget: normalizedRequest.wordBudget,
       });
 
@@ -419,6 +423,7 @@ export class LlmStoryWriter implements StoryWriter {
             directives,
             cast,
             language: normalizedRequest.language,
+            ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
             wordBudget: normalizedRequest.wordBudget,
           });
         }

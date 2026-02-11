@@ -291,7 +291,7 @@ export function buildFullStoryPrompt(input: {
   fusionSections?: Map<number, string>;
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, fusionSections, avatarMemories } = input;
+  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
   const artifactRule = cast.artifact?.storyUseRule || "wichtiges magisches Objekt";
@@ -347,6 +347,18 @@ export function buildFullStoryPrompt(input: {
         ? "Mittlere Sätze, stärkere Motive, schärfere Wendungen, tiefere Emotionen."
         : "Komplexerer Stil, moralische Nuancen, größere Wendungen.";
 
+  const readabilityRules = ageRange.max <= 8
+    ? [
+        "- Ziel: sehr leicht lesbar fuer Vorlese- und Erstlesealter.",
+        "- Satzlaenge: meist 6-12 Woerter, selten bis 16, fast nie ueber 20.",
+        "- Maximal 1 Vergleich pro Absatz, keine Metaphernketten.",
+      ].join("\n")
+    : "- Satzlaenge altersgerecht variieren, aber klar und konkret bleiben.";
+
+  const stylePackBlock = stylePackText?.trim()
+    ? `# STYLE PACK (verbindlich)\n${stylePackText.trim()}\n`
+    : "";
+
   // Build avatar memory section for story continuity
   // OPTIMIZED: Ultra-compact format – only story titles, no experience text, minimal rules.
   // Reasoning models (gpt-5-mini) burn disproportionate tokens on extra context.
@@ -380,6 +392,11 @@ Schreibe eine komplette Kindergeschichte auf ${isGerman ? "Deutsch" : language}.
 ${tone || dna.toneBounds?.targetTone || "Warm"}, frech, aufregend – wie ein Lieblingsonkel, der heimlich ein Pirat war.
 Niemals belehrend, niemals zynisch, niemals langweilig.
 
+# Lesbarkeit (streng)
+${readabilityRules}
+
+${stylePackBlock}
+
 # Das oberste Gebot: ZEIGEN, NICHT ERZÄHLEN
 \`\`\`
 ❌ VERBOTEN: "Emma hatte Angst."
@@ -393,28 +410,31 @@ Niemals belehrend, niemals zynisch, niemals langweilig.
 \`\`\`
 
 # Stil-Regeln
-1. Kurze, klare Sätze mit starken Verben.
-2. Jeder Satz arbeitet: Handlung, Charakter, Atmosphäre oder Lacher.
-3. Dialog treibt 60% der Handlung – lebendig, unterbrochen, charakteristisch.
-4. Max 1 Adjektiv pro Nomen. Keine Adjektiv-Ketten.
-5. Konkrete Sinne pro Beat: Was hört, riecht, fühlt der Held?
-6. Humor: Körperkomik, absurde Logik, Dreier-Regel (2× normal, 3. Mal Chaos).
+1. Kurze, klare Saetze mit starken Verben.
+2. Jeder Satz dient Handlung, Charakter oder Atmosphaere.
+3. Dialog ist wichtig, aber nicht dominant (ca. 25-40% der Saetze).
+4. Maximal 1 Adjektiv pro Nomen, keine Ketten.
+5. Wenige, konkrete Sinneseindruecke statt Dauerbeschreibungen.
+6. Pro Absatz maximal ein Vergleich, keine Metaphernketten.
+7. Berufsrollen nur bei Einfuehrung nennen, danach vor allem Name/Pronomen.
 
-# Verbotene Wörter
+# Verbotene Woerter
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
 
-# Harte Regeln (müssen erfüllt sein)
-1. **Sprache**: Nur ${isGerman ? "Deutsch" : language}.
-2. **Länge**: Gesamt ${totalWordMin}–${totalWordMax} Wörter. Pro Story-Beat ungefähr **${wordsPerChapter.min}–${wordsPerChapter.max} Wörter**.
-3. **Flow**: Schreibe EINE zusammenhängende Geschichte (keine Kapitel-Labels, keine "Kapitel 1", keine Nummerierung im Text).
-4. **Beat-Struktur**: Die Geschichte muss die ${directives.length} Beats in der Reihenfolge unten abbilden (mit klaren Übergängen).
-5. **Absatz-Regel**: Trenne Beats mit genau einer Leerzeile, aber ohne Überschriften.
-6. **Keine Meta-Labels**: Keine "Setting:", "Ziel:", "Hook:" – nur Prosa.
-7. **Cast Lock**: NUR diese Namen: ${allowedNames.join(", ")}. Keine neuen Charaktere.
-8. **Aktive Charaktere**: Figuren handeln sichtbar (Verb + Objekt), nicht nur erwähnen.
-9. **Anti-Wiederholung**: Keine identischen Sätze. Catchphrases genau 1×.
-10. **Kein Deus ex Machina**: Der Held löst es selbst – durch Mut, Cleverness oder Teamwork.
-11. **Ende ohne Predigt**: Die Geschichte IST die Moral. Nie erklären.
+# Harte Regeln (muessen erfuellt sein)
+1. Sprache: Nur ${isGerman ? "Deutsch" : language}.
+2. Laenge: Gesamt ${totalWordMin}-${totalWordMax} Woerter. Pro Story-Beat ca. ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
+3. Flow: Eine zusammenhaengende Geschichte (keine Kapitel-Labels, keine Nummerierung im Text).
+4. Beat-Struktur: Die Geschichte bildet alle ${directives.length} Beats in der Reihenfolge ab.
+5. Absatz-Regel: Genau eine Leerzeile zwischen Beats, ohne Ueberschriften.
+6. Keine Meta-Labels: Kein "Setting:", "Ziel:", "Hook:" usw.
+7. Cast Lock: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren.
+8. Aktive Charaktere: Figuren handeln sichtbar (Verb + Objekt) oder sprechen.
+9. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
+10. Dialog: Keine Monologe. Kurze, natuerliche Rede.
+11. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
+12. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
+13. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
 
 # Figuren (NUR diese erlaubt)
 Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
@@ -486,10 +506,15 @@ export function buildFullStoryRewritePrompt(input: {
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
     .join("\n\n");
 
+  const stylePackBlock = stylePackText?.trim()
+    ? `\n# STYLE PACK (verbindlich)\n${stylePackText.trim()}\n`
+    : "";
+
   return `# Aufgabe
 Überarbeite die Geschichte. Behalte Handlung und Charaktere, behebe ALLE Probleme.
 
 ${qualityIssues}
+${stylePackBlock}
 
 # Regeln (unveränderlich)
 - Erlaubte Namen: ${allowedNames}
@@ -498,6 +523,9 @@ ${qualityIssues}
 - Kurze Beats → mit Aktion + Dialog erweitern (zeigen, nicht erzählen)
 - Fehlende Figur → einfügen mit Aktion + mindestens 1 Dialog-Zeile
 - Jeder Beat: Sinneseinstieg, Ziel, Hindernis, Aktion, Hook
+- Fuer Alter ${ageRange.min}-${ageRange.max}: Schachtelsaetze aufbrechen, kurze klare Saetze.
+- Figurenstimmen schaerfen: in Mehrfiguren-Szenen mindestens zwei unterscheidbare Sprecher.
+- Berufsrollen (z. B. "Feuerwehrfrau", "Polizist") nur zur Einfuehrung, danach meist Name/Pronomen.
 - Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}–${ageRange.max}
 ${artifactName ? `- Artefakt "${artifactName}" aktiv nutzen` : ""}
 - Letzter Beat: Epilog (2–4 Sätze)

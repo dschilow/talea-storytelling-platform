@@ -19,7 +19,10 @@ const DEFAULT_STYLE_PACK_DE: StoryStylePack = {
   rules: [
     "Nutze einfache, bodenstaendige Sprache ohne kuenstliche Poesie.",
     "Kurze, klare Saetze mit Rhythmus. Variiere Satzanfaenge.",
+    "Fuer 6-8 Jahre: Satzlaenge meist 6-12 Woerter, selten ueber 16.",
     "Natuerliche Dialoge, sparsam aber wirkungsvoll.",
+    "Mehrfiguren-Szenen: mindestens zwei klar unterscheidbare Sprecher.",
+    "Berufsrollen nur bei Einfuehrung nennen, danach vor allem Namen.",
     "Jede Figur handelt aktiv und treibt die Szene voran.",
     "KEINE Metaphern oder poetischen Floskeln (wie 'Honig-Sonne' oder 'Nebel-Worte').",
     "KEINE unnoetigen Geruchsbeschreibungen.",
@@ -39,7 +42,10 @@ const DEFAULT_STYLE_PACK_EN: StoryStylePack = {
   rules: [
     "Show, don't tell: use vivid sensory details.",
     "Short, clear sentences with rhythmic flow and varied starts.",
+    "For ages 6-8: mostly 6-12 words per sentence, rarely above 16.",
     "Natural dialogue, sparing but effective.",
+    "In multi-character scenes, at least two clearly distinct speakers.",
+    "Use role labels mainly on first introduction, then prefer names.",
     "Each character acts meaningfully in the scene.",
     "No meta or pipeline language.",
     "Chapter structure: 2-5 short paragraphs, occasional dialogue.",
@@ -113,5 +119,4 @@ function pickFromCache(input: { language: string; category?: StoryCategory | str
   if (fallback) return fallback;
   return input.language === "de" ? DEFAULT_STYLE_PACK_DE : DEFAULT_STYLE_PACK_EN;
 }
-
 
