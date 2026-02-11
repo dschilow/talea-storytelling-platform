@@ -276,7 +276,7 @@ function gateCastLock(
         message: isDE
           ? `Neuer Eigenname "${match[1]}" nicht in der erlaubten Figurenliste`
           : `New proper name "${match[1]}" not in allowed character list`,
-        severity: "WARNING",
+        severity: isActor ? "ERROR" : "WARNING",
       });
     }
   }
@@ -474,9 +474,11 @@ function gateCharacterVoiceDistinctness(
   directives: SceneDirective[],
   cast: CastSet,
   language: string,
+  ageRange?: { min: number; max: number },
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
 
   for (const directive of directives) {
     const chapter = draft.chapters.find(ch => ch.chapter === directive.chapter);
@@ -501,7 +503,7 @@ function gateCharacterVoiceDistinctness(
         message: isDE
           ? `Kapitel ${chapter.chapter}: zu wenig klar unterscheidbare Sprecher (${speakingCharacters.length}/${characterNames.length})`
           : `Chapter ${chapter.chapter}: not enough clearly distinct speakers (${speakingCharacters.length}/${characterNames.length})`,
-        severity: characterNames.length >= 3 ? "ERROR" : "WARNING",
+        severity: ageMax <= 8 || characterNames.length >= 3 ? "ERROR" : "WARNING",
       });
     }
 
@@ -522,9 +524,14 @@ function gateCharacterVoiceDistinctness(
   return issues;
 }
 
-function gateImageryBalance(draft: StoryDraft, language: string): QualityIssue[] {
+function gateImageryBalance(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
 
   const metaphorPatterns = isDE
     ? [/wie\s+(?:ein|eine|der|die|das)\s+\w+/gi, /als\s+(?:ob|wäre|würde)/gi]
@@ -545,7 +552,7 @@ function gateImageryBalance(draft: StoryDraft, language: string): QualityIssue[]
         message: isDE
           ? `Kapitel ${ch.chapter}: ${metaphorCount} Metaphern/Vergleiche (max 4 pro Kapitel)`
           : `Chapter ${ch.chapter}: ${metaphorCount} metaphors/similes (max 4 per chapter)`,
-        severity: "WARNING",
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
   }
@@ -641,9 +648,14 @@ function gateArtifactArc(
 }
 
 // ─── Gate 10: Ending Payoff ─────────────────────────────────────────────────────
-function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
+function gateEndingPayoff(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
   const lastChapter = draft.chapters[draft.chapters.length - 1];
   if (!lastChapter) return issues;
 
@@ -678,7 +690,7 @@ function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
         message: isDE
           ? `Letztes Kapitel endet mit Cliffhanger statt warmem Abschluss`
           : `Last chapter ends with cliffhanger instead of warm resolution`,
-        severity: "WARNING",
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
       break;
     }
@@ -712,7 +724,7 @@ function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
       message: isDE
         ? "Letzter Abschnitt oeffnet neue Unsicherheit statt klaren warmen Abschluss."
         : "Final section opens new uncertainty instead of a clear warm closure.",
-      severity: "WARNING",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
     });
   }
 
@@ -728,7 +740,7 @@ function gateEndingPayoff(draft: StoryDraft, language: string): QualityIssue[] {
       message: isDE
         ? "Im Schluss fehlt ein klarer warmer Anker (z. B. sicher/zu Hause/zusammen)."
         : "Ending lacks a clear warm anchor (e.g., safe/home/together).",
-      severity: "WARNING",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
     });
   }
 
@@ -985,9 +997,66 @@ function gateCharacterFocusLoad(
   return issues;
 }
 
-function gateStakesAndLowpoint(draft: StoryDraft, language: string): QualityIssue[] {
+function gateGlobalCharacterLoad(
+  draft: StoryDraft,
+  directives: SceneDirective[],
+  cast: CastSet,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+  if (ageMax > 8) return issues;
+
+  const maxDistinctActive = 4;
+  const activeByName = new Map<string, Set<number>>();
+
+  for (const directive of directives) {
+    const chapter = draft.chapters.find(ch => ch.chapter === directive.chapter);
+    if (!chapter) continue;
+
+    const chapterNames = directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterName(cast, slot))
+      .filter((name): name is string => Boolean(name));
+
+    for (const name of chapterNames) {
+      if (!chapter.text.toLowerCase().includes(name.toLowerCase())) continue;
+      const isActive =
+        checkCharacterHasAction(chapter.text, name) ||
+        hasAttributedDialogueForCharacter(chapter.text, name, language);
+      if (!isActive) continue;
+
+      if (!activeByName.has(name)) activeByName.set(name, new Set<number>());
+      activeByName.get(name)!.add(chapter.chapter);
+    }
+  }
+
+  const distinctActive = Array.from(activeByName.keys());
+  if (distinctActive.length > maxDistinctActive) {
+    issues.push({
+      gate: "GLOBAL_CHARACTER_LOAD",
+      chapter: 0,
+      code: "GLOBAL_CAST_OVERLOAD",
+      message: isDE
+        ? `Zu viele aktiv erkennbare Figuren fuer 6-8 Jahre (${distinctActive.length}, max ${maxDistinctActive}): ${distinctActive.join(", ")}`
+        : `Too many actively distinct characters for age 6-8 (${distinctActive.length}, max ${maxDistinctActive}): ${distinctActive.join(", ")}`,
+      severity: "ERROR",
+    });
+  }
+
+  return issues;
+}
+
+function gateStakesAndLowpoint(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
   if (draft.chapters.length === 0) return issues;
 
   const firstTwoText = draft.chapters
@@ -1060,7 +1129,7 @@ function gateStakesAndLowpoint(draft: StoryDraft, language: string): QualityIssu
       message: isDE
         ? `Kapitel ${lowpointChapter.chapter}: Rueckschlag vorhanden, aber innere Gefuehlsreaktion zu schwach.`
         : `Chapter ${lowpointChapter.chapter}: setback present, but internal emotional reaction is too weak.`,
-      severity: "WARNING",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
     });
   }
 
@@ -1125,7 +1194,7 @@ function gateRhythmVariation(
         message: isDE
           ? `Kapitel ${chapter.chapter}: Bildsprache zu dicht (${comparisonCount} Vergleiche bei ${sentences.length} Saetzen).`
           : `Chapter ${chapter.chapter}: imagery too dense (${comparisonCount} comparisons for ${sentences.length} sentences).`,
-        severity: "WARNING",
+        severity: (ageRange?.max ?? 12) <= 8 ? "ERROR" : "WARNING",
       });
     }
   }
@@ -1137,9 +1206,11 @@ function gateChildEmotionArc(
   draft: StoryDraft,
   cast: CastSet,
   language: string,
+  ageRange?: { min: number; max: number },
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
   const avatarNames = cast.avatars.map(a => a.displayName).filter(Boolean);
   if (avatarNames.length === 0) return issues;
 
@@ -1166,12 +1237,12 @@ function gateChildEmotionArc(
       issues.push({
         gate: "CHILD_EMOTION_ARC",
         chapter: 0,
-        code: "MISSING_INNER_CHILD_MOMENT",
-        message: isDE
-          ? `Innere Perspektive fuer ${name} fehlt oder ist zu schwach.`
-          : `Inner perspective for ${name} is missing or too weak.`,
-        severity: "WARNING",
-      });
+      code: "MISSING_INNER_CHILD_MOMENT",
+      message: isDE
+        ? `Innere Perspektive fuer ${name} fehlt oder ist zu schwach.`
+        : `Inner perspective for ${name} is missing or too weak.`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
     }
 
     const hasMistake = new RegExp(`${escapedName}[^.!?]{0,90}${mistakeMarkers}|${mistakeMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
@@ -1189,7 +1260,7 @@ function gateChildEmotionArc(
       message: isDE
         ? "Fehler-und-Korrektur-Bogen eines Kindes fehlt (Fehlentscheidung -> aktive Korrektur)."
         : "Missing child error-correction arc (bad decision -> active correction).",
-      severity: "WARNING",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
     });
   }
 
@@ -1287,18 +1358,19 @@ export function runQualityGates(input: {
     { name: "DIALOGUE_QUOTE", fn: () => gateDialogueQuote(draft, language) },
     { name: "CHARACTER_INTEGRATION", fn: () => gateCharacterIntegration(draft, directives, cast, language) },
     { name: "CHARACTER_FOCUS", fn: () => gateCharacterFocusLoad(draft, directives, cast, language, ageRange) },
+    { name: "GLOBAL_CHARACTER_LOAD", fn: () => gateGlobalCharacterLoad(draft, directives, cast, language, ageRange) },
     { name: "CAST_LOCK", fn: () => gateCastLock(draft, cast, language) },
     { name: "REPETITION_LIMITER", fn: () => gateRepetitionLimiter(draft, language, ageRange) },
     { name: "TEMPLATE_PHRASES", fn: () => gateTemplatePhrases(draft, language) },
     { name: "READABILITY_COMPLEXITY", fn: () => gateReadabilityComplexity(draft, language, ageRange) },
     { name: "RHYTHM_VARIATION", fn: () => gateRhythmVariation(draft, language, ageRange) },
-    { name: "CHARACTER_VOICE", fn: () => gateCharacterVoiceDistinctness(draft, directives, cast, language) },
-    { name: "STAKES_LOWPOINT", fn: () => gateStakesAndLowpoint(draft, language) },
-    { name: "CHILD_EMOTION_ARC", fn: () => gateChildEmotionArc(draft, cast, language) },
-    { name: "IMAGERY_BALANCE", fn: () => gateImageryBalance(draft, language) },
+    { name: "CHARACTER_VOICE", fn: () => gateCharacterVoiceDistinctness(draft, directives, cast, language, ageRange) },
+    { name: "STAKES_LOWPOINT", fn: () => gateStakesAndLowpoint(draft, language, ageRange) },
+    { name: "CHILD_EMOTION_ARC", fn: () => gateChildEmotionArc(draft, cast, language, ageRange) },
+    { name: "IMAGERY_BALANCE", fn: () => gateImageryBalance(draft, language, ageRange) },
     { name: "TENSION_ARC", fn: () => gateTensionArc(draft, language) },
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
-    { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, language) },
+    { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, language, ageRange) },
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
@@ -1362,12 +1434,22 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Figurenfokus enger setzen: fuer 6-8 Jahre maximal 3 aktive Figuren (sonst max 4); Nebenfiguren nur kurz im Hintergrund."
       : "- Tighten character focus: for age 6-8 use max 3 active characters (otherwise max 4); keep secondary figures in the background.");
   }
+  if (issueCodes.has("GLOBAL_CAST_OVERLOAD")) {
+    lines.push(isDE
+      ? "- Gesamtcast verschlanken: fuer 6-8 Jahre maximal 4 aktiv erkennbare Figuren in der ganzen Geschichte. Kombiniere Rollen statt neue Figuren einzufuehren."
+      : "- Slim down the overall cast: for age 6-8, use at most 4 actively distinct characters in the whole story. Merge roles instead of adding characters.");
+  }
+  if (issueCodes.has("UNLOCKED_CHARACTER_ACTOR")) {
+    lines.push(isDE
+      ? "- Cast-Lock strikt einhalten: entferne alle nicht erlaubten Eigennamen mit aktiver Rolle und ersetze sie durch erlaubte Figuren."
+      : "- Enforce cast lock strictly: remove any unauthorized proper names with active roles and replace them with allowed characters.");
+  }
   if (issueCodes.has("MISSING_EXPLICIT_STAKES") || issueCodes.has("MISSING_LOWPOINT") || issueCodes.has("LOWPOINT_EMOTION_THIN")) {
     lines.push(isDE
       ? "- Dramaturgie reparieren: frueh eine klare Konsequenz benennen (\"Wenn wir es nicht schaffen, dann ...\") und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
       : "- Repair dramatic arc: define a clear early consequence (\"If we fail, then ...\") and add a real low point with emotional reaction in chapter 3/4.");
   }
-  if (issueCodes.has("RHYTHM_FLAT") || issueCodes.has("RHYTHM_TOO_HEAVY") || issueCodes.has("IMAGERY_DENSITY_HIGH")) {
+  if (issueCodes.has("RHYTHM_FLAT") || issueCodes.has("RHYTHM_TOO_HEAVY") || issueCodes.has("IMAGERY_DENSITY_HIGH") || issueCodes.has("METAPHOR_OVERLOAD")) {
     lines.push(isDE
       ? "- Sprachrhythmus variieren: kurze, mittlere und wenige laengere Saetze mischen; Bildsprache reduzieren (max. ein Vergleich pro Absatz)."
       : "- Vary language rhythm: mix short, medium, and only a few longer sentences; reduce imagery density (max one comparison per paragraph).");
@@ -1382,7 +1464,7 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Kinder-Emotionsbogen schaerfen: pro Hauptkind mindestens einen inneren Moment und mindestens einen Fehler->Korrektur-Bogen ausarbeiten."
       : "- Strengthen child emotional arc: each main child needs at least one inner moment and at least one mistake->correction beat.");
   }
-  if (issueCodes.has("ENDING_UNRESOLVED") || issueCodes.has("ENDING_WARMTH_MISSING")) {
+  if (issueCodes.has("CLIFFHANGER_ENDING") || issueCodes.has("ENDING_UNRESOLVED") || issueCodes.has("ENDING_WARMTH_MISSING")) {
     lines.push(isDE
       ? "- Schluss stabilisieren: keine neue Unsicherheit im letzten Abschnitt; mit warmem Anker enden (z. B. sicher/zu Hause/zusammen)."
       : "- Stabilize ending: avoid introducing new uncertainty in the final section; end on a warm anchor (e.g., safe/home/together).");

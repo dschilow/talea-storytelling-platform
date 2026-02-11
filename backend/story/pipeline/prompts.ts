@@ -344,6 +344,7 @@ export function buildFullStoryPrompt(input: {
     : allowedNames.slice(0, 2).join(", ");
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
+  const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
 
   // Altersgerechter Stil
   const ageStyle = ageRange.max <= 5
@@ -433,6 +434,7 @@ ${stylePackBlock}
 - Pro Beat maximal ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
 - Wenn der Beat-Plan mehr Namen nennt: waehle ${focusIdealRange} Fokusfiguren mit klarer Handlung.
 - Weitere Figuren nur kurz im Hintergrund, ohne eigene Nebenhandlung.
+- Ueber die ganze Geschichte maximal ${focusGlobalMax} aktiv erkennbare Figuren.
 
 # Dramaturgie-Pflicht (muss spuerbar sein)
 1. Beat 1: klares Ziel + Frage.
@@ -458,12 +460,14 @@ ${stylePackBlock}
 7. Cast Lock: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren.
 8. Aktive Charaktere: Figuren handeln sichtbar (Verb + Objekt) oder sprechen.
 9. Figurenlimit pro Beat einhalten (max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}).
-10. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
-11. Dialog: Keine Monologe. Kurze, natuerliche Rede.
-12. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
-13. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
-14. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
-15. Finale-Fokus: Im letzten Beat maximal ${focusMaxActive} aktive Figuren, bevorzugt ${focusIdealRange}.
+10. Globaler Figurenfokus: Insgesamt hoechstens ${focusGlobalMax} aktiv erkennbare Figuren.
+11. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
+12. Dialog: Keine Monologe. Kurze, natuerliche Rede.
+13. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
+14. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
+15. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
+16. Letzter Beat schliesst die Leitfrage klar und warm ab; kein neues Raetsel, kein Cliffhanger.
+17. Finale-Fokus: Im letzten Beat maximal ${focusMaxActive} aktive Figuren, bevorzugt ${focusIdealRange}.
 
 # Figuren (NUR diese erlaubt)
 Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
@@ -487,12 +491,14 @@ ${chapterOutlines}
 # Qualitäts-Check (intern prüfen)
 - [ ] Erster Satz macht sofort neugierig?
 - [ ] Pro Beat maximal ${focusMaxActive} aktive Figuren?
+- [ ] Insgesamt nicht mehr als ${focusGlobalMax} aktiv erkennbare Figuren?
 - [ ] Gibt es klare Stakes: "Wenn wir es nicht schaffen, dann ..."?
 - [ ] Gibt es einen echten Tiefpunkt in Beat 3 oder 4?
 - [ ] Haben die Kinder sichtbare Gefühle + innere Gedanken?
 - [ ] Dialoge: Klingen mindestens zwei Figuren klar unterschiedlich?
 - [ ] Ist die Sprache rhythmisch wechselnd statt dauerhaft dicht?
 - [ ] Letzter Satz bleibt im Kopf?
+- [ ] Ende klar geloest und warm (kein neues offenes Problem)?
 - [ ] Wortanzahl im Zielkorridor pro Beat?
 
 # Ausgabe-Format
@@ -539,6 +545,7 @@ export function buildFullStoryRewritePrompt(input: {
     : allowedNamesList.slice(0, 2).join(", ");
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
+  const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
@@ -558,6 +565,7 @@ ${stylePackBlock}
 - Figurenfokus: pro Beat max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
 - Aktive Figuren = spricht sichtbar oder handelt sichtbar (Verb + Objekt).
 - Wenn ein Beat mehr Namen traegt: waehle ${focusIdealRange} Fokusfiguren; weitere Figuren nur kurz im Hintergrund.
+- Ueber die ganze Geschichte maximal ${focusGlobalMax} aktiv erkennbare Figuren.
 - Dramaturgie mit Eskalation:
   Beat 1 Ziel + Leitfrage.
   Beat 2 Risiko steigt (Zeitdruck ODER klare Gefahr).
@@ -569,6 +577,7 @@ ${stylePackBlock}
 - Emotionaler Kern: in jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
 - Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter aktiv.
 - Sprachrhythmus wechseln: kurz/schnell -> ruhig/emotional -> kurz/schnell.
+- Letzter Beat schliesst die Leitfrage klar: kein neues Raetsel, kein Cliffhanger, warmes Ende.
 
 # Regeln (unveraenderlich)
 - Erlaubte Namen: ${allowedNames}
@@ -582,6 +591,7 @@ ${stylePackBlock}
 - Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}-${ageRange.max}
 ${artifactName ? `- Artefakt "${artifactName}" aktiv und sinnvoll nutzen.` : ""}
 - Letzter Beat: Epilog (2-4 Saetze) ohne Predigt.
+- Schluss ohne offene Restfrage im letzten Absatz.
 
 # VERBOTEN im Text
 "Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war"

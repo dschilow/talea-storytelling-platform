@@ -514,6 +514,10 @@ function testCharacterVoiceGate() {
     report.issues.some(issue => issue.code === "VOICE_INDISTINCT"),
     "Character voice gate should flag missing distinct speakers in multi-character scenes"
   );
+  assert.ok(
+    report.issues.some(issue => issue.code === "VOICE_INDISTINCT" && issue.severity === "ERROR"),
+    "Character voice gate should treat indistinct voices as ERROR for age 6-8"
+  );
 }
 
 function testCharacterFocusGate() {
@@ -590,6 +594,255 @@ function testCharacterFocusGate() {
   assert.ok(
     report.issues.some(issue => issue.code === "TOO_MANY_ACTIVE_CHARACTERS"),
     "Character focus gate should flag more than 4 active characters"
+  );
+}
+
+function testGlobalCharacterLoadGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "path",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_1"],
+      goal: "start",
+      conflict: "fog",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["path"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 2,
+      setting: "bridge",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_2"],
+      goal: "cross",
+      conflict: "wind",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["bridge"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 3,
+      setting: "cave",
+      mood: "MYSTERIOUS",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_3"],
+      goal: "find clue",
+      conflict: "dark",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["cave"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 4,
+      setting: "yard",
+      mood: "COZY",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_4"],
+      goal: "return",
+      conflict: "none",
+      outcome: "finish",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["yard"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [
+      { characterId: "c1", displayName: "Fanni", roleType: "HELPER", slotKey: "SLOT_HELPER_1", visualSignature: [], outfitLock: [], forbidden: [] },
+      { characterId: "c2", displayName: "Peter", roleType: "HELPER", slotKey: "SLOT_HELPER_2", visualSignature: [], outfitLock: [], forbidden: [] },
+      { characterId: "c3", displayName: "Mika", roleType: "HELPER", slotKey: "SLOT_HELPER_3", visualSignature: [], outfitLock: [], forbidden: [] },
+      { characterId: "c4", displayName: "Nora", roleType: "HELPER", slotKey: "SLOT_HELPER_4", visualSignature: [], outfitLock: [], forbidden: [] },
+    ],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: {
+      SLOT_AVATAR_1: "a1",
+      SLOT_HELPER_1: "c1",
+      SLOT_HELPER_2: "c2",
+      SLOT_HELPER_3: "c3",
+      SLOT_HELPER_4: "c4",
+      SLOT_ARTIFACT_1: "art1",
+    },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      { chapter: 1, title: "", text: "Lena nahm die Karte. Fanni zeigte auf den Pfad und sagte: \"Hier lang!\"" },
+      { chapter: 2, title: "", text: "Lena hielt das Seil fest. Peter rief: \"Die Bretter sind locker!\"" },
+      { chapter: 3, title: "", text: "Lena hob die Lampe. Mika fluesterte: \"Da ist eine Spur im Stein.\"" },
+      { chapter: 4, title: "", text: "Lena lachte leise. Nora oeffnete das Tor und sagte: \"Wir sind zu Hause.\"" },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "GLOBAL_CAST_OVERLOAD" && issue.severity === "ERROR"),
+    "Global character load gate should flag too many actively distinct characters for age 6-8"
+  );
+}
+
+function testChildEmotionArcSeverity() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "meadow",
+      mood: "COZY",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "walk",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["meadow"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      { chapter: 1, title: "", text: "Lena ging den Weg entlang. Sie hob einen Stein auf und lief weiter." },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "MISSING_INNER_CHILD_MOMENT" && issue.severity === "ERROR"),
+    "Child emotion gate should treat missing inner child moment as ERROR for age 6-8"
+  );
+  assert.ok(
+    report.issues.some(issue => issue.code === "NO_CHILD_ERROR_CORRECTION_ARC" && issue.severity === "ERROR"),
+    "Child emotion gate should treat missing error-correction arc as ERROR for age 6-8"
+  );
+}
+
+function testImageryDensitySeverity() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "forest",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "walk",
+      conflict: "fog",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["forest"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena ging wie eine Feder durch den Wald. Der Nebel kroch wie ein Tuch ueber den Weg. Die Aeste klangen, als ob Trommeln im Himmel schlugen. Ihr Atem war wie ein kleiner Motor. Die Schatten tanzten, als ob sie Namen kannten. Das Gras glitzerte wie ein Meer aus Glas.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(
+      issue =>
+        (issue.code === "IMAGERY_DENSITY_HIGH" || issue.code === "METAPHOR_OVERLOAD") &&
+        issue.severity === "ERROR"
+    ),
+    "Imagery gates should treat dense metaphor/comparison language as ERROR for age 6-8"
   );
 }
 
@@ -828,6 +1081,10 @@ function testEndingStabilityGate() {
     report.issues.some(issue => issue.code === "ENDING_UNRESOLVED"),
     "Ending gate should flag unresolved uncertainty at the end"
   );
+  assert.ok(
+    report.issues.some(issue => issue.code === "ENDING_UNRESOLVED" && issue.severity === "ERROR"),
+    "Ending gate should treat unresolved ending as ERROR for age 6-8"
+  );
 }
 
 async function run() {
@@ -840,7 +1097,10 @@ async function run() {
   testReadabilityGateForYoungAudience();
   testCharacterVoiceGate();
   testCharacterFocusGate();
+  testGlobalCharacterLoadGate();
   testStakesAndLowpointGate();
+  testChildEmotionArcSeverity();
+  testImageryDensitySeverity();
   testBannedWordGate();
   testEndingStabilityGate();
   await testIntegrationWithMocks();
