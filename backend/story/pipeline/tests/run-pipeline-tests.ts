@@ -516,6 +516,190 @@ function testCharacterVoiceGate() {
   );
 }
 
+function testCharacterFocusGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "camp",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_1", "SLOT_HELPER_2", "SLOT_HELPER_3", "SLOT_HELPER_4"],
+      goal: "solve puzzle",
+      conflict: "time pressure",
+      outcome: "they move on",
+      artifactUsage: "none",
+      canonAnchorLine: "stay focused",
+      imageMustShow: ["camp"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [
+      { characterId: "c1", displayName: "Fanni", roleType: "HELPER", slotKey: "SLOT_HELPER_1", visualSignature: [], outfitLock: [], forbidden: [] },
+      { characterId: "c2", displayName: "Peter", roleType: "HELPER", slotKey: "SLOT_HELPER_2", visualSignature: [], outfitLock: [], forbidden: [] },
+      { characterId: "c3", displayName: "Mika", roleType: "HELPER", slotKey: "SLOT_HELPER_3", visualSignature: [], outfitLock: [], forbidden: [] },
+      { characterId: "c4", displayName: "Nora", roleType: "HELPER", slotKey: "SLOT_HELPER_4", visualSignature: [], outfitLock: [], forbidden: [] },
+    ],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: {
+      SLOT_AVATAR_1: "a1",
+      SLOT_HELPER_1: "c1",
+      SLOT_HELPER_2: "c2",
+      SLOT_HELPER_3: "c3",
+      SLOT_HELPER_4: "c4",
+      SLOT_ARTIFACT_1: "art1",
+    },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena rief: \"Los!\" Fanni zeigte auf die Karte. Peter zog am Seil. Mika hob die Kiste. Nora oeffnete die Kiste. Alle redeten durcheinander und rannten weiter.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "TOO_MANY_ACTIVE_CHARACTERS"),
+    "Character focus gate should flag more than 4 active characters"
+  );
+}
+
+function testStakesAndLowpointGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "forest",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "start",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["forest"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 2,
+      setting: "path",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "walk",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["path"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 3,
+      setting: "bridge",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "cross",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["bridge"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 4,
+      setting: "home",
+      mood: "TRIUMPH",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "arrive",
+      conflict: "none",
+      outcome: "finish",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["home"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      { chapter: 1, title: "", text: "Lena ging los und winkte." },
+      { chapter: 2, title: "", text: "Lena lief weiter und summte." },
+      { chapter: 3, title: "", text: "Lena sah den Fluss und ging ruhig darueber." },
+      { chapter: 4, title: "", text: "Lena kam an und lachte." },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "MISSING_EXPLICIT_STAKES"),
+    "Stakes gate should require explicit early consequence"
+  );
+  assert.ok(
+    report.issues.some(issue => issue.code === "MISSING_LOWPOINT"),
+    "Lowpoint gate should require a clear setback in chapter 3/4"
+  );
+}
+
 async function run() {
   testVariantDeterminism();
   testMatchingScore();
@@ -525,6 +709,8 @@ async function run() {
   testContinuousStorySegmentation();
   testReadabilityGateForYoungAudience();
   testCharacterVoiceGate();
+  testCharacterFocusGate();
+  testStakesAndLowpointGate();
   await testIntegrationWithMocks();
   console.log("Pipeline tests passed.");
 }

@@ -845,6 +845,270 @@ function gateActivePresence(
   return issues;
 }
 
+// ─── Additional 10.0 Gates ──────────────────────────────────────────────────────
+function gateCharacterFocusLoad(
+  draft: StoryDraft,
+  directives: SceneDirective[],
+  cast: CastSet,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  for (const directive of directives) {
+    const chapter = draft.chapters.find(ch => ch.chapter === directive.chapter);
+    if (!chapter) continue;
+
+    const chapterText = chapter.text;
+    const characterNames = directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterName(cast, slot))
+      .filter((name): name is string => Boolean(name));
+
+    if (characterNames.length === 0) continue;
+
+    const activeNames = characterNames.filter(name => {
+      if (!chapterText.toLowerCase().includes(name.toLowerCase())) return false;
+      return checkCharacterHasAction(chapterText, name) || hasAttributedDialogueForCharacter(chapterText, name, language);
+    });
+
+    if (activeNames.length > 4) {
+      issues.push({
+        gate: "CHARACTER_FOCUS",
+        chapter: chapter.chapter,
+        code: "TOO_MANY_ACTIVE_CHARACTERS",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: ${activeNames.length} aktive Figuren (max 4). Fokus enger setzen: ${activeNames.join(", ")}`
+          : `Chapter ${chapter.chapter}: ${activeNames.length} active characters (max 4). Tighten focus: ${activeNames.join(", ")}`,
+        severity: "ERROR",
+      });
+    } else if (activeNames.length === 4) {
+      issues.push({
+        gate: "CHARACTER_FOCUS",
+        chapter: chapter.chapter,
+        code: "FOCUS_DENSITY_HIGH",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: 4 aktive Figuren. Fuer 6-8 Jahre sind meist 3 ideal.`
+          : `Chapter ${chapter.chapter}: 4 active characters. For age 6-8, 3 is usually better.`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+function gateStakesAndLowpoint(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  if (draft.chapters.length === 0) return issues;
+
+  const firstTwoText = draft.chapters
+    .filter(ch => ch.chapter <= 2)
+    .map(ch => ch.text)
+    .join(" ");
+
+  const stakesPatterns = isDE
+    ? [
+        /wenn\s+wir[^.!?]{0,90}dann/i,
+        /wenn\s+[^.!?]{0,80}nicht\s+schaff/i,
+        /sonst[^.!?]{0,80}(verlieren|bleiben|schaffen|geht|schlie(?:s|ß)t)/i,
+      ]
+    : [
+        /if\s+we[^.!?]{0,90}then/i,
+        /if\s+we[^.!?]{0,80}don't\s+(make|reach|find|solve)/i,
+        /otherwise[^.!?]{0,80}(lose|miss|fail|stuck)/i,
+      ];
+
+  const hasExplicitStakes = stakesPatterns.some(pattern => pattern.test(firstTwoText));
+  if (!hasExplicitStakes) {
+    issues.push({
+      gate: "STAKES_LOWPOINT",
+      chapter: 1,
+      code: "MISSING_EXPLICIT_STAKES",
+      message: isDE
+        ? "Fruehe Stakes fehlen: klare Konsequenz in Kapitel 1-2 ergaenzen (\"Wenn wir es nicht schaffen, dann ...\")."
+        : "Early stakes missing: add a clear consequence in chapters 1-2 (\"If we fail, then ...\").",
+      severity: "ERROR",
+    });
+  }
+
+  const lowpointCandidates = draft.chapters.filter(ch => ch.chapter === 3 || ch.chapter === 4);
+  const setbackPatterns = isDE
+    ? [
+        /scheiter|fehl(?!erlos)|falsch|verlor|blockier|geschlossen|schlie(?:s|ß)t|bricht|sackgasse|nicht\s+weiter|zu\s+sp(?:ae|ä)t/i,
+      ]
+    : [
+        /fail|wrong|lost|blocked|closed|collapse|dead\s*end|can't\s+go\s+on|too\s+late/i,
+      ];
+  const emotionPatterns = isDE
+    ? [/zitter|schluck|magen|bauch|traute?\s+sich\s+nicht|zweifel|angst|herz/i]
+    : [/trembl|swallow|stomach|doubt|fear|heart/i];
+
+  let lowpointChapter: StoryDraft["chapters"][number] | null = null;
+  let lowpointHasEmotion = false;
+  for (const chapter of lowpointCandidates) {
+    const hasSetback = setbackPatterns.some(pattern => pattern.test(chapter.text));
+    if (!hasSetback) continue;
+    lowpointChapter = chapter;
+    lowpointHasEmotion = emotionPatterns.some(pattern => pattern.test(chapter.text));
+    break;
+  }
+
+  if (!lowpointChapter) {
+    issues.push({
+      gate: "STAKES_LOWPOINT",
+      chapter: 4,
+      code: "MISSING_LOWPOINT",
+      message: isDE
+        ? "Kapitel 3/4 hat keinen klaren Tiefpunkt mit echtem Rueckschlag."
+        : "Chapter 3/4 has no clear low point with a real setback.",
+      severity: "ERROR",
+    });
+  } else if (!lowpointHasEmotion) {
+    issues.push({
+      gate: "STAKES_LOWPOINT",
+      chapter: lowpointChapter.chapter,
+      code: "LOWPOINT_EMOTION_THIN",
+      message: isDE
+        ? `Kapitel ${lowpointChapter.chapter}: Rueckschlag vorhanden, aber innere Gefuehlsreaktion zu schwach.`
+        : `Chapter ${lowpointChapter.chapter}: setback present, but internal emotional reaction is too weak.`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
+function gateRhythmVariation(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  for (const chapter of draft.chapters) {
+    const sentences = splitSentences(chapter.text);
+    if (sentences.length < 6) continue;
+
+    const lengths = sentences.map(sentence => countWords(sentence)).filter(n => n > 0);
+    const shortCount = lengths.filter(n => n <= 7).length;
+    const mediumCount = lengths.filter(n => n >= 8 && n <= 14).length;
+    const longCount = lengths.filter(n => n >= 15).length;
+
+    if (shortCount === 0 || mediumCount === 0) {
+      issues.push({
+        gate: "RHYTHM_VARIATION",
+        chapter: chapter.chapter,
+        code: "RHYTHM_FLAT",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: Satzrhythmus zu gleichfoermig (kurze und mittlere Saetze mischen).`
+          : `Chapter ${chapter.chapter}: sentence rhythm too flat (mix short and medium sentences).`,
+        severity: "WARNING",
+      });
+    }
+
+    if ((ageRange?.max ?? 12) <= 8 && longCount > Math.ceil(lengths.length * 0.35)) {
+      issues.push({
+        gate: "RHYTHM_VARIATION",
+        chapter: chapter.chapter,
+        code: "RHYTHM_TOO_HEAVY",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: zu viele laengere Saetze fuer 6-8 Jahre.`
+          : `Chapter ${chapter.chapter}: too many longer sentences for age 6-8.`,
+        severity: "WARNING",
+      });
+    }
+
+    const comparisonPatterns = isDE
+      ? [/\bwie\s+(?:ein|eine|der|die|das)\b/gi, /\bals\s+ob\b/gi]
+      : [/\blike\s+(?:a|an|the)\b/gi, /\bas\s+if\b/gi];
+    let comparisonCount = 0;
+    for (const pattern of comparisonPatterns) {
+      pattern.lastIndex = 0;
+      comparisonCount += chapter.text.match(pattern)?.length ?? 0;
+    }
+
+    if (comparisonCount > Math.ceil(sentences.length / 3)) {
+      issues.push({
+        gate: "RHYTHM_VARIATION",
+        chapter: chapter.chapter,
+        code: "IMAGERY_DENSITY_HIGH",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: Bildsprache zu dicht (${comparisonCount} Vergleiche bei ${sentences.length} Saetzen).`
+          : `Chapter ${chapter.chapter}: imagery too dense (${comparisonCount} comparisons for ${sentences.length} sentences).`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+function gateChildEmotionArc(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const avatarNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  if (avatarNames.length === 0) return issues;
+
+  const fullText = draft.chapters.map(ch => ch.text).join(" ");
+  const innerMarkers = isDE
+    ? "(?:denkt|fuehlt|spuert|fragt\\s+sich|zweifelt|zittert|schluckt|hat\\s+Angst|mutig)"
+    : "(?:thinks|feels|wonders|doubts|trembles|swallows|is\\s+afraid|brave)";
+  const mistakeMarkers = isDE
+    ? "(?:Fehler|falsch|stolper|scheiter|zu\\s+schnell|zu\\s+frueh|verga[ßs])"
+    : "(?:mistake|wrong|stumble|fail|too\\s+fast|too\\s+early|forgot)";
+  const repairMarkers = isDE
+    ? "(?:korrigier|macht\\s+es\\s+besser|versucht\\s+es\\s+anders|hilft|rettet|entscheidet|entschied)"
+    : "(?:correct|does\\s+it\\s+better|tries\\s+another\\s+way|helps|saves|decides|decided)";
+
+  let hasChildErrorCorrectionArc = false;
+
+  for (const name of avatarNames) {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const hasInnerMoment =
+      new RegExp(`${escapedName}[^.!?]{0,90}${innerMarkers}`, "i").test(fullText) ||
+      new RegExp(`${innerMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
+
+    if (!hasInnerMoment) {
+      issues.push({
+        gate: "CHILD_EMOTION_ARC",
+        chapter: 0,
+        code: "MISSING_INNER_CHILD_MOMENT",
+        message: isDE
+          ? `Innere Perspektive fuer ${name} fehlt oder ist zu schwach.`
+          : `Inner perspective for ${name} is missing or too weak.`,
+        severity: "WARNING",
+      });
+    }
+
+    const hasMistake = new RegExp(`${escapedName}[^.!?]{0,90}${mistakeMarkers}|${mistakeMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
+    const hasRepair = new RegExp(`${escapedName}[^.!?]{0,90}${repairMarkers}|${repairMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
+    if (hasMistake && hasRepair) {
+      hasChildErrorCorrectionArc = true;
+    }
+  }
+
+  if (!hasChildErrorCorrectionArc) {
+    issues.push({
+      gate: "CHILD_EMOTION_ARC",
+      chapter: 0,
+      code: "NO_CHILD_ERROR_CORRECTION_ARC",
+      message: isDE
+        ? "Fehler-und-Korrektur-Bogen eines Kindes fehlt (Fehlentscheidung -> aktive Korrektur)."
+        : "Missing child error-correction arc (bad decision -> active correction).",
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 // ─── Gate 14: Artifact Mini-Arc ─────────────────────────────────────────────────
 function gateArtifactMiniArc(
   draft: StoryDraft,
@@ -935,11 +1199,15 @@ export function runQualityGates(input: {
     { name: "CHAPTER_STRUCTURE", fn: () => gateChapterStructure(draft, language) },
     { name: "DIALOGUE_QUOTE", fn: () => gateDialogueQuote(draft, language) },
     { name: "CHARACTER_INTEGRATION", fn: () => gateCharacterIntegration(draft, directives, cast, language) },
+    { name: "CHARACTER_FOCUS", fn: () => gateCharacterFocusLoad(draft, directives, cast, language) },
     { name: "CAST_LOCK", fn: () => gateCastLock(draft, cast, language) },
     { name: "REPETITION_LIMITER", fn: () => gateRepetitionLimiter(draft, language) },
     { name: "TEMPLATE_PHRASES", fn: () => gateTemplatePhrases(draft, language) },
     { name: "READABILITY_COMPLEXITY", fn: () => gateReadabilityComplexity(draft, language, ageRange) },
+    { name: "RHYTHM_VARIATION", fn: () => gateRhythmVariation(draft, language, ageRange) },
     { name: "CHARACTER_VOICE", fn: () => gateCharacterVoiceDistinctness(draft, directives, cast, language) },
+    { name: "STAKES_LOWPOINT", fn: () => gateStakesAndLowpoint(draft, language) },
+    { name: "CHILD_EMOTION_ARC", fn: () => gateChildEmotionArc(draft, cast, language) },
     { name: "IMAGERY_BALANCE", fn: () => gateImageryBalance(draft, language) },
     { name: "TENSION_ARC", fn: () => gateTensionArc(draft, language) },
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
@@ -1001,6 +1269,26 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push(isDE
       ? "- Figurenstimmen schaerfen: mindestens zwei klar erkennbare Sprecher pro Mehrfiguren-Szene, Rollenbezeichnungen nicht dauernd wiederholen."
       : "- Sharpen character voices: at least two clearly distinct speakers per multi-character scene, avoid constant role-label repetition.");
+  }
+  if (issueCodes.has("TOO_MANY_ACTIVE_CHARACTERS") || issueCodes.has("FOCUS_DENSITY_HIGH")) {
+    lines.push(isDE
+      ? "- Figurenfokus enger setzen: pro Kapitel maximal 4 aktive Figuren, fuer 6-8 Jahre ideal 3; Nebenfiguren nur kurz im Hintergrund."
+      : "- Tighten character focus: max 4 active characters per chapter, ideally 3 for age 6-8; keep secondary figures in the background.");
+  }
+  if (issueCodes.has("MISSING_EXPLICIT_STAKES") || issueCodes.has("MISSING_LOWPOINT") || issueCodes.has("LOWPOINT_EMOTION_THIN")) {
+    lines.push(isDE
+      ? "- Dramaturgie reparieren: frueh eine klare Konsequenz benennen (\"Wenn wir es nicht schaffen, dann ...\") und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
+      : "- Repair dramatic arc: define a clear early consequence (\"If we fail, then ...\") and add a real low point with emotional reaction in chapter 3/4.");
+  }
+  if (issueCodes.has("RHYTHM_FLAT") || issueCodes.has("RHYTHM_TOO_HEAVY") || issueCodes.has("IMAGERY_DENSITY_HIGH")) {
+    lines.push(isDE
+      ? "- Sprachrhythmus variieren: kurze, mittlere und wenige laengere Saetze mischen; Bildsprache reduzieren (max. ein Vergleich pro Absatz)."
+      : "- Vary language rhythm: mix short, medium, and only a few longer sentences; reduce imagery density (max one comparison per paragraph).");
+  }
+  if (issueCodes.has("MISSING_INNER_CHILD_MOMENT") || issueCodes.has("NO_CHILD_ERROR_CORRECTION_ARC")) {
+    lines.push(isDE
+      ? "- Kinder-Emotionsbogen schaerfen: pro Hauptkind mindestens einen inneren Moment und mindestens einen Fehler->Korrektur-Bogen ausarbeiten."
+      : "- Strengthen child emotional arc: each main child needs at least one inner moment and at least one mistake->correction beat.");
   }
 
   for (const [chapter, chIssues] of grouped) {

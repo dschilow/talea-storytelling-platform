@@ -7,6 +7,9 @@ export function buildIntegrationPlan(input: {
   cast: CastSet;
 }): IntegrationPlan {
   const { normalized, blueprint, cast } = input;
+  const onStageCharacterBudget = normalized.ageMax <= 8
+    ? Math.min(MAX_ON_STAGE_CHARACTERS, 3)
+    : MAX_ON_STAGE_CHARACTERS;
   const avatarSlots = cast.avatars.map(a => a.slotKey);
   const artifactSlot = "SLOT_ARTIFACT_1";
   const countNonArtifact = (set: Set<string>) => Array.from(set).filter(slot => slot !== artifactSlot).length;
@@ -33,7 +36,7 @@ export function buildIntegrationPlan(input: {
     const optionalSlots = (scene.optionalSlots || []).filter(slot => !slot.includes("ARTIFACT"));
     if (optionalSlots.length > 0) {
       for (const slot of optionalSlots) {
-        if (countNonArtifact(onStage) >= MAX_ON_STAGE_CHARACTERS) break;
+        if (countNonArtifact(onStage) >= onStageCharacterBudget) break;
         onStage.add(slot);
       }
     }
@@ -42,7 +45,7 @@ export function buildIntegrationPlan(input: {
       slots: onStage,
       mustInclude: scene.mustIncludeSlots || [],
       avatarSlots,
-      maxCharacters: MAX_ON_STAGE_CHARACTERS,
+      maxCharacters: onStageCharacterBudget,
       ensureAvatar,
     });
 
@@ -69,14 +72,14 @@ export function buildIntegrationPlan(input: {
     chapters,
     scenes: blueprint.scenes,
     avatarSlots,
-    maxCharacters: MAX_ON_STAGE_CHARACTERS,
+    maxCharacters: onStageCharacterBudget,
   });
 
   ensureAvatarsInFinalChapter({
     chapters,
     scenes: blueprint.scenes,
     avatarSlots,
-    maxCharacters: MAX_ON_STAGE_CHARACTERS,
+    maxCharacters: onStageCharacterBudget,
   });
 
   return {

@@ -439,6 +439,7 @@ ${stylePackBlock}
 4. Beat 4: Tiefpunkt + mutige Entscheidung eines Kindes.
 5. Beat 5: Loesung mit Preis und emotionalem Nachklang.
 - Die Stakes muessen klar sein: "Wenn wir es nicht schaffen, dann ...".
+- Beat 3 oder 4 muss einen klar benannten Verlust/Preis enthalten (nicht nur kleine Verzoegerung).
 
 # Emotionaler Kern (Kinder-Perspektive)
 - In jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
@@ -460,6 +461,7 @@ ${stylePackBlock}
 12. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
 13. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
 14. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
+15. Finale-Fokus: Im letzten Beat maximal 4 aktive Figuren, bevorzugt 3.
 
 # Figuren (NUR diese erlaubt)
 Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
@@ -559,6 +561,7 @@ ${stylePackBlock}
   Beat 4 Tiefpunkt + mutige Entscheidung eines Kindes.
   Beat 5 Loesung mit kleinem Preis und emotionalem Nachklang.
 - Stakes muessen explizit sein: genau eine konkrete Konsequenz frueh benennen ("Wenn wir es nicht schaffen, dann ...").
+- In Beat 3 oder 4 muss ein echter Verlust/Preis passieren, nicht nur ein kurzer Umweg.
 - Emotionaler Kern: in jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
 - Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter aktiv.
 - Sprachrhythmus wechseln: kurz/schnell -> ruhig/emotional -> kurz/schnell.
