@@ -338,6 +338,11 @@ export function buildFullStoryPrompt(input: {
     return outline;
   }).join("\n\n");
 
+  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const emotionalFocus = focusChildNames.length > 0
+    ? focusChildNames.slice(0, 2).join(", ")
+    : allowedNames.slice(0, 2).join(", ");
+
   // Altersgerechter Stil
   const ageStyle = ageRange.max <= 5
     ? "Sehr kurze Sätze (max 10 Wörter), sanfte Wiederholung, 1 Hauptproblem, sichere Auflösung."
@@ -417,9 +422,28 @@ ${stylePackBlock}
 5. Wenige, konkrete Sinneseindruecke statt Dauerbeschreibungen.
 6. Pro Absatz maximal ein Vergleich, keine Metaphernketten.
 7. Berufsrollen nur bei Einfuehrung nennen, danach vor allem Name/Pronomen.
+8. Rhythmuswechsel je Beat: kurz/schnell -> ruhig/emotional -> kurz/schnell.
 
 # Verbotene Woerter
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
+
+# Fokus-Regeln
+- Pro Beat maximal 4 aktive Figuren, ideal 3.
+- Wenn der Beat-Plan mehr Namen nennt: waehle 3-4 Fokusfiguren mit klarer Handlung.
+- Weitere Figuren nur kurz im Hintergrund, ohne eigene Nebenhandlung.
+
+# Dramaturgie-Pflicht (muss spuerbar sein)
+1. Beat 1: klares Ziel + Frage.
+2. Beat 2: Hindernis wird groesser + Zeitdruck oder Risiko.
+3. Beat 3: echter Rueckschlag (Plan scheitert / Verlust / falsche Spur).
+4. Beat 4: Tiefpunkt + mutige Entscheidung eines Kindes.
+5. Beat 5: Loesung mit Preis und emotionalem Nachklang.
+- Die Stakes muessen klar sein: "Wenn wir es nicht schaffen, dann ...".
+
+# Emotionaler Kern (Kinder-Perspektive)
+- In jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
+- Zeige Koerpersignal + Gedanke (z. B. zittern + Zweifel), nicht nur Aktion.
+- Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter.
 
 # Harte Regeln (muessen erfuellt sein)
 1. Sprache: Nur ${isGerman ? "Deutsch" : language}.
@@ -430,11 +454,12 @@ ${stylePackBlock}
 6. Keine Meta-Labels: Kein "Setting:", "Ziel:", "Hook:" usw.
 7. Cast Lock: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren.
 8. Aktive Charaktere: Figuren handeln sichtbar (Verb + Objekt) oder sprechen.
-9. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
-10. Dialog: Keine Monologe. Kurze, natuerliche Rede.
-11. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
-12. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
-13. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
+9. Figurenlimit pro Beat einhalten (max 4 aktive Figuren, ideal 3).
+10. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
+11. Dialog: Keine Monologe. Kurze, natuerliche Rede.
+12. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
+13. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
+14. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
 
 # Figuren (NUR diese erlaubt)
 Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
@@ -457,9 +482,12 @@ ${chapterOutlines}
 
 # Qualitäts-Check (intern prüfen)
 - [ ] Erster Satz macht sofort neugierig?
-- [ ] Jeder Beat: mind. 1 Lacher + 1 Kribbel-Moment?
-- [ ] Dialoge: Klingt jeder Charakter ANDERS?
-- [ ] Sinne dabei: Hören, Riechen, Fühlen?
+- [ ] Pro Beat maximal 3-4 aktive Figuren?
+- [ ] Gibt es klare Stakes: "Wenn wir es nicht schaffen, dann ..."?
+- [ ] Gibt es einen echten Tiefpunkt in Beat 3 oder 4?
+- [ ] Haben die Kinder sichtbare Gefühle + innere Gedanken?
+- [ ] Dialoge: Klingen mindestens zwei Figuren klar unterschiedlich?
+- [ ] Ist die Sprache rhythmisch wechselnd statt dauerhaft dicht?
 - [ ] Letzter Satz bleibt im Kopf?
 - [ ] Wortanzahl im Zielkorridor pro Beat?
 
@@ -497,10 +525,14 @@ export function buildFullStoryRewritePrompt(input: {
   const artifactName = cast.artifact?.name?.trim();
 
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
-  const allowedNames = Array.from(allSlots)
+  const allowedNamesList = Array.from(allSlots)
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
-    .filter(Boolean)
-    .join(", ");
+    .filter((name): name is string => Boolean(name));
+  const allowedNames = allowedNamesList.join(", ");
+  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const emotionalFocus = focusChildNames.length > 0
+    ? focusChildNames.slice(0, 2).join(", ")
+    : allowedNamesList.slice(0, 2).join(", ");
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
@@ -516,19 +548,33 @@ export function buildFullStoryRewritePrompt(input: {
 ${qualityIssues}
 ${stylePackBlock}
 
-# Regeln (unveränderlich)
+# 10.0 Ziele (Pflicht)
+- Figurenfokus: pro Beat max 4 aktive Figuren, ideal 3.
+- Aktive Figuren = spricht sichtbar oder handelt sichtbar (Verb + Objekt).
+- Wenn ein Beat mehr Namen traegt: waehle 3-4 Fokusfiguren; weitere Figuren nur kurz im Hintergrund.
+- Dramaturgie mit Eskalation:
+  Beat 1 Ziel + Leitfrage.
+  Beat 2 Risiko steigt (Zeitdruck ODER klare Gefahr).
+  Beat 3 echter Rueckschlag (Plan scheitert / Verlust / falsche Spur).
+  Beat 4 Tiefpunkt + mutige Entscheidung eines Kindes.
+  Beat 5 Loesung mit kleinem Preis und emotionalem Nachklang.
+- Stakes muessen explizit sein: genau eine konkrete Konsequenz frueh benennen ("Wenn wir es nicht schaffen, dann ...").
+- Emotionaler Kern: in jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
+- Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter aktiv.
+- Sprachrhythmus wechseln: kurz/schnell -> ruhig/emotional -> kurz/schnell.
+
+# Regeln (unveraenderlich)
 - Erlaubte Namen: ${allowedNames}
-- Keine neuen Figuren
-- Länge: ${totalWordMin}–${totalWordMax} Wörter gesamt, **${wordsPerChapter.min}–${wordsPerChapter.max} pro Beat**
-- Kurze Beats → mit Aktion + Dialog erweitern (zeigen, nicht erzählen)
-- Fehlende Figur → einfügen mit Aktion + mindestens 1 Dialog-Zeile
-- Jeder Beat: Sinneseinstieg, Ziel, Hindernis, Aktion, Hook
-- Fuer Alter ${ageRange.min}-${ageRange.max}: Schachtelsaetze aufbrechen, kurze klare Saetze.
+- Keine neuen Figuren.
+- Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt, **${wordsPerChapter.min}-${wordsPerChapter.max} pro Beat**.
+- Kurze Beats mit Handlung + Dialog ausbauen (zeigen, nicht erklaeren).
+- Jeder Beat enthaelt klar: Ziel, Hindernis, Entscheidung, kleines Ergebnis/Hook.
+- Fuer Alter ${ageRange.min}-${ageRange.max}: kurze klare Saetze, wenig Schachtelsaetze.
 - Figurenstimmen schaerfen: in Mehrfiguren-Szenen mindestens zwei unterscheidbare Sprecher.
-- Berufsrollen (z. B. "Feuerwehrfrau", "Polizist") nur zur Einfuehrung, danach meist Name/Pronomen.
-- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}–${ageRange.max}
-${artifactName ? `- Artefakt "${artifactName}" aktiv nutzen` : ""}
-- Letzter Beat: Epilog (2–4 Sätze)
+- Berufsrollen (z. B. "Feuerwehrfrau", "Polizist") nur bei Einfuehrung, danach meist Name/Pronomen.
+- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}-${ageRange.max}
+${artifactName ? `- Artefakt "${artifactName}" aktiv und sinnvoll nutzen.` : ""}
+- Letzter Beat: Epilog (2-4 Saetze) ohne Predigt.
 
 # VERBOTEN im Text
 "Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war"
@@ -574,9 +620,13 @@ export function buildChapterExpansionPrompt(input: {
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
   const allowedNames = Array.from(new Set(characterNames)).join(", ");
+  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const emotionalFocus = focusChildNames.length > 0
+    ? focusChildNames.slice(0, 2).join(", ")
+    : characterNames.slice(0, 2).join(", ");
 
   const missingLine = requiredCharacters?.length
-    ? `\n**FEHLENDE FIGUREN (MÜSSEN EINGEFÜGT WERDEN):** ${requiredCharacters.join(", ")}\nJede muss: benannt werden + konkrete Aktion + mind. 1 Dialog-Zeile`
+    ? `\n**FEHLENDE FIGUREN (MUSS FOKUSSIERT EINGEBAUT WERDEN):** ${requiredCharacters.join(", ")}\nJede fehlende Figur benennen + kurze konkrete Aktion. Gesamtlimit bleibt max 4 aktive Figuren.`
     : "";
 
   const contextLines = [
@@ -601,9 +651,13 @@ ${missingLine}
 # Regeln
 1. Nur diese Namen: ${allowedNames}
 2. Keine neuen Figuren
-3. Keine Meta-Labels im Text
-4. Erweitern durch: konkrete Aktion + 2–3 Dialog-Zeilen
-5. Sinnesdetails hinzufügen
+3. Pro Kapitel max 4 aktive Figuren, ideal 3.
+4. Keine Meta-Labels im Text.
+5. Kapitel-Rhythmus: kurz/schnell -> ruhig/emotional -> kurz/schnell.
+6. Mindestens 1 innerer Kinder-Moment von ${emotionalFocus} (Koerpersignal + Gedanke).
+7. Erweitern durch konkrete Aktion + 2-3 Dialog-Zeilen.
+8. Sprachdichte steuern: max 1 Vergleich pro Absatz, keine Metaphernketten.
+9. Kapitel muss spuerbar Spannung tragen: Hindernis wird groesser ODER ein kleiner Rueckschlag passiert.
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original
@@ -878,3 +932,4 @@ ${input.checklist.map(item => `- ${item}`).join("\n")}`;
 function findCharacterBySlot(cast: CastSet, slotKey: string) {
   return cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
 }
+
