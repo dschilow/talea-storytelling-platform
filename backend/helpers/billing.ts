@@ -41,7 +41,13 @@ type CachedPlanResolution = {
   expiresAt: number;
 };
 
+type CachedRoleResolution = {
+  role: UserRole | null;
+  expiresAt: number;
+};
+
 const clerkPlanCache = new Map<string, CachedPlanResolution>();
+const clerkRoleCache = new Map<string, CachedRoleResolution>();
 
 function startOfMonthUTC(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -163,6 +169,127 @@ function collectStringValues(value: unknown, depth = 0): string[] {
   return [];
 }
 
+function normalizeRoleCandidate(raw: string): UserRole | null {
+  const lowered = raw.toLowerCase().trim();
+  const normalized = lowered.replace(/[\s_-]+/g, "").split(":").pop() ?? "";
+
+  if (normalized === "admin" || normalized === "administrator") {
+    return "admin";
+  }
+
+  if (normalized === "user" || normalized === "member") {
+    return "user";
+  }
+
+  if (/(^|[^a-z])(admin|administrator)([^a-z]|$)/i.test(lowered)) {
+    return "admin";
+  }
+
+  if (/(^|[^a-z])(user|member)([^a-z]|$)/i.test(lowered)) {
+    return "user";
+  }
+
+  return null;
+}
+
+function extractRoleFromEntries(entries: string[]): UserRole | null {
+  let bestRole: UserRole | null = null;
+
+  for (const entry of entries) {
+    const role = normalizeRoleCandidate(entry);
+    if (!role) {
+      continue;
+    }
+
+    if (role === "admin") {
+      return "admin";
+    }
+
+    if (!bestRole) {
+      bestRole = role;
+    }
+  }
+
+  return bestRole;
+}
+
+function extractRoleFromMetadataValue(raw: unknown): UserRole | null {
+  const strings = collectStringValues(raw);
+  return extractRoleFromEntries(strings);
+}
+
+function extractRoleFromMetadataObject(metadata: unknown): UserRole | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const preferredKeys = [
+    "role",
+    "roles",
+    "app_role",
+    "appRole",
+    "user_role",
+    "userRole",
+    "talea_role",
+    "taleaRole",
+  ];
+
+  for (const key of preferredKeys) {
+    if (key in record) {
+      const role = extractRoleFromMetadataValue(record[key]);
+      if (role) {
+        return role;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function extractRoleFromClerkProfile(userId: string): Promise<UserRole | null> {
+  const now = Date.now();
+  const cached = clerkRoleCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    return cached.role;
+  }
+
+  const client = getClerkClient();
+  if (!client) {
+    clerkRoleCache.set(userId, {
+      role: null,
+      expiresAt: now + PLAN_SYNC_CACHE_TTL_MS,
+    });
+    return null;
+  }
+
+  try {
+    const user = await client.users.getUser(userId);
+    const fromPrivate = extractRoleFromMetadataObject(user.privateMetadata);
+    const fromPublic = extractRoleFromMetadataObject(user.publicMetadata);
+    const resolved = fromPrivate ?? fromPublic ?? null;
+
+    clerkRoleCache.set(userId, {
+      role: resolved,
+      expiresAt: now + PLAN_SYNC_CACHE_TTL_MS,
+    });
+
+    return resolved;
+  } catch (error) {
+    console.warn("[billing.extractRoleFromClerkProfile] Failed to fetch Clerk profile role", {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    clerkRoleCache.set(userId, {
+      role: null,
+      expiresAt: now + PLAN_SYNC_CACHE_TTL_MS,
+    });
+
+    return null;
+  }
+}
+
 function extractPlanFromMetadataValue(raw: unknown): SubscriptionPlan | null {
   const strings = collectStringValues(raw);
   return extractPlanFromEntries(strings);
@@ -258,6 +385,23 @@ async function persistPlanIfChanged(userId: string, plan: SubscriptionPlan): Pro
   `;
 }
 
+async function persistRoleIfChanged(userId: string, role: UserRole): Promise<void> {
+  const now = new Date();
+  try {
+    await userDB.exec`
+      UPDATE users
+      SET role = ${role}, updated_at = ${now}
+      WHERE id = ${userId} AND COALESCE(role, 'user') <> ${role}
+    `;
+  } catch (error) {
+    console.warn("[billing.persistRoleIfChanged] Failed to persist role", {
+      userId,
+      role,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 function pickAuthoritativePlan(
   tokenPlan: SubscriptionPlan | null,
   profilePlan: SubscriptionPlan | null
@@ -348,16 +492,32 @@ type UserPlanContext = {
   isAdmin: boolean;
 };
 
+async function resolveRoleForUser(userId: string, dbRole: UserRole): Promise<UserRole> {
+  if (dbRole === "admin") {
+    return "admin";
+  }
+
+  const profileRole = await extractRoleFromClerkProfile(userId);
+  if (profileRole !== "admin") {
+    return dbRole;
+  }
+
+  await persistRoleIfChanged(userId, profileRole);
+  return profileRole;
+}
+
 async function resolveUserPlanContext(userId: string, clerkToken?: string | null): Promise<UserPlanContext> {
   const plan = await resolvePlanForUser(userId, clerkToken);
 
   let row: { created_at: Date | null; role: UserRole | null } | null = null;
+  let hasRoleColumn = true;
   try {
     row = await userDB.queryRow<{ created_at: Date | null; role: UserRole | null }>`
       SELECT created_at, COALESCE(role, 'user') as role FROM users WHERE id = ${userId}
     `;
   } catch {
     // Defensive fallback for environments that have not applied role migration yet.
+    hasRoleColumn = false;
     const fallback = await userDB.queryRow<{ created_at: Date | null }>`
       SELECT created_at FROM users WHERE id = ${userId}
     `;
@@ -368,7 +528,8 @@ async function resolveUserPlanContext(userId: string, clerkToken?: string | null
     throw APIError.notFound("User not found");
   }
 
-  const role: UserRole = row.role === "admin" ? "admin" : "user";
+  const dbRole: UserRole = row.role === "admin" ? "admin" : "user";
+  const role: UserRole = hasRoleColumn ? await resolveRoleForUser(userId, dbRole) : dbRole;
   return {
     plan,
     createdAt: row.created_at ?? new Date(),
