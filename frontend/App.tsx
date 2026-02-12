@@ -38,7 +38,7 @@ import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
 import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
@@ -46,6 +46,8 @@ import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
 import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScreen';
 import OfflineContentScreen from './screens/Offline/OfflineContentScreen';
+import OfflineStoryReader from './screens/Offline/OfflineStoryReader';
+import OfflineDokuReader from './screens/Offline/OfflineDokuReader';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
@@ -245,19 +247,21 @@ const MissingKeyScreen = () => (
 );
 
 // Offline app shell: renders without Clerk when browser is offline
+// Uses OfflineThemeProvider (localStorage only, no Clerk/backend)
+// Uses standalone Offline readers (no useAuth/useBackend dependencies)
 const OfflineApp = () => (
   <MotionConfig reducedMotion="user">
     <Router>
-      <ThemeProvider>
+      <OfflineThemeProvider>
         <Routes>
-          <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
-          <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
-          <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-          <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
-          <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+          <Route path="/story-reader/:storyId" element={<OfflineStoryReader />} />
+          <Route path="/story-reader-scroll/:storyId" element={<OfflineStoryReader />} />
+          <Route path="/story-reader-old/:storyId" element={<OfflineStoryReader />} />
+          <Route path="/doku-reader/:dokuId" element={<OfflineDokuReader />} />
+          <Route path="/doku-reader-old/:dokuId" element={<OfflineDokuReader />} />
           <Route path="*" element={<OfflineContentScreen />} />
         </Routes>
-      </ThemeProvider>
+      </OfflineThemeProvider>
     </Router>
   </MotionConfig>
 );

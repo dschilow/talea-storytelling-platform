@@ -126,3 +126,45 @@ export function useTheme() {
   }
   return context;
 }
+
+/**
+ * Lightweight ThemeProvider for offline mode (no Clerk/backend dependency).
+ * Reads theme from localStorage only.
+ */
+export function OfflineThemeProvider({ children }: { children: ReactNode }) {
+  const getSystemTheme = (): ResolvedTheme =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+  const resolveTheme = (t: Theme): ResolvedTheme =>
+    t === 'system' ? getSystemTheme() : t;
+
+  const savedTheme = (localStorage.getItem('talea_theme') as Theme | null) || 'system';
+  const [theme, setThemeState] = useState<Theme>(savedTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(resolveTheme(savedTheme));
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(resolvedTheme);
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => setResolvedTheme(getSystemTheme());
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
+  const setTheme = async (newTheme: Theme) => {
+    setThemeState(newTheme);
+    setResolvedTheme(resolveTheme(newTheme));
+    localStorage.setItem('talea_theme', newTheme);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, isLoading: false }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
