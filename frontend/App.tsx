@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
@@ -45,8 +45,22 @@ import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
 import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScreen';
+import OfflineContentScreen from './screens/Offline/OfflineContentScreen';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
+
+// Reactive online/offline detection
+function subscribeToOnlineStatus(callback: () => void) {
+  window.addEventListener('online', callback);
+  window.addEventListener('offline', callback);
+  return () => {
+    window.removeEventListener('online', callback);
+    window.removeEventListener('offline', callback);
+  };
+}
+function getOnlineStatus() {
+  return navigator.onLine;
+}
 
 const AdminOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isLoading, isAdmin } = useOptionalUserAccess();
@@ -230,7 +244,35 @@ const MissingKeyScreen = () => (
   </div>
 );
 
+// Offline app shell: renders without Clerk when browser is offline
+const OfflineApp = () => (
+  <MotionConfig reducedMotion="user">
+    <Router>
+      <ThemeProvider>
+        <Routes>
+          <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+          <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
+          <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+          <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
+          <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+          <Route path="*" element={<OfflineContentScreen />} />
+        </Routes>
+      </ThemeProvider>
+    </Router>
+  </MotionConfig>
+);
+
 export default function App() {
+  const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
+
+  if (!isOnline) {
+    return (
+      <Provider store={store}>
+        <OfflineApp />
+      </Provider>
+    );
+  }
+
   if (!clerkPublishableKey) {
     return <MissingKeyScreen />;
   }

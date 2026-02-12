@@ -255,6 +255,24 @@ export async function getAllSavedIds(): Promise<{
   };
 }
 
+export async function getAllOfflineStories(): Promise<Story[]> {
+  const db = await getDb();
+  const entries = await db.getAll('offline-stories');
+  return entries.map(e => e.story);
+}
+
+export async function getAllOfflineDokus(): Promise<Doku[]> {
+  const db = await getDb();
+  const entries = await db.getAll('offline-dokus');
+  return entries.map(e => e.doku);
+}
+
+export async function getAllOfflineAudioDokus(): Promise<AudioDoku[]> {
+  const db = await getDb();
+  const entries = await db.getAll('offline-audio-dokus');
+  return entries.map(e => e.audioDoku);
+}
+
 export async function getBlobUrl(originalUrl: string): Promise<string | null> {
   const db = await getDb();
   const entry = await db.get('offline-blobs', originalUrl);
