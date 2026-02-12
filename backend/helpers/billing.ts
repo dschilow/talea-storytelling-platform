@@ -1,5 +1,4 @@
 import { APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
 import { createClerkClient } from "@clerk/backend";
 import { userDB } from "../user/db";
 
@@ -33,8 +32,8 @@ const FREE_TRIAL_DAYS = 7;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const PLAN_SYNC_CACHE_TTL_MS = 30_000;
 
-const clerkSecretKey = secret("ClerkSecretKey");
 let cachedClerkClient: ReturnType<typeof createClerkClient> | null | undefined;
+let cachedClerkClientPromise: Promise<ReturnType<typeof createClerkClient> | null> | null = null;
 
 type CachedPlanResolution = {
   plan: SubscriptionPlan | null;
@@ -62,23 +61,52 @@ function remainingDaysUntil(now: Date, end: Date): number {
   return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
 }
 
-function getClerkClient(): ReturnType<typeof createClerkClient> | null {
+async function loadClerkSecretKey(): Promise<string | null> {
+  try {
+    const config = await import("encore.dev/config");
+    const value = (
+      config.secret as (key: string, options?: { optional?: boolean }) => () => string | undefined
+    )("ClerkSecretKey", { optional: true })();
+
+    if (value && value.trim().length > 0) {
+      return value.trim();
+    }
+  } catch {
+    // Ignore and fall back to env.
+  }
+
+  const fromEnv = process.env.ClerkSecretKey?.trim() || process.env.CLERK_SECRET_KEY?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : null;
+}
+
+async function getClerkClient(): Promise<ReturnType<typeof createClerkClient> | null> {
   if (cachedClerkClient !== undefined) {
     return cachedClerkClient;
   }
 
-  try {
-    const key = clerkSecretKey();
-    if (!key || key.trim().length === 0) {
+  if (cachedClerkClientPromise) {
+    return cachedClerkClientPromise;
+  }
+
+  cachedClerkClientPromise = (async () => {
+    try {
+      const key = await loadClerkSecretKey();
+      if (!key) {
+        cachedClerkClient = null;
+        return null;
+      }
+
+      cachedClerkClient = createClerkClient({ secretKey: key });
+      return cachedClerkClient;
+    } catch {
       cachedClerkClient = null;
       return null;
     }
-    cachedClerkClient = createClerkClient({ secretKey: key });
-    return cachedClerkClient;
-  } catch {
-    cachedClerkClient = null;
-    return null;
-  }
+  })();
+
+  const client = await cachedClerkClientPromise;
+  cachedClerkClientPromise = null;
+  return client;
 }
 
 function parsePlanClaim(raw: unknown): string[] {
@@ -269,7 +297,7 @@ async function extractRoleFromClerkProfile(userId: string): Promise<UserRole | n
     return cached.role;
   }
 
-  const client = getClerkClient();
+  const client = await getClerkClient();
   if (!client) {
     clerkRoleCache.set(userId, {
       role: null,
@@ -354,7 +382,7 @@ async function extractPlanFromClerkProfile(userId: string): Promise<Subscription
     return cached.plan;
   }
 
-  const client = getClerkClient();
+  const client = await getClerkClient();
   if (!client) {
     clerkPlanCache.set(userId, {
       plan: null,
