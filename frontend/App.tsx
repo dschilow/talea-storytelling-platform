@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
@@ -50,17 +50,62 @@ import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
-// Reactive online/offline detection
+// Reactive online/offline detection.
+// navigator.onLine is unreliable (returns true when connected to a local network
+// without actual internet), so we also perform a real connectivity check.
+let _connectivityStatus: 'online' | 'offline' | 'checking' = navigator.onLine ? 'checking' : 'offline';
+const _listeners = new Set<() => void>();
+
+function notifyListeners() {
+  _listeners.forEach((cb) => cb());
+}
+
+// Perform a lightweight fetch to verify actual internet connectivity
+async function checkRealConnectivity(): Promise<boolean> {
+  try {
+    // Use a tiny request with a short timeout to verify real connectivity
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch('/config.js', {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+// Check connectivity on startup
+if (_connectivityStatus === 'checking') {
+  checkRealConnectivity().then((ok) => {
+    _connectivityStatus = ok ? 'online' : 'offline';
+    notifyListeners();
+  });
+}
+
+window.addEventListener('online', () => {
+  // navigator.onLine just became true, but verify real connectivity
+  _connectivityStatus = 'checking';
+  notifyListeners();
+  checkRealConnectivity().then((ok) => {
+    _connectivityStatus = ok ? 'online' : 'offline';
+    notifyListeners();
+  });
+});
+window.addEventListener('offline', () => {
+  _connectivityStatus = 'offline';
+  notifyListeners();
+});
+
 function subscribeToOnlineStatus(callback: () => void) {
-  window.addEventListener('online', callback);
-  window.addEventListener('offline', callback);
-  return () => {
-    window.removeEventListener('online', callback);
-    window.removeEventListener('offline', callback);
-  };
+  _listeners.add(callback);
+  return () => { _listeners.delete(callback); };
 }
 function getOnlineStatus() {
-  return navigator.onLine;
+  return _connectivityStatus !== 'offline';
 }
 
 const AdminOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -271,10 +316,70 @@ const OfflineApp = () => (
   </MotionConfig>
 );
 
+// Error boundary that catches Clerk load failures and falls back to offline mode
+class ClerkErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    // Log but don't crash - we'll show the offline fallback
+    console.warn('[Talea] Clerk failed to load, switching to offline mode:', error.message);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+// Detects unhandled Clerk load promise rejections and forces offline mode
+function useClerkLoadFailureDetection(onFail: () => void) {
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      const msg = String(event.reason?.message || event.reason || '');
+      if (msg.includes('failed_to_load_clerk_js') || msg.includes('Failed to load Clerk')) {
+        event.preventDefault(); // Prevent console noise
+        console.warn('[Talea] Clerk JS failed to load, switching to offline mode');
+        onFail();
+      }
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, [onFail]);
+}
+
 export default function App() {
   const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
+  const [clerkFailed, setClerkFailed] = useState(false);
 
-  if (!isOnline) {
+  const handleClerkFailure = useCallback(() => setClerkFailed(true), []);
+  useClerkLoadFailureDetection(handleClerkFailure);
+
+  // Reset clerkFailed when connectivity is restored
+  useEffect(() => {
+    if (isOnline && clerkFailed) {
+      // Re-check after a short delay when we come back online
+      const timer = setTimeout(() => {
+        checkRealConnectivity().then((ok) => {
+          if (ok) setClerkFailed(false);
+        });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, clerkFailed]);
+
+  if (!isOnline || clerkFailed) {
     return (
       <Provider store={store}>
         <OfflineApp />
@@ -286,19 +391,27 @@ export default function App() {
     return <MissingKeyScreen />;
   }
 
-  return (
+  const offlineFallback = (
     <Provider store={store}>
-      <ClerkProvider publishableKey={clerkPublishableKey}>
-        <ThemeProvider>
-          <AudioPlayerProvider>
-            <UserAccessProvider>
-              <OfflineStorageProvider>
-                <AppContent />
-              </OfflineStorageProvider>
-            </UserAccessProvider>
-          </AudioPlayerProvider>
-        </ThemeProvider>
-      </ClerkProvider>
+      <OfflineApp />
     </Provider>
+  );
+
+  return (
+    <ClerkErrorBoundary fallback={offlineFallback}>
+      <Provider store={store}>
+        <ClerkProvider publishableKey={clerkPublishableKey}>
+          <ThemeProvider>
+            <AudioPlayerProvider>
+              <UserAccessProvider>
+                <OfflineStorageProvider>
+                  <AppContent />
+                </OfflineStorageProvider>
+              </UserAccessProvider>
+            </AudioPlayerProvider>
+          </ThemeProvider>
+        </ClerkProvider>
+      </Provider>
+    </ClerkErrorBoundary>
   );
 }
