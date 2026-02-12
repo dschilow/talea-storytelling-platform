@@ -144,13 +144,17 @@ export class LlmStoryWriter implements StoryWriter {
       avatarMemories,
     });
 
-    const maxOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));
+    // Reasoning models (gpt-5-mini) burn ~60-75% of max_completion_tokens on internal thinking.
+    // A medium story needs ~4000 output tokens; with reasoning overhead we need 3-4x that.
+    const baseOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));
+    const reasoningMultiplier = (model.includes("gpt-5") || model.includes("o4")) ? 3 : 1;
+    const maxOutputTokens = Math.min(baseOutputTokens * reasoningMultiplier, 30000);
 
     const result = await callStoryModel({
       systemPrompt,
       userPrompt: prompt,
       responseFormat: "json_object",
-      maxTokens: Math.min(maxOutputTokens, 16000),
+      maxTokens: maxOutputTokens,
       temperature: strict ? 0.4 : 0.7,
       reasoningEffort: "medium",  // Medium for first-pass quality → fewer expensive rewrites
       context: "story-writer-full",
@@ -239,9 +243,10 @@ export class LlmStoryWriter implements StoryWriter {
           requiredCharacters: missingCharacters,
         });
 
-        // Keep expand calls compact to reduce cost while leaving room for short rewrites.
+        // Reasoning models need ~3x tokens since reasoning consumes most of the budget.
         const baseMaxTokens = Math.round(Math.max(520, lengthTargets.wordMax * 2.2));
-        const maxTokens = Math.min(1400, Math.max(850, baseMaxTokens));
+        const expandReasoningMultiplier = (model.includes("gpt-5") || model.includes("o4")) ? 3 : 1;
+        const maxTokens = Math.min(4000, Math.max(850, baseMaxTokens * expandReasoningMultiplier));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
 
@@ -357,7 +362,7 @@ export class LlmStoryWriter implements StoryWriter {
           systemPrompt,
           userPrompt: rewritePrompt,
           responseFormat: "json_object",
-          maxTokens: Math.min(maxOutputTokens, 16000),
+          maxTokens: maxOutputTokens,
           temperature: 0.4,
           reasoningEffort: "medium",  // Medium so rewrites actually fix issues on first attempt
           context: `story-writer-rewrite-${rewriteAttempt}`,
@@ -469,7 +474,7 @@ export class LlmStoryWriter implements StoryWriter {
           systemPrompt: titleSystem,
           userPrompt: titlePrompt,
           responseFormat: "json_object",
-          maxTokens: 800,
+          maxTokens: 2500,
           temperature: 0.6,
           context: "story-title",
           logSource: "phase6-story-llm",

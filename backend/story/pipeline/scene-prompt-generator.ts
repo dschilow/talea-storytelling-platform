@@ -166,7 +166,10 @@ Return JSON with this structure:
   ]
 }`;
 
-  const maxCompletionTokens = Math.min(2400, Math.max(1000, chapterInputs.length * 420));
+  // gpt-5-nano is also a reasoning model — needs headroom for thinking tokens
+  const baseTokens = Math.max(1000, chapterInputs.length * 420);
+  const isReasoningModel = MODEL.includes("gpt-5") || MODEL.includes("o4");
+  const maxCompletionTokens = Math.min(isReasoningModel ? 8000 : 2400, baseTokens * (isReasoningModel ? 3 : 1));
 
   const result = await callChatCompletion({
     messages: [
