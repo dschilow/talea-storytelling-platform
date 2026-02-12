@@ -5,10 +5,11 @@ import { userDB } from "../user/db";
 
 export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
 export type UsageKind = "story" | "doku" | "audio";
+type UserRole = "admin" | "user";
 
 export type PlanQuota = {
-  stories: number;
-  dokus: number;
+  stories: number | null;
+  dokus: number | null;
   audio: number | null;
 };
 
@@ -343,23 +344,52 @@ type UsageCounts = {
 type UserPlanContext = {
   plan: SubscriptionPlan;
   createdAt: Date;
+  role: UserRole;
+  isAdmin: boolean;
 };
 
 async function resolveUserPlanContext(userId: string, clerkToken?: string | null): Promise<UserPlanContext> {
   const plan = await resolvePlanForUser(userId, clerkToken);
 
-  const row = await userDB.queryRow<{ created_at: Date | null }>`
-    SELECT created_at FROM users WHERE id = ${userId}
-  `;
+  let row: { created_at: Date | null; role: UserRole | null } | null = null;
+  try {
+    row = await userDB.queryRow<{ created_at: Date | null; role: UserRole | null }>`
+      SELECT created_at, COALESCE(role, 'user') as role FROM users WHERE id = ${userId}
+    `;
+  } catch {
+    // Defensive fallback for environments that have not applied role migration yet.
+    const fallback = await userDB.queryRow<{ created_at: Date | null }>`
+      SELECT created_at FROM users WHERE id = ${userId}
+    `;
+    row = fallback ? { created_at: fallback.created_at, role: "user" } : null;
+  }
 
   if (!row) {
     throw APIError.notFound("User not found");
   }
 
-  return { plan, createdAt: row.created_at ?? new Date() };
+  const role: UserRole = row.role === "admin" ? "admin" : "user";
+  return {
+    plan,
+    createdAt: row.created_at ?? new Date(),
+    role,
+    isAdmin: role === "admin",
+  };
 }
 
-function computePlanPolicy(plan: SubscriptionPlan, createdAt: Date, now: Date): PlanPolicy {
+function computePlanPolicy(plan: SubscriptionPlan, createdAt: Date, now: Date, isAdmin = false): PlanPolicy {
+  if (isAdmin) {
+    return {
+      plan,
+      limits: { stories: null, dokus: null, audio: null },
+      freeTrialActive: false,
+      freeTrialEndsAt: null,
+      freeTrialDaysRemaining: 0,
+      canReadCommunityDokus: true,
+      canUseAudioDokus: true,
+    };
+  }
+
   if (plan !== "free") {
     return {
       plan,
@@ -450,7 +480,7 @@ export async function getBillingOverview(params: {
   const now = new Date();
   const periodStart = startOfMonthUTC(now);
   const context = await resolveUserPlanContext(params.userId, params.clerkToken);
-  const policy = computePlanPolicy(context.plan, context.createdAt, now);
+  const policy = computePlanPolicy(context.plan, context.createdAt, now, context.isAdmin);
   let usage: UsageCounts = {
     story_count: 0,
     doku_count: 0,
@@ -488,6 +518,18 @@ function getLimitFromPolicy(policy: PlanPolicy, kind: UsageKind): number | null 
   return policy.limits.audio;
 }
 
+function usageFieldForKind(kind: UsageKind): "story_count" | "doku_count" | "audio_count" {
+  if (kind === "story") return "story_count";
+  if (kind === "doku") return "doku_count";
+  return "audio_count";
+}
+
+function usedFromRowByKind(row: UsageCounts, kind: UsageKind): number {
+  if (kind === "story") return row.story_count;
+  if (kind === "doku") return row.doku_count;
+  return row.audio_count;
+}
+
 function getLimitLabel(kind: UsageKind) {
   if (kind === "story") return "Story-Generierungen";
   if (kind === "doku") return "Doku-Generierungen";
@@ -511,7 +553,7 @@ export async function claimGenerationUsage(params: {
   const now = new Date();
   const periodStart = startOfMonthUTC(now);
   const context = await resolveUserPlanContext(params.userId, params.clerkToken);
-  const policy = computePlanPolicy(context.plan, context.createdAt, now);
+  const policy = computePlanPolicy(context.plan, context.createdAt, now, context.isAdmin);
   const limit = getLimitFromPolicy(policy, params.kind);
 
   if (params.kind === "audio" && !policy.canUseAudioDokus) {
@@ -542,23 +584,44 @@ export async function claimGenerationUsage(params: {
   }
 
   if (limit === null) {
-    const row = await userDB.queryRow<UsageCounts>`
-      UPDATE generation_usage
-      SET audio_count = audio_count + 1, updated_at = ${now}
-      WHERE user_id = ${params.userId}
-        AND period_start = ${periodStart}
-      RETURNING story_count, doku_count, audio_count
-    `;
+    const usageField = usageFieldForKind(params.kind);
+    let row: UsageCounts | null = null;
+
+    if (usageField === "story_count") {
+      row = await userDB.queryRow<UsageCounts>`
+        UPDATE generation_usage
+        SET story_count = story_count + 1, updated_at = ${now}
+        WHERE user_id = ${params.userId}
+          AND period_start = ${periodStart}
+        RETURNING story_count, doku_count, audio_count
+      `;
+    } else if (usageField === "doku_count") {
+      row = await userDB.queryRow<UsageCounts>`
+        UPDATE generation_usage
+        SET doku_count = doku_count + 1, updated_at = ${now}
+        WHERE user_id = ${params.userId}
+          AND period_start = ${periodStart}
+        RETURNING story_count, doku_count, audio_count
+      `;
+    } else {
+      row = await userDB.queryRow<UsageCounts>`
+        UPDATE generation_usage
+        SET audio_count = audio_count + 1, updated_at = ${now}
+        WHERE user_id = ${params.userId}
+          AND period_start = ${periodStart}
+        RETURNING story_count, doku_count, audio_count
+      `;
+    }
 
     if (!row) {
-      throw APIError.internal("Konnte Audio-Verbrauch nicht aktualisieren.");
+      throw APIError.internal("Konnte Verbrauch nicht aktualisieren.");
     }
 
     return {
       plan: context.plan,
       kind: params.kind,
       limit,
-      used: row.audio_count,
+      used: usedFromRowByKind(row, params.kind),
       remaining: null,
       periodStart,
     };
