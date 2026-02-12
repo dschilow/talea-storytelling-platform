@@ -807,6 +807,21 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
         severity: "ERROR",
       });
     }
+
+    const filteredPlaceholderPatterns = isDE
+      ? [/\[[^\]]*gefiltert[^\]]*\]/i, /\binhalt[-\s]?gefiltert\b/i, /\[redacted\]/i]
+      : [/\[[^\]]*filtered[^\]]*\]/i, /\bcontent[-\s]?filtered\b/i, /\[redacted\]/i];
+    if (filteredPlaceholderPatterns.some(pattern => pattern.test(ch.text))) {
+      issues.push({
+        gate: "INSTRUCTION_LEAK",
+        chapter: ch.chapter,
+        code: "FILTER_PLACEHOLDER",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Filter-/Redaktionsplatzhalter im Fliesstext gefunden`
+          : `Chapter ${ch.chapter}: filter/redaction placeholder found in narrative text`,
+        severity: "ERROR",
+      });
+    }
   }
 
   return issues;
@@ -1133,6 +1148,37 @@ function gateStakesAndLowpoint(
     });
   }
 
+  if (lowpointChapter) {
+    const lowpointSoftenerPatterns = isDE
+      ? [
+          /\bkein(?:e|en)?\s+katastrophe\b/i,
+          /\bnur\s+ein\s+kleiner\s+schreck\b/i,
+          /\bnichts\s+schlimmes\b/i,
+          /\bohne\s+echte\s+folgen\b/i,
+          /\bnur\s+eine?\s+kleine?\s+verzoegerung\b/i,
+          /\bnur\s+eine?\s+kleine?\s+verzögerung\b/i,
+        ]
+      : [
+          /\bnot\s+a\s+disaster\b/i,
+          /\bjust\s+a\s+small\s+scare\b/i,
+          /\bnothing\s+serious\b/i,
+          /\bwithout\s+real\s+consequences\b/i,
+          /\bjust\s+a\s+small\s+delay\b/i,
+        ];
+
+    if (lowpointSoftenerPatterns.some(pattern => pattern.test(lowpointChapter.text))) {
+      issues.push({
+        gate: "STAKES_LOWPOINT",
+        chapter: lowpointChapter.chapter,
+        code: "LOWPOINT_TOO_SOFT",
+        message: isDE
+          ? `Kapitel ${lowpointChapter.chapter}: Tiefpunkt wird sofort verharmlost; fuege einen echten Preis/Verlust ein.`
+          : `Chapter ${lowpointChapter.chapter}: low point is immediately softened; add a real cost/loss.`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+  }
+
   return issues;
 }
 
@@ -1444,7 +1490,12 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Cast-Lock strikt einhalten: entferne alle nicht erlaubten Eigennamen mit aktiver Rolle und ersetze sie durch erlaubte Figuren."
       : "- Enforce cast lock strictly: remove any unauthorized proper names with active roles and replace them with allowed characters.");
   }
-  if (issueCodes.has("MISSING_EXPLICIT_STAKES") || issueCodes.has("MISSING_LOWPOINT") || issueCodes.has("LOWPOINT_EMOTION_THIN")) {
+  if (
+    issueCodes.has("MISSING_EXPLICIT_STAKES") ||
+    issueCodes.has("MISSING_LOWPOINT") ||
+    issueCodes.has("LOWPOINT_EMOTION_THIN") ||
+    issueCodes.has("LOWPOINT_TOO_SOFT")
+  ) {
     lines.push(isDE
       ? "- Dramaturgie reparieren: frueh eine klare Konsequenz benennen (\"Wenn wir es nicht schaffen, dann ...\") und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
       : "- Repair dramatic arc: define a clear early consequence (\"If we fail, then ...\") and add a real low point with emotional reaction in chapter 3/4.");
@@ -1468,6 +1519,11 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push(isDE
       ? "- Schluss stabilisieren: keine neue Unsicherheit im letzten Abschnitt; mit warmem Anker enden (z. B. sicher/zu Hause/zusammen)."
       : "- Stabilize ending: avoid introducing new uncertainty in the final section; end on a warm anchor (e.g., safe/home/together).");
+  }
+  if (issueCodes.has("FILTER_PLACEHOLDER")) {
+    lines.push(isDE
+      ? "- Platzhalter reparieren: entferne alle Filter-/Redaktionsmarker (z. B. [inhalt-gefiltert]) und ersetze sie durch natuerliche, kindgerechte Formulierungen."
+      : "- Fix placeholders: remove all filter/redaction markers (e.g., [content-filtered]) and replace them with natural, child-friendly phrasing.");
   }
 
   for (const [chapter, chIssues] of grouped) {

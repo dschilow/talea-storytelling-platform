@@ -430,6 +430,9 @@ ${stylePackBlock}
 # Verbotene Woerter
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
 
+# Verbotene Platzhalter
+"[inhalt-gefiltert]", "[content-filtered]", "[redacted]"
+
 # Fokus-Regeln
 - Pro Beat maximal ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
 - Wenn der Beat-Plan mehr Namen nennt: waehle ${focusIdealRange} Fokusfiguren mit klarer Handlung.
@@ -443,7 +446,7 @@ ${stylePackBlock}
 4. Beat 4: Tiefpunkt + mutige Entscheidung eines Kindes.
 5. Beat 5: Loesung mit Preis und emotionalem Nachklang.
 - Die Stakes muessen klar sein: "Wenn wir es nicht schaffen, dann ...".
-- Beat 3 oder 4 muss einen klar benannten Verlust/Preis enthalten (nicht nur kleine Verzoegerung).
+- Beat 3 oder 4 muss einen klar benannten Verlust/Preis enthalten (nicht nur kleine Verzoegerung, keine Mini-Folgen wie verlorene Kruemel).
 
 # Emotionaler Kern (Kinder-Perspektive)
 - In jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
@@ -574,6 +577,7 @@ ${stylePackBlock}
   Beat 5 Loesung mit kleinem Preis und emotionalem Nachklang.
 - Stakes muessen explizit sein: genau eine konkrete Konsequenz frueh benennen ("Wenn wir es nicht schaffen, dann ...").
 - In Beat 3 oder 4 muss ein echter Verlust/Preis passieren, nicht nur ein kurzer Umweg.
+- In Beat 3 oder 4 darf der Rueckschlag nicht sofort relativiert werden ("kein Problem", "keine Katastrophe", etc.).
 - Emotionaler Kern: in jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
 - Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter aktiv.
 - Sprachrhythmus wechseln: kurz/schnell -> ruhig/emotional -> kurz/schnell.
@@ -594,7 +598,7 @@ ${artifactName ? `- Artefakt "${artifactName}" aktiv und sinnvoll nutzen.` : ""}
 - Schluss ohne offene Restfrage im letzten Absatz.
 
 # VERBOTEN im Text
-"Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war"
+"Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war", "[inhalt-gefiltert]", "[content-filtered]", "[redacted]"
 
 # Original-Text
 ${originalText}

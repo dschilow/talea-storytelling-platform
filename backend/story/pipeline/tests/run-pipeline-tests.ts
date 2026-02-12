@@ -953,6 +953,174 @@ function testStakesAndLowpointGate() {
   );
 }
 
+function testLowpointTooSoftGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "forest",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "start",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["forest"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 2,
+      setting: "path",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "hurry",
+      conflict: "rain",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["path"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 3,
+      setting: "gate",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "open gate",
+      conflict: "lock",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["gate"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 4,
+      setting: "home",
+      mood: "TRIUMPH",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "arrive",
+      conflict: "none",
+      outcome: "finish",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["home"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      { chapter: 1, title: "", text: "Lena sagte: Wenn wir es nicht schaffen, dann bleibt das Tor zu." },
+      { chapter: 2, title: "", text: "Lena lief schneller und hielt die Karte fest." },
+      { chapter: 3, title: "", text: "Lena scheiterte am Schloss und schluckte. Das war keine Katastrophe, nur ein kleiner Schreck." },
+      { chapter: 4, title: "", text: "Lena fand den zweiten Hebel und kam nach Hause." },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "LOWPOINT_TOO_SOFT" && issue.severity === "ERROR"),
+    "Lowpoint gate should reject softened setbacks for age 6-8"
+  );
+}
+
+function testFilterPlaceholderGate() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "hut",
+      mood: "COZY",
+      charactersOnStage: ["SLOT_AVATAR_1"],
+      goal: "listen",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["hut"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Lena",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: { SLOT_AVATAR_1: "a1", SLOT_ARTIFACT_1: "art1" },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Lena sah Bruno an. Dann sagte er: Das [inhalt-gefiltert]en wir hin.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "FILTER_PLACEHOLDER" && issue.severity === "ERROR"),
+    "Instruction leak gate should reject filter placeholders in final prose"
+  );
+}
+
 function testBannedWordGate() {
   const directives: SceneDirective[] = [
     {
@@ -1099,8 +1267,10 @@ async function run() {
   testCharacterFocusGate();
   testGlobalCharacterLoadGate();
   testStakesAndLowpointGate();
+  testLowpointTooSoftGate();
   testChildEmotionArcSeverity();
   testImageryDensitySeverity();
+  testFilterPlaceholderGate();
   testBannedWordGate();
   testEndingStabilityGate();
   await testIntegrationWithMocks();
