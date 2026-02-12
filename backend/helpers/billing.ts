@@ -98,6 +98,21 @@ function parsePlanClaim(raw: unknown): string[] {
   return collectStringValues(raw).map((entry) => entry.trim()).filter(Boolean);
 }
 
+function uniquePreserveOrder(entries: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const entry of entries) {
+    const normalized = entry.trim();
+    if (!normalized) continue;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
 function normalizePlanCandidate(raw: string): SubscriptionPlan | null {
   const lowered = raw.toLowerCase().trim();
   const normalized = lowered
@@ -406,12 +421,21 @@ function pickAuthoritativePlan(
   tokenPlan: SubscriptionPlan | null,
   profilePlan: SubscriptionPlan | null
 ): SubscriptionPlan | null {
-  // Clerk profile metadata is treated as source of truth when present.
-  if (profilePlan) {
-    return profilePlan;
+  if (tokenPlan && profilePlan) {
+    if (tokenPlan === profilePlan) {
+      return profilePlan;
+    }
+
+    const tokenRank = PLAN_PRIORITY.indexOf(tokenPlan);
+    const profileRank = PLAN_PRIORITY.indexOf(profilePlan);
+
+    if (tokenRank >= 0 && profileRank >= 0) {
+      // Prefer the higher-tier plan while sources are out-of-sync.
+      return tokenRank < profileRank ? tokenPlan : profilePlan;
+    }
   }
 
-  return tokenPlan;
+  return profilePlan ?? tokenPlan;
 }
 
 export function extractPlanClaimsFromToken(token?: string | null): string[] {
@@ -422,8 +446,46 @@ export function extractPlanClaimsFromToken(token?: string | null): string[] {
     if (parts.length !== 3) return [];
 
     const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
-    const planClaim = payload?.pla ?? payload?.plans ?? payload?.plan;
-    return parsePlanClaim(planClaim);
+
+    const directPlanClaims: unknown[] = [
+      payload?.pla,
+      payload?.plans,
+      payload?.plan,
+      payload?.subscription,
+      payload?.subscription_plan,
+      payload?.subscriptionPlan,
+      payload?.plan_name,
+      payload?.planName,
+      payload?.tier,
+      payload?.package_name,
+      payload?.packageName,
+      payload?.billing_plan,
+      payload?.billingPlan,
+      payload?.product_plan,
+      payload?.productPlan,
+      payload?.stripe_plan,
+      payload?.stripePlan,
+    ];
+
+    const metadataCandidates: unknown[] = [
+      payload?.metadata,
+      payload?.public_metadata,
+      payload?.publicMetadata,
+      payload?.private_metadata,
+      payload?.privateMetadata,
+    ];
+
+    const claimsFromDirect = directPlanClaims.flatMap((claim) => parsePlanClaim(claim));
+    const claimsFromMetadata = metadataCandidates.flatMap((candidate) => {
+      const fromKeys = parsePlanClaim(candidate);
+      const fromStructuredPlan = (() => {
+        const plan = extractPlanFromMetadataObject(candidate);
+        return plan ? [plan] : [];
+      })();
+      return [...fromKeys, ...fromStructuredPlan];
+    });
+
+    return uniquePreserveOrder([...claimsFromDirect, ...claimsFromMetadata]);
   } catch {
     return [];
   }
