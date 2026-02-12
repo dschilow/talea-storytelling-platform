@@ -29,13 +29,13 @@ export interface CandidateProfile {
 }
 
 const ROLE_MAP: Record<string, string[]> = {
-  PROTAGONIST: ["hero", "protagonist", "guide"],
-  ANTAGONIST: ["villain", "antagonist", "obstacle"],
-  HELPER: ["helper", "companion", "support"],
-  MENTOR: ["mentor", "guide", "elder"],
-  TRICKSTER: ["trickster", "mischief"],
-  COMIC_RELIEF: ["comic", "jester"],
-  GUARDIAN: ["guardian", "protector"],
+  PROTAGONIST: ["hero", "protagonist", "guide", "adventurer", "explorer"],
+  ANTAGONIST: ["villain", "antagonist", "obstacle", "authority", "tyrant", "corrupt"],
+  HELPER: ["helper", "companion", "support", "animal_companion", "magical_helper", "hero_helper"],
+  MENTOR: ["mentor", "guide", "elder", "wise", "teacher"],
+  TRICKSTER: ["trickster", "mischief", "magical_trickster", "animal_trickster"],
+  COMIC_RELIEF: ["comic", "jester", "trickster"],
+  GUARDIAN: ["guardian", "protector", "authority", "royal", "king", "queen", "ruler"],
   CAMEO: ["cameo"],
 };
 
@@ -45,12 +45,12 @@ const ROLE_MAP: Record<string, string[]> = {
  */
 const ROLE_PERSONALITY_PREFERENCES: Record<string, string[]> = {
   PROTAGONIST: ["mutig", "neugierig", "entschlossen", "brave", "curious", "determined"],
-  ANTAGONIST: ["frech", "gierig", "listig", "hinterlistig", "machtgierig", "greedy", "cunning", "sly"],
+  ANTAGONIST: ["frech", "gierig", "listig", "hinterlistig", "machtgierig", "greedy", "cunning", "sly", "authoritative", "commanding"],
   HELPER: ["hilfsbereit", "treu", "freundlich", "loyal", "helpful", "friendly", "kind"],
   MENTOR: ["weise", "geduldig", "belehrend", "wise", "patient", "teaching"],
   TRICKSTER: ["listig", "frech", "verspielt", "schelmisch", "cunning", "playful", "mischievous"],
   COMIC_RELIEF: ["lustig", "verspielt", "hyperaktiv", "chaotisch", "funny", "playful", "hyperactive"],
-  GUARDIAN: ["beschützend", "stark", "wachsam", "mutig", "protective", "strong", "vigilant"],
+  GUARDIAN: ["beschützend", "stark", "wachsam", "mutig", "protective", "strong", "vigilant", "authoritative", "commanding", "just", "royal", "regal"],
   CAMEO: [],
 };
 

@@ -55,8 +55,12 @@ export class LlmStoryWriter implements StoryWriter {
     const languageGuard = isGerman
       ? "WICHTIG: Antworte ausschließlich auf Deutsch. Keine englischen Wörter oder Sätze."
       : "";
-    const systemPrompt = `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}.\n${languageGuard}`.trim();
-    const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.\n${languageGuard}`.trim();
+    const systemPrompt = isGerman
+      ? `Du bist ein preisgekrönter Kinderbuch-Autor (Niveau: Astrid Lindgren, Cornelia Funke, Otfried Preußler). Du schreibst die komplette Geschichte in einem Zug – lebendig, rhythmisch, warm und klar. Jedes Kapitel baut auf dem vorherigen auf. Deine Figuren entwickeln sich, erinnern sich, und der rote Faden zieht sich durch die gesamte Geschichte. Schreibe IMMER ausschliesslich auf Deutsch. Jede Figur klingt anders (Wortwahl, Satzlaenge, Temperament). Zeige Gefuehle durch Koerpersignale und Handlungen, nicht durch Erklaerungen.`
+      : `You are an award-winning children's book author. You write complete stories in one go - warm, vivid, rhythmic, and clear. Each chapter builds on the previous one. Your characters remember, evolve, and the narrative thread runs through the entire story. Write the story in ${targetLanguage}. Every character must sound distinct (vocabulary, sentence length, temperament). Show emotions through body language and actions, not explanations.\n${languageGuard}`.trim();
+    const editSystemPrompt = isGerman
+      ? `Du bist ein erfahrener Kinderbuch-Lektor. Du erweiterst und verfeinerst Kapitel, während du Handlung, Stimme und Kontinuitaet bewahrst. Schreibe ausschliesslich auf Deutsch.`
+      : `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.\n${languageGuard}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
@@ -148,7 +152,7 @@ export class LlmStoryWriter implements StoryWriter {
       responseFormat: "json_object",
       maxTokens: Math.min(maxOutputTokens, 16000),
       temperature: strict ? 0.4 : 0.7,
-      reasoningEffort: "low",
+      reasoningEffort: "medium",  // Medium for first-pass quality → fewer expensive rewrites
       context: "story-writer-full",
       logSource: "phase6-story-llm",
       logMetadata: { storyId: normalizedRequest.storyId, step: "full" },
@@ -355,7 +359,7 @@ export class LlmStoryWriter implements StoryWriter {
           responseFormat: "json_object",
           maxTokens: Math.min(maxOutputTokens, 16000),
           temperature: 0.4,
-          reasoningEffort: "low",
+          reasoningEffort: "medium",  // Medium so rewrites actually fix issues on first attempt
           context: `story-writer-rewrite-${rewriteAttempt}`,
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt },

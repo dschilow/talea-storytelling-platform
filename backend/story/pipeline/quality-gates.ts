@@ -256,6 +256,20 @@ function gateCastLock(
 
   const properNameRegex = /\b([A-ZÄÖÜ][a-zäöüß]{2,}(?:\s+[A-ZÄÖÜ][a-zäöüß]{2,})*)\b/g;
 
+  // German pronouns and common sentence starters that are NOT names
+  const germanNonNames = new Set([
+    "sie", "ich", "wir", "ihr", "ihm", "ihn", "mir", "dir", "uns",
+    "sich", "selbst", "alle", "alles", "andere", "einige",
+    "jemand", "niemand", "etwas", "nichts", "manches", "jeder", "jede",
+    "dieser", "diese", "dieses", "welcher", "welche", "solche",
+    "dort", "hier", "jetzt", "dann", "noch", "schon", "auch", "aber",
+    "doch", "ganz", "sehr", "viel", "mehr", "nur", "immer", "wieder",
+    "heute", "gestern", "morgen", "oben", "unten", "vorne", "hinten",
+    "außerdem", "allerdings", "trotzdem", "deshalb", "darum", "dennoch",
+    "natürlich", "vielleicht", "wahrscheinlich", "tatsächlich",
+    "gemeinsam", "zusammen", "langsam", "schnell", "leise", "laut",
+  ]);
+
   for (const ch of draft.chapters) {
     const matches = ch.text.matchAll(properNameRegex);
     for (const match of matches) {
@@ -265,6 +279,7 @@ function gateCastLock(
       if (allowedNames.has(name)) continue;
       const parts = name.split(/\s+/);
       if (parts.some(p => allowedNames.has(p))) continue;
+      if (language === "de" && germanNonNames.has(name)) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
       if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
 
@@ -1684,22 +1699,131 @@ function levenshtein(a: string, b: string): number {
 
 function isCommonWord(word: string, language: string): boolean {
   const commonDE = new Set([
+    // ─── Articles, pronouns, conjunctions, prepositions ────────────────────
     "der", "die", "das", "ein", "eine", "aber", "und", "oder", "doch", "noch", "dann",
     "dort", "hier", "jetzt", "ganz", "schon", "auch", "nur", "mehr", "sehr", "viel",
-    "alle", "andere", "andere", "weil", "wenn", "wie", "was", "wer", "vom", "zum",
+    "alle", "andere", "weil", "wenn", "wie", "was", "wer", "vom", "zum",
     "mit", "bei", "nach", "vor", "aus", "auf", "für", "über", "durch", "ohne",
     "gegen", "unter", "neben", "zwischen", "hinter", "seit", "bis", "während",
-    "morgen", "abend", "nacht", "tag", "wald", "berg", "see", "fluss", "haus",
-    "stadt", "dorf", "weg", "tor", "tür", "fenster", "boden", "himmel", "sonne",
-    "mond", "stern", "wind", "regen", "schnee", "feuer", "wasser", "erde", "luft",
-    "baum", "blume", "gras", "stein", "fels", "gold", "silber", "licht", "schatten",
-    "stimme", "hand", "herz", "auge", "kopf", "freude", "angst", "mut", "kraft",
-    "mama", "papa", "kind", "freund", "freundin", "bruder", "schwester",
+    "sie", "ich", "wir", "ihr", "uns", "ihm", "ihn", "mir", "dir",
+    "mein", "dein", "sein", "unser", "euer",
+    "sich", "selbst", "einander", "jemand", "niemand", "etwas", "nichts",
+    "alles", "manches", "jeder", "jede", "jedes",
+
+    // ─── Time & nature ─────────────────────────────────────────────────────
+    "morgen", "abend", "nacht", "tag", "stunde", "minute", "zeit", "moment",
+    "anfang", "ende", "mitte", "morgens", "abends", "mittags",
+    "wald", "berg", "see", "fluss", "meer", "ufer", "strand", "wiese", "feld",
+    "haus", "hütte", "höhle",
+    "stadt", "dorf", "weg", "pfad", "straße", "gasse", "brücke",
+    "tor", "tür", "fenster", "boden", "decke", "dach", "wand", "mauer",
+    "himmel", "sonne", "mond", "stern", "wolke", "nebel", "dunst",
+    "wind", "regen", "schnee", "sturm", "gewitter", "blitz", "donner",
+    "feuer", "wasser", "erde", "luft", "eis", "dampf", "rauch",
+    "baum", "blume", "gras", "busch", "blatt", "ast", "wurzel", "moos", "pilz",
+    "stein", "fels", "kiesel", "sand", "lehm", "staub",
+    "gold", "silber", "eisen", "kupfer", "bronze", "kristall", "diamant", "edelstein",
+    "licht", "schatten", "dunkelheit", "finsternis", "glanz", "schimmer", "strahl",
+
+    // ─── Body & senses ─────────────────────────────────────────────────────
+    "stimme", "hand", "herz", "auge", "augen", "kopf", "arm", "arme", "bein", "beine",
+    "finger", "fuß", "füße", "nase", "mund", "ohr", "ohren", "haar", "haare",
+    "schulter", "schultern", "brust", "rücken", "bauch", "knie", "stirn",
+    "gesicht", "haut", "lippen", "zähne", "zunge", "kehle", "wange", "wangen",
+    "atem", "blick", "träne", "tränen", "schweiß",
+
+    // ─── Family & people (generic) ─────────────────────────────────────────
+    "mama", "papa", "kind", "kinder", "freund", "freundin", "freunde",
+    "bruder", "schwester", "vater", "mutter", "eltern", "großvater", "großmutter",
+    "oma", "opa", "onkel", "tante", "nachbar", "nachbarin",
+    "junge", "mädchen", "mann", "frau", "herr", "dame",
+    "leute", "menschen", "volk", "gruppe", "truppe", "bande", "schar",
+    "bewohner", "einwohner", "bürger", "fremder", "fremde", "wanderer", "reisender",
+
+    // ─── Fairy tale roles (NOT names) ──────────────────────────────────────
     "koenig", "koenigin", "prinz", "prinzessin", "ritter", "hexe", "drache",
-    "könig", "königin",
-    "platz", "markt", "garten", "turm", "schloss", "burg", "fenster",
-    "treppe", "stufe", "saal", "thron", "kissen", "samtkissen", "tagebuch",
-    "brief", "zettel", "note", "seil", "treppenhaus", "zimmer", "hof",
+    "könig", "königin", "kaiser", "kaiserin",
+    "zauberer", "zauberin", "fee", "feen", "elfe", "elfen",
+    "zwerg", "zwerge", "riese", "riesen", "troll", "trolle",
+    "held", "heldin", "helden", "wächter", "wächterin",
+    "bote", "botin", "diener", "dienerin", "magd", "knecht",
+    "räuber", "dieb", "bandit", "pirat", "schurke",
+    "krieger", "kriegerin", "kämpfer", "soldat",
+    "meister", "meisterin", "geselle", "lehrling",
+
+    // ─── Buildings, places, furniture ──────────────────────────────────────
+    "platz", "markt", "garten", "turm", "schloss", "burg", "palast", "tempel",
+    "treppe", "stufe", "saal", "halle", "kammer", "zimmer", "raum",
+    "thron", "kissen", "samtkissen", "tisch", "stuhl", "bank", "bett",
+    "treppenhaus", "hof", "innenhof", "keller", "speicher", "dachboden",
+    "werkstatt", "schmiede", "bäckerei", "laden", "marktplatz",
+    "brunnen", "quelle", "teich", "wasserfall",
+    "eingang", "ausgang", "durchgang", "tunnel", "passage",
+
+    // ─── Objects & artifacts ───────────────────────────────────────────────
+    "tagebuch", "brief", "zettel", "note", "buch", "karte", "rolle", "pergament",
+    "seil", "kette", "schlüssel", "schloss", "riegel", "ring",
+    "schwert", "schild", "bogen", "pfeil", "stab", "zauberstab",
+    "amulett", "talisman", "medaillon", "anhänger", "armband",
+    "krone", "helm", "rüstung", "umhang", "mantel", "kappe",
+    "flasche", "kelch", "tasse", "schale", "korb", "beutel", "truhe", "dose",
+    "spiegel", "lampe", "laterne", "fackel", "kerze",
+    "glocke", "horn", "flöte", "trommel", "harfe",
+    "feder", "tinte", "siegel", "stempel",
+    "nadel", "faden", "schere", "hammer", "nagel", "werkzeug",
+
+    // ─── Food & drink ──────────────────────────────────────────────────────
+    "brot", "kuchen", "suppe", "apfel", "beere", "beeren", "honig", "milch",
+    "wein", "tee", "saft", "essen", "trinken", "mahl", "festmahl",
+
+    // ─── Animals ───────────────────────────────────────────────────────────
+    "hund", "katze", "pferd", "vogel", "vögel", "fisch", "bär",
+    "wolf", "fuchs", "hase", "kaninchen", "maus", "ratte",
+    "eule", "rabe", "adler", "falke", "schwan", "taube",
+    "schlange", "frosch", "kröte", "spinne", "schmetterling",
+    "eichhörnchen", "igel", "dachs", "hirsch", "reh",
+    "einhorn", "greif", "phönix", "kobold",
+
+    // ─── Emotions & abstract ───────────────────────────────────────────────
+    "freude", "angst", "mut", "kraft", "liebe", "hoffnung", "glaube",
+    "furcht", "schrecken", "sorge", "trauer", "wut", "zorn", "ärger",
+    "glück", "pech", "stolz", "scham", "schuld", "ehre", "würde",
+    "frieden", "ruhe", "stille", "geheimnis", "rätsel", "wunder",
+    "zauber", "magie", "fluch", "segen", "macht", "ohnmacht",
+    "wahrheit", "lüge", "vertrauen", "zweifel", "geduld", "ungeduld",
+    "freundschaft", "feindschaft", "abenteuer", "reise", "quest",
+    "gefahr", "rettung", "hilfe", "rat", "plan", "idee", "trick",
+    "versprechen", "schwur", "eid", "botschaft", "nachricht",
+
+    // ─── Actions & states as nouns ─────────────────────────────────────────
+    "stimme", "ruf", "schrei", "flüstern", "lachen", "weinen",
+    "schritt", "sprung", "fall", "stoß", "schlag", "griff",
+    "kampf", "flucht", "jagd", "suche", "wanderung",
+    "schlaf", "traum", "erwachen", "arbeit", "spiel",
+    "lied", "gesang", "tanz", "fest", "feier",
+    "prüfung", "aufgabe", "probe", "beweis",
+
+    // ─── Descriptive nouns (often capitalized at sentence start) ────────────
+    "anfang", "beginn", "augenblick", "atemzug", "herzschlag",
+    "gedanke", "erinnerung", "vorstellung", "eindruck",
+    "antwort", "frage", "bitte", "dank", "gruß", "abschied",
+    "seite", "rand", "ecke", "spitze", "grund", "tiefe", "höhe", "weite",
+    "innere", "äußere", "obere", "untere", "vordere", "hintere",
+    "richtung", "norden", "süden", "osten", "westen",
+    "landschaft", "gegend", "umgebung", "horizont",
+
+    // ─── German compound-noun components & common story nouns ───────────────
+    "geräusch", "gestalt", "erscheinung", "wesen", "kreatur",
+    "verwandlung", "verzauberung", "verhexung", "beschwörung",
+    "portal", "dimension", "teleportation",
+    "zeichen", "symbol", "markierung", "spur", "spuren",
+    "erkenntnis", "entdeckung", "offenbarung", "lösung",
+    "hindernis", "herausforderung", "schwierigkeit",
+    "belohnung", "schatz", "beute", "preis",
+    "geschichte", "erzählung", "sage", "legende", "märchen",
+    "dungeon", "labyrinth", "irrgarten",
+    "schutz", "deckung", "versteck", "zuflucht",
+    "energie", "funke", "flamme", "glut",
   ]);
   const commonEN = new Set([
     "the", "and", "but", "for", "not", "you", "all", "can", "had", "her",
@@ -1720,10 +1844,11 @@ function isCommonWord(word: string, language: string): boolean {
 }
 
 function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
-  const windowStart = Math.max(0, matchIndex - 40);
+  const windowStart = Math.max(0, matchIndex - 60);
   const prefix = text.slice(windowStart, matchIndex).toLowerCase();
-  const tokens = prefix.split(/[^a-zÃ¤Ã¶Ã¼ÃŸ]+/).filter(Boolean);
+  const tokens = prefix.split(/[^a-zäöüß]+/).filter(Boolean);
   const prev = tokens[tokens.length - 1];
+  const prevPrev = tokens[tokens.length - 2];
   if (!prev) return false;
 
   const articles = new Set([
@@ -1737,9 +1862,36 @@ function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
     "dieser", "diese", "dieses", "diesen", "diesem",
     "jeder", "jede", "jedes", "jeden", "jedem",
     "mancher", "manche", "manches", "manchen", "manchem",
+    "welcher", "welche", "welches", "welchen", "welchem",
+    "kein", "keine", "keinen", "keinem", "keiner", "keines",
+    "aller", "alle", "alles", "allen", "allem",
   ]);
 
-  return articles.has(prev);
+  // Direct article/possessive before the word → common noun
+  if (articles.has(prev)) return true;
+
+  // Preposition + article pattern: "in der Burg", "auf dem Weg", "an den Rand"
+  const prepositions = new Set([
+    "in", "an", "auf", "aus", "bei", "mit", "nach", "von", "zu",
+    "über", "unter", "vor", "hinter", "neben", "zwischen", "durch",
+    "für", "gegen", "ohne", "um", "bis", "seit", "während", "trotz", "wegen",
+  ]);
+  if (prepositions.has(prev)) return true;
+  if (prevPrev && prepositions.has(prevPrev) && articles.has(prev)) return true;
+
+  // Adjective ending patterns before the word: "große Burg", "alten Baum", "magisches Amulett"
+  const adjEndings = /(?:er|es|em|en|e)$/;
+  if (prev && adjEndings.test(prev) && prevPrev && (articles.has(prevPrev) || prepositions.has(prevPrev))) return true;
+
+  // Number words before nouns: "drei Brücken", "erste Stufe"
+  const numberWords = new Set([
+    "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn",
+    "elf", "zwölf", "hundert", "tausend", "viele", "einige", "mehrere", "wenige",
+    "erste", "zweite", "dritte", "vierte", "fünfte", "letzte", "nächste",
+  ]);
+  if (numberWords.has(prev)) return true;
+
+  return false;
 }
 
 function isLikelyGermanNameCandidate(text: string, token: string, matchIndex: number): boolean {

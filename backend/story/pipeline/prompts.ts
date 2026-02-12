@@ -346,6 +346,16 @@ export function buildFullStoryPrompt(input: {
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
   const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
 
+  // Build avatar emphasis rule if multiple avatars present
+  const avatarEmphasis = focusChildNames.length >= 2
+    ? `\n# Avatar-Pflicht (BEIDE Kinder muessen aktiv sein)\n` +
+      `Die Kinder ${focusChildNames.join(" und ")} sind GLEICHWERTIGE Hauptfiguren.\n` +
+      `- Beide muessen in JEDEM Beat vorkommen (Aktion ODER Dialog).\n` +
+      `- Kein Kind darf nur danebenstehen oder nur nicken.\n` +
+      `- Jedes Kind braucht eigene Entscheidungen und eigene Dialogzeilen.\n` +
+      `- Beide machen Fehler und haben Erfolge – nicht nur eines.\n`
+    : "";
+
   // Altersgerechter Stil
   const ageStyle = ageRange.max <= 5
     ? "Sehr kurze Sätze (max 10 Wörter), sanfte Wiederholung, 1 Hauptproblem, sichere Auflösung."
@@ -481,6 +491,7 @@ Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
 ${characterProfiles.join("\n\n")}
 
 ${memorySection}
+${avatarEmphasis}
 ${artifactName ? `# Artefakt: ${artifactName}
 **Funktion**: ${artifactRule}
 

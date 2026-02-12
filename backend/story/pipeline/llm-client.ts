@@ -52,6 +52,8 @@ export interface ChatCompletionResult {
     model?: string;
     reasoningTokens?: number;
   };
+  /** OpenAI finish_reason: "stop" | "length" | "content_filter" | etc. */
+  finishReason?: string;
 }
 
 export async function callChatCompletion(input: {
@@ -134,6 +136,7 @@ export async function callChatCompletion(input: {
     response: data,
     metadata: logMetadata,
   });
+  const finishReason = data.choices?.[0]?.finish_reason ?? "unknown";
   const content = data.choices?.[0]?.message?.content ?? "";
   const usage = data.usage
     ? {
@@ -145,7 +148,16 @@ export async function callChatCompletion(input: {
       }
     : undefined;
 
-  return { content, usage };
+  // Detect truncated responses — finish_reason "length" means max_tokens was hit
+  if (finishReason === "length") {
+    console.warn(
+      `[llm-client] Response truncated (finish_reason=length) for context="${input.context ?? "unknown"}", ` +
+      `model=${input.model}, maxTokens=${input.maxTokens ?? 2000}. ` +
+      `Content length: ${content.length} chars. Consider increasing maxTokens.`
+    );
+  }
+
+  return { content, usage, finishReason };
 }
 
 function resolveLogSource(explicitSource?: string, context?: string): string {
@@ -191,23 +203,23 @@ export function calculateTokenCosts(usage: { promptTokens: number; completionTok
 function inputPricePerMillion(model: string): number {
   if (model.includes("gemini")) return 0.0;
   if (model.includes("gpt-5-nano")) return 0.03;
-  if (model.includes("gpt-5-mini")) return 0.075;
+  if (model.includes("gpt-5-mini")) return 0.25;   // $0.25 per 1M input tokens (corrected 2025-07)
   if (model.includes("gpt-5-pro")) return 5.0;
   if (model.includes("gpt-5")) return 2.5;
   if (model.includes("o4-mini")) return 1.1;
   if (model.includes("gpt-4")) return 2.5;
-  return 0.075;
+  return 0.25;
 }
 
 function outputPricePerMillion(model: string): number {
   if (model.includes("gemini")) return 0.0;
   if (model.includes("gpt-5-nano")) return 0.12;
-  if (model.includes("gpt-5-mini")) return 0.3;
+  if (model.includes("gpt-5-mini")) return 2.0;    // $2.00 per 1M output tokens (corrected 2025-07)
   if (model.includes("gpt-5-pro")) return 20.0;
   if (model.includes("gpt-5")) return 10.0;
   if (model.includes("o4-mini")) return 4.4;
   if (model.includes("gpt-4")) return 10.0;
-  return 0.3;
+  return 2.0;
 }
 
 

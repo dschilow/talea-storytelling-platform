@@ -333,7 +333,7 @@ Return compact JSON only with selectedCandidateId and confidence.`;
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 220,
+      maxTokens: 800,   // Reasoning models need token budget for thinking + output (was 220, caused 100% failures)
       temperature: 0.3,
       reasoningEffort: "low",
       context: "casting-ai-match",
@@ -345,6 +345,12 @@ Return compact JSON only with selectedCandidateId and confidence.`;
         eligibleCount: eligibleCandidates.length,
       },
     });
+
+    // Guard against truncated responses (finish_reason: "length")
+    if (response.finishReason === "length" || !response.content?.trim()) {
+      console.warn(`[casting-engine] AI match response truncated or empty for slot ${slot.slotKey}, falling back to score-based`);
+      return null;
+    }
 
     const parsed = JSON.parse(response.content) as AiCastingDecision;
     const selectedId = String(parsed?.selectedCandidateId || "").trim();
