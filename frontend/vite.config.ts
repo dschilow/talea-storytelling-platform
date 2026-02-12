@@ -1,8 +1,30 @@
 import { defineConfig } from 'vite'
 import path from 'path'
+import fs from 'fs'
+import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// Resolve the Clerk internal chunk that exports AuthContext.
+// The chunk filename is stable within a version but can't be imported directly
+// because @clerk/clerk-react doesn't expose it via its package.json "exports" map.
+// We find it by reading internal.mjs which imports AuthContext from the chunk.
+function resolveClerkAuthChunk(): string {
+  const require_ = createRequire(import.meta.url)
+  // Find the @clerk/clerk-react package directory via its package.json
+  const pkgJsonPath = require_.resolve('@clerk/clerk-react/package.json')
+  const distDir = path.join(path.dirname(pkgJsonPath), 'dist')
+  // Read the ESM internal module (always at dist/internal.mjs)
+  const internalSrc = fs.readFileSync(path.join(distDir, 'internal.mjs'), 'utf-8')
+  // internal.mjs imports useDerivedAuth from the chunk that also defines AuthContext
+  // e.g.: useDerivedAuth\n} from "./chunk-F54Q6IK5.mjs";
+  const match = internalSrc.match(/useDerivedAuth[\s\S]*?from\s+["']\.\/(chunk-[A-Za-z0-9_-]+\.mjs)["']/)
+  if (!match) throw new Error('Could not find AuthContext chunk in @clerk/clerk-react/internal')
+  return path.join(distDir, match[1])
+}
+
+const clerkAuthChunkPath = resolveClerkAuthChunk()
 
 export default defineConfig({
   resolve: {
@@ -10,8 +32,9 @@ export default defineConfig({
       '@': path.resolve(__dirname),
       // CRITICAL: Point ~backend to the generated client file to avoid loading Encore code
       '~backend': path.resolve(__dirname, './client.ts'),
-      // Allow importing Clerk's internal AuthContext (not exposed via package.json exports)
-      '@clerk/clerk-react/dist/chunk-F54Q6IK5.mjs': path.resolve(__dirname, '../node_modules/@clerk/clerk-react/dist/chunk-F54Q6IK5.mjs'),
+      // Allow importing Clerk's internal AuthContext (not exposed via package.json exports).
+      // The chunk name is resolved dynamically so it works regardless of npm/bun hoisting.
+      '@clerk-internal/auth-context': clerkAuthChunkPath,
     },
   },
   plugins: [

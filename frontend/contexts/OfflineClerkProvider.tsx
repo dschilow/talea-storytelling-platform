@@ -16,9 +16,11 @@ import {
   UserContext,
 } from '@clerk/shared/react';
 
-// AuthContext is defined in @clerk/clerk-react, not @clerk/shared
-// We import it from the internal chunk that re-exports it
-import { AuthContext } from '@clerk/clerk-react/dist/chunk-F54Q6IK5.mjs';
+// AuthContext is defined in @clerk/clerk-react but NOT publicly exported.
+// We resolve it via a Vite alias '@clerk-internal/auth-context' that points
+// to the correct internal chunk (resolved dynamically in vite.config.ts).
+// @ts-ignore - virtual alias resolved by Vite
+import { AuthContext } from '@clerk-internal/auth-context';
 
 // Clerk's createContextAndHook wraps values as { value: actualValue }
 const wrapValue = <T,>(val: T) => ({ value: val });
