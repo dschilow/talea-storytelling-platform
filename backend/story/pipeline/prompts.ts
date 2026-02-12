@@ -720,6 +720,8 @@ ${missingLine}
 8. Sprachdichte steuern: max 1 Vergleich pro Absatz, keine Metaphernketten.
 9. Kapitel muss spuerbar Spannung tragen: Hindernis wird groesser ODER ein kleiner Rueckschlag passiert.
 10. Dialoge muessen unterscheidbar klingen; Rollenlabels mit Namen nur einmal bei Einfuehrung, danach Name/Pronomen.
+11. LESBARKEIT BEWAHREN: Saetze MEIST 4-10 Woerter, max 15 % duerfen bis 14 Woerter haben. KEINEN Satz ueber 16 Woerter. Kurze Saetze = besser als lange.
+12. VORHANDENE PROSA NICHT VERSCHLECHTERN: Wenn der Originaltext bereits kurze, rhythmische Saetze hat, behalte diesen Stil bei. Fuege fehlende Figuren durch NEUE kurze Saetze ein, nicht durch Aufblaehen vorhandener Saetze.
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original

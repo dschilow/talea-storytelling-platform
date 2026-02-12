@@ -256,18 +256,50 @@ function gateCastLock(
 
   const properNameRegex = /\b([A-ZÄÖÜ][a-zäöüß]{2,}(?:\s+[A-ZÄÖÜ][a-zäöüß]{2,})*)\b/g;
 
-  // German pronouns and common sentence starters that are NOT names
+  // German pronouns, adverbs, adjectives, common verbs — NEVER character names
   const germanNonNames = new Set([
+    // pronouns & determiners
     "sie", "ich", "wir", "ihr", "ihm", "ihn", "mir", "dir", "uns",
     "sich", "selbst", "alle", "alles", "andere", "einige",
     "jemand", "niemand", "etwas", "nichts", "manches", "jeder", "jede",
     "dieser", "diese", "dieses", "welcher", "welche", "solche",
+    // adverbs (time, place, manner, sentence starters)
     "dort", "hier", "jetzt", "dann", "noch", "schon", "auch", "aber",
     "doch", "ganz", "sehr", "viel", "mehr", "nur", "immer", "wieder",
     "heute", "gestern", "morgen", "oben", "unten", "vorne", "hinten",
     "außerdem", "allerdings", "trotzdem", "deshalb", "darum", "dennoch",
     "natürlich", "vielleicht", "wahrscheinlich", "tatsächlich",
     "gemeinsam", "zusammen", "langsam", "schnell", "leise", "laut",
+    "plötzlich", "sofort", "gleich", "endlich", "schließlich", "zunächst",
+    "zuerst", "danach", "daraufhin", "inzwischen", "mittlerweile",
+    "offenbar", "anscheinend", "vermutlich", "hoffentlich", "bestimmt",
+    "eigentlich", "überhaupt", "jedenfalls", "irgendwie", "irgendwo",
+    "bereits", "beinahe", "fast", "kaum", "ziemlich",
+    "draußen", "drinnen", "drüben", "links", "rechts", "geradeaus",
+    "nachts", "tagsüber", "manchmal", "niemals", "stets", "soeben",
+    "vorsichtig", "behutsam", "sorgfältig", "hastig", "eilig",
+    "aufgeregt", "erschrocken", "erstaunt", "erleichtert", "entschlossen",
+    // common adjectives at sentence start
+    "klein", "groß", "alt", "neu", "jung", "kurz", "lang",
+    "warm", "kalt", "heiß", "dunkel", "hell", "still", "ruhig",
+    // common verbs at sentence start (conjugated forms)
+    "kann", "konnte", "muss", "musste", "soll", "sollte", "will", "wollte",
+    "darf", "durfte", "wird", "wurde", "hat", "hatte", "ist", "war",
+    "geht", "ging", "kommt", "kam", "steht", "stand", "liegt", "lag",
+    "sitzt", "saß", "gibt", "gab", "macht", "machte", "nimmt", "nahm",
+    "hält", "hielt", "lässt", "ließ", "bleibt", "blieb", "trägt", "trug",
+    "fällt", "fiel", "schläft", "schlief", "ruft", "rief", "läuft", "lief",
+    "zieht", "zog", "sagt", "sagte", "fragt", "fragte", "meint", "meinte",
+    "weiß", "wusste", "kennt", "kannte", "sieht", "sah", "hört", "hörte",
+    "denkt", "dachte", "glaubt", "glaubte", "spürt", "spürte",
+    "scheint", "schien", "klingt", "klang", "riecht", "roch",
+    "beginnt", "begann", "endet", "endete", "öffnet", "schloss",
+    // past participles at sentence start
+    "erschöpft", "überrascht", "verwundert", "begeistert",
+    "verwirrt", "erfreut", "beruhigt", "gespannt", "erstarrt",
+    // relative / connective
+    "dessen", "deren", "denen", "jedoch", "hingegen", "obwohl", "sobald",
+    "nachdem", "bevor", "während", "damit", "sodass", "weshalb",
   ]);
 
   for (const ch of draft.chapters) {
@@ -280,6 +312,8 @@ function gateCastLock(
       const parts = name.split(/\s+/);
       if (parts.some(p => allowedNames.has(p))) continue;
       if (language === "de" && germanNonNames.has(name)) continue;
+      // German adjectives/adverbs ending in these suffixes are NEVER character names
+      if (language === "de" && /(?:lich|ig|isch|sam|bar|haft|los|voll|weise|wärts)$/.test(name)) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
       if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
 
@@ -1455,9 +1489,18 @@ export function runQualityGates(input: {
     }
   }
 
-  const errorCount = allIssues.filter(i => i.severity === "ERROR").length;
-  const warningCount = allIssues.filter(i => i.severity === "WARNING").length;
-  const score = Math.max(0, 10 - errorCount - warningCount * 0.5);
+  // Cap score penalty per gate: each gate contributes at most 2 penalty points.
+  // This prevents one noisy gate (e.g. CAST_LOCK false positives) from zeroing the score.
+  const gatePenalties = new Map<string, number>();
+  for (const issue of allIssues) {
+    const w = issue.severity === "ERROR" ? 1 : 0.5;
+    gatePenalties.set(issue.gate, (gatePenalties.get(issue.gate) ?? 0) + w);
+  }
+  let totalPenalty = 0;
+  for (const [, penalty] of gatePenalties) {
+    totalPenalty += Math.min(penalty, 2);
+  }
+  const score = Math.max(0, Math.min(10, 10 - totalPenalty));
 
   return { issues: allIssues, score, passedGates, failedGates };
 }
@@ -1808,6 +1851,12 @@ function isCommonWord(word: string, language: string): boolean {
     "schlaf", "traum", "erwachen", "arbeit", "spiel",
     "lied", "gesang", "tanz", "fest", "feier",
     "prüfung", "aufgabe", "probe", "beweis",
+    "wort", "worte", "satz", "hinweis", "hinweise", "tropfen", "strich",
+    "huf", "hufe", "pfote", "pfoten", "kralle", "krallen",
+    "spannung", "erwartung", "aufregung", "erleichterung", "enttäuschung",
+    "entscheidung", "bewegung", "richtung", "wendung", "ordnung",
+    "entschuldigung", "erinnerung", "erklärung", "erzählung",
+    "stoff", "rascheln", "knarzen", "klirren", "knistern", "rauschen",
 
     // ─── Descriptive nouns (often capitalized at sentence start) ────────────
     "anfang", "beginn", "augenblick", "atemzug", "herzschlag",
@@ -1877,9 +1926,23 @@ function isCommonWord(word: string, language: string): boolean {
     for (const stem of stems) {
       if (set.has(stem)) return true;
     }
-    // Also check adding 'e' (Bäum -> Baum via umlaut won't work, but Blumen -> Blume)
+    // Also check adding 'e' (Blumen -> Blume)
     const withE = word.replace(/en$/, "e");
     if (withE !== word && set.has(withE)) return true;
+    // Umlaut de-mapping: ä→a, ö→o, ü→u (Blätter→blatter→blatt, Bäume→baume→baum)
+    const deUmlaut = word.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u");
+    if (deUmlaut !== word) {
+      if (set.has(deUmlaut)) return true;
+      const umlautStems = [
+        deUmlaut.replace(/chen$/, ""), deUmlaut.replace(/lein$/, ""),
+        deUmlaut.replace(/en$/, ""), deUmlaut.replace(/er$/, ""),
+        deUmlaut.replace(/e$/, ""), deUmlaut.replace(/n$/, ""),
+        deUmlaut.replace(/s$/, ""),
+      ].filter(s => s.length >= 3);
+      for (const stem of umlautStems) {
+        if (set.has(stem)) return true;
+      }
+    }
   }
 
   return false;
@@ -1939,22 +2002,24 @@ function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
 function isLikelyGermanNameCandidate(text: string, token: string, matchIndex: number): boolean {
   const normalized = token.trim();
   if (!normalized) return false;
-
-  // IMPORTANT: If the word (or its stem) is a known common noun, NEVER treat it as a name
-  // even if it appears multiple times. German capitalizes ALL nouns.
   const lc = normalized.toLowerCase();
+
+  // If the word (or its stem) is a known common noun, NEVER treat it as a name
   if (isCommonWord(lc, "de")) return false;
 
-  // Single-word names that repeat are likely real character references.
-  if (countWordOccurrences(text, normalized) >= 2) return true;
+  // German adjectives/adverbs with these suffixes are NEVER names
+  if (/(?:lich|ig|isch|sam|bar|haft|los|voll|weise|wärts)$/.test(lc)) return false;
 
-  // Sentence-initial capitalized nouns are very common in German; ignore one-off hits.
+  // Sentence-initial check BEFORE repeat count — German capitalizes every sentence start
   if (isLikelySentenceStart(text, matchIndex)) {
     const prefix = text.slice(Math.max(0, matchIndex - 28), matchIndex).toLowerCase();
     if (!/(herr|frau|prinz|prinzessin|k(?:oe|ö)nig|k(?:oe|ö)nigin|ritter|fee|hexe|zauberer)\s+$/.test(prefix)) {
       return false;
     }
   }
+
+  // Non-sentence-initial repeated words are likely real character references
+  if (countWordOccurrences(text, normalized) >= 2) return true;
 
   return true;
 }

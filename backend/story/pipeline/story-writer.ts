@@ -780,7 +780,15 @@ function findMissingCharacters(text: string, directive: SceneDirective, cast: Ca
     .map(slot => findCharacterDisplayName(cast, slot))
     .filter((name): name is string => Boolean(name));
 
-  return names.filter(name => !textLower.includes(name.toLowerCase()));
+  return names.filter(name => {
+    // Check full name first
+    if (textLower.includes(name.toLowerCase())) return false;
+    // Also check any name PART (e.g. "Mia" from "Mia Neugier")
+    // so natural prose using short names still counts as character present.
+    const parts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
+    if (parts.some(p => textLower.includes(p))) return false;
+    return true; // truly missing
+  });
 }
 
 function findCharacterDisplayName(cast: CastSet, slotKey: string): string | null {
