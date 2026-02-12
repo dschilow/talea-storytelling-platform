@@ -20,8 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Maximal 1 Rewrite-Pass (statt 2) - der optimierte Prompt sollte beim ersten Mal funktionieren
-const MAX_REWRITE_PASSES = 1;
+// Qualitaetsmodus: bis zu 2 Rewrite-Paesse, damit harte Fehler wirklich verschwinden.
+const MAX_REWRITE_PASSES = 2;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -30,8 +30,8 @@ const HARD_MIN_CHAPTER_WORDS = 150;
 // Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
 const REWRITE_ONLY_ON_ERRORS = true;
 
-// Maximal 2 Kapitel expandieren pro Geschichte (begrenzt API-Calls)
-const MAX_EXPAND_CALLS = 2;
+// Etwas mehr Spielraum fuer kurze Kapitel, ohne unbounded zu werden.
+const MAX_EXPAND_CALLS = 3;
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -295,7 +295,7 @@ export class LlmStoryWriter implements StoryWriter {
     // OPTIMIERTE REWRITE-LOGIK (V2)
     // - Nur bei ERRORs rewriten (REWRITE_ONLY_ON_ERRORS = true)
     // - WARNINGs werden ignoriert für Rewrites (kosten zu viel)
-    // - Max 1 Rewrite-Pass (MAX_REWRITE_PASSES = 1)
+    // - Bis zu 2 Rewrite-Paesse fuer harte Qualitaetsprobleme
     // ════════════════════════════════════════════════════════════════════════
     let errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
     if (normalizedRequest.wordBudget && canAutoTrimLengthErrors(errorIssues)) {
@@ -389,12 +389,14 @@ export class LlmStoryWriter implements StoryWriter {
         wordBudget: normalizedRequest.wordBudget,
       });
 
-      if (revisedReport.score >= qualityReport.score) {
+      if (isRewriteQualityBetter(qualityReport, revisedReport)) {
         draft = revisedDraft;
         qualityReport = revisedReport;
       } else {
-        console.log(`[story-writer] Rewrite pass ${rewriteAttempt} scored lower (${revisedReport.score} vs ${qualityReport.score}), keeping original`);
-        break;
+        console.log(
+          `[story-writer] Rewrite pass ${rewriteAttempt} did not improve hard quality (errors ${countErrorIssues(revisedReport)} vs ${countErrorIssues(qualityReport)}), keeping original draft for next attempt`
+        );
+        continue;
       }
 
       if (qualityReport.failedGates.length === 0) {
@@ -849,6 +851,74 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
   fallback = fallback.replace(/[,:;!?-]+$/g, "").trim();
   if (fallback && !/[.!?]$/.test(fallback)) fallback += ".";
   return fallback;
+}
+
+function countErrorIssues(report: {
+  issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+}): number {
+  return report.issues.filter(issue => issue.severity === "ERROR").length;
+}
+
+function countWarningIssues(report: {
+  issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+}): number {
+  return report.issues.filter(issue => issue.severity === "WARNING").length;
+}
+
+function collectErrorIssueKeys(report: {
+  issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+}): Set<string> {
+  const keys = new Set<string>();
+  for (const issue of report.issues) {
+    if (issue.severity !== "ERROR") continue;
+    keys.add(`${issue.chapter}:${issue.code}`);
+  }
+  return keys;
+}
+
+function isRewriteQualityBetter(
+  current: {
+    issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+    failedGates: string[];
+    score: number;
+  },
+  candidate: {
+    issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+    failedGates: string[];
+    score: number;
+  },
+): boolean {
+  const currentErrors = countErrorIssues(current);
+  const candidateErrors = countErrorIssues(candidate);
+  if (candidateErrors < currentErrors) return true;
+  if (candidateErrors > currentErrors) return false;
+
+  // Same error count: prefer candidate that resolves more existing hard issues
+  // than it introduces.
+  const currentKeys = collectErrorIssueKeys(current);
+  const candidateKeys = collectErrorIssueKeys(candidate);
+  let resolved = 0;
+  let introduced = 0;
+  for (const key of currentKeys) {
+    if (!candidateKeys.has(key)) resolved++;
+  }
+  for (const key of candidateKeys) {
+    if (!currentKeys.has(key)) introduced++;
+  }
+  if (resolved > introduced) return true;
+  if (introduced > resolved) return false;
+
+  const currentFailedGates = current.failedGates.length;
+  const candidateFailedGates = candidate.failedGates.length;
+  if (candidateFailedGates < currentFailedGates) return true;
+  if (candidateFailedGates > currentFailedGates) return false;
+
+  const currentWarnings = countWarningIssues(current);
+  const candidateWarnings = countWarningIssues(candidate);
+  if (candidateWarnings < currentWarnings) return true;
+  if (candidateWarnings > currentWarnings) return false;
+
+  return candidate.score >= current.score;
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {

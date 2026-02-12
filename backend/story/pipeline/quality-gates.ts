@@ -507,16 +507,17 @@ function gateCharacterVoiceDistinctness(
       });
     }
 
+    const roleLabelThreshold = ageMax <= 8 ? 2 : 4;
     const roleLabelCount = countRoleLabelNamePairs(chapter.text);
-    if (roleLabelCount > 4) {
+    if (roleLabelCount > roleLabelThreshold) {
       issues.push({
         gate: "CHARACTER_VOICE",
         chapter: chapter.chapter,
         code: "ROLE_LABEL_OVERUSE",
         message: isDE
-          ? `Kapitel ${chapter.chapter}: Rollenbezeichnungen mit Namen zu oft wiederholt (${roleLabelCount}x)`
-          : `Chapter ${chapter.chapter}: role labels repeated with names too often (${roleLabelCount}x)`,
-        severity: "WARNING",
+          ? `Kapitel ${chapter.chapter}: Rollenbezeichnungen mit Namen zu oft wiederholt (${roleLabelCount}x, max ${roleLabelThreshold})`
+          : `Chapter ${chapter.chapter}: role labels repeated with names too often (${roleLabelCount}x, max ${roleLabelThreshold})`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
   }

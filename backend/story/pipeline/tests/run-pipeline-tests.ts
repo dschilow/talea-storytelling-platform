@@ -520,6 +520,85 @@ function testCharacterVoiceGate() {
   );
 }
 
+function testRoleLabelOveruseSeverity() {
+  const directives: SceneDirective[] = [
+    {
+      chapter: 1,
+      setting: "road",
+      mood: "COZY",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_HELPER_1"],
+      goal: "walk",
+      conflict: "none",
+      outcome: "continue",
+      artifactUsage: "none",
+      canonAnchorLine: "go",
+      imageMustShow: ["road"],
+      imageAvoid: [],
+    },
+  ];
+
+  const cast: CastSet = {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Adrian",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        visualSignature: ["red hoodie"],
+        outfitLock: ["red hoodie"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [
+      {
+        characterId: "c1",
+        displayName: "Fanni",
+        roleType: "HELPER",
+        slotKey: "SLOT_HELPER_1",
+        visualSignature: ["helmet"],
+        outfitLock: ["helmet"],
+        forbidden: [],
+      },
+    ],
+    artifact: {
+      artifactId: "art1",
+      name: "Glitzerstein",
+      storyUseRule: "glows",
+      visualRule: "glowing stone",
+    },
+    slotAssignments: {
+      SLOT_AVATAR_1: "a1",
+      SLOT_HELPER_1: "c1",
+      SLOT_ARTIFACT_1: "art1",
+    },
+  };
+
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Feuerwehrfrau Fanni hob die Tasche. Feuerwehrfrau Fanni sagte: \"Langsam.\" Feuerwehrfrau Fanni zeigte auf den Weg. Adrian nickte.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "ROLE_LABEL_OVERUSE" && issue.severity === "ERROR"),
+    "Role label overuse should be ERROR for age 6-8"
+  );
+}
+
 function testCharacterFocusGate() {
   const directives: SceneDirective[] = [
     {
@@ -1264,6 +1343,7 @@ async function run() {
   testContinuousStorySegmentation();
   testReadabilityGateForYoungAudience();
   testCharacterVoiceGate();
+  testRoleLabelOveruseSeverity();
   testCharacterFocusGate();
   testGlobalCharacterLoadGate();
   testStakesAndLowpointGate();

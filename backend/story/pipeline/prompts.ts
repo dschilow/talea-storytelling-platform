@@ -426,6 +426,8 @@ ${stylePackBlock}
 6. Pro Absatz maximal ein Vergleich, keine Metaphernketten.
 7. Berufsrollen nur bei Einfuehrung nennen, danach vor allem Name/Pronomen.
 8. Rhythmuswechsel je Beat: kurz/schnell -> ruhig/emotional -> kurz/schnell.
+9. Hauptfiguren muessen verschieden klingen (z. B. direkt/kurz vs. vorsichtig/nachdenklich vs. ruhig/fuehrend).
+10. Rollenbezeichnungen mit Namen nicht wiederholen (nicht dauernd "Feuerwehrfrau Fanni"), nach Einfuehrung meist Name/Pronomen.
 
 # Verbotene Woerter
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
@@ -452,6 +454,7 @@ ${stylePackBlock}
 - In jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
 - Zeige Koerpersignal + Gedanke (z. B. zittern + Zweifel), nicht nur Aktion.
 - Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter.
+- Jede Hauptfigur braucht eine erkennbare Sprachfarbe in Dialogen.
 
 # Harte Regeln (muessen erfuellt sein)
 1. Sprache: Nur ${isGerman ? "Deutsch" : language}.
@@ -499,6 +502,7 @@ ${chapterOutlines}
 - [ ] Gibt es einen echten Tiefpunkt in Beat 3 oder 4?
 - [ ] Haben die Kinder sichtbare Gefühle + innere Gedanken?
 - [ ] Dialoge: Klingen mindestens zwei Figuren klar unterschiedlich?
+- [ ] Werden Rollenlabels nicht dauernd wiederholt?
 - [ ] Ist die Sprache rhythmisch wechselnd statt dauerhaft dicht?
 - [ ] Letzter Satz bleibt im Kopf?
 - [ ] Ende klar geloest und warm (kein neues offenes Problem)?
@@ -591,6 +595,7 @@ ${stylePackBlock}
 - Jeder Beat enthaelt klar: Ziel, Hindernis, Entscheidung, kleines Ergebnis/Hook.
 - Fuer Alter ${ageRange.min}-${ageRange.max}: kurze klare Saetze, wenig Schachtelsaetze.
 - Figurenstimmen schaerfen: in Mehrfiguren-Szenen mindestens zwei unterscheidbare Sprecher.
+- Figurenstimmen unterscheidbar halten: jede Hauptfigur bekommt eine klare Sprachfarbe (Wortwahl + Satzrhythmus).
 - Berufsrollen (z. B. "Feuerwehrfrau", "Polizist") nur bei Einfuehrung, danach meist Name/Pronomen.
 - Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}-${ageRange.max}
 ${artifactName ? `- Artefakt "${artifactName}" aktiv und sinnvoll nutzen.` : ""}
@@ -681,6 +686,7 @@ ${missingLine}
 7. Erweitern durch konkrete Aktion + 2-3 Dialog-Zeilen.
 8. Sprachdichte steuern: max 1 Vergleich pro Absatz, keine Metaphernketten.
 9. Kapitel muss spuerbar Spannung tragen: Hindernis wird groesser ODER ein kleiner Rueckschlag passiert.
+10. Dialoge muessen unterscheidbar klingen; Rollenlabels mit Namen nur einmal bei Einfuehrung, danach Name/Pronomen.
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original
