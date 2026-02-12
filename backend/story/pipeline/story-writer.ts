@@ -20,8 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Qualitaetsmodus: bis zu 2 Rewrite-Paesse, damit harte Fehler wirklich verschwinden.
-const MAX_REWRITE_PASSES = 2;
+// Qualitaetsmodus: bis zu 3 Rewrite-Paesse, damit harte Fehler wirklich verschwinden.
+const MAX_REWRITE_PASSES = 3;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -30,8 +30,8 @@ const HARD_MIN_CHAPTER_WORDS = 150;
 // Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
 const REWRITE_ONLY_ON_ERRORS = true;
 
-// Etwas mehr Spielraum fuer kurze Kapitel, ohne unbounded zu werden.
-const MAX_EXPAND_CALLS = 3;
+// Mehr Spielraum fuer Expand-Calls weil fehlende Figuren oft mehrere Kapitel betreffen.
+const MAX_EXPAND_CALLS = 5;
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -331,15 +331,22 @@ export class LlmStoryWriter implements StoryWriter {
     let rewriteAttempt = 0;
     while (rewriteAttempt < maxRewritePasses) {
       errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
+      // Filter out UNLOCKED_CHARACTER (non-actor) from rewrite triggers — these are mostly
+      // German capitalized nouns (Nadel, Kompass, Brötchen) falsely flagged as character names.
+      // Only UNLOCKED_CHARACTER_ACTOR (with active verb) and other real errors trigger rewrites.
+      const actionableErrors = errorIssues.filter(i =>
+        i.code !== "UNLOCKED_CHARACTER" && i.code !== "UNLOCKED_CHARACTER_ACTOR"
+      );
       const shouldRewrite = REWRITE_ONLY_ON_ERRORS
-        ? errorIssues.length > 0
+        ? actionableErrors.length > 0
         : qualityReport.failedGates.length > 0;
       if (!shouldRewrite) break;
 
       rewriteAttempt++;
-      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - ${errorIssues.length} errors, failed gates: ${qualityReport.failedGates.join(", ")}`);
+      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - ${actionableErrors.length} actionable errors (${errorIssues.length} total), failed gates: ${qualityReport.failedGates.join(", ")}`);
 
-      const rewriteInstructions = buildRewriteInstructions(errorIssues, normalizedRequest.language);
+      // Send only actionable errors to the rewrite prompt (not CAST_LOCK noise)
+      const rewriteInstructions = buildRewriteInstructions(actionableErrors, normalizedRequest.language);
 
       const rewritePrompt = buildFullStoryRewritePrompt({
         originalDraft: draft,

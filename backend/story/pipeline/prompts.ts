@@ -368,8 +368,12 @@ export function buildFullStoryPrompt(input: {
   const readabilityRules = ageRange.max <= 8
     ? [
         "- Ziel: sehr leicht lesbar fuer Vorlese- und Erstlesealter.",
-        "- Satzlaenge: meist 6-12 Woerter, selten bis 16, fast nie ueber 20.",
+        "- Satzlaenge: MEIST 4-10 Woerter, ab und zu bis 14, fast NIE ueber 16.",
+        "- Maximal 15% der Saetze duerfen laenger als 14 Woerter sein.",
         "- Maximal 1 Vergleich pro Absatz, keine Metaphernketten.",
+        "- Satz-Rhythmus PFLICHT: Abwechslung zwischen kurz (4-6 W.) und mittel (8-12 W.).",
+        "- NIEMALS drei gleich lange Saetze hintereinander.",
+        "- Beispiel fuer guten Rhythmus: \"Er rannte los. Der Wind pfiff ihm ins Gesicht, scharf und kalt. Schneller! Die Tuer war nah.\"  (4, 10, 1, 4)",
       ].join("\n")
     : "- Satzlaenge altersgerecht variieren, aber klar und konkret bleiben.";
 
@@ -427,6 +431,15 @@ ${stylePackBlock}
 ✅ RICHTIG: "Sie klatschten so laut ab, dass Bello erschrocken bellte."
 \`\`\`
 
+# Satz-Variation (PFLICHT - sonst klingt es wie ein Roboter)
+\`\`\`
+❌ MONOTON: "Mia saß am Tisch. Licht fiel herein. Adrian stand an der Tür. Er war nervoes."
+✅ LEBENDIG: "Am Holztisch klebte noch Mehlstaub. Mia ruehrte darin herum, als der Kompass zu blinken begann. Adrian? Klebte an der Tuer wie eine Briefmarke."
+\`\`\`
+- NIEMALS mehr als 2 Saetze hintereinander mit "Subjekt + Verb" anfangen.
+- Variiere Satzanfaenge: Ort, Zeit, Geraeusch, Frage, Dialog, Aktion.
+- Nutze auch Einwortsaetze und Ausrufe: "Knacks!" / "Stille." / "Nein!"
+
 # Stil-Regeln
 1. Kurze, klare Saetze mit starken Verben.
 2. Jeder Satz dient Handlung, Charakter oder Atmosphaere.
@@ -436,8 +449,17 @@ ${stylePackBlock}
 6. Pro Absatz maximal ein Vergleich, keine Metaphernketten.
 7. Berufsrollen nur bei Einfuehrung nennen, danach vor allem Name/Pronomen.
 8. Rhythmuswechsel je Beat: kurz/schnell -> ruhig/emotional -> kurz/schnell.
-9. Hauptfiguren muessen verschieden klingen (z. B. direkt/kurz vs. vorsichtig/nachdenklich vs. ruhig/fuehrend).
+9. Hauptfiguren muessen verschieden klingen:
+   - Kind A spricht z.B. schnell, abgehackt, mit Ausrufen.
+   - Kind B spricht z.B. vorsichtig, langsam, benutzt "Wir" statt "Ich".
+   - NPC hat eigenen Tick (Kichern, Reimen, Piepen, etc.).
 10. Rollenbezeichnungen mit Namen nicht wiederholen (nicht dauernd "Feuerwehrfrau Fanni"), nach Einfuehrung meist Name/Pronomen.
+
+# Humor & Charme (PFLICHT bei witzig/frech)
+- Mindestens 2 uebertriebene Situationen pro Geschichte (Slapstick, Wortwitz, Absurdität).
+- Kinder duerfen frech sein (aber nie gemein).
+- Dialog-Humor: Figuren reden aneinander vorbei, missverstehen etwas, oder reagieren unerwartet.
+- Beispiel: Statt "Sie lachten" -> "Adrian kicherte so laut, dass das Broetchen erschrocken schneller rollte."
 
 # Verbotene Woerter
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"

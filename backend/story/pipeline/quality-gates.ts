@@ -1483,8 +1483,8 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
 
   if (issueCodes.has("SENTENCE_COMPLEXITY_HIGH") || issueCodes.has("LONG_SENTENCE_OVERUSE") || issueCodes.has("VERY_LONG_SENTENCE")) {
     lines.push(isDE
-      ? "- Lesbarkeit reparieren: lange Schachtelsaetze in kurze Saetze aufteilen, Ziel 6-14 Woerter pro Satz (bei 6-8 Jahren)."
-      : "- Fix readability: split long nested sentences into short ones, target 6-14 words per sentence (for age 6-8).");
+      ? "- Lesbarkeit reparieren: JEDEN Satz ueber 14 Woerter aufteilen. Ziel: 4-10 Woerter pro Satz, hoechstens 15 % duerfen 14 erreichen. Rhythmus variieren: ein kurzer Satz (3-5 W.), dann ein mittlerer (6-10 W.), dann vielleicht ein laengerer (11-14 W.). Beispiel VORHER: 'Sie rannte durch den Wald und suchte den Stein, den der alte Mann ihr beschrieben hatte.' → NACHHER: 'Sie rannte los. Der Wald verschluckte sie. Irgendwo hier lag der Stein – der alte Mann hatte ihn genau beschrieben.'"
+      : "- Fix readability: split EVERY sentence over 14 words. Target: 4-10 words per sentence, at most 15% may reach 14. Vary rhythm: short (3-5w), medium (6-10w), then maybe longer (11-14w).");
   }
   if (issueCodes.has("VOICE_INDISTINCT") || issueCodes.has("ROLE_LABEL_OVERUSE")) {
     lines.push(isDE
@@ -1717,13 +1717,16 @@ function isCommonWord(word: string, language: string): boolean {
     "haus", "hütte", "höhle",
     "stadt", "dorf", "weg", "pfad", "straße", "gasse", "brücke",
     "tor", "tür", "fenster", "boden", "decke", "dach", "wand", "mauer",
+    "lichtung", "gebüsch", "gestrüpp", "dickicht", "waldrand", "wegrand",
+    "küche", "stube", "flur", "veranda", "terrasse",
     "himmel", "sonne", "mond", "stern", "wolke", "nebel", "dunst",
     "wind", "regen", "schnee", "sturm", "gewitter", "blitz", "donner",
     "feuer", "wasser", "erde", "luft", "eis", "dampf", "rauch",
     "baum", "blume", "gras", "busch", "blatt", "ast", "wurzel", "moos", "pilz",
     "stein", "fels", "kiesel", "sand", "lehm", "staub",
-    "gold", "silber", "eisen", "kupfer", "bronze", "kristall", "diamant", "edelstein",
+    "gold", "silber", "eisen", "kupfer", "bronze", "kristall", "diamant", "edelstein", "glas", "messing",
     "licht", "schatten", "dunkelheit", "finsternis", "glanz", "schimmer", "strahl",
+    "druck", "stoß", "ruck", "zug", "halt", "klang", "ton", "geräusch",
 
     // ─── Body & senses ─────────────────────────────────────────────────────
     "stimme", "hand", "herz", "auge", "augen", "kopf", "arm", "arme", "bein", "beine",
@@ -1771,9 +1774,11 @@ function isCommonWord(word: string, language: string): boolean {
     "glocke", "horn", "flöte", "trommel", "harfe",
     "feder", "tinte", "siegel", "stempel",
     "nadel", "faden", "schere", "hammer", "nagel", "werkzeug",
+    "kompass", "lupe", "fernrohr", "fernglas", "lineal", "messer",
+    "gehäuse", "plättchen", "rädchen", "hebel", "knopf", "taste",
 
     // ─── Food & drink ──────────────────────────────────────────────────────
-    "brot", "kuchen", "suppe", "apfel", "beere", "beeren", "honig", "milch",
+    "brot", "brötchen", "kuchen", "suppe", "apfel", "beere", "beeren", "honig", "milch",
     "wein", "tee", "saft", "essen", "trinken", "mahl", "festmahl",
 
     // ─── Animals ───────────────────────────────────────────────────────────
@@ -1789,6 +1794,7 @@ function isCommonWord(word: string, language: string): boolean {
     "furcht", "schrecken", "sorge", "trauer", "wut", "zorn", "ärger",
     "glück", "pech", "stolz", "scham", "schuld", "ehre", "würde",
     "frieden", "ruhe", "stille", "geheimnis", "rätsel", "wunder",
+    "vorsicht", "geduld", "ungeduld", "neugier", "eifersucht",
     "zauber", "magie", "fluch", "segen", "macht", "ohnmacht",
     "wahrheit", "lüge", "vertrauen", "zweifel", "geduld", "ungeduld",
     "freundschaft", "feindschaft", "abenteuer", "reise", "quest",
@@ -1811,6 +1817,9 @@ function isCommonWord(word: string, language: string): boolean {
     "innere", "äußere", "obere", "untere", "vordere", "hintere",
     "richtung", "norden", "süden", "osten", "westen",
     "landschaft", "gegend", "umgebung", "horizont",
+    "festival", "jahrmarkt", "markt", "fest",
+    "kreis", "linie", "punkt", "form", "gestalt",
+    "sonnenfleck", "mondlicht", "morgenlicht", "abendlicht",
 
     // ─── German compound-noun components & common story nouns ───────────────
     "geräusch", "gestalt", "erscheinung", "wesen", "kreatur",
@@ -1824,6 +1833,16 @@ function isCommonWord(word: string, language: string): boolean {
     "dungeon", "labyrinth", "irrgarten",
     "schutz", "deckung", "versteck", "zuflucht",
     "energie", "funke", "flamme", "glut",
+
+    // ─── Interjections & common sentence-start words ──────────────────────
+    "puh", "ach", "nein", "ja", "halt", "stopp", "huch", "oh", "pst",
+    "nicht", "ruhig", "schnell", "leise", "langsam", "vorsicht",
+    "unsichtbar", "unsichtbares", "sichtbar", "sichtbares",
+
+    // ─── Common German compound-first-parts & story objects ─────────────
+    "farn", "moos", "laub", "rinde", "harz", "holz", "holztisch",
+    "zipfel", "fetzen", "stück", "splitter", "krümel",
+    "latte", "brett", "planke", "rampe", "stufe",
   ]);
   const commonEN = new Set([
     "the", "and", "but", "for", "not", "you", "all", "can", "had", "her",
@@ -1840,7 +1859,30 @@ function isCommonWord(word: string, language: string): boolean {
   ]);
 
   const set = language === "de" ? commonDE : commonEN;
-  return set.has(word);
+  if (set.has(word)) return true;
+
+  // German plural/compound suffix stripping for better coverage
+  if (language === "de" && word.length > 4) {
+    // Common German plural suffixes: -en, -er, -n, -e, -s, -nen, -chen, -lein
+    const stems = [
+      word.replace(/chen$/, ""),    // Brötchen -> Brötch (no), but Häuschen -> Häus
+      word.replace(/lein$/, ""),    // Büchlein -> Büch
+      word.replace(/nen$/, ""),     // Bäuerinnen -> Bäueri
+      word.replace(/en$/, ""),      // Blumen -> Blum, Straßen -> Straß
+      word.replace(/er$/, ""),      // Bücher -> Büch, Kinder -> Kind
+      word.replace(/e$/, ""),       // Bäume -> Bäum, Steine -> Stein
+      word.replace(/n$/, ""),       // Uhren -> Uhre -> Uhr
+      word.replace(/s$/, ""),       // Autos -> Auto
+    ].filter(s => s.length >= 3);
+    for (const stem of stems) {
+      if (set.has(stem)) return true;
+    }
+    // Also check adding 'e' (Bäum -> Baum via umlaut won't work, but Blumen -> Blume)
+    const withE = word.replace(/en$/, "e");
+    if (withE !== word && set.has(withE)) return true;
+  }
+
+  return false;
 }
 
 function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
@@ -1897,6 +1939,11 @@ function isGermanCommonNounContext(text: string, matchIndex: number): boolean {
 function isLikelyGermanNameCandidate(text: string, token: string, matchIndex: number): boolean {
   const normalized = token.trim();
   if (!normalized) return false;
+
+  // IMPORTANT: If the word (or its stem) is a known common noun, NEVER treat it as a name
+  // even if it appears multiple times. German capitalizes ALL nouns.
+  const lc = normalized.toLowerCase();
+  if (isCommonWord(lc, "de")) return false;
 
   // Single-word names that repeat are likely real character references.
   if (countWordOccurrences(text, normalized) >= 2) return true;
