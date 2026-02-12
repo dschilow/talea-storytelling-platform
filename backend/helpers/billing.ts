@@ -1,4 +1,6 @@
 import { APIError } from "encore.dev/api";
+import { secret } from "encore.dev/config";
+import { createClerkClient } from "@clerk/backend";
 import { userDB } from "../user/db";
 
 export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
@@ -28,6 +30,17 @@ const PLAN_ALIASES: Record<SubscriptionPlan, string[]> = {
 const DEFAULT_PLAN: SubscriptionPlan = "free";
 const FREE_TRIAL_DAYS = 7;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PLAN_SYNC_CACHE_TTL_MS = 30_000;
+
+const clerkSecretKey = secret("ClerkSecretKey");
+let cachedClerkClient: ReturnType<typeof createClerkClient> | null | undefined;
+
+type CachedPlanResolution = {
+  plan: SubscriptionPlan | null;
+  expiresAt: number;
+};
+
+const clerkPlanCache = new Map<string, CachedPlanResolution>();
 
 function startOfMonthUTC(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -42,53 +55,257 @@ function remainingDaysUntil(now: Date, end: Date): number {
   return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / MS_PER_DAY));
 }
 
-function parsePlanClaim(raw: unknown): string[] {
-  if (typeof raw !== "string") return [];
-  return raw
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-export function extractPlanFromClerkToken(token?: string | null): SubscriptionPlan | null {
-  if (!token) return null;
+function getClerkClient(): ReturnType<typeof createClerkClient> | null {
+  if (cachedClerkClient !== undefined) {
+    return cachedClerkClient;
+  }
 
   try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    const key = clerkSecretKey();
+    if (!key || key.trim().length === 0) {
+      cachedClerkClient = null;
+      return null;
+    }
+    cachedClerkClient = createClerkClient({ secretKey: key });
+    return cachedClerkClient;
+  } catch {
+    cachedClerkClient = null;
+    return null;
+  }
+}
 
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
-    const planClaim = payload?.pla ?? payload?.plans ?? payload?.plan;
-    const entries = parsePlanClaim(planClaim);
-    if (entries.length === 0) return null;
+function parsePlanClaim(raw: unknown): string[] {
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
 
-    const normalized = entries
-      .map((entry) => entry.split(":").pop() || "")
-      .map((entry) => entry.toLowerCase());
+  if (Array.isArray(raw)) {
+    return raw
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+  }
 
-    for (const plan of PLAN_PRIORITY) {
-      const aliases = PLAN_ALIASES[plan];
-      if (aliases.some((alias) => normalized.includes(alias))) {
+  return collectStringValues(raw).map((entry) => entry.trim()).filter(Boolean);
+}
+
+function normalizePlanCandidate(raw: string): SubscriptionPlan | null {
+  const lowered = raw.toLowerCase().trim();
+  const normalized = lowered
+    .replace(/[\s_-]+/g, "")
+    .split(":")
+    .pop() ?? "";
+
+  for (const plan of PLAN_PRIORITY) {
+    const aliases = PLAN_ALIASES[plan].map((alias) => alias.replace(/[\s_-]+/g, ""));
+    if (aliases.includes(normalized) || aliases.some((alias) => lowered === alias)) {
+      return plan;
+    }
+
+    for (const aliasRaw of PLAN_ALIASES[plan]) {
+      const alias = aliasRaw.toLowerCase();
+      const tokenRegex = new RegExp(`(^|[^a-z])${alias}([^a-z]|$)`, "i");
+      if (tokenRegex.test(lowered)) {
         return plan;
       }
     }
-  } catch {
-    return null;
   }
 
   return null;
 }
 
+function extractPlanFromEntries(entries: string[]): SubscriptionPlan | null {
+  let bestPlan: SubscriptionPlan | null = null;
+
+  for (const entry of entries) {
+    const plan = normalizePlanCandidate(entry);
+    if (!plan) {
+      continue;
+    }
+
+    if (!bestPlan) {
+      bestPlan = plan;
+      continue;
+    }
+
+    const currentRank = PLAN_PRIORITY.indexOf(plan);
+    const bestRank = PLAN_PRIORITY.indexOf(bestPlan);
+    if (currentRank >= 0 && bestRank >= 0 && currentRank < bestRank) {
+      bestPlan = plan;
+    }
+  }
+
+  return bestPlan;
+}
+
+function collectStringValues(value: unknown, depth = 0): string[] {
+  if (depth > 5 || value == null) {
+    return [];
+  }
+
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectStringValues(entry, depth + 1));
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).flatMap((entry) =>
+      collectStringValues(entry, depth + 1)
+    );
+  }
+
+  return [];
+}
+
+function extractPlanFromMetadataValue(raw: unknown): SubscriptionPlan | null {
+  const strings = collectStringValues(raw);
+  return extractPlanFromEntries(strings);
+}
+
+function extractPlanFromMetadataObject(metadata: unknown): SubscriptionPlan | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const preferredKeys = [
+    "subscription",
+    "subscription_plan",
+    "subscriptionPlan",
+    "plan",
+    "plan_name",
+    "planName",
+    "tier",
+    "package_name",
+    "packageName",
+    "billing_plan",
+    "billingPlan",
+    "product_plan",
+    "productPlan",
+    "package",
+    "price_id",
+    "priceId",
+  ];
+
+  for (const key of preferredKeys) {
+    if (key in record) {
+      const plan = extractPlanFromMetadataValue(record[key]);
+      if (plan) {
+        return plan;
+      }
+    }
+  }
+
+  return extractPlanFromMetadataValue(record);
+}
+
+async function extractPlanFromClerkProfile(userId: string): Promise<SubscriptionPlan | null> {
+  const now = Date.now();
+  const cached = clerkPlanCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    return cached.plan;
+  }
+
+  const client = getClerkClient();
+  if (!client) {
+    clerkPlanCache.set(userId, {
+      plan: null,
+      expiresAt: now + PLAN_SYNC_CACHE_TTL_MS,
+    });
+    return null;
+  }
+
+  try {
+    const user = await client.users.getUser(userId);
+    const fromPublic = extractPlanFromMetadataObject(user.publicMetadata);
+    const fromPrivate = extractPlanFromMetadataObject(user.privateMetadata);
+    const fromUnsafe = extractPlanFromMetadataObject(user.unsafeMetadata);
+    const resolved = fromPublic ?? fromPrivate ?? fromUnsafe ?? null;
+
+    clerkPlanCache.set(userId, {
+      plan: resolved,
+      expiresAt: now + PLAN_SYNC_CACHE_TTL_MS,
+    });
+
+    return resolved;
+  } catch (error) {
+    console.warn("[billing.extractPlanFromClerkProfile] Failed to fetch Clerk profile plan", {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    clerkPlanCache.set(userId, {
+      plan: null,
+      expiresAt: now + PLAN_SYNC_CACHE_TTL_MS,
+    });
+
+    return null;
+  }
+}
+
+async function persistPlanIfChanged(userId: string, plan: SubscriptionPlan): Promise<void> {
+  const now = new Date();
+  await userDB.exec`
+    UPDATE users
+    SET subscription = ${plan}, updated_at = ${now}
+    WHERE id = ${userId} AND subscription <> ${plan}
+  `;
+}
+
+function pickAuthoritativePlan(
+  tokenPlan: SubscriptionPlan | null,
+  profilePlan: SubscriptionPlan | null
+): SubscriptionPlan | null {
+  // Clerk profile metadata is treated as source of truth when present.
+  if (profilePlan) {
+    return profilePlan;
+  }
+
+  return tokenPlan;
+}
+
+export function extractPlanClaimsFromToken(token?: string | null): string[] {
+  if (!token) return [];
+
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return [];
+
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
+    const planClaim = payload?.pla ?? payload?.plans ?? payload?.plan;
+    return parsePlanClaim(planClaim);
+  } catch {
+    return [];
+  }
+}
+
+export function extractPlanFromClerkToken(token?: string | null): SubscriptionPlan | null {
+  const entries = extractPlanClaimsFromToken(token);
+  if (entries.length === 0) return null;
+  return extractPlanFromEntries(entries);
+}
+
 export async function resolvePlanForUser(userId: string, clerkToken?: string | null): Promise<SubscriptionPlan> {
   const tokenPlan = extractPlanFromClerkToken(clerkToken);
-  if (tokenPlan) {
-    const now = new Date();
-    await userDB.exec`
-      UPDATE users
-      SET subscription = ${tokenPlan}, updated_at = ${now}
-      WHERE id = ${userId} AND subscription <> ${tokenPlan}
-    `;
-    return tokenPlan;
+  const profilePlan = await extractPlanFromClerkProfile(userId);
+  const authoritativePlan = pickAuthoritativePlan(tokenPlan, profilePlan);
+
+  if (authoritativePlan) {
+    if (tokenPlan && profilePlan && tokenPlan !== profilePlan) {
+      console.warn("[billing.resolvePlanForUser] Token plan differs from Clerk profile plan. Using profile plan.", {
+        userId,
+        tokenPlan,
+        profilePlan,
+      });
+    }
+
+    await persistPlanIfChanged(userId, authoritativePlan);
+    return authoritativePlan;
   }
 
   const row = await userDB.queryRow<{ subscription: SubscriptionPlan }>`
@@ -96,6 +313,15 @@ export async function resolvePlanForUser(userId: string, clerkToken?: string | n
   `;
 
   return row?.subscription ?? DEFAULT_PLAN;
+}
+
+// Backward-compatible legacy parser retained for callers that import this symbol directly.
+export function extractPlanFromLegacyStringClaim(raw: unknown): string[] {
+  if (typeof raw !== "string") return [];
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 type PlanPolicy = {
