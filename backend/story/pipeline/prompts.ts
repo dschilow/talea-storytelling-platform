@@ -455,11 +455,32 @@ ${stylePackBlock}
    - NPC hat eigenen Tick (Kichern, Reimen, Piepen, etc.).
 10. Rollenbezeichnungen mit Namen nicht wiederholen (nicht dauernd "Feuerwehrfrau Fanni"), nach Einfuehrung meist Name/Pronomen.
 
-# Humor & Charme (PFLICHT bei witzig/frech)
+# Humor & Charme (PFLICHT)
 - Mindestens 2 uebertriebene Situationen pro Geschichte (Slapstick, Wortwitz, Absurdität).
 - Kinder duerfen frech sein (aber nie gemein).
 - Dialog-Humor: Figuren reden aneinander vorbei, missverstehen etwas, oder reagieren unerwartet.
 - Beispiel: Statt "Sie lachten" -> "Adrian kicherte so laut, dass das Broetchen erschrocken schneller rollte."
+
+# Erster Satz (GOLDENE REGEL)
+- Der allererste Satz der Geschichte muss sofort MITTEN IN EINE AKTION springen.
+- ❌ LANGWEILIG: "Der Basar duftete nach Orangen." (= Beschreibung, passiv)
+- ✅ PACKEND: "Mia riss die Augen auf – der Stein in ihrer Hand LEUCHTETE." (= Aktion, Geheimnis)
+- ✅ PACKEND: "Drei Dinge sollte man auf dem Basar nicht tun: rennen, schreien und – ach, zu spät." (= Stimme, Humor)
+
+# Lebendige Prosa (PFLICHT - sonst klingt es wie von einer KI)
+- Jede Szene braucht mindestens ein KONKRETES DETAIL, das man riechen/schmecken/fuehlen kann.
+- Figuren haben MACKEN: stolpern, vergessen etwas, haben eine komische Angewohnheit.
+- Dialoge muessen UNTERBROCHEN werden: durch Aktionen, Gedanken, Geräusche.
+- ❌ ROBOTER: "Mia hob den Stein. Adrian sah zu. Alexander notierte."
+- ✅ LEBENDIG: "Mia hob den Stein hoch. Er war schwerer als erwartet – und warm. ‚Ähm', sagte sie. Adrian wich einen Schritt zurueck. Alexander vergass zu schreiben."
+
+# Anti-Schablone (PFLICHT - jeder Beat muss ANDERS aufgebaut sein)
+- Beat 1 darf NICHT mit Ortsbeschreibung beginnen, wenn Beat 2 auch so anfaengt.
+- Variiere den Einstieg: Dialog / Aktion / Geraeusch / Gedanke / Frage.
+- Manche Beats brauchen einen langen Spannungsabsatz, andere nur 2 knappe Saetze.
+- NIEMALS das gleiche Schema: "Ort beschreiben → Figur reagiert → Dialog → Loesung → weiter."
+- ❌ SCHABLONE: Jeder Beat beginnt mit Beschreibung, endet mit Dialog-Zusammenfassung.
+- ✅ ABWECHSLUNG: Beat 1 startet mit Knall, Beat 2 mit leisem Dialog, Beat 3 mitten im Streit.
 
 # Verbotene Woerter
 "plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
@@ -541,13 +562,20 @@ ${chapterOutlines}
 - [ ] Ende klar geloest und warm (kein neues offenes Problem)?
 - [ ] Wortanzahl im Zielkorridor pro Beat?
 
+# Titel-Regeln (PFLICHT)
+- Max 6 Wörter, KEINE langweiligen "[Gegenstand] und [Person]"-Titel
+- Gute Titel: Wortspiele, Alliterationen, Geheimnisvolles, Klangmalerei
+- ❌ VERBOTEN: "Das Windeamulett", "Der magische Kompass", "Das verzauberte Buch"
+- ✅ GUT: "Sturmflüsterer", "Drei Wünsche und ein halber", "Der Tag, an dem der Wind sang"
+- Der Titel muss ein Kind neugierig machen!
+
 # Ausgabe-Format
 Antworte NUR mit validem JSON. Kein Text davor oder danach.
 
 \`\`\`json
 {
-  "title": "Kurzer Titel (max 7 Wörter)",
-  "description": "Ein packender Teaser-Satz",
+  "title": "Magischer Buchtitel (max 6 Wörter, KEIN Schema [Objekt+Artefakt])",
+  "description": "Ein packender Teaser-Satz, der eine Frage im Kopf weckt",
   "storyText": "Eine zusammenhängende Geschichte als Fließtext mit Leerzeile zwischen Beats, aber ohne Kapitel-Titel/Nummern."
 }
 \`\`\``;
@@ -597,9 +625,27 @@ export function buildFullStoryRewritePrompt(input: {
 
   return `# Aufgabe
 Überarbeite die Geschichte. Behalte Handlung und Charaktere, behebe ALLE Probleme.
+WICHTIG: Verbessere die PROSA-QUALITÄT, nicht nur die Struktur!
 
 ${qualityIssues}
 ${stylePackBlock}
+
+# Zeigen, nicht erzählen (PFLICHT bei Rewrite)
+\`\`\`
+❌ "Emma hatte Angst." → ✅ "Emmas Knie zitterten. Sie presste die Hand auf den Mund."
+❌ "Der Wald war unheimlich." → ✅ "Nebel hing zwischen den Bäumen. Irgendwo knackte ein Ast."
+❌ "Sie freuten sich." → ✅ "Sie klatschten so laut ab, dass Bello erschrocken bellte."
+\`\`\`
+
+# Humor & Lebendigkeit (PFLICHT)
+- Mindestens 2 übertriebene/komische Situationen in der Geschichte.
+- Dialog-Humor: Figuren reden aneinander vorbei, missverstehen etwas, reagieren unerwartet.
+- Jede Szene braucht ein KONKRETES DETAIL, das man riechen/schmecken/fühlen kann.
+- Dialoge müssen UNTERBROCHEN werden: durch Aktionen, Gedanken, Geräusche.
+- NIEMALS mehr als 2 Sätze hintereinander mit "Subjekt + Verb" anfangen.
+
+# Verbotene Wörter
+"plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
 
 # 10.0 Ziele (Pflicht)
 - Figurenfokus: pro Beat max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
@@ -634,6 +680,12 @@ ${stylePackBlock}
 ${artifactName ? `- Artefakt "${artifactName}" aktiv und sinnvoll nutzen.` : ""}
 - Letzter Beat: Epilog (2-4 Saetze) ohne Predigt.
 - Schluss ohne offene Restfrage im letzten Absatz.
+
+# Titel-Regeln (PFLICHT)
+- Max 6 Wörter, KEINE langweiligen "[Gegenstand] und [Person]"-Titel
+- Gute Titel: Wortspiele, Alliterationen, Geheimnisvolles, Klangmalerei
+- ❌ VERBOTEN: "Das Windeamulett", "Der magische Kompass"
+- ✅ GUT: "Sturmflüsterer", "Drei Wünsche und ein halber"
 
 # VERBOTEN im Text
 "Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war", "[inhalt-gefiltert]", "[content-filtered]", "[redacted]"
@@ -697,6 +749,7 @@ export function buildChapterExpansionPrompt(input: {
 
   return `# Aufgabe
 Erweitere das Kapitel ohne die Handlung zu ändern. Zeigen, nicht erzählen.
+WICHTIG: Lebendige Prosa! Konkrete Details (riechen, schmecken, fühlen), Dialog-Humor, Satz-Variation.
 
 # Szene
 - Setting: ${chapter.setting}, Stimmung: ${chapter.mood ?? "COZY"}
@@ -958,12 +1011,47 @@ Return JSON:
 }
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
-  return `Create a short story title (max 7 words) and a 1-sentence teaser hook for the following children's story in ${input.language === "de" ? "German" : input.language}.
+  const isGerman = input.language === "de";
+  return `${isGerman ? "Du bist ein preisgekrönter Kinderbuch-Verleger" : "You are an award-winning children's book publisher"}.
+
+${isGerman
+  ? `# Aufgabe
+Erfinde einen MAGISCHEN Buchtitel (max 6 Wörter) und einen packenden Teaser-Satz für diese Kindergeschichte.
+
+# Regeln für gute Kinderbuch-Titel
+- NIEMALS das Schema "[Gegenstand] und [Person]" oder "[Person] und das [Artefakt]" verwenden!
+- Gute Titel wecken NEUGIER und GEFÜHLE, nicht nur Fakten.
+- Vorbilder: "Der Grüffelo", "Wo die wilden Kerle wohnen", "Jim Knopf und Lukas der Lokomotivführer", "Die unendliche Geschichte", "Pippi Langstrumpf"
+- Nutze: Wortspiele, überraschende Kombinationen, Geheimnisvolles, Klangmalerei, Alliterationen
+- Der Titel muss ein Kind zum Lachen oder Staunen bringen
+- KEIN langweiliges "[Objekt]+[Eigenschaft]"-Schema
+
+# Beispiele für GUTE vs SCHLECHTE Titel
+❌ SCHLECHT: "Das Windeamulett", "Der magische Kompass", "Das Zauberbuch"
+✅ GUT: "Sturmflüsterer", "Drei Wünsche und ein halber", "Der Tag, an dem der Wind sang", "Nachts, wenn die Glocken flüstern"
+
+# Teaser
+Der Teaser-Satz soll eine FRAGE im Kopf des Kindes wecken.
+❌ SCHLECHT: "Drei Kinder finden ein Amulett und retten die Stadt."
+✅ GUT: "Wer flüstert nachts hinter den Marktständen – und warum hat der Wind aufgehört zu singen?"`
+
+  : `# Task
+Create a MAGICAL book title (max 6 words) and a gripping teaser sentence for this children's story.
+
+# Rules for great titles
+- NEVER use "[Object] and [Person]" or "[Person] and the [Artifact]" patterns!
+- Good titles spark CURIOSITY and EMOTION
+- Use: wordplay, surprising combinations, mystery, sound, alliteration
+- The title must make a child laugh or gasp
+
+# Teaser
+The teaser should plant a QUESTION in the child's mind.`}
+
 Return JSON:
 { "title": "...", "description": "..." }
 
 Story:
-${input.storyText}`;
+${input.storyText.slice(0, 3000)}`;
 }
 
 export function buildImageSpecPrompt(input: {

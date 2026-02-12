@@ -178,7 +178,12 @@ function gateCharacterIntegration(
       const name = findCharacterName(cast, slot);
       if (!name) continue;
 
-      if (!textLower.includes(name.toLowerCase())) {
+      // Check full name first, then individual name parts (e.g. "Mia" from "Mia Neugier")
+      const nameLower = name.toLowerCase();
+      const nameParts = nameLower.split(/\s+/).filter(p => p.length > 2);
+      const found = textLower.includes(nameLower) || nameParts.some(p => textLower.includes(p));
+
+      if (!found) {
         issues.push({
           gate: "CHARACTER_INTEGRATION",
           chapter: ch.chapter,
@@ -189,7 +194,9 @@ function gateCharacterIntegration(
         continue;
       }
 
-      const hasAction = checkCharacterHasAction(ch.text, name);
+      // Check action using any matching name form (full name or individual parts)
+      const hasAction = checkCharacterHasAction(ch.text, name)
+        || nameParts.some(part => checkCharacterHasAction(ch.text, part.charAt(0).toUpperCase() + part.slice(1)));
       if (!hasAction) {
         issues.push({
           gate: "CHARACTER_INTEGRATION",
@@ -302,6 +309,18 @@ function gateCastLock(
     "nachdem", "bevor", "während", "damit", "sodass", "weshalb",
   ]);
 
+  // Multi-word patterns that are NEVER character names (possessive + noun, article + noun, etc.)
+  const germanNonNamePatterns = language === "de" ? [
+    // Possessive pronoun + Noun: "Seine Stimme", "Ihre Hände", "Sein Puls"
+    /^(?:sein|seine|seinen|seinem|seiner|ihr|ihre|ihren|ihrem|ihrer|mein|meine|meinen|meinem|meiner|unser|unsere|unseren|unserem|unserer|euer|eure|euren|eurem|eurer)\s+/i,
+    // Article + Noun: "Der Basar", "Die Kinder", "Das Amulett", "Ein Tor"
+    /^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|keinem|keiner)\s+/i,
+    // Demonstrative + Noun: "Diese Vorstellung", "Jeder Herzschlag"
+    /^(?:dies|diese|dieser|dieses|diesen|diesem|jeder|jede|jedes|jeden|jedem|jener|jene|jenes|jenen|jenem|welch|welche|welcher|welches|welchen|welchem|solch|solche|solcher|solches|manch|manche|mancher|manches)\s+/i,
+    // Quantifier + Noun: "Zehn Grad", "Drei Kinder"
+    /^(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|viele|wenige|einige|mehrere|alle|beide|halb|ganz)\s+/i,
+  ] : [];
+
   for (const ch of draft.chapters) {
     const matches = ch.text.matchAll(properNameRegex);
     for (const match of matches) {
@@ -314,6 +333,10 @@ function gateCastLock(
       if (language === "de" && germanNonNames.has(name)) continue;
       // German adjectives/adverbs ending in these suffixes are NEVER character names
       if (language === "de" && /(?:lich|ig|isch|sam|bar|haft|los|voll|weise|wärts)$/.test(name)) continue;
+      // Multi-word German non-name patterns (possessives, articles, quantifiers + noun)
+      if (language === "de" && germanNonNamePatterns.some(p => p.test(match[1]))) continue;
+      // Single German common nouns: check if ALL words in the match are common nouns
+      if (language === "de" && parts.length >= 2 && parts.every(p => isCommonWord(p, language) || germanNonNames.has(p))) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
       if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
 
@@ -540,9 +563,12 @@ function gateCharacterVoiceDistinctness(
 
     if (characterNames.length < 2) continue;
 
-    const speakingCharacters = characterNames.filter(name =>
-      hasAttributedDialogueForCharacter(chapter.text, name, language)
-    );
+    const speakingCharacters = characterNames.filter(name => {
+      // Check full name first, then individual name parts (e.g. "Mia" from "Mia Neugier")
+      if (hasAttributedDialogueForCharacter(chapter.text, name, language)) return true;
+      const parts = name.split(/\s+/).filter(p => p.length > 2);
+      return parts.some(part => hasAttributedDialogueForCharacter(chapter.text, part, language));
+    });
 
     if (speakingCharacters.length < 2) {
       issues.push({
@@ -975,19 +1001,31 @@ function gateActivePresence(
       if (!name) continue;
 
       const textLower = ch.text.toLowerCase();
-      if (!textLower.includes(name.toLowerCase())) continue;
+      const nameLower = name.toLowerCase();
+      const nameParts = nameLower.split(/\s+/).filter(p => p.length > 2);
+      // Check if character appears by full name or any name part
+      const namePresent = textLower.includes(nameLower) || nameParts.some(p => textLower.includes(p));
+      if (!namePresent) continue;
 
-      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const hasAction = actionVerbs.some(verb => {
-        const pattern = new RegExp(`${escapedName}[^.!?]{0,40}${verb}`, "i");
-        return pattern.test(ch.text);
+      // Use the name form that actually appears in the text for action/dialogue detection
+      const nameVariants = [name, ...nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1))];
+
+      const hasAction = nameVariants.some(n => {
+        const escapedN = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return actionVerbs.some(verb => {
+          const pattern = new RegExp(`${escapedN}[^.!?]{0,40}${verb}`, "i");
+          return pattern.test(ch.text);
+        });
       });
 
-      const dialoguePattern = new RegExp(
-        `[""„‟»«][^""„‟»«]{3,}[""„‟»«][^.!?]{0,30}${escapedName}|${escapedName}[^.!?]{0,30}[""„‟»«]`,
-        "i"
-      );
-      const hasDialogue = dialoguePattern.test(ch.text);
+      const hasDialogue = nameVariants.some(n => {
+        const escapedN = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const dialoguePattern = new RegExp(
+          `[""„‟»«][^""„‟»«]{3,}[""„‟»«][^.!?]{0,30}${escapedN}|${escapedN}[^.!?]{0,30}[""„‟»«]`,
+          "i"
+        );
+        return dialoguePattern.test(ch.text);
+      });
 
       if (!hasAction && !hasDialogue) {
         issues.push({
@@ -1892,6 +1930,28 @@ function isCommonWord(word: string, language: string): boolean {
     "farn", "moos", "laub", "rinde", "harz", "holz", "holztisch",
     "zipfel", "fetzen", "stück", "splitter", "krümel",
     "latte", "brett", "planke", "rampe", "stufe",
+
+    // ─── Additional story-common nouns (often false-positived) ──────────
+    "pollen", "notizbuch", "winkel", "muster", "flügel", "streifen",
+    "gewicht", "windmühle", "vorstellung", "zahlen", "zahl",
+    "basar", "leder", "hauch", "puls", "tinte", "tücher", "tuch",
+    "petalen", "gang", "bücher", "gaben", "grad", "anzeige", "messung",
+    "melodie", "melodien", "duft", "duftrichtung", "seitenpforte",
+    "welt", "problem", "gleichgewicht", "sog", "leere", "panik",
+    "konzentration", "rückkehrarbeit", "torbogen", "ärmel",
+    "glaswasser", "brunnenrand", "mantel", "tasche", "manteltasche",
+    "taschenkante", "taschenklappe", "tascheninnere",
+    "spiegel", "band", "schale", "blüte", "blüten", "rose",
+    "pfeile", "pfeil", "staubkörnchen", "seufzer", "zucker",
+    "boote", "boot", "glocke", "glockenspiele", "glockenschlag",
+    "holzkiste", "kiste", "durchgang", "fackeln", "fackel",
+    "warnlicht", "puzzleteil", "bedacht", "herzschlag",
+    "fehler", "ruhe", "licht", "tee", "tassen", "tasse",
+    "notizbuch", "lineal", "skizze", "augenbraue",
+    "brunnenboden", "brunnen", "blatt", "blätter",
+    "kloß", "zeichen", "schatten", "geruch",
+    "gut", "stein", "raum", "pflicht", "wege",
+    "gärten", "lieder", "richtung", "winde",
   ]);
   const commonEN = new Set([
     "the", "and", "but", "for", "not", "you", "all", "can", "had", "her",
