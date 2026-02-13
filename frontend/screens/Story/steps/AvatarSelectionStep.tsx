@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Check, Users, Eye } from 'lucide-react';
+import { User, Users, Eye } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +13,11 @@ interface Avatar {
   name: string;
   imageUrl?: string;
   creationType: 'ai-generated' | 'photo-upload';
+  isOwnedByCurrentUser?: boolean;
+  sharedBy?: {
+    name?: string;
+    email?: string;
+  };
 }
 
 interface AvatarSelectionStepProps {
@@ -95,7 +100,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
         {/* Story Info Card */}
         {relevantTraits.length > 0 && (
           <Card variant="elevated" className="bg-stone-50 border-stone-200">
-            <h3 className="font-semibold text-lg mb-2 text-stone-800">📖 Story-Modus</h3>
+            <h3 className="font-semibold text-lg mb-2 text-stone-800">Story-Modus</h3>
             <p className="text-sm text-stone-700 mb-3">
               Story-Typ bestimmt welche Eigenschaften entwickelt werden:
             </p>
@@ -133,14 +138,15 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
           <div className="grid grid-cols-1 gap-3">
             {avatars.map((avatar, index) => {
               const isParticipant = selectedAvatarIds.includes(avatar.id);
+              const isSharedAvatar = avatar.isOwnedByCurrentUser === false;
 
               return (
                 <FadeInView key={avatar.id} delay={100 + index * 50}>
                   <button
                     onClick={() => toggleAvatarSelection(avatar.id)}
                     className={`w-full p-4 rounded-lg border-2 transition-all ${isParticipant
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-gray-300 bg-gray-50 hover:border-amber-300'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-300 bg-gray-50 hover:border-amber-300'
                       }`}
                   >
                     <div className="flex items-center gap-4">
@@ -156,7 +162,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
                             />
                           ) : (
                             <span className="text-2xl">
-                              {avatar.creationType === 'ai-generated' ? '🤖' : '📷'}
+                              {avatar.creationType === 'ai-generated' ? 'AI' : 'Foto'}
                             </span>
                           )}
                         </div>
@@ -177,13 +183,19 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
                         <div className="text-sm space-y-1">
                           <p className={`font-medium ${isParticipant ? 'text-green-600' : 'text-gray-500'
                             }`}>
-                            {isParticipant ? '🎭 Mitspieler' : '👀 Beobachter'}
+                            {isParticipant ? 'Mitspieler' : 'Beobachter'}
                           </p>
+
+                          {isSharedAvatar ? (
+                            <p className={`text-xs ${isParticipant ? 'text-green-600' : 'text-gray-500'}`}>
+                              Geteilt von {avatar.sharedBy?.name || avatar.sharedBy?.email || 'Kontakt'}
+                            </p>
+                          ) : null}
 
                           {relevantTraits.length > 0 && (
                             <p className={`text-xs ${isParticipant ? 'text-green-600' : 'text-gray-500'
                               }`}>
-                              Erhält {isParticipant ? '+3' : '+1'} Punkte in: {relevantTraits.map(t => getTraitIcon(t)).join(' ')}
+                              Erhaelt {isParticipant ? '+3' : '+1'} Punkte in: {relevantTraits.map(t => getTraitIcon(t)).join(' ')}
                             </p>
                           )}
                         </div>
@@ -197,7 +209,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
 
           <div className="mt-4 text-center text-sm text-gray-500">
             {selectedAvatarIds.length === 0 && (
-              <p className="text-amber-600">⚠️ {t('story.wizard.alerts.selectAvatar')}</p>
+              <p className="text-amber-600">Warnung: {t('story.wizard.alerts.selectAvatar')}</p>
             )}
           </div>
         </Card>
@@ -207,4 +219,3 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
 };
 
 export default AvatarSelectionStep;
-

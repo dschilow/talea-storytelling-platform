@@ -1,9 +1,10 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Edit, Eye, Plus, Search, Sparkles, Trash2, User } from "lucide-react";
+import { Edit, Eye, Plus, Search, Share2, Sparkles, Trash2, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { useBackend } from "../../hooks/useBackend";
 import type { Avatar } from "../../types/avatar";
@@ -126,6 +127,8 @@ const AvatarCard: React.FC<{
   onEdit: () => void;
   onDelete: () => void;
 }> = ({ avatar, index, palette, onView, onEdit, onDelete }) => {
+  const canManage = avatar.isOwnedByCurrentUser ?? true;
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 16 }}
@@ -158,37 +161,53 @@ const AvatarCard: React.FC<{
             {avatar.creationType === "photo-upload" ? "Foto" : "AI"}
           </span>
 
-          <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit();
-              }}
-              className="rounded-xl border p-2"
-              style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-              aria-label={`${avatar.name} bearbeiten`}
+          {!canManage ? (
+            <span
+              className="absolute left-3 top-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              style={{ borderColor: palette.border, background: palette.badge, color: palette.text }}
             >
-              <Edit className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete();
-              }}
-              className="rounded-xl border p-2 text-[#b35b5b]"
-              style={{ borderColor: "#d8a3a3", background: palette.panel }}
-              aria-label={`${avatar.name} loeschen`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
+              <Share2 className="h-3 w-3" />
+              Geteilt
+            </span>
+          ) : null}
+
+          {canManage ? (
+            <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit();
+                }}
+                className="rounded-xl border p-2"
+                style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                aria-label={`${avatar.name} bearbeiten`}
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete();
+                }}
+                className="rounded-xl border p-2 text-[#b35b5b]"
+                style={{ borderColor: "#d8a3a3", background: palette.panel }}
+                aria-label={`${avatar.name} loeschen`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
 
           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl border px-2.5 py-2" style={{ borderColor: "rgba(255,255,255,0.38)", background: "rgba(10,16,24,0.34)" }}>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{avatar.name}</p>
-              <p className="truncate text-xs text-white/70">{avatar.description || "Avatar ohne Beschreibung"}</p>
+              <p className="truncate text-xs text-white/70">
+                {(!canManage && avatar.sharedBy?.name) || (!canManage && avatar.sharedBy?.email)
+                  ? `Geteilt von ${avatar.sharedBy?.name || avatar.sharedBy?.email}`
+                  : avatar.description || "Avatar ohne Beschreibung"}
+              </p>
             </div>
             <Eye className="ml-2 h-4 w-4 text-white/85" />
           </div>
@@ -237,6 +256,11 @@ const TaleaAvatarsScreen: React.FC = () => {
   };
 
   const handleDeleteAvatar = async (avatar: Avatar) => {
+    if (avatar.isOwnedByCurrentUser === false) {
+      toast.error("Geteilte Avatare koennen nicht geloescht werden.");
+      return;
+    }
+
     if (!window.confirm(t("common.confirm", "Wirklich loeschen?"))) return;
 
     try {
@@ -252,6 +276,8 @@ const TaleaAvatarsScreen: React.FC = () => {
     if (!query) return avatars;
     return avatars.filter((avatar) => avatar.name.toLowerCase().includes(query));
   }, [avatars, searchQuery]);
+  const ownedCount = avatars.filter((avatar) => avatar.isOwnedByCurrentUser !== false).length;
+  const sharedCount = avatars.length - ownedCount;
 
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text }}>
@@ -305,7 +331,7 @@ const TaleaAvatarsScreen: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-center">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto_auto] md:items-center">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: palette.textMuted }} />
                 <input
@@ -327,6 +353,12 @@ const TaleaAvatarsScreen: React.FC = () => {
               </div>
               <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
                 {filteredAvatars.length} sichtbar
+              </div>
+              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
+                {sharedCount} geteilt
+              </div>
+              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
+                {ownedCount} eigene
               </div>
             </div>
           </header>

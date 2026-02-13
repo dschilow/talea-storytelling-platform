@@ -5,6 +5,7 @@ import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { buildAvatarProgressionSummary } from "./progression";
+import { ensureAvatarSharingTables, findAvatarShareForIdentity, getUserProfileById } from "./sharing";
 
 interface GetAvatarParams {
   id: string;
@@ -15,8 +16,8 @@ export const get = api<GetAvatarParams, Avatar>(
   { expose: true, method: "GET", path: "/avatar/:id", auth: true },
   async ({ id }) => {
     try {
-      console.log(`[avatar.get] Loading avatar: ${id}`);
       const auth = getAuthData()!;
+      await ensureAvatarSharingTables();
       const row = await avatarDB.queryRow<{
         id: string;
         user_id: string;
@@ -38,35 +39,52 @@ export const get = api<GetAvatarParams, Avatar>(
       `;
 
       if (!row) {
-        console.error(`[avatar.get] Avatar not found: ${id}`);
         throw APIError.notFound("Avatar not found");
       }
 
-      console.log(`[avatar.get] Avatar found: ${row.name}`);
+      const isOwner = row.user_id === auth.userID;
+      let shareMatch = null;
 
-      if (row.user_id !== auth.userID && auth.role !== 'admin' && !row.is_public) {
-        console.error(`[avatar.get] Permission denied for user ${auth.userID} to access avatar ${id}`);
-        throw APIError.permissionDenied("You do not have permission to view this avatar.");
+      if (!isOwner && auth.role !== "admin" && !row.is_public) {
+        shareMatch = await findAvatarShareForIdentity({
+          avatarId: id,
+          userId: auth.userID,
+          email: auth.email,
+        });
+
+        if (!shareMatch) {
+          throw APIError.permissionDenied("You do not have permission to view this avatar.");
+        }
+      } else if (!isOwner) {
+        shareMatch = await findAvatarShareForIdentity({
+          avatarId: id,
+          userId: auth.userID,
+          email: auth.email,
+        });
       }
 
-      // Upgrade personality traits to include new knowledge categories
       let rawPersonalityTraits;
       try {
         rawPersonalityTraits = JSON.parse(row.personality_traits);
-      } catch (parseError) {
-        console.error(`[avatar.get] Failed to parse personality_traits for avatar ${id}:`, parseError);
-        console.error(`[avatar.get] Raw personality_traits:`, row.personality_traits);
+      } catch {
         throw APIError.internal("Failed to parse avatar personality traits");
       }
 
-      // Check if all base traits exist (all 9 should be there)
-      const baseTraits = ['knowledge', 'creativity', 'vocabulary', 'courage', 'curiosity', 'teamwork', 'empathy', 'persistence', 'logic'];
-      const needsUpgrade = !baseTraits.every(trait => trait in rawPersonalityTraits);
+      const baseTraits = [
+        "knowledge",
+        "creativity",
+        "vocabulary",
+        "courage",
+        "curiosity",
+        "teamwork",
+        "empathy",
+        "persistence",
+        "logic",
+      ];
+      const needsUpgrade = !baseTraits.every((trait) => trait in rawPersonalityTraits);
 
       let upgradedPersonalityTraits = rawPersonalityTraits;
-
       if (needsUpgrade) {
-        console.log(`🔄 Upgrading personality traits for avatar ${row.id}`);
         try {
           upgradedPersonalityTraits = upgradePersonalityTraits(rawPersonalityTraits);
 
@@ -76,35 +94,27 @@ export const get = api<GetAvatarParams, Avatar>(
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ${id}
           `;
-          console.log(`✅ Successfully upgraded traits for avatar ${row.id}`);
-        } catch (upgradeError) {
-          console.error(`❌ Failed to upgrade traits for avatar ${row.id}:`, upgradeError);
-          // Continue with raw traits if upgrade fails
+        } catch {
           upgradedPersonalityTraits = rawPersonalityTraits;
         }
       }
 
       let parsedPhysicalTraits;
-      let parsedVisualProfile;
-
       try {
         parsedPhysicalTraits = JSON.parse(row.physical_traits);
-      } catch (parseError) {
-        console.error(`[avatar.get] Failed to parse physical_traits for avatar ${id}:`, parseError);
+      } catch {
         throw APIError.internal("Failed to parse avatar physical traits");
       }
 
+      let parsedVisualProfile: AvatarVisualProfile | undefined;
       try {
         parsedVisualProfile = row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined;
-      } catch (parseError) {
-        console.error(`[avatar.get] Failed to parse visual_profile for avatar ${id}:`, parseError);
-        console.warn(`[avatar.get] Continuing without visual profile`);
+      } catch {
         parsedVisualProfile = undefined;
       }
 
-      console.log(`[avatar.get] Successfully loaded avatar ${id}`);
-
       const imageUrl = await buildAvatarImageUrlForClient(row.id, row.image_url || undefined);
+
       const progressionStats = await avatarDB.queryRow<{
         stories_read: number;
         dokus_read: number;
@@ -125,6 +135,30 @@ export const get = api<GetAvatarParams, Avatar>(
         },
       });
 
+      const activeShareRows = isOwner
+        ? await avatarDB.queryAll<{
+            contact_id: string;
+            contact_email: string;
+            display_name: string;
+            is_trusted: boolean;
+            created_at: Date;
+          }>`
+            SELECT
+              s.contact_id,
+              c.contact_email,
+              c.display_name,
+              c.is_trusted,
+              s.created_at
+            FROM avatar_shares s
+            INNER JOIN avatar_share_contacts c ON c.id = s.contact_id
+            WHERE s.avatar_id = ${id}
+              AND s.owner_user_id = ${auth.userID}
+            ORDER BY c.display_name ASC
+          `
+        : [];
+
+      const sharedByProfile = !isOwner && shareMatch ? await getUserProfileById(row.user_id) : null;
+
       return {
         id: row.id,
         userId: row.user_id,
@@ -136,6 +170,27 @@ export const get = api<GetAvatarParams, Avatar>(
         visualProfile: parsedVisualProfile,
         creationType: row.creation_type,
         isPublic: row.is_public,
+        isShared: isOwner ? activeShareRows.length > 0 : Boolean(shareMatch),
+        isOwnedByCurrentUser: isOwner,
+        sharedBy:
+          !isOwner && shareMatch
+            ? {
+                userId: row.user_id,
+                name: sharedByProfile?.name ?? undefined,
+                email: sharedByProfile?.email ?? undefined,
+                sharedAt: shareMatch.sharedAt.toISOString(),
+              }
+            : undefined,
+        sharedWithCount: isOwner ? activeShareRows.length : undefined,
+        activeShareRecipients: isOwner
+          ? activeShareRows.map((entry) => ({
+              contactId: entry.contact_id,
+              contactEmail: entry.contact_email,
+              contactLabel: entry.display_name,
+              trusted: entry.is_trusted,
+              sharedAt: entry.created_at.toISOString(),
+            }))
+          : undefined,
         originalAvatarId: row.original_avatar_id || undefined,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
@@ -144,14 +199,10 @@ export const get = api<GetAvatarParams, Avatar>(
         progression,
       };
     } catch (error) {
-      console.error(`[avatar.get] ERROR loading avatar ${id}:`, error);
-
-      // Re-throw APIErrors as-is
       if (error instanceof APIError) {
         throw error;
       }
 
-      // Wrap other errors
       throw APIError.internal(`Failed to load avatar: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

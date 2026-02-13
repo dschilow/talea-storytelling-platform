@@ -310,6 +310,35 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
           `,
         ]);
 
+        try {
+          await avatarDB.exec`
+            UPDATE avatar_share_contacts
+            SET owner_user_id = ${verifiedToken.sub}
+            WHERE owner_user_id = ${oldId}
+          `;
+          await avatarDB.exec`
+            UPDATE avatar_share_contacts
+            SET target_user_id = ${verifiedToken.sub}
+            WHERE target_user_id = ${oldId}
+          `;
+          await avatarDB.exec`
+            UPDATE avatar_shares
+            SET owner_user_id = ${verifiedToken.sub}
+            WHERE owner_user_id = ${oldId}
+          `;
+          await avatarDB.exec`
+            UPDATE avatar_shares
+            SET target_user_id = ${verifiedToken.sub}
+            WHERE target_user_id = ${oldId}
+          `;
+        } catch (shareMigrationError) {
+          console.warn("Avatar share tables not updated during identity merge", {
+            oldId,
+            newId: verifiedToken.sub,
+            error: shareMigrationError instanceof Error ? shareMigrationError.message : String(shareMigrationError),
+          });
+        }
+
         user = { id: verifiedToken.sub, role: existingByEmail.role, email };
       }
 

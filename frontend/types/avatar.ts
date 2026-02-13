@@ -111,6 +111,21 @@ export interface AvatarProgression {
   memoryFocusHint: string;
 }
 
+export interface AvatarSharedBy {
+  userId: string;
+  name?: string;
+  email?: string;
+  sharedAt?: string;
+}
+
+export interface AvatarShareRecipient {
+  contactId: string;
+  contactEmail: string;
+  contactLabel: string;
+  trusted: boolean;
+  sharedAt: string;
+}
+
 export interface Avatar {
   id: string;
   userId: string;
@@ -127,6 +142,11 @@ export interface Avatar {
     traits: PersonalityTrait[];
     lastUpdated: string;
   };
+  isShared?: boolean;
+  isOwnedByCurrentUser?: boolean;
+  sharedBy?: AvatarSharedBy;
+  sharedWithCount?: number;
+  activeShareRecipients?: AvatarShareRecipient[];
 
   // Memory system
   memories?: AvatarMemory[];

@@ -13,6 +13,8 @@ interface Avatar {
   imageUrl?: string;
   age: number;
   gender: string;
+  isOwnedByCurrentUser?: boolean;
+  sharedByLabel?: string;
 }
 
 interface Props {
@@ -44,6 +46,8 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
           imageUrl: avatar.imageUrl,
           age: avatar.age || 0,
           gender: avatar.gender || 'unknown',
+          isOwnedByCurrentUser: avatar.isOwnedByCurrentUser !== false,
+          sharedByLabel: avatar.sharedBy?.name || avatar.sharedBy?.email || undefined,
         }))
       );
     } catch (error) {
@@ -140,9 +144,13 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                 </div>
 
                 <p className="truncate text-sm font-semibold text-foreground">{avatar.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {avatar.age > 0 ? `${avatar.age} ${t('wizard.summary.age')}` : t('wizard.common.notSelected')}
-                </p>
+                {avatar.isOwnedByCurrentUser === false && avatar.sharedByLabel ? (
+                  <p className="mt-0.5 text-xs text-[#6f8cab]">Geteilt von {avatar.sharedByLabel}</p>
+                ) : (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {avatar.age > 0 ? `${avatar.age} ${t('wizard.summary.age')}` : t('wizard.common.notSelected')}
+                  </p>
+                )}
 
                 <AnimatePresence>
                   {isSelected && (

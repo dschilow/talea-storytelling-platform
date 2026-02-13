@@ -18,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Avatar, AvatarMemory, AvatarProgression } from '../../types/avatar';
 import { PersonalityProgressBoard } from '../../components/avatar/PersonalityProgressBoard';
 import TreasureRoom from '../../components/gamification/TreasureRoom';
+import AvatarSharePanel from '../../components/avatar/AvatarSharePanel';
 
 type PersonalityTab = 'personality' | 'diary' | 'treasure';
 
@@ -224,6 +225,7 @@ const AvatarDetailScreen: React.FC = () => {
 
   const traitModels = useMemo(() => normalizeTraits(rawTraits), [rawTraits]);
   const inventoryCount = avatar?.inventory?.length || 0;
+  const canManageAvatar = avatar?.isOwnedByCurrentUser ?? true;
 
   const deleteMemory = async (memoryId: string) => {
     if (!avatarId || !isSignedIn) {
@@ -312,15 +314,24 @@ const AvatarDetailScreen: React.FC = () => {
             Avatar Profil
           </p>
 
-          <button
-            type="button"
-            onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
-            className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold"
-            style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#c6d6ea' : '#6a5c52' }}
-          >
-            <PencilLine className="h-3.5 w-3.5" />
-            Bearbeiten
-          </button>
+          {canManageAvatar ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
+              className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#c6d6ea' : '#6a5c52' }}
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+              Bearbeiten
+            </button>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: isDark ? '#3c536c' : '#d9ccbb', color: isDark ? '#9eb3cd' : '#6f8299' }}
+            >
+              Nur lesen
+            </span>
+          )}
         </header>
 
         <section
@@ -351,6 +362,11 @@ const AvatarDetailScreen: React.FC = () => {
               <p className="mt-2 text-sm leading-relaxed" style={{ color: isDark ? '#a6b8d1' : '#647991' }}>
                 {avatar.description || 'Dieses Profil zeigt Entwicklung, Tagebuch und gesammelte Artefakte.'}
               </p>
+              {!canManageAvatar && avatar.sharedBy ? (
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: isDark ? '#8fb0d2' : '#6283a4' }}>
+                  Freigegeben von {avatar.sharedBy.name || avatar.sharedBy.email || 'einem vertrauten Kontakt'}
+                </p>
+              ) : null}
             </div>
 
             <div className="grid w-full max-w-md grid-cols-2 gap-2">
@@ -359,6 +375,13 @@ const AvatarDetailScreen: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <AvatarSharePanel
+          avatarId={avatar.id}
+          avatarName={avatar.name}
+          isDark={isDark}
+          canManage={canManageAvatar}
+        />
 
         <section
           className="rounded-2xl border p-1.5"

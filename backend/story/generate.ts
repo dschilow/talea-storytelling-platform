@@ -9,6 +9,7 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
+import { findAvatarShareForIdentity } from "../avatar/sharing";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
@@ -383,7 +384,15 @@ export const generate = api<GenerateStoryRequest, Story>(
         }
 
         if (row.user_id !== currentUserId) {
-          throw APIError.permissionDenied("Avatar does not belong to current user");
+          const shareMatch = await findAvatarShareForIdentity({
+            avatarId,
+            userId: currentUserId,
+            email: auth?.email,
+          });
+
+          if (!shareMatch) {
+            throw APIError.permissionDenied("Avatar is not shared with current user");
+          }
         }
 
         const physicalTraits = row.physical_traits ? JSON.parse(row.physical_traits) : {};

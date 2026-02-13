@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
+import { findAvatarShareForIdentity } from "../avatar/sharing";
 import { fairytalesDB } from "../fairytales/db";
 import type { Story, Chapter } from "./generate";
 import { claimGenerationUsage } from "../helpers/billing";
@@ -86,13 +87,27 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
     // Check all mapped avatars exist
     if (avatarIds.length > 0) {
       const avatars = await avatarDB.queryAll<any>`
-        SELECT id, name FROM avatars WHERE id = ANY(${avatarIds})
+        SELECT id, name, user_id FROM avatars WHERE id = ANY(${avatarIds})
       `;
 
       if (avatars.length !== avatarIds.length) {
         const foundIds = avatars.map((a: any) => a.id);
         const missingIds = avatarIds.filter(id => !foundIds.includes(id));
         errors.push(`Avatars not found: ${missingIds.join(', ')}`);
+      }
+
+      for (const avatar of avatars) {
+        if (avatar.user_id !== currentUserId) {
+          const shareMatch = await findAvatarShareForIdentity({
+            avatarId: avatar.id,
+            userId: currentUserId,
+            email: auth?.email,
+          });
+
+          if (!shareMatch) {
+            errors.push(`Avatar ${avatar.id} is not shared with current user`);
+          }
+        }
       }
     }
 

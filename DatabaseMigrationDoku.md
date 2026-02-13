@@ -543,3 +543,43 @@ Alle Scripts befinden sich im Root-Verzeichnis:
 - `seed-artifacts-now.ts` - Schnelles Seeding
 - `verify-artifacts.ts` - Verifizierung
 - `create-test-table.ts` - Datenbank-Connection testen
+
+## Avatar Sharing Migration (Kontakt + Freigabe)
+
+Diese Migration erweitert den `avatar`-Service um:
+
+- `avatar_share_contacts` (vertrauenswuerdige Kontakte mit Alias)
+- `avatar_shares` (Freigaben pro Avatar und Kontakt)
+
+### SQL-Dateien
+
+- `backend/avatar/migrations/10_add_avatar_sharing.up.sql`
+- `backend/avatar/migrations/10_add_avatar_sharing.down.sql`
+
+### Migration ausfuehren (Avatar-Service)
+
+```bash
+node run-avatar-migration-api.cjs 10_add_avatar_sharing
+```
+
+Optional: neueste Avatar-Migration automatisch ausfuehren:
+
+```bash
+node run-avatar-migration-api.cjs
+```
+
+### Verifizierung in Railway (Avatar-DB)
+
+```sql
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('avatar_share_contacts', 'avatar_shares');
+
+SELECT COUNT(*) AS contacts FROM avatar_share_contacts;
+SELECT COUNT(*) AS shares FROM avatar_shares;
+```
+
+### Hinweis zur Idempotenz
+
+Die Migration verwendet `IF NOT EXISTS` und kann mehrfach ausgefuehrt werden, ohne bestehende Daten zu beschaedigen.

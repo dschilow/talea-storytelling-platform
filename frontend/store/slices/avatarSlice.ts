@@ -9,7 +9,13 @@ interface Avatar {
   personalityTraits: any;
   imageUrl?: string;
   creationType: 'ai-generated' | 'photo-upload';
-  isShared: boolean;
+  isShared?: boolean;
+  isOwnedByCurrentUser?: boolean;
+  sharedBy?: {
+    userId: string;
+    name?: string;
+    email?: string;
+  };
   originalAvatarId?: string;
   createdAt: string;
   updatedAt: string;

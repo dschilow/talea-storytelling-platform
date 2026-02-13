@@ -104,6 +104,21 @@ export interface AvatarVisualProfile {
   consistentDescriptors: string[];
 }
 
+export interface AvatarSharedBy {
+  userId: string;
+  name?: string;
+  email?: string;
+  sharedAt?: string;
+}
+
+export interface AvatarShareRecipient {
+  contactId: string;
+  contactEmail: string;
+  contactLabel: string;
+  trusted: boolean;
+  sharedAt: string;
+}
+
 export interface Avatar {
   id: string;
   userId: string;
@@ -115,6 +130,11 @@ export interface Avatar {
   visualProfile?: AvatarVisualProfile;
   creationType: "ai-generated" | "photo-upload";
   isPublic: boolean;
+  isShared?: boolean;
+  isOwnedByCurrentUser?: boolean;
+  sharedBy?: AvatarSharedBy;
+  sharedWithCount?: number;
+  activeShareRecipients?: AvatarShareRecipient[];
   originalAvatarId?: string;
   createdAt: string;
   updatedAt: string;

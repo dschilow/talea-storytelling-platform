@@ -15,5 +15,7 @@ import "./debugPersonality";
 import "./deleteMemory";
 import "./reducePersonalityTrait";
 import "./resetDokuHistory";
+import "./migration-api";
+import "./share";
 
 export default new Service("avatar");
