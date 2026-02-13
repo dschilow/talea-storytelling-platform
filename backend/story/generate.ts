@@ -290,9 +290,9 @@ export const generate = api<GenerateStoryRequest, Story>(
       ...req.config,
       aiModel: effectiveAiModel,
       parentalGuidance: parentalGuidance || undefined,
-      customPrompt: parentalGuidance
-        ? [req.config.customPrompt, parentalGuidance].filter(Boolean).join("\n\n")
-        : req.config.customPrompt,
+      // Keep parental guidance separate; it is injected via STYLE PACK block downstream.
+      // Merging it into customPrompt duplicates constraints and degrades prose quality.
+      customPrompt: req.config.customPrompt,
     };
     const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
 

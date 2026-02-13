@@ -103,12 +103,17 @@ export async function loadStylePack(input: { language: string; category?: StoryC
 }
 
 export function formatStylePackPrompt(pack: StoryStylePack): string {
-  const rules = pack.rules.length > 0 ? pack.rules.map(rule => `- ${rule}`).join("\n") : "";
+  const uniqueRules = dedupeLines(pack.rules || []);
+  const rules = uniqueRules.length > 0 ? uniqueRules.map(rule => `- ${rule}`).join("\n") : "";
   const fragments = pack.promptFragments || {};
+  const hint = typeof fragments.closingHint === "string" ? fragments.closingHint.trim() : "";
+  const hasEquivalentRule = hint
+    ? uniqueRules.some(rule => normalizeKey(rule) === normalizeKey(hint))
+    : false;
   return [
     pack.name ? `STYLE PACK: ${pack.name} (v${pack.version})` : "STYLE PACK",
     rules,
-    fragments.closingHint ? `HINWEIS: ${fragments.closingHint}` : "",
+    hint && !hasEquivalentRule ? `HINWEIS: ${hint}` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -118,4 +123,27 @@ function pickFromCache(input: { language: string; category?: StoryCategory | str
   const fallback = cachedPacks.find(pack => pack.language === input.language && !pack.category);
   if (fallback) return fallback;
   return input.language === "de" ? DEFAULT_STYLE_PACK_DE : DEFAULT_STYLE_PACK_EN;
+}
+
+function dedupeLines(lines: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const line of lines) {
+    const trimmed = (line || "").trim();
+    if (!trimmed) continue;
+    const key = normalizeKey(trimmed);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+function normalizeKey(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }

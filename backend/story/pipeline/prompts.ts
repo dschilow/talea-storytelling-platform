@@ -294,298 +294,119 @@ export function buildFullStoryPrompt(input: {
 }): string {
   const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
   const isGerman = language === "de";
+  const targetLanguage = isGerman ? "Deutsch" : language;
+  const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
   const artifactName = cast.artifact?.name?.trim();
-  const artifactRule = cast.artifact?.storyUseRule || "wichtiges magisches Objekt";
+  const artifactRule = cast.artifact?.storyUseRule || (isGerman ? "wichtiges magisches Objekt" : "important magical object");
 
-  // Sammle alle einzigartigen Charaktere
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
   const allowedNames: string[] = [];
   const characterProfiles: string[] = [];
 
   for (const slot of allSlots) {
+    if (slot.includes("ARTIFACT")) continue;
     const sheet = findCharacterBySlot(cast, slot);
-    if (!sheet || slot.includes("ARTIFACT")) continue;
-    allowedNames.push(sheet.displayName);
+    if (!sheet) continue;
+    if (!allowedNames.includes(sheet.displayName)) {
+      allowedNames.push(sheet.displayName);
+    }
     characterProfiles.push(buildCharacterProfile(sheet as CharacterSheet, isGerman));
   }
 
-  // Kapitel-Übersicht (kompakt)
-  const chapterOutlines = directives.map((d, idx) => {
-    const charsOnStage = d.charactersOnStage
-      .filter(s => !s.includes("ARTIFACT"))
-      .map(s => findCharacterBySlot(cast, s)?.displayName)
-      .filter(Boolean)
-      .join(", ");
-
-    const isLast = idx === directives.length - 1;
-    const artifactNote = d.artifactUsage && !d.artifactUsage.toLowerCase().includes("nicht genutzt")
-      ? ` [${artifactName}]`
-      : "";
-
-    // Kompakt: Kapitel + Setting + Ziel + Figuren + Hook
-    let outline = `${idx + 1}. **${d.setting}**: ${d.goal}${artifactNote}`;
-    outline += `\n   Figuren: ${charsOnStage}`;
-    if (!isLast && d.outcome) {
-      outline += `\n   Hook: ${d.outcome.substring(0, 80)}`;
-    }
-
-    // Fusion-Hinweise falls vorhanden
-    const fusionBlock = fusionSections?.get(d.chapter);
-    if (fusionBlock) {
-      const lines = fusionBlock.split("\n").slice(0, 2);
-      outline += `\n   ${lines.join("; ")}`;
-    }
-
-    return outline;
-  }).join("\n\n");
-
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  const emotionalFocus = focusChildNames.length > 0
-    ? focusChildNames.slice(0, 2).join(", ")
-    : allowedNames.slice(0, 2).join(", ");
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
   const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
 
-  // Build avatar emphasis rule if multiple avatars present
-  const avatarEmphasis = focusChildNames.length >= 2
-    ? `\n# Avatar-Pflicht (BEIDE Kinder muessen aktiv sein)\n` +
-      `Die Kinder ${focusChildNames.join(" und ")} sind GLEICHWERTIGE Hauptfiguren.\n` +
-      `- Beide muessen in JEDEM Beat vorkommen (Aktion ODER Dialog).\n` +
-      `- Kein Kind darf nur danebenstehen oder nur nicken.\n` +
-      `- Jedes Kind braucht eigene Entscheidungen und eigene Dialogzeilen.\n` +
-      `- Beide machen Fehler und haben Erfolge – nicht nur eines.\n`
-    : "";
+  const avatarRule = focusChildNames.length >= 2
+    ? `- Avatar-Pflicht: ${focusChildNames.join(" und ")} sind gleichwertige Hauptfiguren und in JEDEM Beat aktiv (je Beat mindestens eine Handlung + eine Dialogzeile pro Kind).`
+    : focusChildNames.length === 1
+      ? `- Hauptkind-Pflicht: ${focusChildNames[0]} ist in JEDEM Beat aktiv (Handlung oder Dialog).`
+      : "";
 
-  // Altersgerechter Stil
-  const ageStyle = ageRange.max <= 5
-    ? "Sehr kurze Sätze (max 10 Wörter), sanfte Wiederholung, 1 Hauptproblem, sichere Auflösung."
-    : ageRange.max <= 8
-      ? "Kurze Sätze (max 15 Wörter), mehr Dialog, kleine Rätsel, spielerische Spannung, klare Hooks."
-      : ageRange.max <= 12
-        ? "Mittlere Sätze, stärkere Motive, schärfere Wendungen, tiefere Emotionen."
-        : "Komplexerer Stil, moralische Nuancen, größere Wendungen.";
-
-  const readabilityRules = ageRange.max <= 8
-    ? [
-        "- Ziel: sehr leicht lesbar fuer Vorlese- und Erstlesealter.",
-        "- Satzlaenge: MEIST 4-10 Woerter, ab und zu bis 14, fast NIE ueber 16.",
-        "- Maximal 15% der Saetze duerfen laenger als 14 Woerter sein.",
-        "- Maximal 1 Vergleich pro Absatz, keine Metaphernketten.",
-        "- Satz-Rhythmus PFLICHT: Abwechslung zwischen kurz (4-6 W.) und mittel (8-12 W.).",
-        "- NIEMALS drei gleich lange Saetze hintereinander.",
-        "- Beispiel fuer guten Rhythmus: \"Er rannte los. Der Wind pfiff ihm ins Gesicht, scharf und kalt. Schneller! Die Tuer war nah.\"  (4, 10, 1, 4)",
-      ].join("\n")
-    : "- Satzlaenge altersgerecht variieren, aber klar und konkret bleiben.";
-
-  const stylePackBlock = stylePackText?.trim()
-    ? `# STYLE PACK (verbindlich)\n${stylePackText.trim()}\n`
-    : "";
+  const stylePackBlock = sanitizePromptBlock(stylePackText);
   const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
 
-  // Build avatar memory section for story continuity
-  // OPTIMIZED: Ultra-compact format – only story titles, no experience text, minimal rules.
-  // Reasoning models (gpt-5-mini) burn disproportionate tokens on extra context.
   let memorySection = "";
   if (avatarMemories && avatarMemories.size > 0) {
     const memoryTitles: string[] = [];
     for (const avatar of cast.avatars) {
       const memories = avatarMemories.get(avatar.characterId);
       if (!memories || memories.length === 0) continue;
-      const titles = memories.map(m => m.storyTitle).join(", ");
-      memoryTitles.push(`${avatar.displayName}: ${titles}`);
+      memoryTitles.push(`${avatar.displayName}: ${memories.map(m => m.storyTitle).join(", ")}`);
     }
     if (memoryTitles.length > 0) {
-      memorySection = `\n# Frühere Abenteuer\n${memoryTitles.join("\n")}\nBaue EINE kurze, natürliche Referenz ein ("Das erinnert mich an..."). Nicht nacherzählen.\n`;
+      memorySection = isGerman
+        ? `\n# Fruehere Abenteuer\n${memoryTitles.join("\n")}\n- Baue GENAU EINE kurze Referenz ein: \"Das erinnert mich an ...\" (nicht nacherzaehlen).\n`
+        : `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n- Add EXACTLY one short reference: \"This reminds me of ...\" (do not retell).\n`;
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // HAUPTPROMPT - Optimiert für Token-Effizienz und Qualität
-  // ────────────────────────────────────────────────────────────────────────────
+  const beatLines = directives.map((directive, idx) => {
+    const castNames = directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+      .filter((name): name is string => Boolean(name));
+    const uniqueCast = Array.from(new Set(castNames));
+    const fusionHint = fusionSections?.get(directive.chapter)?.split("\n").slice(0, 1).join(" ").trim();
+    const artifactTag = artifactName && directive.artifactUsage && !directive.artifactUsage.toLowerCase().includes("nicht")
+      ? ` [${artifactName}]`
+      : "";
 
-  return `# Rolle und Ziel
-Du bist ein preisgekrönter Kinderbuch-Autor mit dem Witz von Roald Dahl, der Wärme von Astrid Lindgren und der Magie von Cornelia Funke.
-Schreibe eine komplette Kindergeschichte auf ${isGerman ? "Deutsch" : language}. **Nur JSON-Ausgabe.**
+    return `${idx + 1}) Ort: ${directive.setting}${artifactTag}. Kern: ${directive.goal}. Konflikt: ${directive.conflict}. Figuren: ${uniqueCast.join(", ") || "keine"}. Ausblick: ${(directive.outcome || "").slice(0, 120)}${fusionHint ? ` Hinweis: ${fusionHint}` : ""}`;
+  }).join("\n\n");
 
-# Zielgruppe
-- Alter: ${ageRange.min}–${ageRange.max} Jahre
-- ${ageStyle}
+  const safetyRule = isGerman
+    ? "Keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel."
+    : "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
 
-# Ton
-${tone || dna.toneBounds?.targetTone || "Warm"}, frech, aufregend – wie ein Lieblingsonkel, der heimlich ein Pirat war.
-Niemals belehrend, niemals zynisch, niemals langweilig.
+  const titleHint = isGerman
+    ? "Max 6 Woerter, neugierig machend, kein Schema \"Objekt und Person\"."
+    : "Max 6 words, curiosity-driven, avoid \"object and person\" pattern.";
 
-# Lesbarkeit (streng)
-${readabilityRules}
+  return `DU BIST: Kinderbuchautor auf Profi-Niveau (Preussler + Lindgren + Funke). Warm, frech, spannend.
+ZIEL: Kinder (${ageRange.min}-${ageRange.max}) wollen selbst weiterlesen.
 
-${stylePackBlock}
-${customPromptBlock}
+HARD RULES (muessen erfuellt sein):
+1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
+2) Ausgabe: Nur gueltiges JSON. Kein Text davor/danach.
+3) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt.
+4) Struktur: ${directives.length} Beats in Reihenfolge. Zwischen Beats genau eine Leerzeile. Keine Ueberschriften/Nummern im Storytext. Pro Beat etwa ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
+5) Cast-Lock: Nur diese Figuren: ${allowedNames.join(", ")}. Keine neuen Figuren.
+6) Figurenfokus: Pro Beat max ${focusMaxActive} aktive Figuren (ideal ${focusIdealRange}), global max ${focusGlobalMax} aktiv erkennbare Figuren.
+7) Kindgerecht: ${safetyRule}
+8) Artefakt: ${artifactName || (isGerman ? "Artefakt" : "artifact")} (${artifactRule}). Bogen: Entdecken -> Fehlleitung/Problem -> clever nutzen (loest NICHT allein).
+9) Show, don't tell: Gefuehle durch Koerper/Handlung/Details zeigen, nicht erklaeren.
+10) Kein Deus ex Machina. Loesung entsteht durch Mut + Teamwork + kluge Entscheidung.
 
-# Das oberste Gebot: ZEIGEN, NICHT ERZÄHLEN
-\`\`\`
-❌ VERBOTEN: "Emma hatte Angst."
-✅ RICHTIG: "Emmas Knie zitterten. Sie presste die Hand auf den Mund."
+STIL (sehr wichtig, aber flexibel):
+- Zielton: ${targetTone}.
+- Meist kurze Saetze, ab und zu ein laengerer fuer Schwung. Keine Satzmonster.
+- Dialoganteil ca. 30-40%, keine langen Monologe.
+- Jede Figur hat eigene Stimme (Wortwahl, Satzlaenge, Tick).
+- Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
+- Mindestens 2 echte Lachmomente und 1 Atem-anhalten-Moment.
+- Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
 
-❌ VERBOTEN: "Der Wald war unheimlich."
-✅ RICHTIG: "Nebel hing zwischen den Bäumen. Irgendwo knackte ein Ast."
-
-❌ VERBOTEN: "Sie freuten sich sehr."
-✅ RICHTIG: "Sie klatschten so laut ab, dass Bello erschrocken bellte."
-\`\`\`
-
-# Satz-Variation (PFLICHT - sonst klingt es wie ein Roboter)
-\`\`\`
-❌ MONOTON: "Mia saß am Tisch. Licht fiel herein. Adrian stand an der Tür. Er war nervoes."
-✅ LEBENDIG: "Am Holztisch klebte noch Mehlstaub. Mia ruehrte darin herum, als der Kompass zu blinken begann. Adrian? Klebte an der Tuer wie eine Briefmarke."
-\`\`\`
-- NIEMALS mehr als 2 Saetze hintereinander mit "Subjekt + Verb" anfangen.
-- Variiere Satzanfaenge: Ort, Zeit, Geraeusch, Frage, Dialog, Aktion.
-- Nutze auch Einwortsaetze und Ausrufe: "Knacks!" / "Stille." / "Nein!"
-
-# Stil-Regeln
-1. Kurze, klare Saetze mit starken Verben.
-2. Jeder Satz dient Handlung, Charakter oder Atmosphaere.
-3. Dialog ist wichtig, aber nicht dominant (ca. 25-40% der Saetze).
-4. Maximal 1 Adjektiv pro Nomen, keine Ketten.
-5. Wenige, konkrete Sinneseindruecke statt Dauerbeschreibungen.
-6. Pro Absatz maximal ein Vergleich, keine Metaphernketten.
-7. Berufsrollen nur bei Einfuehrung nennen, danach vor allem Name/Pronomen.
-8. Rhythmuswechsel je Beat: kurz/schnell -> ruhig/emotional -> kurz/schnell.
-9. Hauptfiguren muessen verschieden klingen:
-   - Kind A spricht z.B. schnell, abgehackt, mit Ausrufen.
-   - Kind B spricht z.B. vorsichtig, langsam, benutzt "Wir" statt "Ich".
-   - NPC hat eigenen Tick (Kichern, Reimen, Piepen, etc.).
-10. Rollenbezeichnungen mit Namen nicht wiederholen (nicht dauernd "Feuerwehrfrau Fanni"), nach Einfuehrung meist Name/Pronomen.
-
-# Humor & Charme (PFLICHT)
-- Mindestens 2 uebertriebene Situationen pro Geschichte (Slapstick, Wortwitz, Absurdität).
-- Kinder duerfen frech sein (aber nie gemein).
-- Dialog-Humor: Figuren reden aneinander vorbei, missverstehen etwas, oder reagieren unerwartet.
-- Beispiel: Statt "Sie lachten" -> "Adrian kicherte so laut, dass das Broetchen erschrocken schneller rollte."
-
-# Erster Satz (GOLDENE REGEL)
-- Der allererste Satz der Geschichte muss sofort MITTEN IN EINE AKTION springen.
-- ❌ LANGWEILIG: "Der Basar duftete nach Orangen." (= Beschreibung, passiv)
-- ✅ PACKEND: "Mia riss die Augen auf – der Stein in ihrer Hand LEUCHTETE." (= Aktion, Geheimnis)
-- ✅ PACKEND: "Drei Dinge sollte man auf dem Basar nicht tun: rennen, schreien und – ach, zu spät." (= Stimme, Humor)
-
-# Lebendige Prosa (PFLICHT - sonst klingt es wie von einer KI)
-- Jede Szene braucht mindestens ein KONKRETES DETAIL, das man riechen/schmecken/fuehlen kann.
-- Figuren haben MACKEN: stolpern, vergessen etwas, haben eine komische Angewohnheit.
-- Dialoge muessen UNTERBROCHEN werden: durch Aktionen, Gedanken, Geräusche.
-- ❌ ROBOTER: "Mia hob den Stein. Adrian sah zu. Alexander notierte."
-- ✅ LEBENDIG: "Mia hob den Stein hoch. Er war schwerer als erwartet – und warm. ‚Ähm', sagte sie. Adrian wich einen Schritt zurueck. Alexander vergass zu schreiben."
-
-# Anti-Schablone (PFLICHT - jeder Beat muss ANDERS aufgebaut sein)
-- Beat 1 darf NICHT mit Ortsbeschreibung beginnen, wenn Beat 2 auch so anfaengt.
-- Variiere den Einstieg: Dialog / Aktion / Geraeusch / Gedanke / Frage.
-- Manche Beats brauchen einen langen Spannungsabsatz, andere nur 2 knappe Saetze.
-- NIEMALS das gleiche Schema: "Ort beschreiben → Figur reagiert → Dialog → Loesung → weiter."
-- ❌ SCHABLONE: Jeder Beat beginnt mit Beschreibung, endet mit Dialog-Zusammenfassung.
-- ✅ ABWECHSLUNG: Beat 1 startet mit Knall, Beat 2 mit leisem Dialog, Beat 3 mitten im Streit.
-
-# Verbotene Woerter
-"plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
-
-# Verbotene Platzhalter
-"[inhalt-gefiltert]", "[content-filtered]", "[redacted]"
-
-# Fokus-Regeln
-- Pro Beat maximal ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
-- Wenn der Beat-Plan mehr Namen nennt: waehle ${focusIdealRange} Fokusfiguren mit klarer Handlung.
-- Weitere Figuren nur kurz im Hintergrund, ohne eigene Nebenhandlung.
-- Ueber die ganze Geschichte maximal ${focusGlobalMax} aktiv erkennbare Figuren.
-
-# Dramaturgie-Pflicht (muss spuerbar sein)
-1. Beat 1: klares Ziel + Frage.
-2. Beat 2: Hindernis wird groesser + Zeitdruck oder Risiko.
-3. Beat 3: echter Rueckschlag (Plan scheitert / Verlust / falsche Spur).
-4. Beat 4: Tiefpunkt + mutige Entscheidung eines Kindes.
-5. Beat 5: Loesung mit Preis und emotionalem Nachklang.
-- Die Stakes muessen klar sein: frueh benennen, was bei Scheitern passiert (frei formuliert, kein starres Satzschema).
-- Beat 3 oder 4 muss einen klar benannten Verlust/Preis enthalten (nicht nur kleine Verzoegerung, keine Mini-Folgen wie verlorene Kruemel).
-
-# Emotionaler Kern (Kinder-Perspektive)
-- In jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
-- Zeige Koerpersignal + Gedanke (z. B. zittern + Zweifel), nicht nur Aktion.
-- Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter.
-- Jede Hauptfigur braucht eine erkennbare Sprachfarbe in Dialogen.
-
-# Harte Regeln (muessen erfuellt sein)
-1. Sprache: Nur ${isGerman ? "Deutsch" : language}.
-2. Laenge: Gesamt ${totalWordMin}-${totalWordMax} Woerter. Pro Story-Beat ca. ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
-3. Flow: Eine zusammenhaengende Geschichte (keine Kapitel-Labels, keine Nummerierung im Text).
-4. Beat-Struktur: Die Geschichte bildet alle ${directives.length} Beats in der Reihenfolge ab.
-5. Absatz-Regel: Genau eine Leerzeile zwischen Beats, ohne Ueberschriften.
-6. Keine Meta-Labels: Kein "Setting:", "Ziel:", "Hook:" usw.
-7. Cast Lock: Nur diese Namen: ${allowedNames.join(", ")}. Keine neuen Figuren.
-8. Aktive Charaktere: Figuren handeln sichtbar (Verb + Objekt) oder sprechen.
-9. Figurenlimit pro Beat einhalten (max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}).
-10. Globaler Figurenfokus: Insgesamt hoechstens ${focusGlobalMax} aktiv erkennbare Figuren.
-11. Figurenstimmen: In Mehrfiguren-Szenen muessen mindestens zwei klar unterscheidbare Stimmen hoerbar sein.
-12. Dialog: Keine Monologe. Kurze, natuerliche Rede.
-13. Anti-Wiederholung: Keine identischen Saetze. Catchphrase pro Figur hoechstens 1x.
-14. Kein Deus ex Machina: Die Loesung entsteht durch Mut, Teamwork oder kluge Entscheidung.
-15. Ende ohne Predigt: Die Geschichte zeigt die Botschaft, sie erklaert sie nicht.
-16. Letzter Beat schliesst die Leitfrage klar und warm ab; kein neues Raetsel, kein Cliffhanger.
-17. Finale-Fokus: Im letzten Beat maximal ${focusMaxActive} aktive Figuren, bevorzugt ${focusIdealRange}.
-
-# Figuren (NUR diese erlaubt)
-Jede Figur hat einzigartige Persönlichkeit, Sprechweise und Fähigkeiten:
-
+${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}FIGURENSTIMMEN:
 ${characterProfiles.join("\n\n")}
+${memorySection}${artifactName ? `\n# Artefakt-Arc\n- Name: ${artifactName}\n- Nutzen: ${artifactRule}\n- Pflichtbogen: Entdecken -> Fehlleitung -> cleverer Einsatz durch die Kinder.\n` : ""}
+# BEAT-VORGABEN
+${beatLines}
 
-${memorySection}
-${avatarEmphasis}
-${artifactName ? `# Artefakt: ${artifactName}
-**Funktion**: ${artifactRule}
+# INTERNER SCHREIBPROZESS (nicht ausgeben)
+- Erstelle intern zuerst eine kurze Beat-Skizze.
+- Schreibe dann die Geschichte als fliessenden Text.
+- Fuehre internes Lektorat durch: Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Schlusswaerme.
+- Gib danach NUR das finale JSON aus.
 
-**Pflicht-Bogen**:
-| Phase | Kapitel | Was passiert |
-|-------|---------|--------------|
-| Einführung | 1–2 | Wird entdeckt, zeigt erste Fähigkeit |
-| Versagen | 2–3 | Funktioniert falsch ODER führt in Sackgasse |
-| Triumph | 4–5 | Held nutzt es CLEVER (Artefakt löst nicht allein!) |` : ""}
-
-# Story-Beat-Vorgaben
-${chapterOutlines}
-
-# Qualitäts-Check (intern prüfen)
-- [ ] Erster Satz macht sofort neugierig?
-- [ ] Pro Beat maximal ${focusMaxActive} aktive Figuren?
-- [ ] Insgesamt nicht mehr als ${focusGlobalMax} aktiv erkennbare Figuren?
-- [ ] Gibt es frueh eine klare Konsequenz bei Scheitern?
-- [ ] Gibt es einen echten Tiefpunkt in Beat 3 oder 4?
-- [ ] Haben die Kinder sichtbare Gefühle + innere Gedanken?
-- [ ] Dialoge: Klingen mindestens zwei Figuren klar unterschiedlich?
-- [ ] Werden Rollenlabels nicht dauernd wiederholt?
-- [ ] Ist die Sprache rhythmisch wechselnd statt dauerhaft dicht?
-- [ ] Letzter Satz bleibt im Kopf?
-- [ ] Ende klar geloest und warm (kein neues offenes Problem)?
-- [ ] Wortanzahl im Zielkorridor pro Beat?
-
-# Titel-Regeln (PFLICHT)
-- Max 6 Wörter, KEINE langweiligen "[Gegenstand] und [Person]"-Titel
-- Gute Titel: Wortspiele, Alliterationen, Geheimnisvolles, Klangmalerei
-- ❌ VERBOTEN: "Das Windeamulett", "Der magische Kompass", "Das verzauberte Buch"
-- ✅ GUT: "Sturmflüsterer", "Drei Wünsche und ein halber", "Der Tag, an dem der Wind sang"
-- Der Titel muss ein Kind neugierig machen!
-
-# Ausgabe-Format
-Antworte NUR mit validem JSON. Kein Text davor oder danach.
-
-\`\`\`json
+# AUSGABE-FORMAT
 {
-  "title": "Magischer Buchtitel (max 6 Wörter, KEIN Schema [Objekt+Artefakt])",
-  "description": "Ein packender Teaser-Satz, der eine Frage im Kopf weckt",
-  "storyText": "Eine zusammenhängende Geschichte als Fließtext mit Leerzeile zwischen Beats, aber ohne Kapitel-Titel/Nummern."
+  "title": "${titleHint}",
+  "description": "Ein Teaser-Satz als Frage oder kleines Raetsel",
+  "storyText": "Fliessender Text mit genau einer Leerzeile zwischen Beats."
+}`;
 }
-\`\`\``;
-}
-
-// ─── Optimized Rewrite Prompt (V2) ────────────────────────────────────────────
-// Kompakter, fokussiert nur auf die Probleme
 
 export function buildFullStoryRewritePrompt(input: {
   originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; text: string }> };
@@ -604,116 +425,75 @@ export function buildFullStoryRewritePrompt(input: {
 }): string {
   const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText, userPrompt } = input;
   const isGerman = language === "de";
+  const targetLanguage = isGerman ? "Deutsch" : language;
+  const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
   const artifactName = cast.artifact?.name?.trim();
 
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
-  const allowedNamesList = Array.from(allSlots)
+  const allowedNames = Array.from(allSlots)
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
-    .filter((name): name is string => Boolean(name));
-  const allowedNames = allowedNamesList.join(", ");
+    .filter((name): name is string => Boolean(name))
+    .join(", ");
+
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  const emotionalFocus = focusChildNames.length > 0
-    ? focusChildNames.slice(0, 2).join(", ")
-    : allowedNamesList.slice(0, 2).join(", ");
-  const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
-  const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
-  const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
+  const avatarRule = focusChildNames.length >= 2
+    ? `- ${focusChildNames.join(" und ")} muessen in JEDEM Beat aktiv sein (je Beat mindestens eine Handlung + eine Dialogzeile pro Kind).`
+    : focusChildNames.length === 1
+      ? `- ${focusChildNames[0]} muss in JEDEM Beat aktiv sein.`
+      : "";
+
+  const stylePackBlock = sanitizePromptBlock(stylePackText);
+  const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
     .join("\n\n");
 
-  const stylePackBlock = stylePackText?.trim()
-    ? `\n# STYLE PACK (verbindlich)\n${stylePackText.trim()}\n`
-    : "";
-  const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
+  return `AUFGABE: Ueberarbeite die Geschichte so, dass sie wie ein echtes Kinderbuch klingt. Behalte Plot und Figurenkern, verbessere Sprache, Rhythmus und Voice.
 
-  return `# Aufgabe
-Überarbeite die Geschichte. Behalte Handlung und Charaktere, behebe ALLE Probleme.
-WICHTIG: Verbessere die PROSA-QUALITÄT, nicht nur die Struktur!
+KONKRETE PROBLEME (zu beheben):
+${qualityIssues || "- Keine speziellen Issues uebergeben; optimiere trotzdem Prosa, Rhythmus und Figurenstimmen."}
 
-${qualityIssues}
-${stylePackBlock}
-${customPromptBlock}
+HARD RULES:
+1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
+2) Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre, klar und kindgerecht.
+3) Cast-Lock: Nur diese Namen sind erlaubt: ${allowedNames || "(keine)"}. Keine neuen Figuren.
+4) Struktur: ${directives.length} Beats in Reihenfolge, keine Kapitel-Titel im Fliesstext.
+5) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt; pro Beat etwa ${wordsPerChapter.min}-${wordsPerChapter.max}.
+6) Kindgerecht: keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel.
+7) Show, don't tell: Gefuehle ueber Koerpersignale, Handlung und konkrete Details.
+8) Kein Deus ex Machina.
+9) Ende klar, warm, ohne Cliffhanger.
+${artifactName ? `10) Artefakt "${artifactName}" bleibt relevant, loest aber nicht allein.` : ""}
+${avatarRule || ""}
 
-# Zeigen, nicht erzählen (PFLICHT bei Rewrite)
-\`\`\`
-❌ "Emma hatte Angst." → ✅ "Emmas Knie zitterten. Sie presste die Hand auf den Mund."
-❌ "Der Wald war unheimlich." → ✅ "Nebel hing zwischen den Bäumen. Irgendwo knackte ein Ast."
-❌ "Sie freuten sich." → ✅ "Sie klatschten so laut ab, dass Bello erschrocken bellte."
-\`\`\`
+STIL-ZIELE (flexibel, aber wichtig):
+- Zielton: ${targetTone}.
+- Meist kurze Saetze, ab und zu ein laengerer fuer Schwung.
+- Dialoganteil etwa 30-40%, mit klar unterscheidbaren Stimmen.
+- Pro Beat mindestens ein konkretes Sinnesdetail.
+- Mindestens zwei humorvolle Momente und ein klarer Spannungsmoment.
+- Keine Meta-Saetze wie "Leitfrage", "Ausblick", "Beat" im Storytext.
 
-# Humor & Lebendigkeit (PFLICHT)
-- Mindestens 2 übertriebene/komische Situationen in der Geschichte.
-- Dialog-Humor: Figuren reden aneinander vorbei, missverstehen etwas, reagieren unerwartet.
-- Jede Szene braucht ein KONKRETES DETAIL, das man riechen/schmecken/fühlen kann.
-- Dialoge müssen UNTERBROCHEN werden: durch Aktionen, Gedanken, Geräusche.
-- NIEMALS mehr als 2 Sätze hintereinander mit "Subjekt + Verb" anfangen.
+${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNES LEKTORAT (nicht ausgeben):
+- Pruefe Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Wortzahl.
+- Wenn etwas bricht: intern ueberarbeiten.
+- Danach nur das finale JSON ausgeben.
 
-# Verbotene Wörter
-"plötzlich", "irgendwie", "ein bisschen", "ziemlich", "wirklich", "sehr", "Es war einmal"
-
-# 10.0 Ziele (Pflicht)
-- Figurenfokus: pro Beat max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
-- Aktive Figuren = spricht sichtbar oder handelt sichtbar (Verb + Objekt).
-- Wenn ein Beat mehr Namen traegt: waehle ${focusIdealRange} Fokusfiguren; weitere Figuren nur kurz im Hintergrund.
-- Ueber die ganze Geschichte maximal ${focusGlobalMax} aktiv erkennbare Figuren.
-- Dramaturgie mit Eskalation:
-  Beat 1 Ziel + Leitfrage.
-  Beat 2 Risiko steigt (Zeitdruck ODER klare Gefahr).
-  Beat 3 echter Rueckschlag (Plan scheitert / Verlust / falsche Spur).
-  Beat 4 Tiefpunkt + mutige Entscheidung eines Kindes.
-  Beat 5 Loesung mit kleinem Preis und emotionalem Nachklang.
-- Stakes muessen explizit sein: genau eine konkrete Konsequenz frueh benennen (was bei Scheitern passiert, ohne starres Satzschema).
-- In Beat 3 oder 4 muss ein echter Verlust/Preis passieren, nicht nur ein kurzer Umweg.
-- In Beat 3 oder 4 darf der Rueckschlag nicht sofort relativiert werden ("kein Problem", "keine Katastrophe", etc.).
-- Emotionaler Kern: in jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
-- Mindestens ein Kind macht einen Fehler und korrigiert ihn spaeter aktiv.
-- Sprachrhythmus wechseln: kurz/schnell -> ruhig/emotional -> kurz/schnell.
-- Letzter Beat schliesst die Leitfrage klar: kein neues Raetsel, kein Cliffhanger, warmes Ende.
-
-# Regeln (unveraenderlich)
-- Erlaubte Namen: ${allowedNames}
-- Keine neuen Figuren.
-- Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt, **${wordsPerChapter.min}-${wordsPerChapter.max} pro Beat**.
-- Kurze Beats mit Handlung + Dialog ausbauen (zeigen, nicht erklaeren).
-- Jeder Beat enthaelt klar: Ziel, Hindernis, Entscheidung, kleines Ergebnis/Hook.
-- Fuer Alter ${ageRange.min}-${ageRange.max}: kurze klare Saetze, wenig Schachtelsaetze.
-- Figurenstimmen schaerfen: in Mehrfiguren-Szenen mindestens zwei unterscheidbare Sprecher.
-- Figurenstimmen unterscheidbar halten: jede Hauptfigur bekommt eine klare Sprachfarbe (Wortwahl + Satzrhythmus).
-- Berufsrollen (z. B. "Feuerwehrfrau", "Polizist") nur bei Einfuehrung, danach meist Name/Pronomen.
-- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}-${ageRange.max}
-${artifactName ? `- Artefakt "${artifactName}" aktiv und sinnvoll nutzen.` : ""}
-- Letzter Beat: Epilog (2-4 Saetze) ohne Predigt.
-- Schluss ohne offene Restfrage im letzten Absatz.
-
-# Titel-Regeln (PFLICHT)
-- Max 6 Wörter, KEINE langweiligen "[Gegenstand] und [Person]"-Titel
-- Gute Titel: Wortspiele, Alliterationen, Geheimnisvolles, Klangmalerei
-- ❌ VERBOTEN: "Das Windeamulett", "Der magische Kompass"
-- ✅ GUT: "Sturmflüsterer", "Drei Wünsche und ein halber"
-
-# VERBOTEN im Text
-"Setting:", "Ziel:", "Hook:", "Hindernis:", "Aktion:", passive Sätze, "Ihr Ziel war", "Ein Hindernis war", "[inhalt-gefiltert]", "[content-filtered]", "[redacted]"
-
-# Original-Text
+ORIGINAL-TEXT:
 ${originalText}
 
-# Ausgabe
-Komplette überarbeitete Geschichte als JSON:
-\`\`\`json
+AUSGABE-FORMAT (nur JSON):
 {
   "title": "Story-Titel",
   "description": "Teaser-Satz",
   "chapters": [
-    { "chapter": 1, "text": "..." },
-    ...
+    { "chapter": 1, "text": "..." }
   ]
-}
-\`\`\``;
+}`;
 }
 
-// ─── Chapter Expansion Prompt (V2 - kompakter) ────────────────────────────────
+// --- Chapter Expansion Prompt (V2 - kompakter) --------------------------------
 
 export function buildChapterExpansionPrompt(input: {
   chapter: SceneDirective;
@@ -1091,13 +871,40 @@ function findCharacterBySlot(cast: CastSet, slotKey: string) {
   return cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
 }
 
+function sanitizePromptBlock(block: string | undefined, maxLen = 2400): string {
+  if (!block || !block.trim()) return "";
+  const lines = block
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+  for (const line of lines) {
+    const key = line
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(line);
+  }
+
+  const joined = deduped.join("\n");
+  return joined.slice(0, maxLen).trim();
+}
+
 function formatCustomPromptBlock(userPrompt: string | undefined, isGerman: boolean): string {
   if (!userPrompt || !userPrompt.trim()) return "";
-  const normalized = userPrompt
-    .trim()
-    .replace(/```/g, "'''")
-    .replace(/\r\n/g, "\n")
-    .slice(0, 2000);
+  const normalized = sanitizePromptBlock(
+    userPrompt
+      .trim()
+      .replace(/```/g, "'''"),
+    2000,
+  );
   if (!normalized) return "";
   if (isGerman) {
     return `# ZUSAETZLICHE NUTZER-VORGABEN (hoch priorisiert)\n${normalized}\n- Setze diese Vorgaben kreativ um, ohne die harten Regeln oben zu brechen.\n`;
