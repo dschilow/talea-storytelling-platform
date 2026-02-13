@@ -35,7 +35,7 @@ const REWRITE_ONLY_ON_ERRORS = true;
 const MAX_EXPAND_CALLS = 5;
 
 // Cost-safe quality lift: polish warning-heavy chapters without full-story rewrites.
-const MAX_WARNING_POLISH_CALLS = 2;
+const MAX_WARNING_POLISH_CALLS = 3;
 const WARNING_POLISH_CODES = new Set([
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
@@ -45,6 +45,8 @@ const WARNING_POLISH_CODES = new Set([
   "IMAGERY_DENSITY_HIGH",
   "NO_DIALOGUE",
   "TOO_FEW_DIALOGUES",
+  "DIALOGUE_RATIO_LOW",
+  "META_LABEL_PHRASE",
   "ENDING_TOO_SHORT",
 ]);
 
@@ -882,8 +884,8 @@ function removeCrossChapterDuplicateSentences(chapters: StoryDraft["chapters"]):
 function sanitizeMetaStructureFromText(text: string): string {
   if (!text) return text;
   const lines = text.split(/\r?\n/);
-  const labelPattern = /^(?:\d+[\).]\s*)?(?:[-\u2022*]\s*)?(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]\s*(.*)$/i;
-  const sentenceLabelPattern = /^(?:\*\*|__)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]/i;
+  const labelPattern = /^(?:\d+[\).]\s*)?(?:[-\u2022*]\s*)?(?:\*\*|__)?(?:(?:Der|Die|Das|The)\s+)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]\s*(.*)$/i;
+  const sentenceLabelPattern = /^(?:\*\*|__)?(?:(?:Der|Die|Das|The)\s+)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]/i;
 
   const cleaned = lines.map(line => {
     const trimmed = line.trim();
@@ -930,8 +932,17 @@ function sanitizeMetaStructureFromText(text: string): string {
     /Sichtbare Aktion:\s*/gi,
     /Sichtbare Handlung:\s*/gi,
     /Aktion fortgesetzt:\s*/gi,
+    /(?:Der|Die|Das)\s+Ausblick\s*:\s*/gi,
+    /(?:Der|Die|Das)\s+Hook\s*:\s*/gi,
+    /(?:Der|Die|Das)\s+Epilog\s*:\s*/gi,
+    /Ausblick\s*:\s*/gi,
+    /Hook\s*:\s*/gi,
+    /Epilog\s*:\s*/gi,
     /Visible action:\s*/gi,
     /Action continued:\s*/gi,
+    /(?:The\s+)?Outlook\s*:\s*/gi,
+    /(?:The\s+)?Hook\s*:\s*/gi,
+    /(?:The\s+)?Epilogue\s*:\s*/gi,
     /Mini-Problem:\s*/gi,
     /Mini-Aufl(?:oe|ö)sung:\s*/gi,
   ];

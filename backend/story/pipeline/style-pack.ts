@@ -27,10 +27,10 @@ const DEFAULT_STYLE_PACK_DE: StoryStylePack = {
     "KEINE Metaphern oder poetischen Floskeln (wie 'Honig-Sonne' oder 'Nebel-Worte').",
     "KEINE unnoetigen Geruchsbeschreibungen.",
     "Kapitelstruktur: 2-5 kurze Absaetze, gelegentlich direkte Rede.",
-    "Kapitelenden variieren bewusst: mal Ausblick, mal Pointe, mal ruhiger Nachklang.",
+    "Kapitelenden variieren bewusst: mal Blick nach vorne, mal Pointe, mal ruhiger Nachklang.",
   ],
   promptFragments: {
-    closingHint: "Kapitelenden duerfen variieren; wiederhole nicht immer denselben Ausblick-Satz.",
+    closingHint: "Kapitelenden duerfen variieren; vermeide immer dieselbe Formulierung.",
   },
 };
 

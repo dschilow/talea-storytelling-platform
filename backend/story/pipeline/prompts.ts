@@ -353,7 +353,7 @@ export function buildFullStoryPrompt(input: {
       ? ` [${artifactName}]`
       : "";
 
-    return `${idx + 1}) Ort: ${directive.setting}${artifactTag}. Kern: ${directive.goal}. Konflikt: ${directive.conflict}. Figuren: ${uniqueCast.join(", ") || "keine"}. Ausblick: ${(directive.outcome || "").slice(0, 120)}${fusionHint ? ` Hinweis: ${fusionHint}` : ""}`;
+    return `${idx + 1}) Ort: ${directive.setting}${artifactTag}. Kern: ${directive.goal}. Konflikt: ${directive.conflict}. Figuren: ${uniqueCast.join(", ") || "keine"}. Weiterer Impuls -> ${(directive.outcome || "").slice(0, 120)}${fusionHint ? ` Hinweis: ${fusionHint}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = isGerman
@@ -382,11 +382,12 @@ HARD RULES (muessen erfuellt sein):
 STIL (sehr wichtig, aber flexibel):
 - Zielton: ${targetTone}.
 - Meist kurze Saetze, ab und zu ein laengerer fuer Schwung. Keine Satzmonster.
-- Dialoganteil ca. 30-40%, keine langen Monologe.
+- Dialoganteil ca. 30-40% (mindestens 25%), keine langen Monologe.
 - Jede Figur hat eigene Stimme (Wortwahl, Satzlaenge, Tick).
 - Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
 - Mindestens 2 echte Lachmomente und 1 Atem-anhalten-Moment.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
+- Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
 
 ${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}FIGURENSTIMMEN:
 ${characterProfiles.join("\n\n")}
@@ -470,10 +471,10 @@ ${avatarRule || ""}
 STIL-ZIELE (flexibel, aber wichtig):
 - Zielton: ${targetTone}.
 - Meist kurze Saetze, ab und zu ein laengerer fuer Schwung.
-- Dialoganteil etwa 30-40%, mit klar unterscheidbaren Stimmen.
+- Dialoganteil etwa 30-40% (mindestens 25%), mit klar unterscheidbaren Stimmen.
 - Pro Beat mindestens ein konkretes Sinnesdetail.
 - Mindestens zwei humorvolle Momente und ein klarer Spannungsmoment.
-- Keine Meta-Saetze wie "Leitfrage", "Ausblick", "Beat" im Storytext.
+- Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
 
 ${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNES LEKTORAT (nicht ausgeben):
 - Pruefe Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Wortzahl.
@@ -561,6 +562,7 @@ ${missingLine}
 10. Dialoge muessen unterscheidbar klingen; Rollenlabels mit Namen nur einmal bei Einfuehrung, danach Name/Pronomen.
 11. LESBARKEIT BEWAHREN: Saetze MEIST 4-10 Woerter, max 15 % duerfen bis 14 Woerter haben. KEINEN Satz ueber 16 Woerter. Kurze Saetze = besser als lange.
 12. VORHANDENE PROSA NICHT VERSCHLECHTERN: Wenn der Originaltext bereits kurze, rhythmische Saetze hat, behalte diesen Stil bei. Fuege fehlende Figuren durch NEUE kurze Saetze ein, nicht durch Aufblaehen vorhandener Saetze.
+13. KEINE Meta-Labels oder Schablonen-Saetze im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Ort:", "Stimmung:", "Kapitel 1").
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original
@@ -643,7 +645,7 @@ STRICT RULES:
 8) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 9) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 10) Avatars and supporting characters must be actively involved, not just present.
-11) End with a gentle forward-looking line (except final chapter).
+11) End naturally with momentum or a warm closure (except final chapter); never use label phrases like "Der Ausblick:" or "Outlook:".
 ${strict ? "12) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
@@ -724,13 +726,15 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names.
 3) No meta-instructions.
-3b) Do NOT output headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Visible action:", "Action continued:", "Sichtbare Aktion:", "Aktion fortgesetzt:". Also never start sentences with "Her goal was", "An obstacle was", "Ihr Ziel war", "Ein Hindernis war".
+3b) Do NOT output headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Visible action:", "Action continued:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Der Ausblick:". Also never start sentences with "Her goal was", "An obstacle was", "Ihr Ziel war", "Ein Hindernis war".
 4) Every character must act or speak.
 5) Do not state belonging explicitly; avoid phrases like "always been part of this tale".
 6) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 7) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 8) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
 9) Children's-book style: vivid, rhythmic, varied sentence starts.
+10) Keep dialogue lively and present (roughly 25-45% of sentences where fitting, no monologue blocks).
+11) Never use meta labels inside prose (e.g. "Der Ausblick:", "Outlook:", "Hook:", "Scene:", "Kapitel 1").
 
 ORIGINAL TEXT:
 ${originalText}
@@ -784,7 +788,7 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names or new characters.
 3) Replace template phrases with concrete action + short dialogue lines.
-3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
+3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Der Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
 4) Keep the chapter length within ${lengthTargets.wordMin}-${lengthTargets.wordMax} words.
 5) Do not change the plot beats, only the wording.
 ${missingLine ? `6) ${missingLine}\n` : ""}

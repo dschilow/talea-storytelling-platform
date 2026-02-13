@@ -125,30 +125,55 @@ function gateChapterStructure(draft: StoryDraft, language: string): QualityIssue
 }
 
 // ─── Gate 3: Dialogue Quote ─────────────────────────────────────────────────────
-function gateDialogueQuote(draft: StoryDraft, language: string): QualityIssue[] {
+function gateDialogueQuote(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+  const minDialogueLines = ageMax <= 8 ? 3 : 2;
+  const minDialogueRatio = ageMax <= 8 ? 0.22 : 0.16;
+  const maxDialogueRatio = ageMax <= 8 ? 0.68 : 0.75;
 
   for (const ch of draft.chapters) {
+    const sentenceCount = Math.max(1, splitSentences(ch.text).length);
     const dialogueCount = countDialogueLines(ch.text);
-    if (dialogueCount < 2) {
+    const dialogueRatio = dialogueCount / sentenceCount;
+
+    if (dialogueCount < minDialogueLines) {
       issues.push({
         gate: "DIALOGUE_QUOTE",
         chapter: ch.chapter,
         code: "TOO_FEW_DIALOGUES",
         message: isDE
-          ? `Kapitel ${ch.chapter}: Nur ${dialogueCount} Dialogzeilen, mindestens 2 erwartet`
-          : `Chapter ${ch.chapter}: Only ${dialogueCount} dialogue lines, min 2`,
+          ? `Kapitel ${ch.chapter}: Nur ${dialogueCount} Dialogzeilen, mindestens ${minDialogueLines} erwartet`
+          : `Chapter ${ch.chapter}: Only ${dialogueCount} dialogue lines, min ${minDialogueLines}`,
         severity: "WARNING",
       });
-    } else if (dialogueCount > 6) {
+    }
+
+    if (sentenceCount >= 8 && dialogueRatio < minDialogueRatio) {
       issues.push({
         gate: "DIALOGUE_QUOTE",
         chapter: ch.chapter,
-        code: "TOO_MANY_DIALOGUES",
+        code: "DIALOGUE_RATIO_LOW",
         message: isDE
-          ? `Kapitel ${ch.chapter}: ${dialogueCount} Dialogzeilen, maximal 6`
-          : `Chapter ${ch.chapter}: ${dialogueCount} dialogue lines, max 6`,
+          ? `Kapitel ${ch.chapter}: Dialoganteil zu niedrig (${Math.round(dialogueRatio * 100)}%, Ziel mindestens ${Math.round(minDialogueRatio * 100)}%)`
+          : `Chapter ${ch.chapter}: dialogue ratio too low (${Math.round(dialogueRatio * 100)}%, target at least ${Math.round(minDialogueRatio * 100)}%)`,
+        severity: "WARNING",
+      });
+    }
+
+    if (sentenceCount >= 8 && dialogueRatio > maxDialogueRatio) {
+      issues.push({
+        gate: "DIALOGUE_QUOTE",
+        chapter: ch.chapter,
+        code: "DIALOGUE_RATIO_HIGH",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Dialoganteil zu hoch (${Math.round(dialogueRatio * 100)}%, max ${Math.round(maxDialogueRatio * 100)}%)`
+          : `Chapter ${ch.chapter}: dialogue ratio too high (${Math.round(dialogueRatio * 100)}%, max ${Math.round(maxDialogueRatio * 100)}%)`,
         severity: "WARNING",
       });
     }
@@ -931,6 +956,21 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
         severity: "ERROR",
       });
     }
+
+    const metaLabelPhrasePattern = isDE
+      ? /\b(?:Der|Die|Das)?\s*(?:Ausblick|Hook|Epilog)\s*[:\u2212\u2013\u2014-]\s*/i
+      : /\b(?:The)?\s*(?:Outlook|Hook|Epilogue)\s*[:\u2212\u2013\u2014-]\s*/i;
+    if (metaLabelPhrasePattern.test(ch.text)) {
+      issues.push({
+        gate: "INSTRUCTION_LEAK",
+        chapter: ch.chapter,
+        code: "META_LABEL_PHRASE",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Meta-Label im Fliesstext erkannt (z. B. "Der Ausblick:")`
+          : `Chapter ${ch.chapter}: meta label leaked into narrative text (e.g. "The Outlook:")`,
+        severity: "WARNING",
+      });
+    }
   }
 
   return issues;
@@ -1555,7 +1595,7 @@ export function runQualityGates(input: {
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
     { name: "CHAPTER_STRUCTURE", fn: () => gateChapterStructure(draft, language) },
-    { name: "DIALOGUE_QUOTE", fn: () => gateDialogueQuote(draft, language) },
+    { name: "DIALOGUE_QUOTE", fn: () => gateDialogueQuote(draft, language, ageRange) },
     { name: "CHARACTER_INTEGRATION", fn: () => gateCharacterIntegration(draft, directives, cast, language) },
     { name: "CHARACTER_FOCUS", fn: () => gateCharacterFocusLoad(draft, directives, cast, language, ageRange) },
     { name: "GLOBAL_CHARACTER_LOAD", fn: () => gateGlobalCharacterLoad(draft, directives, cast, language, ageRange) },
