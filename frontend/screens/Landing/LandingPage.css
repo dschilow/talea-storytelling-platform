@@ -26,18 +26,11 @@
   --font-body: 'Inter', system-ui, sans-serif;
 }
 
-/* ── Base ── */
-*,
-*::before,
-*::after {
+/* ── Base (scoped to landing page only) ── */
+.landing-root *,
+.landing-root *::before,
+.landing-root *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html.lenis,
-html.lenis body {
-  height: auto;
 }
 
 .landing-root {
@@ -52,21 +45,21 @@ html.lenis body {
   position: relative;
 }
 
-::selection {
+.landing-root ::selection {
   background: var(--c-accent);
   color: var(--c-night);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
+/* Custom scrollbar (scoped to landing) */
+.landing-root ::-webkit-scrollbar {
   width: 6px;
 }
 
-::-webkit-scrollbar-track {
+.landing-root ::-webkit-scrollbar-track {
   background: var(--c-night);
 }
 
-::-webkit-scrollbar-thumb {
+.landing-root ::-webkit-scrollbar-thumb {
   background: linear-gradient(var(--c-accent), var(--c-accent3));
   border-radius: 3px;
 }
