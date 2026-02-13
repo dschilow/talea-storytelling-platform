@@ -21,7 +21,7 @@ const TEMPLATE_PHRASE_PATTERNS_DE: Array<{ label: string; pattern: RegExp }> = [
   { label: "ueberlegte nicht lange", pattern: /\b(u|\u00fc)berlegte\s+nicht\s+lange\b/i },
   { label: "zeigte wahre Groesse", pattern: /\bzeigte\s+(?:seine|ihre)?\s*wahre\s+gr(oe|\u00f6)(ss|\u00df)e\b/i },
   // Emotional stock phrases
-  { label: "Herz schlug schneller", pattern: /\bherz\s+schlug\s+(?:ihm\s+|ihr\s+)?schneller\b/i },
+  // "Herz schlug schneller" removed: valid in real children's literature (Funke, Lindgren)
   { label: "Augen leuchteten", pattern: /\baugen\s+leuchteten\s+(?:vor\s+)?(?:freude|gl(u|\u00fc)ck|begeisterung)\b/i },
   { label: "tiefe Freude", pattern: /\btiefe\s+freude\b/i },
   { label: "unendliche Dankbarkeit", pattern: /\bunendliche\s+dankbarkeit\b/i },

@@ -275,6 +275,9 @@ function gateCastLock(
     "doch", "ganz", "sehr", "viel", "mehr", "nur", "immer", "wieder",
     "heute", "gestern", "morgen", "oben", "unten", "vorne", "hinten",
     "außerdem", "allerdings", "trotzdem", "deshalb", "darum", "dennoch",
+    // interrogative adverbs (capitalized at sentence start)
+    "wohin", "warum", "woher", "wieso", "weshalb", "wann", "wozu",
+    "wobei", "dahin", "daher", "dorthin",
     "natürlich", "vielleicht", "wahrscheinlich", "tatsächlich",
     "gemeinsam", "zusammen", "langsam", "schnell", "leise", "laut",
     "plötzlich", "sofort", "gleich", "endlich", "schließlich", "zunächst",
@@ -306,6 +309,7 @@ function gateCastLock(
     "hilf", "ruf", "hör", "sieh", "pass", "warte", "bleib", "mach",
     "lass", "zeig", "stell", "leg", "setz", "zieh", "dreh", "spring",
     "fang", "wirf", "lies", "iss", "trink", "flieg", "schwimm",
+    "sei", "seht", "seid", "wart",
     // past participles at sentence start
     "erschöpft", "überrascht", "verwundert", "begeistert",
     "verwirrt", "erfreut", "beruhigt", "gespannt", "erstarrt",
@@ -1874,6 +1878,7 @@ function isCommonWord(word: string, language: string): boolean {
     "baum", "blume", "gras", "busch", "blatt", "ast", "wurzel", "moos", "pilz",
     "stein", "fels", "kiesel", "sand", "lehm", "staub",
     "gold", "silber", "eisen", "kupfer", "bronze", "kristall", "diamant", "edelstein", "glas", "messing",
+    "blech", "metall", "rost", "zinn",
     "licht", "schatten", "dunkelheit", "finsternis", "glanz", "schimmer", "strahl",
     "druck", "stoß", "ruck", "zug", "halt", "klang", "ton", "geräusch",
 
@@ -1963,6 +1968,8 @@ function isCommonWord(word: string, language: string): boolean {
     "entscheidung", "bewegung", "richtung", "wendung", "ordnung",
     "entschuldigung", "erinnerung", "erklärung", "erzählung",
     "stoff", "rascheln", "knarzen", "klirren", "knistern", "rauschen",
+    "flattern", "flirren", "flimmern", "brodeln", "blubbern", "zischen",
+    "grollen", "summen", "brummen", "plätschern",
 
     // ─── Descriptive nouns (often capitalized at sentence start) ────────────
     "anfang", "beginn", "augenblick", "atemzug", "herzschlag",
@@ -2025,6 +2032,8 @@ function isCommonWord(word: string, language: string): boolean {
 
     // ─── Nature extended (plants, insects, weather) ─────────────────────
     "heu", "stroh", "klee", "distel", "ginster", "efeu", "flechte",
+    "tanne", "tannen", "eiche", "birke", "buche", "linde", "kiefer", "fichte", "ahorn", "erle", "weide",
+    "schlamm", "matsch", "pfütze", "dreck",
     "biene", "bienen", "hummel", "wespe", "käfer", "ameise", "ameisen",
     "raupe", "libelle", "grille", "zikade", "glühwürmchen",
     "spinnweben", "spinnwebe", "spinnennetz", "netz", "kokons", "kokon",
@@ -2069,6 +2078,7 @@ function isCommonWord(word: string, language: string): boolean {
     "schatzkarte", "schatzkiste", "schatztruhe",
 
     // ─── Additional story-common nouns (often false-positived) ──────────
+    "perle", "perlen", "faust",
     "pollen", "notizbuch", "winkel", "flügel", "streifen",
     "gewicht", "windmühle", "vorstellung", "zahlen", "zahl",
     "basar", "leder", "hauch", "puls", "tinte", "tücher", "tuch",

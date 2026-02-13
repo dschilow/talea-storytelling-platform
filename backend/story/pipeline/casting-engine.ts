@@ -90,11 +90,16 @@ export async function buildCastSet(input: {
     slotAssignments[avatarSheet.slotKey] = avatarSheet.characterId;
   }
 
+  // Age-aware pool character budget, aligned with GLOBAL_CHARACTER_LOAD quality gate.
+  // Younger children need fewer characters for comprehension.
+  const ageMax = normalized.ageMax ?? 12;
+  const maxGlobalChars = ageMax <= 5 ? 3 : ageMax <= 8 ? 4 : 6;
+  const maxPoolChars = Math.max(1, maxGlobalChars - avatarSheets.length);
+
   for (const slot of roles) {
     if (slot.roleType === "AVATAR") continue;
     if (slot.roleType === "ARTIFACT") continue;
-    // Limit non-required pool characters to maximum 4
-    if (!slot.required && poolSheets.length >= 4) continue;
+    if (poolSheets.length >= maxPoolChars) continue;
 
     const candidate = await selectCandidateForSlot({
       slot,

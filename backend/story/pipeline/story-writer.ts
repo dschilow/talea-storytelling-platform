@@ -20,8 +20,9 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Qualitaetsmodus: bis zu 3 Rewrite-Paesse, damit harte Fehler wirklich verschwinden.
-const MAX_REWRITE_PASSES = 3;
+// Single rewrite pass: empirically, multiple rewrites degrade story quality.
+// The first pass is typically decent (6/10); rewrites destroy warmth, stakes, and coherence.
+const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -354,10 +355,7 @@ Your rules:
       // Filter out UNLOCKED_CHARACTER (non-actor) from rewrite triggers — these are mostly
       // German capitalized nouns (Nadel, Kompass, Brötchen) falsely flagged as character names.
       // Only UNLOCKED_CHARACTER_ACTOR (with active verb) and other real errors trigger rewrites.
-      const actionableErrors = errorIssues.filter(i =>
-        i.code !== "UNLOCKED_CHARACTER" && i.code !== "UNLOCKED_CHARACTER_ACTOR"
-        && i.code !== "VOICE_INDISTINCT" // Detection too unreliable to trigger rewrites
-      );
+      const actionableErrors = errorIssues.filter(i => !NOISY_CODES.has(i.code));
       const shouldRewrite = REWRITE_ONLY_ON_ERRORS
         ? actionableErrors.length > 0
         : qualityReport.failedGates.length > 0;
@@ -448,7 +446,7 @@ Your rules:
       const newErrorKeys = new Set(newActionableErrors.map(e => `${e.chapter}:${e.code}`));
       const prevErrorKeys = new Set(actionableErrors.map(e => `${e.chapter}:${e.code}`));
       const unchanged = [...newErrorKeys].filter(k => prevErrorKeys.has(k));
-      if (unchanged.length > 0 && unchanged.length >= newActionableErrors.length * 0.8) {
+      if (unchanged.length > 0 && unchanged.length >= newActionableErrors.length * 0.5) {
         console.log(`[story-writer] Rewrite pass ${rewriteAttempt}: ${unchanged.length}/${newActionableErrors.length} errors unchanged, stopping rewrite loop (would waste money)`);
         break;
       }
@@ -978,7 +976,12 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
 }
 
 // Codes excluded from rewrite quality comparison (too noisy / unreliable detection)
-const NOISY_CODES = new Set(["UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR", "VOICE_INDISTINCT"]);
+// Also includes structural issues that LLM rewrites fundamentally cannot fix.
+const NOISY_CODES = new Set([
+  "UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR", "VOICE_INDISTINCT",
+  "GLOBAL_CAST_OVERLOAD",            // Cast is determined before writing; LLM can't remove characters
+  "NO_CHILD_ERROR_CORRECTION_ARC",   // Too structural; requires plot-level changes, not text edits
+]);
 
 function countErrorIssues(report: {
   issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
