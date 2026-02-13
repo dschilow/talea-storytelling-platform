@@ -383,8 +383,11 @@ STIL (sehr wichtig, aber flexibel):
 - Zielton: ${targetTone}.
 - Meist kurze Saetze, ab und zu ein laengerer fuer Schwung. Keine Satzmonster.
 - Dialoganteil ca. 30-40% (mindestens 25%), keine langen Monologe.
+- Pro Beat mindestens zwei kurze Dialogwechsel zwischen Figuren.
 - Jede Figur hat eigene Stimme (Wortwahl, Satzlaenge, Tick).
 - Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
+- Sprache bodenstaendig und kindnah: hoechstens 1 Vergleich pro Absatz, keine erwachsenen Metaphernketten.
+- Vermeide wiederkehrende Tell-Formeln (z. B. "Stille fiel", "er/sie spuerte", "innen zog sich").
 - Mindestens 2 echte Lachmomente und 1 Atem-anhalten-Moment.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
 - Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
@@ -472,6 +475,9 @@ STIL-ZIELE (flexibel, aber wichtig):
 - Zielton: ${targetTone}.
 - Meist kurze Saetze, ab und zu ein laengerer fuer Schwung.
 - Dialoganteil etwa 30-40% (mindestens 25%), mit klar unterscheidbaren Stimmen.
+- In jedem Beat mehrere kurze Dialogwechsel, damit die Kinderstimmen leben.
+- Konkrete, alltagsnahe Sprache: maximal ein Vergleich pro Absatz, keine erwachsenen Metaphernbilder.
+- Wiederholte Tell-Formeln aufbrechen ("spuerte", "Stille fiel", "innen zog sich").
 - Pro Beat mindestens ein konkretes Sinnesdetail.
 - Mindestens zwei humorvolle Momente und ein klarer Spannungsmoment.
 - Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.

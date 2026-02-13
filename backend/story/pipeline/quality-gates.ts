@@ -136,6 +136,7 @@ function gateDialogueQuote(
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
   const minDialogueRatio = ageMax <= 8 ? 0.22 : 0.16;
   const maxDialogueRatio = ageMax <= 8 ? 0.68 : 0.75;
+  const criticalDialogueRatio = ageMax <= 8 ? 0.14 : 0.1;
 
   for (const ch of draft.chapters) {
     const sentenceCount = Math.max(1, splitSentences(ch.text).length);
@@ -163,6 +164,18 @@ function gateDialogueQuote(
           ? `Kapitel ${ch.chapter}: Dialoganteil zu niedrig (${Math.round(dialogueRatio * 100)}%, Ziel mindestens ${Math.round(minDialogueRatio * 100)}%)`
           : `Chapter ${ch.chapter}: dialogue ratio too low (${Math.round(dialogueRatio * 100)}%, target at least ${Math.round(minDialogueRatio * 100)}%)`,
         severity: "WARNING",
+      });
+    }
+
+    if (sentenceCount >= 8 && dialogueRatio < criticalDialogueRatio) {
+      issues.push({
+        gate: "DIALOGUE_QUOTE",
+        chapter: ch.chapter,
+        code: "DIALOGUE_RATIO_CRITICAL",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Dialoganteil kritisch niedrig (${Math.round(dialogueRatio * 100)}%, mindestens ${Math.round(criticalDialogueRatio * 100)}% noetig)`
+          : `Chapter ${ch.chapter}: critically low dialogue ratio (${Math.round(dialogueRatio * 100)}%, need at least ${Math.round(criticalDialogueRatio * 100)}%)`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
 
@@ -672,6 +685,98 @@ function gateImageryBalance(
   return issues;
 }
 
+function gatePoeticDensity(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const poeticPatterns = isDE
+    ? [
+        /\b(?:ruine|nacht|stille|zeit|schatten|licht|wald|haus)\s+atmete\b/gi,
+        /\b(?:schuld|angst|stille|zeit)\s+lag\s+wie\b/gi,
+        /\b(?:loch|schatten)\s+starrte\b/gi,
+        /\bstimme\s+(?:fiel|schnitt)\b/gi,
+        /\bwie\s+(?:ein|eine|der|die|das)\s+(?:kiesel|garn|stahl|klinge|asche|gesetz)\b/gi,
+      ]
+    : [
+        /\b(?:night|silence|time|shadow|light|house|forest)\s+breathed\b/gi,
+        /\b(?:guilt|fear|silence|time)\s+lay\s+like\b/gi,
+        /\b(?:hole|shadow)\s+stared\b/gi,
+        /\bvoice\s+(?:fell|cut)\b/gi,
+        /\blike\s+(?:a|an|the)\s+(?:blade|steel|ash|law)\b/gi,
+      ];
+
+  for (const ch of draft.chapters) {
+    let hitCount = 0;
+    for (const pattern of poeticPatterns) {
+      pattern.lastIndex = 0;
+      hitCount += ch.text.match(pattern)?.length ?? 0;
+    }
+    if (hitCount >= 3) {
+      issues.push({
+        gate: "POETIC_DENSITY",
+        chapter: ch.chapter,
+        code: "POETIC_LANGUAGE_OVERLOAD",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: zu poetisch-dichte Formulierungen (${hitCount} Treffer). Fuer 6-8 klarer und konkreter schreiben.`
+          : `Chapter ${ch.chapter}: poetic language is too dense (${hitCount} hits). Use clearer, more concrete language for ages 6-8.`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+function gateTellPatternOveruse(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+  const fullText = draft.chapters.map(ch => ch.text).join(" ");
+
+  const tellPatterns = isDE
+    ? [
+        /\b(?:er|sie|mia|adrian|alexander)\s+sp[üu]rte\b/gi,
+        /\b(?:innen|in ihm|in ihr)\s+zog\s+sich\b/gi,
+        /\bstille\s+fiel\b/gi,
+        /\bihr\s+herz\s+(?:klopfte|pochte|h[aä]mmerte)\b/gi,
+      ]
+    : [
+        /\b(?:he|she|they)\s+felt\b/gi,
+        /\binside\s+(?:him|her|them)\s+(?:something\s+)?tightened\b/gi,
+        /\bsilence\s+fell\b/gi,
+        /\bheart\s+(?:pounded|raced|thumped)\b/gi,
+      ];
+
+  let repeatedTellHits = 0;
+  for (const pattern of tellPatterns) {
+    pattern.lastIndex = 0;
+    repeatedTellHits += fullText.match(pattern)?.length ?? 0;
+  }
+
+  if (repeatedTellHits >= 8) {
+    issues.push({
+      gate: "TELL_PATTERN",
+      chapter: 0,
+      code: "TELL_PATTERN_OVERUSE",
+      message: isDE
+        ? `Zu viele aehnliche Tell-Konstruktionen (${repeatedTellHits} Treffer). Mehr zeigen durch Dialog und konkrete Aktion.`
+        : `Too many repeated tell-style constructions (${repeatedTellHits} hits). Show more via dialogue and concrete action.`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 // ─── Gate 8: Tension Arc ────────────────────────────────────────────────────────
 function gateTensionArc(draft: StoryDraft, language: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
@@ -762,6 +867,7 @@ function gateArtifactArc(
 // ─── Gate 10: Ending Payoff ─────────────────────────────────────────────────────
 function gateEndingPayoff(
   draft: StoryDraft,
+  directives: SceneDirective[],
   language: string,
   ageRange?: { min: number; max: number },
 ): QualityIssue[] {
@@ -876,6 +982,27 @@ function gateEndingPayoff(
         : "Ending lacks a clear warm anchor (e.g., safe/home/together).",
       severity: ageMax <= 8 ? "ERROR" : "WARNING",
     });
+  }
+
+  const openingIntentText = directives
+    .slice(0, 2)
+    .map(d => `${d.goal} ${d.conflict} ${d.outcome || ""}`)
+    .join(" ");
+  const goalKeywords = extractGoalKeywords(openingIntentText, language);
+  if (goalKeywords.length > 0) {
+    const finalNorm = ` ${normalizeForComparison(lastText)} `;
+    const hasGoalEcho = goalKeywords.some(keyword => finalNorm.includes(` ${keyword} `));
+    if (!hasGoalEcho) {
+      issues.push({
+        gate: "ENDING_PAYOFF",
+        chapter: lastChapter.chapter,
+        code: "GOAL_THREAD_WEAK_ENDING",
+        message: isDE
+          ? "Das Ende greift das Anfangsziel kaum wieder auf. Leitfaden wirkt abgerissen."
+          : "Ending barely reconnects to the initial goal. Main thread feels dropped.",
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
   }
 
   return issues;
@@ -1604,13 +1731,15 @@ export function runQualityGates(input: {
     { name: "TEMPLATE_PHRASES", fn: () => gateTemplatePhrases(draft, language) },
     { name: "READABILITY_COMPLEXITY", fn: () => gateReadabilityComplexity(draft, language, ageRange) },
     { name: "RHYTHM_VARIATION", fn: () => gateRhythmVariation(draft, language, ageRange) },
+    { name: "POETIC_DENSITY", fn: () => gatePoeticDensity(draft, language, ageRange) },
+    { name: "TELL_PATTERN", fn: () => gateTellPatternOveruse(draft, language, ageRange) },
     { name: "CHARACTER_VOICE", fn: () => gateCharacterVoiceDistinctness(draft, directives, cast, language, ageRange) },
     { name: "STAKES_LOWPOINT", fn: () => gateStakesAndLowpoint(draft, language, ageRange) },
     { name: "CHILD_EMOTION_ARC", fn: () => gateChildEmotionArc(draft, cast, language, ageRange) },
     { name: "IMAGERY_BALANCE", fn: () => gateImageryBalance(draft, language, ageRange) },
     { name: "TENSION_ARC", fn: () => gateTensionArc(draft, language) },
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
-    { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, language, ageRange) },
+    { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, directives, language, ageRange) },
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
@@ -1691,6 +1820,21 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Figurenstimmen schaerfen: mindestens zwei klar erkennbare Sprecher pro Mehrfiguren-Szene, Rollenbezeichnungen nicht dauernd wiederholen."
       : "- Sharpen character voices: at least two clearly distinct speakers per multi-character scene, avoid constant role-label repetition.");
   }
+  if (issueCodes.has("DIALOGUE_RATIO_LOW") || issueCodes.has("DIALOGUE_RATIO_CRITICAL") || issueCodes.has("TOO_FEW_DIALOGUES")) {
+    lines.push(isDE
+      ? "- Mehr lebendige Dialogszenen einbauen: pro Kapitel mehrere kurze Wechselrede-Zeilen, nicht nur Erzaehlertext. Ziel grob 25-45 % Dialoganteil."
+      : "- Add more lively dialogue scenes: multiple short turn-taking lines per chapter, not mostly narration. Target roughly 25-45% dialogue ratio.");
+  }
+  if (issueCodes.has("POETIC_LANGUAGE_OVERLOAD")) {
+    lines.push(isDE
+      ? "- Sprache entdichten: weniger poetische Metaphern, mehr konkrete kindnahe Beobachtungen (Aktion, Gegenstand, einfacher Sinneseindruck)."
+      : "- Reduce poetic density: fewer literary metaphors, more concrete child-facing observations (action, object, simple sensory cue).");
+  }
+  if (issueCodes.has("TELL_PATTERN_OVERUSE")) {
+    lines.push(isDE
+      ? "- Wiederholte Tell-Formeln aufbrechen (z. B. 'er spuerte', 'Stille fiel', 'innen zog sich'). Stattdessen Handlung + Dialog zeigen."
+      : "- Break repetitive tell-formulas (e.g., 'he felt', 'silence fell'). Show via action + dialogue instead.");
+  }
   if (issueCodes.has("TOO_MANY_ACTIVE_CHARACTERS") || issueCodes.has("FOCUS_DENSITY_HIGH")) {
     lines.push(isDE
       ? "- Figurenfokus enger setzen: fuer 6-8 Jahre maximal 3 aktive Figuren (sonst max 4); Nebenfiguren nur kurz im Hintergrund."
@@ -1740,6 +1884,16 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push(isDE
       ? "- Platzhalter reparieren: entferne alle Filter-/Redaktionsmarker (z. B. [inhalt-gefiltert]) und ersetze sie durch natuerliche, kindgerechte Formulierungen."
       : "- Fix placeholders: remove all filter/redaction markers (e.g., [content-filtered]) and replace them with natural, child-friendly phrasing.");
+  }
+  if (issueCodes.has("META_LABEL_PHRASE")) {
+    lines.push(isDE
+      ? "- Entferne Label-Phrasen im Fliesstext (z. B. 'Der Ausblick:', 'Hook:', 'Outlook:'). Uebergaenge muessen natuerlich klingen."
+      : "- Remove label-like phrases in prose (e.g., 'The Outlook:', 'Hook:'). Transitions must read naturally.");
+  }
+  if (issueCodes.has("GOAL_THREAD_WEAK_ENDING")) {
+    lines.push(isDE
+      ? "- Ende enger mit dem Anfangsziel verknuepfen: fuehre die Kernfrage/den Auftrag aus Kapitel 1-2 sichtbar zu Ende."
+      : "- Reconnect ending with the opening goal: visibly close the core quest/question from chapters 1-2.");
   }
 
   for (const [chapter, chIssues] of grouped) {
@@ -1811,26 +1965,14 @@ function splitSentences(text: string): string[] {
 }
 
 function countDialogueLines(text: string): number {
-  const patterns = [
-    /[""„‟»«\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019][^""„‟»«\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019]{3,}[""„‟»«\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019]/g,
-    /^\s*[—–-]\s+.+$/gm,
-    /(?:sagte|rief|fragte|fl[üu]sterte|murmelte|antwortete|meinte|erkl[äa]rte|schrie|raunte|brummte|seufzte|lachte)\s/gi,
-    /(?:said|asked|whispered|called|shouted|replied|exclaimed|muttered|answered)\s/gi,
-  ];
-  let count = 0;
-  const seen = new Set<number>();
-  for (const p of patterns) {
-    p.lastIndex = 0;
-    let match;
-    while ((match = p.exec(text)) !== null) {
-      const lineStart = text.lastIndexOf("\n", match.index) + 1;
-      if (!seen.has(lineStart)) {
-        seen.add(lineStart);
-        count++;
-      }
-    }
-  }
-  return count;
+  const quoteSegments = text.match(/["\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019][^"\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019]{2,160}["\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019]/g)?.length ?? 0;
+  const dashDialogues = text.match(/(?:^|\n)\s*[\u2014\u2013-]\s+.+/g)?.length ?? 0;
+  const attributionVerbs = text.match(/(?:sagte|rief|fragte|fl(?:u|ue|ü)sterte|murmelte|antwortete|meinte|erkl(?:a|ae|ä)rte|schrie|raunte|brummte|seufzte|lachte|said|asked|whispered|called|shouted|replied|muttered|answered)\b/gi)?.length ?? 0;
+
+  // Prefer concrete spoken turns (quotes + dash-dialogue). Attribution verbs are fallback support.
+  const spokenTurns = quoteSegments + dashDialogues;
+  if (spokenTurns > 0) return spokenTurns;
+  return Math.max(0, Math.min(attributionVerbs, splitSentences(text).length));
 }
 
 function checkCharacterHasAction(text: string, name: string): boolean {
@@ -1873,6 +2015,36 @@ function countOccurrences(text: string, search: string): number {
     pos += search.length;
   }
   return count;
+}
+
+function extractGoalKeywords(text: string, language: string): string[] {
+  const normalized = normalizeForComparison(text);
+  if (!normalized) return [];
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const stopwordsDE = new Set([
+    "und", "oder", "aber", "dann", "wenn", "falls", "nicht", "keine", "einer", "einem", "einen",
+    "eine", "der", "die", "das", "den", "dem", "des", "mit", "ohne", "fuer", "weil", "dass",
+    "sowie", "auch", "noch", "nur", "sehr", "wird", "sind", "ist", "war", "sein", "ihre", "ihren",
+    "ihrem", "seine", "seinen", "euch", "euer", "eure", "kapitel", "szene",
+  ]);
+  const stopwordsEN = new Set([
+    "and", "or", "but", "then", "if", "when", "not", "with", "without", "for", "because", "that",
+    "the", "a", "an", "this", "these", "those", "their", "there", "here", "from", "into", "about",
+    "scene", "chapter",
+  ]);
+  const stopwords = language === "de" ? stopwordsDE : stopwordsEN;
+
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const word of words) {
+    if (word.length < 5) continue;
+    if (stopwords.has(word)) continue;
+    if (seen.has(word)) continue;
+    seen.add(word);
+    unique.push(word);
+    if (unique.length >= 10) break;
+  }
+  return unique;
 }
 
 function normalizeForComparison(text: string): string {
