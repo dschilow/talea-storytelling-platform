@@ -107,7 +107,7 @@ function gateChapterStructure(draft: StoryDraft, language: string): QualityIssue
       });
     }
 
-    const hasDialogue = /[""„‟»«]/.test(text) || /^\s*[—–-]\s/m.test(text);
+    const hasDialogue = /[""„‟»«\u201C\u201D\u201E\u201A\u2018\u2019]/.test(text) || /^\s*[—–-]\s/m.test(text);
     if (!hasDialogue) {
       issues.push({
         gate: "CHAPTER_STRUCTURE",
@@ -1750,7 +1750,7 @@ function splitSentences(text: string): string[] {
 
 function countDialogueLines(text: string): number {
   const patterns = [
-    /[""„‟»«\u201E\u201C\u201D\u00BB\u00AB][^""„‟»«\u201E\u201C\u201D\u00BB\u00AB]{3,}[""„‟»«\u201E\u201C\u201D\u00BB\u00AB]/g,
+    /[""„‟»«\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019][^""„‟»«\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019]{3,}[""„‟»«\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019]/g,
     /^\s*[—–-]\s+.+$/gm,
     /(?:sagte|rief|fragte|fl[üu]sterte|murmelte|antwortete|meinte|erkl[äa]rte|schrie|raunte|brummte|seufzte|lachte)\s/gi,
     /(?:said|asked|whispered|called|shouted|replied|exclaimed|muttered|answered)\s/gi,

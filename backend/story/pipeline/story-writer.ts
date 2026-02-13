@@ -440,6 +440,18 @@ Your rules:
         console.log(`[story-writer] All quality gates passed after rewrite pass ${rewriteAttempt}`);
         break;
       }
+
+      // Detect stale errors: if the same error codes persist after rewrite, stop wasting money.
+      // The LLM is unlikely to fix them on the next attempt either.
+      const newActionableErrors = qualityReport.issues
+        .filter(i => i.severity === "ERROR" && !NOISY_CODES.has(i.code));
+      const newErrorKeys = new Set(newActionableErrors.map(e => `${e.chapter}:${e.code}`));
+      const prevErrorKeys = new Set(actionableErrors.map(e => `${e.chapter}:${e.code}`));
+      const unchanged = [...newErrorKeys].filter(k => prevErrorKeys.has(k));
+      if (unchanged.length > 0 && unchanged.length >= newActionableErrors.length * 0.8) {
+        console.log(`[story-writer] Rewrite pass ${rewriteAttempt}: ${unchanged.length}/${newActionableErrors.length} errors unchanged, stopping rewrite loop (would waste money)`);
+        break;
+      }
     }
 
     // V2: Finaler Expand-Pass nur für kritische Probleme (nicht für TEMPLATE_PHRASE)
@@ -816,6 +828,14 @@ function sanitizeMetaStructureFromText(text: string): string {
     .replace(/\S*\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]\S*/gi, "…")
     .replace(/\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]/gi, "…")
     .replace(/\s*…\s*/g, " ")
+    .replace(/\s{2,}/g, " ");
+
+  // Remove banned filler words that LLMs consistently fail to avoid.
+  // "plötzlich" is the worst offender — appears in every story despite explicit bans.
+  // We remove it mid-sentence (", und plötzlich" → ", und") and sentence-initial ("Plötzlich" → next word capitalized).
+  result = result
+    .replace(/[,;]\s*(?:und\s+)?pl[öo]tzlich\b/gi, ",")
+    .replace(/\bpl[öo]tzlich\s+/gi, "")
     .replace(/\s{2,}/g, " ");
 
   return result
