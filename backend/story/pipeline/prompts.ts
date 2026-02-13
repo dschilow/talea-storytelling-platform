@@ -282,6 +282,7 @@ export function buildFullStoryPrompt(input: {
   language: string;
   ageRange: { min: number; max: number };
   tone?: string;
+  humorLevel?: number;
   totalWordTarget: number;
   totalWordMin: number;
   totalWordMax: number;
@@ -292,7 +293,7 @@ export function buildFullStoryPrompt(input: {
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
   userPrompt?: string;
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
+  const { directives, cast, dna, language, ageRange, tone, humorLevel, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
   const isGerman = language === "de";
   const targetLanguage = isGerman ? "Deutsch" : language;
   const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
@@ -364,6 +365,23 @@ export function buildFullStoryPrompt(input: {
     ? "Max 6 Woerter, neugierig machend, kein Schema \"Objekt und Person\"."
     : "Max 6 words, curiosity-driven, avoid \"object and person\" pattern.";
 
+  const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
+  const humorRule = isGerman
+    ? humorTarget >= 3
+      ? "Humor-Ziel hoch: mindestens 3 klare kindgerechte Lachmomente (Dialogwitz, Situationskomik, kleiner Missgriff ohne Bloßstellung)."
+      : humorTarget >= 2
+        ? "Humor-Ziel mittel: mindestens 2 klare kindgerechte Lachmomente."
+        : humorTarget >= 1
+          ? "Humor-Ziel leicht: mindestens 1 kindgerechter humorvoller Moment."
+          : "Humor optional: keine erzwungenen Witze."
+    : humorTarget >= 3
+      ? "High humor target: at least 3 clear child-friendly laugh moments (dialogue wit, situational comedy, harmless mishap)."
+      : humorTarget >= 2
+        ? "Medium humor target: at least 2 clear child-friendly laugh moments."
+        : humorTarget >= 1
+          ? "Light humor target: at least 1 child-friendly humorous beat."
+          : "Humor optional: no forced jokes.";
+
   return `DU BIST: Kinderbuchautor auf Profi-Niveau (Preussler + Lindgren + Funke). Warm, frech, spannend.
 ZIEL: Kinder (${ageRange.min}-${ageRange.max}) wollen selbst weiterlesen.
 
@@ -390,7 +408,8 @@ STIL (sehr wichtig, aber flexibel):
 - Vermeide wiederkehrende Tell-Formeln (z. B. "Stille fiel", "er/sie spuerte", "innen zog sich").
 - Pro Beat maximal ein kurzer Innensicht-Satz; danach wieder sichtbare Aktion oder Dialog.
 - Spaetestens in Beat 2: klare Konsequenz bei Scheitern mit konkretem Verlust.
-- Mindestens 2 echte Lachmomente und 1 Atem-anhalten-Moment.
+- ${humorRule}
+- Zusaetzlich mindestens 1 Atem-anhalten-Moment.
 - Beat ${directives.length}: konkreter Gewinn + kleiner Preis/Kompromiss sichtbar machen.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
 - Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
@@ -423,6 +442,7 @@ export function buildFullStoryRewritePrompt(input: {
   language: string;
   ageRange: { min: number; max: number };
   tone?: string;
+  humorLevel?: number;
   totalWordMin: number;
   totalWordMax: number;
   wordsPerChapter: { min: number; max: number };
@@ -430,7 +450,7 @@ export function buildFullStoryRewritePrompt(input: {
   stylePackText?: string;
   userPrompt?: string;
 }): string {
-  const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText, userPrompt } = input;
+  const { originalDraft, directives, cast, dna, language, ageRange, tone, humorLevel, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText, userPrompt } = input;
   const isGerman = language === "de";
   const targetLanguage = isGerman ? "Deutsch" : language;
   const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
@@ -451,6 +471,22 @@ export function buildFullStoryRewritePrompt(input: {
 
   const stylePackBlock = sanitizePromptBlock(stylePackText);
   const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
+  const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
+  const humorRewriteLine = isGerman
+    ? humorTarget >= 3
+      ? "- Humor hoch halten: mindestens 3 klare kindgerechte Lachmomente (Dialogwitz oder Situationskomik, nie auf Kosten von Figuren)."
+      : humorTarget >= 2
+        ? "- Humor sichern: mindestens 2 klare kindgerechte Lachmomente."
+        : humorTarget >= 1
+          ? "- Mindestens 1 kurzer kindgerechter Humor-Moment."
+          : "- Humor optional, keine erzwungenen Witze."
+    : humorTarget >= 3
+      ? "- Keep humor high: at least 3 clear child-friendly laugh moments (dialogue wit or situational comedy, never humiliating)."
+      : humorTarget >= 2
+        ? "- Keep humor present: at least 2 clear child-friendly laugh moments."
+        : humorTarget >= 1
+          ? "- Include at least 1 short child-friendly humor moment."
+          : "- Humor optional, avoid forced jokes.";
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
@@ -484,7 +520,8 @@ STIL-ZIELE (flexibel, aber wichtig):
 - Pro Beat maximal ein kurzer Innensicht-Satz; dann wieder sichtbare Handlung/Dialog.
 - Frueh konkrete Stakes benennen: was geht sichtbar verloren, wenn sie scheitern.
 - Pro Beat mindestens ein konkretes Sinnesdetail.
-- Mindestens zwei humorvolle Momente und ein klarer Spannungsmoment.
+${humorRewriteLine}
+- Mindestens ein klarer Spannungsmoment.
 - Im Finale: konkreter Gewinn plus kleiner Preis/Kompromiss.
 - Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
 

@@ -7,6 +7,10 @@ export interface PipelineConfig {
   storyRetryMax: number;
   imageRetryMax: number;
   maxPropsVisible: number;
+  releaseCandidateCount: number;
+  criticModel: string;
+  criticMinScore: number;
+  maxSelectiveSurgeryEdits: number;
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -16,6 +20,10 @@ const DEFAULT_CONFIG: PipelineConfig = {
   storyRetryMax: 2,
   imageRetryMax: 2,
   maxPropsVisible: 7,
+  releaseCandidateCount: 2,
+  criticModel: "gpt-5-mini",
+  criticMinScore: 8.2,
+  maxSelectiveSurgeryEdits: 3,
 };
 
 let cached: PipelineConfig | null = null;
@@ -35,7 +43,7 @@ export async function loadPipelineConfig(): Promise<PipelineConfig> {
       const parsed = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
       cached = { ...DEFAULT_CONFIG, ...(parsed || {}) };
       cachedAt = now;
-      return cached;
+      return cached!;
     }
   } catch (error) {
     console.warn("[pipeline] Failed to load pipeline_config, using defaults", error);

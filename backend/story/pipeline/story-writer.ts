@@ -69,13 +69,16 @@ export class LlmStoryWriter implements StoryWriter {
     stylePackText?: string;
     fusionSections?: Map<number, string>;
     avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+    generationSeed?: number;
+    candidateTag?: string;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
-    const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories } = input;
+    const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
     const model = normalizedRequest.rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
     const allowPostEdits = !isGeminiModel || isGemini3;
     const maxRewritePasses = allowPostEdits ? MAX_REWRITE_PASSES : 0;
+    const humorLevel = normalizedRequest.rawConfig?.humorLevel;
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
     const languageGuard = isGerman
@@ -125,6 +128,7 @@ Your rules:
       logSource?: string;
       logMetadata?: Record<string, any>;
       reasoningEffort?: "low" | "medium" | "high";
+      seed?: number;
     }) => {
       if (isGeminiModel) {
         const geminiResponse = await generateWithGemini({
@@ -154,6 +158,7 @@ Your rules:
         maxTokens: input.maxTokens,
         temperature: input.temperature,
         reasoningEffort: input.reasoningEffort,
+        seed: input.seed,
         context: input.context,
         logSource: input.logSource,
         logMetadata: input.logMetadata,
@@ -182,6 +187,7 @@ Your rules:
       language: normalizedRequest.language,
       ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
       tone: normalizedRequest.requestedTone,
+      humorLevel,
       totalWordTarget: Math.round(totalWordTarget),
       totalWordMin: Math.round(totalWordMin),
       totalWordMax: Math.round(totalWordMax),
@@ -205,10 +211,11 @@ Your rules:
       responseFormat: "json_object",
       maxTokens: maxOutputTokens,
       temperature: strict ? 0.4 : 0.7,
-      reasoningEffort: "medium",  // Medium for first-pass quality → fewer expensive rewrites
+      reasoningEffort: "medium",
+      seed: generationSeed,
       context: "story-writer-full",
       logSource: "phase6-story-llm",
-      logMetadata: { storyId: normalizedRequest.storyId, step: "full" },
+      logMetadata: { storyId: normalizedRequest.storyId, step: "full", candidateTag },
     });
 
     if (result.usage) {
@@ -231,6 +238,7 @@ Your rules:
       language: normalizedRequest.language,
       ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
       wordBudget: normalizedRequest.wordBudget,
+      humorLevel,
     });
 
     // ════════════════════════════════════════════════════════════════════════
@@ -308,7 +316,7 @@ Your rules:
             temperature: 0.4,
             context: `story-writer-expand-chapter-${chapter.chapter}`,
             logSource: "phase6-story-llm",
-            logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter },
+            logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter, candidateTag },
             // V3: Reasoning-Effort explizit auf "low" setzen
             reasoningEffort: "low",
           });
@@ -399,7 +407,7 @@ Your rules:
             reasoningEffort: "low",
             context: `story-writer-warning-polish-${chapterNo}`,
             logSource: "phase6-story-llm",
-            logMetadata: { storyId: normalizedRequest.storyId, step: "warning-polish", chapter: chapterNo },
+            logMetadata: { storyId: normalizedRequest.storyId, step: "warning-polish", chapter: chapterNo, candidateTag },
           });
 
           if (result.usage) {
@@ -433,6 +441,7 @@ Your rules:
           language: normalizedRequest.language,
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
+          humorLevel,
         });
       }
     }
@@ -459,6 +468,7 @@ Your rules:
           language: normalizedRequest.language,
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
+          humorLevel,
         });
         errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
         console.log(`[story-writer] Applied deterministic trim before rewrite. Remaining errors: ${errorIssues.length}`);
@@ -491,6 +501,7 @@ Your rules:
         language: normalizedRequest.language,
         ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         tone: normalizedRequest.requestedTone,
+        humorLevel,
         totalWordMin: Math.round(totalWordMin),
         totalWordMax: Math.round(totalWordMax),
         wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
@@ -507,10 +518,11 @@ Your rules:
           responseFormat: "json_object",
           maxTokens: maxOutputTokens,
           temperature: 0.4,
-          reasoningEffort: "medium",  // Medium so rewrites actually fix issues on first attempt
+          reasoningEffort: "medium",
+          seed: typeof generationSeed === "number" ? generationSeed + rewriteAttempt : undefined,
           context: `story-writer-rewrite-${rewriteAttempt}`,
           logSource: "phase6-story-llm",
-          logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt },
+          logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt, candidateTag },
         });
       } catch (error) {
         if (isGeminiModel) {
@@ -539,6 +551,7 @@ Your rules:
         language: normalizedRequest.language,
         ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         wordBudget: normalizedRequest.wordBudget,
+        humorLevel,
       });
 
       if (isRewriteQualityBetter(qualityReport, revisedReport)) {
@@ -591,6 +604,7 @@ Your rules:
             language: normalizedRequest.language,
             ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
             wordBudget: normalizedRequest.wordBudget,
+            humorLevel,
           });
         }
       }
@@ -606,6 +620,7 @@ Your rules:
           language: normalizedRequest.language,
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
+          humorLevel,
         });
 
         if (isWarningPolishBetter(qualityReport, polishedReport)) {
@@ -661,7 +676,7 @@ Your rules:
           temperature: 0.6,
           context: "story-title",
           logSource: "phase6-story-llm",
-          logMetadata: { storyId: normalizedRequest.storyId, step: "title" },
+          logMetadata: { storyId: normalizedRequest.storyId, step: "title", candidateTag },
         });
         const titleParsed = safeJson(titleResult.content);
         if (titleParsed?.title) draft.title = titleParsed.title;

@@ -16,6 +16,8 @@ import { validateAndFixImageSpecs } from "./image-prompt-validator";
 // import { cleanupCollages } from "./sprite-collage"; // TEMPORARILY DISABLED for testing
 import { validateCastSet } from "./schema-validator";
 import { runQualityGates } from "./quality-gates";
+import { runSemanticCritic, type SemanticCriticReport } from "./semantic-critic";
+import { applySelectiveSurgery } from "./release-polisher";
 import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
@@ -59,6 +61,15 @@ export interface PipelineRunResult {
   tokenUsage?: any;
   artifactMeta?: any;
   canonFusionPlan?: any;
+  criticReport?: SemanticCriticReport;
+  releaseReport?: {
+    enabled: boolean;
+    candidateCount: number;
+    selectedCandidateIndex: number;
+    selectedCompositeScore: number;
+    criticMinScore: number;
+    criticScore: number;
+  };
 }
 
 interface TaleSelectionCandidate {
@@ -263,6 +274,20 @@ export class StoryPipelineOrchestrator {
       let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
       let tokenUsage: any;
       let qualityReport: any;
+      let criticReport: SemanticCriticReport | undefined;
+      let releaseReport: PipelineRunResult["releaseReport"] | undefined;
+      const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
+      const requestedCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount ?? pipelineConfig.releaseCandidateCount ?? 2);
+      const releaseCandidateCount = releaseEnabled ? Math.max(1, Math.min(3, requestedCandidateCount || 1)) : 1;
+      const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-5-mini");
+      const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
+      const maxSelectiveSurgeryEdits = Math.max(
+        1,
+        Math.min(5, Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits ?? pipelineConfig.maxSelectiveSurgeryEdits ?? 3)),
+      );
+      const humorLevel = typeof (normalized.rawConfig as any)?.humorLevel === "number"
+        ? (normalized.rawConfig as any).humorLevel
+        : 2;
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
       // OPTIMIZED: Only 3 memories per avatar, short titles only – keeps prompt small
@@ -318,30 +343,197 @@ export class StoryPipelineOrchestrator {
           ageRange: { min: normalized.ageMin, max: normalized.ageMax },
           wordBudget: normalized.wordBudget,
           artifactArc: canonFusionPlan.artifactArc,
+          humorLevel,
         });
-        qualityReport = {
-          score: cachedQuality.score,
-          passedGates: cachedQuality.passedGates,
-          failedGates: cachedQuality.failedGates,
-          issueCount: cachedQuality.issues.length,
-          errorCount: cachedQuality.issues.filter(i => i.severity === "ERROR").length,
-          warningCount: cachedQuality.issues.filter(i => i.severity === "WARNING").length,
-          rewriteAttempts: 0,
-          issues: cachedQuality.issues,
+        qualityReport = toQualitySummary(cachedQuality, 0);
+        criticReport = await runSemanticCritic({
+          storyId: normalized.storyId,
+          draft: storyDraft,
+          directives,
+          cast: castSet,
+          language: normalized.language,
+          ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+          humorLevel,
+          model: criticModel,
+          targetMinScore: criticMinScore,
+        });
+        tokenUsage = mergeTokenUsage(tokenUsage, criticReport.usage);
+        releaseReport = {
+          enabled: releaseEnabled,
+          candidateCount: 1,
+          selectedCandidateIndex: 1,
+          selectedCompositeScore: scoreReleaseCandidate(qualityReport, criticReport, releaseEnabled),
+          criticMinScore,
+          criticScore: criticReport.overallScore,
         };
       } else {
-        const writeResult = await this.storyWriter.writeStory({
-          normalizedRequest: normalized,
-          cast: castSet,
-          dna: blueprint.dna,
-          directives,
-          stylePackText,
-          fusionSections,
-          avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
+        type CandidateBundle = {
+          index: number;
+          seed: number;
+          draft: StoryDraft;
+          quality: any;
+          critic: SemanticCriticReport;
+          usage?: any;
+          compositeScore: number;
+          surgeryApplied: boolean;
+          editedChapters: number[];
+        };
+
+        const candidateBundles: CandidateBundle[] = [];
+        for (let candidateIdx = 0; candidateIdx < releaseCandidateCount; candidateIdx += 1) {
+          const candidateSeed = (variantSeed + candidateIdx * 7919) >>> 0;
+          const candidateTag = `cand-${candidateIdx + 1}`;
+          const writeResult = await this.storyWriter.writeStory({
+            normalizedRequest: normalized,
+            cast: castSet,
+            dna: blueprint.dna,
+            directives,
+            stylePackText,
+            fusionSections,
+            avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
+            generationSeed: candidateSeed,
+            candidateTag,
+          });
+
+          let candidateDraft = writeResult.draft;
+          let candidateQuality = writeResult.qualityReport ?? toQualitySummary(
+            runQualityGates({
+              draft: candidateDraft,
+              directives,
+              cast: castSet,
+              language: normalized.language,
+              ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+              wordBudget: normalized.wordBudget,
+              artifactArc: canonFusionPlan.artifactArc,
+              humorLevel,
+            }),
+            0,
+          );
+
+          let candidateUsage = writeResult.usage;
+          let candidateCritic = await runSemanticCritic({
+            storyId: normalized.storyId,
+            draft: candidateDraft,
+            directives,
+            cast: castSet,
+            language: normalized.language,
+            ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+            humorLevel,
+            model: criticModel,
+            targetMinScore: criticMinScore,
+          });
+          candidateUsage = mergeTokenUsage(candidateUsage, candidateCritic.usage);
+
+          let surgeryApplied = false;
+          let editedChapters: number[] = [];
+          if (releaseEnabled && candidateCritic.patchTasks.length > 0 && maxSelectiveSurgeryEdits > 0) {
+            const surgery = await applySelectiveSurgery({
+              storyId: normalized.storyId,
+              normalizedRequest: normalized,
+              cast: castSet,
+              dna: blueprint.dna,
+              directives,
+              draft: candidateDraft,
+              patchTasks: candidateCritic.patchTasks,
+              stylePackText,
+              maxEdits: maxSelectiveSurgeryEdits,
+              model: resolveSurgeryModel(normalized.rawConfig?.aiModel),
+            });
+
+            if (surgery.changed) {
+              surgeryApplied = true;
+              editedChapters = surgery.editedChapters;
+              candidateDraft = surgery.draft;
+              candidateUsage = mergeTokenUsage(candidateUsage, surgery.usage);
+
+              const postSurgeryQuality = toQualitySummary(
+                runQualityGates({
+                  draft: candidateDraft,
+                  directives,
+                  cast: castSet,
+                  language: normalized.language,
+                  ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+                  wordBudget: normalized.wordBudget,
+                  artifactArc: canonFusionPlan.artifactArc,
+                  humorLevel,
+                }),
+                candidateQuality?.rewriteAttempts ?? 0,
+              );
+              const postSurgeryCritic = await runSemanticCritic({
+                storyId: normalized.storyId,
+                draft: candidateDraft,
+                directives,
+                cast: castSet,
+                language: normalized.language,
+                ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+                humorLevel,
+                model: criticModel,
+                targetMinScore: criticMinScore,
+              });
+              candidateUsage = mergeTokenUsage(candidateUsage, postSurgeryCritic.usage);
+
+              const preScore = scoreReleaseCandidate(candidateQuality, candidateCritic, releaseEnabled);
+              const postScore = scoreReleaseCandidate(postSurgeryQuality, postSurgeryCritic, releaseEnabled);
+              if (postScore >= preScore) {
+                candidateQuality = postSurgeryQuality;
+                candidateCritic = postSurgeryCritic;
+              }
+            }
+          }
+
+          const compositeScore = scoreReleaseCandidate(candidateQuality, candidateCritic, releaseEnabled);
+          candidateBundles.push({
+            index: candidateIdx + 1,
+            seed: candidateSeed,
+            draft: candidateDraft,
+            quality: candidateQuality,
+            critic: candidateCritic,
+            usage: candidateUsage,
+            compositeScore,
+            surgeryApplied,
+            editedChapters,
+          });
+          tokenUsage = mergeTokenUsage(tokenUsage, candidateUsage);
+
+          await logPhase("phase6-story-candidate", { storyId: normalized.storyId, candidate: candidateIdx + 1 }, {
+            seed: candidateSeed,
+            qualityScore: candidateQuality?.score,
+            criticScore: candidateCritic?.overallScore,
+            criticReleaseReady: candidateCritic?.releaseReady,
+            issueCount: candidateQuality?.issueCount,
+            errorCount: candidateQuality?.errorCount,
+            warningCount: candidateQuality?.warningCount,
+            compositeScore,
+            surgeryApplied,
+            editedChapters,
+          });
+        }
+
+        const bestCandidate = pickBestCandidate(candidateBundles);
+        storyDraft = bestCandidate.draft;
+        qualityReport = bestCandidate.quality;
+        criticReport = bestCandidate.critic;
+        releaseReport = {
+          enabled: releaseEnabled,
+          candidateCount: candidateBundles.length,
+          selectedCandidateIndex: bestCandidate.index,
+          selectedCompositeScore: bestCandidate.compositeScore,
+          criticMinScore,
+          criticScore: bestCandidate.critic.overallScore,
+        };
+
+        await logPhase("phase6-story-selection", { storyId: normalized.storyId }, {
+          candidateCount: candidateBundles.length,
+          selectedCandidate: bestCandidate.index,
+          scores: candidateBundles.map(c => ({
+            candidate: c.index,
+            qualityScore: c.quality?.score,
+            criticScore: c.critic?.overallScore,
+            compositeScore: c.compositeScore,
+            surgeryApplied: c.surgeryApplied,
+            editedChapters: c.editedChapters,
+          })),
         });
-        storyDraft = writeResult.draft;
-        tokenUsage = writeResult.usage ?? tokenUsage;
-        qualityReport = writeResult.qualityReport;
 
         await logPhase("phase6.2-segmentation", { storyId: normalized.storyId }, {
           strategy: "continuous-story-then-segmentation",
@@ -360,18 +552,34 @@ export class StoryPipelineOrchestrator {
           durationMs: Date.now() - phase6Start,
           tokens: tokenUsage,
           qualityScore: qualityReport?.score,
+          criticScore: criticReport?.overallScore,
+          criticReleaseReady: criticReport?.releaseReady,
           passedGates: qualityReport?.passedGates,
           failedGates: qualityReport?.failedGates,
           rewriteAttempts: qualityReport?.rewriteAttempts,
           errorCount: qualityReport?.errorCount,
           warningCount: qualityReport?.warningCount,
           issues: qualityReport?.issues?.map((i: any) => ({ gate: i.gate, code: i.code, chapter: i.chapter, message: i.message, severity: i.severity })),
+          criticSummary: criticReport?.summary,
           wordCount: storyDraft.chapters.reduce((sum, ch) => sum + (ch.text?.split(/\s+/).length || 0), 0),
         });
       }
+      if (criticReport) {
+        qualityReport = { ...qualityReport, critic: criticReport };
+      }
 
-      const storyErrors = qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [];
-      const strictQualityGates = Boolean((normalized.rawConfig as any)?.strictQualityGates);
+      const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
+      if (releaseEnabled && criticReport && criticReport.overallScore < criticMinScore) {
+        storyErrors.push({
+          gate: "SEMANTIC_CRITIC",
+          chapter: 0,
+          code: "CRITIC_SCORE_BELOW_RELEASE",
+          message: `Critic score ${criticReport.overallScore.toFixed(2)} below target ${criticMinScore.toFixed(2)}`,
+          severity: "ERROR",
+        });
+      }
+      const strictQualityGatesRaw = (normalized.rawConfig as any)?.strictQualityGates;
+      const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : releaseEnabled;
 
       // Always-blocking errors: instruction leaks/placeholders/language leaks.
       const hardSafetyCodes = new Set([
@@ -394,6 +602,8 @@ export class StoryPipelineOrchestrator {
         "CLIFFHANGER_ENDING",
         "MISSING_INNER_CHILD_MOMENT",
         "NO_CHILD_ERROR_CORRECTION_ARC",
+        "HUMOR_TOO_LOW",
+        "CRITIC_SCORE_BELOW_RELEASE",
       ]);
       const criticalCodes = new Set([
         ...hardSafetyCodes,
@@ -626,6 +836,8 @@ export class StoryPipelineOrchestrator {
         tokenUsage,
         artifactMeta,
         canonFusionPlan,
+        criticReport,
+        releaseReport,
       };
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error);
@@ -639,6 +851,98 @@ export class StoryPipelineOrchestrator {
       throw error;
     }
   }
+}
+
+function toQualitySummary(report: any, rewriteAttempts: number): any {
+  if (!report) {
+    return {
+      score: 0,
+      passedGates: [],
+      failedGates: [],
+      issueCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      rewriteAttempts,
+      issues: [],
+    };
+  }
+
+  if (
+    typeof report.score === "number" &&
+    typeof report.issueCount === "number" &&
+    typeof report.errorCount === "number" &&
+    typeof report.warningCount === "number"
+  ) {
+    return {
+      ...report,
+      rewriteAttempts: typeof report.rewriteAttempts === "number" ? report.rewriteAttempts : rewriteAttempts,
+      issues: Array.isArray(report.issues) ? report.issues : [],
+      passedGates: Array.isArray(report.passedGates) ? report.passedGates : [],
+      failedGates: Array.isArray(report.failedGates) ? report.failedGates : [],
+    };
+  }
+
+  const issues = Array.isArray(report.issues) ? report.issues : [];
+  return {
+    score: typeof report.score === "number" ? report.score : 0,
+    passedGates: Array.isArray(report.passedGates) ? report.passedGates : [],
+    failedGates: Array.isArray(report.failedGates) ? report.failedGates : [],
+    issueCount: issues.length,
+    errorCount: issues.filter((i: any) => i?.severity === "ERROR").length,
+    warningCount: issues.filter((i: any) => i?.severity === "WARNING").length,
+    rewriteAttempts,
+    issues,
+  };
+}
+
+function scoreReleaseCandidate(quality: any, critic: SemanticCriticReport | undefined, releaseEnabled: boolean): number {
+  const qualityScore = clampNumber(Number(quality?.score ?? 0), 0, 10);
+  const criticScore = clampNumber(Number(critic?.overallScore ?? qualityScore), 0, 10);
+  const errorCount = Math.max(0, Number(quality?.errorCount ?? 0));
+  const warningCount = Math.max(0, Number(quality?.warningCount ?? 0));
+
+  const blend = qualityScore * 0.58 + criticScore * 0.42;
+  const penalties = errorCount * 1.3 + Math.min(1.8, warningCount * 0.06);
+  const releasePenalty = releaseEnabled && critic && !critic.releaseReady ? 0.8 : 0;
+  return Number((blend - penalties - releasePenalty).toFixed(4));
+}
+
+function pickBestCandidate<T extends { compositeScore: number; quality: any; critic: SemanticCriticReport }>(candidates: T[]): T {
+  if (candidates.length === 0) {
+    throw new Error("No story candidates available for selection");
+  }
+  return [...candidates].sort((a, b) => {
+    if (b.compositeScore !== a.compositeScore) return b.compositeScore - a.compositeScore;
+    const aErrors = Number(a.quality?.errorCount ?? 0);
+    const bErrors = Number(b.quality?.errorCount ?? 0);
+    if (aErrors !== bErrors) return aErrors - bErrors;
+    return Number(b.critic?.overallScore ?? 0) - Number(a.critic?.overallScore ?? 0);
+  })[0];
+}
+
+function mergeTokenUsage(current: any, next: any): any {
+  if (!next) return current;
+  if (!current) return { ...next };
+  return {
+    promptTokens: (current.promptTokens || 0) + (next.promptTokens || 0),
+    completionTokens: (current.completionTokens || 0) + (next.completionTokens || 0),
+    totalTokens: (current.totalTokens || 0) + (next.totalTokens || 0),
+    model: current.model || next.model,
+    inputCostUSD: (current.inputCostUSD || 0) + (next.inputCostUSD || 0),
+    outputCostUSD: (current.outputCostUSD || 0) + (next.outputCostUSD || 0),
+    totalCostUSD: (current.totalCostUSD || 0) + (next.totalCostUSD || 0),
+  };
+}
+
+function resolveSurgeryModel(model?: string): string {
+  if (!model) return "gpt-5-mini";
+  if (model.startsWith("gemini-")) return "gpt-5-mini";
+  return model;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
 }
 
 async function selectBestFairyTale(input: {

@@ -331,7 +331,9 @@ export interface StoryWriter {
     stylePackText?: string;
     fusionSections?: Map<number, string>;
     avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
-  }) => Promise<{ draft: StoryDraft; usage?: TokenUsage }>;
+    generationSeed?: number;
+    candidateTag?: string;
+  }) => Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }>;
 }
 
 /** Compressed avatar memory for prompt injection */

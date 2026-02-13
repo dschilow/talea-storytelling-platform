@@ -1756,6 +1756,53 @@ function gateChildEmotionArc(
 }
 
 // ─── Gate 14: Artifact Mini-Arc ─────────────────────────────────────────────────
+function gateHumorPresence(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+  humorLevel?: number,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+  const level = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
+  if (level <= 0) return issues;
+
+  const minHumorMoments = level >= 3 ? 3 : level >= 2 ? 2 : 1;
+  const humorPatterns = isDE
+    ? [
+        /\b(lacht|lachen|lachte|kichert|kicherte|kichernd|grinst|grinste|prustet|prustete)\b/i,
+        /\b(hihi|haha|hehe|kicher|prust)\b/i,
+        /\b(witz|scherz|komisch|lustig)\b/i,
+        /\b(stolperte[^.!?]{0,50}und[^.!?]{0,50}lachte)\b/i,
+      ]
+    : [
+        /\b(laugh|laughed|giggle|giggled|grin|grinned|snort|snorted|chuckle|chuckled)\b/i,
+        /\b(ha-ha|haha|hehe|teehee)\b/i,
+        /\b(joke|funny|playful|comical)\b/i,
+        /\b(stumbled[^.!?]{0,50}and[^.!?]{0,50}laughed)\b/i,
+      ];
+
+  let humorChapterHits = 0;
+  for (const chapter of draft.chapters) {
+    const hasHumor = humorPatterns.some(pattern => pattern.test(chapter.text));
+    if (hasHumor) humorChapterHits += 1;
+  }
+
+  if (humorChapterHits < minHumorMoments) {
+    issues.push({
+      gate: "HUMOR_PRESENCE",
+      chapter: 0,
+      code: "HUMOR_TOO_LOW",
+      message: isDE
+        ? `Humor-Level zu niedrig: ${humorChapterHits} humorvolle Kapitel, Ziel mindestens ${minHumorMoments}.`
+        : `Humor level too low: ${humorChapterHits} humorous chapters, target at least ${minHumorMoments}.`,
+      severity: level >= 2 && ageMax <= 12 ? "ERROR" : "WARNING",
+    });
+  }
+
+  return issues;
+}
 function gateArtifactMiniArc(
   draft: StoryDraft,
   cast: CastSet,
@@ -1837,8 +1884,9 @@ export function runQualityGates(input: {
   ageRange?: { min: number; max: number };
   wordBudget?: WordBudget;
   artifactArc?: ArtifactArcPlan;
+  humorLevel?: number;
 }): QualityReport {
-  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc } = input;
+  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -1866,6 +1914,7 @@ export function runQualityGates(input: {
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
     { name: "ACTIVE_PRESENCE", fn: () => gateActivePresence(draft, directives, cast, language) },
+    { name: "HUMOR_PRESENCE", fn: () => gateHumorPresence(draft, language, ageRange, humorLevel) },
     { name: "ARTIFACT_MINI_ARC", fn: () => gateArtifactMiniArc(draft, cast, language, artifactArc) },
   ];
 
@@ -1997,6 +2046,11 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push(isDE
       ? "- Kinder-Emotionsbogen schaerfen: pro Hauptkind mindestens einen inneren Moment und mindestens einen Fehler->Korrektur-Bogen ausarbeiten."
       : "- Strengthen child emotional arc: each main child needs at least one inner moment and at least one mistake->correction beat.");
+  }
+  if (issueCodes.has("HUMOR_TOO_LOW")) {
+    lines.push(isDE
+      ? "- Humor gezielt erhoehen: baue kindgerechte Situationskomik und kurze Dialogwitze ein (keine Blossstellung, kein Zynismus)."
+      : "- Increase humor deliberately: add child-friendly situational comedy and short dialogue wit (no humiliation, no sarcasm).");
   }
   if (
     issueCodes.has("CLIFFHANGER_ENDING") ||
@@ -2653,3 +2707,4 @@ function isLikelySentenceStart(text: string, index: number): boolean {
   if (i < 0) return true;
   return /[.!?\n]/.test(text[i]);
 }
+

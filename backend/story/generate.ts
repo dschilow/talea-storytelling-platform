@@ -139,6 +139,22 @@ export interface StoryConfig {
   // Optional: fail generation when release-quality gates are not met.
   // Default false to avoid hard failures for recoverable narrative quality issues.
   strictQualityGates?: boolean;
+
+  // Release pipeline mode (candidate generation + semantic critic + selective surgery).
+  // Default true for Story Pipeline v2.
+  releaseMode?: boolean;
+
+  // Optional override for number of story candidates in release mode (1-3).
+  releaseCandidateCount?: number;
+
+  // Optional semantic critic minimum score (0-10) required for release mode.
+  criticMinScore?: number;
+
+  // Optional semantic critic model override.
+  criticModel?: AIModel;
+
+  // Optional override for chapter-level selective surgery edits (1-5).
+  maxSelectiveSurgeryEdits?: number;
 }
 
 export interface LearningMode {
@@ -531,6 +547,14 @@ export const generate = api<GenerateStoryRequest, Story>(
             model: tokenUsage.modelUsed,
             imagesGenerated: pipelineResult.images.length + (pipelineResult.coverImage?.imageUrl ? 1 : 0),
             characterPoolUsed,
+            quality: pipelineResult.criticReport
+              ? {
+                  criticScore: pipelineResult.criticReport.overallScore,
+                  criticSummary: pipelineResult.criticReport.summary,
+                  releaseReady: pipelineResult.criticReport.releaseReady,
+                }
+              : undefined,
+            releasePipeline: pipelineResult.releaseReport,
           },
         };
       } else {
