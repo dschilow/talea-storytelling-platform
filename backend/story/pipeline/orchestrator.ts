@@ -579,7 +579,7 @@ export class StoryPipelineOrchestrator {
         });
       }
       const strictQualityGatesRaw = (normalized.rawConfig as any)?.strictQualityGates;
-      const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : releaseEnabled;
+      const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : false;
 
       // Always-blocking errors: instruction leaks/placeholders/language leaks.
       const hardSafetyCodes = new Set([
