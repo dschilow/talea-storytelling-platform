@@ -371,11 +371,19 @@ export class StoryPipelineOrchestrator {
       }
 
       const storyErrors = qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [];
-      const criticalCodes = new Set([
+      const strictQualityGates = Boolean((normalized.rawConfig as any)?.strictQualityGates);
+
+      // Always-blocking errors: instruction leaks/placeholders/language leaks.
+      const hardSafetyCodes = new Set([
         "INSTRUCTION_LEAK",
         "ENGLISH_LEAK",
         "FILTER_PLACEHOLDER",
         "CHAPTER_PLACEHOLDER",
+      ]);
+
+      // Optional strict release gates. Disabled by default to avoid hard generation failures
+      // when only narrative quality errors remain after rewrite.
+      const strictReleaseCodes = new Set([
         "MISSING_CHARACTER",
         "TOTAL_TOO_SHORT",
         "CHAPTER_TOO_SHORT_HARD",
@@ -386,6 +394,10 @@ export class StoryPipelineOrchestrator {
         "CLIFFHANGER_ENDING",
         "MISSING_INNER_CHILD_MOMENT",
         "NO_CHILD_ERROR_CORRECTION_ARC",
+      ]);
+      const criticalCodes = new Set([
+        ...hardSafetyCodes,
+        ...(strictQualityGates ? [...strictReleaseCodes] : []),
       ]);
       const criticalErrors = storyErrors.filter((i: any) => criticalCodes.has(i.code));
       const hasContent = storyDraft.chapters.some(ch => ch.text && ch.text.trim().length > 50);
@@ -403,7 +415,7 @@ export class StoryPipelineOrchestrator {
         throw new Error(`Story quality gates failed: ${(criticalErrors.length > 0 ? criticalErrors : storyErrors).map((i: any) => i.code).join(", ")}`);
       }
       if (storyErrors.length > 0) {
-        console.warn(`[pipeline] Story accepted with ${storyErrors.length} non-critical quality issues: ${storyErrors.map((i: any) => i.code).join(", ")}`);
+        console.warn(`[pipeline] Story accepted with ${storyErrors.length} non-critical quality issues (strictQualityGates=${strictQualityGates}): ${storyErrors.map((i: any) => i.code).join(", ")}`);
       }
 
       // ─── Phase 6.5: AI Scene Description Generator ───────────────────

@@ -134,6 +134,10 @@ export interface StoryConfig {
 
   // Injected safety/goals guidance from parental controls.
   parentalGuidance?: string;
+
+  // Optional: fail generation when release-quality gates are not met.
+  // Default false to avoid hard failures for recoverable narrative quality issues.
+  strictQualityGates?: boolean;
 }
 
 export interface LearningMode {
