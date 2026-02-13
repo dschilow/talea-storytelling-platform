@@ -132,6 +132,7 @@ function gateDialogueQuote(
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
   const minDialogueRatio = ageMax <= 8 ? 0.24 : 0.16;
   const maxDialogueRatio = ageMax <= 8 ? 0.68 : 0.75;
