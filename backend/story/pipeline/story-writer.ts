@@ -1,5 +1,5 @@
 import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed } from "./types";
-import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
@@ -33,6 +33,20 @@ const REWRITE_ONLY_ON_ERRORS = true;
 
 // Mehr Spielraum fuer Expand-Calls weil fehlende Figuren oft mehrere Kapitel betreffen.
 const MAX_EXPAND_CALLS = 5;
+
+// Cost-safe quality lift: polish warning-heavy chapters without full-story rewrites.
+const MAX_WARNING_POLISH_CALLS = 2;
+const WARNING_POLISH_CODES = new Set([
+  "RHYTHM_FLAT",
+  "RHYTHM_TOO_HEAVY",
+  "VOICE_INDISTINCT",
+  "ROLE_LABEL_OVERUSE",
+  "METAPHOR_OVERLOAD",
+  "IMAGERY_DENSITY_HIGH",
+  "NO_DIALOGUE",
+  "TOO_FEW_DIALOGUES",
+  "ENDING_TOO_SHORT",
+]);
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -163,6 +177,7 @@ Your rules:
       strict,
       fusionSections,
       avatarMemories,
+      userPrompt: normalizedRequest.rawConfig?.customPrompt,
     });
 
     // Reasoning models (gpt-5-mini) burn ~60-75% of max_completion_tokens on internal thinking.
@@ -303,6 +318,94 @@ Your rules:
       return { draft: { ...draftInput, chapters: updatedChapters }, usage, changed };
     };
 
+    const applyWarningPolish = async (
+      draftInput: StoryDraft,
+      reportInput: {
+        issues: Array<{ chapter: number; code: string; message: string; severity: "ERROR" | "WARNING" }>;
+      },
+    ): Promise<{ draft: StoryDraft; usage?: TokenUsage; changed: boolean }> => {
+      if (MAX_WARNING_POLISH_CALLS <= 0) {
+        return { draft: draftInput, changed: false };
+      }
+
+      const warningIssues = (reportInput?.issues || []).filter(
+        issue => issue.severity === "WARNING" && WARNING_POLISH_CODES.has(issue.code),
+      );
+      if (warningIssues.length === 0) {
+        return { draft: draftInput, changed: false };
+      }
+
+      const chapterIssues = new Map<number, string[]>();
+      for (const issue of warningIssues) {
+        if (issue.chapter <= 0) continue;
+        const list = chapterIssues.get(issue.chapter) ?? [];
+        list.push(`[${issue.code}] ${issue.message}`);
+        chapterIssues.set(issue.chapter, list);
+      }
+      if (chapterIssues.size === 0) {
+        return { draft: draftInput, changed: false };
+      }
+
+      const ranked = [...chapterIssues.entries()]
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, MAX_WARNING_POLISH_CALLS);
+
+      const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
+      let changed = false;
+      let usage: TokenUsage | undefined;
+
+      for (const [chapterNo, issues] of ranked) {
+        const chapter = updatedChapters.find(ch => ch.chapter === chapterNo);
+        const directive = directives.find(d => d.chapter === chapterNo);
+        if (!chapter || !directive) continue;
+
+        const prompt = buildStoryChapterRevisionPrompt({
+          chapter: directive,
+          cast,
+          dna,
+          language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          tone: normalizedRequest.requestedTone,
+          lengthTargets,
+          stylePackText,
+          issues: issues.slice(0, 4),
+          originalText: chapter.text,
+        });
+
+        const baseMaxTokens = Math.round(Math.max(500, lengthTargets.wordMax * 2.0));
+        const polishReasoningMultiplier = (model.includes("gpt-5") || model.includes("o4")) ? 2 : 1;
+        const maxTokens = Math.min(3200, Math.max(700, baseMaxTokens * polishReasoningMultiplier));
+
+        try {
+          const result = await callStoryModel({
+            systemPrompt: editSystemPrompt,
+            userPrompt: prompt,
+            responseFormat: "json_object",
+            maxTokens,
+            temperature: 0.35,
+            reasoningEffort: "low",
+            context: `story-writer-warning-polish-${chapterNo}`,
+            logSource: "phase6-story-llm",
+            logMetadata: { storyId: normalizedRequest.storyId, step: "warning-polish", chapter: chapterNo },
+          });
+
+          if (result.usage) {
+            usage = mergeUsage(usage, result.usage, model);
+          }
+
+          const parsed = safeJson(result.content);
+          if (parsed?.text) {
+            chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
+            changed = true;
+          }
+        } catch (error) {
+          console.warn(`[story-writer] Warning polish failed for chapter ${chapterNo}`, error);
+        }
+      }
+
+      return { draft: { ...draftInput, chapters: updatedChapters }, usage, changed };
+    };
+
     if (allowPostEdits) {
       const targetedBefore = await applyTargetedEdits(draft);
       if (targetedBefore.changed) {
@@ -325,7 +428,7 @@ Your rules:
     // OPTIMIERTE REWRITE-LOGIK (V2)
     // - Nur bei ERRORs rewriten (REWRITE_ONLY_ON_ERRORS = true)
     // - WARNINGs werden ignoriert für Rewrites (kosten zu viel)
-    // - Bis zu 2 Rewrite-Paesse fuer harte Qualitaetsprobleme
+    // - Maximal 1 Rewrite-Pass fuer harte Qualitaetsprobleme
     // ════════════════════════════════════════════════════════════════════════
     let errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
     if (normalizedRequest.wordBudget && canAutoTrimLengthErrors(errorIssues)) {
@@ -380,6 +483,7 @@ Your rules:
         wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
         qualityIssues: rewriteInstructions,
         stylePackText,
+        userPrompt: normalizedRequest.rawConfig?.customPrompt,
       });
 
       let rewriteResult;
@@ -475,6 +579,30 @@ Your rules:
             ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
             wordBudget: normalizedRequest.wordBudget,
           });
+        }
+      }
+    }
+
+    if (allowPostEdits) {
+      const warningPolish = await applyWarningPolish(draft, qualityReport);
+      if (warningPolish.changed) {
+        const polishedReport = runQualityGates({
+          draft: warningPolish.draft,
+          directives,
+          cast,
+          language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          wordBudget: normalizedRequest.wordBudget,
+        });
+
+        if (isWarningPolishBetter(qualityReport, polishedReport)) {
+          draft = warningPolish.draft;
+          qualityReport = polishedReport;
+          if (warningPolish.usage) {
+            totalUsage = mergeUsage(totalUsage, warningPolish.usage, model);
+          }
+        } else {
+          console.log("[story-writer] Warning polish did not improve measurable quality, keeping prior draft");
         }
       }
     }
@@ -980,7 +1108,6 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
 const NOISY_CODES = new Set([
   "UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR", "VOICE_INDISTINCT",
   "GLOBAL_CAST_OVERLOAD",            // Cast is determined before writing; LLM can't remove characters
-  "NO_CHILD_ERROR_CORRECTION_ARC",   // Too structural; requires plot-level changes, not text edits
 ]);
 
 function countErrorIssues(report: {
@@ -1050,6 +1177,31 @@ function isRewriteQualityBetter(
   if (candidateWarnings > currentWarnings) return false;
 
   return candidate.score >= current.score;
+}
+
+function isWarningPolishBetter(
+  current: {
+    issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+    failedGates: string[];
+    score: number;
+  },
+  candidate: {
+    issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
+    failedGates: string[];
+    score: number;
+  },
+): boolean {
+  const currentErrors = countErrorIssues(current);
+  const candidateErrors = countErrorIssues(candidate);
+  if (candidateErrors > currentErrors) return false;
+  if (candidateErrors < currentErrors) return true;
+
+  const currentWarnings = countWarningIssues(current);
+  const candidateWarnings = countWarningIssues(candidate);
+  if (candidateWarnings < currentWarnings) return true;
+  if (candidateWarnings > currentWarnings) return false;
+
+  return candidate.score > current.score;
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {

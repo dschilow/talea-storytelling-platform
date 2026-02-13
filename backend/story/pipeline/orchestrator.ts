@@ -61,6 +61,15 @@ export interface PipelineRunResult {
   canonFusionPlan?: any;
 }
 
+interface TaleSelectionCandidate {
+  tale_id: string;
+  title: string;
+  age_min: number | null;
+  age_max: number | null;
+  tone: string | null;
+  tags: string[];
+}
+
 export class StoryPipelineOrchestrator {
   private storyWriter: LlmStoryWriter;
   private imageDirector: TemplateImageDirector;
@@ -112,26 +121,25 @@ export class StoryPipelineOrchestrator {
     let validationReport: any | undefined;
 
     try {
-      // ─── Phase 0.5: Fairy Tale Selection (diversity fix) ───────────────
-      // Pick a random tale_dna entry directly for story diversity.
-      // The FairyTaleSelector picks from fairy_tales (50 entries) but tale_dna only has ~10,
-      // causing mismatches where the selected tale has no DNA and falls back to Froschkönig.
-      // Solution: pick directly from available tale_dna entries with random rotation.
+      // ─── Phase 0.5: Fairy Tale Selection (quality/diversity fit) ─────────
       if (normalized.category === "Klassische Märchen" && !normalized.taleId) {
         try {
-          const randomTale = await storyDB.queryRow<{ tale_id: string; title: string }>`
-            SELECT tale_id, tale_dna->'tale'->>'title' as title
-            FROM tale_dna
-            ORDER BY RANDOM()
-            LIMIT 1
-          `;
-          if (randomTale) {
-            normalized.taleId = randomTale.tale_id;
-            console.log(`[pipeline] Phase 0.5: Selected random TaleDNA: "${randomTale.title}" (${randomTale.tale_id})`);
+          const selectedTale = await selectBestFairyTale({
+            userId: normalized.userId,
+            ageMin: normalized.ageMin,
+            ageMax: normalized.ageMax,
+            requestedTone: normalized.requestedTone,
+            requestHash: normalized.requestHash,
+          });
+          if (selectedTale) {
+            normalized.taleId = selectedTale.taleId;
+            console.log(`[pipeline] Phase 0.5: Selected TaleDNA: "${selectedTale.title}" (${selectedTale.taleId}) score=${selectedTale.score.toFixed(2)}`);
             await logPhase("phase0.5-fairy-tale-selection", { storyId: normalized.storyId }, {
-              selectedTaleId: randomTale.tale_id,
-              selectedTitle: randomTale.title,
-              method: "random-from-tale-dna",
+              selectedTaleId: selectedTale.taleId,
+              selectedTitle: selectedTale.title,
+              method: selectedTale.method,
+              score: Number(selectedTale.score.toFixed(3)),
+              reasoning: selectedTale.reasoning,
             });
           } else {
             console.warn("[pipeline] No tale_dna entries found, using default");
@@ -363,7 +371,22 @@ export class StoryPipelineOrchestrator {
       }
 
       const storyErrors = qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [];
-      const criticalCodes = new Set(["INSTRUCTION_LEAK", "ENGLISH_LEAK"]);
+      const criticalCodes = new Set([
+        "INSTRUCTION_LEAK",
+        "ENGLISH_LEAK",
+        "FILTER_PLACEHOLDER",
+        "CHAPTER_PLACEHOLDER",
+        "MISSING_CHARACTER",
+        "TOTAL_TOO_SHORT",
+        "CHAPTER_TOO_SHORT_HARD",
+        "MISSING_EXPLICIT_STAKES",
+        "MISSING_LOWPOINT",
+        "LOWPOINT_TOO_SOFT",
+        "ENDING_UNRESOLVED",
+        "CLIFFHANGER_ENDING",
+        "MISSING_INNER_CHILD_MOMENT",
+        "NO_CHILD_ERROR_CORRECTION_ARC",
+      ]);
       const criticalErrors = storyErrors.filter((i: any) => criticalCodes.has(i.code));
       const hasContent = storyDraft.chapters.some(ch => ch.text && ch.text.trim().length > 50);
       const storyGate = {
@@ -604,6 +627,152 @@ export class StoryPipelineOrchestrator {
       throw error;
     }
   }
+}
+
+async function selectBestFairyTale(input: {
+  userId: string;
+  ageMin: number;
+  ageMax: number;
+  requestedTone?: string;
+  requestHash: string;
+}): Promise<{ taleId: string; title: string; score: number; method: string; reasoning: string } | null> {
+  const rawCandidates = await storyDB.queryAll<{
+    tale_id: string;
+    title: string;
+    age_min: number | null;
+    age_max: number | null;
+    tone: string | null;
+    tags_json: any;
+  }>`
+    SELECT
+      tale_id,
+      COALESCE(tale_dna->'tale'->>'title', tale_id) AS title,
+      NULLIF(tale_dna->'tale'->'age'->>'min', '')::int AS age_min,
+      NULLIF(tale_dna->'tale'->'age'->>'max', '')::int AS age_max,
+      LOWER(COALESCE(tale_dna->'tale'->'toneBounds'->>'targetTone', '')) AS tone,
+      COALESCE(tale_dna->'tale'->'themeTags', '[]'::jsonb) AS tags_json
+    FROM tale_dna
+  `;
+  if (rawCandidates.length === 0) return null;
+
+  const candidates: TaleSelectionCandidate[] = rawCandidates.map(row => ({
+    tale_id: row.tale_id,
+    title: row.title || row.tale_id,
+    age_min: row.age_min,
+    age_max: row.age_max,
+    tone: row.tone,
+    tags: parseThemeTags(row.tags_json),
+  }));
+
+  const recentRows = await storyDB.queryAll<{ tale_id: string | null }>`
+    SELECT si.tale_id
+    FROM story_instances si
+    JOIN stories s ON s.id = si.id
+    WHERE s.user_id = ${input.userId}
+      AND si.category = 'Klassische Märchen'
+      AND si.tale_id IS NOT NULL
+    ORDER BY si.created_at DESC
+    LIMIT 8
+  `;
+  const recentIds = recentRows
+    .map(row => row.tale_id)
+    .filter((value): value is string => Boolean(value));
+  const hardAvoid = new Set(recentIds.slice(0, 3));
+  const scoredPool = candidates.filter(candidate => !hardAvoid.has(candidate.tale_id));
+  const pool = scoredPool.length > 0 ? scoredPool : candidates;
+
+  const toneTokens = tokenizeTone(input.requestedTone);
+  const targetMid = (input.ageMin + input.ageMax) / 2;
+
+  let best: { candidate: TaleSelectionCandidate; score: number } | null = null;
+  for (const candidate of pool) {
+    const ageMin = candidate.age_min ?? input.ageMin;
+    const ageMax = candidate.age_max ?? input.ageMax;
+    const candidateMid = (ageMin + ageMax) / 2;
+    const toneText = [candidate.tone || "", ...(candidate.tags || [])].join(" ").toLowerCase();
+
+    let score = 0;
+    if (rangesOverlap(ageMin, ageMax, input.ageMin, input.ageMax)) score += 2.2;
+    else score -= 4.0;
+
+    if (ageMin <= input.ageMin && ageMax >= input.ageMax) score += 1.2;
+    score -= Math.min(2.5, Math.abs(candidateMid - targetMid) * 0.4);
+
+    if (toneTokens.length > 0) {
+      const toneMatches = toneTokens.filter(token => toneText.includes(token)).length;
+      score += toneMatches * 1.1;
+      if (toneMatches === 0) score -= 0.6;
+    }
+
+    if (input.ageMax <= 8 && hasDarkToneMarkers(toneText)) {
+      score -= 2.5;
+    }
+
+    const repeatCount = recentIds.filter(id => id === candidate.tale_id).length;
+    score -= repeatCount * 1.5;
+
+    // Deterministic tie-breaker: keeps outputs diverse across requests without pure randomness.
+    score += deterministicJitter(`${input.requestHash}:${candidate.tale_id}`) * 0.8;
+
+    if (!best || score > best.score) {
+      best = { candidate, score };
+    }
+  }
+
+  if (!best) return null;
+  const reasonParts = [
+    `pool=${pool.length}/${candidates.length}`,
+    `age=${best.candidate.age_min ?? "?"}-${best.candidate.age_max ?? "?"}`,
+    `tone=${best.candidate.tone || "n/a"}`,
+    hardAvoid.size > 0 ? `recent-avoid=${hardAvoid.size}` : "recent-avoid=0",
+  ];
+  return {
+    taleId: best.candidate.tale_id,
+    title: best.candidate.title,
+    score: best.score,
+    method: "scored-age-tone-anti-repeat",
+    reasoning: reasonParts.join(", "),
+  };
+}
+
+function parseThemeTags(tagsJson: any): string[] {
+  if (!tagsJson) return [];
+  if (Array.isArray(tagsJson)) {
+    return tagsJson.map(value => String(value).toLowerCase()).filter(Boolean);
+  }
+  if (typeof tagsJson === "string") {
+    try {
+      const parsed = JSON.parse(tagsJson);
+      if (Array.isArray(parsed)) return parsed.map(value => String(value).toLowerCase()).filter(Boolean);
+    } catch {
+      return tagsJson.split(/[,\s]+/).map(value => value.toLowerCase()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function tokenizeTone(tone?: string): string[] {
+  if (!tone) return [];
+  return tone
+    .toLowerCase()
+    .split(/[^a-zA-ZäöüÄÖÜß]+/)
+    .map(token => token.trim())
+    .filter(token => token.length >= 3);
+}
+
+function hasDarkToneMarkers(text: string): boolean {
+  if (!text) return false;
+  return /dark|dunkel|tragic|tragisch|horror|grausam|death|tod|bitter|dread|schrecken|haunted/i.test(text);
+}
+
+function rangesOverlap(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
+  return aMin <= bMax && bMin <= aMax;
+}
+
+function deterministicJitter(seed: string): number {
+  const digest = crypto.createHash("sha256").update(seed).digest();
+  const value = (digest[0] << 8) | digest[1];
+  return value / 65535;
 }
 
 async function logPhase(source: any, request: any, response: any) {

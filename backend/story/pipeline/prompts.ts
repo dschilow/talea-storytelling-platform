@@ -290,8 +290,9 @@ export function buildFullStoryPrompt(input: {
   strict?: boolean;
   fusionSections?: Map<number, string>;
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+  userPrompt?: string;
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories } = input;
+  const { directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
   const artifactRule = cast.artifact?.storyUseRule || "wichtiges magisches Objekt";
@@ -380,6 +381,7 @@ export function buildFullStoryPrompt(input: {
   const stylePackBlock = stylePackText?.trim()
     ? `# STYLE PACK (verbindlich)\n${stylePackText.trim()}\n`
     : "";
+  const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
 
   // Build avatar memory section for story continuity
   // OPTIMIZED: Ultra-compact format – only story titles, no experience text, minimal rules.
@@ -418,6 +420,7 @@ Niemals belehrend, niemals zynisch, niemals langweilig.
 ${readabilityRules}
 
 ${stylePackBlock}
+${customPromptBlock}
 
 # Das oberste Gebot: ZEIGEN, NICHT ERZÄHLEN
 \`\`\`
@@ -500,7 +503,7 @@ ${stylePackBlock}
 3. Beat 3: echter Rueckschlag (Plan scheitert / Verlust / falsche Spur).
 4. Beat 4: Tiefpunkt + mutige Entscheidung eines Kindes.
 5. Beat 5: Loesung mit Preis und emotionalem Nachklang.
-- Die Stakes muessen klar sein: "Wenn wir es nicht schaffen, dann ...".
+- Die Stakes muessen klar sein: frueh benennen, was bei Scheitern passiert (frei formuliert, kein starres Satzschema).
 - Beat 3 oder 4 muss einen klar benannten Verlust/Preis enthalten (nicht nur kleine Verzoegerung, keine Mini-Folgen wie verlorene Kruemel).
 
 # Emotionaler Kern (Kinder-Perspektive)
@@ -552,7 +555,7 @@ ${chapterOutlines}
 - [ ] Erster Satz macht sofort neugierig?
 - [ ] Pro Beat maximal ${focusMaxActive} aktive Figuren?
 - [ ] Insgesamt nicht mehr als ${focusGlobalMax} aktiv erkennbare Figuren?
-- [ ] Gibt es klare Stakes: "Wenn wir es nicht schaffen, dann ..."?
+- [ ] Gibt es frueh eine klare Konsequenz bei Scheitern?
 - [ ] Gibt es einen echten Tiefpunkt in Beat 3 oder 4?
 - [ ] Haben die Kinder sichtbare Gefühle + innere Gedanken?
 - [ ] Dialoge: Klingen mindestens zwei Figuren klar unterschiedlich?
@@ -597,8 +600,9 @@ export function buildFullStoryRewritePrompt(input: {
   wordsPerChapter: { min: number; max: number };
   qualityIssues: string;
   stylePackText?: string;
+  userPrompt?: string;
 }): string {
-  const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText } = input;
+  const { originalDraft, directives, cast, dna, language, ageRange, tone, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues, stylePackText, userPrompt } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
 
@@ -622,6 +626,7 @@ export function buildFullStoryRewritePrompt(input: {
   const stylePackBlock = stylePackText?.trim()
     ? `\n# STYLE PACK (verbindlich)\n${stylePackText.trim()}\n`
     : "";
+  const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
 
   return `# Aufgabe
 Überarbeite die Geschichte. Behalte Handlung und Charaktere, behebe ALLE Probleme.
@@ -629,6 +634,7 @@ WICHTIG: Verbessere die PROSA-QUALITÄT, nicht nur die Struktur!
 
 ${qualityIssues}
 ${stylePackBlock}
+${customPromptBlock}
 
 # Zeigen, nicht erzählen (PFLICHT bei Rewrite)
 \`\`\`
@@ -658,7 +664,7 @@ ${stylePackBlock}
   Beat 3 echter Rueckschlag (Plan scheitert / Verlust / falsche Spur).
   Beat 4 Tiefpunkt + mutige Entscheidung eines Kindes.
   Beat 5 Loesung mit kleinem Preis und emotionalem Nachklang.
-- Stakes muessen explizit sein: genau eine konkrete Konsequenz frueh benennen ("Wenn wir es nicht schaffen, dann ...").
+- Stakes muessen explizit sein: genau eine konkrete Konsequenz frueh benennen (was bei Scheitern passiert, ohne starres Satzschema).
 - In Beat 3 oder 4 muss ein echter Verlust/Preis passieren, nicht nur ein kurzer Umweg.
 - In Beat 3 oder 4 darf der Rueckschlag nicht sofort relativiert werden ("kein Problem", "keine Katastrophe", etc.).
 - Emotionaler Kern: in jedem Beat mindestens 1 kurzer innerer Moment von ${emotionalFocus}.
@@ -1083,5 +1089,19 @@ ${input.checklist.map(item => `- ${item}`).join("\n")}`;
 
 function findCharacterBySlot(cast: CastSet, slotKey: string) {
   return cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
+}
+
+function formatCustomPromptBlock(userPrompt: string | undefined, isGerman: boolean): string {
+  if (!userPrompt || !userPrompt.trim()) return "";
+  const normalized = userPrompt
+    .trim()
+    .replace(/```/g, "'''")
+    .replace(/\r\n/g, "\n")
+    .slice(0, 2000);
+  if (!normalized) return "";
+  if (isGerman) {
+    return `# ZUSAETZLICHE NUTZER-VORGABEN (hoch priorisiert)\n${normalized}\n- Setze diese Vorgaben kreativ um, ohne die harten Regeln oben zu brechen.\n`;
+  }
+  return `# ADDITIONAL USER REQUIREMENTS (high priority)\n${normalized}\n- Apply these requirements creatively without breaking the hard rules above.\n`;
 }
 

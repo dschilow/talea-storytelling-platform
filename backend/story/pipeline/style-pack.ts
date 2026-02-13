@@ -27,10 +27,10 @@ const DEFAULT_STYLE_PACK_DE: StoryStylePack = {
     "KEINE Metaphern oder poetischen Floskeln (wie 'Honig-Sonne' oder 'Nebel-Worte').",
     "KEINE unnoetigen Geruchsbeschreibungen.",
     "Kapitelstruktur: 2-5 kurze Absaetze, gelegentlich direkte Rede.",
-    "Jedes Kapitel endet mit einem kleinen Ausblick (ausser im letzten Kapitel).",
+    "Kapitelenden variieren bewusst: mal Ausblick, mal Pointe, mal ruhiger Nachklang.",
   ],
   promptFragments: {
-    closingHint: "Jedes Kapitel endet mit einem sanften Ausblick (ausser im letzten Kapitel).",
+    closingHint: "Kapitelenden duerfen variieren; wiederhole nicht immer denselben Ausblick-Satz.",
   },
 };
 
@@ -49,10 +49,10 @@ const DEFAULT_STYLE_PACK_EN: StoryStylePack = {
     "Each character acts meaningfully in the scene.",
     "No meta or pipeline language.",
     "Chapter structure: 2-5 short paragraphs, occasional dialogue.",
-    "Each chapter ends with a gentle forward-looking line (except the final chapter).",
+    "Vary chapter endings: sometimes forward-looking, sometimes punchline, sometimes calm landing.",
   ],
   promptFragments: {
-    closingHint: "Each chapter ends with a gentle forward-looking line (except the final chapter).",
+    closingHint: "Chapter endings should vary; avoid repeating the same forward-looking line pattern.",
   },
 };
 
@@ -119,4 +119,3 @@ function pickFromCache(input: { language: string; category?: StoryCategory | str
   if (fallback) return fallback;
   return input.language === "de" ? DEFAULT_STYLE_PACK_DE : DEFAULT_STYLE_PACK_EN;
 }
-

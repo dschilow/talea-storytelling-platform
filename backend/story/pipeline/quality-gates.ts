@@ -1211,16 +1211,34 @@ function gateStakesAndLowpoint(
         /if\s+we[^.!?]{0,80}don't\s+(make|reach|find|solve)/i,
         /otherwise[^.!?]{0,80}(lose|miss|fail|stuck)/i,
       ];
+  const stakesConnectorPattern = isDE
+    ? /\b(wenn|falls|sonst|ohne|bevor|damit|droht)\b/i
+    : /\b(if|otherwise|unless|without|before|or\s+else|at\s+risk)\b/i;
+  const stakesConsequencePattern = isDE
+    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|keine?\s+chance|kein\s+zuhause|fuer\s+immer)\b/i
+    : /\b(lose|miss|stuck|trapped|too\s+late|breaks?|gone|alone|no\s+chance|no\s+home|forever)\b/i;
+  const openingSentences = splitSentences(firstTwoText).slice(0, 10);
 
-  const hasExplicitStakes = stakesPatterns.some(pattern => pattern.test(firstTwoText));
+  const hasSentenceLevelConsequence = openingSentences.some(sentence =>
+    stakesConnectorPattern.test(sentence) && stakesConsequencePattern.test(sentence),
+  );
+  const hasCrossSentenceConsequence = openingSentences.some((sentence, index) => {
+    if (!stakesConnectorPattern.test(sentence)) return false;
+    const next = openingSentences[index + 1] || "";
+    return stakesConsequencePattern.test(`${sentence} ${next}`);
+  });
+  const hasExplicitStakes =
+    stakesPatterns.some(pattern => pattern.test(firstTwoText)) ||
+    hasSentenceLevelConsequence ||
+    hasCrossSentenceConsequence;
   if (!hasExplicitStakes) {
     issues.push({
       gate: "STAKES_LOWPOINT",
       chapter: 1,
       code: "MISSING_EXPLICIT_STAKES",
       message: isDE
-        ? "Fruehe Stakes fehlen: klare Konsequenz in Kapitel 1-2 ergaenzen (\"Wenn wir es nicht schaffen, dann ...\")."
-        : "Early stakes missing: add a clear consequence in chapters 1-2 (\"If we fail, then ...\").",
+        ? "Fruehe Stakes fehlen: in Kapitel 1-2 klar zeigen, was bei Scheitern passiert."
+        : "Early stakes missing: in chapters 1-2, clearly show what happens if they fail.",
       severity: "ERROR",
     });
   }
@@ -1655,8 +1673,8 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     issueCodes.has("LOWPOINT_TOO_SOFT")
   ) {
     lines.push(isDE
-      ? "- Dramaturgie reparieren: frueh eine klare Konsequenz benennen (\"Wenn wir es nicht schaffen, dann ...\") und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
-      : "- Repair dramatic arc: define a clear early consequence (\"If we fail, then ...\") and add a real low point with emotional reaction in chapter 3/4.");
+      ? "- Dramaturgie reparieren: frueh klar benennen, was bei Scheitern passiert, und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
+      : "- Repair dramatic arc: state early what happens if they fail and add a real low point with emotional reaction in chapter 3/4.");
   }
   if (issueCodes.has("RHYTHM_FLAT") || issueCodes.has("RHYTHM_TOO_HEAVY") || issueCodes.has("IMAGERY_DENSITY_HIGH") || issueCodes.has("METAPHOR_OVERLOAD")) {
     lines.push(isDE

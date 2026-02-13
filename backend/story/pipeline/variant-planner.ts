@@ -120,28 +120,87 @@ function buildSceneOverrides(
 
     const allowSettingOverride = settingOverrideChapters.has(chapter) && shouldApplySettingVariant(base.setting, classic);
     const setting = allowSettingOverride ? `${base.setting}, ${settingLabel}` : base.setting;
+    const narrative = buildNarrativeOverride({
+      language,
+      rng,
+      encounterLabel,
+      rescueLabel,
+      artifactLabel,
+      twistLabel,
+      sceneTitle: base.sceneTitle,
+    });
 
     overrides.push({
       chapter,
       setting,
-      goal: language === "de"
-        ? `Die Szene dreht sich um ${encounterLabel}.`
-        : `Advance the story with a focus on ${encounterLabel}.`,
-      conflict: language === "de"
-        ? `Ein Hindernis entsteht: ${encounterLabel}.`
-        : `A challenge emerges: ${encounterLabel}.`,
-      outcome: language === "de"
-        ? `Die Szene wendet sich durch ${rescueLabel}.`
-        : `The scene turns because of ${rescueLabel}.`,
-      artifactUsageHint: language === "de"
-        ? `Artefakt-Funktion: ${artifactLabel}.`
-        : `Artifact function: ${artifactLabel}.`,
+      goal: narrative.goal,
+      conflict: narrative.conflict,
+      outcome: narrative.outcome,
+      artifactUsageHint: narrative.artifactUsageHint,
       imageMustShowAdd: [settingLabel, encounterLabel, twistLabel],
       imageAvoidAdd: ["extra characters", "looking at camera"],
     });
   }
 
   return overrides;
+}
+
+function buildNarrativeOverride(input: {
+  language: string;
+  rng: ReturnType<typeof createSeededRandom>;
+  encounterLabel: string;
+  rescueLabel: string;
+  artifactLabel: string;
+  twistLabel: string;
+  sceneTitle: string;
+}): { goal: string; conflict: string; outcome: string; artifactUsageHint: string } {
+  const { language, rng, encounterLabel, rescueLabel, artifactLabel, twistLabel, sceneTitle } = input;
+
+  if (language === "de") {
+    const goal = rng.pick([
+      `In "${sceneTitle}" versuchen die Kinder trotz ${encounterLabel} ihr Ziel zu halten.`,
+      `Die Szene startet mit ${encounterLabel}; die Gruppe muss sofort umplanen.`,
+      `Der Fokus liegt auf ${encounterLabel}: jemand braucht einen mutigen Gegenzug.`,
+    ]);
+    const conflict = rng.pick([
+      `${encounterLabel} blockiert den einfachen Weg und macht die Entscheidung riskant.`,
+      `Durch ${encounterLabel} droht ein klarer Verlust, wenn niemand schnell handelt.`,
+      `${encounterLabel} verschiebt die Machtbalance und setzt die Hauptfigur unter Druck.`,
+    ]);
+    const outcome = rng.pick([
+      `Durch ${rescueLabel} kippt die Lage; ${twistLabel} bleibt als neuer Hinweis zurueck.`,
+      `${rescueLabel} rettet den Moment, aber ${twistLabel} veraendert die naechste Szene.`,
+      `${rescueLabel} bringt einen Vorteil, waehrend ${twistLabel} die Regeln neu setzt.`,
+    ]);
+    const artifactUsageHint = rng.pick([
+      `Artefakt-Einsatz: ${artifactLabel}. Die Wirkung muss sichtbar Folgen fuer die Szene haben.`,
+      `Das Artefakt wird so genutzt, dass es ${artifactLabel}; danach veraendert sich die Lage sofort.`,
+      `Artefaktregel: ${artifactLabel}. Nicht erwaehnen, sondern als konkrete Aktion zeigen.`,
+    ]);
+    return { goal, conflict, outcome, artifactUsageHint };
+  }
+
+  const goal = rng.pick([
+    `In "${sceneTitle}", the children must stay on target despite ${encounterLabel}.`,
+    `The scene opens with ${encounterLabel}, forcing an immediate plan change.`,
+    `The beat centers on ${encounterLabel}, and someone must make a brave move.`,
+  ]);
+  const conflict = rng.pick([
+    `${encounterLabel} blocks the easy path and turns the next decision risky.`,
+    `${encounterLabel} creates a real cost if nobody acts quickly.`,
+    `${encounterLabel} shifts control and puts the lead under pressure.`,
+  ]);
+  const outcome = rng.pick([
+    `${rescueLabel} flips the situation, while ${twistLabel} sets up the next beat.`,
+    `${rescueLabel} saves the moment, but ${twistLabel} changes what comes next.`,
+    `${rescueLabel} buys time, and ${twistLabel} rewrites the plan.`,
+  ]);
+  const artifactUsageHint = rng.pick([
+    `Artifact use: ${artifactLabel}. Show a visible consequence in the scene.`,
+    `Use the artifact so it ${artifactLabel}; the situation must change immediately.`,
+    `Artifact rule: ${artifactLabel}. Show it as concrete action, not exposition.`,
+  ]);
+  return { goal, conflict, outcome, artifactUsageHint };
 }
 
 function labelVariant(token: string, language: string): string {
