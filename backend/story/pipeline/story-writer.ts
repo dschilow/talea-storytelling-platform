@@ -356,6 +356,7 @@ Your rules:
       // Only UNLOCKED_CHARACTER_ACTOR (with active verb) and other real errors trigger rewrites.
       const actionableErrors = errorIssues.filter(i =>
         i.code !== "UNLOCKED_CHARACTER" && i.code !== "UNLOCKED_CHARACTER_ACTOR"
+        && i.code !== "VOICE_INDISTINCT" // Detection too unreliable to trigger rewrites
       );
       const shouldRewrite = REWRITE_ONLY_ON_ERRORS
         ? actionableErrors.length > 0
@@ -469,7 +470,11 @@ Your rules:
     }
 
     // ─── Phase C: Title generation (if AI didn't return a good one) ──────────
-    if (!draft.title || draft.title.length < 3) {
+    // Also re-generate if AI returned the default fallback strings
+    const isFallbackTitle = !draft.title || draft.title.length < 3
+      || draft.title === "Neue Geschichte" || draft.title === "New Story"
+      || draft.title === "Eine Geschichte" || draft.title === "A Story";
+    if (isFallbackTitle) {
       const storyText = draft.chapters.map(ch => ch.text).join("\n\n");
       try {
         if (!allowPostEdits) {
@@ -679,14 +684,61 @@ function extractDraftFromChapterArray(
 }
 
 function sanitizeDraft(draft: StoryDraft): StoryDraft {
+  const chapters = draft.chapters.map(ch => ({
+    ...ch,
+    title: "",
+    text: sanitizeMetaStructureFromText(ch.text),
+  }));
   return {
     ...draft,
-    chapters: draft.chapters.map(ch => ({
-      ...ch,
-      title: "",
-      text: sanitizeMetaStructureFromText(ch.text),
-    })),
+    chapters: removeCrossChapterDuplicateSentences(chapters),
   };
+}
+
+/**
+ * Removes sentences that appear VERBATIM in 2+ chapters.
+ * Catches "Adrian spürte ein flaues Gefühl im Magen." repeated 4 times.
+ * Only removes sentences that are longer than 20 chars (avoid removing short connectors).
+ */
+function removeCrossChapterDuplicateSentences(chapters: StoryDraft["chapters"]): StoryDraft["chapters"] {
+  // Count how often each long sentence appears across all chapters
+  const sentenceCounts = new Map<string, number>();
+  for (const ch of chapters) {
+    const sentences = splitSentences(ch.text);
+    const seen = new Set<string>();
+    for (const s of sentences) {
+      const norm = s.trim().toLowerCase();
+      if (norm.length < 20) continue;
+      if (seen.has(norm)) continue;
+      seen.add(norm);
+      sentenceCounts.set(norm, (sentenceCounts.get(norm) ?? 0) + 1);
+    }
+  }
+
+  // Sentences appearing in 2+ chapters are duplicates — keep first occurrence only
+  const duplicates = new Set<string>([...sentenceCounts.entries()]
+    .filter(([, count]) => count >= 2)
+    .map(([s]) => s));
+
+  if (duplicates.size === 0) return chapters;
+
+  const seenGlobally = new Set<string>();
+  return chapters.map(ch => {
+    const sentences = splitSentences(ch.text);
+    const kept: string[] = [];
+    for (const s of sentences) {
+      const norm = s.trim().toLowerCase();
+      if (duplicates.has(norm)) {
+        if (seenGlobally.has(norm)) {
+          // Skip - already appeared in an earlier chapter
+          continue;
+        }
+        seenGlobally.add(norm);
+      }
+      kept.push(s.trim());
+    }
+    return { ...ch, text: kept.join(" ").trim() };
+  });
 }
 
 function sanitizeMetaStructureFromText(text: string): string {
@@ -757,6 +809,14 @@ function sanitizeMetaStructureFromText(text: string): string {
   for (const pattern of metaSentencePatterns) {
     result = result.replace(pattern, "");
   }
+
+  // Strip content-filter placeholders (also when embedded in words like "[inhalt-gefiltert]iger")
+  // Replace the entire word containing the placeholder with an ellipsis, then clean up double spaces
+  result = result
+    .replace(/\S*\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]\S*/gi, "…")
+    .replace(/\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]/gi, "…")
+    .replace(/\s*…\s*/g, " ")
+    .replace(/\s{2,}/g, " ");
 
   return result
     .replace(/\.\s*\.\s*/g, ". ")
@@ -897,16 +957,19 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
   return fallback;
 }
 
+// Codes excluded from rewrite quality comparison (too noisy / unreliable detection)
+const NOISY_CODES = new Set(["UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR", "VOICE_INDISTINCT"]);
+
 function countErrorIssues(report: {
   issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
 }): number {
-  return report.issues.filter(issue => issue.severity === "ERROR").length;
+  return report.issues.filter(issue => issue.severity === "ERROR" && !NOISY_CODES.has(issue.code)).length;
 }
 
 function countWarningIssues(report: {
   issues: Array<{ severity: "ERROR" | "WARNING"; code: string; chapter: number }>;
 }): number {
-  return report.issues.filter(issue => issue.severity === "WARNING").length;
+  return report.issues.filter(issue => issue.severity === "WARNING" && !NOISY_CODES.has(issue.code)).length;
 }
 
 function collectErrorIssueKeys(report: {
@@ -915,6 +978,7 @@ function collectErrorIssueKeys(report: {
   const keys = new Set<string>();
   for (const issue of report.issues) {
     if (issue.severity !== "ERROR") continue;
+    if (NOISY_CODES.has(issue.code)) continue;
     keys.add(`${issue.chapter}:${issue.code}`);
   }
   return keys;

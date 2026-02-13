@@ -301,12 +301,19 @@ function gateCastLock(
     "denkt", "dachte", "glaubt", "glaubte", "spürt", "spürte",
     "scheint", "schien", "klingt", "klang", "riecht", "roch",
     "beginnt", "begann", "endet", "endete", "öffnet", "schloss",
+    // imperative verb forms (capitalized at sentence start)
+    "sag", "denk", "schau", "komm", "geh", "lauf", "nimm", "gib",
+    "hilf", "ruf", "hör", "sieh", "pass", "warte", "bleib", "mach",
+    "lass", "zeig", "stell", "leg", "setz", "zieh", "dreh", "spring",
+    "fang", "wirf", "lies", "iss", "trink", "flieg", "schwimm",
     // past participles at sentence start
     "erschöpft", "überrascht", "verwundert", "begeistert",
     "verwirrt", "erfreut", "beruhigt", "gespannt", "erstarrt",
     // relative / connective
     "dessen", "deren", "denen", "jedoch", "hingegen", "obwohl", "sobald",
     "nachdem", "bevor", "während", "damit", "sodass", "weshalb",
+    // interjections
+    "mist", "mensch", "herrje", "donnerwetter", "hoppla",
   ]);
 
   // Multi-word patterns that are NEVER character names (possessive + noun, article + noun, etc.)
@@ -754,8 +761,30 @@ function gateEndingPayoff(
   const lastSentence = lastSentences[lastSentences.length - 1] ?? "";
 
   const cliffhangerPatterns = isDE
-    ? [/\?\s*$/, /\.\.\.\s*$/, /doch dann\s*$/, /was wuerde\s/, /was würde\s/]
-    : [/\?\s*$/, /\.\.\.\s*$/, /but then\s*$/, /what would\s/];
+    ? [
+        /\?\s*$/,          // endet mit Frage
+        /\.\.\.\s*$/,      // endet mit ...
+        /doch dann\s*$/,
+        /was w[uü]rde\s/,
+        // Offene Spannungs-Sätze ohne Auflösung
+        /war greifbar\.?\s*$/i,
+        /lag im raum\.?\s*$/i,
+        /blieb unklar\.?\s*$/i,
+        /schien unm[öo]glich\.?\s*$/i,
+        /\bein falscher schritt\b/i,
+        /\bwürde ihren untergang\b/i,
+        /\bwerdet ihr zu stein\b/i,
+        /\bschatten wurden l[äa]nger\b/i,
+      ]
+    : [
+        /\?\s*$/,
+        /\.\.\.\s*$/,
+        /but then\s*$/,
+        /what would\s/,
+        /\bwas palpable\.?\s*$/i,
+        /\bone wrong move\b/i,
+        /\btheir doom\b/i,
+      ];
 
   for (const pattern of cliffhangerPatterns) {
     if (pattern.test(lastSentence.trim())) {
@@ -1350,39 +1379,54 @@ function gateChildEmotionArc(
 
   const fullText = draft.chapters.map(ch => ch.text).join(" ");
   const innerMarkers = isDE
-    ? "(?:denkt|fuehlt|spuert|fragt\\s+sich|zweifelt|zittert|schluckt|hat\\s+Angst|mutig)"
-    : "(?:thinks|feels|wonders|doubts|trembles|swallows|is\\s+afraid|brave)";
+    ? "(?:denkt|dachte|f[üu]hlt|f[üu]hlte|sp[üu]rt|sp[üu]rte|fragt\\s+sich|fragte\\s+sich|zweifelt|zweifelte|zittert|zitterte|schluckt|schluckte|hat\\s+Angst|hatte\\s+Angst|mutig|[üu]berlegt|[üu]berlegte|gr[üu]belt|gr[üu]belte|erschrickt|erschrak|erstarrt|erstarrte|Herz\\s+(?:h[äa]mmert|klopft|schlug|pochte|raste)|Magen\\s+(?:zieht|drehte)|Knie\\s+(?:zitter|wackel|weich)|Atem\\s+(?:stock|angehalten)|schluck|Tr[äa]nen|weint|weinte|bang|beklommen|aufgeregt|nerv[öo]s)"
+    : "(?:thinks|thought|feels|felt|wonders|wondered|doubts|doubted|trembles|trembled|swallows|swallowed|is\\s+afraid|was\\s+afraid|brave)";
   const mistakeMarkers = isDE
-    ? "(?:Fehler|falsch|stolper|scheiter|zu\\s+schnell|zu\\s+frueh|verga[ßs])"
+    ? "(?:Fehler|falsch|stolper|scheiter|zu\\s+schnell|zu\\s+fr[üu]h|verga[ßs]|versagt|vermasselt|[üu]bersehen|verwechselt|nicht\\s+aufgepasst|h[äa]tte\\s+nicht)"
     : "(?:mistake|wrong|stumble|fail|too\\s+fast|too\\s+early|forgot)";
   const repairMarkers = isDE
-    ? "(?:korrigier|macht\\s+es\\s+besser|versucht\\s+es\\s+anders|hilft|rettet|entscheidet|entschied)"
+    ? "(?:korrigier|macht\\s+es\\s+besser|versucht\\s+es\\s+anders|hilft|rettet|entscheidet|entschied|reparier|wieder\\s+gut|entschuldig|traut\\s+sich|[üu]berwind|fasst\\s+Mut|neuen\\s+Anlauf|noch\\s+einmal|versucht\\s+es\\s+erneut)"
     : "(?:correct|does\\s+it\\s+better|tries\\s+another\\s+way|helps|saves|decides|decided)";
 
   let hasChildErrorCorrectionArc = false;
 
   for (const name of avatarNames) {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const hasInnerMoment =
-      new RegExp(`${escapedName}[^.!?]{0,90}${innerMarkers}`, "i").test(fullText) ||
-      new RegExp(`${innerMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
+    // Try full name AND individual name parts (e.g. "Adrian" from "Adrian Mutig")
+    const nameParts = [name, ...name.split(/\s+/).filter(p => p.length > 2)];
+    const uniqueParts = [...new Set(nameParts)];
+
+    let hasInnerMoment = false;
+    for (const part of uniqueParts) {
+      const escapedPart = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (
+        new RegExp(`${escapedPart}[^.!?]{0,90}${innerMarkers}`, "i").test(fullText) ||
+        new RegExp(`${innerMarkers}[^.!?]{0,90}${escapedPart}`, "i").test(fullText)
+      ) {
+        hasInnerMoment = true;
+        break;
+      }
+    }
 
     if (!hasInnerMoment) {
       issues.push({
         gate: "CHILD_EMOTION_ARC",
         chapter: 0,
-      code: "MISSING_INNER_CHILD_MOMENT",
-      message: isDE
-        ? `Innere Perspektive fuer ${name} fehlt oder ist zu schwach.`
-        : `Inner perspective for ${name} is missing or too weak.`,
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
-    });
+        code: "MISSING_INNER_CHILD_MOMENT",
+        message: isDE
+          ? `Innere Perspektive fuer ${name} fehlt oder ist zu schwach.`
+          : `Inner perspective for ${name} is missing or too weak.`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
     }
 
-    const hasMistake = new RegExp(`${escapedName}[^.!?]{0,90}${mistakeMarkers}|${mistakeMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
-    const hasRepair = new RegExp(`${escapedName}[^.!?]{0,90}${repairMarkers}|${repairMarkers}[^.!?]{0,90}${escapedName}`, "i").test(fullText);
-    if (hasMistake && hasRepair) {
-      hasChildErrorCorrectionArc = true;
+    for (const part of uniqueParts) {
+      const escapedPart = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const hasMistake = new RegExp(`${escapedPart}[^.!?]{0,90}${mistakeMarkers}|${mistakeMarkers}[^.!?]{0,90}${escapedPart}`, "i").test(fullText);
+      const hasRepair = new RegExp(`${escapedPart}[^.!?]{0,90}${repairMarkers}|${repairMarkers}[^.!?]{0,90}${escapedPart}`, "i").test(fullText);
+      if (hasMistake && hasRepair) {
+        hasChildErrorCorrectionArc = true;
+        break;
+      }
     }
   }
 
@@ -1527,16 +1571,29 @@ export function runQualityGates(input: {
     }
   }
 
-  // Cap score penalty per gate: each gate contributes at most 2 penalty points.
-  // This prevents one noisy gate (e.g. CAST_LOCK false positives) from zeroing the score.
+  // Tiered scoring: gates have different max penalty caps based on reliability.
+  // Noisy gates (CAST_LOCK, CHARACTER_VOICE) get lower caps to avoid false-positive score collapse.
+  const GATE_MAX_PENALTY: Record<string, number> = {
+    // Noisy gates with high false-positive rates: cap at 0.5
+    CAST_LOCK: 0.5,
+    // Structural gates: cap at 1 (important but can over-fire on style differences)
+    CHARACTER_VOICE: 1,
+    IMAGERY_BALANCE: 1,
+    RHYTHM_VARIATION: 1,
+    READABILITY_COMPLEXITY: 1,
+    // All other gates: default cap at 2
+  };
+  const DEFAULT_MAX_PENALTY = 2;
+
   const gatePenalties = new Map<string, number>();
   for (const issue of allIssues) {
     const w = issue.severity === "ERROR" ? 1 : 0.5;
     gatePenalties.set(issue.gate, (gatePenalties.get(issue.gate) ?? 0) + w);
   }
   let totalPenalty = 0;
-  for (const [, penalty] of gatePenalties) {
-    totalPenalty += Math.min(penalty, 2);
+  for (const [gate, penalty] of gatePenalties) {
+    const cap = GATE_MAX_PENALTY[gate] ?? DEFAULT_MAX_PENALTY;
+    totalPenalty += Math.min(penalty, cap);
   }
   const score = Math.max(0, Math.min(10, 10 - totalPenalty));
 
@@ -1642,15 +1699,26 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
 function hasAttributedDialogueForCharacter(text: string, name: string, language: string): boolean {
   if (!text || !name) return false;
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const dialogueVerbsDE = "(?:sagte|fragte|fragen|rief|fluesterte|murmelte|antwortete|meinte|erklaerte|schrie|raunte|brummte|seufzte|lachte)";
-  const dialogueVerbsEN = "(?:said|asked|called|whispered|muttered|answered|replied|shouted|laughed)";
+  // Use both ASCII and proper umlaut forms for robust matching
+  const dialogueVerbsDE = "(?:sagte|fragte|fragen|rief|fl[üu]sterte|murmelte|antwortete|meinte|erkl[äa]rte|schrie|raunte|brummte|seufzte|lachte|nickte|sch[üu]ttelte|flehte|jammerte|jubelte|knurrte|zischte|hauchte|kr[äa]chzte|stotterte|stammelte|nuschelte|kicherte|grinste|schluchzte|wimmerte)";
+  const dialogueVerbsEN = "(?:said|asked|called|whispered|muttered|answered|replied|shouted|laughed|nodded|grinned|cried|sobbed|mumbled|stammered|giggled)";
   const dialogueVerbs = language === "de" ? dialogueVerbsDE : dialogueVerbsEN;
 
+  // Quote characters used in German text
+  const q = `""\\u201E\\u201C\\u201D\\u00BB\\u00AB\\u201A\\u2018\\u2019`;
+
   const patterns = [
-    new RegExp(`${escapedName}[^.!?\\n]{0,48}${dialogueVerbs}`, "i"),
-    new RegExp(`${dialogueVerbs}[^.!?\\n]{0,24}${escapedName}`, "i"),
-    new RegExp(`[""\\u201E\\u201C\\u201D\\u00BB\\u00AB][^""\\u201E\\u201C\\u201D\\u00BB\\u00AB]{3,140}[""\\u201E\\u201C\\u201D\\u00BB\\u00AB][^.!?\\n]{0,32}${escapedName}`, "i"),
-    new RegExp(`${escapedName}[^.!?\\n]{0,32}[""\\u201E\\u201C\\u201D\\u00BB\\u00AB]`, "i"),
+    // "Name sagte/fragte/..." within same sentence
+    new RegExp(`${escapedName}[^.!?\\n]{0,60}${dialogueVerbs}`, "i"),
+    // "sagte Name" within same sentence
+    new RegExp(`${dialogueVerbs}[^.!?\\n]{0,30}${escapedName}`, "i"),
+    // Quote followed by name attribution: „..." sagte Name
+    new RegExp(`[${q}][^${q}]{3,160}[${q}][^.!?\\n]{0,40}${escapedName}`, "i"),
+    // Name opens quote: Name: „..." or Name „..."
+    new RegExp(`${escapedName}[^.!?\\n]{0,40}[${q}]`, "i"),
+    // Name thinks/feels (inner monologue counts as voice)
+    new RegExp(`${escapedName}[^.!?\\n]{0,40}(?:dachte|[üu]berlegte|gr[üu]belte|fragte\\s+sich)`, "i"),
+    new RegExp(`(?:dachte|[üu]berlegte|gr[üu]belte)\\s[^.!?\\n]{0,30}${escapedName}`, "i"),
   ];
 
   return patterns.some(pattern => pattern.test(text));
@@ -1719,7 +1787,7 @@ function isLikelyCharacterAction(text: string, name: string): boolean {
   if (!text || !name) return false;
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const verbs = [
-    "sagte", "rief", "fragte", "antwortete", "meinte", "fluest", "flÃ¼sterte", "murmelte", "schrie", "lachte", "nickte",
+    "sagte", "rief", "fragte", "antwortete", "meinte", "fl[üu]sterte", "murmelte", "schrie", "lachte", "nickte",
     "said", "asked", "replied", "answered", "called", "whispered", "muttered", "shouted", "laughed", "nodded",
   ].join("|");
 
@@ -1925,14 +1993,83 @@ function isCommonWord(word: string, language: string): boolean {
     "puh", "ach", "nein", "ja", "halt", "stopp", "huch", "oh", "pst",
     "nicht", "ruhig", "schnell", "leise", "langsam", "vorsicht",
     "unsichtbar", "unsichtbares", "sichtbar", "sichtbares",
+    "mist", "mensch", "herrje", "donnerwetter", "hoppla", "autsch",
+    "tja", "nanu", "hm", "hmm", "psst", "bäh", "igitt",
+
+    // ─── Imperative verb forms (often capitalized at sentence start) ─────
+    "sag", "denk", "schau", "komm", "geh", "lauf", "nimm", "gib",
+    "hilf", "ruf", "hör", "sieh", "pass", "warte", "bleib", "mach",
+    "lass", "zeig", "stell", "leg", "setz", "zieh", "dreh", "spring",
+    "halt", "fang", "wirf", "lies", "iss", "trink", "schlaf", "steh",
+    "flieg", "schwimm", "kletter", "renn", "such", "find", "bring",
+    "trag", "heb", "drück", "öffne", "schließ", "schneid",
+    "weitermachen", "aufpassen", "aufhören", "anfangen", "weitergehen",
+    "weiterlaufen", "weitersuchen", "weiterspielen",
 
     // ─── Common German compound-first-parts & story objects ─────────────
     "farn", "moos", "laub", "rinde", "harz", "holz", "holztisch",
     "zipfel", "fetzen", "stück", "splitter", "krümel",
     "latte", "brett", "planke", "rampe", "stufe",
 
+    // ─── Materials, crafts & textile ────────────────────────────────────
+    "faden", "fäden", "garn", "wolle", "seide", "stoff", "flicken",
+    "nadel", "naht", "knoten", "spule", "spindel", "webstuhl",
+    "nähte", "stiche", "stich", "muster", "geflecht", "gewebe",
+    "zwirn", "schnur", "kordel", "litze", "borte", "saum",
+    "glasfaden", "goldfaden", "silberfaden", "seidenfaden",
+
+    // ─── Spices, food & kitchen ─────────────────────────────────────────
+    "zimt", "pfeffer", "salz", "zucker", "mehl", "butter", "sahne",
+    "vanille", "muskat", "nelke", "anis", "ingwer", "kardamom",
+    "marmelade", "teig", "kruste", "krume", "scheibe", "bissen",
+
+    // ─── Nature extended (plants, insects, weather) ─────────────────────
+    "heu", "stroh", "klee", "distel", "ginster", "efeu", "flechte",
+    "biene", "bienen", "hummel", "wespe", "käfer", "ameise", "ameisen",
+    "raupe", "libelle", "grille", "zikade", "glühwürmchen",
+    "spinnweben", "spinnwebe", "spinnennetz", "netz", "kokons", "kokon",
+    "regentropfen", "schneeflocke", "schneeflocken", "eiszapfen",
+    "wiesenblume", "wiesenblumen", "feldblume", "feldblumen",
+    "sonnenblume", "sonnenblumen", "gänseblümchen", "kornblume",
+    "löwenzahn", "kleeblatt", "vergissmeinnicht",
+    "tau", "raureif", "frost", "hitze", "kühle", "wärme",
+    "morgengrauen", "dämmerung", "abenddämmerung", "morgendämmerung",
+    "mondschein", "sternenlicht", "sonnenschein",
+
+    // ─── Body extended ──────────────────────────────────────────────────
+    "brustkorb", "handgelenk", "fußgelenk", "ellbogen", "nacken",
+    "wirbelsäule", "rippen", "magen", "lunge", "hals",
+    "zeigefinger", "daumen", "handfläche", "fußsohle",
+    "wimpern", "braue", "augenbraue", "augenbrauen",
+
+    // ─── Everyday objects & places ──────────────────────────────────────
+    "post", "brief", "paket", "karte", "papier", "blatt",
+    "schuhe", "schuh", "stiefel", "socke", "socken",
+    "hut", "mütze", "schal", "handschuh", "handschuhe",
+    "brille", "uhr", "tasche", "rucksack", "koffer",
+    "eimer", "schaufel", "besen", "lappen", "teppich",
+    "vorhang", "gardine", "decke", "kissen", "polster",
+    "dinge", "sachen", "kram", "zeug",
+    "zettel", "zettelreste", "papiere", "notizen",
+
+    // ─── Compound nouns (common in children's stories) ──────────────────
+    "glitzerstaub", "sternenstaub", "feenstaub", "blütenstaub",
+    "glitzerstücke", "glitzerstück", "glitzerfaden",
+    "einschlafgeschichten", "einschlafgeschichte", "gutenachtgeschichte",
+    "abenteuergeschichte", "tiergeschichte", "kindergeschichte",
+    "mondlicht", "sternenlicht", "sonnenlicht", "kerzenlicht",
+    "regenbogen", "wassertropfen", "tautropfen",
+    "traumfänger", "windspiel", "klangspiel",
+    "waldlichtung", "waldpfad", "waldweg", "feldweg",
+    "dachboden", "dachfenster", "kellertür",
+    "obstgarten", "kräutergarten", "blumengarten",
+    "schmetterling", "schmetterlinge", "marienkäfer",
+    "blumenwiese", "kräuterwiese", "sommerwiese",
+    "zaubertrank", "zauberbuch", "zauberspruch",
+    "schatzkarte", "schatzkiste", "schatztruhe",
+
     // ─── Additional story-common nouns (often false-positived) ──────────
-    "pollen", "notizbuch", "winkel", "muster", "flügel", "streifen",
+    "pollen", "notizbuch", "winkel", "flügel", "streifen",
     "gewicht", "windmühle", "vorstellung", "zahlen", "zahl",
     "basar", "leder", "hauch", "puls", "tinte", "tücher", "tuch",
     "petalen", "gang", "bücher", "gaben", "grad", "anzeige", "messung",
@@ -1942,16 +2079,18 @@ function isCommonWord(word: string, language: string): boolean {
     "glaswasser", "brunnenrand", "mantel", "tasche", "manteltasche",
     "taschenkante", "taschenklappe", "tascheninnere",
     "spiegel", "band", "schale", "blüte", "blüten", "rose",
-    "pfeile", "pfeil", "staubkörnchen", "seufzer", "zucker",
+    "pfeile", "pfeil", "staubkörnchen", "seufzer",
     "boote", "boot", "glocke", "glockenspiele", "glockenschlag",
     "holzkiste", "kiste", "durchgang", "fackeln", "fackel",
     "warnlicht", "puzzleteil", "bedacht", "herzschlag",
     "fehler", "ruhe", "licht", "tee", "tassen", "tasse",
-    "notizbuch", "lineal", "skizze", "augenbraue",
+    "lineal", "skizze",
     "brunnenboden", "brunnen", "blatt", "blätter",
     "kloß", "zeichen", "schatten", "geruch",
     "gut", "stein", "raum", "pflicht", "wege",
     "gärten", "lieder", "richtung", "winde",
+    "pflegen", "hegen", "kümmern",
+    "kleine", "großes", "altes", "neues",
   ]);
   const commonEN = new Set([
     "the", "and", "but", "for", "not", "you", "all", "can", "had", "her",
@@ -2003,8 +2142,46 @@ function isCommonWord(word: string, language: string): boolean {
         if (set.has(stem)) return true;
       }
     }
+
+    // Compound noun detection: try splitting word at every position
+    // If BOTH halves are known words, it's a compound noun (Glitzerstaub = Glitzer+Staub)
+    if (word.length >= 6) {
+      if (isGermanCompoundNoun(word, set)) return true;
+      // Also try with de-umlauted version
+      if (deUmlaut !== word && isGermanCompoundNoun(deUmlaut, set)) return true;
+    }
   }
 
+  return false;
+}
+
+/** Check if a word can be split into two known German root words (compound noun detection) */
+function isGermanCompoundNoun(word: string, knownWords: Set<string>): boolean {
+  // Common linking elements in German compound nouns
+  const linkingElements = ["", "s", "n", "en", "er", "e", "es"];
+
+  for (let splitPos = 3; splitPos <= word.length - 3; splitPos++) {
+    const left = word.slice(0, splitPos);
+    for (const link of linkingElements) {
+      const rightStart = splitPos + link.length;
+      if (rightStart >= word.length - 2) continue;
+      if (word.slice(splitPos, rightStart) !== link) continue;
+      const right = word.slice(rightStart);
+      // Both parts must be known words (or known after de-umlauting/stemming)
+      const leftKnown = knownWords.has(left)
+        || knownWords.has(left.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u"))
+        || knownWords.has(left.replace(/e$/, ""))
+        || knownWords.has(left.replace(/en$/, ""))
+        || knownWords.has(left + "e");
+      if (!leftKnown) continue;
+      const rightKnown = knownWords.has(right)
+        || knownWords.has(right.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u"))
+        || knownWords.has(right.replace(/e$/, ""))
+        || knownWords.has(right.replace(/en$/, ""))
+        || knownWords.has(right + "e");
+      if (rightKnown) return true;
+    }
+  }
   return false;
 }
 
@@ -2069,6 +2246,12 @@ function isLikelyGermanNameCandidate(text: string, token: string, matchIndex: nu
 
   // German adjectives/adverbs with these suffixes are NEVER names
   if (/(?:lich|ig|isch|sam|bar|haft|los|voll|weise|wärts)$/.test(lc)) return false;
+
+  // German common noun suffixes — words ending in these are NEVER character names
+  if (/(?:ung|heit|keit|schaft|nis|tum|chen|lein|werk|zeug|stück|stücke)$/.test(lc)) return false;
+
+  // German compound noun suffixes — these endings strongly indicate common nouns
+  if (/(?:staub|tropfen|blume|blumen|licht|korb|weben|netz|geschichten|geschichte|stein|steine|garten|wiese|faden|fäden|stiche|reste|flug|stücke|wasser|feuer|rand)$/.test(lc)) return false;
 
   // Sentence-initial check BEFORE repeat count — German capitalizes every sentence start
   if (isLikelySentenceStart(text, matchIndex)) {
