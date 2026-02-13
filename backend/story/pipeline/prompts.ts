@@ -388,7 +388,10 @@ STIL (sehr wichtig, aber flexibel):
 - Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
 - Sprache bodenstaendig und kindnah: hoechstens 1 Vergleich pro Absatz, keine erwachsenen Metaphernketten.
 - Vermeide wiederkehrende Tell-Formeln (z. B. "Stille fiel", "er/sie spuerte", "innen zog sich").
+- Pro Beat maximal ein kurzer Innensicht-Satz; danach wieder sichtbare Aktion oder Dialog.
+- Spaetestens in Beat 2: klare Konsequenz bei Scheitern mit konkretem Verlust.
 - Mindestens 2 echte Lachmomente und 1 Atem-anhalten-Moment.
+- Beat ${directives.length}: konkreter Gewinn + kleiner Preis/Kompromiss sichtbar machen.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
 - Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
 
@@ -478,8 +481,11 @@ STIL-ZIELE (flexibel, aber wichtig):
 - In jedem Beat mehrere kurze Dialogwechsel, damit die Kinderstimmen leben.
 - Konkrete, alltagsnahe Sprache: maximal ein Vergleich pro Absatz, keine erwachsenen Metaphernbilder.
 - Wiederholte Tell-Formeln aufbrechen ("spuerte", "Stille fiel", "innen zog sich").
+- Pro Beat maximal ein kurzer Innensicht-Satz; dann wieder sichtbare Handlung/Dialog.
+- Frueh konkrete Stakes benennen: was geht sichtbar verloren, wenn sie scheitern.
 - Pro Beat mindestens ein konkretes Sinnesdetail.
 - Mindestens zwei humorvolle Momente und ein klarer Spannungsmoment.
+- Im Finale: konkreter Gewinn plus kleiner Preis/Kompromiss.
 - Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
 
 ${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNES LEKTORAT (nicht ausgeben):

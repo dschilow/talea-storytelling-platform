@@ -134,9 +134,9 @@ function gateDialogueQuote(
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
-  const minDialogueRatio = ageMax <= 8 ? 0.22 : 0.16;
+  const minDialogueRatio = ageMax <= 8 ? 0.24 : 0.16;
   const maxDialogueRatio = ageMax <= 8 ? 0.68 : 0.75;
-  const criticalDialogueRatio = ageMax <= 8 ? 0.14 : 0.1;
+  const criticalDialogueRatio = ageMax <= 8 ? 0.18 : 0.1;
 
   for (const ch of draft.chapters) {
     const sentenceCount = Math.max(1, splitSentences(ch.text).length);
@@ -700,6 +700,9 @@ function gatePoeticDensity(
         /\b(?:schuld|angst|stille|zeit)\s+lag\s+wie\b/gi,
         /\b(?:loch|schatten)\s+starrte\b/gi,
         /\bstimme\s+(?:fiel|schnitt)\b/gi,
+        /\b(?:wald|nacht|ruine|stille)\s+hielt\s+den\s+atem\b/gi,
+        /\b(?:moment|zeit|stille)\s+(?:war|wurde)\s+schwer\s+wie\b/gi,
+        /\b(?:schuld|zweifel|angst)\s+wie\s+(?:ein|eine)\s+(?:jacke|kiesel|stein|last)\b/gi,
         /\bwie\s+(?:ein|eine|der|die|das)\s+(?:kiesel|garn|stahl|klinge|asche|gesetz)\b/gi,
       ]
     : [
@@ -707,23 +710,26 @@ function gatePoeticDensity(
         /\b(?:guilt|fear|silence|time)\s+lay\s+like\b/gi,
         /\b(?:hole|shadow)\s+stared\b/gi,
         /\bvoice\s+(?:fell|cut)\b/gi,
+        /\b(?:forest|night|ruin|silence)\s+held\s+its\s+breath\b/gi,
+        /\b(?:moment|time|silence)\s+(?:was|became)\s+heavy\s+as\b/gi,
         /\blike\s+(?:a|an|the)\s+(?:blade|steel|ash|law)\b/gi,
       ];
 
+  const maxPoeticHits = ageMax <= 8 ? 2 : 3;
   for (const ch of draft.chapters) {
     let hitCount = 0;
     for (const pattern of poeticPatterns) {
       pattern.lastIndex = 0;
       hitCount += ch.text.match(pattern)?.length ?? 0;
     }
-    if (hitCount >= 3) {
+    if (hitCount >= maxPoeticHits) {
       issues.push({
         gate: "POETIC_DENSITY",
         chapter: ch.chapter,
         code: "POETIC_LANGUAGE_OVERLOAD",
         message: isDE
-          ? `Kapitel ${ch.chapter}: zu poetisch-dichte Formulierungen (${hitCount} Treffer). Fuer 6-8 klarer und konkreter schreiben.`
-          : `Chapter ${ch.chapter}: poetic language is too dense (${hitCount} hits). Use clearer, more concrete language for ages 6-8.`,
+          ? `Kapitel ${ch.chapter}: zu poetisch-dichte Formulierungen (${hitCount} Treffer, max ${maxPoeticHits - 1}). Fuer 6-8 klarer und konkreter schreiben.`
+          : `Chapter ${ch.chapter}: poetic language is too dense (${hitCount} hits, max ${maxPoeticHits - 1}). Use clearer, more concrete language for ages 6-8.`,
         severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
@@ -744,15 +750,19 @@ function gateTellPatternOveruse(
 
   const tellPatterns = isDE
     ? [
-        /\b(?:er|sie|mia|adrian|alexander)\s+sp[üu]rte\b/gi,
+        /\b(?:er|sie|mia|adrian|alexander)\s+sp(?:u|ue)rte\b/gi,
         /\b(?:innen|in ihm|in ihr)\s+zog\s+sich\b/gi,
+        /\b(?:innen|im\s+inneren)\s+(?:machte|wurde|drueckte|zog)\b/gi,
         /\bstille\s+fiel\b/gi,
-        /\bihr\s+herz\s+(?:klopfte|pochte|h[aä]mmerte)\b/gi,
+        /\b(?:er|sie|mia|adrian|alexander)\s+merkte\b/gi,
+        /\bihr\s+herz\s+(?:klopfte|pochte|haemmerte)\b/gi,
       ]
     : [
         /\b(?:he|she|they)\s+felt\b/gi,
         /\binside\s+(?:him|her|them)\s+(?:something\s+)?tightened\b/gi,
+        /\binside\s+(?:him|her|them)\s+(?:something\s+)?(?:pressed|pulled|turned)\b/gi,
         /\bsilence\s+fell\b/gi,
+        /\b(?:he|she|they)\s+noticed\b/gi,
         /\bheart\s+(?:pounded|raced|thumped)\b/gi,
       ];
 
@@ -762,7 +772,7 @@ function gateTellPatternOveruse(
     repeatedTellHits += fullText.match(pattern)?.length ?? 0;
   }
 
-  if (repeatedTellHits >= 8) {
+  if (repeatedTellHits >= 6) {
     issues.push({
       gate: "TELL_PATTERN",
       chapter: 0,
@@ -1005,10 +1015,101 @@ function gateEndingPayoff(
     }
   }
 
+  const payoffVerbPattern = isDE
+    ? /\b(geschafft|gerettet|gefunden|geloest|repariert|befreit|erreicht|zurueckgebracht|sicher)\b/i
+    : /\b(done|saved|found|solved|repaired|freed|reached|brought\s+back|safe)\b/i;
+  const payoffConcreteNounPattern = isDE
+    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel)\b/i
+    : /\b(artifact|orb|map|compass|key|gate|path|home|village|friend|team|group|treasure|goal)\b/i;
+  const payoffWindow = lastSentences.slice(Math.max(0, lastSentences.length - 5)).join(" ");
+  const hasConcretePayoff = payoffVerbPattern.test(payoffWindow) && payoffConcreteNounPattern.test(payoffWindow);
+  if (!hasConcretePayoff) {
+    issues.push({
+      gate: "ENDING_PAYOFF",
+      chapter: lastChapter.chapter,
+      code: "ENDING_PAYOFF_ABSTRACT",
+      message: isDE
+        ? "Finale bleibt zu abstrakt. Zeige konkret, was gesichert/gewonnen wurde."
+        : "Ending payoff is too abstract. Show concretely what was secured or won.",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  const pricePattern = isDE
+    ? /\b(aber|doch|kostete|preis|verzichtete|musste|mussten|gaben|gab|tauschte|erschoepft|mued[e]?)\b/i
+    : /\b(but|cost|price|gave\s+up|had\s+to|sacrificed|traded|tired)\b/i;
+  if (!pricePattern.test(payoffWindow)) {
+    issues.push({
+      gate: "ENDING_PAYOFF",
+      chapter: lastChapter.chapter,
+      code: "ENDING_PRICE_MISSING",
+      message: isDE
+        ? "Finale ohne spuerbaren Preis/Kompromiss. Fuege eine kleine, konkrete Folgekosten-Zeile hinzu."
+        : "Ending has no tangible price/tradeoff. Add a small concrete cost line.",
+      severity: "WARNING",
+    });
+  }
+
   return issues;
 }
 
 // ─── Gate: Instruction Leak ─────────────────────────────────────────────────────
+function gateTextArtifacts(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const controlCharPattern = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
+  const mojibakePattern = /(?:\u00C3[\u0080-\u00BF]|\u00C2[\u0080-\u00BF]|\u00E2[\u0080-\u00BF]{2}|\uFFFD)/;
+  const spacedTokenPattern = /\b(?:[A-Za-z]\s+){4,}[A-Za-z]\b/;
+
+  for (const chapter of draft.chapters) {
+    const text = chapter.text || "";
+
+    if (controlCharPattern.test(text)) {
+      issues.push({
+        gate: "TEXT_ARTIFACTS",
+        chapter: chapter.chapter,
+        code: "TEXT_CONTROL_CHARS",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: unsichtbare Steuerzeichen im Text gefunden.`
+          : `Chapter ${chapter.chapter}: invisible control characters detected in text.`,
+        severity: "ERROR",
+      });
+    }
+
+    if (mojibakePattern.test(text)) {
+      issues.push({
+        gate: "TEXT_ARTIFACTS",
+        chapter: chapter.chapter,
+        code: "TEXT_MOJIBAKE",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: fehlerhafte Zeichenkodierung (Mojibake) erkannt.`
+          : `Chapter ${chapter.chapter}: broken character encoding (mojibake) detected.`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+
+    if (spacedTokenPattern.test(text)) {
+      issues.push({
+        gate: "TEXT_ARTIFACTS",
+        chapter: chapter.chapter,
+        code: "TEXT_SPACED_TOKEN",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: auseinandergezogene Woerter erkannt (z. B. "T e l e p o r t").`
+          : `Chapter ${chapter.chapter}: spaced-out broken token detected (e.g. "T e l e p o r t").`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
 function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
@@ -1384,6 +1485,9 @@ function gateStakesAndLowpoint(
   const stakesConsequencePattern = isDE
     ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|keine?\s+chance|kein\s+zuhause|fuer\s+immer)\b/i
     : /\b(lose|miss|stuck|trapped|too\s+late|breaks?|gone|alone|no\s+chance|no\s+home|forever)\b/i;
+  const stakesConcreteNounPattern = isDE
+    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel|licht|bruecke)\b/i
+    : /\b(artifact|orb|map|compass|key|gate|path|home|village|friend|team|group|treasure|goal|bridge)\b/i;
   const openingSentences = splitSentences(firstTwoText).slice(0, 10);
 
   const hasSentenceLevelConsequence = openingSentences.some(sentence =>
@@ -1408,6 +1512,23 @@ function gateStakesAndLowpoint(
         : "Early stakes missing: in chapters 1-2, clearly show what happens if they fail.",
       severity: "ERROR",
     });
+  } else {
+    const hasConcreteStake = openingSentences.some((sentence, index) => {
+      const next = openingSentences[index + 1] || "";
+      const window = `${sentence} ${next}`;
+      return stakesConsequencePattern.test(window) && stakesConcreteNounPattern.test(window);
+    });
+    if (!hasConcreteStake) {
+      issues.push({
+        gate: "STAKES_LOWPOINT",
+        chapter: 1,
+        code: "STAKES_TOO_ABSTRACT",
+        message: isDE
+          ? "Stakes sind vorhanden, aber zu abstrakt. Benenne frueh konkret, was genau verloren geht."
+          : "Stakes exist but are too abstract. Name early what concrete thing will be lost.",
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
   }
 
   const lowpointCandidates = draft.chapters.filter(ch => ch.chapter === 3 || ch.chapter === 4);
@@ -1740,6 +1861,7 @@ export function runQualityGates(input: {
     { name: "TENSION_ARC", fn: () => gateTensionArc(draft, language) },
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
     { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, directives, language, ageRange) },
+    { name: "TEXT_ARTIFACTS", fn: () => gateTextArtifacts(draft, language, ageRange) },
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
@@ -1854,11 +1976,12 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     issueCodes.has("MISSING_EXPLICIT_STAKES") ||
     issueCodes.has("MISSING_LOWPOINT") ||
     issueCodes.has("LOWPOINT_EMOTION_THIN") ||
-    issueCodes.has("LOWPOINT_TOO_SOFT")
+    issueCodes.has("LOWPOINT_TOO_SOFT") ||
+    issueCodes.has("STAKES_TOO_ABSTRACT")
   ) {
     lines.push(isDE
-      ? "- Dramaturgie reparieren: frueh klar benennen, was bei Scheitern passiert, und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
-      : "- Repair dramatic arc: state early what happens if they fail and add a real low point with emotional reaction in chapter 3/4.");
+      ? "- Dramaturgie reparieren: frueh klar benennen, was bei Scheitern konkret verloren geht, und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
+      : "- Repair dramatic arc: state early what concrete thing is lost on failure and add a real low point with emotional reaction in chapter 3/4.");
   }
   if (issueCodes.has("RHYTHM_FLAT") || issueCodes.has("RHYTHM_TOO_HEAVY") || issueCodes.has("IMAGERY_DENSITY_HIGH") || issueCodes.has("METAPHOR_OVERLOAD")) {
     lines.push(isDE
@@ -1875,10 +1998,16 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Kinder-Emotionsbogen schaerfen: pro Hauptkind mindestens einen inneren Moment und mindestens einen Fehler->Korrektur-Bogen ausarbeiten."
       : "- Strengthen child emotional arc: each main child needs at least one inner moment and at least one mistake->correction beat.");
   }
-  if (issueCodes.has("CLIFFHANGER_ENDING") || issueCodes.has("ENDING_UNRESOLVED") || issueCodes.has("ENDING_WARMTH_MISSING")) {
+  if (
+    issueCodes.has("CLIFFHANGER_ENDING") ||
+    issueCodes.has("ENDING_UNRESOLVED") ||
+    issueCodes.has("ENDING_WARMTH_MISSING") ||
+    issueCodes.has("ENDING_PAYOFF_ABSTRACT") ||
+    issueCodes.has("ENDING_PRICE_MISSING")
+  ) {
     lines.push(isDE
-      ? "- Schluss stabilisieren: keine neue Unsicherheit im letzten Abschnitt; mit warmem Anker enden (z. B. sicher/zu Hause/zusammen)."
-      : "- Stabilize ending: avoid introducing new uncertainty in the final section; end on a warm anchor (e.g., safe/home/together).");
+      ? "- Schluss stabilisieren: keine neue Unsicherheit im letzten Abschnitt; Ende mit warmem Anker plus konkretem Gewinn und kleinem Preis/Kompromiss."
+      : "- Stabilize ending: avoid new uncertainty in the final section; end with a warm anchor plus a concrete payoff and a small price/tradeoff.");
   }
   if (issueCodes.has("FILTER_PLACEHOLDER")) {
     lines.push(isDE
@@ -1894,6 +2023,11 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push(isDE
       ? "- Ende enger mit dem Anfangsziel verknuepfen: fuehre die Kernfrage/den Auftrag aus Kapitel 1-2 sichtbar zu Ende."
       : "- Reconnect ending with the opening goal: visibly close the core quest/question from chapters 1-2.");
+  }
+  if (issueCodes.has("TEXT_CONTROL_CHARS") || issueCodes.has("TEXT_MOJIBAKE") || issueCodes.has("TEXT_SPACED_TOKEN")) {
+    lines.push(isDE
+      ? "- Textartefakte vollstaendig entfernen: keine Steuerzeichen, keine Mojibake-Zeichenfolgen, keine auseinandergezogenen Tokens."
+      : "- Remove text artifacts completely: no control chars, no mojibake sequences, no spaced-out broken tokens.");
   }
 
   for (const [chapter, chIssues] of grouped) {

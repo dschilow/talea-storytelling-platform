@@ -50,7 +50,12 @@ const WARNING_POLISH_CODES = new Set([
   "META_LABEL_PHRASE",
   "POETIC_LANGUAGE_OVERLOAD",
   "TELL_PATTERN_OVERUSE",
+  "STAKES_TOO_ABSTRACT",
   "GOAL_THREAD_WEAK_ENDING",
+  "ENDING_PAYOFF_ABSTRACT",
+  "ENDING_PRICE_MISSING",
+  "TEXT_MOJIBAKE",
+  "TEXT_SPACED_TOKEN",
   "ENDING_TOO_SHORT",
 ]);
 
@@ -889,7 +894,19 @@ function removeCrossChapterDuplicateSentences(chapters: StoryDraft["chapters"]):
 
 function sanitizeMetaStructureFromText(text: string): string {
   if (!text) return text;
-  const lines = text.split(/\r?\n/);
+  let working = text
+    .replace(/\r\n/g, "\n")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, " ")
+    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, "")
+    .replace(/\u00AD/g, "");
+
+  working = collapseSpacedLetterTokens(working);
+  working = working.replace(
+    /\b([A-Za-z]{3,}s)\s+(Amulett|Kugel|Kompass|Karte|Schluessel|Feder|Stein|Spur|Tor|Pfad|Duft)\b/g,
+    "$1-$2",
+  );
+
+  const lines = working.split(/\r?\n/);
   const labelPattern = /^(?:\d+[\).]\s*)?(?:[-\u2022*]\s*)?(?:\*\*|__)?(?:(?:Der|Die|Das|The)\s+)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]\s*(.*)$/i;
   const sentenceLabelPattern = /^(?:\*\*|__)?(?:(?:Der|Die|Das|The)\s+)?(Ort|Stimmung|Ziel|Hindernis|Handlung|Action|Sichtbare Aktion|Sichtbare Handlung|Visible action|Aktion fortgesetzt|Action continued|Mini[- ]?Problem|Mini[- ]?Aufl(?:oe|\u00f6)sung|Mini[- ]?resolution|Ausblick|Epilog|Hook|Scene|Mood|Goal|Obstacle|Outlook|Epilogue)(?:\*\*|__)?\s*[:\u2212\u2013\u2014-]/i;
 
@@ -968,17 +985,17 @@ function sanitizeMetaStructureFromText(text: string): string {
   // Strip content-filter placeholders (also when embedded in words like "[inhalt-gefiltert]iger")
   // Replace the entire word containing the placeholder with an ellipsis, then clean up double spaces
   result = result
-    .replace(/\S*\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]\S*/gi, "…")
-    .replace(/\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]/gi, "…")
-    .replace(/\s*…\s*/g, " ")
+    .replace(/\S*\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]\S*/gi, " ... ")
+    .replace(/\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]/gi, " ... ")
+    .replace(/\s*\.\.\.\s*/g, " ")
     .replace(/\s{2,}/g, " ");
 
   // Remove banned filler words that LLMs consistently fail to avoid.
   // "plötzlich" is the worst offender — appears in every story despite explicit bans.
   // We remove it mid-sentence (", und plötzlich" → ", und") and sentence-initial ("Plötzlich" → next word capitalized).
   result = result
-    .replace(/[,;]\s*(?:und\s+)?pl[öo]tzlich\b/gi, ",")
-    .replace(/\bpl[öo]tzlich\s+/gi, "")
+    .replace(/[,;]\s*(?:und\s+)?pl(?:oe|o)tzlich\b/gi, ",")
+    .replace(/\bpl(?:oe|o)tzlich\s+/gi, "")
     .replace(/\s{2,}/g, " ");
 
   return result
@@ -988,6 +1005,13 @@ function sanitizeMetaStructureFromText(text: string): string {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/  +/g, " ")
     .trim();
+}
+
+function collapseSpacedLetterTokens(input: string): string {
+  if (!input) return input;
+  return input.replace(/\b(?:[A-Za-z]\s+){4,}[A-Za-z]\b/g, token =>
+    token.replace(/\s+/g, ""),
+  );
 }
 
 function safeJson(text: string) {
