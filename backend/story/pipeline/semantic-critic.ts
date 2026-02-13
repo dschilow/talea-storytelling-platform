@@ -73,12 +73,13 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map(ch => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 480),
+      text: compressChapter(ch.text, 700),
     }));
 
-    const systemPrompt = `You are a strict senior children's-book editor.
+    const systemPrompt = `You are a strict senior children's-book editor and release reviewer.
 Evaluate quality only. Never rewrite the full story.
-Return concise JSON exactly as requested.`;
+Focus on concrete, chapter-local failures and actionable fixes.
+Avoid generic praise. Return concise JSON exactly as requested.`;
 
     const userPayload = {
       language: input.language,
@@ -96,6 +97,22 @@ Return concise JSON exactly as requested.`;
         humor: "child-friendly playful moments and comic beats",
         warmth: "emotional warmth, hopeful closure",
       },
+      focusChecks: [
+        "metaphor density: no poetic overload for age 6-8, max one comparison per paragraph feel",
+        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained'",
+        "rule-exposition tell: reject textbook statements about how artifacts/rules work",
+        "voice separation: children should sound distinct in sentence rhythm and wording",
+        "scene continuity: no abrupt new room/prop cluster without visible transition sentence",
+        "dialogue vitality: avoid narration-heavy blocks in child-facing chapters",
+      ],
+      preferredIssueCodes: [
+        "VOICE_BLEND",
+        "META_FORESHADOW_PHRASE",
+        "RULE_EXPOSITION_TELL",
+        "ABRUPT_SCENE_SHIFT",
+        "DIALOGUE_PROSE_IMBALANCE",
+        "METAPHOR_DENSITY_HIGH",
+      ],
       outputSchema: {
         overallScore: "number 0..10",
         dimensionScores: {
@@ -135,7 +152,7 @@ Return concise JSON exactly as requested.`;
       ],
       responseFormat: "json_object",
       maxTokens: 5000,
-      reasoningEffort: "low",
+      reasoningEffort: "medium",
       temperature: 0.2,
       context: "story-semantic-critic",
       logSource: "phase6-story-critic-llm",

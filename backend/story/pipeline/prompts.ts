@@ -413,6 +413,8 @@ STIL (sehr wichtig, aber flexibel):
 - Beat ${directives.length}: konkreter Gewinn + kleiner Preis/Kompromiss sichtbar machen.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
 - Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
+- Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
+- Keine Lehrsatz-Saetze ueber Regeln/Funktionen (z. B. "Das Artefakt zeigt..."). Zeige Wirkung nur durch Szene + Reaktion.
 
 ${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}FIGURENSTIMMEN:
 ${characterProfiles.join("\n\n")}
@@ -524,6 +526,8 @@ ${humorRewriteLine}
 - Mindestens ein klarer Spannungsmoment.
 - Im Finale: konkreter Gewinn plus kleiner Preis/Kompromiss.
 - Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
+- Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
+- Keine Erklaersaetze ueber Objekt-Regeln ("X zeigt...", "X bedeutet..."): stattdessen konkrete Szene + Dialogreaktion.
 
 ${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNES LEKTORAT (nicht ausgeben):
 - Pruefe Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Wortzahl.
@@ -612,6 +616,8 @@ ${missingLine}
 11. LESBARKEIT BEWAHREN: Saetze MEIST 4-10 Woerter, max 15 % duerfen bis 14 Woerter haben. KEINEN Satz ueber 16 Woerter. Kurze Saetze = besser als lange.
 12. VORHANDENE PROSA NICHT VERSCHLECHTERN: Wenn der Originaltext bereits kurze, rhythmische Saetze hat, behalte diesen Stil bei. Fuege fehlende Figuren durch NEUE kurze Saetze ein, nicht durch Aufblaehen vorhandener Saetze.
 13. KEINE Meta-Labels oder Schablonen-Saetze im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Ort:", "Stimmung:", "Kapitel 1").
+14. Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
+15. Keine Erklaersaetze ueber Objektregeln ("X zeigt...", "X bedeutet..."). Wirkung nur durch Szene + Reaktion + kurze Rede.
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original
@@ -743,8 +749,25 @@ export function buildStoryChapterRevisionPrompt(input: {
   stylePackText?: string;
   issues: string[];
   originalText: string;
+  previousContext?: string;
+  nextContext?: string;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthHint, pacing, lengthTargets: overrideTargets, stylePackText, issues, originalText } = input;
+  const {
+    chapter,
+    cast,
+    dna,
+    language,
+    ageRange,
+    tone,
+    lengthHint,
+    pacing,
+    lengthTargets: overrideTargets,
+    stylePackText,
+    issues,
+    originalText,
+    previousContext,
+    nextContext,
+  } = input;
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
@@ -754,6 +777,10 @@ export function buildStoryChapterRevisionPrompt(input: {
   const allowedNames = Array.from(new Set(characterNames)).join(", ");
 
   const issueList = issues.length > 0 ? issues.map(issue => `- ${issue}`).join("\n") : "- Keine";
+  const continuityContext = [
+    previousContext ? `- Previous chapter ended with: "${previousContext}"` : "",
+    nextContext ? `- Next chapter starts with: "${nextContext}"` : "",
+  ].filter(Boolean).join("\n");
 
   return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in ${isGerman ? "German" : language}.
 
@@ -769,6 +796,7 @@ SCENE DIRECTIVE:
 - Characters (must appear): ${allowedNames || "none"}
 - Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
+${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
@@ -784,6 +812,9 @@ RULES:
 9) Children's-book style: vivid, rhythmic, varied sentence starts.
 10) Keep dialogue lively and present (roughly 25-45% of sentences where fitting, no monologue blocks).
 11) Never use meta labels inside prose (e.g. "Der Ausblick:", "Outlook:", "Hook:", "Scene:", "Kapitel 1").
+12) No preview phrasing like "Soon they would...", "An outlook remained...", "Noch wussten sie nicht...".
+13) Do not explain object rules as textbook statements ("X shows...", "X means..."). Show through concrete action + reaction + short dialogue.
+14) Preserve continuity with adjacent chapters. Do not introduce a new room/prop cluster without an explicit transition sentence.
 
 ORIGINAL TEXT:
 ${originalText}

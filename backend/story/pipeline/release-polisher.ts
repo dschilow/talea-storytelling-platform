@@ -66,6 +66,11 @@ export async function applySelectiveSurgery(input: {
     const chapter = chapters.find(ch => ch.chapter === chapterNo);
     const directive = input.directives.find(d => d.chapter === chapterNo);
     if (!chapter || !directive) continue;
+    const chapterIdx = chapters.findIndex(ch => ch.chapter === chapterNo);
+    const previousContext = chapterIdx > 0 ? getEdgeContext(chapters[chapterIdx - 1]?.text || "", "end") : "";
+    const nextContext = chapterIdx >= 0 && chapterIdx < chapters.length - 1
+      ? getEdgeContext(chapters[chapterIdx + 1]?.text || "", "start")
+      : "";
 
     const issues = tasks
       .slice(0, 4)
@@ -82,6 +87,8 @@ export async function applySelectiveSurgery(input: {
       stylePackText: input.stylePackText,
       issues,
       originalText: chapter.text,
+      previousContext,
+      nextContext,
     });
 
     try {
@@ -124,6 +131,18 @@ export async function applySelectiveSurgery(input: {
     editedChapters,
     usage,
   };
+}
+
+function getEdgeContext(text: string, side: "start" | "end"): string {
+  const sentences = String(text || "")
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (sentences.length === 0) return "";
+  if (side === "start") {
+    return sentences.slice(0, 2).join(" ").slice(0, 220);
+  }
+  return sentences.slice(Math.max(0, sentences.length - 2)).join(" ").slice(0, 220);
 }
 
 function groupTasksByChapter(tasks: SemanticCriticPatchTask[]): Map<number, SemanticCriticPatchTask[]> {

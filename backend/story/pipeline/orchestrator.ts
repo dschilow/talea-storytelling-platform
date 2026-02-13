@@ -595,6 +595,7 @@ export class StoryPipelineOrchestrator {
         "MISSING_CHARACTER",
         "TOTAL_TOO_SHORT",
         "CHAPTER_TOO_SHORT_HARD",
+        "VOICE_INDISTINCT",
         "MISSING_EXPLICIT_STAKES",
         "MISSING_LOWPOINT",
         "LOWPOINT_TOO_SOFT",
@@ -602,6 +603,10 @@ export class StoryPipelineOrchestrator {
         "CLIFFHANGER_ENDING",
         "MISSING_INNER_CHILD_MOMENT",
         "NO_CHILD_ERROR_CORRECTION_ARC",
+        "COMPARISON_CLUSTER",
+        "META_FORESHADOW_PHRASE",
+        "RULE_EXPOSITION_TELL",
+        "ABRUPT_SCENE_SHIFT",
         "HUMOR_TOO_LOW",
         "CRITIC_SCORE_BELOW_RELEASE",
       ]);

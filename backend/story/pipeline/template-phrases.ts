@@ -33,6 +33,9 @@ const TEMPLATE_PHRASE_PATTERNS_DE: Array<{ label: string; pattern: RegExp }> = [
   { label: "wie durch ein Wunder", pattern: /\bwie\s+durch\s+ein\s+wunder\b/i },
   { label: "ploetzlich hatte er/sie eine Idee", pattern: /\bpl(oe|\u00f6)tzlich\s+hatte\s+(?:er|sie)\s+eine\s+idee\b/i },
   { label: "es war geschafft", pattern: /\bes\s+war\s+(?:endlich\s+)?geschafft\b/i },
+  { label: "bald wuerden sie wissen", pattern: /\bbald\s+w(?:u|ue|\u00fc)rden?\s+(?:sie|er|es)\s+(?:wissen|erfahren|sehen|verstehen)\b/i },
+  { label: "ausblick blieb", pattern: /\bein\s+(?:leiser\s+)?ausblick\s+blieb\b/i },
+  { label: "noch wussten sie nicht", pattern: /\bnoch\s+wussten\s+sie\s+nicht\b/i },
   { label: "ein Laecheln stahl sich", pattern: /\bein\s+l(ae|\u00e4)cheln\s+stahl\s+sich\b/i },
 ];
 
@@ -65,6 +68,9 @@ const TEMPLATE_PHRASE_PATTERNS_EN: Array<{ label: string; pattern: RegExp }> = [
   { label: "with combined forces", pattern: /\bwith\s+(?:their\s+)?combined\s+(?:forces|strength|efforts)\b/i },
   { label: "suddenly had an idea", pattern: /\bsuddenly\s+had\s+an\s+idea\b/i },
   { label: "it was done", pattern: /\bit\s+was\s+(?:finally\s+)?done\b/i },
+  { label: "soon they would know", pattern: /\bsoon\s+(?:they|he|she)\s+would\s+(?:know|learn|see|understand)\b/i },
+  { label: "outlook remained", pattern: /\ba\s+(?:quiet\s+)?outlook\s+remained\b/i },
+  { label: "did not yet know", pattern: /\b(?:they|he|she)\s+did\s+not\s+yet\s+know\b/i },
   { label: "a smile crept", pattern: /\ba\s+smile\s+crept\s+(?:across|onto|over)\b/i },
 ];
 

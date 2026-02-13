@@ -132,7 +132,6 @@ function gateDialogueQuote(
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
-  const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
   const minDialogueRatio = ageMax <= 8 ? 0.24 : 0.16;
   const maxDialogueRatio = ageMax <= 8 ? 0.68 : 0.75;
@@ -657,6 +656,8 @@ function gateImageryBalance(
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
+  const chapterMaxComparisons = ageMax <= 8 ? 3 : 4;
+  const paragraphMaxComparisons = ageMax <= 8 ? 1 : 2;
 
   const metaphorPatterns = isDE
     ? [/wie\s+(?:ein|eine|der|die|das)\s+\w+/gi, /als\s+(?:ob|wäre|würde)/gi]
@@ -664,19 +665,45 @@ function gateImageryBalance(
 
   for (const ch of draft.chapters) {
     let metaphorCount = 0;
+    const paragraphs = ch.text
+      .split(/\n\s*\n+/)
+      .map(p => p.trim())
+      .filter(Boolean);
+
+    for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+      const paragraph = paragraphs[pIdx];
+      let paragraphComparisons = 0;
+      for (const pattern of metaphorPatterns) {
+        pattern.lastIndex = 0;
+        paragraphComparisons += paragraph.match(pattern)?.length ?? 0;
+      }
+      if (paragraphComparisons > paragraphMaxComparisons) {
+        issues.push({
+          gate: "IMAGERY_BALANCE",
+          chapter: ch.chapter,
+          code: "COMPARISON_CLUSTER",
+          message: isDE
+            ? `Kapitel ${ch.chapter}: Absatz ${pIdx + 1} hat zu viele Vergleiche (${paragraphComparisons}, max ${paragraphMaxComparisons}).`
+            : `Chapter ${ch.chapter}: paragraph ${pIdx + 1} has too many comparisons (${paragraphComparisons}, max ${paragraphMaxComparisons}).`,
+          severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        });
+      }
+    }
+
     for (const pattern of metaphorPatterns) {
+      pattern.lastIndex = 0;
       const matches = ch.text.match(pattern);
       metaphorCount += matches?.length ?? 0;
     }
 
-    if (metaphorCount > 4) {
+    if (metaphorCount > chapterMaxComparisons) {
       issues.push({
         gate: "IMAGERY_BALANCE",
         chapter: ch.chapter,
         code: "METAPHOR_OVERLOAD",
         message: isDE
-          ? `Kapitel ${ch.chapter}: ${metaphorCount} Metaphern/Vergleiche (max 4 pro Kapitel)`
-          : `Chapter ${ch.chapter}: ${metaphorCount} metaphors/similes (max 4 per chapter)`,
+          ? `Kapitel ${ch.chapter}: ${metaphorCount} Metaphern/Vergleiche (max ${chapterMaxComparisons} pro Kapitel)`
+          : `Chapter ${ch.chapter}: ${metaphorCount} metaphors/similes (max ${chapterMaxComparisons} per chapter)`,
         severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
@@ -1205,6 +1232,140 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
 }
 
 // ─── Gate 12: Canon Fusion Check ────────────────────────────────────────────────
+function gateMetaForeshadowPhrases(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const patterns = isDE
+    ? [
+        /\bbald\s+w(?:u|ue|ü)rden?\s+(?:sie|er|es)\s+(?:wissen|erfahren|sehen|verstehen|merken|begreifen)\b/i,
+        /\bein\s+(?:leiser\s+)?ausblick\s+blieb\b/i,
+        /\b(?:der|ein)\s+ausblick\s+blieb\b/i,
+        /\bnoch\s+wussten\s+sie\s+nicht\b/i,
+      ]
+    : [
+        /\bsoon\s+(?:they|he|she)\s+would\s+(?:know|learn|see|understand|realize)\b/i,
+        /\ba\s+quiet\s+outlook\s+remained\b/i,
+        /\ban?\s+outlook\s+remained\b/i,
+        /\bthey\s+did\s+not\s+yet\s+know\b/i,
+      ];
+
+  for (const chapter of draft.chapters) {
+    if (!patterns.some(pattern => pattern.test(chapter.text))) continue;
+    issues.push({
+      gate: "META_FORESHADOW",
+      chapter: chapter.chapter,
+      code: "META_FORESHADOW_PHRASE",
+      message: isDE
+        ? `Kapitel ${chapter.chapter}: Meta-Ausblick statt immersiver Szeneformulierung erkannt.`
+        : `Chapter ${chapter.chapter}: meta foreshadow phrasing detected instead of immersive scene prose.`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
+function gateRuleExpositionTell(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const sentencePatterns = isDE
+    ? [
+        /\bzeigt\s+m(?:oe|ö)gliche[nr]?\s+\w+/i,
+        /\bbedeutet\s*,?\s*dass\b/i,
+        /\b(?:regel|gesetz)\s+(?:lautet|ist)\b/i,
+        /\bfunktioniert\s+so\b/i,
+        /^(?:das|der|die)\s+[a-zäöüß\-]{3,}\s+(?:zeigt|bedeutet|kann|funktioniert)\b[^.!?]{0,80}\b(?:dass|wenn|immer|nur|m(?:oe|ö)glich|regel|hei(?:ss|ß)t)\b/i,
+      ]
+    : [
+        /\bshows?\s+possible\s+\w+/i,
+        /\bmeans?\s+that\b/i,
+        /\bthe\s+rule\s+is\b/i,
+        /\bworks?\s+like\s+this\b/i,
+        /^(?:the|this)\s+[a-z\-]{3,}\s+(?:shows?|means?|can|works?)\b[^.!?]{0,80}\b(?:that|when|always|only|rule)\b/i,
+      ];
+
+  for (const chapter of draft.chapters) {
+    const sentences = splitSentences(chapter.text);
+    const expositionHits = sentences.filter(sentence =>
+      sentencePatterns.some(pattern => pattern.test(sentence.trim())),
+    );
+    if (expositionHits.length === 0) continue;
+    issues.push({
+      gate: "SHOW_DONT_TELL_EXPOSITION",
+      chapter: chapter.chapter,
+      code: "RULE_EXPOSITION_TELL",
+      message: isDE
+        ? `Kapitel ${chapter.chapter}: erklaerende Regel-Prosa erkannt. Wirkung als Handlung/Dialog zeigen statt erklaeren.`
+        : `Chapter ${chapter.chapter}: explanatory rule prose detected. Show the effect via action/dialogue instead.`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  return issues;
+}
+
+function gateSceneContinuity(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  if (draft.chapters.length < 2) return issues;
+
+  const transitionPattern = isDE
+    ? /\b(dann|spaeter|später|kurz\s+darauf|wenig\s+spaeter|wenig\s+später|am\s+naechsten|am\s+nächsten|inzwischen|waehrenddessen|währenddessen|nachdem|bevor|auf\s+dem\s+weg|als\s+sie|als\s+er|als\s+die|zurueck|zurück|wieder)\b/i
+    : /\b(then|later|shortly\s+after|meanwhile|afterward|before|on\s+the\s+way|as\s+they|as\s+he|as\s+she|back|again)\b/i;
+
+  const settingTerms = isDE
+    ? [
+        "zimmer", "kammer", "truhe", "keller", "dachboden", "werkstatt", "uhr", "lavendel",
+        "wald", "markt", "fest", "platz", "hof", "kueche", "küche", "tor", "bruecke", "brücke",
+      ]
+    : [
+        "room", "chamber", "chest", "cellar", "attic", "workshop", "clock", "lavender",
+        "forest", "market", "festival", "square", "yard", "kitchen", "gate", "bridge",
+      ];
+
+  for (let idx = 1; idx < draft.chapters.length; idx++) {
+    const previous = draft.chapters[idx - 1];
+    const current = draft.chapters[idx];
+    const previousTail = splitSentences(previous.text).slice(-2).join(" ").toLowerCase();
+    const currentStart = splitSentences(current.text).slice(0, 2).join(" ").toLowerCase();
+    if (!currentStart) continue;
+    if (transitionPattern.test(currentStart)) continue;
+
+    const startHits = settingTerms.filter(term => currentStart.includes(term));
+    if (startHits.length < 2) continue;
+    const newSettingHits = startHits.filter(term => !previousTail.includes(term));
+    if (newSettingHits.length < 2) continue;
+
+    issues.push({
+      gate: "SCENE_CONTINUITY",
+      chapter: current.chapter,
+      code: "ABRUPT_SCENE_SHIFT",
+      message: isDE
+        ? `Kapitel ${current.chapter}: harter Szenenwechsel ohne Uebergang (${newSettingHits.slice(0, 3).join(", ")}).`
+        : `Chapter ${current.chapter}: abrupt scene shift without transition (${newSettingHits.slice(0, 3).join(", ")}).`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 function gateCanonFusion(draft: StoryDraft, cast: CastSet, language: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
@@ -1911,6 +2072,9 @@ export function runQualityGates(input: {
     { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, directives, language, ageRange) },
     { name: "TEXT_ARTIFACTS", fn: () => gateTextArtifacts(draft, language, ageRange) },
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
+    { name: "META_FORESHADOW", fn: () => gateMetaForeshadowPhrases(draft, language, ageRange) },
+    { name: "SHOW_DONT_TELL_EXPOSITION", fn: () => gateRuleExpositionTell(draft, language, ageRange) },
+    { name: "SCENE_CONTINUITY", fn: () => gateSceneContinuity(draft, language, ageRange) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
     { name: "ACTIVE_PRESENCE", fn: () => gateActivePresence(draft, directives, cast, language) },
@@ -1943,6 +2107,7 @@ export function runQualityGates(input: {
     IMAGERY_BALANCE: 1,
     RHYTHM_VARIATION: 1,
     READABILITY_COMPLEXITY: 1,
+    SCENE_CONTINUITY: 1,
     // All other gates: default cap at 2
   };
   const DEFAULT_MAX_PENALTY = 2;
@@ -2032,7 +2197,13 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Dramaturgie reparieren: frueh klar benennen, was bei Scheitern konkret verloren geht, und in Kapitel 3/4 einen echten Tiefpunkt mit Gefuehlsreaktion zeigen."
       : "- Repair dramatic arc: state early what concrete thing is lost on failure and add a real low point with emotional reaction in chapter 3/4.");
   }
-  if (issueCodes.has("RHYTHM_FLAT") || issueCodes.has("RHYTHM_TOO_HEAVY") || issueCodes.has("IMAGERY_DENSITY_HIGH") || issueCodes.has("METAPHOR_OVERLOAD")) {
+  if (
+    issueCodes.has("RHYTHM_FLAT") ||
+    issueCodes.has("RHYTHM_TOO_HEAVY") ||
+    issueCodes.has("IMAGERY_DENSITY_HIGH") ||
+    issueCodes.has("METAPHOR_OVERLOAD") ||
+    issueCodes.has("COMPARISON_CLUSTER")
+  ) {
     lines.push(isDE
       ? "- Sprachrhythmus variieren: kurze, mittlere und wenige laengere Saetze mischen; Bildsprache reduzieren (max. ein Vergleich pro Absatz)."
       : "- Vary language rhythm: mix short, medium, and only a few longer sentences; reduce imagery density (max one comparison per paragraph).");
@@ -2068,10 +2239,20 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Platzhalter reparieren: entferne alle Filter-/Redaktionsmarker (z. B. [inhalt-gefiltert]) und ersetze sie durch natuerliche, kindgerechte Formulierungen."
       : "- Fix placeholders: remove all filter/redaction markers (e.g., [content-filtered]) and replace them with natural, child-friendly phrasing.");
   }
-  if (issueCodes.has("META_LABEL_PHRASE")) {
+  if (issueCodes.has("META_LABEL_PHRASE") || issueCodes.has("META_FORESHADOW_PHRASE")) {
     lines.push(isDE
-      ? "- Entferne Label-Phrasen im Fliesstext (z. B. 'Der Ausblick:', 'Hook:', 'Outlook:'). Uebergaenge muessen natuerlich klingen."
-      : "- Remove label-like phrases in prose (e.g., 'The Outlook:', 'Hook:'). Transitions must read naturally.");
+      ? "- Entferne Meta-Vorschau-Saetze und Label-Phrasen im Fliesstext (z. B. 'Der Ausblick:', 'Bald wuerden sie...'). Uebergaenge muessen natuerlich klingen."
+      : "- Remove meta preview lines and label-like phrases in prose (e.g., 'The Outlook:', 'Soon they would...'). Transitions must read naturally.");
+  }
+  if (issueCodes.has("RULE_EXPOSITION_TELL")) {
+    lines.push(isDE
+      ? "- Regel-Erklaersaetze in Szene verwandeln: keine Lehrsatz-Form ('X zeigt..., X bedeutet...'). Zeige den Effekt durch konkrete Handlung + Reaktion + kurze Dialogzeile."
+      : "- Convert rule-exposition into scene: no textbook lines ('X shows..., X means...'). Show effect through concrete action + reaction + short dialogue.");
+  }
+  if (issueCodes.has("ABRUPT_SCENE_SHIFT")) {
+    lines.push(isDE
+      ? "- Kontinuitaet reparieren: bei Orts-/Szenenwechsel einen sichtbaren Uebergangssatz setzen (Zeit/Bewegung/Ankunft), bevor neue Requisiten erscheinen."
+      : "- Repair continuity: add a visible transition sentence for place/scene changes (time/movement/arrival) before introducing new props.");
   }
   if (issueCodes.has("GOAL_THREAD_WEAK_ENDING")) {
     lines.push(isDE

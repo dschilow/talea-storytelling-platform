@@ -57,6 +57,10 @@ const WARNING_POLISH_CODES = new Set([
   "TEXT_MOJIBAKE",
   "TEXT_SPACED_TOKEN",
   "ENDING_TOO_SHORT",
+  "META_FORESHADOW_PHRASE",
+  "RULE_EXPOSITION_TELL",
+  "ABRUPT_SCENE_SHIFT",
+  "COMPARISON_CLUSTER",
 ]);
 
 export class LlmStoryWriter implements StoryWriter {
@@ -379,6 +383,11 @@ Your rules:
         const chapter = updatedChapters.find(ch => ch.chapter === chapterNo);
         const directive = directives.find(d => d.chapter === chapterNo);
         if (!chapter || !directive) continue;
+        const chapterIndex = updatedChapters.findIndex(ch => ch.chapter === chapterNo);
+        const previousContext = chapterIndex > 0 ? getEdgeContext(updatedChapters[chapterIndex - 1]?.text || "", "end") : "";
+        const nextContext = chapterIndex >= 0 && chapterIndex < updatedChapters.length - 1
+          ? getEdgeContext(updatedChapters[chapterIndex + 1]?.text || "", "start")
+          : "";
 
         const prompt = buildStoryChapterRevisionPrompt({
           chapter: directive,
@@ -391,6 +400,8 @@ Your rules:
           stylePackText,
           issues: issues.slice(0, 4),
           originalText: chapter.text,
+          previousContext,
+          nextContext,
         });
 
         const baseMaxTokens = Math.round(Math.max(500, lengthTargets.wordMax * 2.0));
@@ -1162,7 +1173,7 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
 // Codes excluded from rewrite quality comparison (too noisy / unreliable detection)
 // Also includes structural issues that LLM rewrites fundamentally cannot fix.
 const NOISY_CODES = new Set([
-  "UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR", "VOICE_INDISTINCT",
+  "UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR",
   "GLOBAL_CAST_OVERLOAD",            // Cast is determined before writing; LLM can't remove characters
 ]);
 
