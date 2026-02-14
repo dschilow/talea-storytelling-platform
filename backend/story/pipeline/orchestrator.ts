@@ -280,11 +280,9 @@ export class StoryPipelineOrchestrator {
       // Cost-safe default: 1 candidate unless explicitly overridden per request.
       // This prevents silent cost explosions from config defaults.
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 1);
-      const requestedCandidateCount = Number.isFinite(explicitCandidateCount)
-        ? explicitCandidateCount
-        : (Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 1);
-      const releaseCandidateCount = releaseEnabled ? Math.max(1, Math.min(2, requestedCandidateCount || 1)) : 1;
+      const releaseCandidateCount = releaseEnabled
+        ? Math.max(1, Math.min(2, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : 1))
+        : 1;
       const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-5-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
@@ -609,6 +607,7 @@ export class StoryPipelineOrchestrator {
         "TOTAL_TOO_SHORT",
         "CHAPTER_TOO_SHORT_HARD",
         "VOICE_INDISTINCT",
+        "VOICE_TAG_FORMULA_OVERUSE",
         "MISSING_EXPLICIT_STAKES",
         "MISSING_LOWPOINT",
         "LOWPOINT_TOO_SOFT",
@@ -618,9 +617,11 @@ export class StoryPipelineOrchestrator {
         "NO_CHILD_ERROR_CORRECTION_ARC",
         "COMPARISON_CLUSTER",
         "META_FORESHADOW_PHRASE",
+        "META_SUMMARY_SENTENCE",
         "RULE_EXPOSITION_TELL",
         "ABRUPT_SCENE_SHIFT",
         "HUMOR_TOO_LOW",
+        "GIMMICK_LOOP_OVERUSE",
         "CRITIC_SCORE_BELOW_RELEASE",
       ]);
       const criticalCodes = new Set([

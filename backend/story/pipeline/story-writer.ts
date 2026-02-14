@@ -1055,6 +1055,15 @@ function sanitizeMetaStructureFromText(text: string): string {
     result = result.replace(pattern, "");
   }
 
+  // Remove/neutralize summary-like meta phrases that break immersion.
+  result = result
+    .replace(/\bDie Konsequenz war klar:\s*/gi, "")
+    .replace(/\bThe consequence was clear:\s*/gi, "")
+    .replace(/\bDer Preis\?\s*/gi, "Der Preis war: ")
+    .replace(/\bThe price\?\s*/gi, "The price was: ")
+    .replace(/\bDer Gewinn\?\s*/gi, "Der Gewinn war: ")
+    .replace(/\bThe gain\?\s*/gi, "The gain was: ");
+
   // Strip content-filter placeholders (also when embedded in words like "[inhalt-gefiltert]iger")
   // Replace the entire word containing the placeholder with an ellipsis, then clean up double spaces
   result = result
@@ -1071,6 +1080,9 @@ function sanitizeMetaStructureFromText(text: string): string {
     .replace(/\bpl(?:oe|o)tzlich\s+/gi, "")
     .replace(/\s{2,}/g, " ");
 
+  // Reduce repetitive onomatopoeia bursts ("Quak, quak, quak") to a readable amount.
+  result = reduceOnomatopoeiaBursts(result);
+
   return result
     .replace(/\.\s*\.\s*/g, ". ")
     .replace(/^\.\s*/, "")
@@ -1085,6 +1097,21 @@ function collapseSpacedLetterTokens(input: string): string {
   return input.replace(/\b(?:[A-Za-z]\s+){4,}[A-Za-z]\b/g, token =>
     token.replace(/\s+/g, ""),
   );
+}
+
+function reduceOnomatopoeiaBursts(input: string): string {
+  if (!input) return input;
+  let out = input;
+  const burstPatterns = [
+    /\b(Quak|quak)(?:\s*[,!.\-]?\s*\1){2,}\b/g,
+    /\b(Wuff|wuff)(?:\s*[,!.\-]?\s*\1){2,}\b/g,
+    /\b(Piep|piep)(?:\s*[,!.\-]?\s*\1){2,}\b/g,
+    /\b(Haha|haha|Hihi|hihi|Hehe|hehe)(?:\s*[,!.\-]?\s*\1){2,}\b/g,
+  ];
+  for (const pattern of burstPatterns) {
+    out = out.replace(pattern, "$1, $1");
+  }
+  return out.replace(/\s{2,}/g, " ");
 }
 
 function safeJson(text: string) {

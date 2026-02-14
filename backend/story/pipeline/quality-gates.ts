@@ -648,6 +648,32 @@ function gateCharacterVoiceDistinctness(
         severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
+
+    // Detect repeated "voice tag formulas" like "sagte ... kurz/knapp/leise"
+    // that flatten speaker identity across characters.
+    const voiceTagFormulaPattern = isDE
+      ? /(?:sagte|fragte|antwortete|meinte|fluesterte|fl[uü]sterte|murmelte)[^.!?\n]{0,28}\b(?:kurz|knapp|leise|ruhig|klar|fest)\b/gi
+      : /(?:said|asked|answered|replied|whispered|muttered)[^.!?\n]{0,28}\b(?:short|brief|quiet|calm|firm)\b/gi;
+    const voiceLabelSentencePattern = isDE
+      ? /\b(?:seine|seiner|seinem|seinen|ihre|ihrer|ihrem|ihren|die)\s+stimme\s+war\s+(?:kurz|knapp|leise|ruhig|klar|fest)\b/gi
+      : /\b(?:his|her|their|the)\s+voice\s+was\s+(?:short|brief|quiet|calm|firm)\b/gi;
+
+    const formulaHits =
+      (chapter.text.match(voiceTagFormulaPattern)?.length ?? 0) +
+      (chapter.text.match(voiceLabelSentencePattern)?.length ?? 0);
+
+    const maxFormulaHits = ageMax <= 8 ? 2 : 3;
+    if (formulaHits > maxFormulaHits) {
+      issues.push({
+        gate: "CHARACTER_VOICE",
+        chapter: chapter.chapter,
+        code: "VOICE_TAG_FORMULA_OVERUSE",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: zu viele wiederholte Sprach-Formeln fuer Sprecher (${formulaHits}x, max ${maxFormulaHits}).`
+          : `Chapter ${chapter.chapter}: too many repeated speaker-tag formulas (${formulaHits}, max ${maxFormulaHits}).`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
   }
 
   return issues;
@@ -1321,6 +1347,48 @@ function gateRuleExpositionTell(
   return issues;
 }
 
+function gateNarrativeSummaryMeta(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const summaryPatterns = isDE
+    ? [
+        /\bdie\s+konsequenz\s+war\s+klar\b/i,
+        /\bder\s+preis\?\b/i,
+        /\bder\s+gewinn\?\b/i,
+        /\bkurz\s+gesagt\b/i,
+        /\bdie\s+frage\s+war\b/i,
+      ]
+    : [
+        /\bthe\s+consequence\s+was\s+clear\b/i,
+        /\bthe\s+price\?\b/i,
+        /\bthe\s+gain\?\b/i,
+        /\bin\s+short\b/i,
+        /\bthe\s+question\s+was\b/i,
+      ];
+
+  for (const chapter of draft.chapters) {
+    const hasSummaryMeta = summaryPatterns.some(pattern => pattern.test(chapter.text));
+    if (!hasSummaryMeta) continue;
+    issues.push({
+      gate: "NARRATIVE_META",
+      chapter: chapter.chapter,
+      code: "META_SUMMARY_SENTENCE",
+      message: isDE
+        ? `Kapitel ${chapter.chapter}: zusammenfassende Meta-Formulierung statt Szene erkannt (z. B. "Die Konsequenz war klar", "Der Preis?").`
+        : `Chapter ${chapter.chapter}: summary-like meta phrasing detected instead of scene writing (e.g., "The consequence was clear", "The price?").`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 function gateSceneContinuity(
   draft: StoryDraft,
   language: string,
@@ -1338,11 +1406,17 @@ function gateSceneContinuity(
     ? [
         "zimmer", "kammer", "truhe", "keller", "dachboden", "werkstatt", "uhr", "lavendel",
         "wald", "markt", "fest", "platz", "hof", "kueche", "küche", "tor", "bruecke", "brücke",
+        "halle", "saal", "schloss", "schlafzimmer", "speisesaal", "brunnen", "fluss", "ufer",
+        "muehle", "mühle", "garten", "thronsaal", "flur", "treppe",
       ]
     : [
         "room", "chamber", "chest", "cellar", "attic", "workshop", "clock", "lavender",
         "forest", "market", "festival", "square", "yard", "kitchen", "gate", "bridge",
+        "hall", "castle", "bedroom", "dining hall", "well", "river", "shore", "mill", "garden", "stair",
       ];
+  const hardLocationOpening = isDE
+    ? /\b(?:im|in der|in den|in einem|am|auf dem)\s+(?:schloss|saal|thronsaal|halle|zimmer|schlafzimmer|speisesaal|keller|brunnen|fluss|ufer|markt|wald|hof|muehle|mühle|garten|flur)\b/i
+    : /\b(?:in|at|inside|on)\s+(?:the\s+)?(?:castle|hall|room|bedroom|dining\s+hall|cellar|well|river|shore|market|forest|yard|mill|garden|corridor)\b/i;
 
   for (let idx = 1; idx < draft.chapters.length; idx++) {
     const previous = draft.chapters[idx - 1];
@@ -1353,9 +1427,10 @@ function gateSceneContinuity(
     if (transitionPattern.test(currentStart)) continue;
 
     const startHits = settingTerms.filter(term => currentStart.includes(term));
-    if (startHits.length < 2) continue;
     const newSettingHits = startHits.filter(term => !previousTail.includes(term));
-    if (newSettingHits.length < 2) continue;
+    const abruptByCount = newSettingHits.length >= 2;
+    const abruptByOpening = hardLocationOpening.test(currentStart) && newSettingHits.length >= 1;
+    if (!abruptByCount && !abruptByOpening) continue;
 
     issues.push({
       gate: "SCENE_CONTINUITY",
@@ -1987,6 +2062,114 @@ function gateHumorPresence(
 
   return issues;
 }
+
+function gateGimmickLoopOveruse(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const soundTokenRegex = isDE
+    ? /(quak|wuff|miau|piep|kicher|brumm|grmpf|haha|hihi|hehe)/i
+    : /(croak|woof|meow|beep|giggle|grr|haha|hehe)/i;
+  const seedTokens = new Set<string>();
+
+  const allCharacters = [...cast.avatars, ...cast.poolCharacters];
+  for (const character of allCharacters) {
+    const nameParts = String(character.displayName || "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    for (const part of nameParts) {
+      const match = part.match(soundTokenRegex);
+      if (match?.[1]) seedTokens.add(match[1].toLowerCase());
+    }
+
+    const hints = character.speechStyleHints ?? [];
+    for (const hint of hints) {
+      const lowerHint = String(hint || "").toLowerCase();
+      if (isDE) {
+        if (lowerHint.includes("croak") || lowerHint.includes("quak")) seedTokens.add("quak");
+      } else if (lowerHint.includes("croak") || lowerHint.includes("quak")) {
+        seedTokens.add("croak");
+      }
+    }
+
+    const catchphraseWords = String(character.catchphrase || "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    for (const word of catchphraseWords) {
+      const match = word.match(soundTokenRegex);
+      if (match?.[1]) seedTokens.add(match[1].toLowerCase());
+    }
+  }
+
+  if (seedTokens.size === 0) return issues;
+
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const chapterMax = ageMax <= 8 ? 6 : 8;
+  const storyMax = ageMax <= 8 ? 14 : 18;
+
+  for (const token of seedTokens) {
+    const stemPattern = new RegExp(`\\b${escapeRegex(token)}(?:[a-z]{0,4})\\b`, "gi");
+    let storyHits = 0;
+
+    for (const chapter of draft.chapters) {
+      stemPattern.lastIndex = 0;
+      const hits = chapter.text.match(stemPattern)?.length ?? 0;
+      storyHits += hits;
+      if (hits > chapterMax) {
+        issues.push({
+          gate: "GIMMICK_LOOP",
+          chapter: chapter.chapter,
+          code: "GIMMICK_LOOP_CHAPTER",
+          message: isDE
+            ? `Kapitel ${chapter.chapter}: Running-Gag "${token}" zu oft wiederholt (${hits}x, max ${chapterMax}).`
+            : `Chapter ${chapter.chapter}: running gag "${token}" repeated too often (${hits}, max ${chapterMax}).`,
+          severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        });
+      }
+    }
+
+    if (storyHits > storyMax) {
+      issues.push({
+        gate: "GIMMICK_LOOP",
+        chapter: 0,
+        code: "GIMMICK_LOOP_OVERUSE",
+        message: isDE
+          ? `Running-Gag "${token}" in der Geschichte uebernutzt (${storyHits}x, max ${storyMax}).`
+          : `Running gag "${token}" overused across the story (${storyHits}, max ${storyMax}).`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+  }
+
+  const burstPattern = isDE
+    ? /\b(quak|wuff|miau|piep|haha|hihi|hehe)(?:\s*[,!.\-]?\s*\1){2,}\b/gi
+    : /\b(croak|woof|meow|beep|haha|hehe)(?:\s*[,!.\-]?\s*\1){2,}\b/gi;
+  for (const chapter of draft.chapters) {
+    burstPattern.lastIndex = 0;
+    const bursts = chapter.text.match(burstPattern)?.length ?? 0;
+    if (bursts <= 0) continue;
+    issues.push({
+      gate: "GIMMICK_LOOP",
+      chapter: chapter.chapter,
+      code: "GIMMICK_LOOP_BURST",
+      message: isDE
+        ? `Kapitel ${chapter.chapter}: Lautmalerei-Schleife erkannt (${bursts}x). Einmal reicht oft.`
+        : `Chapter ${chapter.chapter}: onomatopoeia loop detected (${bursts}). Once is often enough.`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 function gateArtifactMiniArc(
   draft: StoryDraft,
   cast: CastSet,
@@ -2097,11 +2280,13 @@ export function runQualityGates(input: {
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
     { name: "META_FORESHADOW", fn: () => gateMetaForeshadowPhrases(draft, language, ageRange) },
     { name: "SHOW_DONT_TELL_EXPOSITION", fn: () => gateRuleExpositionTell(draft, language, ageRange) },
+    { name: "NARRATIVE_META", fn: () => gateNarrativeSummaryMeta(draft, language, ageRange) },
     { name: "SCENE_CONTINUITY", fn: () => gateSceneContinuity(draft, language, ageRange) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
     { name: "ACTIVE_PRESENCE", fn: () => gateActivePresence(draft, directives, cast, language) },
     { name: "HUMOR_PRESENCE", fn: () => gateHumorPresence(draft, language, ageRange, humorLevel) },
+    { name: "GIMMICK_LOOP", fn: () => gateGimmickLoopOveruse(draft, cast, language, ageRange) },
     { name: "ARTIFACT_MINI_ARC", fn: () => gateArtifactMiniArc(draft, cast, language, artifactArc) },
   ];
 
@@ -2174,10 +2359,10 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Lesbarkeit reparieren: JEDEN Satz ueber 14 Woerter aufteilen. Ziel: 4-10 Woerter pro Satz, hoechstens 15 % duerfen 14 erreichen. Rhythmus variieren: ein kurzer Satz (3-5 W.), dann ein mittlerer (6-10 W.), dann vielleicht ein laengerer (11-14 W.). Beispiel VORHER: 'Sie rannte durch den Wald und suchte den Stein, den der alte Mann ihr beschrieben hatte.' → NACHHER: 'Sie rannte los. Der Wald verschluckte sie. Irgendwo hier lag der Stein – der alte Mann hatte ihn genau beschrieben.'"
       : "- Fix readability: split EVERY sentence over 14 words. Target: 4-10 words per sentence, at most 15% may reach 14. Vary rhythm: short (3-5w), medium (6-10w), then maybe longer (11-14w).");
   }
-  if (issueCodes.has("VOICE_INDISTINCT") || issueCodes.has("ROLE_LABEL_OVERUSE")) {
+  if (issueCodes.has("VOICE_INDISTINCT") || issueCodes.has("ROLE_LABEL_OVERUSE") || issueCodes.has("VOICE_TAG_FORMULA_OVERUSE")) {
     lines.push(isDE
-      ? "- Figurenstimmen schaerfen: mindestens zwei klar erkennbare Sprecher pro Mehrfiguren-Szene, Rollenbezeichnungen nicht dauernd wiederholen."
-      : "- Sharpen character voices: at least two clearly distinct speakers per multi-character scene, avoid constant role-label repetition.");
+      ? "- Figurenstimmen schaerfen: mindestens zwei klar erkennbare Sprecher pro Mehrfiguren-Szene, Rollenbezeichnungen und Formeln wie 'sagte ... kurz/knapp/leise' nicht stapeln."
+      : "- Sharpen character voices: at least two clearly distinct speakers per multi-character scene, avoid repetitive formulas like 'said ... briefly/quietly'.");
   }
   if (issueCodes.has("DIALOGUE_RATIO_LOW") || issueCodes.has("DIALOGUE_RATIO_CRITICAL") || issueCodes.has("TOO_FEW_DIALOGUES")) {
     lines.push(isDE
@@ -2246,6 +2431,11 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Humor gezielt erhoehen: baue kindgerechte Situationskomik und kurze Dialogwitze ein (keine Blossstellung, kein Zynismus)."
       : "- Increase humor deliberately: add child-friendly situational comedy and short dialogue wit (no humiliation, no sarcasm).");
   }
+  if (issueCodes.has("GIMMICK_LOOP_CHAPTER") || issueCodes.has("GIMMICK_LOOP_OVERUSE") || issueCodes.has("GIMMICK_LOOP_BURST")) {
+    lines.push(isDE
+      ? "- Running Gags dosieren: gleiche Lautmalerei/Catchphrase sparsam nutzen (pro Kapitel nur wenige Einsaetze), sonst wirkt es wie Prompt-Loop."
+      : "- Control running gags: use the same onomatopoeia/catchphrase sparingly (only a few uses per chapter), otherwise it reads like a prompt loop.");
+  }
   if (
     issueCodes.has("CLIFFHANGER_ENDING") ||
     issueCodes.has("ENDING_UNRESOLVED") ||
@@ -2262,10 +2452,10 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Platzhalter reparieren: entferne alle Filter-/Redaktionsmarker (z. B. [inhalt-gefiltert]) und ersetze sie durch natuerliche, kindgerechte Formulierungen."
       : "- Fix placeholders: remove all filter/redaction markers (e.g., [content-filtered]) and replace them with natural, child-friendly phrasing.");
   }
-  if (issueCodes.has("META_LABEL_PHRASE") || issueCodes.has("META_FORESHADOW_PHRASE")) {
+  if (issueCodes.has("META_LABEL_PHRASE") || issueCodes.has("META_FORESHADOW_PHRASE") || issueCodes.has("META_SUMMARY_SENTENCE")) {
     lines.push(isDE
-      ? "- Entferne Meta-Vorschau-Saetze und Label-Phrasen im Fliesstext (z. B. 'Der Ausblick:', 'Bald wuerden sie...'). Uebergaenge muessen natuerlich klingen."
-      : "- Remove meta preview lines and label-like phrases in prose (e.g., 'The Outlook:', 'Soon they would...'). Transitions must read naturally.");
+      ? "- Entferne Meta-Vorschau- und Zusammenfassungs-Phrasen im Fliesstext (z. B. 'Der Ausblick:', 'Bald wuerden sie...', 'Die Konsequenz war klar', 'Der Preis?'). Uebergaenge muessen natuerlich klingen."
+      : "- Remove meta preview and summary phrases in prose (e.g., 'The Outlook:', 'Soon they would...', 'The consequence was clear', 'The price?'). Transitions must read naturally.");
   }
   if (issueCodes.has("RULE_EXPOSITION_TELL")) {
     lines.push(isDE

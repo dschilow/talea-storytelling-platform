@@ -277,20 +277,26 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
 
   const templates = isGerman
     ? [
-        "kurze, impulsive Saetze; stellt direkte Fragen; reagiert sofort",
-        "ruhige, praezise Beobachtungen; selten Ausrufe; klare Folgerungen",
-        "spielerisch und witzig; kleine Wortspiele; lockert Spannung",
+        "Impulsiv und fragend: 3-8 Woerter, oft Warum/Wieso/Wie-Fragen, schnelle Reaktion.",
+        "Ruhig und beobachtend: konkrete Details, klare Folgerung, kaum Ausrufe.",
+        "Verspielt und humorvoll: kurze Wortspiele, lockert Spannung ohne Albernheits-Loop.",
       ]
     : [
-        "short impulsive lines; asks direct questions; reacts quickly",
-        "calm precise observations; few exclamations; clear reasoning",
-        "playful and witty; small wordplay; lightens tension",
+        "Impulsive and questioning: 3-8 words, frequent why/how questions, quick reactions.",
+        "Calm and observant: concrete details, clear reasoning, few exclamations.",
+        "Playful and witty: short wordplay, lightens tension without gimmick loops.",
       ];
 
-  return childNames
+  const lines = childNames
     .slice(0, 3)
     .map((name, idx) => `  - ${name}: ${templates[idx] || templates[templates.length - 1]}`)
     .join("\n");
+
+  const globalRule = isGerman
+    ? "  - Global: Nicht allen Kindern dieselben Sprecher-Formeln geben (kein Serienmuster wie 'sagte ... kurz/knapp/leise')."
+    : "  - Global: Do not give all children the same speaker formulas (avoid repeated 'said ... briefly/quietly' patterns).";
+
+  return `${lines}\n${globalRule}`;
 }
 
 // ─── Optimized Full Story Prompt (V3) ─────────────────────────────────────────
@@ -428,17 +434,21 @@ STIL (sehr wichtig, aber flexibel):
 - Kinderstimmen hart trennen:
 ${childVoiceContract || "  - Keine Kinderstimmen verfuegbar"}
 - Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
-- Sprache bodenstaendig und kindnah: hoechstens 1 Vergleich pro Absatz, keine erwachsenen Metaphernketten.
+- Sprache bodenstaendig und kindnah: hoechstens 1 Vergleich pro Absatz UND maximal 2 Vergleiche pro Kapitel, keine erwachsenen Metaphernketten.
 - Vermeide wiederkehrende Tell-Formeln (z. B. "Stille fiel", "er/sie spuerte", "innen zog sich").
+- Vermeide Sprecher-Formeln in Serie ("sagte ... kurz/knapp/leise", "seine Stimme war ...").
 - Pro Beat maximal ein kurzer Innensicht-Satz; danach wieder sichtbare Aktion oder Dialog.
 - Spaetestens in Beat 2: klare Konsequenz bei Scheitern mit konkretem Verlust.
 - ${humorRule}
 - Humor-Regel: Situationskomik und kurze Missverstaendnisse nutzen; Witze nie erklaeren.
+- Running-Gag-Regel: gleiche Lautmalerei/Catchphrase nur sparsam (max 2x pro Kapitel, max 6x in der ganzen Story).
 - Zusaetzlich mindestens 1 Atem-anhalten-Moment.
 - Beat ${directives.length}: konkreter Gewinn + kleiner Preis/Kompromiss sichtbar machen.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
+- Ab Kapitel 2 muss der erste Satz einen sichtbaren Uebergang tragen (Bewegung/Zeit/Ankunft), bevor ein neuer Ort startet.
 - Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
 - Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
+- Keine Zusammenfassungs-Saetze wie "Die Konsequenz war klar", "Der Preis?" oder "Der Gewinn?".
 - Keine Lehrsatz-Saetze ueber Regeln/Funktionen (z. B. "Das Artefakt zeigt..."). Zeige Wirkung nur durch Szene + Reaktion.
 
 ${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}FIGURENSTIMMEN:
@@ -547,17 +557,21 @@ STIL-ZIELE (flexibel, aber wichtig):
 - In jedem Beat mehrere kurze Dialogwechsel, damit die Kinderstimmen leben.
 - Kinderstimmen hart trennen:
 ${childVoiceContract || "  - Keine Kinderstimmen verfuegbar"}
-- Konkrete, alltagsnahe Sprache: maximal ein Vergleich pro Absatz, keine erwachsenen Metaphernbilder.
+- Konkrete, alltagsnahe Sprache: maximal ein Vergleich pro Absatz UND maximal zwei pro Kapitel, keine erwachsenen Metaphernbilder.
 - Wiederholte Tell-Formeln aufbrechen ("spuerte", "Stille fiel", "innen zog sich").
+- Wiederholte Sprecher-Formeln vermeiden ("sagte ... kurz/knapp/leise", "seine Stimme war ...").
 - Pro Beat maximal ein kurzer Innensicht-Satz; dann wieder sichtbare Handlung/Dialog.
 - Frueh konkrete Stakes benennen: was geht sichtbar verloren, wenn sie scheitern.
 - Pro Beat mindestens ein konkretes Sinnesdetail.
 ${humorRewriteLine}
 - Humor-Regel: Situationskomik und kurze Missverstaendnisse nutzen; keine Witz-Erklaerungen im Nachsatz.
+- Running-Gag-Regel: gleiche Lautmalerei/Catchphrase sparsam (max 2x pro Kapitel, max 6x in der Story).
 - Mindestens ein klarer Spannungsmoment.
 - Im Finale: konkreter Gewinn plus kleiner Preis/Kompromiss.
+- Kapitelstart-Regel ab Kapitel 2: sichtbarer Uebergangssatz (Bewegung/Zeit/Ankunft) vor neuem Ort.
 - Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
 - Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
+- Keine Zusammenfassungs-Saetze wie "Die Konsequenz war klar", "Der Preis?" oder "Der Gewinn?".
 - Keine Erklaersaetze ueber Objekt-Regeln ("X zeigt...", "X bedeutet..."): stattdessen konkrete Szene + Dialogreaktion.
 
 ${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNES LEKTORAT (nicht ausgeben):
@@ -649,6 +663,9 @@ ${missingLine}
 13. KEINE Meta-Labels oder Schablonen-Saetze im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Ort:", "Stimmung:", "Kapitel 1").
 14. Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
 15. Keine Erklaersaetze ueber Objektregeln ("X zeigt...", "X bedeutet..."). Wirkung nur durch Szene + Reaktion + kurze Rede.
+16. Keine Zusammenfassungs-Saetze wie "Die Konsequenz war klar", "Der Preis?" oder "Der Gewinn?".
+17. Vermeide Serien-Formeln fuer Sprecher ("sagte ... kurz/knapp/leise", "seine Stimme war ...").
+18. Running Gag dosieren: gleiche Lautmalerei/Catchphrase max 2x in diesem Kapitel.
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original
@@ -732,7 +749,10 @@ STRICT RULES:
 9) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 10) Avatars and supporting characters must be actively involved, not just present.
 11) End naturally with momentum or a warm closure (except final chapter); never use label phrases like "Der Ausblick:" or "Outlook:".
-${strict ? "12) Do not include any instruction text or meta commentary in the output." : ""}
+12) Avoid repetitive speaker formulas ("said ... briefly/quietly", "his/her voice was ...").
+13) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
+14) No summary-meta lines like "The consequence was clear", "Der Preis?", or "Der Gewinn?".
+${strict ? "15) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
 { "text": "Chapter text" }`;
@@ -846,6 +866,9 @@ RULES:
 12) No preview phrasing like "Soon they would...", "An outlook remained...", "Noch wussten sie nicht...".
 13) Do not explain object rules as textbook statements ("X shows...", "X means..."). Show through concrete action + reaction + short dialogue.
 14) Preserve continuity with adjacent chapters. Do not introduce a new room/prop cluster without an explicit transition sentence.
+15) Remove summary-meta lines like "Die Konsequenz war klar", "Der Preis?", "The consequence was clear", "The price?".
+16) Avoid repetitive speaker formulas ("said ... briefly/quietly", "his/her voice was ...").
+17) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
 
 ORIGINAL TEXT:
 ${originalText}
@@ -902,7 +925,8 @@ RULES:
 3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Der Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
 4) Keep the chapter length within ${lengthTargets.wordMin}-${lengthTargets.wordMax} words.
 5) Do not change the plot beats, only the wording.
-${missingLine ? `6) ${missingLine}\n` : ""}
+6) Remove summary-meta phrases ("Die Konsequenz war klar", "Der Preis?", "The consequence was clear", "The price?") and repetitive speaker formulas.
+${missingLine ? `7) ${missingLine}\n` : ""}
 
 ORIGINAL TEXT:
 ${originalText}
