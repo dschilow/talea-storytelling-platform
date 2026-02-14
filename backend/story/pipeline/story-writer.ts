@@ -20,9 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Single rewrite pass: empirically, multiple rewrites degrade story quality.
-// The first pass is typically decent (6/10); rewrites destroy warmth, stakes, and coherence.
-const MAX_REWRITE_PASSES = 1;
+// Cost-safe default: disable full-story rewrites unless explicitly enabled via request config.
+const MAX_REWRITE_PASSES = 0;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -31,11 +30,11 @@ const HARD_MIN_CHAPTER_WORDS = 150;
 // Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
 const REWRITE_ONLY_ON_ERRORS = true;
 
-// Mehr Spielraum fuer Expand-Calls weil fehlende Figuren oft mehrere Kapitel betreffen.
-const MAX_EXPAND_CALLS = 5;
+// Keep expansion budget small by default (chapter-local surgical fixes only).
+const MAX_EXPAND_CALLS = 1;
 
-// Cost-safe quality lift: polish warning-heavy chapters without full-story rewrites.
-const MAX_WARNING_POLISH_CALLS = 3;
+// Warning polish can burn many extra calls; default OFF.
+const MAX_WARNING_POLISH_CALLS = 0;
 const WARNING_POLISH_CODES = new Set([
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
@@ -63,6 +62,20 @@ const WARNING_POLISH_CODES = new Set([
   "COMPARISON_CLUSTER",
 ]);
 
+// Full rewrites are expensive and often regress quality. Restrict them to hard structural/safety failures.
+const REWRITE_ELIGIBLE_CODES = new Set([
+  "INSTRUCTION_LEAK",
+  "ENGLISH_LEAK",
+  "FILTER_PLACEHOLDER",
+  "CHAPTER_PLACEHOLDER",
+  "TOTAL_TOO_SHORT",
+  "CHAPTER_TOO_SHORT_HARD",
+  "MISSING_CHARACTER",
+  "NO_DIALOGUE",
+  "TOO_FEW_DIALOGUES",
+  "DIALOGUE_RATIO_CRITICAL",
+]);
+
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
     normalizedRequest: NormalizedRequest;
@@ -77,11 +90,28 @@ export class LlmStoryWriter implements StoryWriter {
     candidateTag?: string;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
-    const model = normalizedRequest.rawConfig?.aiModel ?? "gpt-5-mini";
+    const rawConfig = normalizedRequest.rawConfig as any;
+    const model = rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
+    const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
     const allowPostEdits = !isGeminiModel || isGemini3;
-    const maxRewritePasses = allowPostEdits ? MAX_REWRITE_PASSES : 0;
+    const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? MAX_REWRITE_PASSES);
+    const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? MAX_EXPAND_CALLS);
+    const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? MAX_WARNING_POLISH_CALLS);
+    const maxRewritePasses = allowPostEdits && Number.isFinite(configuredRewritePasses)
+      ? Math.max(0, Math.min(1, configuredRewritePasses))
+      : 0;
+    const maxExpandCalls = allowPostEdits && Number.isFinite(configuredExpandCalls)
+      ? Math.max(0, Math.min(5, configuredExpandCalls))
+      : 0;
+    const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
+      ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
+      : 0;
+    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? 22000);
+    const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
+      ? Math.max(8000, configuredMaxStoryTokens)
+      : 22000;
     const humorLevel = normalizedRequest.rawConfig?.humorLevel;
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
@@ -182,6 +212,7 @@ Your rules:
     const totalWordMax = normalizedRequest.wordBudget?.maxWords ?? lengthTargets.wordMax * directives.length;
 
     let totalUsage: TokenUsage | undefined;
+    const isTokenBudgetExceeded = () => (totalUsage?.totalTokens || 0) >= maxStoryTokens;
 
     // ─── Phase A: Generate full story in one call ────────────────────────────
     const prompt = buildFullStoryPrompt({
@@ -203,11 +234,10 @@ Your rules:
       userPrompt: normalizedRequest.rawConfig?.customPrompt,
     });
 
-    // Reasoning models (gpt-5-mini) burn ~60-75% of max_completion_tokens on internal thinking.
-    // A medium story needs ~4000 output tokens; with reasoning overhead we need 3-4x that.
-    const baseOutputTokens = Math.max(4000, Math.round(totalWordMax * 2.5));
-    const reasoningMultiplier = (model.includes("gpt-5") || model.includes("o4")) ? 3 : 1;
-    const maxOutputTokens = Math.min(baseOutputTokens * reasoningMultiplier, 30000);
+    // Lean token budget: enough headroom for full story JSON, without runaway reasoning spend.
+    const baseOutputTokens = Math.max(2600, Math.round(totalWordMax * 1.8));
+    const reasoningMultiplier = isReasoningModel ? 1.4 : 1;
+    const maxOutputTokens = Math.min(Math.max(3200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000);
 
     const result = await callStoryModel({
       systemPrompt,
@@ -215,7 +245,7 @@ Your rules:
       responseFormat: "json_object",
       maxTokens: maxOutputTokens,
       temperature: strict ? 0.4 : 0.7,
-      reasoningEffort: "medium",
+      reasoningEffort: isReasoningModel ? "low" : "medium",
       seed: generationSeed,
       context: "story-writer-full",
       logSource: "phase6-story-llm",
@@ -258,9 +288,9 @@ Your rules:
       let expandCallCount = 0; // Zähle Expand-Calls
 
       for (let i = 0; i < updatedChapters.length; i++) {
-        // Stoppe wenn MAX_EXPAND_CALLS erreicht
-        if (expandCallCount >= MAX_EXPAND_CALLS) {
-          console.log(`[story-writer] Max expand calls (${MAX_EXPAND_CALLS}) reached, skipping remaining chapters`);
+        // Stoppe wenn maxExpandCalls erreicht
+        if (expandCallCount >= maxExpandCalls) {
+          console.log(`[story-writer] Max expand calls (${maxExpandCalls}) reached, skipping remaining chapters`);
           break;
         }
 
@@ -304,10 +334,9 @@ Your rules:
           requiredCharacters: missingCharacters,
         });
 
-        // Reasoning models need ~3x tokens since reasoning consumes most of the budget.
-        const baseMaxTokens = Math.round(Math.max(520, lengthTargets.wordMax * 2.2));
-        const expandReasoningMultiplier = (model.includes("gpt-5") || model.includes("o4")) ? 3 : 1;
-        const maxTokens = Math.min(4000, Math.max(850, baseMaxTokens * expandReasoningMultiplier));
+        const baseMaxTokens = Math.round(Math.max(420, lengthTargets.wordMax * 1.4));
+        const expandReasoningMultiplier = isReasoningModel ? 1.2 : 1;
+        const maxTokens = Math.min(1800, Math.max(550, Math.round(baseMaxTokens * expandReasoningMultiplier)));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
 
@@ -349,7 +378,7 @@ Your rules:
         issues: Array<{ chapter: number; code: string; message: string; severity: "ERROR" | "WARNING" }>;
       },
     ): Promise<{ draft: StoryDraft; usage?: TokenUsage; changed: boolean }> => {
-      if (MAX_WARNING_POLISH_CALLS <= 0) {
+      if (maxWarningPolishCalls <= 0) {
         return { draft: draftInput, changed: false };
       }
 
@@ -373,7 +402,7 @@ Your rules:
 
       const ranked = [...chapterIssues.entries()]
         .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, MAX_WARNING_POLISH_CALLS);
+        .slice(0, maxWarningPolishCalls);
 
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
@@ -404,9 +433,9 @@ Your rules:
           nextContext,
         });
 
-        const baseMaxTokens = Math.round(Math.max(500, lengthTargets.wordMax * 2.0));
-        const polishReasoningMultiplier = (model.includes("gpt-5") || model.includes("o4")) ? 2 : 1;
-        const maxTokens = Math.min(3200, Math.max(700, baseMaxTokens * polishReasoningMultiplier));
+        const baseMaxTokens = Math.round(Math.max(380, lengthTargets.wordMax * 1.3));
+        const polishReasoningMultiplier = isReasoningModel ? 1.2 : 1;
+        const maxTokens = Math.min(1500, Math.max(450, Math.round(baseMaxTokens * polishReasoningMultiplier)));
 
         try {
           const result = await callStoryModel({
@@ -438,7 +467,7 @@ Your rules:
       return { draft: { ...draftInput, chapters: updatedChapters }, usage, changed };
     };
 
-    if (allowPostEdits) {
+    if (allowPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
       const targetedBefore = await applyTargetedEdits(draft);
       if (targetedBefore.changed) {
         draft = targetedBefore.draft;
@@ -487,12 +516,14 @@ Your rules:
     }
 
     let rewriteAttempt = 0;
-    while (rewriteAttempt < maxRewritePasses) {
+    while (rewriteAttempt < maxRewritePasses && !isTokenBudgetExceeded()) {
       errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
       // Filter out UNLOCKED_CHARACTER (non-actor) from rewrite triggers — these are mostly
       // German capitalized nouns (Nadel, Kompass, Brötchen) falsely flagged as character names.
       // Only UNLOCKED_CHARACTER_ACTOR (with active verb) and other real errors trigger rewrites.
-      const actionableErrors = errorIssues.filter(i => !NOISY_CODES.has(i.code));
+      const actionableErrors = errorIssues.filter(
+        i => !NOISY_CODES.has(i.code) && REWRITE_ELIGIBLE_CODES.has(i.code),
+      );
       const shouldRewrite = REWRITE_ONLY_ON_ERRORS
         ? actionableErrors.length > 0
         : qualityReport.failedGates.length > 0;
@@ -529,7 +560,7 @@ Your rules:
           responseFormat: "json_object",
           maxTokens: maxOutputTokens,
           temperature: 0.4,
-          reasoningEffort: "medium",
+          reasoningEffort: isReasoningModel ? "low" : "medium",
           seed: typeof generationSeed === "number" ? generationSeed + rewriteAttempt : undefined,
           context: `story-writer-rewrite-${rewriteAttempt}`,
           logSource: "phase6-story-llm",
@@ -545,6 +576,10 @@ Your rules:
 
       if (rewriteResult?.usage) {
         totalUsage = mergeUsage(totalUsage, rewriteResult.usage, model);
+        if (isTokenBudgetExceeded()) {
+          console.warn(`[story-writer] Token budget reached (${totalUsage?.totalTokens}/${maxStoryTokens}), stopping rewrite loop.`);
+          break;
+        }
       }
 
       parsed = safeJson(rewriteResult.content);
@@ -595,7 +630,7 @@ Your rules:
 
     // V2: Finaler Expand-Pass nur für kritische Probleme (nicht für TEMPLATE_PHRASE)
     // Template-Phrasen werden im Rewrite behandelt, nicht mit extra API-Calls
-    if (allowPostEdits) {
+    if (allowPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
       const needsFinalTargeted = qualityReport.issues.some(issue =>
         issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "MISSING_CHARACTER"
         // V2: TEMPLATE_PHRASE entfernt - zu teuer für extra API-Calls
@@ -621,7 +656,7 @@ Your rules:
       }
     }
 
-    if (allowPostEdits) {
+    if (allowPostEdits && maxWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
       const warningPolish = await applyWarningPolish(draft, qualityReport);
       if (warningPolish.changed) {
         const polishedReport = runQualityGates({
@@ -651,7 +686,7 @@ Your rules:
     const isFallbackTitle = !draft.title || draft.title.length < 3
       || draft.title === "Neue Geschichte" || draft.title === "New Story"
       || draft.title === "Eine Geschichte" || draft.title === "A Story";
-    if (isFallbackTitle) {
+    if (isFallbackTitle && !isTokenBudgetExceeded()) {
       const storyText = draft.chapters.map(ch => ch.text).join("\n\n");
       try {
         if (!allowPostEdits) {
@@ -683,7 +718,7 @@ Your rules:
           systemPrompt: titleSystem,
           userPrompt: titlePrompt,
           responseFormat: "json_object",
-          maxTokens: 2500,
+          maxTokens: 450,
           temperature: 0.6,
           context: "story-title",
           logSource: "phase6-story-llm",
@@ -1003,6 +1038,12 @@ function sanitizeMetaStructureFromText(text: string): string {
   const metaSentencePatterns = [
     /(?:^|(?<=\.\s))(?:Ihr|Das|Ein) (?:Ziel|Hindernis) war[^.!?]*[.!?]/gm,
     /(?:^|(?<=\.\s))(?:Her|The|An) (?:goal|obstacle) was[^.!?]*[.!?]/gm,
+    /(?:^|(?<=\.\s))(?:Bald|Schon bald|Noch wussten sie nicht)[^.!?]*[.!?]/gim,
+    /(?:^|(?<=\.\s))(?:Ein|Der|Leiser?)\s+Ausblick[^.!?]*[.!?]/gim,
+    /(?:^|(?<=\.\s))(?:Soon|They did not yet know)[^.!?]*[.!?]/gim,
+    /(?:^|(?<=\.\s))(?:An?|The)\s+outlook[^.!?]*[.!?]/gim,
+    /(?:^|(?<=\.\s))(?:Das|Der)\s+(?:Artefakt|Objekt|Zauberstab|Kugel|Amulett|Drachenauge)\s+(?:zeigt|bedeutet|funktioniert)[^.!?]*[.!?]/gim,
+    /(?:^|(?<=\.\s))(?:The|This)\s+(?:artifact|object|wand|orb|amulet)\s+(?:shows|means|works)[^.!?]*[.!?]/gim,
   ];
   for (const pattern of metaSentencePatterns) {
     result = result.replace(pattern, "");

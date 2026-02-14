@@ -277,20 +277,25 @@ export class StoryPipelineOrchestrator {
       let criticReport: SemanticCriticReport | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
-      const requestedCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount ?? pipelineConfig.releaseCandidateCount ?? 2);
+      // Cost-safe default: 1 candidate unless explicitly overridden per request.
+      // This prevents silent cost explosions from config defaults.
+      const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
+      const requestedCandidateCount = Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : 1;
       const releaseCandidateCount = releaseEnabled ? Math.max(1, Math.min(3, requestedCandidateCount || 1)) : 1;
       const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-5-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
-      const maxSelectiveSurgeryEdits = Math.max(
-        1,
-        Math.min(5, Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits ?? pipelineConfig.maxSelectiveSurgeryEdits ?? 3)),
-      );
+      // Selective surgery is expensive. Default OFF; opt-in via request config.
+      const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
+      const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
+        ? Math.max(0, Math.min(5, explicitSurgeryEdits))
+        : 0;
+      const surgeryEnabled = releaseEnabled && maxSelectiveSurgeryEdits > 0;
       const humorLevel = typeof (normalized.rawConfig as any)?.humorLevel === "number"
         ? (normalized.rawConfig as any).humorLevel
         : 2;
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
-      // OPTIMIZED: Only 3 memories per avatar, short titles only – keeps prompt small
+      // OPTIMIZED: Only 2 memories per avatar, short titles only – keeps prompt small
       // for reasoning models (gpt-5-mini) where extra context → more reasoning tokens
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
@@ -301,14 +306,14 @@ export class StoryPipelineOrchestrator {
             FROM avatar_memories
             WHERE avatar_id = ${avatar.id}
             ORDER BY created_at DESC
-            LIMIT 3
+            LIMIT 2
           `;
           for await (const row of gen) {
             rows.push(row);
           }
           if (rows.length > 0) {
             avatarMemories.set(avatar.id, rows.map(r => ({
-              storyTitle: (r.story_title || "").substring(0, 60),
+              storyTitle: (r.story_title || "").substring(0, 42),
               experience: "",
               emotionalImpact: (r.emotional_impact as any) || 'neutral',
             })));
@@ -426,7 +431,7 @@ export class StoryPipelineOrchestrator {
 
           let surgeryApplied = false;
           let editedChapters: number[] = [];
-          if (releaseEnabled && candidateCritic.patchTasks.length > 0 && maxSelectiveSurgeryEdits > 0) {
+          if (surgeryEnabled && candidateCritic.patchTasks.length > 0) {
             const surgery = await applySelectiveSurgery({
               storyId: normalized.storyId,
               normalizedRequest: normalized,
@@ -551,6 +556,9 @@ export class StoryPipelineOrchestrator {
           chapters: storyDraft.chapters.length,
           durationMs: Date.now() - phase6Start,
           tokens: tokenUsage,
+          releaseCandidateCount,
+          surgeryEnabled,
+          maxSelectiveSurgeryEdits,
           qualityScore: qualityReport?.score,
           criticScore: criticReport?.overallScore,
           criticReleaseReady: criticReport?.releaseReady,

@@ -153,8 +153,15 @@ export interface StoryConfig {
   // Optional semantic critic model override.
   criticModel?: AIModel;
 
-  // Optional override for chapter-level selective surgery edits (1-5).
+  // Optional override for chapter-level selective surgery edits (0-5). 0 disables surgery.
   maxSelectiveSurgeryEdits?: number;
+
+  // Cost controls for story writer post-processing.
+  // Defaults are lean (very low extra calls) to keep generation affordable.
+  maxRewritePasses?: 0 | 1;
+  maxExpandCalls?: number;
+  maxWarningPolishCalls?: number;
+  maxStoryTokens?: number;
 }
 
 export interface LearningMode {

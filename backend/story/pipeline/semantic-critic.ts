@@ -73,7 +73,7 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map(ch => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 700),
+      text: compressChapter(ch.text, 420),
     }));
 
     const systemPrompt = `You are a strict senior children's-book editor and release reviewer.
@@ -151,8 +151,8 @@ Avoid generic praise. Return concise JSON exactly as requested.`;
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 5000,
-      reasoningEffort: "medium",
+      maxTokens: 2200,
+      reasoningEffort: "low",
       temperature: 0.2,
       context: "story-semantic-critic",
       logSource: "phase6-story-critic-llm",

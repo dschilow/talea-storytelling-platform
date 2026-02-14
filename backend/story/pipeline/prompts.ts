@@ -325,7 +325,7 @@ export function buildFullStoryPrompt(input: {
       ? `- Hauptkind-Pflicht: ${focusChildNames[0]} ist in JEDEM Beat aktiv (Handlung oder Dialog).`
       : "";
 
-  const stylePackBlock = sanitizePromptBlock(stylePackText);
+  const stylePackBlock = sanitizeStylePackBlock(stylePackText, isGerman);
   const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
 
   let memorySection = "";
@@ -354,7 +354,7 @@ export function buildFullStoryPrompt(input: {
       ? ` [${artifactName}]`
       : "";
 
-    return `${idx + 1}) Ort: ${directive.setting}${artifactTag}. Kern: ${directive.goal}. Konflikt: ${directive.conflict}. Figuren: ${uniqueCast.join(", ") || "keine"}. Weiterer Impuls -> ${(directive.outcome || "").slice(0, 120)}${fusionHint ? ` Hinweis: ${fusionHint}` : ""}`;
+    return `${idx + 1}) Ort: ${trimDirectiveText(directive.setting, 56)}${artifactTag}. Kern: ${trimDirectiveText(directive.goal, 140)}. Konflikt: ${trimDirectiveText(directive.conflict, 130)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(directive.outcome, 90)}${fusionHint ? ` Hinweis: ${trimDirectiveText(fusionHint, 70)}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = isGerman
@@ -409,6 +409,7 @@ STIL (sehr wichtig, aber flexibel):
 - Pro Beat maximal ein kurzer Innensicht-Satz; danach wieder sichtbare Aktion oder Dialog.
 - Spaetestens in Beat 2: klare Konsequenz bei Scheitern mit konkretem Verlust.
 - ${humorRule}
+- Humor-Regel: Situationskomik und kurze Missverstaendnisse nutzen; Witze nie erklaeren.
 - Zusaetzlich mindestens 1 Atem-anhalten-Moment.
 - Beat ${directives.length}: konkreter Gewinn + kleiner Preis/Kompromiss sichtbar machen.
 - Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
@@ -471,7 +472,7 @@ export function buildFullStoryRewritePrompt(input: {
       ? `- ${focusChildNames[0]} muss in JEDEM Beat aktiv sein.`
       : "";
 
-  const stylePackBlock = sanitizePromptBlock(stylePackText);
+  const stylePackBlock = sanitizeStylePackBlock(stylePackText, isGerman);
   const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRewriteLine = isGerman
@@ -523,6 +524,7 @@ STIL-ZIELE (flexibel, aber wichtig):
 - Frueh konkrete Stakes benennen: was geht sichtbar verloren, wenn sie scheitern.
 - Pro Beat mindestens ein konkretes Sinnesdetail.
 ${humorRewriteLine}
+- Humor-Regel: Situationskomik und kurze Missverstaendnisse nutzen; keine Witz-Erklaerungen im Nachsatz.
 - Mindestens ein klarer Spannungsmoment.
 - Im Finale: konkreter Gewinn plus kleiner Preis/Kompromiss.
 - Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
@@ -979,6 +981,26 @@ function sanitizePromptBlock(block: string | undefined, maxLen = 2400): string {
 
   const joined = deduped.join("\n");
   return joined.slice(0, maxLen).trim();
+}
+
+function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): string {
+  const base = sanitizePromptBlock(block, 1400);
+  if (!base) return "";
+  const banned = isGerman
+    ? /(ausblick|vorschau|kapitelende|kapitel endet|epilog|hook)/i
+    : /(outlook|preview|chapter ending|chapter ends|epilogue|hook)/i;
+  const lines = base
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean)
+    .filter(line => !banned.test(line));
+  return lines.join("\n").trim();
+}
+
+function trimDirectiveText(value: string | undefined, maxChars: number): string {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+  return normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd() + "...";
 }
 
 function formatCustomPromptBlock(userPrompt: string | undefined, isGerman: boolean): string {

@@ -10,3 +10,14 @@ Logs
 # Prevent local npm registry configs from leaking into CI/CD
 package-lock.json
 design
+
+# Local agent/skill installs (do not track)
+.agent/
+.agents/skills/dialogue/
+.agents/skills/joke-engineering/
+.agents/skills/kids-book-writer/
+.agents/skills/llm-evaluation/
+.agents/skills/prose-style/
+.agents/skills/scene-sequencing/
+.claude/skills/
+.cursor/
