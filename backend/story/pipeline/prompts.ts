@@ -272,6 +272,27 @@ function generateSpeechExample(name: string, speechStyle: string, catchphrase: s
   return "";
 }
 
+function buildChildVoiceContract(childNames: string[], isGerman: boolean): string {
+  if (childNames.length === 0) return "";
+
+  const templates = isGerman
+    ? [
+        "kurze, impulsive Saetze; stellt direkte Fragen; reagiert sofort",
+        "ruhige, praezise Beobachtungen; selten Ausrufe; klare Folgerungen",
+        "spielerisch und witzig; kleine Wortspiele; lockert Spannung",
+      ]
+    : [
+        "short impulsive lines; asks direct questions; reacts quickly",
+        "calm precise observations; few exclamations; clear reasoning",
+        "playful and witty; small wordplay; lightens tension",
+      ];
+
+  return childNames
+    .slice(0, 3)
+    .map((name, idx) => `  - ${name}: ${templates[idx] || templates[templates.length - 1]}`)
+    .join("\n");
+}
+
 // ─── Optimized Full Story Prompt (V3) ─────────────────────────────────────────
 // Kompakter, effektiver, mit dynamischen Charakter-Properties aus DB
 
@@ -315,6 +336,7 @@ export function buildFullStoryPrompt(input: {
   }
 
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
   const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
@@ -389,7 +411,7 @@ HARD RULES (muessen erfuellt sein):
 1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
 2) Ausgabe: Nur gueltiges JSON. Kein Text davor/danach.
 3) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt.
-4) Struktur: ${directives.length} Beats in Reihenfolge. Zwischen Beats genau eine Leerzeile. Keine Ueberschriften/Nummern im Storytext. Pro Beat etwa ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
+4) Struktur: Gib genau ${directives.length} Kapitel im JSON-Feld "chapters" aus (chapter: 1..${directives.length}). Keine Ueberschriften/Nummern im Text. Pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
 5) Cast-Lock: Nur diese Figuren: ${allowedNames.join(", ")}. Keine neuen Figuren.
 6) Figurenfokus: Pro Beat max ${focusMaxActive} aktive Figuren (ideal ${focusIdealRange}), global max ${focusGlobalMax} aktiv erkennbare Figuren.
 7) Kindgerecht: ${safetyRule}
@@ -403,6 +425,8 @@ STIL (sehr wichtig, aber flexibel):
 - Dialoganteil ca. 30-40% (mindestens 25%), keine langen Monologe.
 - Pro Beat mindestens zwei kurze Dialogwechsel zwischen Figuren.
 - Jede Figur hat eigene Stimme (Wortwahl, Satzlaenge, Tick).
+- Kinderstimmen hart trennen:
+${childVoiceContract || "  - Keine Kinderstimmen verfuegbar"}
 - Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
 - Sprache bodenstaendig und kindnah: hoechstens 1 Vergleich pro Absatz, keine erwachsenen Metaphernketten.
 - Vermeide wiederkehrende Tell-Formeln (z. B. "Stille fiel", "er/sie spuerte", "innen zog sich").
@@ -425,7 +449,7 @@ ${beatLines}
 
 # INTERNER SCHREIBPROZESS (nicht ausgeben)
 - Erstelle intern zuerst eine kurze Beat-Skizze.
-- Schreibe dann die Geschichte als fliessenden Text.
+- Schreibe die Geschichte kapitelweise im "chapters"-Array.
 - Fuehre internes Lektorat durch: Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Schlusswaerme.
 - Gib danach NUR das finale JSON aus.
 
@@ -433,7 +457,9 @@ ${beatLines}
 {
   "title": "${titleHint}",
   "description": "Ein Teaser-Satz als Frage oder kleines Raetsel",
-  "storyText": "Fliessender Text mit genau einer Leerzeile zwischen Beats."
+  "chapters": [
+    { "chapter": 1, "text": "..." }
+  ]
 }`;
 }
 
@@ -466,6 +492,7 @@ export function buildFullStoryRewritePrompt(input: {
     .join(", ");
 
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
   const avatarRule = focusChildNames.length >= 2
     ? `- ${focusChildNames.join(" und ")} muessen in JEDEM Beat aktiv sein (je Beat mindestens eine Handlung + eine Dialogzeile pro Kind).`
     : focusChildNames.length === 1
@@ -504,8 +531,8 @@ HARD RULES:
 1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
 2) Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre, klar und kindgerecht.
 3) Cast-Lock: Nur diese Namen sind erlaubt: ${allowedNames || "(keine)"}. Keine neuen Figuren.
-4) Struktur: ${directives.length} Beats in Reihenfolge, keine Kapitel-Titel im Fliesstext.
-5) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt; pro Beat etwa ${wordsPerChapter.min}-${wordsPerChapter.max}.
+4) Struktur: ${directives.length} Kapitel in Reihenfolge, keine Kapitel-Titel im Fliesstext.
+5) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt; pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max}.
 6) Kindgerecht: keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel.
 7) Show, don't tell: Gefuehle ueber Koerpersignale, Handlung und konkrete Details.
 8) Kein Deus ex Machina.
@@ -518,6 +545,8 @@ STIL-ZIELE (flexibel, aber wichtig):
 - Meist kurze Saetze, ab und zu ein laengerer fuer Schwung.
 - Dialoganteil etwa 30-40% (mindestens 25%), mit klar unterscheidbaren Stimmen.
 - In jedem Beat mehrere kurze Dialogwechsel, damit die Kinderstimmen leben.
+- Kinderstimmen hart trennen:
+${childVoiceContract || "  - Keine Kinderstimmen verfuegbar"}
 - Konkrete, alltagsnahe Sprache: maximal ein Vergleich pro Absatz, keine erwachsenen Metaphernbilder.
 - Wiederholte Tell-Formeln aufbrechen ("spuerte", "Stille fiel", "innen zog sich").
 - Pro Beat maximal ein kurzer Innensicht-Satz; dann wieder sichtbare Handlung/Dialog.

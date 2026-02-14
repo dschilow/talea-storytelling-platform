@@ -766,6 +766,12 @@ function extractDraftFromAnyFormat(input: {
   wordsPerChapter: { min: number; max: number };
 }): StoryDraft {
   const { parsed, directives, language, wordsPerChapter } = input;
+  const hasStructuredChapters = Array.isArray(parsed?.chapters)
+    && parsed.chapters.some((ch: any) => typeof ch?.text === "string" && ch.text.trim().length > 0);
+  if (hasStructuredChapters) {
+    return extractDraftFromChapterArray(parsed, directives, language);
+  }
+
   const continuous = extractContinuousStoryPayload(parsed, language);
   if (continuous?.storyText) {
     return buildDraftFromContinuousStory({
@@ -1132,7 +1138,7 @@ function findCharacterDisplayName(cast: CastSet, slotKey: string): string | null
 
 function canAutoTrimLengthErrors(errorIssues: Array<{ code: string }>): boolean {
   if (errorIssues.length === 0) return false;
-  return errorIssues.every(issue => issue.code === "TOTAL_TOO_LONG");
+  return errorIssues.some(issue => issue.code === "TOTAL_TOO_LONG");
 }
 
 function autoTrimDraftToWordBudget(input: {

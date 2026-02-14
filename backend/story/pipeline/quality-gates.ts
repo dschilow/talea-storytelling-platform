@@ -388,8 +388,9 @@ function gateCastLock(
       if (language === "de" && parts.length >= 2 && parts.every(p => isCommonWord(p, language) || germanNonNames.has(p))) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
       if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
+      if (!shouldFlagUnlockedName(ch.text, match[1], matchIndex, language)) continue;
 
-      const isActor = isLikelyCharacterAction(ch.text, match[1]);
+      const isActor = isLikelyCharacterAction(ch.text, match[1], matchIndex);
       issues.push({
         gate: "CAST_LOCK",
         chapter: ch.chapter,
@@ -413,6 +414,7 @@ function gateRepetitionLimiter(
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
 
   const fillerWords = isDE
     ? ["plötzlich", "ploetzlich", "auf einmal", "mit einem mal", "da geschah es"]
@@ -443,24 +445,26 @@ function gateRepetitionLimiter(
 
   const bannedWordPatterns = isDE
     ? [
-        { token: "plötzlich", regex: /\bpl[öo]tzlich\b/gi },
-        { token: "irgendwie", regex: /\birgendwie\b/gi },
-        { token: "ein bisschen", regex: /\bein\s+bisschen\b/gi },
-        { token: "ziemlich", regex: /\bziemlich\b/gi },
-        { token: "wirklich", regex: /\bwirklich\b/gi },
-        { token: "sehr", regex: /\bsehr\b/gi },
-        { token: "Es war einmal", regex: /\bes\s+war\s+einmal\b/gi },
+        { token: "plötzlich", regex: /\bpl(?:ö|oe|o)tzlich\b/gi, maxPerChapter: 0, hard: false },
+        { token: "irgendwie", regex: /\birgendwie\b/gi, maxPerChapter: 0, hard: false },
+        { token: "ein bisschen", regex: /\bein\s+bisschen\b/gi, maxPerChapter: 1, hard: false },
+        { token: "ziemlich", regex: /\bziemlich\b/gi, maxPerChapter: 1, hard: false },
+        { token: "wirklich", regex: /\bwirklich\b/gi, maxPerChapter: 2, hard: false },
+        { token: "sehr", regex: /\bsehr\b/gi, maxPerChapter: 2, hard: false },
+        { token: "Es war einmal", regex: /\bes\s+war\s+einmal\b/gi, maxPerChapter: 0, hard: true },
       ]
     : [
-        { token: "suddenly", regex: /\bsuddenly\b/gi },
-        { token: "really", regex: /\breally\b/gi },
+        { token: "suddenly", regex: /\bsuddenly\b/gi, maxPerChapter: 0, hard: false },
+        { token: "really", regex: /\breally\b/gi, maxPerChapter: 2, hard: false },
       ];
 
   for (const ch of draft.chapters) {
     for (const banned of bannedWordPatterns) {
       banned.regex.lastIndex = 0;
       const count = (ch.text.match(banned.regex) ?? []).length;
-      if (count === 0) continue;
+      if (count <= banned.maxPerChapter) continue;
+      const overflow = count - banned.maxPerChapter;
+      const severeOverflow = overflow >= 2;
       issues.push({
         gate: "REPETITION_LIMITER",
         chapter: ch.chapter,
@@ -468,7 +472,7 @@ function gateRepetitionLimiter(
         message: isDE
           ? `Kapitel ${ch.chapter}: verbotenes Fuellwort "${banned.token}" ${count}x verwendet`
           : `Chapter ${ch.chapter}: banned filler "${banned.token}" used ${count}x`,
-        severity: (ageRange?.max ?? 12) <= 8 ? "ERROR" : "WARNING",
+        severity: (banned.hard && ageMax <= 10) || (ageMax <= 8 && severeOverflow) ? "ERROR" : "WARNING",
       });
     }
   }
@@ -535,7 +539,7 @@ function gateReadabilityComplexity(
   const ageMax = ageRange.max;
   const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 18 : 26;
   const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 14 : 19;
-  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.15 : 0.28;
+  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.18 : 0.28;
 
   for (const ch of draft.chapters) {
     const sentences = splitSentences(ch.text);
@@ -1632,9 +1636,11 @@ function gateStakesAndLowpoint(
 
   const stakesPatterns = isDE
     ? [
-        /wenn\s+wir[^.!?]{0,90}dann/i,
+        /wenn\s+wir[^.!?]{0,90}(dann|verlieren|verpassen|zu\s+sp(?:ae|ä)t|schaffen)/i,
         /wenn\s+[^.!?]{0,80}nicht\s+schaff/i,
         /sonst[^.!?]{0,80}(verlieren|bleiben|schaffen|geht|schlie(?:s|ß)t)/i,
+        /\bverlieren\s+wir\b/i,
+        /\bdroht\b[^.!?]{0,70}\b(verlust|zu\s+sp(?:ae|ä)t|weg|gefangen)\b/i,
       ]
     : [
         /if\s+we[^.!?]{0,90}then/i,
@@ -1645,12 +1651,12 @@ function gateStakesAndLowpoint(
     ? /\b(wenn|falls|sonst|ohne|bevor|damit|droht)\b/i
     : /\b(if|otherwise|unless|without|before|or\s+else|at\s+risk)\b/i;
   const stakesConsequencePattern = isDE
-    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|keine?\s+chance|kein\s+zuhause|fuer\s+immer)\b/i
+    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|verlust|keine?\s+chance|kein\s+zuhause|fuer\s+immer)\b/i
     : /\b(lose|miss|stuck|trapped|too\s+late|breaks?|gone|alone|no\s+chance|no\s+home|forever)\b/i;
   const stakesConcreteNounPattern = isDE
     ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel|licht|bruecke)\b/i
     : /\b(artifact|orb|map|compass|key|gate|path|home|village|friend|team|group|treasure|goal|bridge)\b/i;
-  const openingSentences = splitSentences(firstTwoText).slice(0, 10);
+  const openingSentences = splitSentences(firstTwoText).slice(0, 16);
 
   const hasSentenceLevelConsequence = openingSentences.some(sentence =>
     stakesConnectorPattern.test(sentence) && stakesConsequencePattern.test(sentence),
@@ -1851,13 +1857,13 @@ function gateChildEmotionArc(
 
   const fullText = draft.chapters.map(ch => ch.text).join(" ");
   const innerMarkers = isDE
-    ? "(?:denkt|dachte|f[üu]hlt|f[üu]hlte|sp[üu]rt|sp[üu]rte|fragt\\s+sich|fragte\\s+sich|zweifelt|zweifelte|zittert|zitterte|schluckt|schluckte|hat\\s+Angst|hatte\\s+Angst|mutig|[üu]berlegt|[üu]berlegte|gr[üu]belt|gr[üu]belte|erschrickt|erschrak|erstarrt|erstarrte|Herz\\s+(?:h[äa]mmert|klopft|schlug|pochte|raste)|Magen\\s+(?:zieht|drehte)|Knie\\s+(?:zitter|wackel|weich)|Atem\\s+(?:stock|angehalten)|schluck|Tr[äa]nen|weint|weinte|bang|beklommen|aufgeregt|nerv[öo]s)"
+    ? "(?:denkt|dachte|f[üu]hlt|f[üu]hlte|sp[üu]rt|sp[üu]rte|fragt\\s+sich|fragte\\s+sich|zweifelt|zweifelte|zittert|zitterte|schluckt|schluckte|hat\\s+Angst|hatte\\s+Angst|mutig|[üu]berlegt|[üu]berlegte|gr[üu]belt|gr[üu]belte|erschrickt|erschrak|erstarrt|erstarrte|atmet|atmete|Atem\\s+holte|Herz\\s+(?:h[äa]mmert|klopft|schlug|pochte|raste)|Magen\\s+(?:zieht|drehte)|Knie\\s+(?:zitter|wackel|weich)|Atem\\s+(?:stock|angehalten)|F[äa]uste\\s+ballte|schluck|Tr[äa]nen|weint|weinte|bang|beklommen|aufgeregt|nerv[öo]s)"
     : "(?:thinks|thought|feels|felt|wonders|wondered|doubts|doubted|trembles|trembled|swallows|swallowed|is\\s+afraid|was\\s+afraid|brave)";
   const mistakeMarkers = isDE
-    ? "(?:Fehler|falsch|stolper|scheiter|zu\\s+schnell|zu\\s+fr[üu]h|verga[ßs]|versagt|vermasselt|[üu]bersehen|verwechselt|nicht\\s+aufgepasst|h[äa]tte\\s+nicht)"
+    ? "(?:Fehler|falsch|falsche\\s+karte|stolper|scheiter|zu\\s+schnell|zu\\s+fr[üu]h|verga[ßs]|versagt|vermasselt|[üu]bersehen|verwechselt|nicht\\s+aufgepasst|h[äa]tte\\s+nicht|fehlentscheidung|irrweg)"
     : "(?:mistake|wrong|stumble|fail|too\\s+fast|too\\s+early|forgot)";
   const repairMarkers = isDE
-    ? "(?:korrigier|macht\\s+es\\s+besser|versucht\\s+es\\s+anders|hilft|rettet|entscheidet|entschied|reparier|wieder\\s+gut|entschuldig|traut\\s+sich|[üu]berwind|fasst\\s+Mut|neuen\\s+Anlauf|noch\\s+einmal|versucht\\s+es\\s+erneut)"
+    ? "(?:korrigier|umplan|macht\\s+es\\s+besser|versucht\\s+es\\s+anders|hilft|rettet|entscheidet|entschied|reparier|wieder\\s+gut|entschuldig|traut\\s+sich|[üu]berwind|fasst\\s+Mut|neuen\\s+Anlauf|noch\\s+einmal|versucht\\s+es\\s+erneut|neuer\\s+plan|anderen\\s+weg)"
     : "(?:correct|does\\s+it\\s+better|tries\\s+another\\s+way|helps|saves|decides|decided)";
 
   let hasChildErrorCorrectionArc = false;
@@ -1878,6 +1884,15 @@ function gateChildEmotionArc(
         break;
       }
     }
+    if (!hasInnerMoment) {
+      hasInnerMoment = draft.chapters.some(ch => {
+        const text = ch.text || "";
+        const lower = text.toLowerCase();
+        const hasName = uniqueParts.some(part => lower.includes(part.toLowerCase()));
+        if (!hasName) return false;
+        return new RegExp(innerMarkers, "i").test(text);
+      });
+    }
 
     if (!hasInnerMoment) {
       issues.push({
@@ -1892,9 +1907,16 @@ function gateChildEmotionArc(
     }
 
     for (const part of uniqueParts) {
-      const escapedPart = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const hasMistake = new RegExp(`${escapedPart}[^.!?]{0,90}${mistakeMarkers}|${mistakeMarkers}[^.!?]{0,90}${escapedPart}`, "i").test(fullText);
-      const hasRepair = new RegExp(`${escapedPart}[^.!?]{0,90}${repairMarkers}|${repairMarkers}[^.!?]{0,90}${escapedPart}`, "i").test(fullText);
+      const partLower = part.toLowerCase();
+      let hasMistake = false;
+      let hasRepair = false;
+      for (const chapter of draft.chapters) {
+        const text = chapter.text || "";
+        const lower = text.toLowerCase();
+        if (!lower.includes(partLower)) continue;
+        if (new RegExp(mistakeMarkers, "i").test(text)) hasMistake = true;
+        if (new RegExp(repairMarkers, "i").test(text)) hasRepair = true;
+      }
       if (hasMistake && hasRepair) {
         hasChildErrorCorrectionArc = true;
         break;
@@ -2357,19 +2379,27 @@ function checkCharacterHasAction(text: string, name: string): boolean {
   return actionPatterns.some(p => p.test(text));
 }
 
-function isLikelyCharacterAction(text: string, name: string): boolean {
+function isLikelyCharacterAction(text: string, name: string, matchIndex?: number): boolean {
   if (!text || !name) return false;
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const verbs = [
-    "sagte", "rief", "fragte", "antwortete", "meinte", "fl[üu]sterte", "murmelte", "schrie", "lachte", "nickte",
-    "said", "asked", "replied", "answered", "called", "whispered", "muttered", "shouted", "laughed", "nodded",
+  const sentenceWindow = getSentenceWindowForName(text, matchIndex, 180);
+  const speechVerbs = [
+    "sagte", "rief", "fragte", "antwortete", "meinte", "fl[üu]sterte", "murmelte", "schrie",
+    "said", "asked", "replied", "answered", "called", "whispered", "muttered", "shouted",
+  ].join("|");
+  const actionVerbs = [
+    "lief", "ging", "sprang", "nickte", "zog", "dr[üu]ckte", "hob", "legte", "nahm", "griff", "zeigte", "lachte",
+    "ran", "walked", "jumped", "nodded", "pulled", "pushed", "lifted", "placed", "took", "grabbed", "showed", "laughed",
   ].join("|");
 
-  const actionPattern = new RegExp(`${escaped}[^.!?]{0,40}\\b(${verbs})\\b|\\b(${verbs})\\b[^.!?]{0,40}${escaped}`, "i");
-  if (actionPattern.test(text)) return true;
+  const nameThenVerb = new RegExp(`\\b${escaped}\\b\\s*(?:,\\s*)?(?:${speechVerbs}|${actionVerbs})\\b`, "i");
+  if (nameThenVerb.test(sentenceWindow)) return true;
 
-  const quotePattern = new RegExp(`[""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB][^""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB]{0,120}${escaped}|${escaped}[^""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB]{0,120}[""â€žâ€ŸÂ»Â«\u201E\u201C\u201D\u00BB\u00AB]`, "i");
-  return quotePattern.test(text);
+  const quoteThenAttribution = new RegExp(
+    `[""\u201E\u201C\u201D\u00BB\u00AB][^""\u201E\u201C\u201D\u00BB\u00AB]{0,150}[""\u201E\u201C\u201D\u00BB\u00AB],?\\s*(?:${speechVerbs})\\s+\\b${escaped}\\b`,
+    "i",
+  );
+  return quoteThenAttribution.test(sentenceWindow);
 }
 
 function findCharacterName(cast: CastSet, slotKey: string): string | null {
@@ -2888,5 +2918,36 @@ function isLikelySentenceStart(text: string, index: number): boolean {
   while (i >= 0 && /\s/.test(text[i])) i--;
   if (i < 0) return true;
   return /[.!?\n]/.test(text[i]);
+}
+
+function shouldFlagUnlockedName(text: string, token: string, matchIndex: number, language: string): boolean {
+  if (language !== "de") return true;
+
+  const normalized = token.trim();
+  if (!normalized) return false;
+
+  if (/\s+/.test(normalized)) return true;
+
+  const occurrences = countWordOccurrences(text, normalized);
+  if (occurrences >= 2) return true;
+  if (hasGermanNameHonorificPrefix(text, matchIndex)) return true;
+
+  return false;
+}
+
+function hasGermanNameHonorificPrefix(text: string, matchIndex: number): boolean {
+  const prefix = text.slice(Math.max(0, matchIndex - 24), matchIndex).toLowerCase();
+  return /\b(herr|frau|prinz|prinzessin|k(?:oe|ö)nig|k(?:oe|ö)nigin|ritter|fee|hexe|zauberer|kobold)\s+$/.test(prefix);
+}
+
+function getSentenceWindowForName(text: string, matchIndex: number | undefined, maxChars: number): string {
+  if (!text) return "";
+  if (typeof matchIndex !== "number" || matchIndex < 0) {
+    return text.slice(0, Math.min(text.length, maxChars));
+  }
+  const half = Math.max(40, Math.floor(maxChars / 2));
+  const start = Math.max(0, matchIndex - half);
+  const end = Math.min(text.length, matchIndex + half);
+  return text.slice(start, end);
 }
 

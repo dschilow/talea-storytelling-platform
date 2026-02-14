@@ -31,7 +31,7 @@ export async function applySelectiveSurgery(input: {
   model?: string;
 }): Promise<SelectiveSurgeryResult> {
   const maxEdits = Math.max(1, Math.min(5, input.maxEdits ?? 3));
-  const model = input.model || "gpt-5-mini";
+  const model = input.model || "gpt-5-nano";
   const chapters = input.draft.chapters.map(ch => ({ ...ch }));
   const editedChapters: number[] = [];
   let usage: TokenUsage | undefined;
@@ -46,7 +46,7 @@ export async function applySelectiveSurgery(input: {
   }
 
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
-  const maxTokens = isReasoningModel ? 4200 : 2200;
+  const maxTokens = isReasoningModel ? 1800 : 1200;
   const lengthTargets = input.normalizedRequest.wordBudget
     ? {
         wordMin: input.normalizedRequest.wordBudget.minWordsPerChapter,

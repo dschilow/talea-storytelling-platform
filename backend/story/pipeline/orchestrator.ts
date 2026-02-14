@@ -280,15 +280,20 @@ export class StoryPipelineOrchestrator {
       // Cost-safe default: 1 candidate unless explicitly overridden per request.
       // This prevents silent cost explosions from config defaults.
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      const requestedCandidateCount = Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : 1;
-      const releaseCandidateCount = releaseEnabled ? Math.max(1, Math.min(3, requestedCandidateCount || 1)) : 1;
+      const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 1);
+      const requestedCandidateCount = Number.isFinite(explicitCandidateCount)
+        ? explicitCandidateCount
+        : (Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 1);
+      const releaseCandidateCount = releaseEnabled ? Math.max(1, Math.min(2, requestedCandidateCount || 1)) : 1;
       const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-5-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
-      // Selective surgery is expensive. Default OFF; opt-in via request config.
+      // Selective surgery is chapter-local and much cheaper than full rewrites.
+      // For 6-8 stories, default to one edit unless explicitly overridden.
       const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
+      const implicitSurgeryEdits = normalized.ageMax <= 8 ? 1 : 0;
       const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
-        : 0;
+        : implicitSurgeryEdits;
       const surgeryEnabled = releaseEnabled && maxSelectiveSurgeryEdits > 0;
       const humorLevel = typeof (normalized.rawConfig as any)?.humorLevel === "number"
         ? (normalized.rawConfig as any).humorLevel
@@ -948,8 +953,9 @@ function mergeTokenUsage(current: any, next: any): any {
 }
 
 function resolveSurgeryModel(model?: string): string {
-  if (!model) return "gpt-5-mini";
-  if (model.startsWith("gemini-")) return "gpt-5-mini";
+  if (!model) return "gpt-5-nano";
+  if (model.startsWith("gemini-")) return "gpt-5-nano";
+  if (model.startsWith("gpt-5-mini")) return "gpt-5-nano";
   return model;
 }
 
