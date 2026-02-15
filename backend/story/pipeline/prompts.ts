@@ -419,11 +419,12 @@ HARD RULES (muessen erfuellt sein):
 3) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt.
 4) Struktur: Gib genau ${directives.length} Kapitel im JSON-Feld "chapters" aus (chapter: 1..${directives.length}). Keine Ueberschriften/Nummern im Text. Pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
 5) Cast-Lock: Nur diese Figuren: ${allowedNames.join(", ")}. Keine neuen Figuren.
-6) Figurenfokus: Pro Beat max ${focusMaxActive} aktive Figuren (ideal ${focusIdealRange}), global max ${focusGlobalMax} aktiv erkennbare Figuren.
-7) Kindgerecht: ${safetyRule}
-8) Artefakt: ${artifactName || (isGerman ? "Artefakt" : "artifact")} (${artifactRule}). Bogen: Entdecken -> Fehlleitung/Problem -> clever nutzen (loest NICHT allein).
-9) Show, don't tell: Gefuehle durch Koerper/Handlung/Details zeigen, nicht erklaeren.
-10) Kein Deus ex Machina. Loesung entsteht durch Mut + Teamwork + kluge Entscheidung.
+6) Regel-Prioritaet: Hard Rules haben IMMER Vorrang vor zusaetzlichen Nutzerbeispielen. Beispielnamen (z. B. Mia, Emma) sind niemals neue Figuren.
+7) Figurenfokus: Pro Beat max ${focusMaxActive} aktive Figuren (ideal ${focusIdealRange}), global max ${focusGlobalMax} aktiv erkennbare Figuren.
+8) Kindgerecht: ${safetyRule}
+9) Artefakt: ${artifactName || (isGerman ? "Artefakt" : "artifact")} (${artifactRule}). Bogen: Entdecken -> Fehlleitung/Problem -> clever nutzen (loest NICHT allein).
+10) Show, don't tell: Gefuehle durch Koerper/Handlung/Details zeigen, nicht erklaeren.
+11) Kein Deus ex Machina. Loesung entsteht durch Mut + Teamwork + kluge Entscheidung.
 
 STIL (sehr wichtig, aber flexibel):
 - Zielton: ${targetTone}.
@@ -541,13 +542,14 @@ HARD RULES:
 1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
 2) Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre, klar und kindgerecht.
 3) Cast-Lock: Nur diese Namen sind erlaubt: ${allowedNames || "(keine)"}. Keine neuen Figuren.
-4) Struktur: ${directives.length} Kapitel in Reihenfolge, keine Kapitel-Titel im Fliesstext.
-5) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt; pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max}.
-6) Kindgerecht: keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel.
-7) Show, don't tell: Gefuehle ueber Koerpersignale, Handlung und konkrete Details.
-8) Kein Deus ex Machina.
-9) Ende klar, warm, ohne Cliffhanger.
-${artifactName ? `10) Artefakt "${artifactName}" bleibt relevant, loest aber nicht allein.` : ""}
+4) Regel-Prioritaet: Hard Rules stehen ueber Zusatzvorgaben. Beispielnamen aus Nutzer-Texten sind keine Figurenkandidaten.
+5) Struktur: ${directives.length} Kapitel in Reihenfolge, keine Kapitel-Titel im Fliesstext.
+6) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt; pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max}.
+7) Kindgerecht: keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel.
+8) Show, don't tell: Gefuehle ueber Koerpersignale, Handlung und konkrete Details.
+9) Kein Deus ex Machina.
+10) Ende klar, warm, ohne Cliffhanger.
+${artifactName ? `11) Artefakt "${artifactName}" bleibt relevant, loest aber nicht allein.` : ""}
 ${avatarRule || ""}
 
 STIL-ZIELE (flexibel, aber wichtig):
@@ -1062,12 +1064,12 @@ function formatCustomPromptBlock(userPrompt: string | undefined, isGerman: boole
     userPrompt
       .trim()
       .replace(/```/g, "'''"),
-    2000,
+    3200,
   );
   if (!normalized) return "";
   if (isGerman) {
-    return `# ZUSAETZLICHE NUTZER-VORGABEN (hoch priorisiert)\n${normalized}\n- Setze diese Vorgaben kreativ um, ohne die harten Regeln oben zu brechen.\n`;
+    return `# ZUSAETZLICHE NUTZER-VORGABEN (hoch priorisiert)\n${normalized}\n- Setze diese Vorgaben kreativ um, ohne die harten Regeln oben zu brechen.\n- WICHTIG: Beispielnamen in den Vorgaben (z. B. in Beispielsaetzen) sind keine neuen Figuren.\n- Bei Konflikten gelten immer zuerst Cast-Lock, Kapitel-/Wortvorgaben und Sicherheitsregeln.\n`;
   }
-  return `# ADDITIONAL USER REQUIREMENTS (high priority)\n${normalized}\n- Apply these requirements creatively without breaking the hard rules above.\n`;
+  return `# ADDITIONAL USER REQUIREMENTS (high priority)\n${normalized}\n- Apply these requirements creatively without breaking the hard rules above.\n- IMPORTANT: Proper names used only in examples are not new characters.\n- In conflicts, cast lock, chapter/length constraints, and safety rules always win.\n`;
 }
 

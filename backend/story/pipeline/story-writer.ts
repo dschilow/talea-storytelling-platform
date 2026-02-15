@@ -3,7 +3,7 @@ import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewrit
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
-import { runQualityGates, buildRewriteInstructions } from "./quality-gates";
+import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
@@ -21,6 +21,7 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 // ════════════════════════════════════════════════════════════════════════════
 
 // Cost-safe default: disable full-story rewrites unless explicitly enabled via request config.
+// A guarded emergency pass is still possible when hard quality failures survive.
 const MAX_REWRITE_PASSES = 0;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
@@ -35,6 +36,8 @@ const MAX_EXPAND_CALLS = 1;
 
 // Warning polish can burn many extra calls; default OFF.
 const MAX_WARNING_POLISH_CALLS = 0;
+const QUALITY_RECOVERY_SCORE_THRESHOLD = 8.2;
+const QUALITY_RECOVERY_WARNING_COUNT = 3;
 const WARNING_POLISH_CODES = new Set([
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
@@ -62,18 +65,27 @@ const WARNING_POLISH_CODES = new Set([
   "COMPARISON_CLUSTER",
 ]);
 
-// Full rewrites are expensive and often regress quality. Restrict them to hard structural/safety failures.
-const REWRITE_ELIGIBLE_CODES = new Set([
-  "INSTRUCTION_LEAK",
-  "ENGLISH_LEAK",
-  "FILTER_PLACEHOLDER",
-  "CHAPTER_PLACEHOLDER",
-  "TOTAL_TOO_SHORT",
-  "CHAPTER_TOO_SHORT_HARD",
-  "MISSING_CHARACTER",
-  "NO_DIALOGUE",
+// Warning-driven rewrites are reserved for persistent quality misses when no hard errors remain.
+const REWRITE_WARNING_CODES = new Set([
   "TOO_FEW_DIALOGUES",
-  "DIALOGUE_RATIO_CRITICAL",
+  "DIALOGUE_RATIO_LOW",
+  "DIALOGUE_RATIO_HIGH",
+  "RHYTHM_FLAT",
+  "RHYTHM_TOO_HEAVY",
+  "VOICE_INDISTINCT",
+  "ROLE_LABEL_OVERUSE",
+  "VOICE_TAG_FORMULA_OVERUSE",
+  "MISSING_INNER_CHILD_MOMENT",
+  "NO_CHILD_ERROR_CORRECTION_ARC",
+  "STAKES_TOO_ABSTRACT",
+  "GOAL_THREAD_WEAK_ENDING",
+  "ENDING_TOO_SHORT",
+  "ENDING_PAYOFF_ABSTRACT",
+  "ENDING_PRICE_MISSING",
+  "METAPHOR_OVERLOAD",
+  "POETIC_LANGUAGE_OVERLOAD",
+  "TELL_PATTERN_OVERUSE",
+  "ABRUPT_SCENE_SHIFT",
 ]);
 
 export class LlmStoryWriter implements StoryWriter {
@@ -377,8 +389,9 @@ Your rules:
       reportInput: {
         issues: Array<{ chapter: number; code: string; message: string; severity: "ERROR" | "WARNING" }>;
       },
+      maxCalls = maxWarningPolishCalls,
     ): Promise<{ draft: StoryDraft; usage?: TokenUsage; changed: boolean }> => {
-      if (maxWarningPolishCalls <= 0) {
+      if (maxCalls <= 0) {
         return { draft: draftInput, changed: false };
       }
 
@@ -402,7 +415,7 @@ Your rules:
 
       const ranked = [...chapterIssues.entries()]
         .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, maxWarningPolishCalls);
+        .slice(0, maxCalls);
 
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
@@ -487,10 +500,10 @@ Your rules:
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // OPTIMIERTE REWRITE-LOGIK (V2)
-    // - Nur bei ERRORs rewriten (REWRITE_ONLY_ON_ERRORS = true)
-    // - WARNINGs werden ignoriert für Rewrites (kosten zu viel)
-    // - Maximal 1 Rewrite-Pass fuer harte Qualitaetsprobleme
+    // OPTIMIERTE REWRITE-LOGIK (V3)
+    // - Standard: nur ERROR-getriebene Rewrites
+    // - Notfall: ein Guarded-Rewrite bei niedriger Qualitaet/haeufigen Kern-Warnungen
+    // - Harte Budgetgrenze bleibt aktiv (max 1 pass ohne explizite Konfiguration)
     // ════════════════════════════════════════════════════════════════════════
     let errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
     if (normalizedRequest.wordBudget && canAutoTrimLengthErrors(errorIssues)) {
@@ -515,25 +528,30 @@ Your rules:
       }
     }
 
+    const emergencyRewriteNeeded =
+      shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
+    const effectiveRewritePasses = emergencyRewriteNeeded
+      ? Math.max(1, maxRewritePasses)
+      : maxRewritePasses;
+
     let rewriteAttempt = 0;
-    while (rewriteAttempt < maxRewritePasses && !isTokenBudgetExceeded()) {
-      errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
-      // Filter out UNLOCKED_CHARACTER (non-actor) from rewrite triggers — these are mostly
-      // German capitalized nouns (Nadel, Kompass, Brötchen) falsely flagged as character names.
-      // Only UNLOCKED_CHARACTER_ACTOR (with active verb) and other real errors trigger rewrites.
-      const actionableErrors = errorIssues.filter(
-        i => !NOISY_CODES.has(i.code) && REWRITE_ELIGIBLE_CODES.has(i.code),
-      );
+    while (rewriteAttempt < effectiveRewritePasses && !isTokenBudgetExceeded()) {
+      const actionableErrors = getActionableErrorIssues(qualityReport);
+      const rewriteWarnings = getRewriteWarningIssues(qualityReport);
+      const warningDrivenRewrite =
+        actionableErrors.length === 0 && shouldForceQualityRecovery(qualityReport, rewriteWarnings);
+      const actionableIssues = warningDrivenRewrite ? rewriteWarnings : actionableErrors;
       const shouldRewrite = REWRITE_ONLY_ON_ERRORS
-        ? actionableErrors.length > 0
+        ? actionableIssues.length > 0
         : qualityReport.failedGates.length > 0;
       if (!shouldRewrite) break;
 
       rewriteAttempt++;
-      console.log(`[story-writer] Rewrite pass ${rewriteAttempt}/${maxRewritePasses} - ${actionableErrors.length} actionable errors (${errorIssues.length} total), failed gates: ${qualityReport.failedGates.join(", ")}`);
+      console.log(
+        `[story-writer] Rewrite pass ${rewriteAttempt}/${effectiveRewritePasses} - ${actionableErrors.length} hard errors, ${rewriteWarnings.length} rewrite-warnings, warning-driven=${warningDrivenRewrite}, failed gates: ${qualityReport.failedGates.join(", ")}`
+      );
 
-      // Send only actionable errors to the rewrite prompt (not CAST_LOCK noise)
-      const rewriteInstructions = buildRewriteInstructions(actionableErrors, normalizedRequest.language);
+      const rewriteInstructions = buildRewriteInstructions(actionableIssues, normalizedRequest.language);
 
       const rewritePrompt = buildFullStoryRewritePrompt({
         originalDraft: draft,
@@ -615,15 +633,17 @@ Your rules:
         break;
       }
 
-      // Detect stale errors: if the same error codes persist after rewrite, stop wasting money.
-      // The LLM is unlikely to fix them on the next attempt either.
-      const newActionableErrors = qualityReport.issues
-        .filter(i => i.severity === "ERROR" && !NOISY_CODES.has(i.code));
-      const newErrorKeys = new Set(newActionableErrors.map(e => `${e.chapter}:${e.code}`));
-      const prevErrorKeys = new Set(actionableErrors.map(e => `${e.chapter}:${e.code}`));
-      const unchanged = [...newErrorKeys].filter(k => prevErrorKeys.has(k));
-      if (unchanged.length > 0 && unchanged.length >= newActionableErrors.length * 0.5) {
-        console.log(`[story-writer] Rewrite pass ${rewriteAttempt}: ${unchanged.length}/${newActionableErrors.length} errors unchanged, stopping rewrite loop (would waste money)`);
+      // Detect stale actionable issues to avoid paying for repeated ineffective rewrites.
+      const currentActionable = warningDrivenRewrite
+        ? getRewriteWarningIssues(qualityReport)
+        : getActionableErrorIssues(qualityReport);
+      const currentKeys = new Set(currentActionable.map(issue => `${issue.chapter}:${issue.code}`));
+      const previousKeys = new Set(actionableIssues.map(issue => `${issue.chapter}:${issue.code}`));
+      const unchanged = [...currentKeys].filter(key => previousKeys.has(key));
+      if (currentActionable.length > 0 && unchanged.length >= currentActionable.length * 0.5) {
+        console.log(
+          `[story-writer] Rewrite pass ${rewriteAttempt}: ${unchanged.length}/${currentActionable.length} actionable issues unchanged, stopping rewrite loop`
+        );
         break;
       }
     }
@@ -656,8 +676,13 @@ Your rules:
       }
     }
 
-    if (allowPostEdits && maxWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
-      const warningPolish = await applyWarningPolish(draft, qualityReport);
+    const emergencyWarningPolishCalls =
+      maxWarningPolishCalls > 0
+        ? maxWarningPolishCalls
+        : (shouldForceQualityRecovery(qualityReport, getWarningPolishIssues(qualityReport)) ? 1 : 0);
+
+    if (allowPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
+      const warningPolish = await applyWarningPolish(draft, qualityReport, emergencyWarningPolishCalls);
       if (warningPolish.changed) {
         const polishedReport = runQualityGates({
           draft: warningPolish.draft,
@@ -1163,6 +1188,31 @@ function findCharacterDisplayName(cast: CastSet, slotKey: string): string | null
   return sheet?.displayName ?? null;
 }
 
+function getActionableErrorIssues(report: { issues: QualityIssue[] }): QualityIssue[] {
+  return report.issues.filter(issue => issue.severity === "ERROR" && !NOISY_CODES.has(issue.code));
+}
+
+function getRewriteWarningIssues(report: { issues: QualityIssue[] }): QualityIssue[] {
+  return report.issues.filter(issue => issue.severity === "WARNING" && REWRITE_WARNING_CODES.has(issue.code));
+}
+
+function getWarningPolishIssues(report: { issues: QualityIssue[] }): QualityIssue[] {
+  return report.issues.filter(issue => issue.severity === "WARNING" && WARNING_POLISH_CODES.has(issue.code));
+}
+
+function shouldForceQualityRecovery(
+  report: {
+    score: number;
+    issues: QualityIssue[];
+  },
+  warningCandidates: QualityIssue[],
+): boolean {
+  const hasHardErrors = getActionableErrorIssues(report).length > 0;
+  if (hasHardErrors) return true;
+  if (warningCandidates.length === 0) return false;
+  return report.score < QUALITY_RECOVERY_SCORE_THRESHOLD || warningCandidates.length >= QUALITY_RECOVERY_WARNING_COUNT;
+}
+
 function canAutoTrimLengthErrors(errorIssues: Array<{ code: string }>): boolean {
   if (errorIssues.length === 0) return false;
   return errorIssues.some(issue => issue.code === "TOTAL_TOO_LONG");
@@ -1247,7 +1297,7 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
 // Codes excluded from rewrite quality comparison (too noisy / unreliable detection)
 // Also includes structural issues that LLM rewrites fundamentally cannot fix.
 const NOISY_CODES = new Set([
-  "UNLOCKED_CHARACTER", "UNLOCKED_CHARACTER_ACTOR",
+  "UNLOCKED_CHARACTER",
   "GLOBAL_CAST_OVERLOAD",            // Cast is determined before writing; LLM can't remove characters
 ]);
 
