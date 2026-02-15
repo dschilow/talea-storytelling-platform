@@ -225,10 +225,12 @@ async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterShee
       : null;
     const invariantPrompt = invariants ? formatInvariantsForPrompt(invariants) : null;
 
+    const identityAnchors = buildAvatarIdentityAnchors(avatar);
     const visualSignature = [
       ...(avatar.visualProfile?.consistentDescriptors || []),
       ...(invariantPrompt?.mustIncludeTokens || []),
-    ].filter(Boolean).slice(0, 6);
+      ...identityAnchors,
+    ].filter(Boolean).slice(0, 8);
 
     const outfitLock = [
       avatar.visualProfile?.clothingCanonical?.outfit,
@@ -245,6 +247,7 @@ async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterShee
     const forbidden = [
       ...(avatar.visualProfile?.forbiddenFeatures || []),
       ...(invariants?.forbiddenFeatures || []),
+      ...buildAvatarIdentityForbids(avatar),
     ].filter(Boolean) as string[];
 
     // Resolve bucket:// URLs to HTTP URLs for reference images
@@ -266,6 +269,50 @@ async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterShee
       imageUrl: resolvedImageUrl,
     };
   }));
+}
+
+function buildAvatarIdentityAnchors(avatar: AvatarDetail): string[] {
+  const profile = avatar.visualProfile;
+  if (!profile) return [];
+
+  const anchors: string[] = [];
+  const speciesValue = String(profile.speciesCategory || profile.characterType || "").toLowerCase();
+  if (speciesValue.includes("human") || speciesValue.includes("person") || speciesValue.includes("kind")) {
+    anchors.push("human child");
+  } else if (speciesValue) {
+    anchors.push(speciesValue);
+  }
+
+  if ((profile.ageNumeric || 0) > 0) {
+    anchors.push((profile.ageNumeric || 0) <= 12 ? "young child" : "teen");
+  } else {
+    const ageText = String(profile.ageApprox || profile.ageDescription || "").toLowerCase();
+    if (/\b(child|kid|young|preschool|elementary|school-age)\b/.test(ageText)) anchors.push("young child");
+    if (/\b(teen|adolescent)\b/.test(ageText)) anchors.push("teen");
+  }
+
+  const genderText = String(profile.gender || "").toLowerCase();
+  if (/\b(male|boy|junge|maennlich|männlich)\b/.test(genderText)) anchors.push("male");
+  if (/\b(female|girl|maedchen|mädchen|weiblich)\b/.test(genderText)) anchors.push("female");
+
+  return Array.from(new Set(anchors));
+}
+
+function buildAvatarIdentityForbids(avatar: AvatarDetail): string[] {
+  const profile = avatar.visualProfile;
+  if (!profile) return [];
+  const forbids: string[] = [];
+  const genderText = String(profile.gender || "").toLowerCase();
+  if (/\b(male|boy|junge|maennlich|männlich)\b/.test(genderText)) {
+    forbids.push("female child body", "girl face");
+  } else if (/\b(female|girl|maedchen|mädchen|weiblich)\b/.test(genderText)) {
+    forbids.push("male child body", "boy face");
+  }
+  const speciesValue = String(profile.speciesCategory || profile.characterType || "").toLowerCase();
+  if (speciesValue.includes("human") || speciesValue.includes("person") || speciesValue.includes("kind")) {
+    forbids.push("animal body", "animal face");
+  }
+  return Array.from(new Set(forbids));
 }
 
 async function selectCandidateForSlot(input: {

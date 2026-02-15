@@ -219,16 +219,25 @@ function enforceDynamicBlocking(blockingText: string, onStageExact: string[], ca
 }
 
 function toDynamicAction(value: string, index: number): string {
-  const cleaned = String(value || "").replace(/\s+/g, " ").trim();
+  const cleaned = normalizeMovementClause(String(value || "").replace(/\s+/g, " ").trim());
   if (!cleaned) return defaultDynamicAction(index);
   const lowered = cleaned.toLowerCase();
   if (STATIC_ACTION_PATTERNS.some(pattern => pattern.test(lowered)) && !DYNAMIC_ACTION_VERBS.some(verb => lowered.includes(verb))) {
     return defaultDynamicAction(index);
   }
-  if (!DYNAMIC_ACTION_VERBS.some(verb => lowered.includes(verb))) {
+  if (!DYNAMIC_ACTION_VERBS.some(verb => lowered.includes(verb)) && !MOVEMENT_PHRASE_PATTERN.test(lowered)) {
     return `${cleaned} while moving decisively`;
   }
   return cleaned.replace(/[.!?]+$/g, "").trim();
+}
+
+function normalizeMovementClause(value: string): string {
+  if (!value) return "";
+  let result = value;
+  result = result.replace(/\bwhile\s+moving\s+decisively\b/gi, "while actively moving");
+  result = result.replace(/\bwhile\s+actively\s+moving\b(?:\s+\bwhile\s+actively\s+moving\b)+/gi, "while actively moving");
+  result = result.replace(/\s+/g, " ").trim();
+  return result;
 }
 
 function splitSentences(value: string): string[] {
@@ -309,9 +318,11 @@ const STATIC_ACTION_PATTERNS = [
 
 const DYNAMIC_ACTION_VERBS = [
   "run", "sprint", "dash", "jump", "leap", "lunge", "crawl", "climb", "duck",
-  "grab", "pull", "push", "lift", "swing", "throw", "catch", "brace", "reach",
-  "drag", "step", "vault", "slide", "kneel", "crouch", "pivot", "charge",
+  "grab", "pull", "push", "lift", "hold", "open", "read", "tap", "swing",
+  "throw", "catch", "brace", "reach", "drag", "step", "vault", "slide",
+  "kneel", "crouch", "pivot", "charge", "stabilize", "balance",
 ];
+const MOVEMENT_PHRASE_PATTERN = /\bwhile\s+(?:actively\s+)?moving(?:\s+decisively)?\b/i;
 
 function containsBirdToken(text: string): boolean {
   const value = text.toLowerCase();

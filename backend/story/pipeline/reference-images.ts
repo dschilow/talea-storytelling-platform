@@ -86,8 +86,17 @@ export function buildCollageRefsForSlots(
 function getCharacterBrief(cast: CastSet, displayName: string): string {
   const sheet = [...cast.avatars, ...cast.poolCharacters].find(s => s.displayName === displayName);
   if (!sheet) return "";
-  const items = [...(sheet.visualSignature || []), ...(sheet.faceLock || [])].filter(Boolean);
-  return items.slice(0, 2).join(", ");
+  const genericTokens = new Set(["human child", "young child", "male", "female", "teen"]);
+  const preferred = [...(sheet.faceLock || []), ...(sheet.outfitLock || []), ...(sheet.visualSignature || [])]
+    .filter(Boolean)
+    .map(item => String(item).trim())
+    .filter(item => item && !genericTokens.has(item.toLowerCase()));
+  const fallback = [...(sheet.visualSignature || []), ...(sheet.faceLock || [])]
+    .filter(Boolean)
+    .map(item => String(item).trim())
+    .filter(Boolean);
+  const items = preferred.length > 0 ? preferred : fallback;
+  return Array.from(new Set(items)).slice(0, 2).join(", ");
 }
 
 function getSheet(cast: CastSet, slotKey: string) {

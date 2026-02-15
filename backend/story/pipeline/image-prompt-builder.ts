@@ -52,13 +52,14 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
       ? "- Do NOT swap identities; each character MUST match their slot identity from the reference strip"
       : "- Do NOT swap identities; match each character to its reference image"
     : "";
+  const identityConsistencyRules = buildIdentityConsistencyRules(cast, spec.onStageExact);
 
   // Separate rules for animal characters vs humanoid fantasy creatures (fairy, elf, dwarf, goblin)
   const animalRule = nonHumanInfo.animalNames.length > 0
-    ? `- ANIMAL RULE: ${nonHumanInfo.animalNames.join(", ")} must remain fully animal; non-human anatomy (e.g., paws, fur, snout, tail). No human body, no upright human stance, no human clothing.`
+    ? `- ANIMAL RULE: ${nonHumanInfo.animalNames.join(", ")} must keep clear animal anatomy (e.g., paws, fur, snout, tail). Accessories from identity locks are allowed. Do NOT turn them into human children or human faces.`
     : "";
   const humanoidFantasyRule = nonHumanInfo.humanoidFantasyNames.length > 0
-    ? `- FANTASY CREATURE RULE: ${nonHumanInfo.humanoidFantasyNames.join(", ")} ${nonHumanInfo.humanoidFantasyNames.length === 1 ? "is a" : "are"} humanoid fantasy creature${nonHumanInfo.humanoidFantasyNames.length !== 1 ? "s" : ""} — ${buildHumanoidFantasyHint(nonHumanInfo.humanoidFantasyKinds)}. They have a humanoid body shape and can wear clothing. Do NOT give them green skin, animal parts, frog legs, or non-human anatomy. They look like stylized humans with fantastical features.`
+    ? `- FANTASY CREATURE RULE: ${nonHumanInfo.humanoidFantasyNames.join(", ")} ${nonHumanInfo.humanoidFantasyNames.length === 1 ? "is a" : "are"} humanoid fantasy creature${nonHumanInfo.humanoidFantasyNames.length !== 1 ? "s" : ""} — ${buildHumanoidFantasyHint(nonHumanInfo.humanoidFantasyKinds)}. They keep humanoid fantasy traits and are not replaced by plain human kids or real animals.`
     : "";
   const nonHumanRule = [animalRule, humanoidFantasyRule].filter(Boolean).join("\n") || "";
 
@@ -81,6 +82,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     "- No written text or typography; no watermarks or logos",
     hasBird ? "- EXACTLY 1 bird total (if present), no other animals" : "- No extra animals",
     identityLock,
+    ...identityConsistencyRules,
     nonHumanRule,
   ]
     .filter(Boolean)
@@ -100,6 +102,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const characterIdentityBlock = characterDetails.length > 0
     ? `CHARACTER IDENTITY LOCKS:\n${characterDetails.map(detail => `- ${detail}`).join("\n")}`
     : "";
+  const characterForbiddenBlock = buildCharacterForbiddenLockBlock(cast, spec.onStageExact);
 
   const languageGuard = forceEnglish
     ? "LANGUAGE: English only. Translate any non-English words before rendering."
@@ -110,7 +113,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     nonHumanKinds: nonHumanInfo.nonHumanKinds,
   }).join(", ")}`;
 
-  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneBlock, characterIdentityBlock, characterActionLockBlock, actionBlock, languageGuard, negativeBlock]
+  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneBlock, characterIdentityBlock, characterForbiddenBlock, characterActionLockBlock, actionBlock, languageGuard, negativeBlock]
     .filter(Boolean)
     .join("\n\n");
 
@@ -133,6 +136,22 @@ function buildCharacterDetail(cast: CastSet, slotKey: string): string | null {
   const unique = Array.from(new Set(items)).slice(0, 3);
   const detail = unique.length > 0 ? unique.join(", ") : "distinct appearance";
   return `${sheet.displayName}: ${detail}`;
+}
+
+function buildCharacterForbiddenLockBlock(cast: CastSet, slots: string[]): string {
+  const lines: string[] = [];
+  for (const slot of slots) {
+    const sheet = cast.avatars.find(a => a.slotKey === slot) || cast.poolCharacters.find(c => c.slotKey === slot);
+    if (!sheet) continue;
+    const forbids = (sheet.forbidden || [])
+      .map(item => String(item).trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    if (forbids.length === 0) continue;
+    lines.push(`- ${sheet.displayName}: avoid ${forbids.join(", ")}`);
+  }
+  if (lines.length === 0) return "";
+  return `CHARACTER FORBIDDEN LOCKS:\n${lines.join("\n")}`;
 }
 
 function containsBirdToken(text: string): boolean {
@@ -184,24 +203,35 @@ function buildStagingLine(namesLine: string, refEntries: Array<[string, string]>
     .filter(([key]) => key.startsWith("slot_"))
     .sort((a, b) => Number(a[0].replace("slot_", "")) - Number(b[0].replace("slot_", "")));
   if (slotEntries.length === 0) return `LEFT-TO-RIGHT: ${namesLine}`;
+  const resolvedSlotNames = slotEntries.map(([, value]) => extractRefName(value)).filter(Boolean);
   const parts = slotEntries.map(([key, value]) => {
     const slotNum = key.replace("slot_", "");
     const name = extractRefName(value);
     return `Slot-${slotNum} ${name}`;
   });
-  const slotNames = parts.map(part => part.replace(/^Slot-\d+\s+/, "").trim().toLowerCase());
+  const slotNames = resolvedSlotNames.map(name => normalizeNameToken(name));
   const missingNames = namesLine
     .split(" + ")
     .map(name => name.trim())
-    .filter(name => name && !slotNames.includes(name.toLowerCase()));
+    .filter(name => name && !slotNames.includes(normalizeNameToken(name)));
   const missingSuffix = missingNames.length > 0 ? `, then ${missingNames.join(" + ")}` : "";
   return `LEFT-TO-RIGHT (slot order): ${parts.join(", ")}${missingSuffix}`;
 }
 
 function extractRefName(value: string): string {
   if (!value) return "";
-  const head = value.split("—")[0].trim();
-  return head.replace(/\s*\(.*\)\s*$/, "").trim() || head;
+  const normalized = value.replace(/[–—]/g, "-");
+  const [head] = normalized.split(/\s+-\s+/);
+  const core = (head || normalized).trim();
+  return core.replace(/\s*\(.*\)\s*$/, "").trim() || core;
+}
+
+function normalizeNameToken(value: string): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
 }
 
 function mergeActionText(primary?: string, secondary?: string): string {
@@ -233,16 +263,27 @@ function buildCharacterActionLockBlock(actionsText: string, characterNames: stri
 }
 
 function normalizeActionLockText(action: string, index: number): string {
-  const cleaned = String(action || "").replace(/\s+/g, " ").trim();
+  const cleaned = normalizeActionClause(action);
   if (!cleaned) return defaultActionLock(index);
   const lowered = cleaned.toLowerCase();
   if (ACTION_LOCK_STATIC_PATTERNS.some(pattern => pattern.test(lowered))) {
     return defaultActionLock(index);
   }
-  if (!ACTION_LOCK_DYNAMIC_VERBS.some(verb => lowered.includes(verb))) {
+  if (!ACTION_LOCK_DYNAMIC_VERBS.some(verb => lowered.includes(verb)) && !MOVEMENT_PHRASE_PATTERN.test(lowered)) {
     return `${cleaned} while actively moving`;
   }
   return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+}
+
+function normalizeActionClause(action: string): string {
+  const cleaned = String(action || "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  let result = cleaned;
+  result = result.replace(/\bwhile\s+moving\s+decisively\b/gi, "while actively moving");
+  result = result.replace(/\bwhile\s+actively\s+moving\b(?:\s+\bwhile\s+actively\s+moving\b)+/gi, "while actively moving");
+  result = result.replace(/\bwhile\s+actively\s+moving\s*\.\s*while\s+actively\s+moving\b/gi, "while actively moving");
+  result = result.replace(/\s+/g, " ").trim();
+  return result;
 }
 
 function defaultActionLock(index: number): string {
@@ -393,9 +434,11 @@ const ACTION_LOCK_STATIC_PATTERNS = [
 
 const ACTION_LOCK_DYNAMIC_VERBS = [
   "run", "sprint", "dash", "jump", "leap", "lunge", "crawl", "climb", "duck",
-  "grab", "pull", "push", "lift", "swing", "throw", "catch", "brace", "reach",
-  "drag", "step", "vault", "slide", "kneel", "crouch", "pivot", "charge",
+  "grab", "pull", "push", "lift", "hold", "open", "read", "tap", "swing",
+  "throw", "catch", "brace", "reach", "drag", "step", "vault", "slide",
+  "kneel", "crouch", "pivot", "charge", "stabilize", "balance",
 ];
+const MOVEMENT_PHRASE_PATTERN = /\bwhile\s+(?:actively\s+)?moving(?:\s+decisively)?\b/i;
 
 function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] }): string[] {
   const items = [
@@ -412,6 +455,9 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     "twins",
     "clone",
     "identity drift",
+    "gender swap",
+    "wrong gender presentation",
+    "species swap",
     "character merge",
     "swapped identity",
     "wrong slot",
@@ -440,18 +486,56 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     items.push("extra bird", "multiple birds");
   }
 
-  // Only add animal-specific negatives for actual animals, not humanoid fantasy creatures
+  // Prevent class drift without forcing a non-storybook rendering style.
   const animalKinds = input.nonHumanKinds.filter(k => !HUMANOID_FANTASY_KINDS.has(k));
-  if (animalKinds.includes("frog")) {
-    items.push("anthropomorphic frog", "frog becomes boy", "human-like frog", "frog stands upright like a human");
-  } else if (animalKinds.length > 0) {
-    items.push("anthropomorphic animal", "animal becomes human", "human-like animal");
+  if (animalKinds.length > 0) {
+    items.push("animal replaced by human child", "human face on animal body", "animal identity swapped");
   }
-  // For humanoid fantasy creatures, prevent the model from making them look like animals
   const fantasyKinds = input.nonHumanKinds.filter(k => HUMANOID_FANTASY_KINDS.has(k));
   if (fantasyKinds.length > 0) {
-    items.push("green hands on humans", "green feet on humans", "frog legs on humans", "animal parts on humans");
+    items.push("fantasy creature replaced by plain human child", "fantasy creature replaced by real animal");
   }
 
   return Array.from(new Set(items));
+}
+
+function buildIdentityConsistencyRules(cast: CastSet, slots: string[]): string[] {
+  const rules: string[] = [];
+  for (const slot of slots) {
+    const sheet = cast.avatars.find(a => a.slotKey === slot) || cast.poolCharacters.find(c => c.slotKey === slot);
+    if (!sheet) continue;
+    const profile = getCharacterProfileText(sheet).toLowerCase();
+    const kind = matchNonHumanKind(profile);
+    const gender = inferGenderFromProfile(profile);
+
+    if (!kind) {
+      if (gender === "male") {
+        rules.push(`- ${sheet.displayName} is a human boy. Do NOT render as female or as an animal.`);
+      } else if (gender === "female") {
+        rules.push(`- ${sheet.displayName} is a human girl. Do NOT render as male or as an animal.`);
+      } else {
+        rules.push(`- ${sheet.displayName} remains a human child, not an animal or creature.`);
+      }
+      continue;
+    }
+
+    if (HUMANOID_FANTASY_KINDS.has(kind)) {
+      rules.push(`- ${sheet.displayName} remains a ${kind} character (humanoid fantasy), not replaced by a plain human child or real animal.`);
+      continue;
+    }
+
+    rules.push(`- ${sheet.displayName} remains a ${kind}, not replaced by a human child.`);
+  }
+  return Array.from(new Set(rules));
+}
+
+function inferGenderFromProfile(profileLower: string): "male" | "female" | "unknown" {
+  if (!profileLower) return "unknown";
+  const femalePattern = /\b(female|girl|woman|maedchen|mädchen|weiblich)\b/i;
+  const malePattern = /\b(male|boy|man|junge|männlich|maennlich)\b/i;
+  const isFemale = femalePattern.test(profileLower);
+  const isMale = malePattern.test(profileLower);
+  if (isFemale && !isMale) return "female";
+  if (isMale && !isFemale) return "male";
+  return "unknown";
 }

@@ -564,7 +564,6 @@ function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
   const characterNames = [
     ...cast.avatars.map(a => a.displayName),
     ...cast.poolCharacters.map(c => c.displayName),
-    cast.artifact?.name,
   ]
     .filter(Boolean)
     .map(name => String(name).toLowerCase());
@@ -585,7 +584,7 @@ function limitPropsVisible(directive: SceneDirective, cast: CastSet): string[] {
     const trimmed = value.trim();
     if (!trimmed || seen.has(trimmed)) return;
     const lower = trimmed.toLowerCase();
-    if (isCharacterName(lower) || isSettingLike(lower) || isPersonLike(lower) || isLocationLike(lower)) return;
+    if (isCharacterName(lower) || isSettingLike(lower) || isPersonLike(lower) || isLocationLike(lower) || isCharacterDescriptorPhrase(lower)) return;
     if (result.length >= maxItems) return;
     seen.add(trimmed);
     result.push(trimmed);
@@ -611,7 +610,6 @@ function filterPropsList(props: string[], cast: CastSet, directive: SceneDirecti
   const characterNames = [
     ...cast.avatars.map(a => a.displayName),
     ...cast.poolCharacters.map(c => c.displayName),
-    cast.artifact?.name,
   ]
     .filter(Boolean)
     .map(name => String(name).toLowerCase());
@@ -622,6 +620,7 @@ function filterPropsList(props: string[], cast: CastSet, directive: SceneDirecti
     const lower = value.toLowerCase();
     if (characterNames.some(name => name && (lower === name || lower.includes(name)))) return false;
     if (settingText && (lower === settingText || lower.includes(settingText) || settingText.includes(lower))) return false;
+    if (isCharacterDescriptorPhrase(lower)) return false;
     if (isPersonLike(lower) || isLocationLike(lower)) return false;
     return true;
   });
@@ -733,6 +732,29 @@ function isLocationLike(valueLower: string): boolean {
   return LOCATION_TOKENS.some(token => valueLower.includes(token));
 }
 
+const CHARACTER_DESCRIPTOR_TOKENS = [
+  "eichhoernchen",
+  "squirrel",
+  "kobold",
+  "goblin",
+  "dragon",
+  "unicorn",
+  "fox",
+  "wolf",
+  "dog",
+  "cat",
+  "bird",
+  "companion",
+  "avatar",
+  "character",
+];
+
+function isCharacterDescriptorPhrase(valueLower: string): boolean {
+  const wordCount = valueLower.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 3) return false;
+  return CHARACTER_DESCRIPTOR_TOKENS.some(token => valueLower.includes(token));
+}
+
 function mergeProps(aiProps: string[], templateProps: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -785,14 +807,14 @@ function normalizeSlotKey(value: string): string {
 }
 
 function ensureDynamicActionPhrase(action: string, index: number): string {
-  const cleaned = normalizeActionText(action);
+  const cleaned = normalizeMovementClause(normalizeActionText(action));
   if (!cleaned) return fallbackDynamicAction(index);
 
   const lowered = cleaned.toLowerCase();
   if (STATIC_ACTION_PATTERNS.some(pattern => pattern.test(lowered)) && !hasDynamicVerb(lowered)) {
     return fallbackDynamicAction(index);
   }
-  if (!hasDynamicVerb(lowered)) {
+  if (!hasDynamicVerb(lowered) && !MOVEMENT_PHRASE_PATTERN.test(lowered)) {
     return `${cleaned} while moving decisively`;
   }
   return cleaned;
@@ -819,6 +841,15 @@ function normalizeActionText(value: string): string {
 
 function hasDynamicVerb(value: string): boolean {
   return DYNAMIC_VERBS.some(verb => value.includes(verb));
+}
+
+function normalizeMovementClause(value: string): string {
+  if (!value) return "";
+  let result = value;
+  result = result.replace(/\bwhile\s+moving\s+decisively\b/gi, "while actively moving");
+  result = result.replace(/\bwhile\s+actively\s+moving\b(?:\s+\bwhile\s+actively\s+moving\b)+/gi, "while actively moving");
+  result = result.replace(/\s+/g, " ").trim();
+  return result;
 }
 
 function fallbackDynamicAction(index: number): string {
@@ -890,9 +921,11 @@ const STATIC_POSE_PATTERNS = [
 
 const DYNAMIC_VERBS = [
   "run", "sprint", "dash", "jump", "leap", "lunge", "crawl", "climb", "duck", "grab",
-  "pull", "push", "lift", "swing", "throw", "catch", "brace", "reach", "drag", "step",
-  "vault", "slide", "kneel", "crouch", "pivot", "race", "charge", "scramble", "hurry",
+  "pull", "push", "lift", "hold", "open", "read", "tap", "swing", "throw", "catch",
+  "brace", "reach", "drag", "step", "vault", "slide", "kneel", "crouch", "pivot",
+  "race", "charge", "scramble", "hurry", "stabilize", "balance",
 ];
+const MOVEMENT_PHRASE_PATTERN = /\bwhile\s+(?:actively\s+)?moving(?:\s+decisively)?\b/i;
 
 function sanitizeActionPhrase(text: string, names: string[]): string {
   if (!text) return "";
