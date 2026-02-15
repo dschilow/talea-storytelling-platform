@@ -139,7 +139,10 @@ function resolveImageLogSource(phase?: string): string {
 
 function resolveIpAdapterWeight(referenceCount: number, useCollageReference: boolean): number | undefined {
   if (referenceCount <= 0) return undefined;
-  if (useCollageReference) return 0.55;
-  if (referenceCount >= 3) return 0.6;
-  return 0.65;
+  if (useCollageReference) {
+    return referenceCount >= 3 ? 0.72 : 0.7;
+  }
+  if (referenceCount >= 3) return 0.74;
+  if (referenceCount === 2) return 0.72;
+  return 0.68;
 }

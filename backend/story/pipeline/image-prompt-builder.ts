@@ -4,7 +4,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const forceEnglish = options?.forceEnglish ?? false;
   const characterNames = spec.onStageExact
     .map(slot => findCharacterName(cast, slot))
-    .filter(Boolean);
+    .filter((name): name is string => Boolean(name));
   const count = characterNames.length;
   const namesLine = characterNames.join(" + ");
   const characterDetails = spec.onStageExact
@@ -73,6 +73,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     `- FULL body visible head-to-toe for all (feet visible), ${shotLabel}`,
     "- No cropping or occlusion; no one hidden behind objects or other characters",
     "- Characters MUST perform their described actions (running, kneeling, reaching, climbing) — NOT just standing idle",
+    "- Follow CHARACTER ACTION LOCKS exactly; each named character must show a different visible movement",
     "- Characters interact with each other or props; NOT looking at camera; NOT posing for a photo",
     "- NO static group poses — each character must have a DIFFERENT body position and action",
     "- Characters must be fully integrated in the scene (no sticker/cutout look, no pasted avatars, no floating heads)",
@@ -91,12 +92,13 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const sceneBlock = `SHOT / COMPOSITION: ${normalizedComposition}${blockingText ? `. ${blockingText}` : ""}${lightingText ? `. Lighting: ${lightingText}` : ""}`;
 
   const stagingLine = count > 1 ? buildStagingLine(namesLine, refEntries, isCollageMode) : "";
+  const characterActionLockBlock = buildCharacterActionLockBlock(spec.actions, characterNames);
   const actionText = mergeActionText(spec.sceneDescription, spec.actions) || "Characters actively interact with each other and their surroundings in a dynamic moment — each with a different pose and action.";
   const propsText = (spec.propsVisible || []).filter(Boolean).join(", ");
   const actionBlock = `ACTION (DO NOT SWAP): ${stagingLine ? `${stagingLine}. ` : ""}${actionText}${propsText ? ` Key props: ${propsText}.` : ""}`;
 
-  const characterBlock = refEntries.length === 0 && characterDetails.length > 0
-    ? `CHARACTER DETAILS: ${characterDetails.join("; ")}`
+  const characterIdentityBlock = characterDetails.length > 0
+    ? `CHARACTER IDENTITY LOCKS:\n${characterDetails.map(detail => `- ${detail}`).join("\n")}`
     : "";
 
   const languageGuard = forceEnglish
@@ -108,7 +110,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     nonHumanKinds: nonHumanInfo.nonHumanKinds,
   }).join(", ")}`;
 
-  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneBlock, actionBlock, characterBlock, languageGuard, negativeBlock]
+  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneBlock, characterIdentityBlock, characterActionLockBlock, actionBlock, languageGuard, negativeBlock]
     .filter(Boolean)
     .join("\n\n");
 
@@ -210,11 +212,58 @@ function mergeActionText(primary?: string, secondary?: string): string {
   return [first, second].filter(Boolean).join(" ");
 }
 
+function buildCharacterActionLockBlock(actionsText: string, characterNames: string[]): string {
+  if (!characterNames.length) return "";
+  const sentences = String(actionsText || "")
+    .split(/(?<=[.!?])\s+/)
+    .map(sentence => sentence.trim())
+    .filter(Boolean);
+
+  const lines = characterNames.map((name, index) => {
+    const pattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, "i");
+    const sentence = sentences.find(item => pattern.test(item)) || "";
+    const actionCore = sentence
+      ? sentence.replace(pattern, "").replace(/[,:;\-]/g, " ").replace(/\s+/g, " ").trim()
+      : "";
+    const dynamicAction = normalizeActionLockText(actionCore, index);
+    return `- ${name}: ${dynamicAction}`;
+  });
+
+  return `CHARACTER ACTION LOCKS (MUST BE VISIBLE):\n${lines.join("\n")}`;
+}
+
+function normalizeActionLockText(action: string, index: number): string {
+  const cleaned = String(action || "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return defaultActionLock(index);
+  const lowered = cleaned.toLowerCase();
+  if (ACTION_LOCK_STATIC_PATTERNS.some(pattern => pattern.test(lowered))) {
+    return defaultActionLock(index);
+  }
+  if (!ACTION_LOCK_DYNAMIC_VERBS.some(verb => lowered.includes(verb))) {
+    return `${cleaned} while actively moving`;
+  }
+  return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+}
+
+function defaultActionLock(index: number): string {
+  const defaults = [
+    "sprinting toward the key clue.",
+    "crouching and pulling someone clear.",
+    "reaching out to stabilize a moving object.",
+    "jumping across an obstacle to open the path.",
+  ];
+  return defaults[index % defaults.length];
+}
+
 function normalizeSentence(value?: string): string {
   const text = (value || "").trim();
   if (!text) return "";
   if (/[.!?]$/.test(text)) return text;
   return `${text}.`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function classifyNonHumans(cast: CastSet, slots: string[]): {
@@ -333,6 +382,21 @@ function buildHumanoidFantasyHint(kinds: string[]): string {
   return unique.map(k => hints[k] || "humanoid with fantastical features").join("; ");
 }
 
+const ACTION_LOCK_STATIC_PATTERNS = [
+  /\bstand(?:s|ing)?\b/,
+  /\blook(?:s|ing)?\b/,
+  /\bwatch(?:es|ing)?\b/,
+  /\bpose(?:s|d)?\b/,
+  /\bfacing\s+(?:camera|viewer)\b/,
+  /\bidle\b/,
+];
+
+const ACTION_LOCK_DYNAMIC_VERBS = [
+  "run", "sprint", "dash", "jump", "leap", "lunge", "crawl", "climb", "duck",
+  "grab", "pull", "push", "lift", "swing", "throw", "catch", "brace", "reach",
+  "drag", "step", "vault", "slide", "kneel", "crouch", "pivot", "charge",
+];
+
 function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] }): string[] {
   const items = [
     "extra child",
@@ -343,8 +407,12 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     "reflections",
     "faces in posters/paintings",
     "duplicate",
+    "same character repeated",
+    "same face on two bodies",
     "twins",
     "clone",
+    "identity drift",
+    "character merge",
     "swapped identity",
     "wrong slot",
     "looking at camera",

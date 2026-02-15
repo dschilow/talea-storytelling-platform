@@ -18,6 +18,7 @@ export interface CandidateProfile {
   archetype: string;
   visual_profile?: { description?: string; species?: string };
   personality_keywords?: string[];
+  recent_usage_count?: number;
   total_usage_count?: number;
   // V2 Personality fields
   dominant_personality?: string | null;
@@ -105,14 +106,17 @@ export function scoreCandidate(slot: RoleSlot, candidate: CandidateProfile): Mat
 
   let finalScore = (narrativeFit + personalitySync + visualHarmony + conflictPotential) / 4;
 
-  const usagePenalty = Math.min(0.2, (candidate.total_usage_count || 0) / 100);
-  finalScore = clamp01(finalScore - usagePenalty);
+  const recentUsagePenalty = Math.min(0.35, (candidate.recent_usage_count || 0) * 0.08);
+  const lifetimeUsagePenalty = Math.min(0.16, (candidate.total_usage_count || 0) / 140);
+  finalScore = clamp01(finalScore - recentUsagePenalty - lifetimeUsagePenalty);
 
   const notes: string[] = [];
   if (roleHit) notes.push("role match");
   else notes.push("weak role match");
   if (v2PersonalityBonus > 0) notes.push(`personality fit +${v2PersonalityBonus.toFixed(2)}`);
   if (richnessBonus > 0) notes.push(`rich voice +${richnessBonus.toFixed(2)}`);
+  if (recentUsagePenalty > 0) notes.push(`recent penalty -${recentUsagePenalty.toFixed(2)}`);
+  if (lifetimeUsagePenalty > 0) notes.push(`lifetime penalty -${lifetimeUsagePenalty.toFixed(2)}`);
 
   return {
     scores: { narrativeFit, personalitySync, visualHarmony, conflictPotential },

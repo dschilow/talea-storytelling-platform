@@ -1,4 +1,4 @@
-import type { AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective, StoryDraft } from "./types";
+import type { AICharacterAction, AISceneDescription, CastSet, ImageDirector, ImageSpec, NormalizedRequest, SceneDirective, StoryDraft } from "./types";
 import { COLLAGE_MODE_NEGATIVES, GLOBAL_IMAGE_NEGATIVES, MAX_ON_STAGE_CHARACTERS } from "./constants";
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { buildCollageReference, buildCollageRefsForSlots, buildRefsForSlots, selectReferenceSlots } from "./reference-images";
@@ -154,27 +154,34 @@ function buildAISpec(
   const characterNames = onStageExact
     .map(slot => findName(cast, slot))
     .filter(Boolean);
-
-  // Build blocking from AI character actions
-  const blockingParts = aiDesc.characterActions.map((charAction) => {
-    const name = findName(cast, charAction.slotKey);
-    const bodyLanguage = sanitizeActionPhrase(charAction.bodyLanguage, characterNames) || "active stance";
-    const expression = sanitizeActionPhrase(charAction.expression, characterNames) || "engaged expression";
+  const parsedActions = Array.isArray(aiDesc.characterActions) ? aiDesc.characterActions : [];
+  const blockingParts = onStageExact.map((slotKey, index) => {
+    const name = findName(cast, slotKey);
+    const resolved = findActionBySlotOrName(parsedActions, slotKey, name);
+    const bodyLanguage = ensureDynamicBodyLanguage(
+      sanitizeActionPhrase(String(resolved?.bodyLanguage || ""), characterNames),
+      index,
+    );
+    const expression = sanitizeActionPhrase(String(resolved?.expression || ""), characterNames) || defaultExpression(index);
     return `${name} ${bodyLanguage}, ${expression}`;
   });
-  const blocking = blockingParts.join(". ") + ".";
+  const blocking = dedupeSentences(blockingParts).join(" ");
 
-  // Build actions from AI character actions
-  const actionParts = aiDesc.characterActions.map((charAction) => {
-    const name = findName(cast, charAction.slotKey);
-    const action = sanitizeActionPhrase(charAction.action, characterNames) || "moves in the scene";
-    return `${name} ${action}`;
+  // Build explicit per-character actions in on-stage order.
+  const actionParts = onStageExact.map((slotKey, index) => {
+    const name = findName(cast, slotKey);
+    const resolved = findActionBySlotOrName(parsedActions, slotKey, name);
+    const action = ensureDynamicActionPhrase(
+      sanitizeActionPhrase(String(resolved?.action || ""), characterNames),
+      index,
+    );
+    return `${name} ${action}.`;
   });
 
   // Add artifact action if relevant
   const artifactAction = getArtifactAction(directive, cast, directive.mood || "COZY");
   if (artifactAction) actionParts.push(artifactAction);
-  const actions = actionParts.join(". ") + ".";
+  const actions = dedupeSentences(actionParts).join(" ");
 
   // Use AI environment for style, with mood texture overlay
   const mood = directive.mood || "COZY";
@@ -410,7 +417,7 @@ function getDynamicPose(index: number, _total: number, _mood: string, beatType: 
     SETUP: ["walks in with open posture", "kneels to inspect the scene", "steps sideways to make space", "reaches out in greeting"],
     INCITING: ["leans forward and points to a clue", "takes a quick step toward the discovery", "extends an arm to stop the others", "bends low to inspect details"],
     CONFLICT: ["steps forward determinedly", "crouches in a ready stance", "swings around to shield a teammate", "moves quickly around an obstacle"],
-    CLIMAX: ["rushes forward", "reaches dramatically", "jumps into action", "faces the challenge"],
+    CLIMAX: ["rushes forward", "reaches dramatically", "jumps into action", "lunges around the obstacle"],
     RESOLUTION: ["embraces joyfully", "raises both arms in relief", "spins toward the group in celebration", "leans in for a shared victory moment"],
   };
 
@@ -741,6 +748,151 @@ function mergeProps(aiProps: string[], templateProps: string[]): string[] {
 
   return result;
 }
+
+function findActionBySlotOrName(
+  actions: AICharacterAction[],
+  slotKey: string,
+  characterName: string,
+): AICharacterAction | null {
+  const normalizedSlot = normalizeSlotKey(slotKey);
+  for (const entry of actions) {
+    if (!entry) continue;
+    if (normalizeSlotKey(entry.slotKey) === normalizedSlot) return entry;
+  }
+
+  const nameLower = characterName.trim().toLowerCase();
+  if (!nameLower) return null;
+  for (const entry of actions) {
+    const haystack = [
+      entry.slotKey,
+      (entry as any).name,
+      (entry as any).characterName,
+      (entry as any).character,
+    ]
+      .map(value => String(value || "").trim().toLowerCase())
+      .filter(Boolean)
+      .join(" ");
+    if (haystack.includes(nameLower)) return entry;
+  }
+
+  return null;
+}
+
+function normalizeSlotKey(value: string): string {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+}
+
+function ensureDynamicActionPhrase(action: string, index: number): string {
+  const cleaned = normalizeActionText(action);
+  if (!cleaned) return fallbackDynamicAction(index);
+
+  const lowered = cleaned.toLowerCase();
+  if (STATIC_ACTION_PATTERNS.some(pattern => pattern.test(lowered)) && !hasDynamicVerb(lowered)) {
+    return fallbackDynamicAction(index);
+  }
+  if (!hasDynamicVerb(lowered)) {
+    return `${cleaned} while moving decisively`;
+  }
+  return cleaned;
+}
+
+function ensureDynamicBodyLanguage(bodyLanguage: string, index: number): string {
+  const cleaned = normalizeActionText(bodyLanguage);
+  if (!cleaned) return fallbackDynamicPose(index);
+
+  const lowered = cleaned.toLowerCase();
+  if (STATIC_POSE_PATTERNS.some(pattern => pattern.test(lowered))) {
+    return fallbackDynamicPose(index);
+  }
+  return cleaned;
+}
+
+function normalizeActionText(value: string): string {
+  if (!value) return "";
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/^[,.;:\-]+/, "")
+    .trim();
+}
+
+function hasDynamicVerb(value: string): boolean {
+  return DYNAMIC_VERBS.some(verb => value.includes(verb));
+}
+
+function fallbackDynamicAction(index: number): string {
+  const fallbacks = [
+    "sprints toward the key clue",
+    "crouches low and pulls a teammate clear",
+    "reaches out and steadies a moving object",
+    "jumps across the obstacle to open a path",
+  ];
+  return fallbacks[index % fallbacks.length];
+}
+
+function fallbackDynamicPose(index: number): string {
+  const fallbacks = [
+    "leaning forward mid-step with one arm extended",
+    "crouched low with weight shifted to one leg",
+    "turned sideways while bracing against movement",
+    "mid-stride with torso angled into the action",
+  ];
+  return fallbacks[index % fallbacks.length];
+}
+
+function defaultExpression(index: number): string {
+  const fallbacks = [
+    "focused expression",
+    "determined expression",
+    "alert expression",
+    "tense but controlled expression",
+  ];
+  return fallbacks[index % fallbacks.length];
+}
+
+function dedupeSentences(lines: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const normalized = line
+      .replace(/[.!?]+$/g, "")
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    output.push(/[.!?]$/.test(line) ? line : `${line}.`);
+  }
+  return output;
+}
+
+const STATIC_ACTION_PATTERNS = [
+  /\bstand(?:s|ing)?\b/,
+  /\blook(?:s|ing)?\b/,
+  /\bwatch(?:es|ing)?\b/,
+  /\bpose(?:s|d)?\b/,
+  /\bfacing\s+(?:camera|viewer)\b/,
+  /\bwait(?:s|ing)?\b/,
+  /\bidle\b/,
+];
+
+const STATIC_POSE_PATTERNS = [
+  /\bstanding\b/,
+  /\bupright\b/,
+  /\bidle\b/,
+  /\bneutral\b/,
+  /\bfront-?facing\b/,
+  /\bfacing\s+(?:camera|viewer)\b/,
+  /\bposed?\b/,
+];
+
+const DYNAMIC_VERBS = [
+  "run", "sprint", "dash", "jump", "leap", "lunge", "crawl", "climb", "duck", "grab",
+  "pull", "push", "lift", "swing", "throw", "catch", "brace", "reach", "drag", "step",
+  "vault", "slide", "kneel", "crouch", "pivot", "race", "charge", "scramble", "hurry",
+];
 
 function sanitizeActionPhrase(text: string, names: string[]): string {
   if (!text) return "";

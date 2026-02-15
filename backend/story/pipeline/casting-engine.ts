@@ -1,4 +1,5 @@
-﻿import { storyDB } from "../db";
+﻿import * as crypto from "crypto";
+import { storyDB } from "../db";
 import type { ArtifactRequirement } from "../types";
 import { artifactMatcher, recordStoryArtifact } from "../artifact-matcher";
 import type { AvatarDetail, CastSet, CharacterSheet, EnhancedPersonality, MatchScore, NormalizedRequest, RoleSlot, StoryBlueprintBase, StoryVariantPlan } from "./types";
@@ -140,6 +141,15 @@ export async function buildCastSet(input: {
 
   slotAssignments["SLOT_ARTIFACT_1"] = artifact.id;
   const trimmedScores = trimMatchScores(matchScores);
+  try {
+    await recordPoolCharacterUsage({
+      storyId: normalized.storyId,
+      poolCharacters: poolSheets,
+      blueprint,
+    });
+  } catch (error) {
+    console.warn("[pipeline] Failed to persist character usage stats", (error as Error)?.message || error);
+  }
 
   return {
     avatars: avatarSheets,
@@ -155,6 +165,57 @@ export async function buildCastSet(input: {
     slotAssignments,
     matchScores: trimmedScores,
   };
+}
+async function recordPoolCharacterUsage(input: {
+  storyId: string;
+  poolCharacters: CharacterSheet[];
+  blueprint?: StoryBlueprintBase;
+}): Promise<void> {
+  const { storyId, poolCharacters, blueprint } = input;
+  if (!storyId || poolCharacters.length === 0) return;
+
+  for (const character of poolCharacters) {
+    const existing = await storyDB.queryRow<{ id: string }>`
+      SELECT id
+      FROM story_characters
+      WHERE story_id = ${storyId}
+        AND character_id = ${character.characterId}
+      LIMIT 1
+    `;
+    if (existing?.id) continue;
+
+    const chaptersAppeared = resolveCharacterChapters(character.slotKey, blueprint);
+    await storyDB.exec`
+      UPDATE character_pool
+      SET recent_usage_count = COALESCE(recent_usage_count, 0) + 1,
+          total_usage_count = COALESCE(total_usage_count, 0) + 1,
+          last_used_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${character.characterId}
+    `;
+
+    await storyDB.exec`
+      INSERT INTO story_characters (id, story_id, character_id, placeholder, chapters_appeared)
+      VALUES (
+        ${crypto.randomUUID()},
+        ${storyId},
+        ${character.characterId},
+        ${character.slotKey},
+        ${chaptersAppeared}
+      )
+    `;
+  }
+}
+
+function resolveCharacterChapters(slotKey: string, blueprint?: StoryBlueprintBase): number[] {
+  if (!blueprint) return [];
+  const chapters = blueprint.scenes
+    .filter(scene => {
+      const optionalSlots = scene.optionalSlots || [];
+      return scene.mustIncludeSlots.includes(slotKey) || optionalSlots.includes(slotKey);
+    })
+    .map(scene => scene.sceneNumber);
+  return Array.from(new Set(chapters)).sort((a, b) => a - b);
 }
 
 async function buildAvatarSheets(avatars: AvatarDetail[]): Promise<CharacterSheet[]> {

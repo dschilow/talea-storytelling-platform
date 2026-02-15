@@ -50,6 +50,14 @@ export function validateAndFixImageSpecs(input: {
         current.lighting = "soft light";
       }
 
+      const actionNeedsRepair = hasStaticActionLanguage(current.actions) || !hasPerCharacterActionCoverage(current.actions, current.onStageExact, cast);
+      if (actionNeedsRepair) {
+        current.actions = enforceDynamicActions(current.actions, current.onStageExact, cast);
+      }
+      if (hasStaticActionLanguage(current.blocking)) {
+        current.blocking = enforceDynamicBlocking(current.blocking, current.onStageExact, cast);
+      }
+
       current.negatives = Array.from(new Set([...(current.negatives || []), ...GLOBAL_IMAGE_NEGATIVES, ...extraNegatives]));
       if (requiresArtifact && artifactName) {
         current.propsVisible = Array.from(new Set([artifactName, ...(current.propsVisible || [])]));
@@ -124,6 +132,12 @@ function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
   if (fullPrompt.includes("avoid (negative") || fullPrompt.includes("negative prompt:")) {
     issues.push({ chapter: spec.chapter, code: "NEGATIVE_IN_POSITIVE", message: "Negative prompt mixed into positive prompt" });
   }
+  if (hasStaticActionLanguage(spec.actions)) {
+    issues.push({ chapter: spec.chapter, code: "STATIC_ACTIONS", message: "Actions contain passive/static phrasing" });
+  }
+  if (!hasPerCharacterActionCoverage(spec.actions, spec.onStageExact, cast)) {
+    issues.push({ chapter: spec.chapter, code: "ACTION_COVERAGE_WEAK", message: "Not every on-stage character has a clear action line" });
+  }
 
   const artifactName = cast.artifact?.name?.toLowerCase() ?? "";
   if (artifactName && (spec.propsVisible || []).some(item => item.toLowerCase().includes(artifactName))) {
@@ -164,6 +178,140 @@ function validateRefs(spec: ImageSpec, expected: Record<string, string>): ImageV
 
   return issues;
 }
+
+function hasPerCharacterActionCoverage(actionsText: string, onStageExact: string[], cast: CastSet): boolean {
+  const names = resolveOnStageNames(onStageExact, cast);
+  if (names.length === 0) return true;
+  const text = String(actionsText || "");
+  return names.every(name => new RegExp(`\\b${escapeRegExp(name)}\\b`, "i").test(text));
+}
+
+function hasStaticActionLanguage(text: string): boolean {
+  const value = String(text || "").toLowerCase();
+  if (!value) return true;
+  const hasStaticMarkers = STATIC_ACTION_PATTERNS.some(pattern => pattern.test(value));
+  const hasDynamicMarkers = DYNAMIC_ACTION_VERBS.some(verb => value.includes(verb));
+  return hasStaticMarkers && !hasDynamicMarkers;
+}
+
+function enforceDynamicActions(actionsText: string, onStageExact: string[], cast: CastSet): string {
+  const names = resolveOnStageNames(onStageExact, cast);
+  if (names.length === 0) return actionsText;
+
+  const sentences = splitSentences(actionsText);
+  const lines = names.map((name, index) => {
+    const pattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, "i");
+    const sentence = sentences.find(item => pattern.test(item)) || "";
+    const actionCore = sentence
+      ? sentence.replace(pattern, "").replace(/[,:;\-]/g, " ").replace(/\s+/g, " ").trim()
+      : "";
+    const dynamicAction = toDynamicAction(actionCore, index);
+    return `${name} ${dynamicAction}.`;
+  });
+  return dedupeLines(lines).join(" ");
+}
+
+function enforceDynamicBlocking(blockingText: string, onStageExact: string[], cast: CastSet): string {
+  const names = resolveOnStageNames(onStageExact, cast);
+  if (names.length === 0) return blockingText;
+  const lines = names.map((name, index) => `${name} ${defaultDynamicPose(index)}, ${defaultExpression(index)}.`);
+  return dedupeLines(lines).join(" ");
+}
+
+function toDynamicAction(value: string, index: number): string {
+  const cleaned = String(value || "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return defaultDynamicAction(index);
+  const lowered = cleaned.toLowerCase();
+  if (STATIC_ACTION_PATTERNS.some(pattern => pattern.test(lowered)) && !DYNAMIC_ACTION_VERBS.some(verb => lowered.includes(verb))) {
+    return defaultDynamicAction(index);
+  }
+  if (!DYNAMIC_ACTION_VERBS.some(verb => lowered.includes(verb))) {
+    return `${cleaned} while moving decisively`;
+  }
+  return cleaned.replace(/[.!?]+$/g, "").trim();
+}
+
+function splitSentences(value: string): string[] {
+  return String(value || "")
+    .split(/(?<=[.!?])\s+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function dedupeLines(lines: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const line of lines) {
+    const cleaned = line.trim();
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase().replace(/\s+/g, " ").replace(/[.!?]+$/g, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(cleaned);
+  }
+  return output;
+}
+
+function resolveOnStageNames(onStageExact: string[], cast: CastSet): string[] {
+  return onStageExact
+    .map(slot => findCharacterName(cast, slot))
+    .filter((name): name is string => Boolean(name));
+}
+
+function findCharacterName(cast: CastSet, slotKey: string): string | null {
+  const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
+  return sheet?.displayName ?? null;
+}
+
+function defaultDynamicAction(index: number): string {
+  const fallbacks = [
+    "sprints toward the key clue",
+    "crouches and pulls a teammate clear",
+    "reaches out to steady a moving object",
+    "jumps across an obstacle to open a path",
+  ];
+  return fallbacks[index % fallbacks.length];
+}
+
+function defaultDynamicPose(index: number): string {
+  const poses = [
+    "leaning forward mid-step with one arm extended",
+    "crouched low with weight shifted to one leg",
+    "turned sideways while bracing against movement",
+    "mid-stride with torso angled into the action",
+  ];
+  return poses[index % poses.length];
+}
+
+function defaultExpression(index: number): string {
+  const expressions = [
+    "focused expression",
+    "determined expression",
+    "alert expression",
+    "tense but controlled expression",
+  ];
+  return expressions[index % expressions.length];
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const STATIC_ACTION_PATTERNS = [
+  /\bstand(?:s|ing)?\b/,
+  /\blook(?:s|ing)?\b/,
+  /\bwatch(?:es|ing)?\b/,
+  /\bpose(?:s|d)?\b/,
+  /\bfacing\s+(?:camera|viewer)\b/,
+  /\bidle\b/,
+  /\bwaiting?\b/,
+];
+
+const DYNAMIC_ACTION_VERBS = [
+  "run", "sprint", "dash", "jump", "leap", "lunge", "crawl", "climb", "duck",
+  "grab", "pull", "push", "lift", "swing", "throw", "catch", "brace", "reach",
+  "drag", "step", "vault", "slide", "kneel", "crouch", "pivot", "charge",
+];
 
 function containsBirdToken(text: string): boolean {
   const value = text.toLowerCase();

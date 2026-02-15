@@ -17,6 +17,8 @@ export function buildIntegrationPlan(input: {
   const targetPresence = DEFAULT_AVATAR_PRESENCE_RATIO;
   const totalChapters = blueprint.scenes.length;
   let avatarsPresent = 0;
+  const supportingUsageCounts = new Map<string, number>();
+  let previousSupportingSlots: string[] = [];
 
   const chapters = blueprint.scenes.map(scene => {
     const onStage = new Set<string>(scene.mustIncludeSlots || []);
@@ -34,8 +36,9 @@ export function buildIntegrationPlan(input: {
     }
 
     const optionalSlots = (scene.optionalSlots || []).filter(slot => !slot.includes("ARTIFACT"));
-    if (optionalSlots.length > 0) {
-      for (const slot of optionalSlots) {
+    const rankedOptionalSlots = rankOptionalSlots(optionalSlots, supportingUsageCounts, previousSupportingSlots);
+    if (rankedOptionalSlots.length > 0) {
+      for (const slot of rankedOptionalSlots) {
         if (countNonArtifact(onStage) >= onStageCharacterBudget) break;
         onStage.add(slot);
       }
@@ -52,6 +55,11 @@ export function buildIntegrationPlan(input: {
     if (avatarSlots.some(slot => trimmed.includes(slot))) {
       avatarsPresent += 1;
     }
+    const supportingInChapter = trimmed.filter(slot => slot !== artifactSlot && !avatarSlots.includes(slot));
+    for (const slot of supportingInChapter) {
+      supportingUsageCounts.set(slot, (supportingUsageCounts.get(slot) ?? 0) + 1);
+    }
+    previousSupportingSlots = supportingInChapter;
 
     const canonSafeguard = buildCanonSafeguard(blueprint, scene.sceneNumber);
     const canonAnchorLine = buildCanonAnchorLine(normalized, cast, scene.sceneNumber);
@@ -86,6 +94,26 @@ export function buildIntegrationPlan(input: {
     chapters,
     avatarsPresenceRatio: targetPresence,
   };
+}
+
+function rankOptionalSlots(
+  optionalSlots: string[],
+  usageCounts: Map<string, number>,
+  previousSlots: string[],
+): string[] {
+  if (optionalSlots.length <= 1) return optionalSlots;
+  const previousSet = new Set(previousSlots);
+  return [...optionalSlots].sort((left, right) => {
+    const leftUsage = usageCounts.get(left) ?? 0;
+    const rightUsage = usageCounts.get(right) ?? 0;
+    if (leftUsage !== rightUsage) return leftUsage - rightUsage;
+
+    const leftWasRecent = previousSet.has(left) ? 1 : 0;
+    const rightWasRecent = previousSet.has(right) ? 1 : 0;
+    if (leftWasRecent !== rightWasRecent) return leftWasRecent - rightWasRecent;
+
+    return left.localeCompare(right);
+  });
 }
 
 function buildCanonSafeguard(blueprint: StoryBlueprintBase, chapter: number): string {
