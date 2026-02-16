@@ -1,8 +1,9 @@
 import { api } from "encore.dev/api";
 import log from "encore.dev/log";
 
-// URL of the TTS Service
-// Railway private networking uses <service>.railway.internal with the PORT the service listens on
+// TTS_SERVICE_URL should use Railway private networking to avoid the public LB timeout:
+// Set TTS_SERVICE_URL=http://tts-service.railway.internal:8080 in Railway env vars.
+// Railway private networking has no 30/60s proxy timeout — only the AbortController limit applies.
 const TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
 
 export interface TTSResponse {
@@ -24,7 +25,7 @@ export interface TTSBatchResponse {
     results: TTSBatchResultItem[];
 }
 
-// ── Async polling helpers ─────────────────────────────────────────────────────
+// ── Async polling helpers (used when TTS_SERVICE_URL points to async-capable server) ────
 
 async function submitAsyncJob(text: string): Promise<string> {
     const url = `${TTS_SERVICE_URL}/generate/async`;
@@ -55,6 +56,10 @@ async function submitAsyncJob(text: string): Promise<string> {
             }
 
             const errText = await response.text();
+            // 404 = old server without async endpoint, fall through to sync
+            if (response.status === 404) {
+                throw new Error("ASYNC_NOT_SUPPORTED");
+            }
             // 502/503 = service starting up, retry
             if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
                 log.warn(`TTS service returned ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in 3s...`);
@@ -63,6 +68,7 @@ async function submitAsyncJob(text: string): Promise<string> {
             }
             throw new Error(`TTS async submit failed: ${response.status} - ${errText}`);
         } catch (err: any) {
+            if (err.message === "ASYNC_NOT_SUPPORTED") throw err;
             if (err.name === "AbortError" && attempt < MAX_RETRIES) {
                 log.warn(`TTS submit timed out (attempt ${attempt}/${MAX_RETRIES}), retrying...`);
                 await new Promise((r) => setTimeout(r, 2_000));
@@ -94,13 +100,10 @@ async function pollJobUntilReady(jobId: string, timeoutMs = 290_000): Promise<st
         if (status.status === "error") {
             throw new Error(`TTS job failed: ${status.error || "unknown error"}`);
         }
-
         if (status.status === "not_found") {
             throw new Error("TTS job not found (expired or never created)");
         }
-
         if (status.status === "ready") {
-            // Fetch the audio result
             const resultRes = await fetch(resultUrl);
             if (!resultRes.ok) {
                 throw new Error(`Result fetch failed: ${resultRes.status}`);
@@ -118,6 +121,60 @@ async function pollJobUntilReady(jobId: string, timeoutMs = 290_000): Promise<st
     throw new Error(`TTS polling timed out after ${timeoutMs / 1000}s for job ${jobId}`);
 }
 
+async function generateSyncFallback(text: string): Promise<string> {
+    // Synchronous fallback for old TTS server or when private networking is used.
+    // With Railway private networking (tts-service.railway.internal) there is no LB timeout,
+    // so long-running requests succeed even if they take 5+ minutes.
+    const url = `${TTS_SERVICE_URL}/`;
+    log.info(`TTS sync fallback for text length ${text.length}`);
+
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 300_000); // 5min
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    text,
+                    length_scale: 1.55,
+                    noise_scale: 0.42,
+                    noise_w: 0.38,
+                }),
+                signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                const base64 = buffer.toString("base64");
+                return `data:audio/wav;base64,${base64}`;
+            }
+
+            const errText = await response.text();
+            if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
+                log.warn(`TTS sync got ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in 5s...`);
+                await new Promise((r) => setTimeout(r, 5_000));
+                continue;
+            }
+            throw new Error(`TTS sync failed: ${response.status} - ${errText}`);
+        } catch (err: any) {
+            if (err.name === "AbortError") {
+                if (attempt < MAX_RETRIES) {
+                    log.warn(`TTS sync timed out (attempt ${attempt}/${MAX_RETRIES}), retrying...`);
+                    await new Promise((r) => setTimeout(r, 3_000));
+                    continue;
+                }
+                throw new Error("TTS sync timed out after 5min");
+            }
+            throw err;
+        }
+    }
+    throw new Error("TTS sync failed after all retries");
+}
+
 // ── API Endpoints ─────────────────────────────────────────────────────────────
 
 export const generateSpeech = api(
@@ -128,15 +185,24 @@ export const generateSpeech = api(
         }
 
         try {
-            log.info(`TTS async submit for text length ${text.length}`);
+            // Try async polling first (new server). Falls back to sync if 404 (old server).
+            log.info(`TTS request for text length ${text.length}`);
 
-            // Submit job to TTS service — returns immediately
-            const jobId = await submitAsyncJob(text);
-            log.info(`TTS job submitted: ${jobId}`);
-
-            // Poll until ready (short-lived HTTP requests, no Railway LB timeout)
-            const audioData = await pollJobUntilReady(jobId);
-            log.info(`TTS job complete: ${jobId}`);
+            let audioData: string;
+            try {
+                const jobId = await submitAsyncJob(text);
+                log.info(`TTS async job submitted: ${jobId}`);
+                audioData = await pollJobUntilReady(jobId);
+                log.info(`TTS async job complete: ${jobId}`);
+            } catch (err: any) {
+                if (err.message === "ASYNC_NOT_SUPPORTED") {
+                    // Old TTS server — use synchronous endpoint
+                    log.warn("TTS async not supported, falling back to sync endpoint");
+                    audioData = await generateSyncFallback(text);
+                } else {
+                    throw err;
+                }
+            }
 
             return { audioData };
         } catch (error: any) {
