@@ -101,21 +101,20 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const onChunkReady = useCallback(
     (itemId: string, blobUrl: string) => {
       trackBlobUrl(blobUrl);
-      setPlaylist((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, audioUrl: blobUrl, conversionStatus: 'ready' as const } : item,
-        ),
+      // Eagerly update ref so playNextInternal sees the audioUrl immediately
+      playlistRef.current = playlistRef.current.map((item) =>
+        item.id === itemId ? { ...item, audioUrl: blobUrl, conversionStatus: 'ready' as const } : item,
       );
+      setPlaylist(playlistRef.current);
     },
     [trackBlobUrl],
   );
 
   const onChunkError = useCallback((_itemId: string, _error: string) => {
-    setPlaylist((prev) =>
-      prev.map((item) =>
-        item.id === _itemId ? { ...item, conversionStatus: 'error' as const } : item,
-      ),
+    playlistRef.current = playlistRef.current.map((item) =>
+      item.id === _itemId ? { ...item, conversionStatus: 'error' as const } : item,
     );
+    setPlaylist(playlistRef.current);
   }, []);
 
   const { enqueue, cancel: cancelConversion, retryItem, statusMap: conversionStatusMap } =

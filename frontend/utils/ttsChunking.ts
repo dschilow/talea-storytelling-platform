@@ -1,10 +1,11 @@
-const TARGET_WORDS = 500;
+const TARGET_WORDS = 150;
 
 /**
- * Split text into chunks of ~500 words at sentence boundaries.
- * Each chunk produces roughly 60-90 seconds of TTS audio,
- * giving the user something to listen to within ~45 seconds
- * instead of waiting 3-4 minutes for a full chapter.
+ * Split text into chunks of ~150 words at sentence boundaries.
+ * Each chunk produces roughly 20-30 seconds of TTS audio.
+ * A typical chapter (270-450 words) becomes 2-3 chunks,
+ * so the first chunk can start playing within ~15 seconds
+ * while the rest converts in the background.
  */
 export function splitTextIntoChunks(text: string): string[] {
   const trimmed = text.trim();
