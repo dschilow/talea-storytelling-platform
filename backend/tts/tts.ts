@@ -9,6 +9,21 @@ export interface TTSResponse {
     audioData: string; // Base64 encoded WAV data
 }
 
+export interface TTSBatchItem {
+    id: string;
+    text: string;
+}
+
+export interface TTSBatchResultItem {
+    id: string;
+    audio: string | null;
+    error: string | null;
+}
+
+export interface TTSBatchResponse {
+    results: TTSBatchResultItem[];
+}
+
 export const generateSpeech = api(
     { expose: true, method: "GET", path: "/tts/generate" },
     async ({ text }: { text: string }): Promise<TTSResponse> => {
@@ -62,6 +77,51 @@ export const generateSpeech = api(
             throw error;
         }
 
+    }
+);
+
+export const generateSpeechBatch = api(
+    { expose: true, method: "POST", path: "/tts/batch" },
+    async ({ items }: { items: TTSBatchItem[] }): Promise<TTSBatchResponse> => {
+        if (!items || items.length === 0) {
+            return { results: [] };
+        }
+
+        try {
+            const url = `${TTS_SERVICE_URL}/batch`;
+            log.info(`Requesting TTS batch from ${url} for ${items.length} items`);
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 600_000); // 10min for batch
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    items,
+                    length_scale: 1.55,
+                    noise_scale: 0.42,
+                    noise_w: 0.38,
+                }),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                log.error(`TTS Batch error: ${response.status} - ${errText}`);
+                throw new Error(`TTS batch failed: ${errText}`);
+            }
+
+            const data = await response.json() as { results: TTSBatchResultItem[] };
+            log.info(`TTS batch completed: ${data.results.filter((r: TTSBatchResultItem) => r.audio).length}/${items.length} ok`);
+            return { results: data.results };
+        } catch (error: any) {
+            const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
+            log.error(`TTS batch fetch failed: ${error.message} | cause: ${causeMsg}`);
+            throw error;
+        }
     }
 );
 

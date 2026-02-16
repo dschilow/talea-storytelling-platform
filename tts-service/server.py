@@ -1,11 +1,16 @@
 import subprocess
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import io
 import os
 import sys
 import struct
 import time
 import re
+import base64
+
+# Number of parallel Piper processes per request
+MAX_PARALLEL_PIPER = int(os.environ.get('MAX_PARALLEL_PIPER', '4'))
 
 app = Flask(__name__)
 
@@ -361,20 +366,37 @@ def generate_tts():
         # Generate a short silence gap for between chunks (paragraph pauses)
         silence_gap = generate_silence(380) if len(chunks) > 1 else None
 
+        # Parallel generation: run Piper processes concurrently
+        wav_results = [None] * len(chunks)
+        workers = min(MAX_PARALLEL_PIPER, len(chunks))
+
+        if workers <= 1:
+            # Single chunk — no thread overhead
+            wav_results[0] = generate_wav_chunk(chunks[0], length_scale, noise_scale, noise_w)
+        else:
+            def gen_chunk(idx):
+                cs = time.time()
+                data = generate_wav_chunk(chunks[idx], length_scale, noise_scale, noise_w)
+                ct = time.time() - cs
+                print(f"  Chunk {idx+1}/{len(chunks)}: {len(chunks[idx])} chars -> {len(data)} bytes ({ct:.1f}s)", file=sys.stderr)
+                return idx, data
+
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = [pool.submit(gen_chunk, i) for i in range(len(chunks))]
+                for future in as_completed(futures):
+                    idx, data = future.result()
+                    wav_results[idx] = data
+
+        # Interleave silence gaps between chunks
         wav_chunks = []
-        for i, chunk in enumerate(chunks):
-            chunk_start = time.time()
-            wav_data = generate_wav_chunk(chunk, length_scale, noise_scale, noise_w)
-            chunk_time = time.time() - chunk_start
-            print(f"  Chunk {i+1}/{len(chunks)}: {len(chunk)} chars -> {len(wav_data)} bytes ({chunk_time:.1f}s)", file=sys.stderr)
+        for i, wav_data in enumerate(wav_results):
             wav_chunks.append(wav_data)
-            # Add silence between chunks for natural paragraph pauses
-            if silence_gap and i < len(chunks) - 1:
+            if silence_gap and i < len(wav_results) - 1:
                 wav_chunks.append(silence_gap)
 
         result = concatenate_wav(wav_chunks)
         total_time = time.time() - start_time
-        print(f"Successfully generated audio. Size: {len(result)} bytes, Total time: {total_time:.1f}s", file=sys.stderr)
+        print(f"Successfully generated audio. Size: {len(result)} bytes, Total time: {total_time:.1f}s ({workers} workers)", file=sys.stderr)
 
         return send_file(
             io.BytesIO(result),
@@ -386,6 +408,73 @@ def generate_tts():
     except Exception as e:
         print(f"Server exception: {e}", file=sys.stderr)
         return str(e), 500
+
+@app.route('/batch', methods=['POST'])
+def generate_tts_batch():
+    """
+    Batch endpoint: generate multiple TTS items in parallel.
+    Request: { "items": [{ "id": "chunk-1", "text": "..." }, ...], "length_scale": 1.55, ... }
+    Response: { "results": [{ "id": "chunk-1", "audio": "base64...", "error": null }, ...] }
+    """
+    if not request.is_json:
+        return "JSON body required", 400
+
+    data = request.json
+    items = data.get('items', [])
+    if not items:
+        return jsonify({"results": []}), 200
+
+    length_scale = float(data.get('length_scale', 1.0))
+    noise_scale = float(data.get('noise_scale', 0.667))
+    noise_w = float(data.get('noise_w', 0.8))
+
+    print(f"Batch request: {len(items)} items, speed={length_scale}", file=sys.stderr)
+    start_time = time.time()
+
+    def process_item(item):
+        item_id = item.get('id', 'unknown')
+        text = item.get('text', '')
+        if not text:
+            return {"id": item_id, "audio": None, "error": "No text"}
+        try:
+            text = preprocess_text(text)
+            text = prepare_for_tts(text)
+            chunks = split_text_into_chunks(text)
+            silence_gap = generate_silence(380) if len(chunks) > 1 else None
+
+            wav_chunks = []
+            for i, chunk in enumerate(chunks):
+                wav_data = generate_wav_chunk(chunk, length_scale, noise_scale, noise_w)
+                wav_chunks.append(wav_data)
+                if silence_gap and i < len(chunks) - 1:
+                    wav_chunks.append(silence_gap)
+
+            result_wav = concatenate_wav(wav_chunks)
+            audio_b64 = base64.b64encode(result_wav).decode('ascii')
+            return {"id": item_id, "audio": f"data:audio/wav;base64,{audio_b64}", "error": None}
+        except Exception as e:
+            print(f"Batch item {item_id} error: {e}", file=sys.stderr)
+            return {"id": item_id, "audio": None, "error": str(e)}
+
+    # Process all items in parallel
+    workers = min(MAX_PARALLEL_PIPER, len(items))
+    results = [None] * len(items)
+
+    if workers <= 1:
+        results[0] = process_item(items[0])
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(process_item, items[i]): i for i in range(len(items))}
+            for future in as_completed(futures):
+                idx = futures[future]
+                results[idx] = future.result()
+
+    total_time = time.time() - start_time
+    ok_count = sum(1 for r in results if r and r.get('audio'))
+    print(f"Batch done: {ok_count}/{len(items)} ok, {total_time:.1f}s ({workers} workers)", file=sys.stderr)
+
+    return jsonify({"results": results}), 200
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

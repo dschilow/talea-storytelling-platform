@@ -14,6 +14,9 @@ interface UseTTSConversionQueueOptions {
   onChunkError: (itemId: string, error: string) => void;
 }
 
+// How many TTS requests run concurrently
+const MAX_CONCURRENT = 3;
+
 export function useTTSConversionQueue({
   backend,
   onChunkReady,
@@ -21,8 +24,7 @@ export function useTTSConversionQueue({
 }: UseTTSConversionQueueOptions) {
   const [statusMap, setStatusMap] = useState<Map<string, ConversionStatus>>(new Map());
   const queueRef = useRef<QueueItem[]>([]);
-  const processingRef = useRef(false);
-  const abortRef = useRef<AbortController | null>(null);
+  const activeCountRef = useRef(0);
   const cancelledRef = useRef(false);
 
   const setStatus = useCallback((id: string, status: ConversionStatus) => {
@@ -34,19 +36,16 @@ export function useTTSConversionQueue({
   }, []);
 
   const processNext = useCallback(async () => {
-    if (processingRef.current || cancelledRef.current) return;
-    const item = queueRef.current.shift();
-    if (!item) {
-      processingRef.current = false;
-      return;
-    }
+    if (cancelledRef.current) return;
+    if (activeCountRef.current >= MAX_CONCURRENT) return;
 
-    processingRef.current = true;
+    const item = queueRef.current.shift();
+    if (!item) return;
+
+    activeCountRef.current++;
     setStatus(item.id, 'converting');
 
     try {
-      abortRef.current = new AbortController();
-
       // Check IndexedDB cache first
       const cached = await getCachedAudio(item.id);
       if (cached && !cancelledRef.current) {
@@ -54,6 +53,8 @@ export function useTTSConversionQueue({
         onChunkReady(item.id, cached);
         return;
       }
+
+      if (cancelledRef.current) return;
 
       // @ts-ignore - legacy backend typing for tts endpoint
       const response = await backend.tts.generateSpeech({ text: item.text });
@@ -63,7 +64,7 @@ export function useTTSConversionQueue({
 
       if (cancelledRef.current) return;
 
-      // Cache the base64 audio in IndexedDB for future use
+      // Cache in IndexedDB for future use
       cacheAudio(item.id, response.audioData).catch(() => {});
 
       const fetchRes = await fetch(response.audioData);
@@ -78,13 +79,20 @@ export function useTTSConversionQueue({
       setStatus(item.id, 'error');
       onChunkError(item.id, err?.message || 'Konvertierung fehlgeschlagen');
     } finally {
-      abortRef.current = null;
-      processingRef.current = false;
+      activeCountRef.current--;
       if (!cancelledRef.current) {
-        processNext();
+        // Kick off next items (potentially multiple)
+        drainQueue();
       }
     }
   }, [backend, onChunkReady, onChunkError, setStatus]);
+
+  const drainQueue = useCallback(() => {
+    // Start as many concurrent tasks as we can
+    while (activeCountRef.current < MAX_CONCURRENT && queueRef.current.length > 0 && !cancelledRef.current) {
+      processNext();
+    }
+  }, [processNext]);
 
   const enqueue = useCallback(
     (items: QueueItem[]) => {
@@ -92,21 +100,15 @@ export function useTTSConversionQueue({
         setStatus(item.id, 'pending');
       }
       queueRef.current.push(...items);
-      if (!processingRef.current) {
-        processNext();
-      }
+      drainQueue();
     },
-    [processNext, setStatus],
+    [drainQueue, setStatus],
   );
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
     queueRef.current = [];
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-    processingRef.current = false;
+    activeCountRef.current = 0;
     setStatusMap(new Map());
     // Allow re-use after cancel
     setTimeout(() => {
