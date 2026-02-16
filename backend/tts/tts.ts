@@ -28,22 +28,50 @@ export interface TTSBatchResponse {
 
 async function submitAsyncJob(text: string): Promise<string> {
     const url = `${TTS_SERVICE_URL}/generate/async`;
-    const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            text,
-            length_scale: 1.55,
-            noise_scale: 0.42,
-            noise_w: 0.38,
-        }),
+    const body = JSON.stringify({
+        text,
+        length_scale: 1.55,
+        noise_scale: 0.42,
+        noise_w: 0.38,
     });
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`TTS async submit failed: ${response.status} - ${errText}`);
+
+    // Retry up to 3 times to handle cold-start 502s from Railway
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15_000); // 15s per attempt
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body,
+                signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            if (response.ok) {
+                const data = await response.json() as { job_id: string };
+                return data.job_id;
+            }
+
+            const errText = await response.text();
+            // 502/503 = service starting up, retry
+            if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
+                log.warn(`TTS service returned ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in 3s...`);
+                await new Promise((r) => setTimeout(r, 3_000));
+                continue;
+            }
+            throw new Error(`TTS async submit failed: ${response.status} - ${errText}`);
+        } catch (err: any) {
+            if (err.name === "AbortError" && attempt < MAX_RETRIES) {
+                log.warn(`TTS submit timed out (attempt ${attempt}/${MAX_RETRIES}), retrying...`);
+                await new Promise((r) => setTimeout(r, 2_000));
+                continue;
+            }
+            throw err;
+        }
     }
-    const data = await response.json() as { job_id: string };
-    return data.job_id;
+    throw new Error("TTS async submit failed after all retries");
 }
 
 async function pollJobUntilReady(jobId: string, timeoutMs = 290_000): Promise<string> {
