@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -177,6 +177,8 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [dialogueStatusType, setDialogueStatusType] = useState<'success' | 'error' | null>(null);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedDialogueVariant[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [voiceSearchQuery, setVoiceSearchQuery] = useState('');
+  const [voiceTargetSpeakerId, setVoiceTargetSpeakerId] = useState<string>('speaker-tavi');
 
   useEffect(() => {
     if (!audioFile) {
@@ -255,6 +257,22 @@ const CreateAudioDokuScreen: React.FC = () => {
     () => detectedSpeakers.filter((speaker) => !configuredSpeakerNames.has(speaker.toLowerCase())),
     [configuredSpeakerNames, detectedSpeakers]
   );
+  const filteredVoices = useMemo(() => {
+    const query = voiceSearchQuery.trim().toLowerCase();
+    if (!query) return elevenLabsVoices;
+
+    return elevenLabsVoices.filter((voice) => {
+      const nameMatch = voice.name.toLowerCase().includes(query);
+      const idMatch = voice.voiceId.toLowerCase().includes(query);
+      return nameMatch || idMatch;
+    });
+  }, [elevenLabsVoices, voiceSearchQuery]);
+
+  useEffect(() => {
+    if (!speakerProfiles.some((speaker) => speaker.id === voiceTargetSpeakerId)) {
+      setVoiceTargetSpeakerId(speakerProfiles[0]?.id || '');
+    }
+  }, [speakerProfiles, voiceTargetSpeakerId]);
 
   const handleFileSelected = (file: File | null) => {
     setAudioFile(file);
@@ -289,7 +307,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       setElevenLabsVoices(voices);
       setDialogueStatus(
         voices.length > 0
-          ? `${voices.length} Stimmen geladen.`
+          ? `${voices.length} Stimmen geladen. Waehle sie jetzt im Sprecherbereich aus.`
           : 'Keine ElevenLabs-Stimmen gefunden.'
       );
       setDialogueStatusType(voices.length > 0 ? 'success' : 'error');
@@ -326,7 +344,46 @@ const CreateAudioDokuScreen: React.FC = () => {
   };
 
   const handleRemoveSpeaker = (speakerId: string) => {
-    setSpeakerProfiles((prev) => prev.filter((speaker) => speaker.id !== speakerId));
+    const speaker = speakerProfiles.find((entry) => entry.id === speakerId);
+    if (!speaker) return;
+
+    const speakerName = speaker.name.trim();
+    const isUsedInScript = speakerName
+      ? detectedSpeakers.some((name) => name.toLowerCase() === speakerName.toLowerCase())
+      : false;
+
+    if (isUsedInScript) {
+      const confirmed = window.confirm(
+        `"${speakerName}" wird im Script verwendet. Sprecher trotzdem entfernen?`
+      );
+      if (!confirmed) return;
+    }
+
+    setSpeakerProfiles((prev) => prev.filter((entry) => entry.id !== speakerId));
+  };
+
+  const handleAddMissingSpeakersFromScript = () => {
+    if (unmappedScriptSpeakers.length === 0) return;
+
+    setSpeakerProfiles((prev) => {
+      const existing = new Set(prev.map((speaker) => speaker.name.trim().toLowerCase()));
+      const additions = unmappedScriptSpeakers
+        .filter((speakerName) => !existing.has(speakerName.toLowerCase()))
+        .map((speakerName) => ({
+          id: createSpeakerDraft().id,
+          name: speakerName,
+          voiceId: '',
+        }));
+      return [...prev, ...additions];
+    });
+
+    setDialogueStatus(`Sprecher automatisch hinzugefuegt: ${unmappedScriptSpeakers.join(', ')}`);
+    setDialogueStatusType('success');
+  };
+
+  const handleAssignVoiceToTargetSpeaker = (voiceId: string) => {
+    if (!voiceTargetSpeakerId) return;
+    handleSpeakerFieldChange(voiceTargetSpeakerId, 'voiceId', voiceId);
   };
 
   const applyGeneratedVariant = (variant: GeneratedDialogueVariant) => {
@@ -623,6 +680,8 @@ const CreateAudioDokuScreen: React.FC = () => {
     setDialogueStatusType(null);
     setGeneratedVariants([]);
     setSelectedVariantId(null);
+    setVoiceSearchQuery('');
+    setVoiceTargetSpeakerId('speaker-tavi');
     setError(null);
   };
 
@@ -755,6 +814,9 @@ const CreateAudioDokuScreen: React.FC = () => {
                         disabled={voicesLoading}
                       />
                     </div>
+                    <p className="mt-2 text-xs text-indigo-800/80">
+                      Nach <strong>Stimmen laden</strong>: Pro Sprecher im Feld <strong>"Stimme aus Liste..."</strong> eine Stimme auswaehlen.
+                    </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       {AUDIO_TAG_OPTIONS.map((tag) => (
@@ -786,8 +848,15 @@ const CreateAudioDokuScreen: React.FC = () => {
                         : 'Fuer jeden Dialogblock eine neue Zeile im Format "SPRECHER: Text" verwenden.'}
                     </p>
                     {unmappedScriptSpeakers.length > 0 && (
-                      <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
-                        Nicht zugeordnet: {unmappedScriptSpeakers.join(', ')}
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                        <span>Nicht zugeordnet: {unmappedScriptSpeakers.join(', ')}</span>
+                        <button
+                          type="button"
+                          onClick={handleAddMissingSpeakersFromScript}
+                          className="rounded-full border border-amber-300 bg-white/70 px-3 py-1 font-semibold text-amber-800 hover:bg-white"
+                        >
+                          Sprecher aus Script hinzufuegen
+                        </button>
                       </div>
                     )}
 
@@ -821,24 +890,29 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 value={speaker.voiceId}
                                 onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
                                 placeholder="Voice-ID (z. B. 7Nj1UduP6iY6hWpEDibS)"
-                                className="md:col-span-4 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                                className="md:col-span-5 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
                               />
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSpeaker(speaker.id)}
-                                disabled={speakerProfiles.length <= 1}
-                                className="md:col-span-1 inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-white px-2 py-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label="Sprecher entfernen"
-                              >
-                                <Trash2 size={14} />
-                              </button>
                             </div>
+                            {speakerProfiles.length > 1 && (
+                              <div className="mt-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSpeaker(speaker.id)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                  aria-label="Sprecher entfernen"
+                                  title="Sprecher entfernen"
+                                >
+                                  <Trash2 size={13} />
+                                  Entfernen
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                       <div className="mt-3">
                         <Button
-                          title="Sprecher hinzufügen"
+                          title="Sprecher hinzufuegen"
                           onPress={handleAddSpeaker}
                           variant="outline"
                           size="sm"
@@ -846,6 +920,58 @@ const CreateAudioDokuScreen: React.FC = () => {
                         />
                       </div>
                     </div>
+
+                    {elevenLabsVoices.length > 0 && (
+                      <div className="mt-4 rounded-xl border border-indigo-200/80 bg-white/85 p-3">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                            Geladene Stimmen ({elevenLabsVoices.length})
+                          </div>
+                          <select
+                            value={voiceTargetSpeakerId}
+                            onChange={(e) => setVoiceTargetSpeakerId(e.target.value)}
+                            className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-indigo-300 focus:outline-none"
+                          >
+                            {speakerProfiles.map((speaker) => (
+                              <option key={speaker.id} value={speaker.id}>
+                                Ziel: {speaker.name.trim() || 'Unbenannter Sprecher'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          value={voiceSearchQuery}
+                          onChange={(e) => setVoiceSearchQuery(e.target.value)}
+                          placeholder="Stimme suchen (Name oder ID)"
+                          className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                        />
+                        <div className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
+                          {filteredVoices.slice(0, 30).map((voice) => (
+                            <div
+                              key={voice.voiceId}
+                              className="flex items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-white px-2 py-1.5"
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-xs font-semibold text-slate-800">{voice.name}</div>
+                                <div className="truncate text-[11px] text-slate-500">{voice.voiceId}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleAssignVoiceToTargetSpeaker(voice.voiceId)}
+                                className="shrink-0 rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                              >
+                                Uebernehmen
+                              </button>
+                            </div>
+                          ))}
+                          {filteredVoices.length === 0 && (
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+                              Keine Stimme gefunden.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <Button
