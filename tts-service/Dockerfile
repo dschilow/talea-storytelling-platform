@@ -48,4 +48,4 @@ RUN pip install -r requirements.txt
 
 COPY server.py .
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 300 --workers 4 --threads 2 server:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 300 --workers 1 --threads 8 server:app"]

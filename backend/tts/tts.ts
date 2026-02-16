@@ -6,7 +6,7 @@ import log from "encore.dev/log";
 const TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
 
 export interface TTSResponse {
-    audioData: string; // Base64 encoded WAV data
+    audioData: string; // Base64 encoded WAV data URI
 }
 
 export interface TTSBatchItem {
@@ -24,6 +24,74 @@ export interface TTSBatchResponse {
     results: TTSBatchResultItem[];
 }
 
+// ── Async polling helpers ─────────────────────────────────────────────────────
+
+async function submitAsyncJob(text: string): Promise<string> {
+    const url = `${TTS_SERVICE_URL}/generate/async`;
+    const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            text,
+            length_scale: 1.55,
+            noise_scale: 0.42,
+            noise_w: 0.38,
+        }),
+    });
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`TTS async submit failed: ${response.status} - ${errText}`);
+    }
+    const data = await response.json() as { job_id: string };
+    return data.job_id;
+}
+
+async function pollJobUntilReady(jobId: string, timeoutMs = 290_000): Promise<string> {
+    const statusUrl = `${TTS_SERVICE_URL}/generate/status/${jobId}`;
+    const resultUrl = `${TTS_SERVICE_URL}/generate/result/${jobId}`;
+    const deadline = Date.now() + timeoutMs;
+
+    // Start with fast polling, then back off
+    let intervalMs = 1000;
+
+    while (Date.now() < deadline) {
+        await new Promise((res) => setTimeout(res, intervalMs));
+
+        const statusRes = await fetch(statusUrl);
+        if (!statusRes.ok) {
+            throw new Error(`Status poll failed: ${statusRes.status}`);
+        }
+        const status = await statusRes.json() as { status: string; error?: string };
+
+        if (status.status === "error") {
+            throw new Error(`TTS job failed: ${status.error || "unknown error"}`);
+        }
+
+        if (status.status === "not_found") {
+            throw new Error("TTS job not found (expired or never created)");
+        }
+
+        if (status.status === "ready") {
+            // Fetch the audio result
+            const resultRes = await fetch(resultUrl);
+            if (!resultRes.ok) {
+                throw new Error(`Result fetch failed: ${resultRes.status}`);
+            }
+            const arrayBuffer = await resultRes.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64 = buffer.toString("base64");
+            return `data:audio/wav;base64,${base64}`;
+        }
+
+        // Still processing — back off gradually (max 3s)
+        intervalMs = Math.min(intervalMs * 1.3, 3000);
+    }
+
+    throw new Error(`TTS polling timed out after ${timeoutMs / 1000}s for job ${jobId}`);
+}
+
+// ── API Endpoints ─────────────────────────────────────────────────────────────
+
 export const generateSpeech = api(
     { expose: true, method: "GET", path: "/tts/generate" },
     async ({ text }: { text: string }): Promise<TTSResponse> => {
@@ -32,51 +100,22 @@ export const generateSpeech = api(
         }
 
         try {
-            // Use POST to send text in body to avoid URL length limits
-            const url = `${TTS_SERVICE_URL}/`;
-            log.info(`Requesting TTS from ${url} (POST) for text length ${text.length}`);
+            log.info(`TTS async submit for text length ${text.length}`);
 
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 300_000); // 5min timeout for long texts
+            // Submit job to TTS service — returns immediately
+            const jobId = await submitAsyncJob(text);
+            log.info(`TTS job submitted: ${jobId}`);
 
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    text,
-                    length_scale: 1.55, // Langsam, aber natürlicher als 1.65
-                    noise_scale: 0.42,  // Etwas mehr natürliche Variation
-                    noise_w: 0.38       // Leicht variierte Betonung für Lebendigkeit
-                }),
+            // Poll until ready (short-lived HTTP requests, no Railway LB timeout)
+            const audioData = await pollJobUntilReady(jobId);
+            log.info(`TTS job complete: ${jobId}`);
 
-                signal: controller.signal,
-            });
-
-
-            clearTimeout(timeout);
-
-            if (!response.ok) {
-                const errText = await response.text();
-                log.error(`TTS Service error: ${response.status} - ${errText}`);
-                throw new Error(`TTS generation failed: ${errText}`);
-            }
-
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const base64 = buffer.toString('base64');
-
-            return {
-                audioData: `data:audio/wav;base64,${base64}`,
-            };
-
+            return { audioData };
         } catch (error: any) {
             const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
-            log.error(`TTS fetch failed: ${error.message} | cause: ${causeMsg} | code: ${error.code || "none"} | url: ${TTS_SERVICE_URL}`);
+            log.error(`TTS failed: ${error.message} | cause: ${causeMsg} | url: ${TTS_SERVICE_URL}`);
             throw error;
         }
-
     }
 );
 
@@ -124,4 +163,3 @@ export const generateSpeechBatch = api(
         }
     }
 );
-

@@ -8,6 +8,8 @@ import struct
 import time
 import re
 import base64
+import uuid
+import threading
 
 # Number of parallel Piper processes per request
 MAX_PARALLEL_PIPER = int(os.environ.get('MAX_PARALLEL_PIPER', '4'))
@@ -20,6 +22,17 @@ PIPER_BINARY = os.environ.get('PIPER_BINARY', "/usr/local/bin/piper_bin/piper")
 
 # Max characters per chunk - keeps each Piper call fast
 MAX_CHUNK_CHARS = 300
+
+# ── Async job registry ────────────────────────────────────────────────────────
+# Stores: { job_id: { "status": "processing"|"ready"|"error", "result": bytes|None, "error": str|None, "created": float } }
+_jobs: dict = {}
+_jobs_lock = threading.Lock()
+
+# Background thread pool for async job processing (separate from per-request parallelism)
+_job_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tts-job")
+
+# TTL for completed jobs: 10 minutes (client has time to fetch the result)
+JOB_TTL_SECONDS = 600
 
 # Check if model exists
 if not os.path.exists(MODEL_PATH):
@@ -308,9 +321,165 @@ def concatenate_wav(wav_chunks):
 
     return header + fmt_chunk + data_header + combined_data
 
+def _do_generate(text, length_scale, noise_scale, noise_w):
+    """Core generation logic — called synchronously or in a job thread."""
+    text = preprocess_text(text)
+    text = prepare_for_tts(text)
+
+    chunks = split_text_into_chunks(text)
+    print(f"Split into {len(chunks)} chunks", file=sys.stderr)
+
+    silence_gap = generate_silence(380) if len(chunks) > 1 else None
+
+    wav_results = [None] * len(chunks)
+    workers = min(MAX_PARALLEL_PIPER, len(chunks))
+
+    if workers <= 1:
+        wav_results[0] = generate_wav_chunk(chunks[0], length_scale, noise_scale, noise_w)
+    else:
+        def gen_chunk(idx):
+            cs = time.time()
+            data = generate_wav_chunk(chunks[idx], length_scale, noise_scale, noise_w)
+            ct = time.time() - cs
+            print(f"  Chunk {idx+1}/{len(chunks)}: {len(chunks[idx])} chars -> {len(data)} bytes ({ct:.1f}s)", file=sys.stderr)
+            return idx, data
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(gen_chunk, i) for i in range(len(chunks))]
+            for future in as_completed(futures):
+                idx, data = future.result()
+                wav_results[idx] = data
+
+    wav_chunks = []
+    for i, wav_data in enumerate(wav_results):
+        wav_chunks.append(wav_data)
+        if silence_gap and i < len(wav_results) - 1:
+            wav_chunks.append(silence_gap)
+
+    return concatenate_wav(wav_chunks)
+
+def _purge_old_jobs():
+    """Remove jobs older than JOB_TTL_SECONDS."""
+    now = time.time()
+    with _jobs_lock:
+        expired = [jid for jid, j in _jobs.items() if now - j['created'] > JOB_TTL_SECONDS]
+        for jid in expired:
+            del _jobs[jid]
+    if expired:
+        print(f"Purged {len(expired)} expired jobs", file=sys.stderr)
+
 @app.route('/health', methods=['GET'])
 def health():
     return "ok", 200
+
+# ── Async job endpoints ───────────────────────────────────────────────────────
+
+@app.route('/generate/async', methods=['POST'])
+def generate_async():
+    """
+    Submit a TTS generation job. Returns immediately with a job_id.
+    The actual generation runs in the background.
+
+    Request: { "text": "...", "length_scale": 1.55, "noise_scale": 0.42, "noise_w": 0.38 }
+    Response: { "job_id": "uuid" }
+    """
+    if not request.is_json:
+        return "JSON body required", 400
+
+    data = request.json
+    text = data.get('text', '')
+    if not text:
+        return "No text provided", 400
+
+    length_scale = float(data.get('length_scale', 1.0))
+    noise_scale = float(data.get('noise_scale', 0.667))
+    noise_w = float(data.get('noise_w', 0.8))
+
+    _purge_old_jobs()
+
+    job_id = str(uuid.uuid4())
+    with _jobs_lock:
+        _jobs[job_id] = {
+            'status': 'processing',
+            'result': None,
+            'error': None,
+            'created': time.time(),
+        }
+
+    print(f"Job {job_id}: queued (text len={len(text)})", file=sys.stderr)
+
+    def run_job():
+        start = time.time()
+        try:
+            result = _do_generate(text, length_scale, noise_scale, noise_w)
+            elapsed = time.time() - start
+            print(f"Job {job_id}: ready ({len(result)} bytes, {elapsed:.1f}s)", file=sys.stderr)
+            with _jobs_lock:
+                if job_id in _jobs:
+                    _jobs[job_id]['status'] = 'ready'
+                    _jobs[job_id]['result'] = result
+        except Exception as e:
+            elapsed = time.time() - start
+            print(f"Job {job_id}: error after {elapsed:.1f}s: {e}", file=sys.stderr)
+            with _jobs_lock:
+                if job_id in _jobs:
+                    _jobs[job_id]['status'] = 'error'
+                    _jobs[job_id]['error'] = str(e)
+
+    _job_executor.submit(run_job)
+
+    return jsonify({'job_id': job_id}), 202
+
+
+@app.route('/generate/status/<job_id>', methods=['GET'])
+def generate_status(job_id):
+    """
+    Poll job status.
+    Response: { "status": "processing" | "ready" | "error", "error": null | "message" }
+    """
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+
+    if job is None:
+        return jsonify({'status': 'not_found'}), 404
+
+    return jsonify({
+        'status': job['status'],
+        'error': job.get('error'),
+    }), 200
+
+
+@app.route('/generate/result/<job_id>', methods=['GET'])
+def generate_result(job_id):
+    """
+    Fetch completed job result as WAV audio.
+    Returns 202 if still processing, 200 with audio/wav if ready, 500 if error.
+    """
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+
+    if job is None:
+        return jsonify({'error': 'job not found'}), 404
+
+    if job['status'] == 'processing':
+        return jsonify({'status': 'processing'}), 202
+
+    if job['status'] == 'error':
+        return jsonify({'error': job.get('error', 'unknown error')}), 500
+
+    # Ready — serve audio and clean up job
+    result_bytes = job['result']
+    with _jobs_lock:
+        _jobs.pop(job_id, None)
+
+    return send_file(
+        io.BytesIO(result_bytes),
+        mimetype="audio/wav",
+        as_attachment=False,
+        download_name="tts.wav"
+    )
+
+# ── Legacy synchronous endpoints (kept for backward compatibility) ─────────────
 
 @app.route('/', methods=['GET', 'POST'])
 def generate_tts():
@@ -351,52 +520,13 @@ def generate_tts():
         print("Error: No text provided in request", file=sys.stderr)
         return "No text provided", 400
 
-    # Step 1: Normalize abbreviations, markdown, etc.
-    text = preprocess_text(text)
-    # Step 2: Optimize for natural TTS reading (pauses, emphasis, dialogue breathing)
-    text = prepare_for_tts(text)
-
-    print(f"Request: len={len(text)}, speed={length_scale}, noise={noise_scale}, noise_w={noise_w}", file=sys.stderr)
+    print(f"Sync request: len={len(text)}, speed={length_scale}, noise={noise_scale}, noise_w={noise_w}", file=sys.stderr)
     start_time = time.time()
 
     try:
-        chunks = split_text_into_chunks(text)
-        print(f"Split into {len(chunks)} chunks", file=sys.stderr)
-
-        # Generate a short silence gap for between chunks (paragraph pauses)
-        silence_gap = generate_silence(380) if len(chunks) > 1 else None
-
-        # Parallel generation: run Piper processes concurrently
-        wav_results = [None] * len(chunks)
-        workers = min(MAX_PARALLEL_PIPER, len(chunks))
-
-        if workers <= 1:
-            # Single chunk — no thread overhead
-            wav_results[0] = generate_wav_chunk(chunks[0], length_scale, noise_scale, noise_w)
-        else:
-            def gen_chunk(idx):
-                cs = time.time()
-                data = generate_wav_chunk(chunks[idx], length_scale, noise_scale, noise_w)
-                ct = time.time() - cs
-                print(f"  Chunk {idx+1}/{len(chunks)}: {len(chunks[idx])} chars -> {len(data)} bytes ({ct:.1f}s)", file=sys.stderr)
-                return idx, data
-
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = [pool.submit(gen_chunk, i) for i in range(len(chunks))]
-                for future in as_completed(futures):
-                    idx, data = future.result()
-                    wav_results[idx] = data
-
-        # Interleave silence gaps between chunks
-        wav_chunks = []
-        for i, wav_data in enumerate(wav_results):
-            wav_chunks.append(wav_data)
-            if silence_gap and i < len(wav_results) - 1:
-                wav_chunks.append(silence_gap)
-
-        result = concatenate_wav(wav_chunks)
+        result = _do_generate(text, length_scale, noise_scale, noise_w)
         total_time = time.time() - start_time
-        print(f"Successfully generated audio. Size: {len(result)} bytes, Total time: {total_time:.1f}s ({workers} workers)", file=sys.stderr)
+        print(f"Successfully generated audio. Size: {len(result)} bytes, Total time: {total_time:.1f}s", file=sys.stderr)
 
         return send_file(
             io.BytesIO(result),
