@@ -133,6 +133,65 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const BLOCKED_TERM_SAFE_REPLACEMENTS: Record<string, string> = {
+  gewalt: "Konflikt",
+  kampf: "Wettstreit",
+  waffe: "Werkzeug",
+  blut: "Farbfleck",
+  horror: "Aufregung",
+  grusel: "Nervenkitzel",
+  "dunkle magie": "Geheimtrick",
+  mobbing: "Ausschluss",
+  beleidigung: "Gemeinheit",
+  ausgrenzung: "Ausschluss",
+  religion: "Tradition",
+  glaube: "Idee",
+  kirche: "Gebaeude",
+  politik: "Regeln",
+  krieg: "Streit",
+  partei: "Gruppe",
+  alkohol: "Getraenk",
+  drogen: "Substanz",
+  casino: "Spielhaus",
+  monster: "Wesen",
+  idiot: "Raufbold",
+  dumm: "unfair",
+  haesslich: "gemein",
+  tod: "Abschied",
+  sterben: "verschwinden",
+  tot: "still",
+  albtraum: "schlimmer Traum",
+  hass: "Wut",
+  zerstoeren: "kaputtmachen",
+  verletzen: "wehtun",
+};
+
+function applyCaseTemplate(source: string, replacement: string): string {
+  if (!source) return replacement;
+  if (source === source.toUpperCase()) return replacement.toUpperCase();
+  const first = source.charAt(0);
+  if (first && first === first.toUpperCase()) {
+    return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+  }
+  return replacement;
+}
+
+function normalizeSpacingAfterFiltering(text: string): string {
+  return text
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([,.;:!?])/g, "$1")
+    .replace(/([(\[{])[ \t]+/g, "$1")
+    .replace(/[ \t]+([)\]}])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function resolveSafeReplacement(term: string): string {
+  const normalized = normalizeKeyword(term);
+  if (!normalized) return "Thema";
+  return BLOCKED_TERM_SAFE_REPLACEMENTS[normalized] || "Thema";
+}
+
 function buildControlsFromRow(row: ParentalControlsRow): ParentalControls {
   const blockedThemes = normalizeKeywordList(row.blocked_themes);
   const blockedWords = normalizeKeywordList(row.blocked_words);
@@ -195,16 +254,25 @@ export function sanitizeTextWithBlockedTerms(
   let replacements = 0;
 
   for (const term of blockedTerms) {
-    const escaped = escapeRegExp(term);
+    const normalized = normalizeKeyword(term);
+    const escaped = escapeRegExp(normalized);
     if (!escaped) continue;
-    const pattern = new RegExp(escaped, "gi");
-    next = next.replace(pattern, () => {
+    const replacement = resolveSafeReplacement(normalized);
+    const isSingleToken = /^[\p{L}\p{N}_-]+$/u.test(normalized);
+    const pattern = isSingleToken
+      ? new RegExp(`\\b${escaped}\\b`, "giu")
+      : new RegExp(escaped, "giu");
+
+    next = next.replace(pattern, (match) => {
       replacements += 1;
-      return "[inhalt-gefiltert]";
+      return applyCaseTemplate(match, replacement);
     });
   }
 
-  return { text: next, replacements };
+  return {
+    text: normalizeSpacingAfterFiltering(next),
+    replacements,
+  };
 }
 
 async function ensureParentalControlsTable() {
@@ -423,4 +491,3 @@ export function assertParentalDailyLimit(params: {
     `Taegliches Eltern-Limit erreicht: ${limit} ${label}-Generierungen pro Tag.`
   );
 }
-

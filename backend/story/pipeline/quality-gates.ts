@@ -1124,6 +1124,7 @@ function gateTextArtifacts(
   const controlCharPattern = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
   const mojibakePattern = /(?:\u00C3[\u0080-\u00BF]|\u00C2[\u0080-\u00BF]|\u00E2[\u0080-\u00BF]{2}|\uFFFD)/;
   const spacedTokenPattern = /\b(?:[A-Za-z]\s+){4,}[A-Za-z]\b/;
+  const asciiUmlautPattern = /\b(?:fuer|uber|ueber|zurueck|waehrend|wuerde|wuerden|waere|waeren|koennen|koennte|koennten|moeglich|moeglichkeit|schluessel|gefuehl|gefuehle|fuehlt|fuehlte|spuert|spuerte|hoeren|hoert|gehoert|gehoeren|schoen|groesser|groesste|loesung|loesen)\b/gi;
 
   for (const chapter of draft.chapters) {
     const text = chapter.text || "";
@@ -1160,6 +1161,19 @@ function gateTextArtifacts(
         message: isDE
           ? `Kapitel ${chapter.chapter}: auseinandergezogene Woerter erkannt (z. B. "T e l e p o r t").`
           : `Chapter ${chapter.chapter}: spaced-out broken token detected (e.g. "T e l e p o r t").`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      });
+    }
+
+    const asciiUmlautHits = text.match(asciiUmlautPattern)?.length ?? 0;
+    if (asciiUmlautHits >= 3) {
+      issues.push({
+        gate: "TEXT_ARTIFACTS",
+        chapter: chapter.chapter,
+        code: "TEXT_ASCII_UMLAUT",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: zu viele ASCII-Umschriften statt Umlaute (${asciiUmlautHits} Treffer).`
+          : `Chapter ${chapter.chapter}: too many ASCII substitutions instead of umlauts (${asciiUmlautHits} hits).`,
         severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
@@ -1239,6 +1253,19 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
         message: isDE
           ? `Kapitel ${ch.chapter}: Filter-/Redaktionsplatzhalter im Fliesstext gefunden`
           : `Chapter ${ch.chapter}: filter/redaction placeholder found in narrative text`,
+        severity: "ERROR",
+      });
+    }
+
+    const draftNoteLeakPattern = /(?:\(|\[)[^)\]]*\b(?:lachmoment|humormoment|meta|regie|anmerkung|notiz|draft|placeholder|todo|stage\s*direction|insert)\b[^)\]]*(?:\)|\])/i;
+    if (draftNoteLeakPattern.test(ch.text)) {
+      issues.push({
+        gate: "INSTRUCTION_LEAK",
+        chapter: ch.chapter,
+        code: "DRAFT_NOTE_LEAK",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: redaktionelle Notiz/Meta-Klammer im Fliesstext erkannt.`
+          : `Chapter ${ch.chapter}: editorial note/meta marker leaked into narrative text.`,
         severity: "ERROR",
       });
     }
@@ -2147,6 +2174,7 @@ function gateGimmickLoopOveruse(
         severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
+
   }
 
   const burstPattern = isDE
@@ -2452,6 +2480,11 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Platzhalter reparieren: entferne alle Filter-/Redaktionsmarker (z. B. [inhalt-gefiltert]) und ersetze sie durch natuerliche, kindgerechte Formulierungen."
       : "- Fix placeholders: remove all filter/redaction markers (e.g., [content-filtered]) and replace them with natural, child-friendly phrasing.");
   }
+  if (issueCodes.has("DRAFT_NOTE_LEAK")) {
+    lines.push(isDE
+      ? "- Entferne alle redaktionellen Klammernotizen (z. B. '(Lachmoment)', '[Draft]'). Erzahle diese Effekte nur als echte Szene."
+      : "- Remove all editorial bracket notes (e.g., '(laugh moment)', '[draft]'). Express those effects only through real scene prose.");
+  }
   if (issueCodes.has("META_LABEL_PHRASE") || issueCodes.has("META_FORESHADOW_PHRASE") || issueCodes.has("META_SUMMARY_SENTENCE")) {
     lines.push(isDE
       ? "- Entferne Meta-Vorschau- und Zusammenfassungs-Phrasen im Fliesstext (z. B. 'Der Ausblick:', 'Bald wuerden sie...', 'Die Konsequenz war klar', 'Der Preis?'). Uebergaenge muessen natuerlich klingen."
@@ -2472,10 +2505,10 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Ende enger mit dem Anfangsziel verknuepfen: fuehre die Kernfrage/den Auftrag aus Kapitel 1-2 sichtbar zu Ende."
       : "- Reconnect ending with the opening goal: visibly close the core quest/question from chapters 1-2.");
   }
-  if (issueCodes.has("TEXT_CONTROL_CHARS") || issueCodes.has("TEXT_MOJIBAKE") || issueCodes.has("TEXT_SPACED_TOKEN")) {
+  if (issueCodes.has("TEXT_CONTROL_CHARS") || issueCodes.has("TEXT_MOJIBAKE") || issueCodes.has("TEXT_SPACED_TOKEN") || issueCodes.has("TEXT_ASCII_UMLAUT")) {
     lines.push(isDE
-      ? "- Textartefakte vollstaendig entfernen: keine Steuerzeichen, keine Mojibake-Zeichenfolgen, keine auseinandergezogenen Tokens."
-      : "- Remove text artifacts completely: no control chars, no mojibake sequences, no spaced-out broken tokens.");
+      ? "- Textartefakte vollstaendig entfernen: keine Steuerzeichen, keine Mojibake-Zeichenfolgen, keine auseinandergezogenen Tokens und keine ASCII-Umlaut-Umschriften."
+      : "- Remove text artifacts completely: no control chars, no mojibake sequences, no spaced-out broken tokens, and no ASCII umlaut substitutions.");
   }
 
   for (const [chapter, chIssues] of grouped) {

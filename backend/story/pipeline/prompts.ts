@@ -414,7 +414,7 @@ export function buildFullStoryPrompt(input: {
 ZIEL: Kinder (${ageRange.min}-${ageRange.max}) wollen selbst weiterlesen.
 
 HARD RULES (muessen erfuellt sein):
-1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
+1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter. Nutze normale deutsche Rechtschreibung mit Umlauten (ä, ö, ü, ß), keine ASCII-Umschriften wie ae/oe/ue." : ""}
 2) Ausgabe: Nur gueltiges JSON. Kein Text davor/danach.
 3) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt.
 4) Struktur: Gib genau ${directives.length} Kapitel im JSON-Feld "chapters" aus (chapter: 1..${directives.length}). Keine Ueberschriften/Nummern im Text. Pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
@@ -539,7 +539,7 @@ KONKRETE PROBLEME (zu beheben):
 ${qualityIssues || "- Keine speziellen Issues uebergeben; optimiere trotzdem Prosa, Rhythmus und Figurenstimmen."}
 
 HARD RULES:
-1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter." : ""}
+1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter. Nutze normale deutsche Rechtschreibung mit Umlauten (ä, ö, ü, ß), keine ASCII-Umschriften wie ae/oe/ue." : ""}
 2) Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre, klar und kindgerecht.
 3) Cast-Lock: Nur diese Namen sind erlaubt: ${allowedNames || "(keine)"}. Keine neuen Figuren.
 4) Regel-Prioritaet: Hard Rules stehen ueber Zusatzvorgaben. Beispielnamen aus Nutzer-Texten sind keine Figurenkandidaten.
@@ -668,6 +668,7 @@ ${missingLine}
 16. Keine Zusammenfassungs-Saetze wie "Die Konsequenz war klar", "Der Preis?" oder "Der Gewinn?".
 17. Vermeide Serien-Formeln fuer Sprecher ("sagte ... kurz/knapp/leise", "seine Stimme war ...").
 18. Running Gag dosieren: gleiche Lautmalerei/Catchphrase max 2x in diesem Kapitel.
+19. Bei deutscher Ausgabe: verwende echte Umlaute (ä, ö, ü, ß), keine Umschriften wie ae/oe/ue.
 
 ${contextLines ? `# Kontext\n${contextLines}\n` : ""}
 # Original
@@ -855,6 +856,7 @@ ${stylePackText ? `\n${stylePackText}\n` : ""}
 RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names.
+2b) If output language is German: use proper umlauts (ä, ö, ü, ß), not ASCII substitutions like ae/oe/ue.
 3) No meta-instructions.
 3b) Do NOT output headings or labels like "Scene:", "Mood:", "Goal:", "Obstacle:", "Action:", "Mini-problem:", "Mini-resolution:", "Hook:", "Outlook:", "Epilogue:", "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Visible action:", "Action continued:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Der Ausblick:". Also never start sentences with "Her goal was", "An obstacle was", "Ihr Ziel war", "Ein Hindernis war".
 4) Every character must act or speak.
@@ -923,6 +925,7 @@ ${stylePackText ? `\n${stylePackText}\n` : ""}
 RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names or new characters.
+2b) If output language is German: use proper umlauts (ä, ö, ü, ß), not ASCII substitutions like ae/oe/ue.
 3) Replace template phrases with concrete action + short dialogue lines.
 3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Der Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
 4) Keep the chapter length within ${lengthTargets.wordMin}-${lengthTargets.wordMax} words.

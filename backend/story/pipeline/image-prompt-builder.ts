@@ -75,6 +75,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     "- No cropping or occlusion; no one hidden behind objects or other characters",
     "- Characters MUST perform their described actions (running, kneeling, reaching, climbing) — NOT just standing idle",
     "- Follow CHARACTER ACTION LOCKS exactly; each named character must show a different visible movement",
+    "- Follow CHARACTER IDENTITY LOCKS exactly (human boy/girl/non-human species class must stay stable)",
     "- Characters interact with each other or props; NOT looking at camera; NOT posing for a photo",
     "- NO static group poses — each character must have a DIFFERENT body position and action",
     "- Characters must be fully integrated in the scene (no sticker/cutout look, no pasted avatars, no floating heads)",
@@ -128,13 +129,15 @@ function findCharacterName(cast: CastSet, slotKey: string): string | null {
 function buildCharacterDetail(cast: CastSet, slotKey: string): string | null {
   const sheet = cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
   if (!sheet) return null;
+  const identityClass = describeIdentityClass(sheet);
   const items = [
     ...(sheet.visualSignature || []),
     ...(sheet.outfitLock || []),
     ...(sheet.faceLock || []),
   ].filter(Boolean);
   const unique = Array.from(new Set(items)).slice(0, 3);
-  const detail = unique.length > 0 ? unique.join(", ") : "distinct appearance";
+  const detailItems = [identityClass, ...unique].filter(Boolean);
+  const detail = detailItems.length > 0 ? detailItems.join(", ") : "distinct appearance";
   return `${sheet.displayName}: ${detail}`;
 }
 
@@ -358,6 +361,10 @@ function getCharacterProfileText(sheet: { displayName: string; visualSignature?:
   return parts.filter(Boolean).join(" ");
 }
 
+function getCharacterForbiddenText(sheet: { forbidden?: string[] }): string {
+  return (sheet.forbidden || []).filter(Boolean).join(" ").toLowerCase();
+}
+
 /**
  * Humanoid fantasy creatures that look like humans with minor fantastical features
  * (wings, pointed ears, small size). They should NOT get the strict "non-human anatomy" rule.
@@ -506,25 +513,25 @@ function buildIdentityConsistencyRules(cast: CastSet, slots: string[]): string[]
     if (!sheet) continue;
     const profile = getCharacterProfileText(sheet).toLowerCase();
     const kind = matchNonHumanKind(profile);
-    const gender = inferGenderFromProfile(profile);
+    const gender = inferGenderFromSheet(profile, getCharacterForbiddenText(sheet));
 
     if (!kind) {
       if (gender === "male") {
-        rules.push(`- ${sheet.displayName} is a human boy. Do NOT render as female or as an animal.`);
+        rules.push(`- ${sheet.displayName} is a human boy. Keep child proportions and the same face identity. Do NOT render as female, as an animal, or as a duplicate copy.`);
       } else if (gender === "female") {
-        rules.push(`- ${sheet.displayName} is a human girl. Do NOT render as male or as an animal.`);
+        rules.push(`- ${sheet.displayName} is a human girl. Keep child proportions and the same face identity. Do NOT render as male, as an animal, or as a duplicate copy.`);
       } else {
-        rules.push(`- ${sheet.displayName} remains a human child, not an animal or creature.`);
+        rules.push(`- ${sheet.displayName} remains a human child with consistent identity. Do NOT change gender presentation, species, or duplicate this character.`);
       }
       continue;
     }
 
     if (HUMANOID_FANTASY_KINDS.has(kind)) {
-      rules.push(`- ${sheet.displayName} remains a ${kind} character (humanoid fantasy), not replaced by a plain human child or real animal.`);
+      rules.push(`- ${sheet.displayName} remains a ${kind} character (humanoid fantasy), not replaced by a plain human child or real animal, and not duplicated.`);
       continue;
     }
 
-    rules.push(`- ${sheet.displayName} remains a ${kind}, not replaced by a human child.`);
+    rules.push(`- ${sheet.displayName} remains a ${kind} with clear non-human anatomy, not replaced by a human child and not duplicated.`);
   }
   return Array.from(new Set(rules));
 }
@@ -538,4 +545,36 @@ function inferGenderFromProfile(profileLower: string): "male" | "female" | "unkn
   if (isFemale && !isMale) return "female";
   if (isMale && !isFemale) return "male";
   return "unknown";
+}
+
+function inferGenderFromSheet(profileLower: string, forbiddenLower: string): "male" | "female" | "unknown" {
+  const direct = inferGenderFromProfile(profileLower);
+  if (direct !== "unknown") return direct;
+
+  if (/\b(female|girl|weiblich|mädchen|maedchen)\b/i.test(forbiddenLower)) {
+    return "male";
+  }
+  if (/\b(male|boy|männlich|maennlich|junge)\b/i.test(forbiddenLower)) {
+    return "female";
+  }
+  return "unknown";
+}
+
+function describeIdentityClass(sheet: {
+  displayName: string;
+  visualSignature?: string[];
+  outfitLock?: string[];
+  faceLock?: string[];
+  forbidden?: string[];
+}): string {
+  const profile = getCharacterProfileText(sheet).toLowerCase();
+  const kind = matchNonHumanKind(profile);
+  if (kind) {
+    return HUMANOID_FANTASY_KINDS.has(kind) ? `${kind} character` : `${kind} (non-human)`;
+  }
+
+  const gender = inferGenderFromSheet(profile, getCharacterForbiddenText(sheet));
+  if (gender === "male") return "human boy";
+  if (gender === "female") return "human girl";
+  return "human child";
 }

@@ -20,9 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Cost-safe default: disable full-story rewrites unless explicitly enabled via request config.
-// A guarded emergency pass is still possible when hard quality failures survive.
-const MAX_REWRITE_PASSES = 0;
+// Quality-first default: allow one global rewrite pass.
+const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -34,8 +33,8 @@ const REWRITE_ONLY_ON_ERRORS = true;
 // Keep expansion budget small by default (chapter-local surgical fixes only).
 const MAX_EXPAND_CALLS = 1;
 
-// Warning polish can burn many extra calls; default OFF.
-const MAX_WARNING_POLISH_CALLS = 0;
+// Keep one warning-polish pass enabled by default for prose/dialogue cleanup.
+const MAX_WARNING_POLISH_CALLS = 1;
 const QUALITY_RECOVERY_SCORE_THRESHOLD = 8.2;
 const QUALITY_RECOVERY_WARNING_COUNT = 3;
 const WARNING_POLISH_CODES = new Set([
@@ -63,6 +62,8 @@ const WARNING_POLISH_CODES = new Set([
   "RULE_EXPOSITION_TELL",
   "ABRUPT_SCENE_SHIFT",
   "COMPARISON_CLUSTER",
+  "DRAFT_NOTE_LEAK",
+  "TEXT_ASCII_UMLAUT",
 ]);
 
 // Warning-driven rewrites are reserved for persistent quality misses when no hard errors remain.
@@ -86,6 +87,8 @@ const REWRITE_WARNING_CODES = new Set([
   "POETIC_LANGUAGE_OVERLOAD",
   "TELL_PATTERN_OVERUSE",
   "ABRUPT_SCENE_SHIFT",
+  "DRAFT_NOTE_LEAK",
+  "TEXT_ASCII_UMLAUT",
 ]);
 
 export class LlmStoryWriter implements StoryWriter {
@@ -934,6 +937,8 @@ function sanitizeDraft(draft: StoryDraft): StoryDraft {
   }));
   return {
     ...draft,
+    title: sanitizeStoryHeaderText(draft.title),
+    description: sanitizeStoryHeaderText(draft.description),
     chapters: removeCrossChapterDuplicateSentences(chapters),
   };
 }
@@ -992,6 +997,9 @@ function sanitizeMetaStructureFromText(text: string): string {
     .replace(/[\u200B-\u200F\u2060\uFEFF]/g, "")
     .replace(/\u00AD/g, "");
 
+  working = repairCommonMojibakeSequences(working);
+  working = stripEditorialNoteMarkers(working);
+  working = repairGermanAsciiTranscriptions(working);
   working = collapseSpacedLetterTokens(working);
   working = working.replace(
     /\b([A-Za-z]{3,}s)\s+(Amulett|Kugel|Kompass|Karte|Schluessel|Feder|Stein|Spur|Tor|Pfad|Duft)\b/g,
@@ -1094,8 +1102,11 @@ function sanitizeMetaStructureFromText(text: string): string {
   result = result
     .replace(/\S*\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]\S*/gi, " ... ")
     .replace(/\[(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\]/gi, " ... ")
+    .replace(/<\s*(?:inhalt-gefiltert|content-filtered|redacted|FILTERED|CENSORED)\s*>/gi, " ... ")
     .replace(/\s*\.\.\.\s*/g, " ")
     .replace(/\s{2,}/g, " ");
+
+  result = stripEditorialNoteMarkers(result);
 
   // Remove banned filler words that LLMs consistently fail to avoid.
   // "plötzlich" is the worst offender — appears in every story despite explicit bans.
@@ -1107,6 +1118,8 @@ function sanitizeMetaStructureFromText(text: string): string {
 
   // Reduce repetitive onomatopoeia bursts ("Quak, quak, quak") to a readable amount.
   result = reduceOnomatopoeiaBursts(result);
+  result = repairGermanAsciiTranscriptions(result);
+  result = repairCommonMojibakeSequences(result);
 
   return result
     .replace(/\.\s*\.\s*/g, ". ")
@@ -1119,7 +1132,7 @@ function sanitizeMetaStructureFromText(text: string): string {
 
 function collapseSpacedLetterTokens(input: string): string {
   if (!input) return input;
-  return input.replace(/\b(?:[A-Za-z]\s+){4,}[A-Za-z]\b/g, token =>
+  return input.replace(/\b(?:\p{L}\s+){3,}\p{L}\b/gu, token =>
     token.replace(/\s+/g, ""),
   );
 }
@@ -1137,6 +1150,129 @@ function reduceOnomatopoeiaBursts(input: string): string {
     out = out.replace(pattern, "$1, $1");
   }
   return out.replace(/\s{2,}/g, " ");
+}
+
+function sanitizeStoryHeaderText(text: string | undefined): string {
+  if (!text) return "";
+  return sanitizeMetaStructureFromText(text)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripEditorialNoteMarkers(input: string): string {
+  if (!input) return input;
+  const notePatterns = [
+    /\((?:[^)]*\b(?:lachmoment|humormoment|meta|regie|anmerkung|notiz|draft|placeholder|todo|stage\s*direction|insert)\b[^)]*)\)/gi,
+    /\[(?:[^\]]*\b(?:lachmoment|humormoment|meta|regie|anmerkung|notiz|draft|placeholder|todo|stage\s*direction|insert)\b[^\]]*)\]/gi,
+  ];
+  let out = input;
+  for (const pattern of notePatterns) {
+    out = out.replace(pattern, " ");
+  }
+  return out.replace(/\s{2,}/g, " ");
+}
+
+const COMMON_MOJIBAKE_REPLACEMENTS: Array<[string, string]> = [
+  ["\u00C3\u00A4", "\u00E4"],
+  ["\u00C3\u00B6", "\u00F6"],
+  ["\u00C3\u00BC", "\u00FC"],
+  ["\u00C3\u0084", "\u00C4"],
+  ["\u00C3\u0096", "\u00D6"],
+  ["\u00C3\u009C", "\u00DC"],
+  ["\u00C3\u009F", "\u00DF"],
+  ["\u00C2\u00A0", " "],
+  ["\u00E2\u0080\u009E", "\u201E"],
+  ["\u00E2\u0080\u009C", "\u201C"],
+  ["\u00E2\u0080\u009D", "\u201D"],
+  ["\u00E2\u0080\u0098", "\u2018"],
+  ["\u00E2\u0080\u0099", "\u2019"],
+  ["\u00E2\u0080\u0093", "\u2013"],
+  ["\u00E2\u0080\u0094", "\u2014"],
+  ["\u00E2\u0080\u00A6", "\u2026"],
+  ["\uFFFD", ""],
+];
+
+function repairCommonMojibakeSequences(input: string): string {
+  if (!input) return input;
+  let out = input;
+  for (const [bad, good] of COMMON_MOJIBAKE_REPLACEMENTS) {
+    out = out.split(bad).join(good);
+  }
+  return out;
+}
+
+const ASCII_UMLAUT_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bfuer\b/gi, "f\u00FCr"],
+  [/\buber\b/gi, "\u00FCber"],
+  [/\bueber\b/gi, "\u00FCber"],
+  [/\bgegenueber\b/gi, "gegen\u00FCber"],
+  [/\bzurueck\b/gi, "zur\u00FCck"],
+  [/\bwaehrend\b/gi, "w\u00E4hrend"],
+  [/\bwuerde\b/gi, "w\u00FCrde"],
+  [/\bwuerden\b/gi, "w\u00FCrden"],
+  [/\bwaere\b/gi, "w\u00E4re"],
+  [/\bwaeren\b/gi, "w\u00E4ren"],
+  [/\bmoeglich\b/gi, "m\u00F6glich"],
+  [/\bmoeglichkeit\b/gi, "M\u00F6glichkeit"],
+  [/\bmoeglichkeiten\b/gi, "M\u00F6glichkeiten"],
+  [/\bkoennen\b/gi, "k\u00F6nnen"],
+  [/\bkoennte\b/gi, "k\u00F6nnte"],
+  [/\bkoennten\b/gi, "k\u00F6nnten"],
+  [/\bkoenig\b/gi, "K\u00F6nig"],
+  [/\bkoenigin\b/gi, "K\u00F6nigin"],
+  [/\bschluessel\b/gi, "Schl\u00FCssel"],
+  [/\bgefaehrlich\b/gi, "gef\u00E4hrlich"],
+  [/\bgefuehl\b/gi, "Gef\u00FChl"],
+  [/\bgefuehle\b/gi, "Gef\u00FChle"],
+  [/\bgefuehls\b/gi, "Gef\u00FChls"],
+  [/\bfuehlt\b/gi, "f\u00FChlt"],
+  [/\bfuehlte\b/gi, "f\u00FChlte"],
+  [/\bfuehlten\b/gi, "f\u00FChlten"],
+  [/\bspuert\b/gi, "sp\u00FCrt"],
+  [/\bspuerte\b/gi, "sp\u00FCrte"],
+  [/\bspuerten\b/gi, "sp\u00FCrten"],
+  [/\bmuede\b/gi, "m\u00FCde"],
+  [/\bmueder\b/gi, "m\u00FCder"],
+  [/\bmueden\b/gi, "m\u00FCden"],
+  [/\bhoeren\b/gi, "h\u00F6ren"],
+  [/\bhoert\b/gi, "h\u00F6rt"],
+  [/\bgehort\b/gi, "geh\u00F6rt"],
+  [/\bgehoert\b/gi, "geh\u00F6rt"],
+  [/\bgehoeren\b/gi, "geh\u00F6ren"],
+  [/\bgehoerte\b/gi, "geh\u00F6rte"],
+  [/\bschoen\b/gi, "sch\u00F6n"],
+  [/\bgroesser\b/gi, "gr\u00F6\u00DFer"],
+  [/\bgroesste\b/gi, "gr\u00F6\u00DFte"],
+  [/\bgroessten\b/gi, "gr\u00F6\u00DFten"],
+  [/\bgroesster\b/gi, "gr\u00F6\u00DFter"],
+  [/\bgroesstes\b/gi, "gr\u00F6\u00DFtes"],
+  [/\bgroesstem\b/gi, "gr\u00F6\u00DFtem"],
+  [/\bloesen\b/gi, "l\u00F6sen"],
+  [/\bloest\b/gi, "l\u00F6st"],
+  [/\bloeste\b/gi, "l\u00F6ste"],
+  [/\bloesung\b/gi, "L\u00F6sung"],
+  [/\bloesungen\b/gi, "L\u00F6sungen"],
+  [/\bstoert\b/gi, "st\u00F6rt"],
+  [/\bstoeren\b/gi, "st\u00F6ren"],
+];
+
+function applyCaseFromTemplate(source: string, replacement: string): string {
+  if (!source) return replacement;
+  if (source === source.toUpperCase()) return replacement.toUpperCase();
+  const first = source.charAt(0);
+  if (first && first === first.toUpperCase()) {
+    return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+  }
+  return replacement;
+}
+
+function repairGermanAsciiTranscriptions(input: string): string {
+  if (!input) return input;
+  let out = input;
+  for (const [pattern, replacement] of ASCII_UMLAUT_REPLACEMENTS) {
+    out = out.replace(pattern, match => applyCaseFromTemplate(match, replacement));
+  }
+  return out;
 }
 
 function safeJson(text: string) {

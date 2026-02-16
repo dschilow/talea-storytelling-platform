@@ -394,6 +394,8 @@ async function selectCandidateForSlotWithAI(input: {
       role: candidate.role,
       archetype: candidate.archetype,
       scoreHint: Number((scoreMap.get(candidate.id) || 0).toFixed(3)),
+      recentUsageCount: candidate.recent_usage_count ?? 0,
+      totalUsageCount: candidate.total_usage_count ?? 0,
       dominantPersonality: candidate.dominant_personality || undefined,
       secondaryTraits: (candidate.secondary_traits || []).slice(0, 2),
       speechStyle: (candidate.speech_style || []).slice(0, 2),
@@ -413,6 +415,7 @@ async function selectCandidateForSlotWithAI(input: {
     const systemPrompt = `You are a casting director for children's stories.
 Pick the best candidate for the slot from the candidate list.
 Prefer strongest fit + distinct voice + reliable long-arc value.
+When fit is close, prefer less recently used characters to keep casts diverse across stories.
 Return compact JSON only with selectedCandidateId and confidence.`;
 
     const userPayload = {
