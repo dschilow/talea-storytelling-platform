@@ -57,6 +57,12 @@ export const OfflineClerkProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setActive: noopAsync,
     // telemetry stub (useAuth calls isomorphicClerk.telemetry?.record(...))
     telemetry: { record: noopSync, isEnabled: false },
+    __internal: {
+      telemetry: { record: noopSync, isEnabled: false },
+      clerkjs: null,
+      options: {},
+      loadPromise: Promise.resolve(),
+    },
     // event emitter stubs (clerkLoaded() calls .on('status', handler, { notify: true }))
     on: (_event: string, handler: (status: string) => void, opts?: { notify?: boolean }) => {
       if (opts?.notify) handler('ready');

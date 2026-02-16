@@ -1928,13 +1928,8 @@ export namespace tts {
         }
 
         public async generateSpeech(params: RequestType<typeof api_tts_tts_generateSpeech>): Promise<ResponseType<typeof api_tts_tts_generateSpeech>> {
-            // Convert our params into the objects we need for the request
-            const query = makeRecord<string, string | string[]>({
-                text: params.text,
-            })
-
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/tts/generate`, {query, method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/tts/generate`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateSpeech>
         }
 

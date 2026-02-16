@@ -178,7 +178,7 @@ async function generateSyncFallback(text: string): Promise<string> {
 // ── API Endpoints ─────────────────────────────────────────────────────────────
 
 export const generateSpeech = api(
-    { expose: true, method: "GET", path: "/tts/generate" },
+    { expose: true, method: "POST", path: "/tts/generate" },
     async ({ text }: { text: string }): Promise<TTSResponse> => {
         if (!text) {
             throw new Error("Text is required");

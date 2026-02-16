@@ -6,6 +6,14 @@ import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
 import type { Chapter } from '../types/story';
 
+const PLAYLIST_STORAGE_KEY = 'talea.audio.playlist.v1';
+
+type StoredPlaylistState = {
+  playlist: PlaylistItem[];
+  currentIndex: number;
+  isPlaylistActive: boolean;
+};
+
 // ── Legacy single-track interface (unchanged) ──────────────────────
 export interface AudioTrack {
   id: string;
@@ -72,6 +80,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isPlaylistActive, setIsPlaylistActive] = useState(false);
   const [isPlaylistDrawerOpen, setIsPlaylistDrawerOpen] = useState(false);
   const [waitingForConversion, setWaitingForConversion] = useState(false);
+  const [hasRestoredState, setHasRestoredState] = useState(false);
 
   // Stable refs for callbacks that need current state
   const playlistRef = useRef(playlist);
@@ -119,6 +128,111 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const { enqueue, cancel: cancelConversion, retryItem, statusMap: conversionStatusMap } =
     useTTSConversionQueue({ backend, onChunkReady, onChunkError });
+
+  // ── Restore persisted playlist on startup ───────────────────────
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PLAYLIST_STORAGE_KEY);
+      if (!raw) {
+        setHasRestoredState(true);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as StoredPlaylistState;
+      const restoredPlaylist = Array.isArray(parsed.playlist) ? parsed.playlist : [];
+
+      const hydratedPlaylist = restoredPlaylist.map((item) => {
+        const audioUrl = item.audioUrl;
+        const isBlobUrl = Boolean(audioUrl && audioUrl.startsWith('blob:'));
+
+        if (item.type === 'story-chapter') {
+          return {
+            ...item,
+            audioUrl: !isBlobUrl ? audioUrl : undefined,
+            conversionStatus: !isBlobUrl && audioUrl ? 'ready' : 'pending',
+          } as PlaylistItem;
+        }
+
+        return {
+          ...item,
+          conversionStatus: audioUrl ? 'ready' : item.conversionStatus || 'pending',
+        } as PlaylistItem;
+      });
+
+      const boundedIndex =
+        typeof parsed.currentIndex === 'number' &&
+        parsed.currentIndex >= 0 &&
+        parsed.currentIndex < hydratedPlaylist.length
+          ? parsed.currentIndex
+          : -1;
+
+      playlistRef.current = hydratedPlaylist;
+      currentIndexRef.current = boundedIndex;
+      isPlaylistActiveRef.current = hydratedPlaylist.length > 0 && Boolean(parsed.isPlaylistActive);
+
+      setPlaylist(hydratedPlaylist);
+      setCurrentIndex(boundedIndex);
+      setIsPlaylistActive(hydratedPlaylist.length > 0 && Boolean(parsed.isPlaylistActive));
+
+      // Re-enqueue story chunks so cache/tts can restore playable URLs.
+      const toQueue = hydratedPlaylist
+        .filter((item) => item.type === 'story-chapter' && !item.audioUrl && item.sourceText)
+        .map((item) => ({ id: item.id, text: item.sourceText as string }));
+
+      if (toQueue.length > 0) {
+        enqueue(toQueue);
+      }
+
+      // If there was an active current item, restore waiting/track state.
+      if (boundedIndex >= 0) {
+        const currentItem = hydratedPlaylist[boundedIndex];
+        if (currentItem?.audioUrl && currentItem.conversionStatus === 'ready') {
+          setShouldAutoplay(false);
+          setTrack({
+            id: currentItem.id,
+            title: currentItem.title,
+            description: currentItem.description,
+            coverImageUrl: currentItem.coverImageUrl,
+            audioUrl: currentItem.audioUrl,
+          });
+          setWaitingForConversion(false);
+        } else {
+          setWaitingForConversion(true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore audio playlist state:', error);
+    } finally {
+      setHasRestoredState(true);
+    }
+  }, [enqueue]);
+
+  // ── Persist playlist state ───────────────────────────────────────
+  useEffect(() => {
+    if (!hasRestoredState) return;
+    try {
+      const serializablePlaylist = playlist.map((item) => ({
+        ...item,
+        // Blob URLs are session-local and invalid after refresh.
+        audioUrl: item.audioUrl?.startsWith('blob:') ? undefined : item.audioUrl,
+        conversionStatus:
+          item.type === 'story-chapter'
+            ? item.audioUrl && !item.audioUrl.startsWith('blob:')
+              ? 'ready'
+              : 'pending'
+            : item.conversionStatus,
+      }));
+
+      const payload: StoredPlaylistState = {
+        playlist: serializablePlaylist,
+        currentIndex,
+        isPlaylistActive,
+      };
+      window.localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.error('Failed to persist audio playlist state:', error);
+    }
+  }, [playlist, currentIndex, isPlaylistActive, hasRestoredState]);
 
   // ── Internal helper: play a playlist item as AudioTrack ───────────
   const playItemAsTrack = useCallback((item: PlaylistItem) => {
@@ -235,8 +349,14 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (currentItem?.audioUrl && currentItem.conversionStatus === 'ready') {
       setWaitingForConversion(false);
       playItemAsTrack(currentItem);
+      return;
     }
-  }, [playlist, currentIndex, waitingForConversion, isPlaylistActive, playItemAsTrack]);
+
+    // If the current chunk failed, skip to the next playable chunk automatically.
+    if (currentItem?.conversionStatus === 'error') {
+      playNextInternal();
+    }
+  }, [playlist, currentIndex, waitingForConversion, isPlaylistActive, playItemAsTrack, playNextInternal]);
 
   // ── Legacy playTrack (clears playlist) ────────────────────────────
   const playTrack = useCallback(
@@ -279,27 +399,35 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const close = useCallback(() => {
-    audioRef.current?.pause();
-    cancelConversion();
-    playlistRef.current.forEach((item) => revokeBlobUrl(item.audioUrl));
-    setPlaylist([]);
-    setCurrentIndex(-1);
-    setIsPlaylistActive(false);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsReady(false);
     setWaitingForConversion(false);
     setTrack(null);
+    setShouldAutoplay(false);
     setIsPlaylistDrawerOpen(false);
-  }, [cancelConversion, revokeBlobUrl]);
+  }, []);
 
   // ── Playlist methods ──────────────────────────────────────────────
   const addToPlaylist = useCallback(
     (items: PlaylistItem[]) => {
       const prev = playlistRef.current;
+      const existingIds = new Set(prev.map((item) => item.id));
+      const uniqueIncoming = items.filter((item) => !existingIds.has(item.id));
       const remaining = MAX_PLAYLIST_ITEMS - prev.length;
-      const toAdd = items.slice(0, remaining);
+      const toAdd = uniqueIncoming.slice(0, remaining);
       const next = [...prev, ...toAdd];
       playlistRef.current = next;
       setPlaylist(next);
       if (!isPlaylistActive) {
+        isPlaylistActiveRef.current = true;
         setIsPlaylistActive(true);
       }
     },
@@ -314,16 +442,21 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         revokeBlobUrl(prev[idx].audioUrl);
         const next = prev.filter((item) => item.id !== itemId);
+        playlistRef.current = next;
 
         if (idx < currentIndexRef.current) {
+          currentIndexRef.current = currentIndexRef.current - 1;
           setCurrentIndex((i) => i - 1);
         } else if (idx === currentIndexRef.current) {
           if (next.length === 0) {
             setTrack(null);
+            currentIndexRef.current = -1;
+            isPlaylistActiveRef.current = false;
             setCurrentIndex(-1);
             setIsPlaylistActive(false);
           } else {
             const newIdx = Math.min(idx, next.length - 1);
+            currentIndexRef.current = newIdx;
             setCurrentIndex(newIdx);
             const nextItem = next[newIdx];
             if (nextItem?.audioUrl && nextItem.conversionStatus === 'ready') {
@@ -344,6 +477,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audioRef.current?.pause();
     cancelConversion();
     playlistRef.current.forEach((item) => revokeBlobUrl(item.audioUrl));
+    playlistRef.current = [];
+    currentIndexRef.current = -1;
+    isPlaylistActiveRef.current = false;
     setPlaylist([]);
     setCurrentIndex(-1);
     setIsPlaylistActive(false);
@@ -357,6 +493,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (index < 0 || index >= pl.length) return;
 
       const item = pl[index];
+      currentIndexRef.current = index;
+      isPlaylistActiveRef.current = true;
       setCurrentIndex(index);
       setIsPlaylistActive(true);
 
@@ -380,6 +518,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const prevIdx = idx - 1;
     const item = playlistRef.current[prevIdx];
+    currentIndexRef.current = prevIdx;
     setCurrentIndex(prevIdx);
 
     if (item?.audioUrl && item.conversionStatus === 'ready') {

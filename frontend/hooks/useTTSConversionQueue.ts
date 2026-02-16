@@ -59,8 +59,27 @@ export function useTTSConversionQueue({
 
       if (cancelledRef.current) return;
 
-      // @ts-ignore - legacy backend typing for tts endpoint
-      const response = await backend.tts.generateSpeech({ text: item.text });
+      let response: { audioData?: string } | null = null;
+      let lastError: unknown = null;
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          // @ts-ignore - legacy backend typing for tts endpoint
+          response = await backend.tts.generateSpeech({ text: item.text });
+          break;
+        } catch (err) {
+          lastError = err;
+          if (attempt < 3) {
+            await new Promise((resolve) => setTimeout(resolve, 700 * attempt));
+            continue;
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError instanceof Error ? lastError : new Error('TTS request fehlgeschlagen');
+      }
+
       if (!response?.audioData) {
         throw new Error('Keine Audiodaten empfangen');
       }
@@ -111,7 +130,6 @@ export function useTTSConversionQueue({
   const cancel = useCallback(() => {
     cancelledRef.current = true;
     queueRef.current = [];
-    activeCountRef.current = 0;
     setStatusMap(new Map());
     // Allow re-use after cancel
     setTimeout(() => {
