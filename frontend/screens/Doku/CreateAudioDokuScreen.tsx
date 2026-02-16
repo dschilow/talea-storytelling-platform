@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Headphones, Sparkles, ArrowLeft } from 'lucide-react';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import LottieLoader from '../../components/common/LottieLoader';
 import { AudioUploadCard } from '../../components/ui/audio-upload-card';
+import { getBackendUrl } from '../../config';
 import { useBackend } from '../../hooks/useBackend';
 import { colors, gradients } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
@@ -19,6 +20,7 @@ const UNSPLASH_PLACEHOLDER =
 
 const AGE_GROUP_OPTIONS = ['4-6', '6-8', '8-10', '10-12', '12+'];
 const CATEGORY_OPTIONS = ['Abenteuer', 'Wissen', 'Natur', 'Tiere', 'Geschichte', 'Entspannung'];
+const AUDIO_TAG_OPTIONS = ['excited', 'curious', 'mischievously', 'thoughtful', 'giggles', 'inhales deeply', 'woo'];
 
 const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -53,11 +55,99 @@ type AudioUploadPayload = {
   filename?: string;
 };
 
+type ElevenLabsVoice = {
+  voiceId: string;
+  name: string;
+  labels?: Record<string, string>;
+  description?: string;
+  previewUrl?: string;
+};
+
+type ElevenLabsVoicesResponse = {
+  voices?: ElevenLabsVoice[];
+};
+
+type ElevenLabsDialogueResponse = {
+  variants: Array<{
+    id: string;
+    audioData: string;
+    mimeType: string;
+  }>;
+  turns: number;
+  speakers: string[];
+};
+
+type DialogueSpeaker = {
+  id: string;
+  name: string;
+  voiceId: string;
+};
+
+type GeneratedDialogueVariant = {
+  id: string;
+  audioData: string;
+  mimeType: string;
+  file: File;
+};
+
+const extractSpeakersFromScript = (script: string): string[] => {
+  const speakers: string[] = [];
+  const seen = new Set<string>();
+
+  script
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .forEach((line) => {
+      const match = line.match(/^\s*([^:\n]{1,80}):\s*(.*)$/);
+      if (!match) return;
+
+      const speaker = match[1].replace(/\s+/g, ' ').trim();
+      if (!speaker) return;
+      const key = speaker.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      speakers.push(speaker);
+    });
+
+  return speakers;
+};
+
+const readErrorMessage = async (response: Response): Promise<string> => {
+  try {
+    const payload = (await response.clone().json()) as any;
+    if (typeof payload?.message === 'string' && payload.message.trim()) {
+      return payload.message;
+    }
+    if (typeof payload?.error?.message === 'string' && payload.error.message.trim()) {
+      return payload.error.message;
+    }
+  } catch {
+    // Fallback to plain text below.
+  }
+
+  try {
+    const text = await response.text();
+    if (text.trim()) return text;
+  } catch {
+    // Ignore text parsing errors.
+  }
+
+  return `HTTP ${response.status}`;
+};
+
+const createSpeakerDraft = (): DialogueSpeaker => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  name: '',
+  voiceId: '',
+});
+
 const CreateAudioDokuScreen: React.FC = () => {
   const { t } = useTranslation();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const backend = useBackend();
   const [searchParams] = useSearchParams();
+  const dialogueEditorRef = useRef<HTMLTextAreaElement | null>(null);
   const editId = searchParams.get('edit');
   const isEditMode = Boolean(editId);
 
@@ -75,6 +165,18 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAudio, setSavedAudio] = useState<AudioDoku | null>(null);
+  const [dialogueScript, setDialogueScript] = useState('');
+  const [speakerProfiles, setSpeakerProfiles] = useState<DialogueSpeaker[]>([
+    { id: 'speaker-tavi', name: 'TAVI', voiceId: '' },
+    { id: 'speaker-lumi', name: 'LUMI', voiceId: '' },
+  ]);
+  const [elevenLabsVoices, setElevenLabsVoices] = useState<ElevenLabsVoice[]>([]);
+  const [voicesLoading, setVoicesLoading] = useState(false);
+  const [dialogueLoading, setDialogueLoading] = useState(false);
+  const [dialogueStatus, setDialogueStatus] = useState<string | null>(null);
+  const [dialogueStatusType, setDialogueStatusType] = useState<'success' | 'error' | null>(null);
+  const [generatedVariants, setGeneratedVariants] = useState<GeneratedDialogueVariant[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!audioFile) {
@@ -129,10 +231,240 @@ const CreateAudioDokuScreen: React.FC = () => {
     return savedAudio?.coverImageUrl || coverImageUrl || UNSPLASH_PLACEHOLDER;
   }, [savedAudio?.coverImageUrl, coverImageUrl]);
 
+  const detectedSpeakers = useMemo(() => extractSpeakersFromScript(dialogueScript), [dialogueScript]);
+  const speakerVoiceMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    speakerProfiles.forEach((speaker) => {
+      const name = speaker.name.trim();
+      const voiceId = speaker.voiceId.trim();
+      if (!name || !voiceId) return;
+      map[name] = voiceId;
+    });
+    return map;
+  }, [speakerProfiles]);
+  const configuredSpeakerNames = useMemo(
+    () =>
+      new Set(
+        speakerProfiles
+          .map((speaker) => speaker.name.trim().toLowerCase())
+          .filter((name) => Boolean(name))
+      ),
+    [speakerProfiles]
+  );
+  const unmappedScriptSpeakers = useMemo(
+    () => detectedSpeakers.filter((speaker) => !configuredSpeakerNames.has(speaker.toLowerCase())),
+    [configuredSpeakerNames, detectedSpeakers]
+  );
+
   const handleFileSelected = (file: File | null) => {
     setAudioFile(file);
+    if (file) {
+      setError(null);
+    }
     if (file && !title.trim()) {
       setTitle(file.name.replace(/\.[^/.]+$/, ''));
+    }
+  };
+
+  const fetchElevenLabsVoices = async () => {
+    try {
+      setVoicesLoading(true);
+      setDialogueStatus(null);
+      setDialogueStatusType(null);
+      const token = await getToken();
+      const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/voices`, {
+        method: 'GET',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+
+      const payload = (await response.json()) as ElevenLabsVoicesResponse;
+      const voices = payload.voices || [];
+      setElevenLabsVoices(voices);
+      setDialogueStatus(
+        voices.length > 0
+          ? `${voices.length} Stimmen geladen.`
+          : 'Keine ElevenLabs-Stimmen gefunden.'
+      );
+      setDialogueStatusType(voices.length > 0 ? 'success' : 'error');
+    } catch (err) {
+      console.error('[AudioDoku] Failed to load ElevenLabs voices:', err);
+      const message =
+        (err as Error).message || 'ElevenLabs-Stimmen konnten nicht geladen werden.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+    } finally {
+      setVoicesLoading(false);
+    }
+  };
+
+  const handleSpeakerFieldChange = (
+    speakerId: string,
+    field: keyof Pick<DialogueSpeaker, 'name' | 'voiceId'>,
+    value: string
+  ) => {
+    setSpeakerProfiles((prev) =>
+      prev.map((speaker) =>
+        speaker.id === speakerId
+          ? {
+              ...speaker,
+              [field]: value,
+            }
+          : speaker
+      )
+    );
+  };
+
+  const handleAddSpeaker = () => {
+    setSpeakerProfiles((prev) => [...prev, createSpeakerDraft()]);
+  };
+
+  const handleRemoveSpeaker = (speakerId: string) => {
+    setSpeakerProfiles((prev) => prev.filter((speaker) => speaker.id !== speakerId));
+  };
+
+  const applyGeneratedVariant = (variant: GeneratedDialogueVariant) => {
+    setSelectedVariantId(variant.id);
+    handleFileSelected(variant.file);
+    setExistingAudioUrl(null);
+  };
+
+  const insertDialogueTag = (tag: string) => {
+    const token = `[${tag}]`;
+    const editor = dialogueEditorRef.current;
+
+    if (!editor) {
+      setDialogueScript((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${token}`);
+      return;
+    }
+
+    const start = editor.selectionStart ?? dialogueScript.length;
+    const end = editor.selectionEnd ?? start;
+    const nextValue = `${dialogueScript.slice(0, start)}${token}${dialogueScript.slice(end)}`;
+    setDialogueScript(nextValue);
+
+    requestAnimationFrame(() => {
+      editor.focus();
+      const nextCaret = start + token.length;
+      editor.setSelectionRange(nextCaret, nextCaret);
+    });
+  };
+
+  const handleGenerateDialogueAudio = async () => {
+    setError(null);
+    setDialogueStatus(null);
+    setDialogueStatusType(null);
+    setGeneratedVariants([]);
+    setSelectedVariantId(null);
+
+    if (!dialogueScript.trim()) {
+      const message = 'Bitte gib zuerst ein Dialogskript ein.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+
+    if (detectedSpeakers.length === 0) {
+      const message = 'Kein Sprecher erkannt. Nutze das Format "SPRECHER: Text".';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+
+    if (unmappedScriptSpeakers.length > 0) {
+      const message = `Diese Sprecher sind im Script, aber nicht in der Sprecherliste: ${unmappedScriptSpeakers.join(', ')}`;
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+
+    const missingVoiceAssignments = detectedSpeakers.filter((speaker) => {
+      const profile = speakerProfiles.find(
+        (item) => item.name.trim().toLowerCase() === speaker.toLowerCase()
+      );
+      return !profile?.voiceId.trim();
+    });
+    if (missingVoiceAssignments.length > 0) {
+      const message = `Bitte Voice-ID eintragen fuer: ${missingVoiceAssignments.join(', ')}`;
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+
+    try {
+      setDialogueLoading(true);
+      const token = await getToken();
+      const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          script: dialogueScript,
+          speakerVoiceMap,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+
+      const payload = (await response.json()) as ElevenLabsDialogueResponse & {
+        audioData?: string;
+        mimeType?: string;
+      };
+      const rawVariants =
+        payload.variants && payload.variants.length > 0
+          ? payload.variants
+          : payload.audioData
+            ? [{ id: 'variant-1', audioData: payload.audioData, mimeType: payload.mimeType || 'audio/mpeg' }]
+            : [];
+
+      if (rawVariants.length === 0) {
+        throw new Error('Keine Audiodaten von ElevenLabs erhalten.');
+      }
+
+      const preparedVariants: GeneratedDialogueVariant[] = await Promise.all(
+        rawVariants.map(async (variant, index) => {
+          const audioBlob = await (await fetch(variant.audioData)).blob();
+          const mimeType = variant.mimeType || audioBlob.type || 'audio/mpeg';
+          const extension = mimeType.includes('wav') ? 'wav' : 'mp3';
+          const file = new File([audioBlob], `dialogue-variant-${index + 1}-${Date.now()}.${extension}`, {
+            type: mimeType,
+          });
+          return {
+            id: variant.id || `variant-${index + 1}`,
+            audioData: variant.audioData,
+            mimeType,
+            file,
+          };
+        })
+      );
+
+      setGeneratedVariants(preparedVariants);
+      applyGeneratedVariant(preparedVariants[0]);
+      setDialogueStatus(
+        `${preparedVariants.length} Audio-Variante(n) erzeugt: ${payload.turns} Sprecherbloecke, ${payload.speakers.length} Stimme(n).`
+      );
+      setDialogueStatusType('success');
+    } catch (err) {
+      console.error('[AudioDoku] ElevenLabs dialogue generation failed:', err);
+      const message =
+        (err as Error).message ||
+        'Dialog-Audio konnte nicht erstellt werden.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      setError(message);
+    } finally {
+      setDialogueLoading(false);
     }
   };
 
@@ -282,6 +614,16 @@ const CreateAudioDokuScreen: React.FC = () => {
     setCoverImageUrl(null);
     setExistingAudioUrl(null);
     setSavedAudio(null);
+    setDialogueScript('');
+    setSpeakerProfiles([
+      { id: 'speaker-tavi', name: 'TAVI', voiceId: '' },
+      { id: 'speaker-lumi', name: 'LUMI', voiceId: '' },
+    ]);
+    setDialogueStatus(null);
+    setDialogueStatusType(null);
+    setGeneratedVariants([]);
+    setSelectedVariantId(null);
+    setError(null);
   };
 
   const containerStyle: React.CSSProperties = {
@@ -394,6 +736,173 @@ const CreateAudioDokuScreen: React.FC = () => {
             <Card variant="glass" style={{ padding: spacing.xl }}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="flex flex-col gap-6">
+                  <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-white/95 via-indigo-50/70 to-sky-50/70 p-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-indigo-900">
+                          Dialog mit ElevenLabs generieren
+                        </div>
+                        <p className="mt-1 text-xs text-indigo-800/80">
+                          Script-Format: <code>SPRECHER: Text</code>, z. B. <code>TAVI: [excited] ...</code>.
+                        </p>
+                      </div>
+                      <Button
+                        title={voicesLoading ? 'Lade Stimmen...' : 'Stimmen laden'}
+                        onPress={() => void fetchElevenLabsVoices()}
+                        variant="outline"
+                        size="sm"
+                        icon={<RefreshCw size={14} />}
+                        disabled={voicesLoading}
+                      />
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {AUDIO_TAG_OPTIONS.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => insertDialogueTag(tag)}
+                          className="rounded-full border border-indigo-200 bg-white/85 px-3 py-1 text-xs font-medium text-indigo-700 hover:border-indigo-300 hover:bg-white"
+                        >
+                          [{tag}]
+                        </button>
+                      ))}
+                    </div>
+
+                    <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                      Dialog-Editor
+                    </label>
+                    <textarea
+                      ref={dialogueEditorRef}
+                      value={dialogueScript}
+                      onChange={(e) => setDialogueScript(e.target.value)}
+                      rows={10}
+                      placeholder={`TAVI: [excited] Willkommen zur Talea Audio-Doku!\nLUMI: [curious] Unsichtbar? Wie ein Ninja?\nTAVI: [mischievously] Genau!`}
+                      className="mt-2 w-full rounded-xl border border-indigo-200/80 bg-white/95 px-4 py-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                    />
+                    <p className="mt-2 text-xs text-indigo-800/80">
+                      {detectedSpeakers.length > 0
+                        ? `Sprecher im Script: ${detectedSpeakers.join(', ')}`
+                        : 'Fuer jeden Dialogblock eine neue Zeile im Format "SPRECHER: Text" verwenden.'}
+                    </p>
+                    {unmappedScriptSpeakers.length > 0 && (
+                      <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                        Nicht zugeordnet: {unmappedScriptSpeakers.join(', ')}
+                      </div>
+                    )}
+
+                    <div className="mt-5">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                        Sprecher
+                      </div>
+                      <div className="space-y-3">
+                        {speakerProfiles.map((speaker, index) => (
+                          <div key={speaker.id} className="rounded-xl border border-indigo-200/80 bg-white/90 p-3">
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+                              <input
+                                value={speaker.name}
+                                onChange={(e) => handleSpeakerFieldChange(speaker.id, 'name', e.target.value)}
+                                placeholder={`Name (z. B. ${index === 0 ? 'TAVI' : 'LUMI'})`}
+                                className="md:col-span-3 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                              />
+                              <select
+                                value={speaker.voiceId}
+                                onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
+                                className="md:col-span-4 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-300 focus:outline-none"
+                              >
+                                <option value="">Stimme aus Liste...</option>
+                                {elevenLabsVoices.map((voice) => (
+                                  <option key={voice.voiceId} value={voice.voiceId}>
+                                    {voice.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                value={speaker.voiceId}
+                                onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
+                                placeholder="Voice-ID (z. B. 7Nj1UduP6iY6hWpEDibS)"
+                                className="md:col-span-4 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSpeaker(speaker.id)}
+                                disabled={speakerProfiles.length <= 1}
+                                className="md:col-span-1 inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-white px-2 py-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label="Sprecher entfernen"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3">
+                        <Button
+                          title="Sprecher hinzufügen"
+                          onPress={handleAddSpeaker}
+                          variant="outline"
+                          size="sm"
+                          icon={<Plus size={14} />}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <Button
+                        title={dialogueLoading ? 'Generiere Audio...' : 'Audio erzeugen'}
+                        onPress={() => void handleGenerateDialogueAudio()}
+                        variant="secondary"
+                        size="md"
+                        icon={<Mic2 size={16} />}
+                        disabled={dialogueLoading || detectedSpeakers.length === 0}
+                      />
+                    </div>
+
+                    {dialogueLoading && (
+                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-indigo-100">
+                        <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400" />
+                      </div>
+                    )}
+
+                    {dialogueStatus && (
+                      <div
+                        className={`mt-3 rounded-lg px-4 py-3 text-sm ${
+                          dialogueStatusType === 'error'
+                            ? 'border border-red-400/40 bg-red-500/10 text-red-700'
+                            : 'border border-emerald-400/40 bg-emerald-500/10 text-emerald-700'
+                        }`}
+                      >
+                        {dialogueStatus}
+                      </div>
+                    )}
+
+                    {generatedVariants.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        {generatedVariants.map((variant, index) => (
+                          <div key={variant.id} className="rounded-xl border border-indigo-200/70 bg-white/90 p-3">
+                            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-indigo-900">
+                              <span>Variante {index + 1}</span>
+                              {selectedVariantId === variant.id && (
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Aktiv</span>
+                              )}
+                            </div>
+                            <audio controls src={variant.audioData} className="w-full" />
+                            <div className="mt-2 flex items-center justify-between">
+                              <button
+                                type="button"
+                                onClick={() => applyGeneratedVariant(variant)}
+                                className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:border-indigo-300"
+                              >
+                                {selectedVariantId === variant.id ? 'Als Doku-Audio gesetzt' : 'Diese Variante verwenden'}
+                              </button>
+                              <span className="text-xs text-slate-600">{formatFileSize(variant.file.size)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <AudioUploadCard
                     title={isEditMode ? t('doku.audioCreate.uploadTitleEdit', 'Audio ersetzen') : t('doku.audioCreate.uploadTitle')}
                     description={
