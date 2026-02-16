@@ -1,54 +1,62 @@
-const TARGET_WORDS = 150;
+const TARGET_WORDS = 55;
+const MAX_CHARS = 320;
 
 /**
- * Split text into chunks of ~150 words at sentence boundaries.
- * Each chunk produces roughly 20-30 seconds of TTS audio.
- * A typical chapter (270-450 words) becomes 2-3 chunks,
- * so the first chunk can start playing within ~15 seconds
+ * Split text into smaller chunks at sentence boundaries.
+ * Chunks are constrained by BOTH words and characters to keep
+ * per-request TTS latency low and start playback earlier.
  * while the rest converts in the background.
  */
 export function splitTextIntoChunks(text: string): string[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
 
-  const wordCount = trimmed.split(/\s+/).length;
-  if (wordCount <= TARGET_WORDS) return [trimmed];
+  const normalized = trimmed.replace(/\n\s*\n/g, ' ').replace(/\s+/g, ' ').trim();
+  const wordCount = normalized.split(/\s+/).length;
+  if (wordCount <= TARGET_WORDS && normalized.length <= MAX_CHARS) return [normalized];
 
-  const paragraphs = trimmed.split(/\n\s*\n/).filter((p) => p.trim());
+  const paragraphs = normalized.split(/\n\s*\n/).filter((p) => p.trim());
   const chunks: string[] = [];
   let current = '';
 
   for (const para of paragraphs) {
-    const paraWords = para.trim().split(/\s+/).length;
+    const paraText = para.trim();
+    const paraWords = paraText.split(/\s+/).length;
     const currentWords = current ? current.split(/\s+/).length : 0;
+    const nextLength = current ? current.length + 2 + paraText.length : paraText.length;
 
-    if (current && currentWords + paraWords > TARGET_WORDS) {
+    if (current && (currentWords + paraWords > TARGET_WORDS || nextLength > MAX_CHARS)) {
       chunks.push(current.trim());
       current = '';
     }
 
-    if (paraWords > TARGET_WORDS) {
+    if (paraWords > TARGET_WORDS || paraText.length > MAX_CHARS) {
       if (current.trim()) {
         chunks.push(current.trim());
         current = '';
       }
-      const sentences = splitBySentences(para.trim());
+      const sentences = splitBySentences(paraText);
       let sentenceBuffer = '';
       for (const sentence of sentences) {
+        const sen = sentence.trim();
+        if (!sen) continue;
+
         const bufWords = sentenceBuffer ? sentenceBuffer.split(/\s+/).length : 0;
-        const senWords = sentence.split(/\s+/).length;
-        if (sentenceBuffer && bufWords + senWords > TARGET_WORDS) {
+        const senWords = sen.split(/\s+/).length;
+        const bufferLength = sentenceBuffer ? sentenceBuffer.length + 1 + sen.length : sen.length;
+
+        if (sentenceBuffer && (bufWords + senWords > TARGET_WORDS || bufferLength > MAX_CHARS)) {
           chunks.push(sentenceBuffer.trim());
-          sentenceBuffer = sentence;
+          sentenceBuffer = sen;
         } else {
-          sentenceBuffer = sentenceBuffer ? `${sentenceBuffer} ${sentence}` : sentence;
+          sentenceBuffer = sentenceBuffer ? `${sentenceBuffer} ${sen}` : sen;
         }
       }
       if (sentenceBuffer.trim()) {
         current = sentenceBuffer.trim();
       }
     } else {
-      current = current ? `${current}\n\n${para.trim()}` : para.trim();
+      current = current ? `${current} ${paraText}` : paraText;
     }
   }
 

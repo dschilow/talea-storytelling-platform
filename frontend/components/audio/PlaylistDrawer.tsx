@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -130,6 +130,38 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
   );
   const [expandedStories, setExpandedStories] = useState<Set<string>>(new Set());
 
+  useEffect(() => {
+    if (activeTab === 'stories' && storyGroups.length === 0 && dokuItems.length > 0) {
+      setActiveTab('dokus');
+      return;
+    }
+    if (activeTab === 'dokus' && dokuItems.length === 0 && storyGroups.length > 0) {
+      setActiveTab('stories');
+    }
+  }, [activeTab, storyGroups.length, dokuItems.length]);
+
+  useEffect(() => {
+    if (!currentChapterKey) return;
+    const storyId = currentChapterKey.split('-ch')[0];
+    if (!storyId) return;
+    setExpandedStories((prev) => {
+      if (prev.has(storyId)) return prev;
+      const next = new Set(prev);
+      next.add(storyId);
+      return next;
+    });
+  }, [currentChapterKey]);
+
+  // ── Determine which chapter is currently playing ──
+  const currentChapterKey = useMemo(() => {
+    if (currentIndex < 0 || currentIndex >= playlist.length) return null;
+    const cur = playlist[currentIndex];
+    if (cur.parentStoryId && cur.chapterOrder != null) {
+      return `${cur.parentStoryId}-ch${cur.chapterOrder}`;
+    }
+    return cur.id;
+  }, [currentIndex, playlist]);
+
   const toggleExpanded = (storyId: string) => {
     setExpandedStories((prev) => {
       const next = new Set(prev);
@@ -142,16 +174,6 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
   if (!isPlaylistDrawerOpen) return null;
 
   const isDesktop = variant === 'desktop';
-
-  // ── Determine which chapter is currently playing ──
-  const currentChapterKey = useMemo(() => {
-    if (currentIndex < 0 || currentIndex >= playlist.length) return null;
-    const cur = playlist[currentIndex];
-    if (cur.parentStoryId && cur.chapterOrder != null) {
-      return `${cur.parentStoryId}-ch${cur.chapterOrder}`;
-    }
-    return cur.id;
-  }, [currentIndex, playlist]);
 
   // ── Render a chapter row (aggregates all chunks) ──
   const renderChapter = (chapter: ChapterGroup, storyId: string) => {

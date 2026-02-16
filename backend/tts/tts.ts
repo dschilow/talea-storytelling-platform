@@ -80,13 +80,13 @@ async function submitAsyncJob(text: string): Promise<string> {
     throw new Error("TTS async submit failed after all retries");
 }
 
-async function pollJobUntilReady(jobId: string, timeoutMs = 290_000): Promise<string> {
+async function pollJobUntilReady(jobId: string, timeoutMs = 420_000): Promise<string> {
     const statusUrl = `${TTS_SERVICE_URL}/generate/status/${jobId}`;
     const resultUrl = `${TTS_SERVICE_URL}/generate/result/${jobId}`;
     const deadline = Date.now() + timeoutMs;
 
     // Start with fast polling, then back off
-    let intervalMs = 1000;
+    let intervalMs = 1200;
 
     while (Date.now() < deadline) {
         await new Promise((res) => setTimeout(res, intervalMs));
@@ -116,6 +116,29 @@ async function pollJobUntilReady(jobId: string, timeoutMs = 290_000): Promise<st
 
         // Still processing — back off gradually (max 3s)
         intervalMs = Math.min(intervalMs * 1.3, 3000);
+    }
+
+    // Final grace check right at timeout boundary to avoid false negatives when
+    // the job flips to ready milliseconds after the last poll.
+    try {
+        const finalStatusRes = await fetch(statusUrl);
+        if (finalStatusRes.ok) {
+            const finalStatus = await finalStatusRes.json() as { status: string; error?: string };
+            if (finalStatus.status === "ready") {
+                const resultRes = await fetch(resultUrl);
+                if (resultRes.ok) {
+                    const arrayBuffer = await resultRes.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const base64 = buffer.toString("base64");
+                    return `data:audio/wav;base64,${base64}`;
+                }
+            }
+            if (finalStatus.status === "error") {
+                throw new Error(`TTS job failed: ${finalStatus.error || "unknown error"}`);
+            }
+        }
+    } catch {
+        // Preserve timeout error below.
     }
 
     throw new Error(`TTS polling timed out after ${timeoutMs / 1000}s for job ${jobId}`);
