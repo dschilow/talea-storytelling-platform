@@ -8,10 +8,12 @@ import {
   Globe,
   GraduationCap,
   Headphones,
+  ListPlus,
   Loader2,
   Mic,
   Pencil,
   Play,
+  PlayCircle,
   Plus,
   Search,
   Trash2,
@@ -283,10 +285,24 @@ const AudioDokuCard: React.FC<{
         )}
       </div>
 
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
           <Play className="h-5 w-5 ml-0.5" />
         </div>
+        {onAddToQueue && (
+          <button
+            type="button"
+            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white transition-transform hover:scale-110"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToQueue();
+            }}
+            title="Zur Warteschlange"
+            aria-label="Zur Warteschlange hinzufuegen"
+          >
+            <ListPlus className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <h4 className="absolute bottom-3 left-3 right-3 line-clamp-2 text-lg font-semibold text-white">
@@ -597,13 +613,57 @@ const TaleaDokusScreen: React.FC = () => {
       setAudioError('Keine Audio-Datei verfuegbar');
       return;
     }
-    audioPlayer.playTrack({
-      id: doku.id,
+    const itemId = `audiodoku-${doku.id}`;
+    const existingIdx = audioPlayer.playlist.findIndex((i) => i.id === itemId);
+    if (existingIdx >= 0) {
+      audioPlayer.playFromPlaylist(existingIdx);
+    } else {
+      const newIdx = audioPlayer.playlist.length;
+      audioPlayer.addToPlaylist([{
+        id: itemId,
+        trackId: doku.id,
+        title: doku.title,
+        description: doku.description,
+        coverImageUrl: doku.coverImageUrl,
+        type: 'audio-doku',
+        audioUrl: doku.audioUrl,
+        conversionStatus: 'ready',
+      }]);
+      audioPlayer.playFromPlaylist(newIdx);
+    }
+  };
+
+  const handleAddAudioToQueue = (doku: AudioDoku) => {
+    if (!doku.audioUrl) return;
+    audioPlayer.addToPlaylist([{
+      id: `audiodoku-${doku.id}`,
+      trackId: doku.id,
       title: doku.title,
       description: doku.description,
       coverImageUrl: doku.coverImageUrl,
+      type: 'audio-doku',
       audioUrl: doku.audioUrl,
-    });
+      conversionStatus: 'ready',
+    }]);
+  };
+
+  const handlePlayAllAudioDokus = () => {
+    const items = filteredAudioDokus
+      .filter((d) => d.audioUrl)
+      .map((d) => ({
+        id: `audiodoku-${d.id}`,
+        trackId: d.id,
+        title: d.title,
+        description: d.description,
+        coverImageUrl: d.coverImageUrl,
+        type: 'audio-doku' as const,
+        audioUrl: d.audioUrl,
+        conversionStatus: 'ready' as const,
+      }));
+    if (items.length === 0) return;
+    audioPlayer.clearPlaylist();
+    audioPlayer.addToPlaylist(items);
+    audioPlayer.playFromPlaylist(0);
   };
 
   const handleEditAudioDoku = (doku: AudioDoku) => {
@@ -1051,24 +1111,41 @@ const TaleaDokusScreen: React.FC = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {filteredAudioDokus.map((doku, i) => (
-                        <AudioDokuCard
-                          key={doku.id}
-                          doku={doku}
-                          index={i}
-                          onPlay={() => setAudioModal(doku)}
-                          palette={palette}
-                          isAdmin={isAdmin}
-                          onEdit={() => handleEditAudioDoku(doku)}
-                          onDelete={() => handleDeleteAudioDoku(doku)}
-                          canSaveOffline={canUseOffline}
-                          isSavedOffline={isAudioDokuSaved(doku.id)}
-                          isSavingOffline={isSaving(doku.id)}
-                          onToggleOffline={() => toggleAudioDoku(doku)}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      {filteredAudioDokus.length > 1 && (
+                        <div className="mb-4 flex justify-end">
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={handlePlayAllAudioDokus}
+                            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-sm transition-colors"
+                            style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                          >
+                            <PlayCircle className="h-4 w-4" />
+                            Alle abspielen
+                          </motion.button>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {filteredAudioDokus.map((doku, i) => (
+                          <AudioDokuCard
+                            key={doku.id}
+                            doku={doku}
+                            index={i}
+                            onPlay={() => setAudioModal(doku)}
+                            onAddToQueue={() => handleAddAudioToQueue(doku)}
+                            palette={palette}
+                            isAdmin={isAdmin}
+                            onEdit={() => handleEditAudioDoku(doku)}
+                            onDelete={() => handleDeleteAudioDoku(doku)}
+                            canSaveOffline={canUseOffline}
+                            isSavedOffline={isAudioDokuSaved(doku.id)}
+                            isSavingOffline={isSaving(doku.id)}
+                            onToggleOffline={() => toggleAudioDoku(doku)}
+                          />
+                        ))}
+                      </div>
+                    </>
                   )}
                 </section>
               )}

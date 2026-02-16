@@ -20,9 +20,163 @@ MAX_CHUNK_CHARS = 300
 if not os.path.exists(MODEL_PATH):
     print(f"WARNING: Model not found at {MODEL_PATH}", file=sys.stderr)
 
+def preprocess_text(text):
+    """Normalize text for better TTS pronunciation."""
+    text = re.sub(r'\bz\.B\.\b', 'zum Beispiel', text)
+    text = re.sub(r'\bd\.h\.\b', 'das heißt', text)
+    text = re.sub(r'\bu\.a\.\b', 'unter anderem', text)
+    text = re.sub(r'\bbzw\.\b', 'beziehungsweise', text)
+    text = re.sub(r'\busw\.\b', 'und so weiter', text)
+    text = re.sub(r'\bca\.\b', 'circa', text)
+    text = re.sub(r'\bDr\.\b', 'Doktor', text)
+    text = re.sub(r'\bHr\.\b', 'Herr', text)
+    text = re.sub(r'\bFr\.\b', 'Frau', text)
+    text = re.sub(r'\bNr\.\b', 'Nummer', text)
+    # Remove markdown artifacts
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'#{1,6}\s*', '', text)
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    # Normalize dashes and ellipsis
+    text = text.replace('\u2014', ', ')  # em-dash
+    text = text.replace('\u2013', ', ')  # en-dash
+    text = text.replace('...', '.')
+    text = re.sub(r'\n+', '\n\n', text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    return text.strip()
+
+def prepare_for_tts(text):
+    """
+    Transform story text into a format that Piper TTS reads more naturally.
+    Adds micro-pauses via punctuation, expands difficult words, slows dialogue.
+    The original text in the frontend stays unchanged — this only affects audio.
+    """
+    # ── 1. Dialogue pauses: Add comma before/after quoted speech for breath ──
+    # "Hallo!", sagte er. → Piper rushes through quotes without pause
+    # Insert a period-pause before opening quotes for a breath break
+    text = re.sub(r'([.!?])\s*"', r'\1 ... "', text)
+    # Add tiny pause after closing quote before attribution
+    text = re.sub(r'([.!?])"\s*,?\s*(sagte|rief|flüsterte|fragte|antwortete|meinte|murmelte|schrie|lachte|erklärte|bat|dachte)',
+                  r'\1" ... \2', text)
+
+    # ── 2. Exclamation/question emphasis: repeat punctuation for Piper weight ──
+    # Piper reads "Wow!" the same as "Wow." — doubling gives slight emphasis
+    text = re.sub(r'([!])\s', r'!! ', text)
+    text = re.sub(r'([?])\s', r'?? ', text)
+
+    # ── 3. Paragraph breaks → sentence-ending pause ──
+    # Piper ignores \n\n. Replace with period + newline so it creates a real pause
+    text = re.sub(r'\n\n+', '.\n\n', text)
+    # Clean up double periods
+    text = text.replace('..', '.')
+    # But keep our intentional triple-dot pauses
+    text = text.replace('. .', ' ...')
+
+    # ── 4. Comma breathing: add commas at natural breath points ──
+    # Before conjunctions in longer sentences (wenn, als, weil, dass, aber, und, oder, doch, denn)
+    text = re.sub(r'(\w{4,})\s+(wenn|als|weil|dass|aber|doch|denn|obwohl|damit|bevor|nachdem|während|sobald)\s',
+                  r'\1, \2 ', text)
+    # Before relative pronouns
+    text = re.sub(r'(\w{3,})\s+(der|die|das|dem|den|dessen|deren)\s+(sich|nicht|sehr|ganz|immer|noch|schon|auch)\s',
+                  r'\1, \2 \3 ', text)
+
+    # ── 5. Number pronunciation ──
+    text = re.sub(r'\b(\d+)\b', lambda m: number_to_german(int(m.group(1))), text)
+
+    # ── 6. Onomatopoeia emphasis: stretch sound words for kids ──
+    # "Platsch" → "Plaatsch", "Bumm" → "Buumm" etc.
+    sound_words = {
+        'Platsch': 'Plaatsch',
+        'platsch': 'plaatsch',
+        'Bumm': 'Buumm',
+        'bumm': 'buumm',
+        'Puff': 'Puuff',
+        'puff': 'puuff',
+        'Knall': 'Knaall',
+        'knall': 'knaall',
+        'Zisch': 'Ziisch',
+        'zisch': 'ziisch',
+        'Klopf': 'Kloopf',
+        'klopf': 'kloopf',
+        'Plopp': 'Ploopp',
+        'plopp': 'ploopp',
+        'Krach': 'Kraach',
+        'krach': 'kraach',
+        'Huiii': 'Huuiii',
+        'Pssst': 'Psssst',
+        'Huch': 'Huuch',
+        'huch': 'huuch',
+    }
+    for word, replacement in sound_words.items():
+        text = re.sub(r'\b' + re.escape(word) + r'\b', replacement, text)
+
+    # ── 7. Clean up any double commas or weird artifacts ──
+    text = re.sub(r',\s*,', ',', text)
+    text = re.sub(r'\.\s*,', '.', text)
+    text = re.sub(r',\s*\.', '.', text)
+    text = re.sub(r'\s+', ' ', text)
+
+    return text.strip()
+
+def number_to_german(n):
+    """Convert small numbers to German words for natural TTS reading."""
+    if n < 0 or n > 9999:
+        return str(n)
+    words = {
+        0: 'null', 1: 'eins', 2: 'zwei', 3: 'drei', 4: 'vier',
+        5: 'fünf', 6: 'sechs', 7: 'sieben', 8: 'acht', 9: 'neun',
+        10: 'zehn', 11: 'elf', 12: 'zwölf', 13: 'dreizehn', 14: 'vierzehn',
+        15: 'fünfzehn', 16: 'sechzehn', 17: 'siebzehn', 18: 'achtzehn',
+        19: 'neunzehn', 20: 'zwanzig', 30: 'dreißig', 40: 'vierzig',
+        50: 'fünfzig', 60: 'sechzig', 70: 'siebzig', 80: 'achtzig',
+        90: 'neunzig', 100: 'hundert',
+    }
+    if n in words:
+        return words[n]
+    if n < 100:
+        tens = (n // 10) * 10
+        ones = n % 10
+        if ones == 0:
+            return words.get(tens, str(n))
+        if ones == 1:
+            return f'einund{words[tens]}'
+        return f'{words.get(ones, str(ones))}und{words.get(tens, str(tens))}'
+    if n < 1000:
+        hundreds = n // 100
+        rest = n % 100
+        prefix = words.get(hundreds, str(hundreds)) + 'hundert'
+        if rest == 0:
+            return prefix
+        return prefix + number_to_german(rest)
+    if n < 10000:
+        thousands = n // 1000
+        rest = n % 1000
+        prefix = words.get(thousands, str(thousands)) + 'tausend'
+        if rest == 0:
+            return prefix
+        return prefix + number_to_german(rest)
+    return str(n)
+
+def generate_silence(duration_ms, sample_rate=22050, bits_per_sample=16, num_channels=1):
+    """Generate a WAV chunk of silence."""
+    num_samples = int(sample_rate * duration_ms / 1000)
+    byte_rate = sample_rate * num_channels * (bits_per_sample // 8)
+    block_align = num_channels * (bits_per_sample // 8)
+    data_size = num_samples * block_align
+    silence = b'\x00' * data_size
+    header = struct.pack('<4sI4s', b'RIFF', 36 + data_size, b'WAVE')
+    fmt_chunk = struct.pack('<4sIHHIIHH', b'fmt ', 16, 1, num_channels,
+                           sample_rate, byte_rate, block_align, bits_per_sample)
+    data_header = struct.pack('<4sI', b'data', data_size)
+    return header + fmt_chunk + data_header + silence
+
 def split_text_into_chunks(text, max_chars=MAX_CHUNK_CHARS):
-    """Split text into chunks at sentence boundaries, respecting max_chars."""
-    # Split by paragraphs first
+    """
+    Split text into chunks optimized for Piper TTS.
+    - Paragraphs get their own chunks (natural pauses between them)
+    - Dialogue lines split separately so Piper can voice them distinctly
+    - Never split mid-sentence
+    """
     paragraphs = text.split('\n\n')
     chunks = []
 
@@ -42,11 +196,27 @@ def split_text_into_chunks(text, max_chars=MAX_CHUNK_CHARS):
         for sentence in sentences:
             if not sentence.strip():
                 continue
-            if current_chunk and len(current_chunk) + len(sentence) + 1 > max_chars:
-                chunks.append(current_chunk.strip())
-                current_chunk = sentence
+
+            # If this sentence contains dialogue, give it breathing room
+            has_dialogue = '"' in sentence or '„' in sentence or '»' in sentence
+
+            # Start a new chunk if:
+            # 1. Adding this sentence exceeds max_chars, OR
+            # 2. This is a dialogue line and current chunk is narration (or vice versa)
+            if current_chunk:
+                would_exceed = len(current_chunk) + len(sentence) + 1 > max_chars
+                current_has_dialogue = '"' in current_chunk or '„' in current_chunk or '»' in current_chunk
+
+                # Split at dialogue/narration boundary for cleaner voice transitions
+                dialogue_boundary = has_dialogue != current_has_dialogue and len(current_chunk) > 60
+
+                if would_exceed or dialogue_boundary:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = sentence
+                else:
+                    current_chunk = (current_chunk + " " + sentence).strip()
             else:
-                current_chunk = (current_chunk + " " + sentence).strip()
+                current_chunk = sentence
 
         if current_chunk.strip():
             chunks.append(current_chunk.strip())
@@ -176,12 +346,20 @@ def generate_tts():
         print("Error: No text provided in request", file=sys.stderr)
         return "No text provided", 400
 
+    # Step 1: Normalize abbreviations, markdown, etc.
+    text = preprocess_text(text)
+    # Step 2: Optimize for natural TTS reading (pauses, emphasis, dialogue breathing)
+    text = prepare_for_tts(text)
+
     print(f"Request: len={len(text)}, speed={length_scale}, noise={noise_scale}, noise_w={noise_w}", file=sys.stderr)
     start_time = time.time()
 
     try:
         chunks = split_text_into_chunks(text)
         print(f"Split into {len(chunks)} chunks", file=sys.stderr)
+
+        # Generate a short silence gap for between chunks (paragraph pauses)
+        silence_gap = generate_silence(380) if len(chunks) > 1 else None
 
         wav_chunks = []
         for i, chunk in enumerate(chunks):
@@ -190,6 +368,9 @@ def generate_tts():
             chunk_time = time.time() - chunk_start
             print(f"  Chunk {i+1}/{len(chunks)}: {len(chunk)} chars -> {len(wav_data)} bytes ({chunk_time:.1f}s)", file=sys.stderr)
             wav_chunks.append(wav_data)
+            # Add silence between chunks for natural paragraph pauses
+            if silence_gap and i < len(chunks) - 1:
+                wav_chunks.append(silence_gap)
 
         result = concatenate_wav(wav_chunks)
         total_time = time.time() - start_time

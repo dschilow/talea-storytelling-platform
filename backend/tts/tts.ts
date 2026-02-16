@@ -31,9 +31,9 @@ export const generateSpeech = api(
                 },
                 body: JSON.stringify({
                     text,
-                    length_scale: 1.65, // Sehr langsam (Standard 1.0)
-                    noise_scale: 0.35,  // Sehr klare, stabile Aussprache
-                    noise_w: 0.35       // Sehr gleichmäßige Betonung
+                    length_scale: 1.55, // Langsam, aber natürlicher als 1.65
+                    noise_scale: 0.42,  // Etwas mehr natürliche Variation
+                    noise_w: 0.38       // Leicht variierte Betonung für Lebendigkeit
                 }),
 
                 signal: controller.signal,

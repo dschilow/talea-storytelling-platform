@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ConversionStatus } from '../types/playlist';
 import type { Client as BackendClient } from '../client';
+import { getCachedAudio, cacheAudio } from '../utils/audioCache';
 
 interface QueueItem {
   id: string;
@@ -46,6 +47,14 @@ export function useTTSConversionQueue({
     try {
       abortRef.current = new AbortController();
 
+      // Check IndexedDB cache first
+      const cached = await getCachedAudio(item.id);
+      if (cached && !cancelledRef.current) {
+        setStatus(item.id, 'ready');
+        onChunkReady(item.id, cached);
+        return;
+      }
+
       // @ts-ignore - legacy backend typing for tts endpoint
       const response = await backend.tts.generateSpeech({ text: item.text });
       if (!response?.audioData) {
@@ -53,6 +62,9 @@ export function useTTSConversionQueue({
       }
 
       if (cancelledRef.current) return;
+
+      // Cache the base64 audio in IndexedDB for future use
+      cacheAudio(item.id, response.audioData).catch(() => {});
 
       const fetchRes = await fetch(response.audioData);
       const blob = await fetchRes.blob();

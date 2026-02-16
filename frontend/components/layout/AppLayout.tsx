@@ -1,20 +1,24 @@
 import React from "react";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { SignedIn } from "@clerk/clerk-react";
-import { Settings } from "lucide-react";
+import { Headphones, Settings } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { resolvedTheme } = useTheme();
+  const { playlist, togglePlaylistDrawer } = useAudioPlayer();
   const isDark = resolvedTheme === "dark";
   const showSettingsButton = location.pathname !== "/settings";
   const isSettingsRoute = location.pathname.startsWith("/settings");
+  const hasPlaylistItems = playlist.length > 0;
 
   return (
     <div className="min-h-screen text-foreground flex flex-col md:flex-row">
@@ -53,6 +57,46 @@ const AppLayout: React.FC = () => {
       </SignedIn>
 
       <GlobalAudioPlayer />
+
+      {/* Floating player/playlist button — mobile: top-left, desktop: bottom-right */}
+      <SignedIn>
+        <AnimatePresence>
+          {hasPlaylistItems && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              type="button"
+              onClick={togglePlaylistDrawer}
+              className="fixed z-[96] inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-lg left-3 top-3 md:left-auto md:top-auto md:right-5 md:bottom-5"
+              aria-label="Wiedergabeliste"
+              style={{
+                borderColor: isDark ? '#3d5575' : '#d5bdaf',
+                color: isDark ? '#c4d5ed' : '#5a4a3e',
+                background: isDark ? 'rgba(27,38,56,0.88)' : 'rgba(255,248,240,0.9)',
+                boxShadow: isDark ? '0 8px 20px rgba(8,13,22,0.4)' : '0 8px 20px rgba(116,95,78,0.22)',
+              }}
+            >
+              <Headphones className="h-4 w-4" />
+              {playlist.length > 0 && (
+                <span
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                  style={{
+                    background: isDark
+                      ? 'linear-gradient(135deg, #86a7db, #b084c7)'
+                      : 'linear-gradient(135deg, #d5bdaf, #b183c4)',
+                    color: isDark ? '#0f1722' : '#fff',
+                  }}
+                >
+                  {playlist.length}
+                </span>
+              )}
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </SignedIn>
 
       <SignedIn>
         <BottomNav />

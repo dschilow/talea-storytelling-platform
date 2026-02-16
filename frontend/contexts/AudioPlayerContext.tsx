@@ -288,11 +288,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // ── Playlist methods ──────────────────────────────────────────────
   const addToPlaylist = useCallback(
     (items: PlaylistItem[]) => {
-      setPlaylist((prev) => {
-        const remaining = MAX_PLAYLIST_ITEMS - prev.length;
-        const toAdd = items.slice(0, remaining);
-        return [...prev, ...toAdd];
-      });
+      const prev = playlistRef.current;
+      const remaining = MAX_PLAYLIST_ITEMS - prev.length;
+      const toAdd = items.slice(0, remaining);
+      const next = [...prev, ...toAdd];
+      playlistRef.current = next;
+      setPlaylist(next);
       if (!isPlaylistActive) {
         setIsPlaylistActive(true);
       }

@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { PlaylistDrawer } from "@/components/audio/PlaylistDrawer";
+import { WaveformEqualizer } from "@/components/audio/WaveformEqualizer";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -238,6 +239,8 @@ const BottomNav: React.FC = () => {
                         {showNav && ` · ${currentIndex + 1}/${playlist.length}`}
                       </p>
                     </div>
+
+                    <WaveformEqualizer isPlaying={isPlaying} isWaiting={waitingForConversion} isDark={isDark} size="sm" />
 
                     <button
                       type="button"

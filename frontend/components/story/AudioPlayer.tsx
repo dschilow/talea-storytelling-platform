@@ -19,7 +19,7 @@ function buildSnippet(text: string) {
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, className = '' }) => {
   const backend = useBackend();
-  const { playTrack } = useAudioPlayer();
+  const { addToPlaylist, playFromPlaylist, playlist } = useAudioPlayer();
 
   const [isLoading, setIsLoading] = useState(false);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -46,12 +46,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, className = '' }
   }, [audioSrc]);
 
   const openInGlobalPlayer = (src: string) => {
-    playTrack({
-      id: `story-tts-${Date.now()}`,
+    const itemId = `story-tts-${Date.now()}`;
+    const newIdx = playlist.length;
+    addToPlaylist([{
+      id: itemId,
+      trackId: itemId,
       title: 'Story Audio',
       description: trackDescription,
+      type: 'story-chapter',
       audioUrl: src,
-    });
+      conversionStatus: 'ready',
+    }]);
+    playFromPlaylist(newIdx);
   };
 
   const generateAudio = async () => {

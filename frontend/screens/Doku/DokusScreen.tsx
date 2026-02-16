@@ -225,14 +225,24 @@ const DokusScreen: React.FC = () => {
       setAudioError(t('errors.generic'));
       return;
     }
-
-    audioPlayer.playTrack({
-      id: doku.id,
-      title: doku.title,
-      description: doku.description,
-      coverImageUrl: doku.coverImageUrl,
-      audioUrl: doku.audioUrl,
-    });
+    const itemId = `audiodoku-${doku.id}`;
+    const existingIdx = audioPlayer.playlist.findIndex((i) => i.id === itemId);
+    if (existingIdx >= 0) {
+      audioPlayer.playFromPlaylist(existingIdx);
+    } else {
+      const newIdx = audioPlayer.playlist.length;
+      audioPlayer.addToPlaylist([{
+        id: itemId,
+        trackId: doku.id,
+        title: doku.title,
+        description: doku.description,
+        coverImageUrl: doku.coverImageUrl,
+        type: 'audio-doku',
+        audioUrl: doku.audioUrl,
+        conversionStatus: 'ready',
+      }]);
+      audioPlayer.playFromPlaylist(newIdx);
+    }
   };
 
   const containerStyle: React.CSSProperties = {
