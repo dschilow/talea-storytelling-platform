@@ -137,7 +137,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const playNextInternal = useCallback(() => {
     const pl = playlistRef.current;
     const idx = currentIndexRef.current;
-    const nextIdx = idx + 1;
+
+    // Skip over error chunks to find next playable item
+    let nextIdx = idx + 1;
+    while (nextIdx < pl.length && pl[nextIdx].conversionStatus === 'error') {
+      nextIdx++;
+    }
 
     if (nextIdx >= pl.length) {
       setIsPlaylistActive(false);
@@ -148,6 +153,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     const nextItem = pl[nextIdx];
+    currentIndexRef.current = nextIdx;
     setCurrentIndex(nextIdx);
 
     if (nextItem.audioUrl && nextItem.conversionStatus === 'ready') {
@@ -409,10 +415,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const chunks = splitTextIntoChunks(chapter.content);
         for (let ci = 0; ci < chunks.length; ci++) {
           const chunkId = `story-${storyId}-ch${chapter.order}-chunk${ci}`;
-          const chunkTitle =
-            chunks.length > 1
-              ? `${chapter.title} (${ci + 1}/${chunks.length})`
-              : chapter.title;
+          // Always use chapter title — chunk numbering is internal only
+          const chunkTitle = chapter.title;
 
           newItems.push({
             id: chunkId,
@@ -440,6 +444,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       enqueue(queueItems);
 
       if (autoplay && !track) {
+        // Eagerly update refs so onChunkReady/playNextInternal see them immediately
+        currentIndexRef.current = startIdx;
+        isPlaylistActiveRef.current = true;
         setCurrentIndex(startIdx);
         setIsPlaylistActive(true);
         setWaitingForConversion(true);

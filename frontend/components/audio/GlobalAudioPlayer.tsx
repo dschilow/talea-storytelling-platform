@@ -113,7 +113,7 @@ export const GlobalAudioPlayer: React.FC = () => {
                   {waitingForConversion && !track
                     ? 'Audio wird vorbereitet'
                     : track?.description || ''}
-                  {isPlaylistActive && playlist.length > 1 && ` · ${currentIndex + 1}/${playlist.length}`}
+                  {/* chunk counter removed — details visible in playlist drawer */}
                 </p>
               </div>
 

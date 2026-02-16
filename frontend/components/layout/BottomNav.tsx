@@ -236,7 +236,7 @@ const BottomNav: React.FC = () => {
                         {waitingForConversion && !track
                           ? "Audio wird vorbereitet"
                           : `${isPlaying ? "Wird abgespielt" : "Pausiert"} - ${formatTime(currentTime)} / ${formatTime(duration)}`}
-                        {showNav && ` · ${currentIndex + 1}/${playlist.length}`}
+                        {/* chunk counter hidden — user sees chapters in drawer */}
                       </p>
                     </div>
 

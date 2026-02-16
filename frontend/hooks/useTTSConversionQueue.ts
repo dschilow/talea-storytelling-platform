@@ -14,8 +14,11 @@ interface UseTTSConversionQueueOptions {
   onChunkError: (itemId: string, error: string) => void;
 }
 
-// How many TTS requests run concurrently
-const MAX_CONCURRENT = 3;
+// How many TTS requests run concurrently.
+// Keep at 2: TTS service has limited workers, so more than 2
+// causes timeouts. With small chunks (~150 words ≈ 25s each),
+// 2 concurrent keeps the pipeline full without overloading.
+const MAX_CONCURRENT = 2;
 
 export function useTTSConversionQueue({
   backend,
