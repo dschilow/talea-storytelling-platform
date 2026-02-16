@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FastForward, Pause, Play, Rewind, X } from 'lucide-react';
+import { FastForward, ListMusic, Loader2, Pause, Play, Rewind, SkipBack, SkipForward, X } from 'lucide-react';
 
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -8,6 +8,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 interface AudioPlaybackControlsProps {
   variant?: 'compact' | 'full';
   showClose?: boolean;
+  showNavigation?: boolean;
+  onQueueClick?: () => void;
 }
 
 const formatTime = (value: number) => {
@@ -20,6 +22,8 @@ const formatTime = (value: number) => {
 export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
   variant = 'full',
   showClose = false,
+  showNavigation = false,
+  onQueueClick,
 }) => {
   const {
     track,
@@ -30,10 +34,15 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
     togglePlay,
     seek,
     close,
+    playNext,
+    playPrevious,
+    currentIndex,
+    playlist,
+    waitingForConversion,
   } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
 
-  if (!track) return null;
+  if (!track && !waitingForConversion) return null;
 
   const isCompact = variant === 'compact';
   const iconSize = isCompact ? 16 : 20;
@@ -65,9 +74,28 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
     seek((currentTime || 0) + delta);
   };
 
+  const hasPrev = showNavigation && currentIndex > 0;
+  const hasNext = showNavigation && currentIndex < playlist.length - 1;
+  const smallBtnCls = `${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border shadow-sm`;
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
+        {/* Previous track */}
+        {showNavigation && (
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={playPrevious}
+            disabled={!hasPrev}
+            title="Vorheriger Track"
+            className={`${smallBtnCls} disabled:opacity-30`}
+            style={{ borderColor: colors.border, background: colors.surface, color: colors.sub }}
+          >
+            <SkipBack size={isCompact ? 13 : 15} className="mx-auto" />
+          </motion.button>
+        )}
+
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.92 }}
@@ -79,16 +107,22 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           <Rewind size={iconSize} className="mx-auto" />
         </motion.button>
 
+        {/* Play / Pause / Waiting */}
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.92 }}
           onClick={togglePlay}
-          title={isPlaying ? 'Pause' : 'Play'}
-          className={`${isCompact ? 'h-10 w-10' : 'h-12 w-12'} rounded-full text-white shadow-lg`}
+          disabled={waitingForConversion}
+          title={waitingForConversion ? 'Wird konvertiert...' : isPlaying ? 'Pause' : 'Play'}
+          className={`${isCompact ? 'h-10 w-10' : 'h-12 w-12'} rounded-full text-white shadow-lg disabled:opacity-70`}
           style={{ background: `linear-gradient(135deg, ${colors.accentStart}, ${colors.accentEnd})` }}
         >
           <AnimatePresence mode="wait">
-            {isPlaying ? (
+            {waitingForConversion ? (
+              <motion.div key="loading" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Loader2 size={iconSize} className="mx-auto animate-spin" />
+              </motion.div>
+            ) : isPlaying ? (
               <motion.div key="pause" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                 <Pause size={iconSize} className="mx-auto" />
               </motion.div>
@@ -111,13 +145,45 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           <FastForward size={iconSize} className="mx-auto" />
         </motion.button>
 
+        {/* Next track */}
+        {showNavigation && (
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={playNext}
+            disabled={!hasNext}
+            title="Naechster Track"
+            className={`${smallBtnCls} disabled:opacity-30`}
+            style={{ borderColor: colors.border, background: colors.surface, color: colors.sub }}
+          >
+            <SkipForward size={isCompact ? 13 : 15} className="mx-auto" />
+          </motion.button>
+        )}
+
+        {/* Spacer to push right-side buttons */}
+        <div className="flex-1" />
+
+        {/* Queue button */}
+        {onQueueClick && (
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={onQueueClick}
+            title="Warteschlange"
+            className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} rounded-full border shadow-sm`}
+            style={{ borderColor: colors.border, background: colors.surface, color: colors.sub }}
+          >
+            <ListMusic size={iconSize} className="mx-auto" />
+          </motion.button>
+        )}
+
         {showClose && (
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.92 }}
             onClick={close}
             title="Schliessen"
-            className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} ml-auto rounded-full border shadow-sm`}
+            className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} rounded-full border shadow-sm`}
             style={{ borderColor: '#cd9a9a', background: 'rgba(205,123,123,0.16)', color: '#b16464' }}
           >
             <X size={iconSize} className="mx-auto" />
@@ -169,4 +235,3 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
     </div>
   );
 };
-

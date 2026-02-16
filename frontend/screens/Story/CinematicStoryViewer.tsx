@@ -12,7 +12,7 @@ import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gam
 import type { Story, Chapter } from '../../types/story';
 import type { InventoryItem } from '../../types/avatar';
 import { cn } from '../../lib/utils';
-import { AudioPlayer } from '../../components/story/AudioPlayer';
+import { StoryAudioActions } from '../../components/story/StoryAudioActions';
 import { useTheme } from '../../contexts/ThemeContext';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
@@ -405,6 +405,17 @@ const CinematicStoryViewer: React.FC = () => {
               Geschichte starten
               <ChevronDown className="h-4 w-4" />
             </motion.button>
+
+            {chapters.length > 0 && (
+              <div className="mt-5">
+                <StoryAudioActions
+                  storyId={story.id}
+                  storyTitle={story.title}
+                  chapters={chapters}
+                  coverImageUrl={story.coverImageUrl}
+                />
+              </div>
+            )}
           </motion.div>
         </section>
 
@@ -549,10 +560,6 @@ const ChapterSection: React.FC<{
         </div>
 
         <div className="space-y-7 p-5 md:p-8">
-          <div className="flex justify-end">
-            <AudioPlayer text={chapter.content} className="bg-transparent" />
-          </div>
-
           <CinematicText
             text={chapter.content}
             paragraphClassName="!text-base md:!text-lg lg:!text-xl !leading-relaxed !tracking-normal !drop-shadow-none"

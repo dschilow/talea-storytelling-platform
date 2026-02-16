@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bookmark, BookmarkCheck, BookOpen, Trash2, Clock, Download } from 'lucide-react';
+import { Bookmark, BookmarkCheck, BookOpen, Headphones, Loader2 as HeadphonesLoader, Trash2, Clock, Download } from 'lucide-react';
 import type { Story } from '../../types/story';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
@@ -8,6 +8,7 @@ import { AvatarGroup } from '../ui/avatar-group';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
 import { useOffline } from '../../contexts/OfflineStorageContext';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 
 interface StoryCardProps {
   story: Story;
@@ -17,9 +18,29 @@ interface StoryCardProps {
 
 export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete }) => {
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isAddingToPlaylist, setIsAddingToPlaylist] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<{ src: string; label?: string } | null>(null);
   const backend = useBackend();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
+  const { startStoryConversion, playlist } = useAudioPlayer();
+
+  const isInPlaylist = playlist.some((item) => item.parentStoryId === story.id);
+
+  const handleAddToPlaylist = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isInPlaylist || story.status !== 'complete') return;
+
+    try {
+      setIsAddingToPlaylist(true);
+      const fullStory = await backend.story.get({ id: story.id });
+      if (!fullStory.chapters || fullStory.chapters.length === 0) return;
+      startStoryConversion(story.id, story.title, fullStory.chapters as any, story.coverImageUrl);
+    } catch (err) {
+      console.error('Failed to add story to playlist:', err);
+    } finally {
+      setIsAddingToPlaylist(false);
+    }
+  };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -153,6 +174,22 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
     offset += 36 + spacing.sm; // download button
     return offset;
   })();
+
+  const audioButtonOffset = saveButtonOffset + (canUseOffline ? 36 + spacing.sm : 0);
+
+  const audioButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: spacing.md,
+    right: `${audioButtonOffset}px`,
+    background: isInPlaylist ? colors.semantic.success + '90' : colors.glass.background,
+    backdropFilter: 'blur(10px)',
+    borderRadius: `${radii.pill}px`,
+    padding: `${spacing.sm}px`,
+    border: 'none',
+    cursor: isAddingToPlaylist ? 'wait' : 'pointer',
+    transition: `all ${animations.duration.fast} ${animations.easing.smooth}`,
+    opacity: isAddingToPlaylist ? 0.6 : 1,
+  };
 
   const saveButtonStyle: React.CSSProperties = {
     position: 'absolute',
@@ -316,6 +353,37 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
               <BookmarkCheck size={16} style={{ color: colors.text.inverse }} />
             ) : (
               <Bookmark size={16} style={{ color: colors.text.inverse }} />
+            )}
+          </button>
+        )}
+
+        {/* Audio Playlist Button - Only show for complete stories */}
+        {story.status === 'complete' && (
+          <button
+            onClick={handleAddToPlaylist}
+            style={audioButtonStyle}
+            title={isInPlaylist ? 'Bereits in der Warteschlange' : 'Zur Warteschlange hinzufuegen'}
+            disabled={isAddingToPlaylist || isInPlaylist}
+            onMouseEnter={(e) => {
+              if (!isAddingToPlaylist && !isInPlaylist) {
+                e.currentTarget.style.transform = 'scale(1.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            {isAddingToPlaylist ? (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid white',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+            ) : (
+              <Headphones size={16} style={{ color: colors.text.inverse }} />
             )}
           </button>
         )}

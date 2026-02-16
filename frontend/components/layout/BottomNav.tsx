@@ -6,9 +6,13 @@ import {
   FastForward,
   FlaskConical,
   Home,
+  ListMusic,
+  Loader2,
   Pause,
   Play,
   Rewind,
+  SkipBack,
+  SkipForward,
   User,
   Volume2,
   X,
@@ -20,6 +24,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { PlaylistDrawer } from "@/components/audio/PlaylistDrawer";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -58,7 +63,23 @@ const BottomNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { resolvedTheme } = useTheme();
-  const { track, isPlaying, togglePlay, close, currentTime, duration, seek } = useAudioPlayer();
+  const {
+    track,
+    isPlaying,
+    togglePlay,
+    close,
+    currentTime,
+    duration,
+    seek,
+    isPlaylistActive,
+    playlist,
+    currentIndex,
+    playNext,
+    playPrevious,
+    togglePlaylistDrawer,
+    isPlaylistDrawerOpen,
+    waitingForConversion,
+  } = useAudioPlayer();
 
   const [playerExpanded, setPlayerExpanded] = useState(false);
 
@@ -89,11 +110,13 @@ const BottomNav: React.FC = () => {
     [isDark]
   );
 
+  const isVisible = track || waitingForConversion;
+
   useEffect(() => {
-    if (!track) {
+    if (!track && !waitingForConversion) {
       setPlayerExpanded(false);
     }
-  }, [track]);
+  }, [track, waitingForConversion]);
 
   const isActive = (path?: string) => {
     if (!path) return false;
@@ -107,6 +130,10 @@ const BottomNav: React.FC = () => {
   const handleSkip = (delta: number) => {
     seek((currentTime || 0) + delta);
   };
+
+  const hasPrev = isPlaylistActive && currentIndex > 0;
+  const hasNext = isPlaylistActive && currentIndex < playlist.length - 1;
+  const showNav = isPlaylistActive && playlist.length > 1;
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -146,164 +173,225 @@ const BottomNav: React.FC = () => {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-1 md:hidden">
-      <div
-        className="pointer-events-auto overflow-hidden rounded-[18px] border backdrop-blur"
-        style={{
-          borderColor: colors.border,
-          background: colors.nav,
-          boxShadow: isDark ? "0 10px 26px rgba(13,20,32,0.42)" : "0 10px 24px rgba(118,98,82,0.18)",
-        }}
-      >
-        <AnimatePresence>
-          {track && (
-            <motion.div
-              layout
-              initial={{ y: 14, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 14, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 360, damping: 34 }}
-              className="mx-1 mb-0.5 mt-1 overflow-hidden rounded-xl border"
-              style={{ borderColor: colors.audioBorder, background: colors.audioBg }}
-            >
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setPlayerExpanded((value) => !value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setPlayerExpanded((value) => !value);
-                  }
-                }}
-                className="cursor-pointer px-2 pt-2"
-                aria-label={playerExpanded ? "Audio-Player einklappen" : "Audio-Player ausklappen"}
+    <>
+      {/* Mobile playlist drawer */}
+      <AnimatePresence>
+        {isPlaylistDrawerOpen && <PlaylistDrawer variant="mobile" />}
+      </AnimatePresence>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-1 md:hidden">
+        <div
+          className="pointer-events-auto overflow-hidden rounded-[18px] border backdrop-blur"
+          style={{
+            borderColor: colors.border,
+            background: colors.nav,
+            boxShadow: isDark ? "0 10px 26px rgba(13,20,32,0.42)" : "0 10px 24px rgba(118,98,82,0.18)",
+          }}
+        >
+          <AnimatePresence>
+            {isVisible && (
+              <motion.div
+                layout
+                initial={{ y: 14, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 14, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 360, damping: 34 }}
+                className="mx-1 mb-0.5 mt-1 overflow-hidden rounded-xl border"
+                style={{ borderColor: colors.audioBorder, background: colors.audioBg }}
               >
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 overflow-hidden rounded-lg border border-white/20 bg-slate-200/40 dark:bg-slate-700/40">
-                    {track.coverImageUrl ? (
-                      <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Volume2 className="h-4 w-4 text-[#8b7567]" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[10px] font-semibold leading-tight" style={{ color: colors.textActive }}>
-                      {track.title}
-                    </p>
-                    <p className="truncate text-[9px]" style={{ color: colors.text }}>
-                      {isPlaying ? "Wird abgespielt" : "Pausiert"} - {formatTime(currentTime)} / {formatTime(duration)}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      togglePlay();
-                    }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
-                    style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
-                    aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-4 w-4" style={{ color: colors.textActive }} />
-                    ) : (
-                      <Play className="h-4 w-4" style={{ color: colors.textActive }} />
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      close();
-                    }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
-                    style={{ borderColor: "#c6a093", background: "rgba(198,160,147,0.2)" }}
-                    aria-label="Audio schliessen"
-                  >
-                    <X className="h-4 w-4 text-[#9e6d5f]" />
-                  </button>
-                </div>
-
-                <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ background: colors.progressBase }}>
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{
-                      background: "linear-gradient(90deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)",
-                      width: `${progress}%`,
-                    }}
-                    transition={{ ease: "easeOut", duration: 0.2 }}
-                  />
-                </div>
-              </div>
-
-              <AnimatePresence initial={false}>
-                {playerExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.24, ease: "easeOut" }}
-                    className="overflow-hidden border-t"
-                    style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
-                  >
-                    <div className="px-2 pb-2 pt-1.5">
-                      <p className="line-clamp-2 text-[9px] leading-relaxed" style={{ color: colors.text }}>
-                        {track.description || "Audio aus Talea"}
-                      </p>
-
-                      <div className="mt-1.5 flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSkip(-15)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
-                          style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
-                          aria-label="15 Sekunden zurueck"
-                        >
-                          <Rewind className="h-4 w-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={togglePlay}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-                          style={{
-                            background: "linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)",
-                            color: "#433a34",
-                          }}
-                          aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
-                        >
-                          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-[1px] h-4 w-4" />}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSkip(15)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
-                          style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
-                          aria-label="15 Sekunden vor"
-                        >
-                          <FastForward className="h-4 w-4" />
-                        </button>
-                      </div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setPlayerExpanded((value) => !value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setPlayerExpanded((value) => !value);
+                    }
+                  }}
+                  className="cursor-pointer px-2 pt-2"
+                  aria-label={playerExpanded ? "Audio-Player einklappen" : "Audio-Player ausklappen"}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 overflow-hidden rounded-lg border border-white/20 bg-slate-200/40 dark:bg-slate-700/40">
+                      {waitingForConversion && !track ? (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Loader2 className="h-4 w-4 animate-spin text-[#8b7567]" />
+                        </div>
+                      ) : track?.coverImageUrl ? (
+                        <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Volume2 className="h-4 w-4 text-[#8b7567]" />
+                        </div>
+                      )}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        <nav className={cn("px-1", track ? "pb-0.5 pt-0.5" : "py-0.5")} aria-label="Mobile Navigation">
-          <div className="flex items-center">{NAV_ITEMS.map(renderNavItem)}</div>
-        </nav>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[10px] font-semibold leading-tight" style={{ color: colors.textActive }}>
+                        {waitingForConversion && !track ? "Wird konvertiert..." : track?.title}
+                      </p>
+                      <p className="truncate text-[9px]" style={{ color: colors.text }}>
+                        {waitingForConversion && !track
+                          ? "Audio wird vorbereitet"
+                          : `${isPlaying ? "Wird abgespielt" : "Pausiert"} - ${formatTime(currentTime)} / ${formatTime(duration)}`}
+                        {showNav && ` · ${currentIndex + 1}/${playlist.length}`}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        togglePlay();
+                      }}
+                      disabled={waitingForConversion && !track}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border disabled:opacity-50"
+                      style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
+                      aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
+                    >
+                      {waitingForConversion && !track ? (
+                        <Loader2 className="h-4 w-4 animate-spin" style={{ color: colors.textActive }} />
+                      ) : isPlaying ? (
+                        <Pause className="h-4 w-4" style={{ color: colors.textActive }} />
+                      ) : (
+                        <Play className="h-4 w-4" style={{ color: colors.textActive }} />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        close();
+                      }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
+                      style={{ borderColor: "#c6a093", background: "rgba(198,160,147,0.2)" }}
+                      aria-label="Audio schliessen"
+                    >
+                      <X className="h-4 w-4 text-[#9e6d5f]" />
+                    </button>
+                  </div>
+
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ background: colors.progressBase }}>
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{
+                        background: "linear-gradient(90deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)",
+                        width: `${progress}%`,
+                      }}
+                      transition={{ ease: "easeOut", duration: 0.2 }}
+                    />
+                  </div>
+                </div>
+
+                <AnimatePresence initial={false}>
+                  {playerExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.24, ease: "easeOut" }}
+                      className="overflow-hidden border-t"
+                      style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
+                    >
+                      <div className="px-2 pb-2 pt-1.5">
+                        <p className="line-clamp-2 text-[9px] leading-relaxed" style={{ color: colors.text }}>
+                          {track?.description || "Audio aus Talea"}
+                        </p>
+
+                        <div className="mt-1.5 flex items-center justify-center gap-1.5">
+                          {/* Previous track */}
+                          {showNav && (
+                            <button
+                              type="button"
+                              onClick={() => playPrevious()}
+                              disabled={!hasPrev}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border disabled:opacity-30"
+                              style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                              aria-label="Vorheriger Track"
+                            >
+                              <SkipBack className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleSkip(-15)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
+                            style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                            aria-label="15 Sekunden zurueck"
+                          >
+                            <Rewind className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={togglePlay}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                            style={{
+                              background: "linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)",
+                              color: "#433a34",
+                            }}
+                            aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
+                          >
+                            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-[1px] h-4 w-4" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSkip(15)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
+                            style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                            aria-label="15 Sekunden vor"
+                          >
+                            <FastForward className="h-4 w-4" />
+                          </button>
+
+                          {/* Next track */}
+                          {showNav && (
+                            <button
+                              type="button"
+                              onClick={() => playNext()}
+                              disabled={!hasNext}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border disabled:opacity-30"
+                              style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                              aria-label="Naechster Track"
+                            >
+                              <SkipForward className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {/* Playlist drawer button */}
+                          {isPlaylistActive && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePlaylistDrawer();
+                              }}
+                              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border"
+                              style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                              aria-label="Warteschlange"
+                            >
+                              <ListMusic className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <nav className={cn("px-1", isVisible ? "pb-0.5 pt-0.5" : "py-0.5")} aria-label="Mobile Navigation">
+            <div className="flex items-center">{NAV_ITEMS.map(renderNavItem)}</div>
+          </nav>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

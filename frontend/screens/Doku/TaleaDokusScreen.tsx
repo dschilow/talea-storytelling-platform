@@ -170,6 +170,7 @@ const AudioDokuCard: React.FC<{
   doku: AudioDoku;
   index: number;
   onPlay: () => void;
+  onAddToQueue?: () => void;
   palette: Palette;
   isAdmin?: boolean;
   onEdit?: () => void;
@@ -182,6 +183,7 @@ const AudioDokuCard: React.FC<{
   doku,
   index,
   onPlay,
+  onAddToQueue,
   palette,
   isAdmin,
   onEdit,
