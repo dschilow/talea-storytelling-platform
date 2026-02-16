@@ -104,7 +104,7 @@ export const OfflineClerkProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   return (
-    <ClerkInstanceContext.Provider value={clerkMock as any}>
+    <ClerkInstanceContext.Provider value={wrapValue(clerkMock) as any}>
       <ClientContext.Provider value={wrapValue(clientMock) as any}>
         <SessionContext.Provider value={wrapValue(sessionMock) as any}>
           <AuthContext.Provider value={wrapValue(authMock) as any}>
