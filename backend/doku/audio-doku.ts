@@ -280,16 +280,24 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
         coverImageUrl = img.imageUrl;
       } catch (error) {
         console.warn("[AudioDoku] Cover generation failed:", error);
+        // Continue without cover image if generation fails
+        coverImageUrl = undefined;
       }
     }
 
     if (coverImageUrl) {
-      const uploadedCover = await maybeUploadImageUrlToBucket(coverImageUrl, {
-        prefix: "images/audio-dokus",
-        filenameHint: sanitizeTitle(title),
-        uploadMode: "always",
-      });
-      coverImageUrl = uploadedCover?.url ?? coverImageUrl;
+      try {
+        const uploadedCover = await maybeUploadImageUrlToBucket(coverImageUrl, {
+          prefix: "images/audio-dokus",
+          filenameHint: sanitizeTitle(title),
+          uploadMode: "always",
+        });
+        coverImageUrl = uploadedCover?.url ?? coverImageUrl;
+      } catch (error) {
+        console.warn("[AudioDoku] Cover upload failed:", error);
+        // Continue without cover image if upload fails
+        coverImageUrl = undefined;
+      }
     }
 
     const now = new Date();
@@ -375,17 +383,22 @@ export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCo
       });
 
       let coverImageUrl = img.imageUrl;
-      const uploadedCover = await maybeUploadImageUrlToBucket(coverImageUrl, {
-        prefix: "images/audio-dokus",
-        filenameHint: sanitizeTitle(title),
-        uploadMode: "always",
-      });
-      coverImageUrl = uploadedCover?.url ?? coverImageUrl;
+      try {
+        const uploadedCover = await maybeUploadImageUrlToBucket(coverImageUrl, {
+          prefix: "images/audio-dokus",
+          filenameHint: sanitizeTitle(title),
+          uploadMode: "always",
+        });
+        coverImageUrl = uploadedCover?.url ?? coverImageUrl;
+      } catch (uploadError) {
+        console.warn("[AudioDoku] Cover upload failed:", uploadError);
+        // Continue with original URL if upload fails
+      }
 
       const resolvedCover = await resolveImageUrlForClient(coverImageUrl);
       return { coverImageUrl: resolvedCover ?? coverImageUrl };
     } catch (error) {
-      console.warn("[AudioDoku] Cover generation failed:", error);
+      console.error("[AudioDoku] Cover generation failed:", error);
       throw APIError.failedPrecondition("Cover generation failed.");
     }
   }
@@ -427,13 +440,22 @@ export const updateAudioDoku = api<UpdateAudioDokuRequest, AudioDoku>(
     bodyLimit: 80 * 1024 * 1024,
   },
   async (req) => {
-    ensureAdmin();
+    const auth = getAuthData()!;
+    await assertAudioDokuAccess({
+      userId: auth.userID,
+      clerkToken: auth.clerkToken,
+    });
 
     const existing = await dokuDB.queryRow<AudioDokuRow>`
       SELECT * FROM audio_dokus WHERE id = ${req.id}
     `;
     if (!existing) {
       throw APIError.notFound("Audio Doku not found.");
+    }
+
+    // Check ownership (unless admin)
+    if (auth.role !== "admin" && existing.user_id !== auth.userID) {
+      throw APIError.permissionDenied("You do not have permission to update this audio doku.");
     }
 
     const titlePatch = normalizeRequiredPatch(req.title, "Title");

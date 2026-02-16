@@ -398,6 +398,15 @@ import { generatePortrait as api_avatar_portrait_api_generatePortrait } from "~b
 import { reducePersonalityTrait as api_avatar_reducePersonalityTrait_reducePersonalityTrait } from "~backend/avatar/reducePersonalityTrait";
 import { resetDokuHistory as api_avatar_resetDokuHistory_resetDokuHistory } from "~backend/avatar/resetDokuHistory";
 import { resetPersonalityTraits as api_avatar_resetPersonalityTraits_resetPersonalityTraits } from "~backend/avatar/resetPersonalityTraits";
+import {
+    deleteShareContact as api_avatar_share_deleteShareContact,
+    listAvatarShares as api_avatar_share_listAvatarShares,
+    listShareContacts as api_avatar_share_listShareContacts,
+    shareAvatarWithContact as api_avatar_share_shareAvatarWithContact,
+    suggestShareContacts as api_avatar_share_suggestShareContacts,
+    unshareAvatarFromContact as api_avatar_share_unshareAvatarFromContact,
+    upsertShareContact as api_avatar_share_upsertShareContact
+} from "~backend/avatar/share";
 import { update as api_avatar_update_update } from "~backend/avatar/update";
 import { updatePersonality as api_avatar_updatePersonality_updatePersonality } from "~backend/avatar/updatePersonality";
 import { upgradeAllPersonalityTraits as api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits } from "~backend/avatar/upgradePersonalityTraits";
@@ -415,18 +424,25 @@ export namespace avatar {
             this.debugPersonality = this.debugPersonality.bind(this)
             this.deleteAvatar = this.deleteAvatar.bind(this)
             this.deleteMemory = this.deleteMemory.bind(this)
+            this.deleteShareContact = this.deleteShareContact.bind(this)
             this.generatePortrait = this.generatePortrait.bind(this)
             this.get = this.get.bind(this)
             this.getMemories = this.getMemories.bind(this)
             this.list = this.list.bind(this)
+            this.listAvatarShares = this.listAvatarShares.bind(this)
+            this.listShareContacts = this.listShareContacts.bind(this)
             this.migrateToEnglish = this.migrateToEnglish.bind(this)
             this.reducePersonalityTrait = this.reducePersonalityTrait.bind(this)
             this.resetDokuHistory = this.resetDokuHistory.bind(this)
             this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this)
             this.runMigrationSql = this.runMigrationSql.bind(this)
+            this.shareAvatarWithContact = this.shareAvatarWithContact.bind(this)
+            this.suggestShareContacts = this.suggestShareContacts.bind(this)
+            this.unshareAvatarFromContact = this.unshareAvatarFromContact.bind(this)
             this.update = this.update.bind(this)
             this.updatePersonality = this.updatePersonality.bind(this)
             this.upgradeAllPersonalityTraits = this.upgradeAllPersonalityTraits.bind(this)
+            this.upsertShareContact = this.upsertShareContact.bind(this)
         }
 
         public async addMemory(params: RequestType<typeof api_avatar_addMemory_addMemory>): Promise<ResponseType<typeof api_avatar_addMemory_addMemory>> {
@@ -470,6 +486,12 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_deleteMemory_deleteMemory>
         }
 
+        public async deleteShareContact(params: { contactId: string }): Promise<ResponseType<typeof api_avatar_share_deleteShareContact>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/share/contacts/${encodeURIComponent(params.contactId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_deleteShareContact>
+        }
+
         /**
          * Generate avatar portrait prompt
          */
@@ -495,12 +517,24 @@ export namespace avatar {
         }
 
         /**
-         * Retrieves all avatars for the authenticated user.
+         * Retrieves avatars owned by the user and avatars shared with the user.
          */
         public async list(): Promise<ResponseType<typeof api_avatar_list_list>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatars`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_list_list>
+        }
+
+        public async listAvatarShares(params: { id: string }): Promise<ResponseType<typeof api_avatar_share_listAvatarShares>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/shares`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_listAvatarShares>
+        }
+
+        public async listShareContacts(): Promise<ResponseType<typeof api_avatar_share_listShareContacts>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/share/contacts`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_listShareContacts>
         }
 
         public async migrateToEnglish(): Promise<ResponseType<typeof api_avatar_migrateToEnglish_migrateToEnglish>> {
@@ -560,6 +594,35 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_migration_api_runMigrationSql>
         }
 
+        public async shareAvatarWithContact(params: RequestType<typeof api_avatar_share_shareAvatarWithContact>): Promise<ResponseType<typeof api_avatar_share_shareAvatarWithContact>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                contactId: params.contactId,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/share`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_shareAvatarWithContact>
+        }
+
+        public async suggestShareContacts(params: RequestType<typeof api_avatar_share_suggestShareContacts>): Promise<ResponseType<typeof api_avatar_share_suggestShareContacts>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                limit: params.limit === undefined ? undefined : String(params.limit),
+                q:     params.q,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/share/suggestions`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_suggestShareContacts>
+        }
+
+        public async unshareAvatarFromContact(params: { id: string, contactId: string }): Promise<ResponseType<typeof api_avatar_share_unshareAvatarFromContact>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/share/${encodeURIComponent(params.contactId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_unshareAvatarFromContact>
+        }
+
         /**
          * Updates an existing avatar.
          */
@@ -594,6 +657,12 @@ export namespace avatar {
             const resp = await this.baseClient.callTypedAPI(`/avatar/upgrade-traits`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_upgradePersonalityTraits_upgradeAllPersonalityTraits>
         }
+
+        public async upsertShareContact(params: RequestType<typeof api_avatar_share_upsertShareContact>): Promise<ResponseType<typeof api_avatar_share_upsertShareContact>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/share/contacts`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_upsertShareContact>
+        }
     }
 }
 
@@ -606,8 +675,8 @@ import {
     deleteAudioDoku as api_doku_audio_doku_deleteAudioDoku,
     generateAudioCover as api_doku_audio_doku_generateAudioCover,
     getAudioDoku as api_doku_audio_doku_getAudioDoku,
-    updateAudioDoku as api_doku_audio_doku_updateAudioDoku,
-    listAudioDokus as api_doku_audio_doku_listAudioDokus
+    listAudioDokus as api_doku_audio_doku_listAudioDokus,
+    updateAudioDoku as api_doku_audio_doku_updateAudioDoku
 } from "~backend/doku/audio-doku";
 import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
@@ -735,24 +804,12 @@ export namespace doku {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_markRead_markRead>
         }
 
-        public async updateDoku(params: RequestType<typeof api_doku_update_updateDoku>): Promise<ResponseType<typeof api_doku_update_updateDoku>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                isPublic: params.isPublic,
-                title:    params.title,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_update_updateDoku>
-        }
-
         public async updateAudioDoku(params: RequestType<typeof api_doku_audio_doku_updateAudioDoku>): Promise<ResponseType<typeof api_doku_audio_doku_updateAudioDoku>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
+                ageGroup:         params.ageGroup,
                 audioDataUrl:     params.audioDataUrl,
                 audioUrl:         params.audioUrl,
-                ageGroup:         params.ageGroup,
                 category:         params.category,
                 coverDescription: params.coverDescription,
                 coverImageUrl:    params.coverImageUrl,
@@ -765,6 +822,18 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_updateAudioDoku>
+        }
+
+        public async updateDoku(params: RequestType<typeof api_doku_update_updateDoku>): Promise<ResponseType<typeof api_doku_update_updateDoku>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                isPublic: params.isPublic,
+                title:    params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_update_updateDoku>
         }
     }
 }
@@ -1834,6 +1903,10 @@ export namespace tavi {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import {
+    generateElevenLabsDialogue as api_tts_elevenlabs_dialogue_generateElevenLabsDialogue,
+    listElevenLabsVoices as api_tts_elevenlabs_dialogue_listElevenLabsVoices
+} from "~backend/tts/elevenlabs-dialogue";
 import { generateSpeech as api_tts_tts_generateSpeech } from "~backend/tts/tts";
 
 export namespace tts {
@@ -1843,7 +1916,15 @@ export namespace tts {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.generateElevenLabsDialogue = this.generateElevenLabsDialogue.bind(this)
             this.generateSpeech = this.generateSpeech.bind(this)
+            this.listElevenLabsVoices = this.listElevenLabsVoices.bind(this)
+        }
+
+        public async generateElevenLabsDialogue(params: RequestType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>): Promise<ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/elevenlabs/dialogue`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>
         }
 
         public async generateSpeech(params: RequestType<typeof api_tts_tts_generateSpeech>): Promise<ResponseType<typeof api_tts_tts_generateSpeech>> {
@@ -1855,6 +1936,12 @@ export namespace tts {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/tts/generate`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateSpeech>
+        }
+
+        public async listElevenLabsVoices(): Promise<ResponseType<typeof api_tts_elevenlabs_dialogue_listElevenLabsVoices>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/elevenlabs/voices`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_elevenlabs_dialogue_listElevenLabsVoices>
         }
     }
 }
