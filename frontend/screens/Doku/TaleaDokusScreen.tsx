@@ -34,6 +34,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import taleaLogo from '@/img/talea_logo.png';
+import ProgressiveImage from '@/components/common/ProgressiveImage';
 
 type Palette = {
   pageGradient: string;
@@ -214,13 +215,19 @@ const AudioDokuCard: React.FC<{
     style={{ borderColor: palette.border, background: palette.panel }}
   >
     <div className="relative h-44 overflow-hidden" style={{ background: palette.soft }}>
-      {doku.coverImageUrl ? (
-        <img src={doku.coverImageUrl} alt={doku.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <Headphones className="h-12 w-12" style={{ color: palette.muted }} />
-        </div>
-      )}
+      <ProgressiveImage
+        src={doku.coverImageUrl}
+        alt={doku.title}
+        revealDelayMs={index * 35}
+        containerClassName="h-full w-full"
+        imageClassName="transition-transform duration-500 group-hover:scale-[1.04]"
+        skeletonClassName="bg-[#ece7de] dark:bg-[#27364b]"
+        fallback={
+          <div className="flex h-full w-full items-center justify-center">
+            <Headphones className="h-12 w-12" style={{ color: palette.muted }} />
+          </div>
+        }
+      />
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/12 to-transparent" />
 
@@ -412,8 +419,28 @@ const AudioModal: React.FC<{
 
 const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => (
   <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-    {Array.from({ length: 3 }).map((_, i) => (
-      <div key={i} className="h-[300px] animate-pulse rounded-3xl border" style={{ borderColor: palette.border, background: palette.soft }} />
+    {Array.from({ length: 6 }).map((_, i) => (
+      <motion.div
+        key={i}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, delay: i * 0.04 }}
+        className="overflow-hidden rounded-3xl border"
+        style={{ borderColor: palette.border, background: palette.panel }}
+      >
+        <div className="relative h-44 animate-pulse" style={{ background: palette.soft }}>
+          <motion.div
+            className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/30 dark:bg-white/10"
+            animate={{ x: ['0%', '420%'] }}
+            transition={{ duration: 1.25, repeat: Infinity, ease: 'easeInOut', delay: i * 0.05 }}
+          />
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="h-5 w-4/5 animate-pulse rounded" style={{ background: palette.soft }} />
+          <div className="h-4 w-full animate-pulse rounded" style={{ background: palette.soft }} />
+          <div className="h-4 w-3/4 animate-pulse rounded" style={{ background: palette.soft }} />
+        </div>
+      </motion.div>
     ))}
   </div>
 );

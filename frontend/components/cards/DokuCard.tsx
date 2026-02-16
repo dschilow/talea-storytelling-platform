@@ -17,6 +17,7 @@ import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
+import ProgressiveImage from '../common/ProgressiveImage';
 
 interface DokuCardProps {
   doku: Doku;
@@ -136,17 +137,18 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
     >
       <div className="w-full overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]" style={{ borderColor: palette.border, background: palette.card }}>
         <div className="relative h-[220px] overflow-hidden" style={{ background: palette.soft }}>
-          {doku.coverImageUrl ? (
-            <img
-              src={doku.coverImageUrl}
-              alt={doku.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <FlaskConical className="h-16 w-16" style={{ color: palette.muted }} />
-            </div>
-          )}
+          <ProgressiveImage
+            src={doku.coverImageUrl}
+            alt={doku.title}
+            containerClassName="h-full w-full"
+            imageClassName="transition-transform duration-500 group-hover:scale-[1.05]"
+            skeletonClassName="bg-[#ece7de] dark:bg-[#27364b]"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center">
+                <FlaskConical className="h-16 w-16" style={{ color: palette.muted }} />
+              </div>
+            }
+          />
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/8 to-transparent" />
 

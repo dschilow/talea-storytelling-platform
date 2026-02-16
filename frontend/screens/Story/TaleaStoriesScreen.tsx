@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -212,17 +213,18 @@ const GridStoryCard: React.FC<{
     >
       <Card className="overflow-hidden border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_12px_30px_rgba(21,32,44,0.08)] transition-shadow group-hover:shadow-[0_18px_44px_rgba(21,32,44,0.12)]">
         <div className="relative h-56 overflow-hidden">
-          {story.coverImageUrl ? (
-            <img
-              src={story.coverImageUrl}
-              alt={story.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] dark:bg-[#2b3b51] text-[#7b7468]">
-              <BookOpen className="h-10 w-10" />
-            </div>
-          )}
+          <ProgressiveImage
+            src={story.coverImageUrl}
+            alt={story.title}
+            revealDelayMs={index * 35}
+            containerClassName="h-full w-full"
+            imageClassName="transition-transform duration-500 group-hover:scale-[1.03]"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] dark:bg-[#2b3b51] text-[#7b7468]">
+                <BookOpen className="h-10 w-10" />
+              </div>
+            }
+          />
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/15 to-transparent" />
 
@@ -327,13 +329,17 @@ const ListStoryRow: React.FC<{
       <Card className="overflow-hidden border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_10px_26px_rgba(21,32,44,0.06)] transition-shadow group-hover:shadow-[0_14px_34px_rgba(21,32,44,0.12)]">
         <div className="flex flex-col md:flex-row">
           <div className="relative h-44 w-full md:h-auto md:w-56">
-            {story.coverImageUrl ? (
-              <img src={story.coverImageUrl} alt={story.title} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] dark:bg-[#2b3b51] text-[#7b7468]">
-                <BookOpen className="h-9 w-9" />
-              </div>
-            )}
+            <ProgressiveImage
+              src={story.coverImageUrl}
+              alt={story.title}
+              revealDelayMs={index * 30}
+              containerClassName="h-full w-full"
+              fallback={
+                <div className="flex h-full w-full items-center justify-center bg-[#ebe5d9] dark:bg-[#2b3b51] text-[#7b7468]">
+                  <BookOpen className="h-9 w-9" />
+                </div>
+              }
+            />
           </div>
 
           <div className="flex flex-1 flex-col p-5">
@@ -437,12 +443,28 @@ const EmptyState: React.FC<{
 );
 
 const LoadingState: React.FC = () => (
-  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
     {Array.from({ length: 6 }).map((_, index) => (
-      <div
+      <motion.div
         key={index}
-        className="h-72 animate-pulse rounded-2xl border border-[#ddd5c8] dark:border-[#33465e] bg-[#ece7de] dark:bg-[#27364b]"
-      />
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: index * 0.04 }}
+        className="overflow-hidden rounded-2xl border border-[#ddd5c8] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636]"
+      >
+        <div className="relative h-56 animate-pulse bg-[#ece7de] dark:bg-[#27364b]">
+          <motion.div
+            className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/35 dark:bg-white/10"
+            animate={{ x: ['0%', '420%'] }}
+            transition={{ duration: 1.25, repeat: Infinity, ease: 'easeInOut', delay: index * 0.05 }}
+          />
+        </div>
+        <div className="space-y-3 p-5">
+          <div className="h-6 w-4/5 animate-pulse rounded bg-[#ece7de] dark:bg-[#27364b]" />
+          <div className="h-4 w-full animate-pulse rounded bg-[#ece7de] dark:bg-[#27364b]" />
+          <div className="h-4 w-3/4 animate-pulse rounded bg-[#ece7de] dark:bg-[#27364b]" />
+        </div>
+      </motion.div>
     ))}
   </div>
 );
