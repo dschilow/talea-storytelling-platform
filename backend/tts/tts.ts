@@ -185,6 +185,59 @@ async function generateSyncFallback(serviceUrl: string, text: string, options?: 
     const url = `${serviceUrl}/`;
     log.info(`TTS sync fallback for text length ${text.length}`);
 
+    const parseAudioResponse = async (response: Response): Promise<string> => {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const base64 = buffer.toString("base64");
+        return `data:audio/wav;base64,${base64}`;
+    };
+
+    const isNoTextProvided = (status: number, body: string): boolean =>
+        status === 400 && /no text provided/i.test(body);
+
+    const tryFormPost = async (): Promise<string> => {
+        const formBody = new URLSearchParams();
+        formBody.set("text", text);
+        if (options?.model) formBody.set("model", options.model);
+        if (options?.languageId) formBody.set("language_id", options.languageId);
+        formBody.set("length_scale", "1.55");
+        formBody.set("noise_scale", "0.42");
+        formBody.set("noise_w", "0.38");
+
+        const formRes = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formBody.toString(),
+        });
+
+        if (formRes.ok) {
+            return parseAudioResponse(formRes);
+        }
+
+        const formErr = await formRes.text();
+        if (!isNoTextProvided(formRes.status, formErr)) {
+            throw new Error(`TTS sync(form) failed: ${formRes.status} - ${formErr}`);
+        }
+
+        // Last resort for environments rewriting POST bodies: GET with query params.
+        // We keep this only as fallback because URLs can get long.
+        const query = new URL(url);
+        query.searchParams.set("text", text);
+        if (options?.model) query.searchParams.set("model", options.model);
+        if (options?.languageId) query.searchParams.set("language_id", options.languageId);
+        query.searchParams.set("length_scale", "1.55");
+        query.searchParams.set("noise_scale", "0.42");
+        query.searchParams.set("noise_w", "0.38");
+
+        const getRes = await fetch(query.toString(), { method: "GET" });
+        if (getRes.ok) {
+            return parseAudioResponse(getRes);
+        }
+
+        const getErr = await getRes.text();
+        throw new Error(`TTS sync(get) failed: ${getRes.status} - ${getErr}`);
+    };
+
     const MAX_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
@@ -206,13 +259,14 @@ async function generateSyncFallback(serviceUrl: string, text: string, options?: 
             clearTimeout(timeout);
 
             if (response.ok) {
-                const arrayBuffer = await response.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                const base64 = buffer.toString("base64");
-                return `data:audio/wav;base64,${base64}`;
+                return parseAudioResponse(response);
             }
 
             const errText = await response.text();
+            if (isNoTextProvided(response.status, errText)) {
+                log.warn("TTS sync JSON body not accepted, retrying with form/query fallback");
+                return await tryFormPost();
+            }
             if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
                 log.warn(`TTS sync got ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in 5s...`);
                 await new Promise((r) => setTimeout(r, 5_000));
