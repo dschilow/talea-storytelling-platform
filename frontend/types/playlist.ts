@@ -22,4 +22,4 @@ export interface PlaylistItem {
   chapterTitle?: string;
 }
 
-export const MAX_PLAYLIST_ITEMS = 30;
+export const MAX_PLAYLIST_ITEMS = 200;

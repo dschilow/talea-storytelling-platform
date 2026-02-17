@@ -422,6 +422,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audio.removeAttribute('src');
       audio.load();
     }
+    cancelConversion();
+    playlistRef.current.forEach((item) => revokeBlobUrl(item.audioUrl));
+    playlistRef.current = [];
+    currentIndexRef.current = -1;
+    isPlaylistActiveRef.current = false;
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -430,7 +435,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setTrack(null);
     setShouldAutoplay(false);
     setIsPlaylistDrawerOpen(false);
-  }, []);
+    setPlaylist([]);
+    setCurrentIndex(-1);
+    setIsPlaylistActive(false);
+  }, [cancelConversion, revokeBlobUrl]);
 
   // ── Playlist methods ──────────────────────────────────────────────
   const addToPlaylist = useCallback(
@@ -680,8 +688,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
 
-      if (autoplay && !track) {
-        // Use addAndPlay for atomic add + start playback
+      if (autoplay) {
+        // Use addAndPlay for atomic add + start playback from the new story
         addAndPlay(newItems);
       } else {
         // Just append to queue, keep current playback
