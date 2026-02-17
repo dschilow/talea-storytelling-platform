@@ -101,8 +101,8 @@ _QUALITY_PRESETS = {
     # highest quality profile (slower)
     'max': {
         'max_parallel': 2,
-        'max_chunk_chars': 800,
-        'max_sentences_per_chunk': 2,
+        'max_chunk_chars': 560,
+        'max_sentences_per_chunk': 1,
         'job_workers': 2,
         'length_scale': 1.38,
         'noise_scale': 0.44,
@@ -172,21 +172,10 @@ ENABLE_EMOTIONAL_MODEL = _get_env_bool('ENABLE_EMOTIONAL_MODEL', False)
 # ── FFmpeg post-processing for broadcast quality ─────────────────────────────
 ENABLE_FFMPEG_POSTPROCESS = _get_env_bool('ENABLE_FFMPEG_POSTPROCESS', True)
 FFMPEG_FILTER_CHAIN = os.environ.get('FFMPEG_FILTER_CHAIN',
-    'dcshift=0,'                                                          # DC offset removal (prevents clicks)
-    'highpass=f=80:poles=2,'                                              # 12dB/oct rumble removal
-    'agate=threshold=0.008:ratio=3:attack=2:release=80,'                  # noise gate for TTS silence artifacts
-    'anequalizer='
-        'c0 f=200 w=80 g=-2 t=1|'                                        # cut muddiness 200Hz
-        'c0 f=2800 w=1200 g=2.5 t=1|'                                    # boost presence/clarity 2.8kHz
-        'c0 f=5500 w=800 g=1.5 t=1,'                                     # add air 5.5kHz
-    'acompressor=threshold=0.04:ratio=3:attack=5:release=120:makeup=2:knee=4,'  # smooth dynamic compression
-    'loudnorm=I=-18:LRA=7:TP=-1.5,'                                      # EBU R128 loudness normalization
-    'alimiter=limit=0.92:attack=3:release=20'                             # brick-wall limiter
+    'highpass=f=60,'
+    'acompressor=threshold=0.06:ratio=2.5:attack=8:release=150:makeup=1.5,'
+    'alimiter=limit=0.95'
 )
-ENABLE_ROOM_TONE = _get_env_bool('ENABLE_ROOM_TONE', True)
-
-# ── Sentence silence: Piper native pause between sentences within a chunk ────
-SENTENCE_SILENCE = _get_env_float('SENTENCE_SILENCE', 0.25)
 
 # ── Phoneme silence values (injected into model config at startup) ───────────
 PHONEME_SILENCE_COMMA = _get_env_float('PHONEME_SILENCE_COMMA', 0.20)
@@ -331,9 +320,7 @@ print(
         f"custom_pronunciations={len(CUSTOM_PRONUNCIATIONS)}, "
         f"phoneme_silence={ENABLE_PHONEME_SILENCE}, "
         f"emotional_model={ENABLE_EMOTIONAL_MODEL}, "
-        f"ffmpeg_postprocess={ENABLE_FFMPEG_POSTPROCESS}, "
-        f"room_tone={ENABLE_ROOM_TONE}, "
-        f"sentence_silence={SENTENCE_SILENCE}"
+        f"ffmpeg_postprocess={ENABLE_FFMPEG_POSTPROCESS}"
     ),
     file=sys.stderr,
 )
@@ -1033,7 +1020,6 @@ def generate_wav_chunk(text, length_scale=1.0, noise_scale=0.667, noise_w=0.8,
         "--length_scale", str(length_scale),
         "--noise_scale", str(noise_scale),
         "--noise_w", str(noise_w),
-        "--sentence_silence", str(SENTENCE_SILENCE),
     ]
     if speaker_id is not None:
         cmd.extend(["--speaker", str(speaker_id)])
@@ -1106,80 +1092,6 @@ def concatenate_wav(wav_chunks):
     data_header = struct.pack('<4sI', b'data', total_data_size)
 
     return header + fmt_chunk + data_header + combined_data
-
-
-def _fade_edges(wav_bytes, fade_in_ms=5, fade_out_ms=5):
-    """Apply sine-curve fade-in/fade-out to a WAV chunk's PCM data.
-    Prevents clicks at chunk boundaries during concatenation."""
-    if len(wav_bytes) < 44:
-        return wav_bytes
-
-    data_offset = wav_bytes.find(b'data')
-    if data_offset == -1 or data_offset + 8 > len(wav_bytes):
-        return wav_bytes
-
-    data_size = struct.unpack_from('<I', wav_bytes, data_offset + 4)[0]
-    audio_start = data_offset + 8
-    audio_end = audio_start + data_size
-    if audio_end > len(wav_bytes):
-        return wav_bytes
-
-    sample_rate = struct.unpack_from('<I', wav_bytes, 24)[0] if len(wav_bytes) >= 28 else 22050
-    pcm = bytearray(wav_bytes[audio_start:audio_end])
-    sample_count = len(pcm) // 2
-    if sample_count < 4:
-        return wav_bytes
-
-    import math
-    fade_in_samples = min(int(sample_rate * fade_in_ms / 1000), sample_count // 2)
-    fade_out_samples = min(int(sample_rate * fade_out_ms / 1000), sample_count // 2)
-
-    # Sine-curve fade-in
-    for i in range(fade_in_samples):
-        gain = math.sin(i / fade_in_samples * math.pi / 2)  # 0 → 1 (equal-power)
-        val = struct.unpack_from('<h', pcm, i * 2)[0]
-        struct.pack_into('<h', pcm, i * 2, max(-32768, min(32767, int(val * gain))))
-
-    # Sine-curve fade-out
-    for i in range(fade_out_samples):
-        pos = sample_count - fade_out_samples + i
-        gain = math.cos(i / fade_out_samples * math.pi / 2)  # 1 → 0 (equal-power)
-        val = struct.unpack_from('<h', pcm, pos * 2)[0]
-        struct.pack_into('<h', pcm, pos * 2, max(-32768, min(32767, int(val * gain))))
-
-    return wav_bytes[:audio_start] + bytes(pcm) + wav_bytes[audio_end:]
-
-
-def _add_room_tone(wav_bytes):
-    """Mix in barely-audible white noise (-60dB) to make TTS output less sterile.
-    Simulates a natural recording environment."""
-    if not ENABLE_ROOM_TONE:
-        return wav_bytes
-    if len(wav_bytes) < 44:
-        return wav_bytes
-
-    data_offset = wav_bytes.find(b'data')
-    if data_offset == -1 or data_offset + 8 > len(wav_bytes):
-        return wav_bytes
-
-    data_size = struct.unpack_from('<I', wav_bytes, data_offset + 4)[0]
-    audio_start = data_offset + 8
-    audio_end = audio_start + data_size
-    if audio_end > len(wav_bytes):
-        return wav_bytes
-
-    import random
-    pcm = bytearray(wav_bytes[audio_start:audio_end])
-    sample_count = len(pcm) // 2
-    # -60dB ≈ amplitude of ~33 out of 32767
-    noise_amplitude = 33
-
-    for i in range(sample_count):
-        val = struct.unpack_from('<h', pcm, i * 2)[0]
-        noise = random.randint(-noise_amplitude, noise_amplitude)
-        struct.pack_into('<h', pcm, i * 2, max(-32768, min(32767, val + noise)))
-
-    return wav_bytes[:audio_start] + bytes(pcm) + wav_bytes[audio_end:]
 
 
 def _postprocess_with_ffmpeg(wav_bytes):
@@ -1397,17 +1309,14 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
                 idx, data = future.result()
                 wav_results[idx] = data
 
-    # Apply per-chunk edge fade to prevent clicks at boundaries
     wav_chunks = []
     for i, wav_data in enumerate(wav_results):
-        wav_chunks.append(_fade_edges(wav_data, fade_in_ms=5, fade_out_ms=5))
+        wav_chunks.append(wav_data)
         if i < len(wav_results) - 1:
             silence = _get_silence_between(chunks[i], chunks[i + 1])
             wav_chunks.append(silence)
 
-    result = _postprocess_output_wav(concatenate_wav(wav_chunks))
-    result = _add_room_tone(result)
-    return result
+    return _postprocess_output_wav(concatenate_wav(wav_chunks))
 
 def _purge_old_jobs():
     """Remove jobs older than JOB_TTL_SECONDS."""
