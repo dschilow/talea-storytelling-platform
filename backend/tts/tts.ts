@@ -4,12 +4,14 @@ import log from "encore.dev/log";
 // TTS_SERVICE_URL should use Railway private networking to avoid the public LB timeout:
 // Set TTS_SERVICE_URL=http://tts-service.railway.internal:8080 in Railway env vars.
 // If your Railway setup expects port-less private URLs, use http://tts-service.railway.internal.
+// If you use Railway public URLs (*.up.railway.app), prefer HTTPS (not HTTP).
 // Railway private networking has no 30/60s proxy timeout; only the AbortController limit applies.
 const PIPER_TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
 
 // Optional second service for A/B tests (e.g. Chatterbox):
 // CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal:8080
 // or CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal
+// Public fallback (if needed): https://<service>.up.railway.app
 const CHATTERBOX_TTS_SERVICE_URL = process.env.CHATTERBOX_TTS_SERVICE_URL || "";
 
 export type TTSProvider = "piper" | "chatterbox";
@@ -93,11 +95,20 @@ function getServiceUrlCandidates(baseUrl: string): string[] {
     };
 
     const normalizedBase = baseUrl.trim().replace(/\/+$/, "");
-    pushUnique(normalizedBase);
 
     try {
         const parsed = new URL(normalizedBase);
         const isRailwayInternal = parsed.hostname.endsWith(".railway.internal");
+        const isRailwayPublic = parsed.hostname.endsWith(".up.railway.app");
+
+        // Prefer HTTPS for Railway public domains to avoid redirect-induced
+        // POST->GET downgrades (which break /generate/async and JSON bodies).
+        const preferred = new URL(parsed.toString());
+        if (isRailwayPublic && preferred.protocol === "http:") {
+            preferred.protocol = "https:";
+        }
+        pushUnique(preferred.toString().replace(/\/+$/, ""));
+        pushUnique(normalizedBase);
 
         // Railway private networking can differ by environment setup.
         // Try both variants when the service is internal.
@@ -114,6 +125,7 @@ function getServiceUrlCandidates(baseUrl: string): string[] {
         }
     } catch {
         // If parsing fails, fall back to using only the raw URL.
+        pushUnique(normalizedBase);
     }
 
     return candidates;
