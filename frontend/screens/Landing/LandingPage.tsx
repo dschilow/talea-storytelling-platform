@@ -228,16 +228,16 @@ const LandingPage: React.FC = () => {
         });
       }
 
-      /* Hero entrance */
-      const heroTl = gsap.timeline({ delay: 0.3 });
+      /* Hero entrance — explosive stagger with skew */
+      const heroTl = gsap.timeline({ delay: 0.2 });
       heroTl
         .to('.hero-title .word', {
-          opacity: 1, y: 0, rotateX: 0,
-          duration: 0.8, stagger: 0.12, ease: 'power3.out',
+          opacity: 1, y: 0, rotateX: 0, skewX: 0,
+          duration: 0.75, stagger: 0.09, ease: 'expo.out',
         })
-        .to('.hero-sub', { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, '-=0.3')
-        .to('.hero-actions', { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, '-=0.2')
-        .to('.hero-characters', { opacity: 1, y: 0, duration: 0.7, ease: 'power2.out' }, '-=0.3')
+        .to('.hero-sub', { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, '-=0.35')
+        .to('.hero-actions', { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, '-=0.2')
+        .to('.hero-characters', { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out' }, '-=0.3')
         .to('.scroll-cue', { opacity: 1, duration: 0.5 }, '-=0.2');
 
       /* Cinematic scenes – pinned with scrub animation */
@@ -550,6 +550,21 @@ const LandingPage: React.FC = () => {
         {/* ═══════════ HERO ═══════════ */}
         <section ref={heroRef} className="hero-scene">
           <div className="hero-ambient" />
+
+          {/* Burst lines — radiate on load */}
+          <div className="hero-burst" aria-hidden="true">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="hero-burst-line"
+                style={{
+                  transform: `rotate(${i * 30}deg)`,
+                  animationDelay: `${i * 0.04}s`,
+                  opacity: 0.4 + (i % 3) * 0.15,
+                }}
+              />
+            ))}
+          </div>
 
           <p className="hero-kicker"><Sparkles size={14} />KI-Storytelling für Familien</p>
 
