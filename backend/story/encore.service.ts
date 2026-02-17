@@ -5,6 +5,7 @@ export default new Service("story");
 // Import all API endpoints
 import "./generate";
 import "./generate-from-fairytale";
+import "./studio-api";
 import "./character-pool-api";
 import "./artifact-pool-api";
 import "./test-story-generation";

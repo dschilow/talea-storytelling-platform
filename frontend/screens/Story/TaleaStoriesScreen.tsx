@@ -33,12 +33,14 @@ import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { useOffline } from "@/contexts/OfflineStorageContext";
+import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
 
 const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
 const bodyFont = '"Sora", "Manrope", "Segoe UI", sans-serif';
 
 type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "title";
+type ContentTab = "stories" | "studio";
 
 const statusMeta: Record<Story["status"], { label: string; className: string }> = {
   complete: {
@@ -481,6 +483,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const isDark = resolvedTheme === "dark";
 
   const [stories, setStories] = useState<Story[]>([]);
+  const [contentTab, setContentTab] = useState<ContentTab>("stories");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -500,7 +503,7 @@ const TaleaStoriesScreen: React.FC = () => {
     try {
       setLoading(true);
       const response = await backend.story.list({ limit: 12, offset: 0 });
-      setStories((response.stories as Story[]) || []);
+      setStories((response.stories as unknown as Story[]) || []);
       setTotal(response.total || 0);
       setHasMore(response.hasMore || false);
     } catch (error) {
@@ -516,7 +519,7 @@ const TaleaStoriesScreen: React.FC = () => {
     try {
       setLoadingMore(true);
       const response = await backend.story.list({ limit: 12, offset: stories.length });
-      setStories((prev) => [...prev, ...((response.stories as Story[]) || [])]);
+      setStories((prev) => [...prev, ...((response.stories as unknown as Story[]) || [])]);
       setHasMore(response.hasMore || false);
     } catch (error) {
       console.error("Error loading more stories:", error);
@@ -526,17 +529,19 @@ const TaleaStoriesScreen: React.FC = () => {
   }, [backend, hasMore, loadingMore, stories.length]);
 
   useEffect(() => {
-    if (authLoaded && isSignedIn) {
+    if (authLoaded && isSignedIn && contentTab === "stories") {
       loadStories();
     } else if (authLoaded && !isSignedIn) {
       setLoading(false);
+    } else if (authLoaded && isSignedIn && contentTab === "studio") {
+      setLoading(false);
     }
-  }, [authLoaded, isSignedIn]);
+  }, [authLoaded, isSignedIn, contentTab]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !loadingMore && !loading) {
+        if (contentTab === "stories" && entries[0]?.isIntersecting && hasMore && !loadingMore && !loading) {
           loadMoreStories();
         }
       },
@@ -548,7 +553,7 @@ const TaleaStoriesScreen: React.FC = () => {
     }
 
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, loadMoreStories]);
+  }, [contentTab, hasMore, loadingMore, loading, loadMoreStories]);
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (!window.confirm(`${t("common.delete", "Loeschen")} \"${storyTitle}\"?`)) return;
@@ -708,169 +713,202 @@ const TaleaStoriesScreen: React.FC = () => {
                     className="text-4xl leading-tight text-[#253246] dark:text-[#e6edf8] md:text-5xl"
                     style={{ fontFamily: headingFont }}
                   >
-                    Geschichten mit klarer Struktur
+                    {contentTab === "stories" ? "Geschichten mit klarer Struktur" : "Talea Studio Serien"}
                   </CardTitle>
                   <CardDescription className="max-w-2xl text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">
-                    Uebersichtlich filtern, Teilnehmer vergroessern und jede Story direkt oeffnen oder als PDF exportieren.
+                    {contentTab === "stories"
+                      ? "Uebersichtlich filtern, Teilnehmer vergroessern und jede Story direkt oeffnen oder als PDF exportieren."
+                      : "Verwalte Serien, serie-exklusive Story Charaktere und neue Folgen in einem Studio-Workflow."}
                   </CardDescription>
+
+                  <div className="inline-flex rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] p-1">
+                    <button
+                      type="button"
+                      onClick={() => setContentTab("stories")}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
+                        contentTab === "stories" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
+                      )}
+                    >
+                      Meine Stories
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContentTab("studio")}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
+                        contentTab === "studio" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
+                      )}
+                    >
+                      Talea Studio
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => navigate("/story")}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] dark:text-[#dce7f8] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
-                >
-                  <Plus className="h-4 w-4 text-[#556f8d]" />
-                  Neue Story
-                </button>
+                {contentTab === "stories" && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/story")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] dark:text-[#dce7f8] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
+                  >
+                    <Plus className="h-4 w-4 text-[#556f8d]" />
+                    Neue Story
+                  </button>
+                )}
               </CardHeader>
 
-              <CardContent className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
-                <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">Gesamt</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{total}</p>
-                </div>
-                <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">Fertig</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{completeCount}</p>
-                </div>
-                <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">In Arbeit</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{generatingCount}</p>
-                </div>
-              </CardContent>
+              {contentTab === "stories" && (
+                <CardContent className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
+                  <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">Gesamt</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{total}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">Fertig</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{completeCount}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#647486] dark:text-[#9fb0c7]">In Arbeit</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{generatingCount}</p>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           </motion.section>
 
-          <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_14px_28px_rgba(39,49,66,0.1)]">
-            <CardContent className="space-y-4 p-4 md:p-5">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <label className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6c788a] dark:text-[#9fb0c7]" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Nach Titel oder Inhalt suchen..."
-                    className="h-11 w-full rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] py-2 pl-10 pr-3 text-sm text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
-                  />
-                </label>
+          {contentTab === "stories" && (
+            <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_14px_28px_rgba(39,49,66,0.1)]">
+              <CardContent className="space-y-4 p-4 md:p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                  <label className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6c788a] dark:text-[#9fb0c7]" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Nach Titel oder Inhalt suchen..."
+                      className="h-11 w-full rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] py-2 pl-10 pr-3 text-sm text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                    />
+                  </label>
 
-                <select
-                  value={sortMode}
-                  onChange={(event) => setSortMode(event.target.value as SortMode)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
-                  aria-label="Sortierung"
-                >
-                  <option value="newest">Neueste zuerst</option>
-                  <option value="oldest">Aelteste zuerst</option>
-                  <option value="title">Titel A-Z</option>
-                </select>
+                  <select
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.target.value as SortMode)}
+                    className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                    aria-label="Sortierung"
+                  >
+                    <option value="newest">Neueste zuerst</option>
+                    <option value="oldest">Aelteste zuerst</option>
+                    <option value="title">Titel A-Z</option>
+                  </select>
 
-                <div className="inline-flex rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] p-1">
+                  <div className="inline-flex rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] p-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("grid")}
+                      className={cn(
+                        "rounded-lg p-2",
+                        viewMode === "grid" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
+                      )}
+                      aria-label="Rasteransicht"
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("list")}
+                      className={cn(
+                        "rounded-lg p-2",
+                        viewMode === "list" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
+                      )}
+                      aria-label="Listenansicht"
+                    >
+                      <LayoutList className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <select
+                    value={genreFilter}
+                    onChange={(event) => setGenreFilter(event.target.value)}
+                    className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                    aria-label="Genre Filter"
+                  >
+                    <option value="all">Alle Genres</option>
+                    {genreFilterOptions.map((genre) => (
+                      <option key={genre} value={genre}>
+                        {formatGenreLabel(genre)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={ageGroupFilter}
+                    onChange={(event) => setAgeGroupFilter(event.target.value)}
+                    className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                    aria-label="Altersgruppe Filter"
+                  >
+                    <option value="all">Alle Altersgruppen</option>
+                    {ageGroupFilterOptions.map((ageGroup) => (
+                      <option key={ageGroup} value={ageGroup}>
+                        {formatAgeLabel(ageGroup)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={lengthFilter}
+                    onChange={(event) => setLengthFilter(event.target.value)}
+                    className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                    aria-label="Laengen Filter"
+                  >
+                    <option value="all">Alle Laengen</option>
+                    {lengthFilterOptions.map((length) => (
+                      <option key={length} value={length}>
+                        {formatLengthLabel(length)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={avatarFilter}
+                    onChange={(event) => setAvatarFilter(event.target.value)}
+                    className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
+                    aria-label="Avatar Filter"
+                  >
+                    <option value="all">Alle Avatare</option>
+                    {avatarFilterOptions.map((avatar) => (
+                      <option key={avatar.id} value={avatar.id}>
+                        {avatar.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => setViewMode("grid")}
-                    className={cn(
-                      "rounded-lg p-2",
-                      viewMode === "grid" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
-                    )}
-                    aria-label="Rasteransicht"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setGenreFilter("all");
+                      setAgeGroupFilter("all");
+                      setLengthFilter("all");
+                      setAvatarFilter("all");
+                    }}
+                    className="rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#6c788a] dark:text-[#9fb0c7] transition-colors hover:bg-[#f1e7d8]"
                   >
-                    <Grid3X3 className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("list")}
-                    className={cn(
-                      "rounded-lg p-2",
-                      viewMode === "list" ? "bg-[#4f7f78] text-white" : "text-[#6c788a] dark:text-[#9fb0c7]"
-                    )}
-                    aria-label="Listenansicht"
-                  >
-                    <LayoutList className="h-4 w-4" />
+                    Filter zuruecksetzen
                   </button>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <select
-                  value={genreFilter}
-                  onChange={(event) => setGenreFilter(event.target.value)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
-                  aria-label="Genre Filter"
-                >
-                  <option value="all">Alle Genres</option>
-                  {genreFilterOptions.map((genre) => (
-                    <option key={genre} value={genre}>
-                      {formatGenreLabel(genre)}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={ageGroupFilter}
-                  onChange={(event) => setAgeGroupFilter(event.target.value)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
-                  aria-label="Altersgruppe Filter"
-                >
-                  <option value="all">Alle Altersgruppen</option>
-                  {ageGroupFilterOptions.map((ageGroup) => (
-                    <option key={ageGroup} value={ageGroup}>
-                      {formatAgeLabel(ageGroup)}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={lengthFilter}
-                  onChange={(event) => setLengthFilter(event.target.value)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
-                  aria-label="Laengen Filter"
-                >
-                  <option value="all">Alle Laengen</option>
-                  {lengthFilterOptions.map((length) => (
-                    <option key={length} value={length}>
-                      {formatLengthLabel(length)}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={avatarFilter}
-                  onChange={(event) => setAvatarFilter(event.target.value)}
-                  className="h-11 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 text-sm font-medium text-[#243246] dark:text-[#e6edf8] outline-none transition-colors focus:border-[#a88f80]"
-                  aria-label="Avatar Filter"
-                >
-                  <option value="all">Alle Avatare</option>
-                  {avatarFilterOptions.map((avatar) => (
-                    <option key={avatar.id} value={avatar.id}>
-                      {avatar.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setGenreFilter("all");
-                    setAgeGroupFilter("all");
-                    setLengthFilter("all");
-                    setAvatarFilter("all");
-                  }}
-                  className="rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f5ebe0] dark:bg-[#243245] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#6c788a] dark:text-[#9fb0c7] transition-colors hover:bg-[#f1e7d8]"
-                >
-                  Filter zuruecksetzen
-                </button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <section>
-            {loading ? (
+            {contentTab === "studio" ? (
+              <TaleaStudioWorkspace />
+            ) : loading ? (
               <LoadingState />
             ) : filteredStories.length === 0 ? (
               <EmptyState
@@ -933,7 +971,7 @@ const TaleaStoriesScreen: React.FC = () => {
               </div>
             )}
 
-            {hasMore && !loading && (
+            {contentTab === "stories" && hasMore && !loading && (
               <div ref={observerTarget} className="mt-6 flex justify-center">
                 {loadingMore && (
                   <div className="inline-flex items-center gap-2 rounded-full border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] px-4 py-2 text-xs font-semibold text-[#617387] dark:text-[#9fb0c7]">
@@ -951,4 +989,3 @@ const TaleaStoriesScreen: React.FC = () => {
 };
 
 export default TaleaStoriesScreen;
-

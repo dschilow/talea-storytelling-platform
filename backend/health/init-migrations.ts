@@ -289,6 +289,81 @@ const MIGRATION_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_generation_usage_user_period
     ON generation_usage(user_id, period_start)`,
+
+  // 21. Talea Studio series
+  `CREATE TABLE IF NOT EXISTS studio_series (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    logline TEXT,
+    description TEXT,
+    canonical_prompt TEXT,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_series_user_id ON studio_series(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_series_status ON studio_series(status)`,
+
+  // 22. Talea Studio characters (series-scoped only)
+  `CREATE TABLE IF NOT EXISTS studio_characters (
+    id TEXT PRIMARY KEY,
+    series_id TEXT NOT NULL REFERENCES studio_series(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT,
+    description TEXT,
+    generation_prompt TEXT NOT NULL,
+    image_prompt TEXT NOT NULL,
+    visual_profile JSONB,
+    image_url TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_characters_series_id ON studio_characters(series_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_characters_user_id ON studio_characters(user_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_studio_characters_series_name_unique ON studio_characters(series_id, lower(name))`,
+
+  // 23. Talea Studio episodes
+  `CREATE TABLE IF NOT EXISTS studio_episodes (
+    id TEXT PRIMARY KEY,
+    series_id TEXT NOT NULL REFERENCES studio_series(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    episode_number INTEGER NOT NULL CHECK (episode_number > 0),
+    title TEXT NOT NULL,
+    summary TEXT,
+    story_text TEXT,
+    approved_story_text TEXT,
+    selected_character_ids TEXT[] NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'text_ready', 'text_approved', 'scenes_ready', 'images_ready', 'composed', 'published')),
+    published_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (id, series_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_episodes_series_id ON studio_episodes(series_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_episodes_user_id ON studio_episodes(user_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_studio_episodes_series_number_unique ON studio_episodes(series_id, episode_number)`,
+
+  // 24. Talea Studio episode scenes
+  `CREATE TABLE IF NOT EXISTS studio_episode_scenes (
+    id TEXT PRIMARY KEY,
+    episode_id TEXT NOT NULL,
+    series_id TEXT NOT NULL,
+    scene_order INTEGER NOT NULL CHECK (scene_order > 0),
+    title TEXT NOT NULL,
+    scene_text TEXT NOT NULL,
+    participant_character_ids TEXT[] NOT NULL DEFAULT '{}',
+    image_prompt TEXT,
+    image_url TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ready')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (episode_id, series_id) REFERENCES studio_episodes(id, series_id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_studio_episode_scenes_episode_id ON studio_episode_scenes(episode_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_studio_episode_scenes_episode_order_unique ON studio_episode_scenes(episode_id, scene_order)`,
 ];
 
 /**
@@ -306,19 +381,28 @@ export const initializeDatabaseMigrations = api(
       // Use story database for migrations (all services share same DB in Railway)
       const { storyDB } = await import("../story/db");
 
-      // Check if character_pool table exists (our newest table)
-      const result = await storyDB.queryRow<{ exists: boolean }>`
+      // Check if baseline and latest tables exist.
+      const characterPoolResult = await storyDB.queryRow<{ exists: boolean }>`
         SELECT EXISTS (
           SELECT FROM information_schema.tables
           WHERE table_schema = 'public'
           AND table_name = 'character_pool'
         );
       `;
+      const studioScenesResult = await storyDB.queryRow<{ exists: boolean }>`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'studio_episode_scenes'
+        );
+      `;
 
-      const tablesExist = result && result.exists;
+      const characterPoolExists = Boolean(characterPoolResult?.exists);
+      const studioTablesExist = Boolean(studioScenesResult?.exists);
+      const tablesExist = characterPoolExists && studioTablesExist;
 
       if (tablesExist) {
-        console.log("[Init] Character pool and all tables already exist - skipping table migrations");
+        console.log("[Init] Latest schema already present (including Talea Studio tables) - skipping table migrations");
       } else {
         // Also check if users table exists (for backward compatibility)
         const usersExist = await storyDB.queryRow<{ exists: boolean }>`
@@ -329,8 +413,10 @@ export const initializeDatabaseMigrations = api(
           );
         `;
 
-        if (usersExist && usersExist.exists) {
+        if (usersExist && usersExist.exists && !characterPoolExists) {
           console.log("[Init] Base tables exist, but character pool missing - running remaining migrations");
+        } else if (usersExist && usersExist.exists && characterPoolExists && !studioTablesExist) {
+          console.log("[Init] Base tables exist, but Talea Studio tables are missing - running remaining migrations");
         }
 
         console.log(`Executing ${MIGRATION_STATEMENTS.length} SQL statements...`);
@@ -342,7 +428,7 @@ export const initializeDatabaseMigrations = api(
 
           try {
             console.log(`  [${i + 1}/${MIGRATION_STATEMENTS.length}] ${preview}...`);
-            await storyDB.exec(statement);
+            await (storyDB as any).exec(statement);
             successCount++;
           } catch (err: any) {
             // If error is "already exists", that's OK - continue
@@ -416,7 +502,7 @@ export const initializeDatabaseMigrations = api(
               const sql = await fs.readFile(migrationPath, "utf-8");
               console.log(`[Fairy Tales] SQL length: ${sql.length} characters`);
 
-              await fairytalesDB.exec(sql);
+              await (fairytalesDB as any).exec(sql);
 
               console.log(`[Fairy Tales] ✓ ${migrationFile} completed`);
             } catch (migErr: any) {
