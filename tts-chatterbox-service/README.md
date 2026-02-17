@@ -30,5 +30,6 @@ Nutze `tts-chatterbox-service/railway.toml` als Service-Konfiguration.
 Für das Backend zusätzlich setzen:
 
 - `CHATTERBOX_TTS_SERVICE_URL=http://<dein-service>.railway.internal:8080`
+- Alternative je nach Railway-Setup: `CHATTERBOX_TTS_SERVICE_URL=http://<dein-service>.railway.internal`
 
 `TTS_SERVICE_URL` bleibt auf deinem bestehenden Thorsten-Service.

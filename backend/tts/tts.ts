@@ -3,11 +3,13 @@ import log from "encore.dev/log";
 
 // TTS_SERVICE_URL should use Railway private networking to avoid the public LB timeout:
 // Set TTS_SERVICE_URL=http://tts-service.railway.internal:8080 in Railway env vars.
-// Railway private networking has no 30/60s proxy timeout — only the AbortController limit applies.
+// If your Railway setup expects port-less private URLs, use http://tts-service.railway.internal.
+// Railway private networking has no 30/60s proxy timeout; only the AbortController limit applies.
 const PIPER_TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
 
 // Optional second service for A/B tests (e.g. Chatterbox):
 // CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal:8080
+// or CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal
 const CHATTERBOX_TTS_SERVICE_URL = process.env.CHATTERBOX_TTS_SERVICE_URL || "";
 
 export type TTSProvider = "piper" | "chatterbox";
@@ -72,12 +74,49 @@ function resolveProvider(provider?: string): TTSProvider {
 
 function resolveServiceUrl(provider: TTSProvider): string {
     if (provider === "chatterbox") {
-        if (!CHATTERBOX_TTS_SERVICE_URL) {
+        const url = CHATTERBOX_TTS_SERVICE_URL.trim();
+        if (!url) {
             throw new Error("CHATTERBOX_TTS_SERVICE_URL is not configured");
         }
-        return CHATTERBOX_TTS_SERVICE_URL;
+        return url.replace(/\/+$/, "");
     }
-    return PIPER_TTS_SERVICE_URL;
+    return PIPER_TTS_SERVICE_URL.trim().replace(/\/+$/, "");
+}
+
+function getServiceUrlCandidates(baseUrl: string): string[] {
+    const candidates: string[] = [];
+    const pushUnique = (value: string) => {
+        if (!value) return;
+        if (!candidates.includes(value)) {
+            candidates.push(value);
+        }
+    };
+
+    const normalizedBase = baseUrl.trim().replace(/\/+$/, "");
+    pushUnique(normalizedBase);
+
+    try {
+        const parsed = new URL(normalizedBase);
+        const isRailwayInternal = parsed.hostname.endsWith(".railway.internal");
+
+        // Railway private networking can differ by environment setup.
+        // Try both variants when the service is internal.
+        if (isRailwayInternal) {
+            if (parsed.port) {
+                const noPort = new URL(parsed.toString());
+                noPort.port = "";
+                pushUnique(noPort.toString().replace(/\/+$/, ""));
+            } else {
+                const with8080 = new URL(parsed.toString());
+                with8080.port = "8080";
+                pushUnique(with8080.toString().replace(/\/+$/, ""));
+            }
+        }
+    } catch {
+        // If parsing fails, fall back to using only the raw URL.
+    }
+
+    return candidates;
 }
 
 export interface TTSResponse {
@@ -105,7 +144,7 @@ interface TTSGenerationOptions {
     model?: string;
 }
 
-// ── Async polling helpers (used when TTS_SERVICE_URL points to async-capable server) ────
+// Async polling helpers (used when TTS_SERVICE_URL points to async-capable server)
 
 async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGenerationOptions): Promise<string> {
     const url = `${serviceUrl}/generate/async`;
@@ -203,7 +242,7 @@ async function pollJobUntilReady(serviceUrl: string, jobId: string, timeoutMs = 
             return `data:audio/wav;base64,${base64}`;
         }
 
-        // Still processing — back off gradually (max 3s)
+        // Still processing - back off gradually (max 3s)
         intervalMs = Math.min(intervalMs * 1.3, 3000);
     }
 
@@ -343,7 +382,7 @@ async function generateSyncFallback(serviceUrl: string, text: string, options?: 
     throw new Error("TTS sync failed after all retries");
 }
 
-// ── API Endpoints ─────────────────────────────────────────────────────────────
+// API Endpoints
 
 export const generateSpeech = api(
     { expose: true, method: "POST", path: "/tts/generate" },
@@ -354,28 +393,51 @@ export const generateSpeech = api(
 
         try {
             const runProvider = async (targetProvider: TTSProvider): Promise<TTSResponse> => {
-                const serviceUrl = resolveServiceUrl(targetProvider);
+                const serviceUrls = getServiceUrlCandidates(resolveServiceUrl(targetProvider));
+                let lastError: any = null;
 
-                // Try async polling first (new server). Falls back to sync if 404/405.
-                log.info(`TTS request for text length ${text.length} via ${targetProvider}`);
+                for (let i = 0; i < serviceUrls.length; i++) {
+                    const serviceUrl = serviceUrls[i];
+                    const isLastCandidate = i === serviceUrls.length - 1;
 
-                let audioData: string;
-                try {
-                    const jobId = await submitAsyncJob(serviceUrl, text, { languageId, model });
-                    log.info(`TTS async job submitted: ${jobId}`);
-                    audioData = await pollJobUntilReady(serviceUrl, jobId);
-                    log.info(`TTS async job complete: ${jobId}`);
-                } catch (err: any) {
-                    if (err.message === "ASYNC_NOT_SUPPORTED") {
-                        // Old TTS server — use synchronous endpoint
-                        log.warn("TTS async not supported, falling back to sync endpoint");
-                        audioData = await generateSyncFallback(serviceUrl, text, { languageId, model });
-                    } else {
+                    // Try async polling first (new server). Falls back to sync if 404/405.
+                    log.info(`TTS request for text length ${text.length} via ${targetProvider} (${serviceUrl})`);
+
+                    try {
+                        let audioData: string;
+                        try {
+                            const jobId = await submitAsyncJob(serviceUrl, text, { languageId, model });
+                            log.info(`TTS async job submitted: ${jobId}`);
+                            audioData = await pollJobUntilReady(serviceUrl, jobId);
+                            log.info(`TTS async job complete: ${jobId}`);
+                        } catch (err: any) {
+                            if (err.message === "ASYNC_NOT_SUPPORTED") {
+                                // Old TTS server: use synchronous endpoint.
+                                log.warn("TTS async not supported, falling back to sync endpoint");
+                                audioData = await generateSyncFallback(serviceUrl, text, { languageId, model });
+                            } else {
+                                throw err;
+                            }
+                        }
+
+                        return { audioData, providerUsed: targetProvider };
+                    } catch (err: any) {
+                        lastError = err;
+                        if (!isLastCandidate && isTransientFetchError(err)) {
+                            log.warn(
+                                `TTS endpoint failed for ${targetProvider} (${serviceUrl}): ${errorDetails(err)}. Trying next candidate...`
+                            );
+                            continue;
+                        }
                         throw err;
                     }
                 }
 
-                return { audioData, providerUsed: targetProvider };
+                if (lastError) {
+                    throw lastError;
+                }
+
+                throw new Error(`No TTS endpoint candidates available for provider ${targetProvider}`);
             };
 
             const resolvedProvider = resolveProvider(provider);
@@ -463,3 +525,4 @@ export const generateSpeechBatch = api(
         }
     }
 );
+
