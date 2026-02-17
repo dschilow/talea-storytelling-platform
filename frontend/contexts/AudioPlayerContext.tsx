@@ -129,6 +129,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { enqueue, cancel: cancelConversion, retryItem, statusMap: conversionStatusMap } =
     useTTSConversionQueue({ backend, onChunkReady, onChunkError });
 
+  // Stable ref for enqueue so the restore effect doesn't re-run when backend/auth changes
+  const enqueueRef = useRef(enqueue);
+  enqueueRef.current = enqueue;
+
   // ── Restore persisted playlist on startup ───────────────────────
   useEffect(() => {
     try {
@@ -180,7 +184,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         .map((item) => ({ id: item.id, text: item.sourceText as string }));
 
       if (toQueue.length > 0) {
-        enqueue(toQueue);
+        enqueueRef.current(toQueue);
       }
 
       // If there was an active current item, restore waiting/track state.
@@ -205,7 +209,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setHasRestoredState(true);
     }
-  }, [enqueue]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Persist playlist state ───────────────────────────────────────
   useEffect(() => {

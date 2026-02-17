@@ -140,6 +140,16 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     }
   }, [activeTab, storyGroups.length, dokuItems.length]);
 
+  // ── Determine which chapter is currently playing ──
+  const currentChapterKey = useMemo(() => {
+    if (currentIndex < 0 || currentIndex >= playlist.length) return null;
+    const cur = playlist[currentIndex];
+    if (cur.parentStoryId && cur.chapterOrder != null) {
+      return `${cur.parentStoryId}-ch${cur.chapterOrder}`;
+    }
+    return cur.id;
+  }, [currentIndex, playlist]);
+
   useEffect(() => {
     if (!currentChapterKey) return;
     const storyId = currentChapterKey.split('-ch')[0];
@@ -151,16 +161,6 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
       return next;
     });
   }, [currentChapterKey]);
-
-  // ── Determine which chapter is currently playing ──
-  const currentChapterKey = useMemo(() => {
-    if (currentIndex < 0 || currentIndex >= playlist.length) return null;
-    const cur = playlist[currentIndex];
-    if (cur.parentStoryId && cur.chapterOrder != null) {
-      return `${cur.parentStoryId}-ch${cur.chapterOrder}`;
-    }
-    return cur.id;
-  }, [currentIndex, playlist]);
 
   const toggleExpanded = (storyId: string) => {
     setExpandedStories((prev) => {
