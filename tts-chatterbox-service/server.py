@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import soundfile as sf
+import torch
 from flask import Flask, jsonify, request, send_file
 
 # -----------------------------------------------------------------------------
@@ -27,6 +28,20 @@ JOB_TTL_SECONDS = int(os.environ.get("JOB_TTL_SECONDS", "1200"))
 os.environ.setdefault("OMP_NUM_THREADS", os.environ.get("OMP_NUM_THREADS", "1"))
 os.environ.setdefault("MKL_NUM_THREADS", os.environ.get("MKL_NUM_THREADS", "1"))
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
+# Force CPU-only execution on CPU Railway instances and prevent accidental CUDA deserialization.
+if DEVICE == "cpu":
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
+    _torch_load_original = torch.load
+
+    def _torch_load_cpu_default(*args, **kwargs):
+        if "map_location" not in kwargs:
+            kwargs["map_location"] = torch.device("cpu")
+        return _torch_load_original(*args, **kwargs)
+
+    torch.load = _torch_load_cpu_default
 
 app = Flask(__name__)
 

@@ -15,6 +15,7 @@ ENV HF_HOME=/app/.cache/huggingface
 ENV CHATTERBOX_DEVICE=cpu
 ENV CHATTERBOX_MODEL=multilingual
 ENV CHATTERBOX_DEFAULT_LANGUAGE=de
+ENV CUDA_VISIBLE_DEVICES=""
 
 COPY tts-chatterbox-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
