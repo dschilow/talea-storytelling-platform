@@ -148,14 +148,18 @@ ENABLE_EMOTION_VARIATION = _get_env_bool('ENABLE_EMOTION_VARIATION', True)
 DEBUG_TTS_PROSODY = _get_env_bool('DEBUG_TTS_PROSODY', False)
 
 # Guard rails and smoothing to avoid sudden "too fast" speech spikes.
-MIN_LENGTH_SCALE = _get_env_float('MIN_LENGTH_SCALE', 1.02)
+MIN_LENGTH_SCALE = _get_env_float('MIN_LENGTH_SCALE', 1.00)
 MAX_LENGTH_SCALE = _get_env_float('MAX_LENGTH_SCALE', 1.95)
 MIN_NOISE_SCALE = _get_env_float('MIN_NOISE_SCALE', 0.05)
 MAX_NOISE_SCALE = _get_env_float('MAX_NOISE_SCALE', 1.30)
 MIN_NOISE_W = _get_env_float('MIN_NOISE_W', 0.05)
 MAX_NOISE_W = _get_env_float('MAX_NOISE_W', 1.30)
-MIN_RELATIVE_LENGTH_MULT = _get_env_float('MIN_RELATIVE_LENGTH_MULT', 0.98)
-MAX_RELATIVE_LENGTH_MULT = _get_env_float('MAX_RELATIVE_LENGTH_MULT', 1.18)
+MIN_RELATIVE_LENGTH_MULT = _get_env_float('MIN_RELATIVE_LENGTH_MULT', 0.94)
+MAX_RELATIVE_LENGTH_MULT = _get_env_float('MAX_RELATIVE_LENGTH_MULT', 1.10)
+
+# Extra pacing control for long chunks so narration does not become sluggish.
+LONG_CHUNK_THRESHOLD = _get_env_int('LONG_CHUNK_THRESHOLD', 180)
+LONG_CHUNK_LENGTH_MULT = _get_env_float('LONG_CHUNK_LENGTH_MULT', 0.96)
 
 ENABLE_PROSODY_SMOOTHING = _get_env_bool('ENABLE_PROSODY_SMOOTHING', True)
 MAX_LENGTH_SCALE_STEP = _get_env_float('MAX_LENGTH_SCALE_STEP', 0.12)
@@ -343,12 +347,12 @@ def _emotion_tuning_from_text(chunk):
 
     # length_multiplier, noise_delta, noise_w_delta
     profiles = {
-        'anger': (0.98, 0.09, 0.06),
+        'anger': (0.99, 0.09, 0.06),
         'joy': (1.00, 0.07, 0.05),
-        'sadness': (1.15, -0.07, -0.05),
-        'fear': (1.04, 0.07, 0.05),
-        'calm': (1.10, -0.05, -0.04),
-        'suspense': (1.12, -0.04, -0.03),
+        'sadness': (1.09, -0.07, -0.05),
+        'fear': (1.02, 0.07, 0.05),
+        'calm': (1.05, -0.05, -0.04),
+        'suspense': (1.07, -0.04, -0.03),
     }
     return profiles[emotion]
 
@@ -470,7 +474,7 @@ def _derive_chunk_params(chunk, base_length, base_noise, base_noise_w):
         is_short = len(normalized) < 70
 
         if has_dialogue:
-            length *= 1.06
+            length *= 1.03
             noise += 0.04
             noise_w += 0.04
 
@@ -485,12 +489,16 @@ def _derive_chunk_params(chunk, base_length, base_noise, base_noise_w):
             noise_w += 0.04
 
         if has_suspense:
-            length *= 1.12
+            length *= 1.05
             noise -= 0.05
             noise_w -= 0.04
 
         if is_short and not has_exclamation:
-            length *= 1.02
+            length *= 1.00
+
+        # Long narrative chunks should not drift too slow.
+        if len(normalized) >= LONG_CHUNK_THRESHOLD and not has_exclamation:
+            length *= LONG_CHUNK_LENGTH_MULT
 
     # Character-based variation (deterministic per speaker).
     if ENABLE_CHARACTER_VOICE_VARIATION:
