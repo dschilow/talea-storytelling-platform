@@ -5,8 +5,6 @@ import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
 import LottieLoader from '../../components/common/LottieLoader';
 import { AudioUploadCard } from '../../components/ui/audio-upload-card';
 import { getBackendUrl } from '../../config';
@@ -866,12 +864,14 @@ const CreateAudioDokuScreen: React.FC = () => {
           <p style={{ ...typography.textStyles.body, color: palette.muted, marginBottom: spacing.lg }}>
             Bitte melde dich an, um Audio-Dokus professionell zu erstellen.
           </p>
-          <Button
-            title={t('auth.signIn')}
-            onPress={() => navigate('/auth')}
-            variant="secondary"
-            size="lg"
-          />
+          <button
+            type="button"
+            onClick={() => navigate('/auth')}
+            className="inline-flex items-center justify-center rounded-xl border px-5 py-3 text-sm font-semibold"
+            style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+          >
+            {t('auth.signIn')}
+          </button>
         </div>
       </SignedOut>
 
@@ -894,10 +894,9 @@ const CreateAudioDokuScreen: React.FC = () => {
 
         <div style={contentStyle}>
           {loadingExisting ? (
-            <Card
-              variant="glass"
+            <div
+              className="rounded-3xl border p-8"
               style={{
-                padding: spacing.xl,
                 background: palette.panel,
                 border: `1px solid ${palette.panelBorder}`,
                 boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
@@ -906,12 +905,11 @@ const CreateAudioDokuScreen: React.FC = () => {
               <div className="flex justify-center">
                 <LottieLoader message={t('common.loading')} size={110} />
               </div>
-            </Card>
+            </div>
           ) : (
-            <Card
-              variant="glass"
+            <div
+              className="rounded-3xl border p-6 md:p-8"
               style={{
-                padding: spacing.xl,
                 background: palette.panel,
                 border: `1px solid ${palette.panelBorder}`,
                 boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
@@ -932,14 +930,16 @@ const CreateAudioDokuScreen: React.FC = () => {
                           Script-Format: <code>SPRECHER: Text</code>, z. B. <code>TAVI: [excited] ...</code>.
                         </p>
                       </div>
-                      <Button
-                        title={voicesLoading ? 'Lade Stimmen...' : 'Stimmen laden'}
-                        onPress={() => void fetchElevenLabsVoices()}
-                        variant="outline"
-                        size="sm"
-                        icon={<RefreshCw size={14} className={voicesLoading ? 'animate-spin' : ''} />}
+                      <button
+                        type="button"
+                        onClick={() => void fetchElevenLabsVoices()}
                         disabled={voicesLoading}
-                      />
+                        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                        style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                      >
+                        <RefreshCw size={14} className={voicesLoading ? 'animate-spin' : ''} />
+                        {voicesLoading ? 'Lade Stimmen...' : 'Stimmen laden'}
+                      </button>
                     </div>
                     <p className="mt-2 text-xs" style={{ color: palette.muted }}>
                       Nach <strong>Stimmen laden</strong>: Pro Sprecher im Feld <strong>"Stimme aus Liste..."</strong> eine Stimme auswaehlen.
@@ -1365,11 +1365,11 @@ const CreateAudioDokuScreen: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           )}
 
-          <Card
-            variant="glass"
+          <div
+            className="rounded-3xl border p-6 md:p-8"
             style={{
               padding: spacing.xl,
               background: palette.panel,
@@ -1441,7 +1441,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                 )}
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       </SignedIn>
     </div>
