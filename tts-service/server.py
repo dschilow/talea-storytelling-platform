@@ -35,6 +35,24 @@ def _get_env_float(name, default):
     except Exception:
         return float(default)
 
+def _get_env_bool(name, default):
+    raw = os.environ.get(name)
+    if raw is None:
+        return bool(default)
+    value = str(raw).strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off"):
+        return False
+    return bool(default)
+
+def _clamp(value, minimum, maximum):
+    if value < minimum:
+        return minimum
+    if value > maximum:
+        return maximum
+    return value
+
 PIPER_QUALITY_MODE = os.environ.get('PIPER_QUALITY_MODE', 'max').strip().lower()
 if PIPER_QUALITY_MODE not in ('fast', 'balanced', 'max'):
     PIPER_QUALITY_MODE = 'max'
@@ -99,6 +117,37 @@ SILENCE_DIALOGUE_MS = _get_env_int('SILENCE_DIALOGUE_MS', _QUALITY['silence_dial
 SILENCE_EXCLAIM_MS = _get_env_int('SILENCE_EXCLAIM_MS', _QUALITY['silence_exclaim'])
 SILENCE_DEFAULT_MS = _get_env_int('SILENCE_DEFAULT_MS', _QUALITY['silence_default'])
 
+# Optional quality refinements
+ENABLE_DYNAMIC_CHUNK_TUNING = _get_env_bool('ENABLE_DYNAMIC_CHUNK_TUNING', True)
+ENABLE_OUTPUT_NORMALIZATION = _get_env_bool('ENABLE_OUTPUT_NORMALIZATION', True)
+OUTPUT_TARGET_PEAK = _get_env_float('OUTPUT_TARGET_PEAK', 0.93)
+OUTPUT_EDGE_FADE_MS = _get_env_int('OUTPUT_EDGE_FADE_MS', 6)
+ENABLE_CHARACTER_VOICE_VARIATION = _get_env_bool('ENABLE_CHARACTER_VOICE_VARIATION', True)
+ENABLE_EMOTION_VARIATION = _get_env_bool('ENABLE_EMOTION_VARIATION', True)
+
+# Optional custom pronunciation map.
+# Format: "Name=nahm-eh;Talea=ta-lee-ah"
+CUSTOM_PRONUNCIATIONS_RAW = os.environ.get('CUSTOM_PRONUNCIATIONS', '').strip()
+CUSTOM_PRONUNCIATIONS = []
+if CUSTOM_PRONUNCIATIONS_RAW:
+    for item in CUSTOM_PRONUNCIATIONS_RAW.split(';'):
+        part = item.strip()
+        if not part or '=' not in part:
+            continue
+        source, target = part.split('=', 1)
+        source = source.strip()
+        target = target.strip()
+        if source and target:
+            pattern = re.compile(r'\b' + re.escape(source) + r'\b', re.IGNORECASE)
+            CUSTOM_PRONUNCIATIONS.append((pattern, target))
+
+# Optional character-specific voice profile overrides.
+# Format:
+#   CHARACTER_VOICE_PROFILES="emma=1.08,0.02,0.03;leo=0.94,-0.01,-0.02"
+# Values are:
+#   length_multiplier, noise_delta, noise_w_delta
+CHARACTER_VOICE_PROFILES_RAW = os.environ.get('CHARACTER_VOICE_PROFILES', '').strip()
+
 # ── Async job registry ────────────────────────────────────────────────────────
 # Stores: { job_id: { "status": "processing"|"ready"|"error", "result": bytes|None, "error": str|None, "created": float } }
 _jobs: dict = {}
@@ -124,7 +173,12 @@ print(
         f"default_length_scale={DEFAULT_LENGTH_SCALE}, "
         f"default_noise_scale={DEFAULT_NOISE_SCALE}, "
         f"default_noise_w={DEFAULT_NOISE_W}, "
-        f"job_workers={JOB_EXECUTOR_WORKERS}"
+        f"job_workers={JOB_EXECUTOR_WORKERS}, "
+        f"dynamic_tuning={ENABLE_DYNAMIC_CHUNK_TUNING}, "
+        f"output_normalization={ENABLE_OUTPUT_NORMALIZATION}, "
+        f"character_variation={ENABLE_CHARACTER_VOICE_VARIATION}, "
+        f"emotion_variation={ENABLE_EMOTION_VARIATION}, "
+        f"custom_pronunciations={len(CUSTOM_PRONUNCIATIONS)}"
     ),
     file=sys.stderr,
 )
@@ -136,6 +190,261 @@ def _to_float(raw, default):
         return float(raw)
     except Exception:
         return float(default)
+
+def _parse_character_voice_profiles(raw):
+    profiles = {}
+    if not raw:
+        return profiles
+
+    for item in raw.split(';'):
+        part = item.strip()
+        if not part or '=' not in part:
+            continue
+        name, values = part.split('=', 1)
+        name = name.strip().lower()
+        entries = [v.strip() for v in values.split(',')]
+        if len(entries) != 3:
+            continue
+        length_multiplier = _to_float(entries[0], 1.0)
+        noise_delta = _to_float(entries[1], 0.0)
+        noise_w_delta = _to_float(entries[2], 0.0)
+        profiles[name] = (length_multiplier, noise_delta, noise_w_delta)
+    return profiles
+
+CHARACTER_VOICE_PROFILES = _parse_character_voice_profiles(CHARACTER_VOICE_PROFILES_RAW)
+if CHARACTER_VOICE_PROFILES:
+    print(f"Character voice profiles loaded: {len(CHARACTER_VOICE_PROFILES)}", file=sys.stderr)
+
+def _speaker_hash_profile(name):
+    # Deterministic variation for speakers without explicit profile.
+    # Keeps one base model while giving distinct voice flavor per character.
+    seed = 0
+    for index, char in enumerate(name):
+        seed += (index + 1) * ord(char)
+
+    length_multiplier = 0.94 + ((seed % 17) / 100.0)  # 0.94..1.10
+    noise_delta = (((seed // 17) % 11) - 5) / 100.0   # -0.05..0.05
+    noise_w_delta = (((seed // 187) % 11) - 5) / 100.0
+    return length_multiplier, noise_delta, noise_w_delta
+
+def _extract_speaker_hint(chunk):
+    # Pattern 1: Name: "..."
+    match = re.search(r'\b([A-Z][A-Za-z0-9_-]{1,24})\s*:\s*"', chunk)
+    if match:
+        return match.group(1).lower()
+
+    # Pattern 2: "...", sagte Name
+    speech_verbs = (
+        r'sagte|fragte|antwortete|rief|schrie|fl[üu]sterte|murmelte|'
+        r'meinte|br[üu]llte|jammerte|lachte|seufzte|knurrte'
+    )
+    match = re.search(r'"\s*,?\s*(?:' + speech_verbs + r')\s+([A-Z][A-Za-z0-9_-]{1,24})\b', chunk, re.IGNORECASE)
+    if match:
+        return match.group(1).lower()
+
+    # Pattern 3: Name sagte: "..."
+    match = re.search(r'\b([A-Z][A-Za-z0-9_-]{1,24})\s+(?:' + speech_verbs + r')\b', chunk, re.IGNORECASE)
+    if match:
+        return match.group(1).lower()
+
+    return None
+
+def _emotion_tuning_from_text(chunk):
+    if not ENABLE_EMOTION_VARIATION:
+        return 1.0, 0.0, 0.0
+
+    text = chunk.strip()
+    lower = text.lower()
+
+    def contains(pattern):
+        return re.search(pattern, lower, re.IGNORECASE) is not None
+
+    # Score likely emotion classes from punctuation and lexical cues.
+    scores = {
+        'anger': 0,
+        'joy': 0,
+        'sadness': 0,
+        'fear': 0,
+        'calm': 0,
+        'suspense': 0,
+    }
+
+    if text.count('!') >= 2:
+        scores['anger'] += 2
+        scores['joy'] += 1
+    if text.count('?') >= 2:
+        scores['fear'] += 1
+        scores['suspense'] += 1
+    if '...' in text:
+        scores['suspense'] += 2
+        scores['calm'] += 1
+
+    if contains(r'\b(schrie|br[üu]llte|knurrte|wut|zorn|fauchte)\b'):
+        scores['anger'] += 3
+    if contains(r'\b(lachte|jubelte|grinste|freute|strahlte)\b'):
+        scores['joy'] += 3
+    if contains(r'\b(weinte|schluchzte|traurig|seufzte|leise)\b'):
+        scores['sadness'] += 3
+    if contains(r'\b(zitterte|aengstlich|ängstlich|panik|furcht|flucht)\b'):
+        scores['fear'] += 3
+    if contains(r'\b(fluesterte|flüsterte|ruhig|sanft|behutsam)\b'):
+        scores['calm'] += 3
+
+    emotion = max(scores, key=lambda key: scores[key])
+    if scores[emotion] == 0:
+        return 1.0, 0.0, 0.0
+
+    # length_multiplier, noise_delta, noise_w_delta
+    profiles = {
+        'anger': (0.90, 0.08, 0.06),
+        'joy': (0.95, 0.05, 0.03),
+        'sadness': (1.10, -0.04, -0.03),
+        'fear': (0.97, 0.06, 0.04),
+        'calm': (1.06, -0.03, -0.02),
+        'suspense': (1.08, -0.02, -0.01),
+    }
+    return profiles[emotion]
+
+def _apply_custom_pronunciations(text):
+    if not CUSTOM_PRONUNCIATIONS:
+        return text
+    updated = text
+    for pattern, replacement in CUSTOM_PRONUNCIATIONS:
+        updated = pattern.sub(replacement, updated)
+    return updated
+
+def _split_overlong_sentence(sentence, max_chars):
+    sentence = sentence.strip()
+    if not sentence:
+        return []
+    if len(sentence) <= max_chars:
+        return [sentence]
+
+    parts = []
+    queue = [sentence]
+    separators = [', ', '; ', ': ', ' - ', ' – ', ' und ', ' oder ', ' aber ']
+
+    while queue:
+        item = queue.pop(0).strip()
+        if not item:
+            continue
+        if len(item) <= max_chars:
+            parts.append(item)
+            continue
+
+        split_done = False
+        center = len(item) // 2
+
+        for sep in separators:
+            positions = [m.start() for m in re.finditer(re.escape(sep), item)]
+            if not positions:
+                continue
+            split_at = min(positions, key=lambda pos: abs(pos - center))
+            left = item[:split_at + len(sep) - 1].strip()
+            right = item[split_at + len(sep):].strip()
+            if left and right and left != item and right != item:
+                queue.insert(0, right)
+                queue.insert(0, left)
+                split_done = True
+                break
+
+        if split_done:
+            continue
+
+        hard_split = item.rfind(' ', 0, max_chars)
+        if hard_split < int(max_chars * 0.55):
+            hard_split = item.find(' ', max_chars)
+
+        if hard_split == -1:
+            parts.append(item)
+            continue
+
+        left = item[:hard_split].strip()
+        right = item[hard_split + 1:].strip()
+        if left:
+            queue.insert(0, left)
+        if right:
+            queue.insert(1 if left else 0, right)
+
+    return parts
+
+def _enhance_story_text_for_tts(text):
+    # Parenthetical fragments usually sound better with short pauses.
+    text = re.sub(r'\(([^)]+)\)', r', \1,', text)
+
+    # Chapter titles and section headers should become spoken sentence starts.
+    text = re.sub(r'(?im)^\s*(kapitel\s+\d+)\s*[:\-]\s*', r'\1. ', text)
+    text = re.sub(r'(?im)^\s*(szene\s+\d+)\s*[:\-]\s*', r'\1. ', text)
+
+    # Semicolons are often swallowed in TTS, convert to clearer sentence breaks.
+    text = re.sub(r';\s*', '. ', text)
+
+    # Protect spoken rhythm for common symbol patterns.
+    text = re.sub(r'\s*/\s*', ' oder ', text)
+    text = re.sub(r'\s*&\s*', ' und ', text)
+
+    # Normalize punctuation bursts.
+    text = re.sub(r'!{3,}', '!!', text)
+    text = re.sub(r'\?{3,}', '??', text)
+    text = re.sub(r'\.{5,}', '...', text)
+
+    # Add a small pause before abrupt topic changes.
+    text = re.sub(r'([.!?])\s*(Doch|Aber|Plötzlich|Dann)\b', r'\1 ... \2', text)
+
+    return text
+
+def _derive_chunk_params(chunk, base_length, base_noise, base_noise_w):
+    normalized = chunk.strip()
+    length = base_length
+    noise = base_noise
+    noise_w = base_noise_w
+
+    # Global emotion shaping.
+    emotion_length, emotion_noise, emotion_noise_w = _emotion_tuning_from_text(normalized)
+    length *= emotion_length
+    noise += emotion_noise
+    noise_w += emotion_noise_w
+
+    if ENABLE_DYNAMIC_CHUNK_TUNING:
+        has_dialogue = '"' in normalized
+        has_exclamation = normalized.endswith('!!') or normalized.endswith('!') or normalized.endswith('??')
+        has_suspense = normalized.endswith('...') or normalized.count('...') > 0
+        is_short = len(normalized) < 70
+
+        if has_dialogue:
+            length *= 1.03
+            noise += 0.02
+            noise_w += 0.02
+
+        if has_exclamation:
+            length *= 0.93
+            noise += 0.04
+            noise_w += 0.03
+
+        if has_suspense:
+            length *= 1.08
+            noise -= 0.02
+            noise_w -= 0.02
+
+        if is_short and not has_exclamation:
+            length *= 1.02
+
+    # Character-based variation (deterministic per speaker).
+    if ENABLE_CHARACTER_VOICE_VARIATION:
+        speaker = _extract_speaker_hint(normalized)
+        if speaker:
+            if speaker in CHARACTER_VOICE_PROFILES:
+                char_length, char_noise, char_noise_w = CHARACTER_VOICE_PROFILES[speaker]
+            else:
+                char_length, char_noise, char_noise_w = _speaker_hash_profile(speaker)
+            length *= char_length
+            noise += char_noise
+            noise_w += char_noise_w
+
+    length = _clamp(length, 0.80, 2.20)
+    noise = _clamp(noise, 0.10, 1.20)
+    noise_w = _clamp(noise_w, 0.10, 1.20)
+    return length, noise, noise_w
 
 def preprocess_text(text):
     """Normalize text for better TTS pronunciation."""
@@ -474,6 +783,65 @@ def concatenate_wav(wav_chunks):
 
     return header + fmt_chunk + data_header + combined_data
 
+def _postprocess_output_wav(wav_bytes):
+    if not ENABLE_OUTPUT_NORMALIZATION:
+        return wav_bytes
+    if len(wav_bytes) < 44:
+        return wav_bytes
+
+    data_offset = wav_bytes.find(b'data')
+    if data_offset == -1 or data_offset + 8 > len(wav_bytes):
+        return wav_bytes
+
+    data_size = struct.unpack_from('<I', wav_bytes, data_offset + 4)[0]
+    audio_start = data_offset + 8
+    audio_end = audio_start + data_size
+    if audio_end > len(wav_bytes):
+        return wav_bytes
+
+    pcm = bytearray(wav_bytes[audio_start:audio_end])
+    sample_count = len(pcm) // 2
+    if sample_count <= 0:
+        return wav_bytes
+
+    max_abs = 0
+    for i in range(0, len(pcm), 2):
+        value = struct.unpack_from('<h', pcm, i)[0]
+        abs_value = abs(value)
+        if abs_value > max_abs:
+            max_abs = abs_value
+
+    if max_abs == 0:
+        return wav_bytes
+
+    target_peak = _clamp(OUTPUT_TARGET_PEAK, 0.10, 0.99)
+    target_amplitude = int(32767 * target_peak)
+    gain = target_amplitude / max_abs
+    gain = _clamp(gain, 0.60, 2.50)
+
+    sample_rate = 22050
+    if len(wav_bytes) >= 28:
+        sample_rate = struct.unpack_from('<I', wav_bytes, 24)[0]
+
+    fade_samples = int(max(0, OUTPUT_EDGE_FADE_MS) * sample_rate / 1000)
+    fade_samples = min(fade_samples, sample_count // 2)
+
+    for sample_index in range(sample_count):
+        raw_value = struct.unpack_from('<h', pcm, sample_index * 2)[0]
+        scaled = int(raw_value * gain)
+
+        if fade_samples > 0:
+            if sample_index < fade_samples:
+                scaled = int(scaled * (sample_index / fade_samples))
+            elif sample_index >= (sample_count - fade_samples):
+                tail_pos = sample_count - sample_index - 1
+                scaled = int(scaled * (tail_pos / fade_samples))
+
+        scaled = max(-32768, min(32767, scaled))
+        struct.pack_into('<h', pcm, sample_index * 2, scaled)
+
+    return wav_bytes[:audio_start] + bytes(pcm) + wav_bytes[audio_end:]
+
 def _get_silence_between(chunk_a, chunk_b):
     """Determine silence duration between two chunks based on content."""
     has_dialogue_a = '"' in chunk_a
@@ -498,6 +866,8 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
     """Core generation logic — called synchronously or in a job thread."""
     text = preprocess_text(text)
     text = prepare_for_tts(text)
+    text = _enhance_story_text_for_tts(text)
+    text = _apply_custom_pronunciations(text)
 
     chunks = split_text_into_chunks(text)
     print(f"Split into {len(chunks)} chunks", file=sys.stderr)
@@ -506,11 +876,15 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
     workers = min(MAX_PARALLEL_PIPER, len(chunks))
 
     if workers <= 1:
-        wav_results[0] = generate_wav_chunk(chunks[0], length_scale, noise_scale, noise_w)
+        chunk_length, chunk_noise, chunk_noise_w = _derive_chunk_params(chunks[0], length_scale, noise_scale, noise_w)
+        wav_results[0] = generate_wav_chunk(chunks[0], chunk_length, chunk_noise, chunk_noise_w)
     else:
         def gen_chunk(idx):
             cs = time.time()
-            data = generate_wav_chunk(chunks[idx], length_scale, noise_scale, noise_w)
+            chunk_length, chunk_noise, chunk_noise_w = _derive_chunk_params(
+                chunks[idx], length_scale, noise_scale, noise_w
+            )
+            data = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w)
             ct = time.time() - cs
             print(f"  Chunk {idx+1}/{len(chunks)}: {len(chunks[idx])} chars -> {len(data)} bytes ({ct:.1f}s)", file=sys.stderr)
             return idx, data
@@ -528,7 +902,7 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
             silence = _get_silence_between(chunks[i], chunks[i + 1])
             wav_chunks.append(silence)
 
-    return concatenate_wav(wav_chunks)
+    return _postprocess_output_wav(concatenate_wav(wav_chunks))
 
 def _purge_old_jobs():
     """Remove jobs older than JOB_TTL_SECONDS."""
@@ -741,16 +1115,21 @@ def generate_tts_batch():
         try:
             text = preprocess_text(text)
             text = prepare_for_tts(text)
+            text = _enhance_story_text_for_tts(text)
+            text = _apply_custom_pronunciations(text)
             chunks = split_text_into_chunks(text)
 
             wav_chunks = []
             for i, chunk in enumerate(chunks):
-                wav_data = generate_wav_chunk(chunk, length_scale, noise_scale, noise_w)
+                chunk_length, chunk_noise, chunk_noise_w = _derive_chunk_params(
+                    chunk, length_scale, noise_scale, noise_w
+                )
+                wav_data = generate_wav_chunk(chunk, chunk_length, chunk_noise, chunk_noise_w)
                 wav_chunks.append(wav_data)
                 if i < len(chunks) - 1:
                     wav_chunks.append(_get_silence_between(chunks[i], chunks[i + 1]))
 
-            result_wav = concatenate_wav(wav_chunks)
+            result_wav = _postprocess_output_wav(concatenate_wav(wav_chunks))
             audio_b64 = base64.b64encode(result_wav).decode('ascii')
             return {"id": item_id, "audio": f"data:audio/wav;base64,{audio_b64}", "error": None}
         except Exception as e:
