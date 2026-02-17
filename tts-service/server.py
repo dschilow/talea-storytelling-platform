@@ -84,7 +84,7 @@ def preprocess_text(text):
     text = re.sub(r'#{1,6}\s*', '', text)
     text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
     # ── Scene transition markers → pause ──
-    text = re.sub(r'^[\*\-]{3,}\s*$', '...', re.MULTILINE)
+    text = re.sub(r'^[\*\-]{3,}\s*$', '...', text, flags=re.MULTILINE)
     # ── Normalize dashes ──
     text = text.replace('\u2014', ', ')  # em-dash
     text = text.replace('\u2013', ', ')  # en-dash
