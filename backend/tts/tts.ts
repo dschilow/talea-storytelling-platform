@@ -7,7 +7,7 @@ import log from "encore.dev/log";
 const PIPER_TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
 
 // Optional second service for A/B tests (e.g. Chatterbox):
-// CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox.railway.internal:8080
+// CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal:8080
 const CHATTERBOX_TTS_SERVICE_URL = process.env.CHATTERBOX_TTS_SERVICE_URL || "";
 
 export type TTSProvider = "piper" | "chatterbox";
@@ -16,6 +16,19 @@ export type TTSProvider = "piper" | "chatterbox";
 // TTS_DEFAULT_PROVIDER=chatterbox
 const TTS_DEFAULT_PROVIDER = (process.env.TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
 const TTS_FALLBACK_TO_PIPER = (process.env.TTS_FALLBACK_TO_PIPER || "true").toLowerCase() !== "false";
+const CHATTERBOX_FAILURE_COOLDOWN_MS = Number(process.env.CHATTERBOX_FAILURE_COOLDOWN_MS || "300000"); // 5 min
+
+let chatterboxUnavailableUntil = 0;
+
+function isChatterboxTemporarilyUnavailable(): boolean {
+    return Date.now() < chatterboxUnavailableUntil;
+}
+
+function markChatterboxUnavailable(reason: string): void {
+    chatterboxUnavailableUntil = Date.now() + CHATTERBOX_FAILURE_COOLDOWN_MS;
+    const seconds = Math.max(1, Math.round(CHATTERBOX_FAILURE_COOLDOWN_MS / 1000));
+    log.warn(`Marking chatterbox unavailable for ${seconds}s: ${reason}`);
+}
 
 function resolveProvider(provider?: string): TTSProvider {
     const requested = (provider || TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
@@ -325,14 +338,30 @@ export const generateSpeech = api(
             };
 
             const resolvedProvider = resolveProvider(provider);
+            const startProvider: TTSProvider = (
+                resolvedProvider === "chatterbox" &&
+                TTS_FALLBACK_TO_PIPER &&
+                isChatterboxTemporarilyUnavailable()
+            ) ? "piper" : resolvedProvider;
+
+            if (startProvider !== resolvedProvider) {
+                const remainingMs = Math.max(0, chatterboxUnavailableUntil - Date.now());
+                log.warn(`Skipping chatterbox during cooldown (${Math.ceil(remainingMs / 1000)}s remaining), using piper`);
+            }
+
             try {
-                return await runProvider(resolvedProvider);
+                const result = await runProvider(startProvider);
+                if (startProvider === "chatterbox") {
+                    chatterboxUnavailableUntil = 0;
+                }
+                return result;
             } catch (primaryError: any) {
                 if (
-                    resolvedProvider === "chatterbox" &&
+                    startProvider === "chatterbox" &&
                     TTS_FALLBACK_TO_PIPER &&
                     !!PIPER_TTS_SERVICE_URL
                 ) {
+                    markChatterboxUnavailable(primaryError?.message || "unknown error");
                     log.warn(`Chatterbox failed, retrying with piper fallback: ${primaryError?.message || "unknown error"}`);
                     return await runProvider("piper");
                 }
