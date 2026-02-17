@@ -11,9 +11,9 @@ import LottieLoader from '../../components/common/LottieLoader';
 import { AudioUploadCard } from '../../components/ui/audio-upload-card';
 import { getBackendUrl } from '../../config';
 import { useBackend } from '../../hooks/useBackend';
-import { colors, gradients } from '../../utils/constants/colors';
+import { useTheme } from '../../contexts/ThemeContext';
 import { typography } from '../../utils/constants/typography';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import { spacing, radii } from '../../utils/constants/spacing';
 import type { AudioDoku } from '../../types/audio-doku';
 
 const UNSPLASH_PLACEHOLDER =
@@ -22,6 +22,66 @@ const UNSPLASH_PLACEHOLDER =
 const AGE_GROUP_OPTIONS = ['4-6', '6-8', '8-10', '10-12', '12+'];
 const CATEGORY_OPTIONS = ['Abenteuer', 'Wissen', 'Natur', 'Tiere', 'Geschichte', 'Entspannung'];
 const AUDIO_TAG_OPTIONS = ['excited', 'curious', 'mischievously', 'thoughtful', 'giggles', 'inhales deeply', 'woo'];
+const headingFont = '"Cormorant Garamond", serif';
+
+type Palette = {
+  pageGradient: string;
+  haloA: string;
+  haloB: string;
+  panel: string;
+  panelBorder: string;
+  soft: string;
+  text: string;
+  muted: string;
+  input: string;
+  inputBorder: string;
+  primary: string;
+  primaryText: string;
+};
+
+function getPalette(isDark: boolean): Palette {
+  if (isDark) {
+    return {
+      pageGradient:
+        'radial-gradient(980px 540px at 100% 0%, rgba(117,96,142,0.25) 0%, transparent 57%), radial-gradient(940px 520px at 0% 18%, rgba(94,131,126,0.24) 0%, transparent 62%), linear-gradient(180deg,#121a26 0%, #0f1722 100%)',
+      haloA: 'radial-gradient(circle, rgba(139,116,172,0.36) 0%, transparent 70%)',
+      haloB: 'radial-gradient(circle, rgba(101,148,140,0.32) 0%, transparent 70%)',
+      panel: 'rgba(23,33,47,0.92)',
+      panelBorder: '#314258',
+      soft: 'rgba(145,166,194,0.16)',
+      text: '#e6eef9',
+      muted: '#9db0c8',
+      input: 'rgba(29,42,58,0.92)',
+      inputBorder: '#3c5270',
+      primary: 'linear-gradient(135deg,#95accf 0%,#b491ca 42%,#77a89b 100%)',
+      primaryText: '#121b2a',
+    };
+  }
+
+  return {
+    pageGradient:
+      'radial-gradient(980px 560px at 100% 0%, #f2dfdc 0%, transparent 57%), radial-gradient(980px 520px at 0% 18%, #dae8de 0%, transparent 62%), linear-gradient(180deg,#f8f1e8 0%, #f6efe4 100%)',
+    haloA: 'radial-gradient(circle, rgba(147,126,186,0.32) 0%, transparent 70%)',
+    haloB: 'radial-gradient(circle, rgba(110,156,148,0.3) 0%, transparent 70%)',
+    panel: 'rgba(255,250,243,0.92)',
+    panelBorder: '#dfcfbb',
+    soft: 'rgba(232,220,205,0.72)',
+    text: '#1b2838',
+    muted: '#607388',
+    input: 'rgba(255,255,255,0.9)',
+    inputBorder: '#d9c8b2',
+    primary: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d5e3cf 100%)',
+    primaryText: '#2c394a',
+  };
+}
+
+const AudioCreateBackground: React.FC<{ palette: Palette }> = ({ palette }) => (
+  <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
+    <div className="absolute inset-0" style={{ background: palette.pageGradient }} />
+    <div className="absolute -left-24 top-10 h-72 w-72 rounded-full" style={{ background: palette.haloA, filter: 'blur(36px)' }} />
+    <div className="absolute -right-20 bottom-14 h-80 w-80 rounded-full" style={{ background: palette.haloB, filter: 'blur(42px)' }} />
+  </div>
+);
 
 const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -147,11 +207,13 @@ const CreateAudioDokuScreen: React.FC = () => {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const backend = useBackend();
+  const { resolvedTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const dialogueEditorRef = useRef<HTMLTextAreaElement | null>(null);
   const dialogueGutterRef = useRef<HTMLDivElement | null>(null);
   const editId = searchParams.get('edit');
   const isEditMode = Boolean(editId);
+  const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
 
   const [title, setTitle] = useState('');
   const [coverDescription, setCoverDescription] = useState('');
@@ -721,31 +783,34 @@ const CreateAudioDokuScreen: React.FC = () => {
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
-    background: colors.background.primary,
-    padding: `${spacing.xl}px`,
+    background: palette.pageGradient,
+    padding: `${spacing.lg}px`,
     paddingBottom: '120px',
     position: 'relative',
   };
 
   const glassBlob: React.CSSProperties = {
     position: 'absolute',
-    filter: 'blur(60px)',
-    opacity: 0.6,
+    filter: 'blur(44px)',
+    opacity: 0.7,
     borderRadius: '50%',
     transform: 'translate(-50%, -50%)',
+    pointerEvents: 'none',
   };
 
   const headerStyle: React.CSSProperties = {
-    padding: `${spacing.xl}px`,
+    padding: `${spacing.md}px ${spacing.lg}px`,
     marginBottom: `${spacing.lg}px`,
+    maxWidth: '1460px',
+    marginInline: 'auto',
   };
 
   const headerCardStyle: React.CSSProperties = {
     borderRadius: `${radii.xl}px`,
     padding: `${spacing.xl}px`,
-    background: colors.glass.background,
-    border: `1px solid ${colors.glass.border}`,
-    boxShadow: colors.glass.shadowStrong,
+    background: palette.panel,
+    border: `1px solid ${palette.panelBorder}`,
+    boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
     backdropFilter: 'blur(18px) saturate(160%)',
     WebkitBackdropFilter: 'blur(18px) saturate(160%)',
     position: 'relative',
@@ -753,9 +818,9 @@ const CreateAudioDokuScreen: React.FC = () => {
 
   const titleStyle: React.CSSProperties = {
     ...typography.textStyles.displayLg,
-    color: colors.text.primary,
+    color: palette.text,
+    fontFamily: headingFont,
     marginBottom: spacing.sm,
-    textShadow: '0 1px 1px rgba(255,255,255,0.35)',
     display: 'flex',
     alignItems: 'center',
     gap: spacing.md,
@@ -763,14 +828,16 @@ const CreateAudioDokuScreen: React.FC = () => {
 
   const subtitleStyle: React.CSSProperties = {
     ...typography.textStyles.body,
-    color: colors.text.secondary,
-    fontSize: '18px',
+    color: palette.muted,
+    fontSize: '16px',
   };
 
   const contentStyle: React.CSSProperties = {
-    padding: `0 ${spacing.xl}px ${spacing.xxl}px`,
+    padding: `0 ${spacing.lg}px ${spacing.xxl}px`,
     display: 'grid',
     gap: spacing.xl,
+    maxWidth: '1460px',
+    marginInline: 'auto',
   };
 
   const actionTitle = isEditMode
@@ -781,21 +848,28 @@ const CreateAudioDokuScreen: React.FC = () => {
       ? t('doku.audioCreate.creating')
       : t('doku.audioCreate.createButton');
 
+  const inputBaseClass =
+    'mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors placeholder:text-slate-400';
+
   return (
     <div style={containerStyle}>
-      <div style={{ ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: gradients.primary }} />
-      <div style={{ ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: gradients.cool }} />
-      <div style={{ ...glassBlob, width: 240, height: 240, bottom: -40, left: '50%', background: gradients.warm }} />
+      <AudioCreateBackground palette={palette} />
+      <div style={{ ...glassBlob, width: 320, height: 320, top: 120, left: 120, background: palette.haloA }} />
+      <div style={{ ...glassBlob, width: 280, height: 280, top: 240, right: -40, background: palette.haloB }} />
+      <div style={{ ...glassBlob, width: 260, height: 260, bottom: -40, left: '50%', background: palette.haloA }} />
 
       <SignedOut>
-        <div style={{ textAlign: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px` }}>
-          <h1 style={{ ...typography.textStyles.displayLg, color: colors.text.primary, marginBottom: spacing.md }}>
+        <div style={{ textAlign: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px`, maxWidth: 820, margin: '0 auto' }}>
+          <h1 style={{ ...typography.textStyles.displayLg, color: palette.text, marginBottom: spacing.md, fontFamily: headingFont }}>
             {t('doku.audioCreate.signInRequired')}
           </h1>
+          <p style={{ ...typography.textStyles.body, color: palette.muted, marginBottom: spacing.lg }}>
+            Bitte melde dich an, um Audio-Dokus professionell zu erstellen.
+          </p>
           <Button
             title={t('auth.signIn')}
             onPress={() => navigate('/auth')}
-            variant="primary"
+            variant="secondary"
             size="lg"
           />
         </div>
@@ -805,7 +879,7 @@ const CreateAudioDokuScreen: React.FC = () => {
         <div style={headerStyle}>
           <div style={headerCardStyle}>
             <div style={titleStyle}>
-              <Headphones size={36} style={{ color: colors.lavender[500] }} />
+              <Headphones size={36} />
               {isEditMode
                 ? t('doku.audioCreate.editTitle', 'Audio-Doku bearbeiten')
                 : t('doku.audioCreate.title')}
@@ -820,22 +894,41 @@ const CreateAudioDokuScreen: React.FC = () => {
 
         <div style={contentStyle}>
           {loadingExisting ? (
-            <Card variant="glass" style={{ padding: spacing.xl }}>
+            <Card
+              variant="glass"
+              style={{
+                padding: spacing.xl,
+                background: palette.panel,
+                border: `1px solid ${palette.panelBorder}`,
+                boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
+              }}
+            >
               <div className="flex justify-center">
                 <LottieLoader message={t('common.loading')} size={110} />
               </div>
             </Card>
           ) : (
-            <Card variant="glass" style={{ padding: spacing.xl }}>
+            <Card
+              variant="glass"
+              style={{
+                padding: spacing.xl,
+                background: palette.panel,
+                border: `1px solid ${palette.panelBorder}`,
+                boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
+              }}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="flex flex-col gap-6">
-                  <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-white/95 via-indigo-50/70 to-sky-50/70 p-5 shadow-sm">
+                  <div
+                    className="rounded-2xl border p-5 shadow-sm"
+                    style={{ borderColor: palette.panelBorder, background: palette.soft }}
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold text-indigo-900">
+                        <div className="text-sm font-semibold" style={{ color: palette.text }}>
                           Dialog mit ElevenLabs generieren
                         </div>
-                        <p className="mt-1 text-xs text-indigo-800/80">
+                        <p className="mt-1 text-xs" style={{ color: palette.muted }}>
                           Script-Format: <code>SPRECHER: Text</code>, z. B. <code>TAVI: [excited] ...</code>.
                         </p>
                       </div>
@@ -848,7 +941,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                         disabled={voicesLoading}
                       />
                     </div>
-                    <p className="mt-2 text-xs text-indigo-800/80">
+                    <p className="mt-2 text-xs" style={{ color: palette.muted }}>
                       Nach <strong>Stimmen laden</strong>: Pro Sprecher im Feld <strong>"Stimme aus Liste..."</strong> eine Stimme auswaehlen.
                     </p>
 
@@ -858,21 +951,23 @@ const CreateAudioDokuScreen: React.FC = () => {
                           key={tag}
                           type="button"
                           onClick={() => insertDialogueTag(tag)}
-                          className="rounded-full border border-indigo-200 bg-white/85 px-3 py-1 text-xs font-medium text-indigo-700 hover:border-indigo-300 hover:bg-white"
+                          className="rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:opacity-85"
+                          style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
                         >
                           [{tag}]
                         </button>
                       ))}
                     </div>
 
-                    <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                    <label className="mt-4 block text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
                       Dialog-Editor
                     </label>
-                    <div className="mt-2 overflow-hidden rounded-xl border border-indigo-200/80 bg-white/95">
+                    <div className="mt-2 overflow-hidden rounded-xl border" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
                       <div className="grid grid-cols-[52px_1fr]">
                         <div
                           ref={dialogueGutterRef}
-                          className="max-h-[320px] overflow-hidden border-r border-indigo-100 bg-indigo-50/70 py-3 text-right font-mono text-[11px] leading-6 text-indigo-500"
+                          className="max-h-[320px] overflow-hidden border-r py-3 text-right font-mono text-[11px] leading-6"
+                          style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.muted }}
                           aria-hidden
                         >
                           {dialogueLineNumbers.map((lineNumber) => (
@@ -891,14 +986,15 @@ const CreateAudioDokuScreen: React.FC = () => {
                           rows={10}
                           spellCheck={false}
                           placeholder={`TAVI: [excited] Willkommen zur Talea Audio-Doku!\nLUMI: [curious] Unsichtbar? Wie ein Ninja?\nTAVI: [mischievously] Genau!`}
-                          className="max-h-[320px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                          className="max-h-[320px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 placeholder:text-slate-400 focus:outline-none"
+                          style={{ color: palette.text }}
                         />
                       </div>
                     </div>
-                    <p className="mt-1 text-[11px] text-indigo-700/70">
+                    <p className="mt-1 text-[11px]" style={{ color: palette.muted }}>
                       Tab = Einruecken, Ctrl/Cmd + Enter = Audio rendern.
                     </p>
-                    <p className="mt-2 text-xs text-indigo-800/80">
+                    <p className="mt-2 text-xs" style={{ color: palette.muted }}>
                       {detectedSpeakers.length > 0
                         ? `Sprecher im Script: ${detectedSpeakers.join(', ')}`
                         : 'Fuer jeden Dialogblock eine neue Zeile im Format "SPRECHER: Text" verwenden.'}
@@ -917,23 +1013,25 @@ const CreateAudioDokuScreen: React.FC = () => {
                     )}
 
                     <div className="mt-5">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
                         Sprecher
                       </div>
                       <div className="space-y-3">
                         {speakerProfiles.map((speaker, index) => (
-                          <div key={speaker.id} className="rounded-xl border border-indigo-200/80 bg-white/90 p-3">
+                          <div key={speaker.id} className="rounded-xl border p-3" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
                               <input
                                 value={speaker.name}
                                 onChange={(e) => handleSpeakerFieldChange(speaker.id, 'name', e.target.value)}
                                 placeholder={`Name (z. B. ${index === 0 ? 'TAVI' : 'LUMI'})`}
-                                className="md:col-span-3 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                                className="md:col-span-3 w-full rounded-lg border px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none"
+                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                               />
                               <select
                                 value={speaker.voiceId}
                                 onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
-                                className="md:col-span-4 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-300 focus:outline-none"
+                                className="md:col-span-4 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                               >
                                 <option value="">Stimme aus Liste...</option>
                                 {elevenLabsVoices.map((voice) => (
@@ -946,7 +1044,8 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 value={speaker.voiceId}
                                 onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
                                 placeholder="Voice-ID (z. B. 7Nj1UduP6iY6hWpEDibS)"
-                                className="md:col-span-5 w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                                className="md:col-span-5 w-full rounded-lg border px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none"
+                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                               />
                             </div>
                             {speakerProfiles.length > 1 && (
@@ -954,7 +1053,8 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveSpeaker(speaker.id)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium"
+                                  style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.text }}
                                   aria-label="Sprecher entfernen"
                                   title="Sprecher entfernen"
                                 >
@@ -967,26 +1067,29 @@ const CreateAudioDokuScreen: React.FC = () => {
                         ))}
                       </div>
                       <div className="mt-3">
-                        <Button
-                          title="Sprecher hinzufuegen"
-                          onPress={handleAddSpeaker}
-                          variant="outline"
-                          size="sm"
-                          icon={<Plus size={14} />}
-                        />
+                        <button
+                          type="button"
+                          onClick={handleAddSpeaker}
+                          className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold"
+                          style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                        >
+                          <Plus size={14} />
+                          Sprecher hinzufuegen
+                        </button>
                       </div>
                     </div>
 
                     {elevenLabsVoices.length > 0 && (
-                      <div className="mt-4 rounded-xl border border-indigo-200/80 bg-white/85 p-3">
+                      <div className="mt-4 rounded-xl border p-3" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
                         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                          <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
                             Geladene Stimmen ({elevenLabsVoices.length})
                           </div>
                           <select
                             value={voiceTargetSpeakerId}
                             onChange={(e) => setVoiceTargetSpeakerId(e.target.value)}
-                            className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-indigo-300 focus:outline-none"
+                            className="rounded-lg border px-3 py-1.5 text-xs focus:outline-none"
+                            style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                           >
                             {speakerProfiles.map((speaker) => (
                               <option key={speaker.id} value={speaker.id}>
@@ -999,29 +1102,32 @@ const CreateAudioDokuScreen: React.FC = () => {
                           value={voiceSearchQuery}
                           onChange={(e) => setVoiceSearchQuery(e.target.value)}
                           placeholder="Stimme suchen (Name oder ID)"
-                          className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
+                          className="w-full rounded-lg border px-3 py-2 text-xs placeholder:text-slate-400 focus:outline-none"
+                          style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                         />
                         <div className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
                           {filteredVoices.slice(0, 30).map((voice) => (
                             <div
                               key={voice.voiceId}
-                              className="flex items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-white px-2 py-1.5"
+                              className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5"
+                              style={{ borderColor: palette.panelBorder, background: palette.soft }}
                             >
                               <div className="min-w-0">
-                                <div className="truncate text-xs font-semibold text-slate-800">{voice.name}</div>
-                                <div className="truncate text-[11px] text-slate-500">{voice.voiceId}</div>
+                                <div className="truncate text-xs font-semibold">{voice.name}</div>
+                                <div className="truncate text-[11px]" style={{ color: palette.muted }}>{voice.voiceId}</div>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => handleAssignVoiceToTargetSpeaker(voice.voiceId)}
-                                className="shrink-0 rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                                className="shrink-0 rounded border px-2 py-1 text-[11px] font-semibold"
+                                style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
                               >
                                 Uebernehmen
                               </button>
                             </div>
                           ))}
                           {filteredVoices.length === 0 && (
-                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+                            <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.muted }}>
                               Keine Stimme gefunden.
                             </div>
                           )}
@@ -1030,14 +1136,16 @@ const CreateAudioDokuScreen: React.FC = () => {
                     )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <Button
-                        title={dialogueLoading ? 'Generiere Audio...' : 'Audio erzeugen'}
-                        onPress={() => void handleGenerateDialogueAudio()}
-                        variant="secondary"
-                        size="md"
-                        icon={dialogueLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mic2 size={16} />}
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateDialogueAudio()}
                         disabled={dialogueLoading || detectedSpeakers.length === 0}
-                      />
+                        className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                      >
+                        {dialogueLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mic2 size={16} />}
+                        {dialogueLoading ? 'Generiere Audio...' : 'Audio erzeugen'}
+                      </button>
                     </div>
 
                     {dialogueLoading && (
@@ -1124,20 +1232,21 @@ const CreateAudioDokuScreen: React.FC = () => {
 
                 <div className="flex flex-col gap-6">
                   <div>
-                    <label className="text-sm font-semibold text-slate-700">
+                    <label className="text-sm font-semibold" style={{ color: palette.text }}>
                       {t('doku.audioCreate.titleLabel')}
                     </label>
                     <input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder={t('doku.audioCreate.titlePlaceholder')}
-                      className="mt-2 w-full rounded-xl border border-white/60 bg-white/80 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
+                      className={inputBaseClass}
+                      style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-semibold text-slate-700">
+                      <label className="text-sm font-semibold" style={{ color: palette.text }}>
                         {t('doku.audioCreate.ageLabel', 'Alter')}
                       </label>
                       <input
@@ -1145,7 +1254,8 @@ const CreateAudioDokuScreen: React.FC = () => {
                         value={ageGroup}
                         onChange={(e) => setAgeGroup(e.target.value)}
                         placeholder={t('doku.audioCreate.agePlaceholder', 'z. B. 6-8')}
-                        className="mt-2 w-full rounded-xl border border-white/60 bg-white/80 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
+                        className={inputBaseClass}
+                        style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                       />
                       <datalist id="audio-age-group-options">
                         {AGE_GROUP_OPTIONS.map((option) => (
@@ -1154,7 +1264,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                       </datalist>
                     </div>
                     <div>
-                      <label className="text-sm font-semibold text-slate-700">
+                      <label className="text-sm font-semibold" style={{ color: palette.text }}>
                         {t('doku.audioCreate.categoryLabel', 'Kategorie')}
                       </label>
                       <input
@@ -1162,7 +1272,8 @@ const CreateAudioDokuScreen: React.FC = () => {
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         placeholder={t('doku.audioCreate.categoryPlaceholder', 'z. B. Abenteuer')}
-                        className="mt-2 w-full rounded-xl border border-white/60 bg-white/80 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
+                        className={inputBaseClass}
+                        style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                       />
                       <datalist id="audio-category-options">
                         {CATEGORY_OPTIONS.map((option) => (
@@ -1173,7 +1284,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-slate-700">
+                    <label className="text-sm font-semibold" style={{ color: palette.text }}>
                       {t('doku.audioCreate.coverLabel')}
                     </label>
                     <textarea
@@ -1181,17 +1292,20 @@ const CreateAudioDokuScreen: React.FC = () => {
                       onChange={(e) => setCoverDescription(e.target.value)}
                       placeholder={t('doku.audioCreate.coverPlaceholder')}
                       rows={4}
-                      className="mt-2 w-full rounded-xl border border-white/60 bg-white/80 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
+                      className={inputBaseClass}
+                      style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                     />
                     <div className="mt-3 flex items-center gap-3">
-                      <Button
-                        title={coverLoading ? t('doku.audioCreate.generatingCover') : t('doku.audioCreate.generateCover')}
-                        onPress={handleGenerateCover}
-                        variant="outline"
-                        size="md"
-                        icon={<Sparkles size={16} />}
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateCover()}
                         disabled={coverLoading}
-                      />
+                        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                        style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                      >
+                        <Sparkles size={14} />
+                        {coverLoading ? t('doku.audioCreate.generatingCover') : t('doku.audioCreate.generateCover')}
+                      </button>
                       {coverImageUrl && (
                         <span className="text-xs font-semibold text-emerald-600">
                           {t('doku.audioCreate.coverReady')}
@@ -1210,7 +1324,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-semibold text-slate-700">
+                    <label className="text-sm font-semibold" style={{ color: palette.text }}>
                       {t('doku.audioCreate.descriptionLabel')}
                     </label>
                     <textarea
@@ -1218,7 +1332,8 @@ const CreateAudioDokuScreen: React.FC = () => {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder={t('doku.audioCreate.descriptionPlaceholder')}
                       rows={5}
-                      className="mt-2 w-full rounded-xl border border-white/60 bg-white/80 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none"
+                      className={inputBaseClass}
+                      style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                     />
                   </div>
 
@@ -1229,19 +1344,22 @@ const CreateAudioDokuScreen: React.FC = () => {
                   )}
 
                   <div className="flex items-center gap-3">
-                    <Button
-                      title={actionTitle}
-                      onPress={handleSave}
-                      variant="fun"
-                      size="lg"
-                      icon={<Sparkles size={18} />}
+                    <button
+                      type="button"
+                      onClick={() => void handleSave()}
                       disabled={saving || loadingExisting}
-                    />
+                      className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                    >
+                      <Sparkles size={18} />
+                      {actionTitle}
+                    </button>
                     <button
                       onClick={() => navigate('/doku')}
-                      className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+                      className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-semibold"
+                      style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
                     >
-                      <ArrowLeft size={16} className="inline-block mr-1" />
+                      <ArrowLeft size={16} />
                       {t('common.back')}
                     </button>
                   </div>
@@ -1250,15 +1368,23 @@ const CreateAudioDokuScreen: React.FC = () => {
             </Card>
           )}
 
-          <Card variant="glass" style={{ padding: spacing.xl }}>
+          <Card
+            variant="glass"
+            style={{
+              padding: spacing.xl,
+              background: palette.panel,
+              border: `1px solid ${palette.panelBorder}`,
+              boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
+            }}
+          >
             <div className="flex flex-col lg:flex-row gap-6 items-start">
               <div className="w-full lg:w-72">
                 <div
                   style={{
                     borderRadius: radii.lg,
                     overflow: 'hidden',
-                    border: `1px solid ${colors.border.light}`,
-                    boxShadow: shadows.md,
+                    border: `1px solid ${palette.panelBorder}`,
+                    boxShadow: '0 10px 20px rgba(33,44,62,0.16)',
                   }}
                 >
                   <img
@@ -1269,10 +1395,10 @@ const CreateAudioDokuScreen: React.FC = () => {
                 </div>
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ ...typography.textStyles.headingSm, color: colors.text.primary, marginBottom: spacing.xs }}>
+                <div style={{ ...typography.textStyles.headingSm, color: palette.text, marginBottom: spacing.xs, fontFamily: headingFont }}>
                   {savedAudio ? t('doku.audioCreate.previewReady') : t('doku.audioCreate.previewTitle')}
                 </div>
-                <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: spacing.md }}>
+                <div style={{ ...typography.textStyles.body, color: palette.muted, marginBottom: spacing.md }}>
                   {savedAudio
                     ? t('doku.audioCreate.previewDescriptionReady')
                     : t('doku.audioCreate.previewDescription')}
@@ -1293,19 +1419,23 @@ const CreateAudioDokuScreen: React.FC = () => {
 
                 {savedAudio && (
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <Button
-                      title={t('doku.audioCreate.goToDokus')}
-                      onPress={() => navigate('/doku')}
-                      variant="primary"
-                      size="md"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => navigate('/doku')}
+                      className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                      style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                    >
+                      {t('doku.audioCreate.goToDokus')}
+                    </button>
                     {!isEditMode && (
-                      <Button
-                        title={t('doku.audioCreate.createAnother')}
-                        onPress={handleReset}
-                        variant="outline"
-                        size="md"
-                      />
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="rounded-xl border px-4 py-2 text-sm font-semibold"
+                        style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                      >
+                        {t('doku.audioCreate.createAnother')}
+                      </button>
                     )}
                   </div>
                 )}
