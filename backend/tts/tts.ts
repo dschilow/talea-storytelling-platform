@@ -12,8 +12,13 @@ const CHATTERBOX_TTS_SERVICE_URL = process.env.CHATTERBOX_TTS_SERVICE_URL || "";
 
 export type TTSProvider = "piper" | "chatterbox";
 
+// Optional global default for requests that do not send `provider`:
+// TTS_DEFAULT_PROVIDER=chatterbox
+const TTS_DEFAULT_PROVIDER = (process.env.TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
+
 function resolveProvider(provider?: string): TTSProvider {
-    if (provider === "chatterbox") return "chatterbox";
+    const requested = (provider || TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
+    if (requested === "chatterbox") return "chatterbox";
     return "piper";
 }
 
