@@ -21,7 +21,7 @@ DEFAULT_LANGUAGE_ID = os.environ.get("CHATTERBOX_DEFAULT_LANGUAGE", "de").strip(
 DEVICE = os.environ.get("CHATTERBOX_DEVICE", "cpu").strip().lower()
 MAX_CHUNK_CHARS = int(os.environ.get("MAX_CHUNK_CHARS", "280"))
 MAX_PARALLEL_CHUNKS = int(os.environ.get("MAX_PARALLEL_CHUNKS", "1"))
-JOB_WORKERS = int(os.environ.get("JOB_WORKERS", "2"))
+JOB_WORKERS = int(os.environ.get("JOB_WORKERS", "1"))
 JOB_TTL_SECONDS = int(os.environ.get("JOB_TTL_SECONDS", "1200"))
 
 # Keep CPU usage deterministic-ish on small instances
@@ -54,6 +54,7 @@ _job_executor = ThreadPoolExecutor(max_workers=JOB_WORKERS, thread_name_prefix="
 _model = None
 _model_name = None
 _model_lock = threading.Lock()
+_inference_lock = threading.Lock()
 
 
 def _preprocess_text(text: str) -> str:
@@ -148,14 +149,20 @@ def _load_model(model_name: str):
 
 
 def _generate_chunk(chunk: str, model_name: str, language_id: str):
-    model, loaded_model = _load_model(model_name)
+    # Chatterbox model objects are not reliably thread-safe on CPU.
+    # Serialize access to avoid intermittent tensor-shape/None errors under load.
+    with _inference_lock:
+        model, loaded_model = _load_model(model_name)
 
-    if loaded_model == "multilingual":
-        wav = model.generate(chunk, language_id=language_id)
-    else:
-        # Turbo is primarily English and commonly used with reference audio.
-        # For simple CPU smoke tests we generate without prompt.
-        wav = model.generate(chunk)
+        if loaded_model == "multilingual":
+            wav = model.generate(chunk, language_id=language_id)
+        else:
+            # Turbo is primarily English and commonly used with reference audio.
+            # For simple CPU smoke tests we generate without prompt.
+            wav = model.generate(chunk)
+
+    if wav is None:
+        raise RuntimeError("Model returned no audio (None)")
 
     samples = _ensure_numpy(wav)
     sample_rate = int(getattr(model, "sr", 24000))

@@ -15,6 +15,7 @@ export type TTSProvider = "piper" | "chatterbox";
 // Optional global default for requests that do not send `provider`:
 // TTS_DEFAULT_PROVIDER=chatterbox
 const TTS_DEFAULT_PROVIDER = (process.env.TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
+const TTS_FALLBACK_TO_PIPER = (process.env.TTS_FALLBACK_TO_PIPER || "true").toLowerCase() !== "false";
 
 function resolveProvider(provider?: string): TTSProvider {
     const requested = (provider || TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
@@ -298,29 +299,45 @@ export const generateSpeech = api(
         }
 
         try {
-            const resolvedProvider = resolveProvider(provider);
-            const serviceUrl = resolveServiceUrl(resolvedProvider);
+            const runProvider = async (targetProvider: TTSProvider): Promise<TTSResponse> => {
+                const serviceUrl = resolveServiceUrl(targetProvider);
 
-            // Try async polling first (new server). Falls back to sync if 404 (old server).
-            log.info(`TTS request for text length ${text.length} via ${resolvedProvider}`);
+                // Try async polling first (new server). Falls back to sync if 404/405.
+                log.info(`TTS request for text length ${text.length} via ${targetProvider}`);
 
-            let audioData: string;
-            try {
-                const jobId = await submitAsyncJob(serviceUrl, text, { languageId, model });
-                log.info(`TTS async job submitted: ${jobId}`);
-                audioData = await pollJobUntilReady(serviceUrl, jobId);
-                log.info(`TTS async job complete: ${jobId}`);
-            } catch (err: any) {
-                if (err.message === "ASYNC_NOT_SUPPORTED") {
-                    // Old TTS server — use synchronous endpoint
-                    log.warn("TTS async not supported, falling back to sync endpoint");
-                    audioData = await generateSyncFallback(serviceUrl, text, { languageId, model });
-                } else {
-                    throw err;
+                let audioData: string;
+                try {
+                    const jobId = await submitAsyncJob(serviceUrl, text, { languageId, model });
+                    log.info(`TTS async job submitted: ${jobId}`);
+                    audioData = await pollJobUntilReady(serviceUrl, jobId);
+                    log.info(`TTS async job complete: ${jobId}`);
+                } catch (err: any) {
+                    if (err.message === "ASYNC_NOT_SUPPORTED") {
+                        // Old TTS server — use synchronous endpoint
+                        log.warn("TTS async not supported, falling back to sync endpoint");
+                        audioData = await generateSyncFallback(serviceUrl, text, { languageId, model });
+                    } else {
+                        throw err;
+                    }
                 }
-            }
 
-            return { audioData, providerUsed: resolvedProvider };
+                return { audioData, providerUsed: targetProvider };
+            };
+
+            const resolvedProvider = resolveProvider(provider);
+            try {
+                return await runProvider(resolvedProvider);
+            } catch (primaryError: any) {
+                if (
+                    resolvedProvider === "chatterbox" &&
+                    TTS_FALLBACK_TO_PIPER &&
+                    !!PIPER_TTS_SERVICE_URL
+                ) {
+                    log.warn(`Chatterbox failed, retrying with piper fallback: ${primaryError?.message || "unknown error"}`);
+                    return await runProvider("piper");
+                }
+                throw primaryError;
+            }
         } catch (error: any) {
             const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
             log.error(`TTS failed: ${error.message} | cause: ${causeMsg}`);
