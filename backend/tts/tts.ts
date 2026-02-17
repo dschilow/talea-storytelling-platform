@@ -90,8 +90,8 @@ async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGen
             }
 
             const errText = await response.text();
-            // 404 = old server without async endpoint, fall through to sync
-            if (response.status === 404) {
+            // 404/405 = server without compatible async endpoint, fall through to sync
+            if (response.status === 404 || response.status === 405) {
                 throw new Error("ASYNC_NOT_SUPPORTED");
             }
             // 502/503 = service starting up, retry
