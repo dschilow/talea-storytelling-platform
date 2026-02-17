@@ -230,8 +230,7 @@ const DokusScreen: React.FC = () => {
     if (existingIdx >= 0) {
       audioPlayer.playFromPlaylist(existingIdx);
     } else {
-      const newIdx = audioPlayer.playlist.length;
-      audioPlayer.addToPlaylist([{
+      audioPlayer.addAndPlay([{
         id: itemId,
         trackId: doku.id,
         title: doku.title,
@@ -241,7 +240,6 @@ const DokusScreen: React.FC = () => {
         audioUrl: doku.audioUrl,
         conversionStatus: 'ready',
       }]);
-      audioPlayer.playFromPlaylist(newIdx);
     }
   };
 

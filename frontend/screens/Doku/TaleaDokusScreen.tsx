@@ -645,8 +645,7 @@ const TaleaDokusScreen: React.FC = () => {
     if (existingIdx >= 0) {
       audioPlayer.playFromPlaylist(existingIdx);
     } else {
-      const newIdx = audioPlayer.playlist.length;
-      audioPlayer.addToPlaylist([{
+      audioPlayer.addAndPlay([{
         id: itemId,
         trackId: doku.id,
         title: doku.title,
@@ -656,7 +655,6 @@ const TaleaDokusScreen: React.FC = () => {
         audioUrl: doku.audioUrl,
         conversionStatus: 'ready',
       }]);
-      audioPlayer.playFromPlaylist(newIdx);
     }
   };
 
@@ -689,8 +687,7 @@ const TaleaDokusScreen: React.FC = () => {
       }));
     if (items.length === 0) return;
     audioPlayer.clearPlaylist();
-    audioPlayer.addToPlaylist(items);
-    audioPlayer.playFromPlaylist(0);
+    audioPlayer.addAndPlay(items);
   };
 
   const handleEditAudioDoku = (doku: AudioDoku) => {

@@ -43,7 +43,9 @@ interface AudioPlayerContextValue {
   isPlaylistActive: boolean;
   isPlaylistDrawerOpen: boolean;
   addToPlaylist: (items: PlaylistItem[]) => void;
+  addAndPlay: (items: PlaylistItem[]) => void;
   removeFromPlaylist: (itemId: string) => void;
+  removeStoryFromPlaylist: (storyId: string) => void;
   clearPlaylist: () => void;
   playFromPlaylist: (index: number) => void;
   playNext: () => void;
@@ -89,6 +91,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   currentIndexRef.current = currentIndex;
   const isPlaylistActiveRef = useRef(isPlaylistActive);
   isPlaylistActiveRef.current = isPlaylistActive;
+  const waitingForConversionRef = useRef(waitingForConversion);
+  waitingForConversionRef.current = waitingForConversion;
 
   // Blob URL registry for memory management
   const blobUrlsRef = useRef<Set<string>>(new Set());
@@ -106,6 +110,19 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
+  // ── Internal helper: play a playlist item as AudioTrack ───────────
+  const playItemAsTrack = useCallback((item: PlaylistItem) => {
+    if (!item.audioUrl) return;
+    setShouldAutoplay(true);
+    setTrack({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      coverImageUrl: item.coverImageUrl,
+      audioUrl: item.audioUrl,
+    });
+  }, []);
+
   // ── TTS conversion queue ─────────────────────────────────────────
   const onChunkReady = useCallback(
     (itemId: string, blobUrl: string) => {
@@ -115,8 +132,16 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         item.id === itemId ? { ...item, audioUrl: blobUrl, conversionStatus: 'ready' as const } : item,
       );
       setPlaylist(playlistRef.current);
+
+      // If we're waiting for this exact chunk to play, start it immediately
+      const waitingIdx = currentIndexRef.current;
+      const waitingItem = playlistRef.current[waitingIdx];
+      if (waitingItem?.id === itemId && waitingForConversionRef.current) {
+        setWaitingForConversion(false);
+        playItemAsTrack({ ...waitingItem, audioUrl: blobUrl });
+      }
     },
-    [trackBlobUrl],
+    [trackBlobUrl, playItemAsTrack],
   );
 
   const onChunkError = useCallback((_itemId: string, _error: string) => {
@@ -126,7 +151,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setPlaylist(playlistRef.current);
   }, []);
 
-  const { enqueue, cancel: cancelConversion, retryItem, statusMap: conversionStatusMap } =
+  const { enqueue, cancel: cancelConversion, cancelItems, retryItem, statusMap: conversionStatusMap } =
     useTTSConversionQueue({ backend, onChunkReady, onChunkError });
 
   // Stable ref for enqueue so the restore effect doesn't re-run when backend/auth changes
@@ -238,19 +263,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('Failed to persist audio playlist state:', error);
     }
   }, [playlist, currentIndex, isPlaylistActive, hasRestoredState]);
-
-  // ── Internal helper: play a playlist item as AudioTrack ───────────
-  const playItemAsTrack = useCallback((item: PlaylistItem) => {
-    if (!item.audioUrl) return;
-    setShouldAutoplay(true);
-    setTrack({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      coverImageUrl: item.coverImageUrl,
-      audioUrl: item.audioUrl,
-    });
-  }, []);
 
   // ── Internal helper to play next track ────────────────────────────
   const playNextInternal = useCallback(() => {
@@ -428,15 +440,47 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const uniqueIncoming = items.filter((item) => !existingIds.has(item.id));
       const remaining = MAX_PLAYLIST_ITEMS - prev.length;
       const toAdd = uniqueIncoming.slice(0, remaining);
+      if (toAdd.length === 0) return;
       const next = [...prev, ...toAdd];
       playlistRef.current = next;
       setPlaylist(next);
-      if (!isPlaylistActive) {
+      if (!isPlaylistActiveRef.current) {
         isPlaylistActiveRef.current = true;
         setIsPlaylistActive(true);
       }
     },
-    [isPlaylistActive],
+    [],
+  );
+
+  // Atomically add items and start playing the first new item
+  const addAndPlay = useCallback(
+    (items: PlaylistItem[]) => {
+      const prev = playlistRef.current;
+      const existingIds = new Set(prev.map((item) => item.id));
+      const uniqueIncoming = items.filter((item) => !existingIds.has(item.id));
+      const remaining = MAX_PLAYLIST_ITEMS - prev.length;
+      const toAdd = uniqueIncoming.slice(0, remaining);
+      if (toAdd.length === 0) return;
+
+      const startIdx = prev.length;
+      const next = [...prev, ...toAdd];
+      playlistRef.current = next;
+      currentIndexRef.current = startIdx;
+      isPlaylistActiveRef.current = true;
+
+      setPlaylist(next);
+      setCurrentIndex(startIdx);
+      setIsPlaylistActive(true);
+
+      const firstItem = next[startIdx];
+      if (firstItem.audioUrl && firstItem.conversionStatus === 'ready') {
+        playItemAsTrack(firstItem);
+        setWaitingForConversion(false);
+      } else {
+        setWaitingForConversion(true);
+      }
+    },
+    [playItemAsTrack],
   );
 
   const removeFromPlaylist = useCallback(
@@ -476,6 +520,61 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
     },
     [revokeBlobUrl, playItemAsTrack],
+  );
+
+  const removeStoryFromPlaylist = useCallback(
+    (storyId: string) => {
+      const prev = playlistRef.current;
+      const storyChunkIds = new Set(
+        prev.filter((item) => item.parentStoryId === storyId).map((item) => item.id),
+      );
+      if (storyChunkIds.size === 0) return;
+
+      // Cancel pending TTS jobs for these chunks
+      cancelItems(storyChunkIds);
+
+      // Revoke blob URLs
+      prev.forEach((item) => {
+        if (item.parentStoryId === storyId) revokeBlobUrl(item.audioUrl);
+      });
+
+      const next = prev.filter((item) => item.parentStoryId !== storyId);
+      playlistRef.current = next;
+
+      // Fix currentIndex
+      const removedBefore = prev
+        .slice(0, currentIndexRef.current)
+        .filter((item) => item.parentStoryId === storyId).length;
+      const currentWasRemoved = prev[currentIndexRef.current]?.parentStoryId === storyId;
+
+      if (next.length === 0) {
+        audioRef.current?.pause();
+        setTrack(null);
+        currentIndexRef.current = -1;
+        isPlaylistActiveRef.current = false;
+        setPlaylist(next);
+        setCurrentIndex(-1);
+        setIsPlaylistActive(false);
+        setWaitingForConversion(false);
+      } else if (currentWasRemoved) {
+        audioRef.current?.pause();
+        const newIdx = Math.min(currentIndexRef.current - removedBefore, next.length - 1);
+        currentIndexRef.current = newIdx;
+        setPlaylist(next);
+        setCurrentIndex(newIdx);
+        const nextItem = next[newIdx];
+        if (nextItem?.audioUrl && nextItem.conversionStatus === 'ready') {
+          playItemAsTrack(nextItem);
+        } else {
+          setWaitingForConversion(true);
+        }
+      } else {
+        currentIndexRef.current -= removedBefore;
+        setPlaylist(next);
+        setCurrentIndex((i) => i - removedBefore);
+      }
+    },
+    [cancelItems, revokeBlobUrl, playItemAsTrack],
   );
 
   const clearPlaylist = useCallback(() => {
@@ -581,22 +680,16 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
 
-      // Remember current playlist length to know where new items start
-      const startIdx = playlistRef.current.length;
-
-      addToPlaylist(newItems);
-      enqueue(queueItems);
-
       if (autoplay && !track) {
-        // Eagerly update refs so onChunkReady/playNextInternal see them immediately
-        currentIndexRef.current = startIdx;
-        isPlaylistActiveRef.current = true;
-        setCurrentIndex(startIdx);
-        setIsPlaylistActive(true);
-        setWaitingForConversion(true);
+        // Use addAndPlay for atomic add + start playback
+        addAndPlay(newItems);
+      } else {
+        // Just append to queue, keep current playback
+        addToPlaylist(newItems);
       }
+      enqueue(queueItems);
     },
-    [addToPlaylist, enqueue, track],
+    [addToPlaylist, addAndPlay, enqueue, track],
   );
 
   return (
@@ -617,7 +710,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isPlaylistActive,
         isPlaylistDrawerOpen,
         addToPlaylist,
+        addAndPlay,
         removeFromPlaylist,
+        removeStoryFromPlaylist,
         clearPlaylist,
         playFromPlaylist,
         playNext,

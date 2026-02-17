@@ -43,6 +43,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     isPlaylistDrawerOpen,
     togglePlaylistDrawer,
     removeFromPlaylist,
+    removeStoryFromPlaylist,
     clearPlaylist,
     playFromPlaylist,
   } = useAudioPlayer();
@@ -271,34 +272,46 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     const hasConverting = allChunks.some((c) => c.item.conversionStatus === 'converting');
 
     return (
-      <div key={story.storyId}>
-        <button
-          onClick={() => toggleExpanded(story.storyId)}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-white/5"
-        >
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-200/20 dark:bg-slate-700/20">
-            {story.coverImageUrl ? (
-              <img src={story.coverImageUrl} alt="" className="h-full w-full object-cover" />
+      <div key={story.storyId} className="group/story">
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => toggleExpanded(story.storyId)}
+            className="flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-white/5"
+          >
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-200/20 dark:bg-slate-700/20">
+              {story.coverImageUrl ? (
+                <img src={story.coverImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Headphones size={15} style={{ color: colors.muted }} />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="truncate text-[12px] font-semibold" style={{ color: colors.text }}>
+                {story.title}
+              </p>
+              <p className="text-[10px]" style={{ color: colors.muted }}>
+                {readyChapters}/{story.chapters.length} Kapitel bereit
+                {hasConverting && ' — wird konvertiert...'}
+              </p>
+            </div>
+            {hasConverting && <Loader2 size={13} className="animate-spin flex-shrink-0 text-blue-400" />}
+            {isExpanded ? (
+              <ChevronDown size={14} style={{ color: colors.muted }} />
             ) : (
-              <Headphones size={15} style={{ color: colors.muted }} />
+              <ChevronRight size={14} style={{ color: colors.muted }} />
             )}
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <p className="truncate text-[12px] font-semibold" style={{ color: colors.text }}>
-              {story.title}
-            </p>
-            <p className="text-[10px]" style={{ color: colors.muted }}>
-              {readyChapters}/{story.chapters.length} Kapitel bereit
-              {hasConverting && ' — wird konvertiert...'}
-            </p>
-          </div>
-          {hasConverting && <Loader2 size={13} className="animate-spin flex-shrink-0 text-blue-400" />}
-          {isExpanded ? (
-            <ChevronDown size={14} style={{ color: colors.muted }} />
-          ) : (
-            <ChevronRight size={14} style={{ color: colors.muted }} />
-          )}
-        </button>
+          </button>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => removeStoryFromPlaylist(story.storyId)}
+            title="Geschichte entfernen"
+            className="flex-shrink-0 rounded-full p-1.5 opacity-0 transition-opacity group-hover/story:opacity-100"
+            style={{ color: colors.muted }}
+          >
+            <Trash2 size={13} />
+          </motion.button>
+        </div>
 
         <AnimatePresence>
           {isExpanded && (

@@ -137,6 +137,10 @@ export function useTTSConversionQueue({
     }, 0);
   }, []);
 
+  const cancelItems = useCallback((itemIds: Set<string>) => {
+    queueRef.current = queueRef.current.filter((item) => !itemIds.has(item.id));
+  }, []);
+
   const retryItem = useCallback(
     (itemId: string, text: string) => {
       enqueue([{ id: itemId, text }]);
@@ -144,5 +148,5 @@ export function useTTSConversionQueue({
     [enqueue],
   );
 
-  return { enqueue, cancel, retryItem, statusMap };
+  return { enqueue, cancel, cancelItems, retryItem, statusMap };
 }
