@@ -107,13 +107,13 @@ _QUALITY_PRESETS = {
         'length_scale': 1.38,
         'noise_scale': 0.44,
         'noise_w': 0.54,
-        'silence_scene': 600,
-        'silence_dialogue': 450,
-        'silence_exclaim': 400,
-        'silence_question': 420,
-        'silence_period': 320,
-        'silence_comma': 200,
-        'silence_default': 320,
+        'silence_scene': 700,
+        'silence_dialogue': 520,
+        'silence_exclaim': 450,
+        'silence_question': 500,
+        'silence_period': 380,
+        'silence_comma': 260,
+        'silence_default': 360,
     },
 }
 _QUALITY = _QUALITY_PRESETS[PIPER_QUALITY_MODE]
@@ -121,7 +121,7 @@ _QUALITY = _QUALITY_PRESETS[PIPER_QUALITY_MODE]
 # ── Phoneme-level silence: Piper natively pauses at punctuation ──────────────
 # When enabled, inter-chunk silence is reduced because Piper already adds
 # natural pauses at sentence-ending punctuation within synthesized audio.
-ENABLE_PHONEME_SILENCE = _get_env_bool('ENABLE_PHONEME_SILENCE', False)
+ENABLE_PHONEME_SILENCE = _get_env_bool('ENABLE_PHONEME_SILENCE', True)
 
 if ENABLE_PHONEME_SILENCE:
     _QUALITY = dict(_QUALITY)  # copy to avoid mutating preset
@@ -157,12 +157,12 @@ SILENCE_COMMA_MS = _get_env_int('SILENCE_COMMA_MS', _QUALITY['silence_comma'])
 SILENCE_DEFAULT_MS = _get_env_int('SILENCE_DEFAULT_MS', _QUALITY['silence_default'])
 
 # Optional quality refinements
-ENABLE_DYNAMIC_CHUNK_TUNING = _get_env_bool('ENABLE_DYNAMIC_CHUNK_TUNING', False)
+ENABLE_DYNAMIC_CHUNK_TUNING = _get_env_bool('ENABLE_DYNAMIC_CHUNK_TUNING', True)
 ENABLE_OUTPUT_NORMALIZATION = _get_env_bool('ENABLE_OUTPUT_NORMALIZATION', True)
 OUTPUT_TARGET_PEAK = _get_env_float('OUTPUT_TARGET_PEAK', 0.93)
 OUTPUT_EDGE_FADE_MS = _get_env_int('OUTPUT_EDGE_FADE_MS', 6)
-ENABLE_CHARACTER_VOICE_VARIATION = _get_env_bool('ENABLE_CHARACTER_VOICE_VARIATION', False)
-ENABLE_EMOTION_VARIATION = _get_env_bool('ENABLE_EMOTION_VARIATION', False)
+ENABLE_CHARACTER_VOICE_VARIATION = _get_env_bool('ENABLE_CHARACTER_VOICE_VARIATION', True)
+ENABLE_EMOTION_VARIATION = _get_env_bool('ENABLE_EMOTION_VARIATION', True)
 DEBUG_TTS_PROSODY = _get_env_bool('DEBUG_TTS_PROSODY', False)
 
 # ── Emotional model (Thorsten Emotional with 8 emotion speakers) ─────────────
@@ -170,7 +170,7 @@ EMOTIONAL_MODEL_PATH = os.environ.get('EMOTIONAL_MODEL_PATH', "/app/emotional_mo
 ENABLE_EMOTIONAL_MODEL = _get_env_bool('ENABLE_EMOTIONAL_MODEL', False)
 
 # ── FFmpeg post-processing for broadcast quality ─────────────────────────────
-ENABLE_FFMPEG_POSTPROCESS = _get_env_bool('ENABLE_FFMPEG_POSTPROCESS', False)
+ENABLE_FFMPEG_POSTPROCESS = _get_env_bool('ENABLE_FFMPEG_POSTPROCESS', True)
 FFMPEG_FILTER_CHAIN = os.environ.get('FFMPEG_FILTER_CHAIN',
     'highpass=f=60,'
     'acompressor=threshold=0.06:ratio=2.5:attack=8:release=150:makeup=1.5,'
@@ -274,7 +274,7 @@ def _inject_phoneme_silence():
         '!': PHONEME_SILENCE_EXCLAIM,
         ':': PHONEME_SILENCE_COLON,
         ';': PHONEME_SILENCE_SEMICOLON,
-        '\u2026': PHONEME_SILENCE_ELLIPSIS,    # Unicode ellipsis …
+        '\u2026': PHONEME_SILENCE_ELLIPSIS,   # Unicode ellipsis …
     }
 
     configs_to_update = [MODEL_PATH + '.json']
@@ -563,6 +563,9 @@ def _split_overlong_sentence(sentence, max_chars):
     return parts
 
 def _enhance_story_text_for_tts(text):
+    # Parenthetical fragments usually sound better with short pauses.
+    text = re.sub(r'\(([^)]+)\)', r', \1,', text)
+
     # Chapter titles and section headers should become spoken sentence starts.
     text = re.sub(r'(?im)^\s*(kapitel\s+\d+)\s*[:\-]\s*', r'\1. ', text)
     text = re.sub(r'(?im)^\s*(szene\s+\d+)\s*[:\-]\s*', r'\1. ', text)
@@ -570,10 +573,24 @@ def _enhance_story_text_for_tts(text):
     # Semicolons are often swallowed in TTS, convert to clearer sentence breaks.
     text = re.sub(r';\s*', '. ', text)
 
-    # Normalize excessive punctuation.
-    text = re.sub(r'!{3,}', '!', text)
-    text = re.sub(r'\?{3,}', '?', text)
-    text = re.sub(r'\.{3,}', '...', text)
+    # Protect spoken rhythm for common symbol patterns.
+    text = re.sub(r'\s*/\s*', ' oder ', text)
+    text = re.sub(r'\s*&\s*', ' und ', text)
+
+    # Normalize punctuation bursts.
+    if ENABLE_PHONEME_SILENCE:
+        # With phoneme_silence, each punctuation mark adds its own pause.
+        # Reduce to single marks to avoid excessive pausing.
+        text = re.sub(r'!{2,}', '!', text)
+        text = re.sub(r'\?{2,}', '?', text)
+    else:
+        text = re.sub(r'!{3,}', '!!', text)
+        text = re.sub(r'\?{3,}', '??', text)
+    # Convert triple dots to Unicode ellipsis for single phoneme_silence pause
+    text = re.sub(r'\.{3,}', '\u2026', text)
+
+    # Add a small pause before abrupt topic changes.
+    text = re.sub(r'([.!?])\s*(Doch|Aber|Plötzlich|Dann)\b', r'\1 … \2', text)
 
     return text
 
@@ -703,58 +720,6 @@ def preprocess_text(text):
     text = re.sub(r'\bsog\.\b', 'sogenannt', text)
     text = re.sub(r'\behem\.\b', 'ehemalig', text)
     text = re.sub(r'\babs\.\b', 'absolut', text)
-    # ── Percentages: 50% → fünfzig Prozent ──
-    text = re.sub(r'\b(\d+)\s*%', lambda m: number_to_german(int(m.group(1))) + ' Prozent', text)
-    # ── Currency: 5,50€ or 5,50 Euro → fünf Euro fünfzig ──
-    def currency_to_german(m):
-        whole = int(m.group(1))
-        cents = m.group(2)
-        result = number_to_german(whole) + ' Euro'
-        if cents:
-            result += ' ' + number_to_german(int(cents))
-        return result
-    text = re.sub(r'\b(\d+),(\d{2})\s*(?:Euro|€)', currency_to_german, text)
-    text = re.sub(r'\b(\d+)\s*(?:Euro|€)', lambda m: number_to_german(int(m.group(1))) + ' Euro', text)
-    # ── Ordinal numbers in context: der 3. König → der dritte König ──
-    _ordinals = {
-        1: 'erste', 2: 'zweite', 3: 'dritte', 4: 'vierte', 5: 'fünfte',
-        6: 'sechste', 7: 'siebte', 8: 'achte', 9: 'neunte', 10: 'zehnte',
-        11: 'elfte', 12: 'zwölfte', 13: 'dreizehnte', 14: 'vierzehnte',
-        15: 'fünfzehnte', 16: 'sechzehnte', 17: 'siebzehnte', 18: 'achtzehnte',
-        19: 'neunzehnte', 20: 'zwanzigste',
-    }
-    def ordinal_to_german(m):
-        prefix = m.group(1) or ''
-        n = int(m.group(2))
-        suffix = m.group(3)
-        word = _ordinals.get(n, number_to_german(n) + 'te')
-        return prefix + word + ' ' + suffix
-    text = re.sub(r'(der|die|das|dem|den|am|zum|vom|im)\s+(\d{1,2})\.\s+([A-ZÄÖÜ])', ordinal_to_german, text, flags=re.IGNORECASE)
-    # ── Year numbers: 2024 → zweitausendvierundzwanzig (when preceded by "Jahr" or similar) ──
-    def year_to_german(m):
-        prefix = m.group(1)
-        y = int(m.group(2))
-        if 2000 <= y <= 2099:
-            return prefix + ' ' + number_to_german(y)
-        elif 1000 <= y <= 1999:
-            high = y // 100
-            low = y % 100
-            result = number_to_german(high) + 'hundert'
-            if low > 0:
-                result += number_to_german(low)
-            return prefix + ' ' + result
-        return prefix + ' ' + number_to_german(y)
-    text = re.sub(r'(Jahr|Jahre|Jahres|anno|Anno|seit|ab|bis|um|von|im)\s+(\d{4})\b', year_to_german, text)
-    # ── Fractions: 1/2 → ein halb, 3/4 → drei viertel ──
-    _fractions = {
-        (1, 2): 'ein halb', (1, 3): 'ein drittel', (2, 3): 'zwei drittel',
-        (1, 4): 'ein viertel', (3, 4): 'drei viertel',
-    }
-    def fraction_to_german(m):
-        num = int(m.group(1))
-        den = int(m.group(2))
-        return _fractions.get((num, den), f'{number_to_german(num)} {number_to_german(den)}tel')
-    text = re.sub(r'\b(\d+)/(\d+)\b', fraction_to_german, text)
     # ── Normalize dashes to breath pauses ──
     text = text.replace('\u2014', ', ')  # em-dash
     text = text.replace('\u2013', ', ')  # en-dash
@@ -776,7 +741,47 @@ def prepare_for_tts(text):
     # Clean up double periods (but preserve intentional ellipses)
     text = re.sub(r'\.{2}(?!\.)', '.', text)
 
-    # ── 2. Number pronunciation ──
+    # ── 2. Dialogue pauses: breathing room around quoted speech ──
+    # Insert pause before opening quote when preceded by sentence-ending punctuation
+    text = re.sub(r'([.!?])\s*"', r'\1 ... "', text)
+    # Pause after closing quote before speech attribution verbs
+    attribution_verbs = (
+        'sagte|rief|flüsterte|fragte|antwortete|meinte|murmelte|schrie|lachte|'
+        'erklärte|bat|dachte|brummte|seufzte|stöhnte|jubelte|wisperte|knurrte|'
+        'hauchte|schluchzte|jammerte|staunte|schnaubte|zischte|sang|brüllte'
+    )
+    text = re.sub(
+        r'([.!?])"\s*,?\s*(' + attribution_verbs + r')',
+        r'\1" ... \2', text
+    )
+    # Pause before opening quote when starting speech mid-narration
+    text = re.sub(r'(\w{3,}):\s*"', r'\1: ... "', text)
+
+    # ── 3. Exclamation/question emphasis ──
+    # When phoneme_silence is active, Piper handles punctuation pauses natively.
+    # Doubling would cause double pauses (e.g. !! = 2× phoneme_silence).
+    if not ENABLE_PHONEME_SILENCE:
+        text = re.sub(r'!\s', '!! ', text)
+        text = re.sub(r'\?\s', '?? ', text)
+
+    # ── 4. Comma breathing: add commas at natural breath points ──
+    # Before subordinate conjunctions
+    text = re.sub(
+        r'(\w{4,})\s+(wenn|als|weil|dass|aber|doch|denn|obwohl|damit|bevor|nachdem|während|sobald|ob|falls|solange)\s',
+        r'\1, \2 ', text
+    )
+    # Before "und" / "oder" in longer clauses (only when preceded by 6+ chars to avoid short phrases)
+    text = re.sub(r'(\w{6,})\s+(und|oder)\s+(\w{4,})', r'\1, \2 \3', text)
+
+    # ── 5. Interjection pauses ──
+    # Common German interjections get a micro-pause after them
+    interjections = (
+        'Ach|Oh|Ah|Ooh|Wow|Hey|Hm|Hmm|Na|Naja|Tja|Aha|Ohje|Hoppla|'
+        'Hurra|Ups|Autsch|Aua|Igitt|Pfui|Juhu|Oje|Mensch|Mist|Donnerwetter'
+    )
+    text = re.sub(r'\b(' + interjections + r')([,!]?\s)', r'\1, ... ', text)
+
+    # ── 6. Number pronunciation ──
     text = re.sub(r'\b(\d+)\b', lambda m: number_to_german(int(m.group(1))), text)
 
     # ── 7. Onomatopoeia emphasis: stretch sound words for kids ──
@@ -809,7 +814,24 @@ def prepare_for_tts(text):
     for word, replacement in sound_words.items():
         text = re.sub(r'\b' + re.escape(word) + r'\b', replacement, text)
 
-    # ── 4. Clean up artifacts ──
+    # ── 8. Trailing ellipsis for suspense sentences ──
+    # "Er öffnete die Tür." at end of paragraph → add slight suspense if followed by paragraph break
+    text = re.sub(r'([.])(\n\n)', r'\1 …\2', text)
+
+    # ── 9. Emphasis via repetition: stretch emphasized words ──
+    # Words in ALL CAPS get slightly stretched for emphasis
+    def stretch_caps(m):
+        word = m.group(0)
+        if len(word) < 3 or word in ('ICH', 'DU', 'ER', 'SIE', 'WIR', 'IHR', 'DAS', 'DIE', 'DER', 'UND', 'MIT'):
+            return word.capitalize()
+        return word.capitalize()
+    text = re.sub(r'\b[A-ZÄÖÜ]{3,}\b', stretch_caps, text)
+
+    # ── 10. Direct address pauses: "Komm, Leo, wir gehen" ──
+    # Add micro-pause around names in direct address
+    text = re.sub(r',\s*([A-ZÄÖÜ][a-zäöüß]+)\s*,', r', \1, ', text)
+
+    # ── 11. Clean up artifacts ──
     text = re.sub(r',\s*,', ',', text)
     text = re.sub(r'\.\s*,', '.', text)
     text = re.sub(r',\s*\.', '.', text)
@@ -1017,7 +1039,6 @@ def concatenate_wav(wav_chunks):
     data_header = struct.pack('<4sI', b'data', total_data_size)
 
     return header + fmt_chunk + data_header + combined_data
-
 
 def _postprocess_with_ffmpeg(wav_bytes):
     """Apply broadcast-quality post-processing via FFmpeg.
@@ -1495,15 +1516,6 @@ def generate_tts_batch():
     print(f"Batch done: {ok_count}/{len(items)} ok, {total_time:.1f}s ({workers} workers)", file=sys.stderr)
 
     return jsonify({"results": results}), 200
-
-
-# ── Warm-up inference: first ONNX run is slower/different ────────────────────
-try:
-    _warmup_start = time.time()
-    generate_wav_chunk("Hallo.", DEFAULT_LENGTH_SCALE, DEFAULT_NOISE_SCALE, DEFAULT_NOISE_W)
-    print(f"Warm-up inference completed in {time.time() - _warmup_start:.1f}s", file=sys.stderr)
-except Exception as e:
-    print(f"Warm-up inference failed (non-fatal): {e}", file=sys.stderr)
 
 
 if __name__ == '__main__':
