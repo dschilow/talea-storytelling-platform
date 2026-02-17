@@ -11,17 +11,93 @@ import base64
 import uuid
 import threading
 
-# Number of parallel Piper processes per request
-MAX_PARALLEL_PIPER = int(os.environ.get('MAX_PARALLEL_PIPER', '4'))
-
 app = Flask(__name__)
 
 # Fallback paths for local testing vs Docker
 MODEL_PATH = os.environ.get('MODEL_PATH', "/app/model.onnx")
 PIPER_BINARY = os.environ.get('PIPER_BINARY', "/usr/local/bin/piper_bin/piper")
 
-# Max characters per chunk - keeps each Piper call fast
-MAX_CHUNK_CHARS = 300
+def _get_env_int(name, default):
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return int(default)
+    try:
+        return int(raw)
+    except Exception:
+        return int(default)
+
+def _get_env_float(name, default):
+    raw = os.environ.get(name)
+    if raw is None or str(raw).strip() == "":
+        return float(default)
+    try:
+        return float(raw)
+    except Exception:
+        return float(default)
+
+PIPER_QUALITY_MODE = os.environ.get('PIPER_QUALITY_MODE', 'max').strip().lower()
+if PIPER_QUALITY_MODE not in ('fast', 'balanced', 'max'):
+    PIPER_QUALITY_MODE = 'max'
+
+_QUALITY_PRESETS = {
+    # speed-first profile
+    'fast': {
+        'max_parallel': 6,
+        'max_chunk_chars': 260,
+        'job_workers': 4,
+        'length_scale': 1.20,
+        'noise_scale': 0.56,
+        'noise_w': 0.66,
+        'silence_scene': 540,
+        'silence_dialogue': 390,
+        'silence_exclaim': 330,
+        'silence_default': 270,
+    },
+    # good tradeoff profile
+    'balanced': {
+        'max_parallel': 4,
+        'max_chunk_chars': 340,
+        'job_workers': 3,
+        'length_scale': 1.30,
+        'noise_scale': 0.50,
+        'noise_w': 0.60,
+        'silence_scene': 620,
+        'silence_dialogue': 460,
+        'silence_exclaim': 410,
+        'silence_default': 330,
+    },
+    # highest quality profile (slower)
+    'max': {
+        'max_parallel': 2,
+        'max_chunk_chars': 560,
+        'job_workers': 2,
+        'length_scale': 1.38,
+        'noise_scale': 0.44,
+        'noise_w': 0.54,
+        'silence_scene': 700,
+        'silence_dialogue': 520,
+        'silence_exclaim': 450,
+        'silence_default': 360,
+    },
+}
+_QUALITY = _QUALITY_PRESETS[PIPER_QUALITY_MODE]
+
+# Number of parallel Piper processes per request
+MAX_PARALLEL_PIPER = _get_env_int('MAX_PARALLEL_PIPER', _QUALITY['max_parallel'])
+
+# Max characters per chunk. Larger chunks preserve prosody but are slower.
+MAX_CHUNK_CHARS = _get_env_int('MAX_CHUNK_CHARS', _QUALITY['max_chunk_chars'])
+
+# Default synthesis values when request does not provide explicit values.
+DEFAULT_LENGTH_SCALE = _get_env_float('DEFAULT_LENGTH_SCALE', _QUALITY['length_scale'])
+DEFAULT_NOISE_SCALE = _get_env_float('DEFAULT_NOISE_SCALE', _QUALITY['noise_scale'])
+DEFAULT_NOISE_W = _get_env_float('DEFAULT_NOISE_W', _QUALITY['noise_w'])
+
+# Pause lengths for chunk transitions.
+SILENCE_SCENE_MS = _get_env_int('SILENCE_SCENE_MS', _QUALITY['silence_scene'])
+SILENCE_DIALOGUE_MS = _get_env_int('SILENCE_DIALOGUE_MS', _QUALITY['silence_dialogue'])
+SILENCE_EXCLAIM_MS = _get_env_int('SILENCE_EXCLAIM_MS', _QUALITY['silence_exclaim'])
+SILENCE_DEFAULT_MS = _get_env_int('SILENCE_DEFAULT_MS', _QUALITY['silence_default'])
 
 # ── Async job registry ────────────────────────────────────────────────────────
 # Stores: { job_id: { "status": "processing"|"ready"|"error", "result": bytes|None, "error": str|None, "created": float } }
@@ -29,7 +105,8 @@ _jobs: dict = {}
 _jobs_lock = threading.Lock()
 
 # Background thread pool for async job processing (separate from per-request parallelism)
-_job_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tts-job")
+JOB_EXECUTOR_WORKERS = _get_env_int('JOB_EXECUTOR_WORKERS', _QUALITY['job_workers'])
+_job_executor = ThreadPoolExecutor(max_workers=JOB_EXECUTOR_WORKERS, thread_name_prefix="tts-job")
 
 # TTL for completed jobs: 10 minutes (client has time to fetch the result)
 JOB_TTL_SECONDS = 600
@@ -37,6 +114,28 @@ JOB_TTL_SECONDS = 600
 # Check if model exists
 if not os.path.exists(MODEL_PATH):
     print(f"WARNING: Model not found at {MODEL_PATH}", file=sys.stderr)
+
+print(
+    (
+        "Piper config: "
+        f"mode={PIPER_QUALITY_MODE}, "
+        f"max_parallel={MAX_PARALLEL_PIPER}, "
+        f"max_chunk_chars={MAX_CHUNK_CHARS}, "
+        f"default_length_scale={DEFAULT_LENGTH_SCALE}, "
+        f"default_noise_scale={DEFAULT_NOISE_SCALE}, "
+        f"default_noise_w={DEFAULT_NOISE_W}, "
+        f"job_workers={JOB_EXECUTOR_WORKERS}"
+    ),
+    file=sys.stderr,
+)
+
+def _to_float(raw, default):
+    if raw is None:
+        return float(default)
+    try:
+        return float(raw)
+    except Exception:
+        return float(default)
 
 def preprocess_text(text):
     """Normalize text for better TTS pronunciation."""
@@ -382,18 +481,18 @@ def _get_silence_between(chunk_a, chunk_b):
 
     # Scene/paragraph boundary: longer pause
     if chunk_a.rstrip().endswith('...'):
-        return generate_silence(600)
+        return generate_silence(SILENCE_SCENE_MS)
 
     # Dialogue → narration or narration → dialogue transition
     if has_dialogue_a != has_dialogue_b:
-        return generate_silence(450)
+        return generate_silence(SILENCE_DIALOGUE_MS)
 
     # After exclamatory chunks
     if chunk_a.rstrip().endswith(('!!', '??')):
-        return generate_silence(400)
+        return generate_silence(SILENCE_EXCLAIM_MS)
 
     # Default: natural sentence boundary pause
-    return generate_silence(320)
+    return generate_silence(SILENCE_DEFAULT_MS)
 
 def _do_generate(text, length_scale, noise_scale, noise_w):
     """Core generation logic — called synchronously or in a job thread."""
@@ -464,9 +563,9 @@ def generate_async():
     if not text:
         return "No text provided", 400
 
-    length_scale = float(data.get('length_scale', 1.0))
-    noise_scale = float(data.get('noise_scale', 0.667))
-    noise_w = float(data.get('noise_w', 0.8))
+    length_scale = _to_float(data.get('length_scale'), DEFAULT_LENGTH_SCALE)
+    noise_scale = _to_float(data.get('noise_scale'), DEFAULT_NOISE_SCALE)
+    noise_w = _to_float(data.get('noise_w'), DEFAULT_NOISE_W)
 
     _purge_old_jobs()
 
@@ -558,36 +657,36 @@ def generate_result(job_id):
 def generate_tts():
     # Support both GET (query param) and POST (json or form)
     text = None
-    length_scale = 1.0
-    noise_scale = 0.667
-    noise_w = 0.8
+    length_scale = DEFAULT_LENGTH_SCALE
+    noise_scale = DEFAULT_NOISE_SCALE
+    noise_w = DEFAULT_NOISE_W
 
     if request.method == 'POST':
         if request.is_json:
             data = request.json
             text = data.get('text')
-            length_scale = float(data.get('length_scale', 1.0))
-            noise_scale = float(data.get('noise_scale', 0.667))
-            noise_w = float(data.get('noise_w', 0.8))
+            length_scale = _to_float(data.get('length_scale'), DEFAULT_LENGTH_SCALE)
+            noise_scale = _to_float(data.get('noise_scale'), DEFAULT_NOISE_SCALE)
+            noise_w = _to_float(data.get('noise_w'), DEFAULT_NOISE_W)
         else:
             text = request.form.get('text')
             # form handling for params if needed, but JSON is main use case
             if request.form.get('length_scale'):
-                length_scale = float(request.form.get('length_scale'))
+                length_scale = _to_float(request.form.get('length_scale'), DEFAULT_LENGTH_SCALE)
             if request.form.get('noise_scale'):
-                noise_scale = float(request.form.get('noise_scale'))
+                noise_scale = _to_float(request.form.get('noise_scale'), DEFAULT_NOISE_SCALE)
             if request.form.get('noise_w'):
-                noise_w = float(request.form.get('noise_w'))
+                noise_w = _to_float(request.form.get('noise_w'), DEFAULT_NOISE_W)
 
     if not text:
         text = request.args.get('text')
         # query params also possible
         if request.args.get('length_scale'):
-            length_scale = float(request.args.get('length_scale'))
+            length_scale = _to_float(request.args.get('length_scale'), DEFAULT_LENGTH_SCALE)
         if request.args.get('noise_scale'):
-            noise_scale = float(request.args.get('noise_scale'))
+            noise_scale = _to_float(request.args.get('noise_scale'), DEFAULT_NOISE_SCALE)
         if request.args.get('noise_w'):
-            noise_w = float(request.args.get('noise_w'))
+            noise_w = _to_float(request.args.get('noise_w'), DEFAULT_NOISE_W)
 
     if not text:
         print("Error: No text provided in request", file=sys.stderr)
@@ -627,9 +726,9 @@ def generate_tts_batch():
     if not items:
         return jsonify({"results": []}), 200
 
-    length_scale = float(data.get('length_scale', 1.0))
-    noise_scale = float(data.get('noise_scale', 0.667))
-    noise_w = float(data.get('noise_w', 0.8))
+    length_scale = _to_float(data.get('length_scale'), DEFAULT_LENGTH_SCALE)
+    noise_scale = _to_float(data.get('noise_scale'), DEFAULT_NOISE_SCALE)
+    noise_w = _to_float(data.get('noise_w'), DEFAULT_NOISE_W)
 
     print(f"Batch request: {len(items)} items, speed={length_scale}", file=sys.stderr)
     start_time = time.time()
@@ -643,14 +742,13 @@ def generate_tts_batch():
             text = preprocess_text(text)
             text = prepare_for_tts(text)
             chunks = split_text_into_chunks(text)
-            silence_gap = generate_silence(380) if len(chunks) > 1 else None
 
             wav_chunks = []
             for i, chunk in enumerate(chunks):
                 wav_data = generate_wav_chunk(chunk, length_scale, noise_scale, noise_w)
                 wav_chunks.append(wav_data)
-                if silence_gap and i < len(chunks) - 1:
-                    wav_chunks.append(silence_gap)
+                if i < len(chunks) - 1:
+                    wav_chunks.append(_get_silence_between(chunks[i], chunks[i + 1]))
 
             result_wav = concatenate_wav(wav_chunks)
             audio_b64 = base64.b64encode(result_wav).decode('ascii')
