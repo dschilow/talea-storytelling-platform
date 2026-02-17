@@ -31,9 +31,9 @@ async function submitAsyncJob(text: string): Promise<string> {
     const url = `${TTS_SERVICE_URL}/generate/async`;
     const body = JSON.stringify({
         text,
-        length_scale: 1.55,
-        noise_scale: 0.42,
-        noise_w: 0.38,
+        length_scale: 1.35,
+        noise_scale: 0.55,
+        noise_w: 0.65,
     });
 
     // Retry up to 3 times to handle cold-start 502s from Railway

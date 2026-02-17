@@ -40,25 +40,55 @@ if not os.path.exists(MODEL_PATH):
 
 def preprocess_text(text):
     """Normalize text for better TTS pronunciation."""
+    # ── Abbreviations ──
     text = re.sub(r'\bz\.B\.\b', 'zum Beispiel', text)
     text = re.sub(r'\bd\.h\.\b', 'das heißt', text)
     text = re.sub(r'\bu\.a\.\b', 'unter anderem', text)
     text = re.sub(r'\bbzw\.\b', 'beziehungsweise', text)
     text = re.sub(r'\busw\.\b', 'und so weiter', text)
+    text = re.sub(r'\bu\.s\.w\.\b', 'und so weiter', text)
     text = re.sub(r'\bca\.\b', 'circa', text)
     text = re.sub(r'\bDr\.\b', 'Doktor', text)
+    text = re.sub(r'\bProf\.\b', 'Professor', text)
     text = re.sub(r'\bHr\.\b', 'Herr', text)
     text = re.sub(r'\bFr\.\b', 'Frau', text)
     text = re.sub(r'\bNr\.\b', 'Nummer', text)
-    # Remove markdown artifacts
+    text = re.sub(r'\bSt\.\b', 'Sankt', text)
+    text = re.sub(r'\bStr\.\b', 'Straße', text)
+    text = re.sub(r'\bo\.ä\.\b', 'oder ähnliches', text)
+    text = re.sub(r'\bs\.o\.\b', 'siehe oben', text)
+    text = re.sub(r'\bggf\.\b', 'gegebenenfalls', text)
+    text = re.sub(r'\bevtl\.\b', 'eventuell', text)
+    text = re.sub(r'\bMio\.\b', 'Millionen', text)
+    text = re.sub(r'\bMrd\.\b', 'Milliarden', text)
+    # ── Time expressions: 14:30 → vierzehn Uhr dreißig ──
+    def time_to_german(m):
+        h = int(m.group(1))
+        mins = int(m.group(2))
+        result = number_to_german(h) + ' Uhr'
+        if mins > 0:
+            result += ' ' + number_to_german(mins)
+        return result
+    text = re.sub(r'\b(\d{1,2}):(\d{2})\b', time_to_german, text)
+    # ── Normalize German quotation marks to ASCII for consistent handling ──
+    text = text.replace('\u201e', '"')   # „ → "
+    text = text.replace('\u201c', '"')   # " → "
+    text = text.replace('\u201d', '"')   # " → "
+    text = text.replace('\u00bb', '"')   # » → "
+    text = text.replace('\u00ab', '"')   # « → "
+    text = text.replace('\u203a', '"')   # › → "
+    text = text.replace('\u2039', '"')   # ‹ → "
+    # ── Remove markdown artifacts ──
     text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
     text = re.sub(r'\*(.+?)\*', r'\1', text)
     text = re.sub(r'#{1,6}\s*', '', text)
     text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
-    # Normalize dashes and ellipsis
+    # ── Scene transition markers → pause ──
+    text = re.sub(r'^[\*\-]{3,}\s*$', '...', re.MULTILINE)
+    # ── Normalize dashes ──
     text = text.replace('\u2014', ', ')  # em-dash
     text = text.replace('\u2013', ', ')  # en-dash
-    text = text.replace('...', '.')
+    # ── Whitespace cleanup ──
     text = re.sub(r'\n+', '\n\n', text)
     text = re.sub(r'[ \t]+', ' ', text)
     return text.strip()
@@ -69,70 +99,94 @@ def prepare_for_tts(text):
     Adds micro-pauses via punctuation, expands difficult words, slows dialogue.
     The original text in the frontend stays unchanged — this only affects audio.
     """
-    # ── 1. Dialogue pauses: Add comma before/after quoted speech for breath ──
-    # "Hallo!", sagte er. → Piper rushes through quotes without pause
-    # Insert a period-pause before opening quotes for a breath break
-    text = re.sub(r'([.!?])\s*"', r'\1 ... "', text)
-    # Add tiny pause after closing quote before attribution
-    text = re.sub(r'([.!?])"\s*,?\s*(sagte|rief|flüsterte|fragte|antwortete|meinte|murmelte|schrie|lachte|erklärte|bat|dachte)',
-                  r'\1" ... \2', text)
-
-    # ── 2. Exclamation/question emphasis: repeat punctuation for Piper weight ──
-    # Piper reads "Wow!" the same as "Wow." — doubling gives slight emphasis
-    text = re.sub(r'([!])\s', r'!! ', text)
-    text = re.sub(r'([?])\s', r'?? ', text)
-
-    # ── 3. Paragraph breaks → sentence-ending pause ──
-    # Piper ignores \n\n. Replace with period + newline so it creates a real pause
+    # ── 1. Paragraph breaks → sentence-ending pause ──
+    # Piper ignores \n\n. Replace with period + newline so it creates a real pause.
+    # Do this FIRST so later rules operate on clean text.
     text = re.sub(r'\n\n+', '.\n\n', text)
-    # Clean up double periods
-    text = text.replace('..', '.')
-    # But keep our intentional triple-dot pauses
-    text = text.replace('. .', ' ...')
+    # Clean up double periods (but preserve intentional ellipses)
+    text = re.sub(r'\.{2}(?!\.)', '.', text)
+
+    # ── 2. Dialogue pauses: breathing room around quoted speech ──
+    # Insert pause before opening quote when preceded by sentence-ending punctuation
+    text = re.sub(r'([.!?])\s*"', r'\1 ... "', text)
+    # Pause after closing quote before speech attribution verbs
+    attribution_verbs = (
+        'sagte|rief|flüsterte|fragte|antwortete|meinte|murmelte|schrie|lachte|'
+        'erklärte|bat|dachte|brummte|seufzte|stöhnte|jubelte|wisperte|knurrte|'
+        'hauchte|schluchzte|jammerte|staunte|schnaubte|zischte|sang|brüllte'
+    )
+    text = re.sub(
+        r'([.!?])"\s*,?\s*(' + attribution_verbs + r')',
+        r'\1" ... \2', text
+    )
+    # Pause before opening quote when starting speech mid-narration
+    text = re.sub(r'(\w{3,}):\s*"', r'\1: ... "', text)
+
+    # ── 3. Exclamation/question emphasis ──
+    text = re.sub(r'!\s', '!! ', text)
+    text = re.sub(r'\?\s', '?? ', text)
 
     # ── 4. Comma breathing: add commas at natural breath points ──
-    # Before conjunctions in longer sentences (wenn, als, weil, dass, aber, und, oder, doch, denn)
-    text = re.sub(r'(\w{4,})\s+(wenn|als|weil|dass|aber|doch|denn|obwohl|damit|bevor|nachdem|während|sobald)\s',
-                  r'\1, \2 ', text)
-    # Before relative pronouns
-    text = re.sub(r'(\w{3,})\s+(der|die|das|dem|den|dessen|deren)\s+(sich|nicht|sehr|ganz|immer|noch|schon|auch)\s',
-                  r'\1, \2 \3 ', text)
+    # Before subordinate conjunctions
+    text = re.sub(
+        r'(\w{4,})\s+(wenn|als|weil|dass|aber|doch|denn|obwohl|damit|bevor|nachdem|während|sobald|ob|falls|solange)\s',
+        r'\1, \2 ', text
+    )
+    # Before "und" / "oder" in longer clauses (only when preceded by 6+ chars to avoid short phrases)
+    text = re.sub(r'(\w{6,})\s+(und|oder)\s+(\w{4,})', r'\1, \2 \3', text)
 
-    # ── 5. Number pronunciation ──
+    # ── 5. Interjection pauses ──
+    # Common German interjections get a micro-pause after them
+    interjections = (
+        'Ach|Oh|Ah|Ooh|Wow|Hey|Hm|Hmm|Na|Naja|Tja|Aha|Ohje|Hoppla|'
+        'Hurra|Ups|Autsch|Aua|Igitt|Pfui|Juhu|Oje|Mensch|Mist|Donnerwetter'
+    )
+    text = re.sub(r'\b(' + interjections + r')([,!]?\s)', r'\1, ... ', text)
+
+    # ── 6. Number pronunciation ──
     text = re.sub(r'\b(\d+)\b', lambda m: number_to_german(int(m.group(1))), text)
 
-    # ── 6. Onomatopoeia emphasis: stretch sound words for kids ──
-    # "Platsch" → "Plaatsch", "Bumm" → "Buumm" etc.
+    # ── 7. Onomatopoeia emphasis: stretch sound words for kids ──
     sound_words = {
-        'Platsch': 'Plaatsch',
-        'platsch': 'plaatsch',
-        'Bumm': 'Buumm',
-        'bumm': 'buumm',
-        'Puff': 'Puuff',
-        'puff': 'puuff',
-        'Knall': 'Knaall',
-        'knall': 'knaall',
-        'Zisch': 'Ziisch',
-        'zisch': 'ziisch',
-        'Klopf': 'Kloopf',
-        'klopf': 'kloopf',
-        'Plopp': 'Ploopp',
-        'plopp': 'ploopp',
-        'Krach': 'Kraach',
-        'krach': 'kraach',
+        'Platsch': 'Plaatsch', 'platsch': 'plaatsch',
+        'Bumm': 'Buumm', 'bumm': 'buumm',
+        'Puff': 'Puuff', 'puff': 'puuff',
+        'Knall': 'Knaall', 'knall': 'knaall',
+        'Zisch': 'Ziisch', 'zisch': 'ziisch',
+        'Klopf': 'Kloopf', 'klopf': 'kloopf',
+        'Plopp': 'Ploopp', 'plopp': 'ploopp',
+        'Krach': 'Kraach', 'krach': 'kraach',
         'Huiii': 'Huuiii',
         'Pssst': 'Psssst',
-        'Huch': 'Huuch',
-        'huch': 'huuch',
+        'Huch': 'Huuch', 'huch': 'huuch',
+        'Wusch': 'Wuusch', 'wusch': 'wuusch',
+        'Schwupp': 'Schwuupp', 'schwupp': 'schwuupp',
+        'Rums': 'Ruums', 'rums': 'ruums',
+        'Piep': 'Pieep', 'piep': 'pieep',
+        'Miau': 'Miaauu', 'miau': 'miaauu',
+        'Wuff': 'Wuuff', 'wuff': 'wuuff',
+        'Brumm': 'Bruumm', 'brumm': 'bruumm',
+        'Ratsch': 'Raatsch', 'ratsch': 'raatsch',
+        'Klirr': 'Kliirr', 'klirr': 'kliirr',
+        'Kling': 'Kliing', 'kling': 'kliing',
+        'Dong': 'Doong', 'dong': 'doong',
+        'Tock': 'Toock', 'tock': 'toock',
+        'Tick': 'Tiick', 'tick': 'tiick',
     }
     for word, replacement in sound_words.items():
         text = re.sub(r'\b' + re.escape(word) + r'\b', replacement, text)
 
-    # ── 7. Clean up any double commas or weird artifacts ──
+    # ── 8. Trailing ellipsis for suspense sentences ──
+    # "Er öffnete die Tür." at end of paragraph → add slight suspense if followed by paragraph break
+    text = re.sub(r'([.])(\n\n)', r'\1 ...\2', text)
+
+    # ── 9. Clean up artifacts ──
     text = re.sub(r',\s*,', ',', text)
     text = re.sub(r'\.\s*,', '.', text)
     text = re.sub(r',\s*\.', '.', text)
+    text = re.sub(r'\.{4,}', '...', text)   # normalize 4+ dots to 3
     text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\s+([.!?,])', r'\1', text)  # no space before punctuation
 
     return text.strip()
 
@@ -321,6 +375,26 @@ def concatenate_wav(wav_chunks):
 
     return header + fmt_chunk + data_header + combined_data
 
+def _get_silence_between(chunk_a, chunk_b):
+    """Determine silence duration between two chunks based on content."""
+    has_dialogue_a = '"' in chunk_a
+    has_dialogue_b = '"' in chunk_b
+
+    # Scene/paragraph boundary: longer pause
+    if chunk_a.rstrip().endswith('...'):
+        return generate_silence(600)
+
+    # Dialogue → narration or narration → dialogue transition
+    if has_dialogue_a != has_dialogue_b:
+        return generate_silence(450)
+
+    # After exclamatory chunks
+    if chunk_a.rstrip().endswith(('!!', '??')):
+        return generate_silence(400)
+
+    # Default: natural sentence boundary pause
+    return generate_silence(320)
+
 def _do_generate(text, length_scale, noise_scale, noise_w):
     """Core generation logic — called synchronously or in a job thread."""
     text = preprocess_text(text)
@@ -328,8 +402,6 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
 
     chunks = split_text_into_chunks(text)
     print(f"Split into {len(chunks)} chunks", file=sys.stderr)
-
-    silence_gap = generate_silence(380) if len(chunks) > 1 else None
 
     wav_results = [None] * len(chunks)
     workers = min(MAX_PARALLEL_PIPER, len(chunks))
@@ -353,8 +425,9 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
     wav_chunks = []
     for i, wav_data in enumerate(wav_results):
         wav_chunks.append(wav_data)
-        if silence_gap and i < len(wav_results) - 1:
-            wav_chunks.append(silence_gap)
+        if i < len(wav_results) - 1:
+            silence = _get_silence_between(chunks[i], chunks[i + 1])
+            wav_chunks.append(silence)
 
     return concatenate_wav(wav_chunks)
 
