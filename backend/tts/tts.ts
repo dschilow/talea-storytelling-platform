@@ -4,10 +4,32 @@ import log from "encore.dev/log";
 // TTS_SERVICE_URL should use Railway private networking to avoid the public LB timeout:
 // Set TTS_SERVICE_URL=http://tts-service.railway.internal:8080 in Railway env vars.
 // Railway private networking has no 30/60s proxy timeout — only the AbortController limit applies.
-const TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
+const PIPER_TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
+
+// Optional second service for A/B tests (e.g. Chatterbox):
+// CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox.railway.internal:8080
+const CHATTERBOX_TTS_SERVICE_URL = process.env.CHATTERBOX_TTS_SERVICE_URL || "";
+
+export type TTSProvider = "piper" | "chatterbox";
+
+function resolveProvider(provider?: string): TTSProvider {
+    if (provider === "chatterbox") return "chatterbox";
+    return "piper";
+}
+
+function resolveServiceUrl(provider: TTSProvider): string {
+    if (provider === "chatterbox") {
+        if (!CHATTERBOX_TTS_SERVICE_URL) {
+            throw new Error("CHATTERBOX_TTS_SERVICE_URL is not configured");
+        }
+        return CHATTERBOX_TTS_SERVICE_URL;
+    }
+    return PIPER_TTS_SERVICE_URL;
+}
 
 export interface TTSResponse {
     audioData: string; // Base64 encoded WAV data URI
+    providerUsed?: TTSProvider;
 }
 
 export interface TTSBatchItem {
@@ -25,15 +47,22 @@ export interface TTSBatchResponse {
     results: TTSBatchResultItem[];
 }
 
+interface TTSGenerationOptions {
+    languageId?: string;
+    model?: string;
+}
+
 // ── Async polling helpers (used when TTS_SERVICE_URL points to async-capable server) ────
 
-async function submitAsyncJob(text: string): Promise<string> {
-    const url = `${TTS_SERVICE_URL}/generate/async`;
+async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGenerationOptions): Promise<string> {
+    const url = `${serviceUrl}/generate/async`;
     const body = JSON.stringify({
         text,
         length_scale: 1.35,
         noise_scale: 0.55,
         noise_w: 0.65,
+        language_id: options?.languageId,
+        model: options?.model,
     });
 
     // Retry up to 3 times to handle cold-start 502s from Railway
@@ -80,9 +109,9 @@ async function submitAsyncJob(text: string): Promise<string> {
     throw new Error("TTS async submit failed after all retries");
 }
 
-async function pollJobUntilReady(jobId: string, timeoutMs = 420_000): Promise<string> {
-    const statusUrl = `${TTS_SERVICE_URL}/generate/status/${jobId}`;
-    const resultUrl = `${TTS_SERVICE_URL}/generate/result/${jobId}`;
+async function pollJobUntilReady(serviceUrl: string, jobId: string, timeoutMs = 420_000): Promise<string> {
+    const statusUrl = `${serviceUrl}/generate/status/${jobId}`;
+    const resultUrl = `${serviceUrl}/generate/result/${jobId}`;
     const deadline = Date.now() + timeoutMs;
 
     // Start with fast polling, then back off
@@ -144,11 +173,11 @@ async function pollJobUntilReady(jobId: string, timeoutMs = 420_000): Promise<st
     throw new Error(`TTS polling timed out after ${timeoutMs / 1000}s for job ${jobId}`);
 }
 
-async function generateSyncFallback(text: string): Promise<string> {
+async function generateSyncFallback(serviceUrl: string, text: string, options?: TTSGenerationOptions): Promise<string> {
     // Synchronous fallback for old TTS server or when private networking is used.
     // With Railway private networking (tts-service.railway.internal) there is no LB timeout,
     // so long-running requests succeed even if they take 5+ minutes.
-    const url = `${TTS_SERVICE_URL}/`;
+    const url = `${serviceUrl}/`;
     log.info(`TTS sync fallback for text length ${text.length}`);
 
     const MAX_RETRIES = 3;
@@ -164,6 +193,8 @@ async function generateSyncFallback(text: string): Promise<string> {
                     length_scale: 1.55,
                     noise_scale: 0.42,
                     noise_w: 0.38,
+                    language_id: options?.languageId,
+                    model: options?.model,
                 }),
                 signal: controller.signal,
             });
@@ -202,35 +233,38 @@ async function generateSyncFallback(text: string): Promise<string> {
 
 export const generateSpeech = api(
     { expose: true, method: "POST", path: "/tts/generate" },
-    async ({ text }: { text: string }): Promise<TTSResponse> => {
+    async ({ text, provider, languageId, model }: { text: string; provider?: TTSProvider; languageId?: string; model?: string }): Promise<TTSResponse> => {
         if (!text) {
             throw new Error("Text is required");
         }
 
         try {
+            const resolvedProvider = resolveProvider(provider);
+            const serviceUrl = resolveServiceUrl(resolvedProvider);
+
             // Try async polling first (new server). Falls back to sync if 404 (old server).
-            log.info(`TTS request for text length ${text.length}`);
+            log.info(`TTS request for text length ${text.length} via ${resolvedProvider}`);
 
             let audioData: string;
             try {
-                const jobId = await submitAsyncJob(text);
+                const jobId = await submitAsyncJob(serviceUrl, text, { languageId, model });
                 log.info(`TTS async job submitted: ${jobId}`);
-                audioData = await pollJobUntilReady(jobId);
+                audioData = await pollJobUntilReady(serviceUrl, jobId);
                 log.info(`TTS async job complete: ${jobId}`);
             } catch (err: any) {
                 if (err.message === "ASYNC_NOT_SUPPORTED") {
                     // Old TTS server — use synchronous endpoint
                     log.warn("TTS async not supported, falling back to sync endpoint");
-                    audioData = await generateSyncFallback(text);
+                    audioData = await generateSyncFallback(serviceUrl, text, { languageId, model });
                 } else {
                     throw err;
                 }
             }
 
-            return { audioData };
+            return { audioData, providerUsed: resolvedProvider };
         } catch (error: any) {
             const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
-            log.error(`TTS failed: ${error.message} | cause: ${causeMsg} | url: ${TTS_SERVICE_URL}`);
+            log.error(`TTS failed: ${error.message} | cause: ${causeMsg}`);
             throw error;
         }
     }
@@ -238,13 +272,15 @@ export const generateSpeech = api(
 
 export const generateSpeechBatch = api(
     { expose: true, method: "POST", path: "/tts/batch" },
-    async ({ items }: { items: TTSBatchItem[] }): Promise<TTSBatchResponse> => {
+    async ({ items, provider }: { items: TTSBatchItem[]; provider?: TTSProvider }): Promise<TTSBatchResponse> => {
         if (!items || items.length === 0) {
             return { results: [] };
         }
 
         try {
-            const url = `${TTS_SERVICE_URL}/batch`;
+            const resolvedProvider = resolveProvider(provider);
+            const serviceUrl = resolveServiceUrl(resolvedProvider);
+            const url = `${serviceUrl}/batch`;
             log.info(`Requesting TTS batch from ${url} for ${items.length} items`);
 
             const controller = new AbortController();

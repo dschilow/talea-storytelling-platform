@@ -1,0 +1,4 @@
+flask==3.0.3
+gunicorn==22.0.0
+chatterbox-tts==0.1.6
+soundfile==0.12.1
