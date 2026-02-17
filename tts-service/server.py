@@ -53,6 +53,11 @@ def _clamp(value, minimum, maximum):
         return maximum
     return value
 
+def _clamp_step(previous, target, max_step):
+    low = previous - max_step
+    high = previous + max_step
+    return _clamp(target, low, high)
+
 PIPER_QUALITY_MODE = os.environ.get('PIPER_QUALITY_MODE', 'max').strip().lower()
 if PIPER_QUALITY_MODE not in ('fast', 'balanced', 'max'):
     PIPER_QUALITY_MODE = 'max'
@@ -62,6 +67,7 @@ _QUALITY_PRESETS = {
     'fast': {
         'max_parallel': 6,
         'max_chunk_chars': 260,
+        'max_sentences_per_chunk': 3,
         'job_workers': 4,
         'length_scale': 1.20,
         'noise_scale': 0.56,
@@ -69,12 +75,16 @@ _QUALITY_PRESETS = {
         'silence_scene': 540,
         'silence_dialogue': 390,
         'silence_exclaim': 330,
+        'silence_question': 340,
+        'silence_period': 260,
+        'silence_comma': 180,
         'silence_default': 270,
     },
     # good tradeoff profile
     'balanced': {
         'max_parallel': 4,
         'max_chunk_chars': 340,
+        'max_sentences_per_chunk': 2,
         'job_workers': 3,
         'length_scale': 1.30,
         'noise_scale': 0.50,
@@ -82,12 +92,16 @@ _QUALITY_PRESETS = {
         'silence_scene': 620,
         'silence_dialogue': 460,
         'silence_exclaim': 410,
+        'silence_question': 430,
+        'silence_period': 320,
+        'silence_comma': 220,
         'silence_default': 330,
     },
     # highest quality profile (slower)
     'max': {
         'max_parallel': 2,
         'max_chunk_chars': 560,
+        'max_sentences_per_chunk': 1,
         'job_workers': 2,
         'length_scale': 1.38,
         'noise_scale': 0.44,
@@ -95,6 +109,9 @@ _QUALITY_PRESETS = {
         'silence_scene': 700,
         'silence_dialogue': 520,
         'silence_exclaim': 450,
+        'silence_question': 500,
+        'silence_period': 380,
+        'silence_comma': 260,
         'silence_default': 360,
     },
 }
@@ -105,6 +122,7 @@ MAX_PARALLEL_PIPER = _get_env_int('MAX_PARALLEL_PIPER', _QUALITY['max_parallel']
 
 # Max characters per chunk. Larger chunks preserve prosody but are slower.
 MAX_CHUNK_CHARS = _get_env_int('MAX_CHUNK_CHARS', _QUALITY['max_chunk_chars'])
+MAX_SENTENCES_PER_CHUNK = _get_env_int('MAX_SENTENCES_PER_CHUNK', _QUALITY['max_sentences_per_chunk'])
 
 # Default synthesis values when request does not provide explicit values.
 DEFAULT_LENGTH_SCALE = _get_env_float('DEFAULT_LENGTH_SCALE', _QUALITY['length_scale'])
@@ -115,6 +133,9 @@ DEFAULT_NOISE_W = _get_env_float('DEFAULT_NOISE_W', _QUALITY['noise_w'])
 SILENCE_SCENE_MS = _get_env_int('SILENCE_SCENE_MS', _QUALITY['silence_scene'])
 SILENCE_DIALOGUE_MS = _get_env_int('SILENCE_DIALOGUE_MS', _QUALITY['silence_dialogue'])
 SILENCE_EXCLAIM_MS = _get_env_int('SILENCE_EXCLAIM_MS', _QUALITY['silence_exclaim'])
+SILENCE_QUESTION_MS = _get_env_int('SILENCE_QUESTION_MS', _QUALITY['silence_question'])
+SILENCE_PERIOD_MS = _get_env_int('SILENCE_PERIOD_MS', _QUALITY['silence_period'])
+SILENCE_COMMA_MS = _get_env_int('SILENCE_COMMA_MS', _QUALITY['silence_comma'])
 SILENCE_DEFAULT_MS = _get_env_int('SILENCE_DEFAULT_MS', _QUALITY['silence_default'])
 
 # Optional quality refinements
@@ -124,6 +145,22 @@ OUTPUT_TARGET_PEAK = _get_env_float('OUTPUT_TARGET_PEAK', 0.93)
 OUTPUT_EDGE_FADE_MS = _get_env_int('OUTPUT_EDGE_FADE_MS', 6)
 ENABLE_CHARACTER_VOICE_VARIATION = _get_env_bool('ENABLE_CHARACTER_VOICE_VARIATION', True)
 ENABLE_EMOTION_VARIATION = _get_env_bool('ENABLE_EMOTION_VARIATION', True)
+DEBUG_TTS_PROSODY = _get_env_bool('DEBUG_TTS_PROSODY', False)
+
+# Guard rails and smoothing to avoid sudden "too fast" speech spikes.
+MIN_LENGTH_SCALE = _get_env_float('MIN_LENGTH_SCALE', 1.02)
+MAX_LENGTH_SCALE = _get_env_float('MAX_LENGTH_SCALE', 1.95)
+MIN_NOISE_SCALE = _get_env_float('MIN_NOISE_SCALE', 0.05)
+MAX_NOISE_SCALE = _get_env_float('MAX_NOISE_SCALE', 1.30)
+MIN_NOISE_W = _get_env_float('MIN_NOISE_W', 0.05)
+MAX_NOISE_W = _get_env_float('MAX_NOISE_W', 1.30)
+MIN_RELATIVE_LENGTH_MULT = _get_env_float('MIN_RELATIVE_LENGTH_MULT', 0.98)
+MAX_RELATIVE_LENGTH_MULT = _get_env_float('MAX_RELATIVE_LENGTH_MULT', 1.18)
+
+ENABLE_PROSODY_SMOOTHING = _get_env_bool('ENABLE_PROSODY_SMOOTHING', True)
+MAX_LENGTH_SCALE_STEP = _get_env_float('MAX_LENGTH_SCALE_STEP', 0.12)
+MAX_NOISE_SCALE_STEP = _get_env_float('MAX_NOISE_SCALE_STEP', 0.08)
+MAX_NOISE_W_STEP = _get_env_float('MAX_NOISE_W_STEP', 0.08)
 
 # Optional custom pronunciation map.
 # Format: "Name=nahm-eh;Talea=ta-lee-ah"
@@ -170,11 +207,13 @@ print(
         f"mode={PIPER_QUALITY_MODE}, "
         f"max_parallel={MAX_PARALLEL_PIPER}, "
         f"max_chunk_chars={MAX_CHUNK_CHARS}, "
+        f"max_sentences_per_chunk={MAX_SENTENCES_PER_CHUNK}, "
         f"default_length_scale={DEFAULT_LENGTH_SCALE}, "
         f"default_noise_scale={DEFAULT_NOISE_SCALE}, "
         f"default_noise_w={DEFAULT_NOISE_W}, "
         f"job_workers={JOB_EXECUTOR_WORKERS}, "
         f"dynamic_tuning={ENABLE_DYNAMIC_CHUNK_TUNING}, "
+        f"smoothing={ENABLE_PROSODY_SMOOTHING}, "
         f"output_normalization={ENABLE_OUTPUT_NORMALIZATION}, "
         f"character_variation={ENABLE_CHARACTER_VOICE_VARIATION}, "
         f"emotion_variation={ENABLE_EMOTION_VARIATION}, "
@@ -222,28 +261,30 @@ def _speaker_hash_profile(name):
     for index, char in enumerate(name):
         seed += (index + 1) * ord(char)
 
-    length_multiplier = 0.94 + ((seed % 17) / 100.0)  # 0.94..1.10
+    length_multiplier = 0.96 + ((seed % 9) / 100.0)  # 0.96..1.04
     noise_delta = (((seed // 17) % 11) - 5) / 100.0   # -0.05..0.05
-    noise_w_delta = (((seed // 187) % 11) - 5) / 100.0
+    noise_w_delta = (((seed // 255) % 11) - 5) / 100.0
     return length_multiplier, noise_delta, noise_w_delta
 
 def _extract_speaker_hint(chunk):
+    name_pattern = r'([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß0-9_-]{1,24})'
+
     # Pattern 1: Name: "..."
-    match = re.search(r'\b([A-Z][A-Za-z0-9_-]{1,24})\s*:\s*"', chunk)
+    match = re.search(r'\b' + name_pattern + r'\s*:\s*"', chunk, re.IGNORECASE)
     if match:
         return match.group(1).lower()
 
     # Pattern 2: "...", sagte Name
     speech_verbs = (
         r'sagte|fragte|antwortete|rief|schrie|fl[üu]sterte|murmelte|'
-        r'meinte|br[üu]llte|jammerte|lachte|seufzte|knurrte'
+        r'meinte|br[üu]llte|jammerte|lachte|seufzte|knurrte|wisperte|hauchte'
     )
-    match = re.search(r'"\s*,?\s*(?:' + speech_verbs + r')\s+([A-Z][A-Za-z0-9_-]{1,24})\b', chunk, re.IGNORECASE)
+    match = re.search(r'"\s*,?\s*(?:' + speech_verbs + r')\s+' + name_pattern + r'\b', chunk, re.IGNORECASE)
     if match:
         return match.group(1).lower()
 
     # Pattern 3: Name sagte: "..."
-    match = re.search(r'\b([A-Z][A-Za-z0-9_-]{1,24})\s+(?:' + speech_verbs + r')\b', chunk, re.IGNORECASE)
+    match = re.search(r'\b' + name_pattern + r'\s+(?:' + speech_verbs + r')\b', chunk, re.IGNORECASE)
     if match:
         return match.group(1).lower()
 
@@ -269,25 +310,31 @@ def _emotion_tuning_from_text(chunk):
         'suspense': 0,
     }
 
-    if text.count('!') >= 2:
+    exclaim_count = text.count('!')
+    question_count = text.count('?')
+    if exclaim_count >= 2:
         scores['anger'] += 2
         scores['joy'] += 1
-    if text.count('?') >= 2:
+    elif exclaim_count == 1:
+        scores['joy'] += 1
+    if question_count >= 2:
         scores['fear'] += 1
+        scores['suspense'] += 1
+    elif question_count == 1:
         scores['suspense'] += 1
     if '...' in text:
         scores['suspense'] += 2
         scores['calm'] += 1
 
-    if contains(r'\b(schrie|br[üu]llte|knurrte|wut|zorn|fauchte)\b'):
+    if contains(r'\b(schrie|br[üu]llte|knurrte|wut|zorn|fauchte|w[üu]tend)\b'):
         scores['anger'] += 3
-    if contains(r'\b(lachte|jubelte|grinste|freute|strahlte)\b'):
+    if contains(r'\b(lachte|jubelte|grinste|freute|strahlte|fr[öo]hlich)\b'):
         scores['joy'] += 3
-    if contains(r'\b(weinte|schluchzte|traurig|seufzte|leise)\b'):
+    if contains(r'\b(weinte|schluchzte|traurig|seufzte|leise|verzweifelt)\b'):
         scores['sadness'] += 3
-    if contains(r'\b(zitterte|aengstlich|ängstlich|panik|furcht|flucht)\b'):
+    if contains(r'\b(zitterte|aengstlich|ängstlich|panik|furcht|flucht|erschrocken)\b'):
         scores['fear'] += 3
-    if contains(r'\b(fluesterte|flüsterte|ruhig|sanft|behutsam)\b'):
+    if contains(r'\b(fluesterte|flüsterte|ruhig|sanft|behutsam|gelassen)\b'):
         scores['calm'] += 3
 
     emotion = max(scores, key=lambda key: scores[key])
@@ -296,14 +343,24 @@ def _emotion_tuning_from_text(chunk):
 
     # length_multiplier, noise_delta, noise_w_delta
     profiles = {
-        'anger': (0.90, 0.08, 0.06),
-        'joy': (0.95, 0.05, 0.03),
-        'sadness': (1.10, -0.04, -0.03),
-        'fear': (0.97, 0.06, 0.04),
-        'calm': (1.06, -0.03, -0.02),
-        'suspense': (1.08, -0.02, -0.01),
+        'anger': (0.98, 0.09, 0.06),
+        'joy': (1.00, 0.07, 0.05),
+        'sadness': (1.15, -0.07, -0.05),
+        'fear': (1.04, 0.07, 0.05),
+        'calm': (1.10, -0.05, -0.04),
+        'suspense': (1.12, -0.04, -0.03),
     }
     return profiles[emotion]
+
+def _split_sentences_preserve_quotes(text):
+    """Split text into sentence-like units while keeping closing quotes with sentence-ending punctuation."""
+    pattern = re.compile(r'.+?(?:[.!?]+(?:["\')\]]+)?)(?=\s+|$)|.+$', re.DOTALL)
+    sentences = []
+    for match in pattern.finditer(text):
+        sentence = match.group(0).strip()
+        if sentence:
+            sentences.append(sentence)
+    return sentences
 
 def _apply_custom_pronunciations(text):
     if not CUSTOM_PRONUNCIATIONS:
@@ -407,24 +464,30 @@ def _derive_chunk_params(chunk, base_length, base_noise, base_noise_w):
 
     if ENABLE_DYNAMIC_CHUNK_TUNING:
         has_dialogue = '"' in normalized
-        has_exclamation = normalized.endswith('!!') or normalized.endswith('!') or normalized.endswith('??')
+        has_exclamation = normalized.endswith('!!') or normalized.endswith('!')
+        has_question = normalized.endswith('?')
         has_suspense = normalized.endswith('...') or normalized.count('...') > 0
         is_short = len(normalized) < 70
 
         if has_dialogue:
-            length *= 1.03
-            noise += 0.02
-            noise_w += 0.02
+            length *= 1.06
+            noise += 0.04
+            noise_w += 0.04
 
         if has_exclamation:
-            length *= 0.93
-            noise += 0.04
-            noise_w += 0.03
+            length *= 0.98
+            noise += 0.10
+            noise_w += 0.08
+
+        if has_question:
+            length *= 1.00
+            noise += 0.05
+            noise_w += 0.04
 
         if has_suspense:
-            length *= 1.08
-            noise -= 0.02
-            noise_w -= 0.02
+            length *= 1.12
+            noise -= 0.05
+            noise_w -= 0.04
 
         if is_short and not has_exclamation:
             length *= 1.02
@@ -441,9 +504,15 @@ def _derive_chunk_params(chunk, base_length, base_noise, base_noise_w):
             noise += char_noise
             noise_w += char_noise_w
 
-    length = _clamp(length, 0.80, 2.20)
-    noise = _clamp(noise, 0.10, 1.20)
-    noise_w = _clamp(noise_w, 0.10, 1.20)
+    relative_min = base_length * MIN_RELATIVE_LENGTH_MULT
+    relative_max = base_length * MAX_RELATIVE_LENGTH_MULT
+    if relative_min > relative_max:
+        relative_min, relative_max = relative_max, relative_min
+
+    length = _clamp(length, relative_min, relative_max)
+    length = _clamp(length, MIN_LENGTH_SCALE, MAX_LENGTH_SCALE)
+    noise = _clamp(noise, MIN_NOISE_SCALE, MAX_NOISE_SCALE)
+    noise_w = _clamp(noise_w, MIN_NOISE_W, MAX_NOISE_W)
     return length, noise, noise_w
 
 def preprocess_text(text):
@@ -593,7 +662,9 @@ def prepare_for_tts(text):
     text = re.sub(r'\.\s*,', '.', text)
     text = re.sub(r',\s*\.', '.', text)
     text = re.sub(r'\.{4,}', '...', text)   # normalize 4+ dots to 3
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r' *\n *', '\n', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
     text = re.sub(r'\s+([.!?,])', r'\1', text)  # no space before punctuation
 
     return text.strip()
@@ -653,9 +724,9 @@ def generate_silence(duration_ms, sample_rate=22050, bits_per_sample=16, num_cha
 def split_text_into_chunks(text, max_chars=MAX_CHUNK_CHARS):
     """
     Split text into chunks optimized for Piper TTS.
-    - Paragraphs get their own chunks (natural pauses between them)
-    - Dialogue lines split separately so Piper can voice them distinctly
-    - Never split mid-sentence
+    - Keeps sentence boundaries so punctuation can become audible pauses.
+    - Splits overlong sentences without breaking words.
+    - Separates dialogue/narration transitions for better expressiveness.
     """
     paragraphs = text.split('\n\n')
     chunks = []
@@ -665,43 +736,48 @@ def split_text_into_chunks(text, max_chars=MAX_CHUNK_CHARS):
         if not para:
             continue
 
-        if len(para) <= max_chars:
-            chunks.append(para)
-            continue
-
-        # Split paragraph into sentences
-        sentences = re.split(r'(?<=[.!?])\s+', para)
-        current_chunk = ""
-
+        sentences = _split_sentences_preserve_quotes(para)
+        normalized_sentences = []
         for sentence in sentences:
-            if not sentence.strip():
+            if not sentence or not sentence.strip():
+                continue
+            normalized_sentences.extend(_split_overlong_sentence(sentence, max_chars))
+
+        current_chunk = ''
+        current_sentence_count = 0
+        current_has_dialogue = False
+
+        for sentence in normalized_sentences:
+            sentence = sentence.strip()
+            if not sentence:
                 continue
 
-            # If this sentence contains dialogue, give it breathing room
-            has_dialogue = '"' in sentence or '„' in sentence or '»' in sentence
-
-            # Start a new chunk if:
-            # 1. Adding this sentence exceeds max_chars, OR
-            # 2. This is a dialogue line and current chunk is narration (or vice versa)
-            if current_chunk:
-                would_exceed = len(current_chunk) + len(sentence) + 1 > max_chars
-                current_has_dialogue = '"' in current_chunk or '„' in current_chunk or '»' in current_chunk
-
-                # Split at dialogue/narration boundary for cleaner voice transitions
-                dialogue_boundary = has_dialogue != current_has_dialogue and len(current_chunk) > 60
-
-                if would_exceed or dialogue_boundary:
-                    chunks.append(current_chunk.strip())
-                    current_chunk = sentence
-                else:
-                    current_chunk = (current_chunk + " " + sentence).strip()
-            else:
+            has_dialogue = '"' in sentence
+            if not current_chunk:
                 current_chunk = sentence
+                current_sentence_count = 1
+                current_has_dialogue = has_dialogue
+                continue
 
-        if current_chunk.strip():
+            would_exceed = len(current_chunk) + len(sentence) + 1 > max_chars
+            sentence_limit_hit = current_sentence_count >= max(1, MAX_SENTENCES_PER_CHUNK)
+            dialogue_boundary = has_dialogue != current_has_dialogue and len(current_chunk) > 40
+
+            if would_exceed or sentence_limit_hit or dialogue_boundary:
+                chunks.append(current_chunk.strip())
+                current_chunk = sentence
+                current_sentence_count = 1
+                current_has_dialogue = has_dialogue
+            else:
+                current_chunk = (current_chunk + ' ' + sentence).strip()
+                current_sentence_count += 1
+                current_has_dialogue = current_has_dialogue or has_dialogue
+
+        if current_chunk:
             chunks.append(current_chunk.strip())
 
     return chunks
+
 
 def generate_wav_chunk(text, length_scale=1.0, noise_scale=0.667, noise_w=0.8):
     """Generate WAV audio for a single text chunk using Piper."""
@@ -847,20 +923,31 @@ def _get_silence_between(chunk_a, chunk_b):
     has_dialogue_a = '"' in chunk_a
     has_dialogue_b = '"' in chunk_b
 
+    tail = chunk_a.rstrip()
+    while tail and tail[-1] in '"\'':
+        tail = tail[:-1]
+
     # Scene/paragraph boundary: longer pause
-    if chunk_a.rstrip().endswith('...'):
+    if tail.endswith('...'):
         return generate_silence(SILENCE_SCENE_MS)
 
-    # Dialogue → narration or narration → dialogue transition
+    # Dialogue transition
     if has_dialogue_a != has_dialogue_b:
         return generate_silence(SILENCE_DIALOGUE_MS)
 
-    # After exclamatory chunks
-    if chunk_a.rstrip().endswith(('!!', '??')):
+    # Sentence punctuation
+    if tail.endswith('!!') or tail.endswith('!'):
         return generate_silence(SILENCE_EXCLAIM_MS)
+    if tail.endswith('??') or tail.endswith('?'):
+        return generate_silence(SILENCE_QUESTION_MS)
+    if tail.endswith('.'):
+        return generate_silence(SILENCE_PERIOD_MS)
+    if tail.endswith(',') or tail.endswith(':') or tail.endswith(';'):
+        return generate_silence(SILENCE_COMMA_MS)
 
-    # Default: natural sentence boundary pause
+    # Default fallback
     return generate_silence(SILENCE_DEFAULT_MS)
+
 
 def _do_generate(text, length_scale, noise_scale, noise_w):
     """Core generation logic — called synchronously or in a job thread."""
@@ -872,18 +959,54 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
     chunks = split_text_into_chunks(text)
     print(f"Split into {len(chunks)} chunks", file=sys.stderr)
 
+    # Derive per-chunk prosody first, then smooth transitions to avoid sudden speed jumps.
+    chunk_params = []
+    prev_length = _clamp(length_scale, MIN_LENGTH_SCALE, MAX_LENGTH_SCALE)
+    prev_noise = _clamp(noise_scale, MIN_NOISE_SCALE, MAX_NOISE_SCALE)
+    prev_noise_w = _clamp(noise_w, MIN_NOISE_W, MAX_NOISE_W)
+
+    for chunk in chunks:
+        target_length, target_noise, target_noise_w = _derive_chunk_params(
+            chunk, length_scale, noise_scale, noise_w
+        )
+
+        if ENABLE_PROSODY_SMOOTHING and chunk_params:
+            smoothed_length = _clamp_step(prev_length, target_length, MAX_LENGTH_SCALE_STEP)
+            smoothed_noise = _clamp_step(prev_noise, target_noise, MAX_NOISE_SCALE_STEP)
+            smoothed_noise_w = _clamp_step(prev_noise_w, target_noise_w, MAX_NOISE_W_STEP)
+        else:
+            smoothed_length = target_length
+            smoothed_noise = target_noise
+            smoothed_noise_w = target_noise_w
+
+        smoothed_length = _clamp(smoothed_length, MIN_LENGTH_SCALE, MAX_LENGTH_SCALE)
+        smoothed_noise = _clamp(smoothed_noise, MIN_NOISE_SCALE, MAX_NOISE_SCALE)
+        smoothed_noise_w = _clamp(smoothed_noise_w, MIN_NOISE_W, MAX_NOISE_W)
+
+        chunk_params.append((smoothed_length, smoothed_noise, smoothed_noise_w))
+        prev_length, prev_noise, prev_noise_w = smoothed_length, smoothed_noise, smoothed_noise_w
+
     wav_results = [None] * len(chunks)
     workers = min(MAX_PARALLEL_PIPER, len(chunks))
 
     if workers <= 1:
-        chunk_length, chunk_noise, chunk_noise_w = _derive_chunk_params(chunks[0], length_scale, noise_scale, noise_w)
-        wav_results[0] = generate_wav_chunk(chunks[0], chunk_length, chunk_noise, chunk_noise_w)
+        for idx in range(len(chunks)):
+            chunk_length, chunk_noise, chunk_noise_w = chunk_params[idx]
+            if DEBUG_TTS_PROSODY:
+                print(
+                    f"  Prosody chunk {idx+1}/{len(chunks)}: len_scale={chunk_length:.3f}, noise={chunk_noise:.3f}, noise_w={chunk_noise_w:.3f}",
+                    file=sys.stderr,
+                )
+            wav_results[idx] = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w)
     else:
         def gen_chunk(idx):
             cs = time.time()
-            chunk_length, chunk_noise, chunk_noise_w = _derive_chunk_params(
-                chunks[idx], length_scale, noise_scale, noise_w
-            )
+            chunk_length, chunk_noise, chunk_noise_w = chunk_params[idx]
+            if DEBUG_TTS_PROSODY:
+                print(
+                    f"  Prosody chunk {idx+1}/{len(chunks)}: len_scale={chunk_length:.3f}, noise={chunk_noise:.3f}, noise_w={chunk_noise_w:.3f}",
+                    file=sys.stderr,
+                )
             data = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w)
             ct = time.time() - cs
             print(f"  Chunk {idx+1}/{len(chunks)}: {len(chunks[idx])} chars -> {len(data)} bytes ({ct:.1f}s)", file=sys.stderr)
@@ -1141,7 +1264,8 @@ def generate_tts_batch():
     results = [None] * len(items)
 
     if workers <= 1:
-        results[0] = process_item(items[0])
+        for i in range(len(items)):
+            results[i] = process_item(items[i])
     else:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(process_item, items[i]): i for i in range(len(items))}
