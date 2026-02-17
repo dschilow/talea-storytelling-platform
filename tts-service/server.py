@@ -167,7 +167,7 @@ DEBUG_TTS_PROSODY = _get_env_bool('DEBUG_TTS_PROSODY', False)
 
 # ── Emotional model (Thorsten Emotional with 8 emotion speakers) ─────────────
 EMOTIONAL_MODEL_PATH = os.environ.get('EMOTIONAL_MODEL_PATH', "/app/emotional_model.onnx")
-ENABLE_EMOTIONAL_MODEL = _get_env_bool('ENABLE_EMOTIONAL_MODEL', True)
+ENABLE_EMOTIONAL_MODEL = _get_env_bool('ENABLE_EMOTIONAL_MODEL', False)
 
 # ── FFmpeg post-processing for broadcast quality ─────────────────────────────
 ENABLE_FFMPEG_POSTPROCESS = _get_env_bool('ENABLE_FFMPEG_POSTPROCESS', True)
