@@ -23,10 +23,15 @@ MAX_CHUNK_CHARS = int(os.environ.get("MAX_CHUNK_CHARS", "280"))
 MAX_PARALLEL_CHUNKS = int(os.environ.get("MAX_PARALLEL_CHUNKS", "1"))
 JOB_WORKERS = int(os.environ.get("JOB_WORKERS", "1"))
 JOB_TTL_SECONDS = int(os.environ.get("JOB_TTL_SECONDS", "1200"))
+CPU_COUNT = max(1, os.cpu_count() or 1)
+CHATTERBOX_CPU_THREADS = int(os.environ.get("CHATTERBOX_CPU_THREADS", str(min(8, CPU_COUNT))))
+CHATTERBOX_CPU_INTEROP_THREADS = int(os.environ.get("CHATTERBOX_CPU_INTEROP_THREADS", "1"))
+CHATTERBOX_MTL_MAX_NEW_TOKENS = int(os.environ.get("CHATTERBOX_MTL_MAX_NEW_TOKENS", "1000"))
+CHATTERBOX_PRELOAD_MODEL = os.environ.get("CHATTERBOX_PRELOAD_MODEL", "true").strip().lower() != "false"
 
 # Keep CPU usage deterministic-ish on small instances
-os.environ.setdefault("OMP_NUM_THREADS", os.environ.get("OMP_NUM_THREADS", "1"))
-os.environ.setdefault("MKL_NUM_THREADS", os.environ.get("MKL_NUM_THREADS", "1"))
+os.environ.setdefault("OMP_NUM_THREADS", os.environ.get("OMP_NUM_THREADS", str(CHATTERBOX_CPU_THREADS)))
+os.environ.setdefault("MKL_NUM_THREADS", os.environ.get("MKL_NUM_THREADS", str(CHATTERBOX_CPU_THREADS)))
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 # Force CPU-only execution on CPU Railway instances and prevent accidental CUDA deserialization.
@@ -42,6 +47,12 @@ if DEVICE == "cpu":
         return _torch_load_original(*args, **kwargs)
 
     torch.load = _torch_load_cpu_default
+
+try:
+    torch.set_num_threads(max(1, CHATTERBOX_CPU_THREADS))
+    torch.set_num_interop_threads(max(1, CHATTERBOX_CPU_INTEROP_THREADS))
+except Exception as _thread_err:
+    print(f"Warning: failed to configure torch CPU threads: {_thread_err}", file=sys.stderr)
 
 app = Flask(__name__)
 
@@ -123,6 +134,41 @@ def _ensure_numpy(wav):
     return wav.astype(np.float32)
 
 
+def _patch_multilingual_max_new_tokens(model):
+    if CHATTERBOX_MTL_MAX_NEW_TOKENS <= 0:
+        return
+
+    t3 = getattr(model, "t3", None)
+    if t3 is None:
+        return
+
+    original_inference = getattr(t3, "inference", None)
+    if original_inference is None:
+        return
+
+    if getattr(t3, "_talea_original_inference", None) is None:
+        t3._talea_original_inference = original_inference
+    else:
+        original_inference = t3._talea_original_inference
+
+    configured_cap = int(CHATTERBOX_MTL_MAX_NEW_TOKENS)
+
+    def _wrapped_inference(*args, **kwargs):
+        current = kwargs.get("max_new_tokens")
+        if isinstance(current, int):
+            kwargs["max_new_tokens"] = min(current, configured_cap)
+        else:
+            kwargs["max_new_tokens"] = configured_cap
+        return original_inference(*args, **kwargs)
+
+    t3.inference = _wrapped_inference
+    t3._talea_patched_max_new_tokens = configured_cap
+    print(
+        f"Applied multilingual max_new_tokens cap: {configured_cap}",
+        file=sys.stderr,
+    )
+
+
 def _load_model(model_name: str):
     global _model, _model_name
 
@@ -134,7 +180,11 @@ def _load_model(model_name: str):
         if _model is not None and _model_name == model_name:
             return _model, _model_name
 
-        print(f"Loading Chatterbox model='{model_name}' on device='{DEVICE}'...", file=sys.stderr)
+        print(
+            f"Loading Chatterbox model='{model_name}' on device='{DEVICE}' "
+            f"(cpu_threads={CHATTERBOX_CPU_THREADS}, interop_threads={CHATTERBOX_CPU_INTEROP_THREADS})...",
+            file=sys.stderr,
+        )
 
         if model_name == "turbo":
             from chatterbox.tts_turbo import ChatterboxTurboTTS
@@ -142,6 +192,7 @@ def _load_model(model_name: str):
         else:
             from chatterbox.mtl_tts import ChatterboxMultilingualTTS
             _model = ChatterboxMultilingualTTS.from_pretrained(device=DEVICE)
+            _patch_multilingual_max_new_tokens(_model)
 
         _model_name = model_name
         print(f"Model ready: {_model_name}", file=sys.stderr)
@@ -233,6 +284,9 @@ def health():
         "status": "ok",
         "model": _model_name or "not_loaded",
         "device": DEVICE,
+        "cpu_threads": CHATTERBOX_CPU_THREADS,
+        "cpu_interop_threads": CHATTERBOX_CPU_INTEROP_THREADS,
+        "mtl_max_new_tokens": CHATTERBOX_MTL_MAX_NEW_TOKENS,
     }), 200
 
 
@@ -386,6 +440,24 @@ def generate_batch():
             results.append({"id": item_id, "audio": None, "error": str(e)})
 
     return jsonify({"results": results}), 200
+
+
+def _maybe_preload_model():
+    if not CHATTERBOX_PRELOAD_MODEL:
+        print("Model preload disabled via CHATTERBOX_PRELOAD_MODEL=false", file=sys.stderr)
+        return
+
+    def _preload():
+        try:
+            _load_model(DEFAULT_MODEL)
+            print(f"Model preload completed for '{DEFAULT_MODEL}'", file=sys.stderr)
+        except Exception as e:
+            print(f"Model preload failed: {e}", file=sys.stderr)
+
+    threading.Thread(target=_preload, daemon=True, name="chbox-preload").start()
+
+
+_maybe_preload_model()
 
 
 if __name__ == "__main__":

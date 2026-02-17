@@ -22,6 +22,10 @@ Für **Deutsch + CPU** ist in diesem Setup `multilingual` sinnvoll.
 - `CHATTERBOX_DEFAULT_LANGUAGE` = `de` (default)
 - `MAX_CHUNK_CHARS` (optional)
 - `MAX_PARALLEL_CHUNKS` (optional, default 1 für Stabilität auf CPU)
+- `CHATTERBOX_CPU_THREADS` (optional, z. B. `8` oder `16`)
+- `CHATTERBOX_CPU_INTEROP_THREADS` (optional, default `1`)
+- `CHATTERBOX_MTL_MAX_NEW_TOKENS` (optional, default `1000`; kleiner = schneller, aber Risiko von abgeschnittenem Audio)
+- `CHATTERBOX_PRELOAD_MODEL` (optional, default `true`; lädt Modell direkt beim Worker-Start)
 
 ## Railway
 
@@ -31,5 +35,16 @@ Für das Backend zusätzlich setzen:
 
 - `CHATTERBOX_TTS_SERVICE_URL=http://<dein-service>.railway.internal:8080`
 - Alternative je nach Railway-Setup: `CHATTERBOX_TTS_SERVICE_URL=http://<dein-service>.railway.internal`
+- Optional für langsame CPU-Läufe: `CHATTERBOX_POLL_TIMEOUT_MS=1800000` (30 Minuten)
+- Optional für A/B-Tests ohne Fallback: `TTS_STRICT_PROVIDER=true` (bei explizitem `provider: "chatterbox"`)
 
 `TTS_SERVICE_URL` bleibt auf deinem bestehenden Thorsten-Service.
+
+## Performance-Hinweise (CPU)
+
+- `multilingual` auf CPU kann sehr langsam sein (insb. bei langen Texten).
+- Starte mit:
+  - `CHATTERBOX_CPU_THREADS=16`
+  - `CHATTERBOX_CPU_INTEROP_THREADS=1`
+  - `CHATTERBOX_MTL_MAX_NEW_TOKENS=300` (nur zum Testen; ggf. erhöhen, falls Audio abgeschnitten wird)
+- Für echte Produktionslatenz ist meist eine GPU nötig oder `CHATTERBOX_MODEL=turbo` (qualitativ/sprachlich anders).

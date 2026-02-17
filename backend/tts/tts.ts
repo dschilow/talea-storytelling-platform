@@ -20,7 +20,14 @@ export type TTSProvider = "piper" | "chatterbox";
 // TTS_DEFAULT_PROVIDER=chatterbox
 const TTS_DEFAULT_PROVIDER = (process.env.TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
 const TTS_FALLBACK_TO_PIPER = (process.env.TTS_FALLBACK_TO_PIPER || "true").toLowerCase() !== "false";
+// TTS_STRICT_PROVIDER=true => no automatic fallback when provider is explicitly requested (e.g. provider="chatterbox")
+const TTS_STRICT_PROVIDER = (process.env.TTS_STRICT_PROVIDER || "false").toLowerCase() === "true";
 const CHATTERBOX_FAILURE_COOLDOWN_MS = Number(process.env.CHATTERBOX_FAILURE_COOLDOWN_MS || "60000"); // 60s default
+const TTS_POLL_TIMEOUT_MS = Number(process.env.TTS_POLL_TIMEOUT_MS || "420000"); // 7 min default
+// CHATTERBOX_POLL_TIMEOUT_MS can be raised for slow CPU inference (e.g. 1800000 = 30min).
+const CHATTERBOX_POLL_TIMEOUT_MS = Number(
+    process.env.CHATTERBOX_POLL_TIMEOUT_MS || process.env.TTS_POLL_TIMEOUT_MS || "1800000"
+); // 30 min default for slower CPU chatterbox inference
 
 let chatterboxUnavailableUntil = 0;
 
@@ -220,7 +227,7 @@ async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGen
     throw new Error("TTS async submit failed after all retries");
 }
 
-async function pollJobUntilReady(serviceUrl: string, jobId: string, timeoutMs = 420_000): Promise<string> {
+async function pollJobUntilReady(serviceUrl: string, jobId: string, timeoutMs = TTS_POLL_TIMEOUT_MS): Promise<string> {
     const statusUrl = `${serviceUrl}/generate/status/${jobId}`;
     const resultUrl = `${serviceUrl}/generate/result/${jobId}`;
     const deadline = Date.now() + timeoutMs;
@@ -420,7 +427,10 @@ export const generateSpeech = api(
                         try {
                             const jobId = await submitAsyncJob(serviceUrl, text, { languageId, model });
                             log.info(`TTS async job submitted: ${jobId}`);
-                            audioData = await pollJobUntilReady(serviceUrl, jobId);
+                            const pollTimeoutMs = targetProvider === "chatterbox"
+                                ? CHATTERBOX_POLL_TIMEOUT_MS
+                                : TTS_POLL_TIMEOUT_MS;
+                            audioData = await pollJobUntilReady(serviceUrl, jobId, pollTimeoutMs);
                             log.info(`TTS async job complete: ${jobId}`);
                         } catch (err: any) {
                             if (err.message === "ASYNC_NOT_SUPPORTED") {
@@ -453,9 +463,11 @@ export const generateSpeech = api(
             };
 
             const resolvedProvider = resolveProvider(provider);
+            const isExplicitChatterboxRequest = typeof provider === "string" && provider.toLowerCase() === "chatterbox";
+            const allowAutomaticPiperFallback = TTS_FALLBACK_TO_PIPER && !(TTS_STRICT_PROVIDER && isExplicitChatterboxRequest);
             const startProvider: TTSProvider = (
                 resolvedProvider === "chatterbox" &&
-                TTS_FALLBACK_TO_PIPER &&
+                allowAutomaticPiperFallback &&
                 isChatterboxTemporarilyUnavailable()
             ) ? "piper" : resolvedProvider;
 
@@ -473,7 +485,7 @@ export const generateSpeech = api(
             } catch (primaryError: any) {
                 if (
                     startProvider === "chatterbox" &&
-                    TTS_FALLBACK_TO_PIPER &&
+                    allowAutomaticPiperFallback &&
                     !!PIPER_TTS_SERVICE_URL
                 ) {
                     const details = errorDetails(primaryError);
