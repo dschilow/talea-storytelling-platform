@@ -16,9 +16,43 @@ export type TTSProvider = "piper" | "chatterbox";
 // TTS_DEFAULT_PROVIDER=chatterbox
 const TTS_DEFAULT_PROVIDER = (process.env.TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
 const TTS_FALLBACK_TO_PIPER = (process.env.TTS_FALLBACK_TO_PIPER || "true").toLowerCase() !== "false";
-const CHATTERBOX_FAILURE_COOLDOWN_MS = Number(process.env.CHATTERBOX_FAILURE_COOLDOWN_MS || "300000"); // 5 min
+const CHATTERBOX_FAILURE_COOLDOWN_MS = Number(process.env.CHATTERBOX_FAILURE_COOLDOWN_MS || "60000"); // 60s default
 
 let chatterboxUnavailableUntil = 0;
+
+function errorDetails(err: any): string {
+    const msg = err?.message || "unknown error";
+    const cause = err?.cause;
+    if (!cause) return msg;
+
+    const parts: string[] = [];
+    if (cause?.code) parts.push(`code=${String(cause.code)}`);
+    if (cause?.errno) parts.push(`errno=${String(cause.errno)}`);
+    if (cause?.syscall) parts.push(`syscall=${String(cause.syscall)}`);
+    if (cause?.address) parts.push(`address=${String(cause.address)}`);
+    if (cause?.port) parts.push(`port=${String(cause.port)}`);
+
+    return parts.length > 0 ? `${msg} (${parts.join(", ")})` : msg;
+}
+
+function isTransientFetchError(err: any): boolean {
+    const message = String(err?.message || "").toLowerCase();
+    const code = String(err?.cause?.code || "").toUpperCase();
+
+    if (message.includes("fetch failed") || message.includes("network")) {
+        return true;
+    }
+
+    return [
+        "ECONNREFUSED",
+        "ECONNRESET",
+        "ENOTFOUND",
+        "EAI_AGAIN",
+        "ETIMEDOUT",
+        "UND_ERR_CONNECT_TIMEOUT",
+        "UND_ERR_SOCKET",
+    ].includes(code);
+}
 
 function isChatterboxTemporarilyUnavailable(): boolean {
     return Date.now() < chatterboxUnavailableUntil;
@@ -84,8 +118,8 @@ async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGen
         model: options?.model,
     });
 
-    // Retry up to 3 times to handle cold-start 502s from Railway
-    const MAX_RETRIES = 3;
+    // Retry up to 4 times to handle cold-start and transient network failures on Railway
+    const MAX_RETRIES = 4;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const controller = new AbortController();
@@ -122,6 +156,13 @@ async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGen
                 await new Promise((r) => setTimeout(r, 2_000));
                 continue;
             }
+
+            if (isTransientFetchError(err) && attempt < MAX_RETRIES) {
+                log.warn(`TTS submit transient network error (attempt ${attempt}/${MAX_RETRIES}): ${errorDetails(err)}. Retrying in 2s...`);
+                await new Promise((r) => setTimeout(r, 2_000));
+                continue;
+            }
+
             throw err;
         }
     }
@@ -361,8 +402,9 @@ export const generateSpeech = api(
                     TTS_FALLBACK_TO_PIPER &&
                     !!PIPER_TTS_SERVICE_URL
                 ) {
-                    markChatterboxUnavailable(primaryError?.message || "unknown error");
-                    log.warn(`Chatterbox failed, retrying with piper fallback: ${primaryError?.message || "unknown error"}`);
+                    const details = errorDetails(primaryError);
+                    markChatterboxUnavailable(details);
+                    log.warn(`Chatterbox failed, retrying with piper fallback: ${details}`);
                     return await runProvider("piper");
                 }
                 throw primaryError;
