@@ -1,4 +1,4 @@
-export type PlaylistItemType = 'audio-doku' | 'story-chapter';
+export type PlaylistItemType = 'audio-doku' | 'doku' | 'story-chapter';
 export type ConversionStatus = 'pending' | 'converting' | 'ready' | 'error';
 
 export interface PlaylistItem {
@@ -20,6 +20,11 @@ export interface PlaylistItem {
   parentStoryTitle?: string;
   chapterOrder?: number;
   chapterTitle?: string;
+  /** Parent doku grouping */
+  parentDokuId?: string;
+  parentDokuTitle?: string;
+  dokuChunkOrder?: number;
+  dokuTotalChunks?: number;
 }
 
 export const MAX_PLAYLIST_ITEMS = 200;

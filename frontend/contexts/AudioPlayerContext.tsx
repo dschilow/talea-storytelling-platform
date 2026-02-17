@@ -46,6 +46,7 @@ interface AudioPlayerContextValue {
   addAndPlay: (items: PlaylistItem[]) => void;
   removeFromPlaylist: (itemId: string) => void;
   removeStoryFromPlaylist: (storyId: string) => void;
+  removeDokuFromPlaylist: (dokuId: string) => void;
   clearPlaylist: () => void;
   playFromPlaylist: (index: number) => void;
   playNext: () => void;
@@ -55,6 +56,13 @@ interface AudioPlayerContextValue {
     storyId: string,
     storyTitle: string,
     chapters: Chapter[],
+    coverImageUrl?: string,
+    autoplay?: boolean,
+  ) => void;
+  startDokuConversion: (
+    dokuId: string,
+    dokuTitle: string,
+    dokuText: string,
     coverImageUrl?: string,
     autoplay?: boolean,
   ) => void;
@@ -174,7 +182,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const audioUrl = item.audioUrl;
         const isBlobUrl = Boolean(audioUrl && audioUrl.startsWith('blob:'));
 
-        if (item.type === 'story-chapter') {
+        if (item.type === 'story-chapter' || item.type === 'doku') {
           return {
             ...item,
             audioUrl: !isBlobUrl ? audioUrl : undefined,
@@ -205,7 +213,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Re-enqueue story chunks so cache/tts can restore playable URLs.
       const toQueue = hydratedPlaylist
-        .filter((item) => item.type === 'story-chapter' && !item.audioUrl && item.sourceText)
+        .filter((item) => (item.type === 'story-chapter' || item.type === 'doku') && !item.audioUrl && item.sourceText)
         .map((item) => ({ id: item.id, text: item.sourceText as string }));
 
       if (toQueue.length > 0) {
@@ -246,7 +254,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // Blob URLs are session-local and invalid after refresh.
         audioUrl: item.audioUrl?.startsWith('blob:') ? undefined : item.audioUrl,
         conversionStatus:
-          item.type === 'story-chapter'
+          item.type === 'story-chapter' || item.type === 'doku'
             ? item.audioUrl && !item.audioUrl.startsWith('blob:')
               ? 'ready'
               : 'pending'
@@ -585,6 +593,58 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [cancelItems, revokeBlobUrl, playItemAsTrack],
   );
 
+  const removeDokuFromPlaylist = useCallback(
+    (dokuId: string) => {
+      const prev = playlistRef.current;
+      const dokuChunkIds = new Set(
+        prev.filter((item) => item.parentDokuId === dokuId).map((item) => item.id),
+      );
+      if (dokuChunkIds.size === 0) return;
+
+      cancelItems(dokuChunkIds);
+
+      prev.forEach((item) => {
+        if (item.parentDokuId === dokuId) revokeBlobUrl(item.audioUrl);
+      });
+
+      const next = prev.filter((item) => item.parentDokuId !== dokuId);
+      playlistRef.current = next;
+
+      const removedBefore = prev
+        .slice(0, currentIndexRef.current)
+        .filter((item) => item.parentDokuId === dokuId).length;
+      const currentWasRemoved = prev[currentIndexRef.current]?.parentDokuId === dokuId;
+
+      if (next.length === 0) {
+        audioRef.current?.pause();
+        setTrack(null);
+        currentIndexRef.current = -1;
+        isPlaylistActiveRef.current = false;
+        setPlaylist(next);
+        setCurrentIndex(-1);
+        setIsPlaylistActive(false);
+        setWaitingForConversion(false);
+      } else if (currentWasRemoved) {
+        audioRef.current?.pause();
+        const newIdx = Math.min(currentIndexRef.current - removedBefore, next.length - 1);
+        currentIndexRef.current = newIdx;
+        setPlaylist(next);
+        setCurrentIndex(newIdx);
+        const nextItem = next[newIdx];
+        if (nextItem?.audioUrl && nextItem.conversionStatus === 'ready') {
+          playItemAsTrack(nextItem);
+        } else {
+          setWaitingForConversion(true);
+        }
+      } else {
+        currentIndexRef.current -= removedBefore;
+        setPlaylist(next);
+        setCurrentIndex((i) => i - removedBefore);
+      }
+    },
+    [cancelItems, revokeBlobUrl, playItemAsTrack],
+  );
+
   const clearPlaylist = useCallback(() => {
     audioRef.current?.pause();
     cancelConversion();
@@ -697,7 +757,54 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       enqueue(queueItems);
     },
-    [addToPlaylist, addAndPlay, enqueue, track],
+    [addToPlaylist, addAndPlay, enqueue],
+  );
+
+  // ── Start doku conversion ───────────────────────────────────────
+  const startDokuConversion = useCallback(
+    (
+      dokuId: string,
+      dokuTitle: string,
+      dokuText: string,
+      coverImageUrl?: string,
+      autoplay = true,
+    ) => {
+      const normalizedText = dokuText.trim();
+      if (!normalizedText) return;
+
+      const alreadyExists = playlistRef.current.some((item) => item.parentDokuId === dokuId);
+      if (alreadyExists) return;
+
+      const chunks = splitTextIntoChunks(normalizedText);
+      if (chunks.length === 0) return;
+
+      const newItems: PlaylistItem[] = chunks.map((chunk, ci) => ({
+        id: `doku-${dokuId}-chunk${ci}`,
+        trackId: dokuId,
+        title: dokuTitle,
+        description: chunks.length > 1 ? `Teil ${ci + 1} von ${chunks.length}` : 'Doku',
+        coverImageUrl,
+        type: 'doku',
+        sourceText: chunk,
+        conversionStatus: 'pending',
+        parentDokuId: dokuId,
+        parentDokuTitle: dokuTitle,
+        dokuChunkOrder: ci,
+        dokuTotalChunks: chunks.length,
+      }));
+      const queueItems = chunks.map((chunk, ci) => ({
+        id: `doku-${dokuId}-chunk${ci}`,
+        text: chunk,
+      }));
+
+      if (autoplay) {
+        addAndPlay(newItems);
+      } else {
+        addToPlaylist(newItems);
+      }
+      enqueue(queueItems);
+    },
+    [addToPlaylist, addAndPlay, enqueue],
   );
 
   return (
@@ -721,12 +828,14 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         addAndPlay,
         removeFromPlaylist,
         removeStoryFromPlaylist,
+        removeDokuFromPlaylist,
         clearPlaylist,
         playFromPlaylist,
         playNext,
         playPrevious,
         togglePlaylistDrawer,
         startStoryConversion,
+        startDokuConversion,
         conversionStatusMap,
         waitingForConversion,
       }}

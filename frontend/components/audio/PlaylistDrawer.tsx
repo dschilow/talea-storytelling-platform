@@ -36,6 +36,13 @@ interface StoryGroup {
   chapters: ChapterGroup[];
 }
 
+interface DokuGroup {
+  dokuId: string;
+  title: string;
+  coverImageUrl?: string;
+  chunks: Array<{ item: PlaylistItem; globalIndex: number }>;
+}
+
 export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
   const {
     playlist,
@@ -44,6 +51,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     togglePlaylistDrawer,
     removeFromPlaylist,
     removeStoryFromPlaylist,
+    removeDokuFromPlaylist,
     clearPlaylist,
     playFromPlaylist,
   } = useAudioPlayer();
@@ -83,14 +91,17 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     [isDark],
   );
 
-  // ── Group playlist items: Stories → Chapters → Chunks (hidden) ──
-  const { storyGroups, dokuItems, totalChapters } = useMemo(() => {
+  // ── Group playlist items: Stories, text Dokus, and pre-made Audio Dokus ──
+  const { storyGroups, dokuGroups, audioDokuItems } = useMemo(() => {
     const storiesMap = new Map<
       string,
       { title: string; coverImageUrl?: string; chaptersMap: Map<number, ChapterGroup> }
     >();
-    const dokus: Array<{ item: PlaylistItem; globalIndex: number }> = [];
-    let chapterCount = 0;
+    const dokuMap = new Map<
+      string,
+      { title: string; coverImageUrl?: string; chunks: Array<{ item: PlaylistItem; globalIndex: number }> }
+    >();
+    const audioDokus: Array<{ item: PlaylistItem; globalIndex: number }> = [];
 
     playlist.forEach((item, idx) => {
       if (item.type === 'story-chapter' && item.parentStoryId) {
@@ -108,11 +119,21 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
         if (!chapter) {
           chapter = { order: chOrder, title: item.chapterTitle || item.title, chunks: [] };
           story.chaptersMap.set(chOrder, chapter);
-          chapterCount++;
         }
         chapter.chunks.push({ item, globalIndex: idx });
-      } else {
-        dokus.push({ item, globalIndex: idx });
+      } else if (item.type === 'doku' && item.parentDokuId) {
+        let doku = dokuMap.get(item.parentDokuId);
+        if (!doku) {
+          doku = {
+            title: item.parentDokuTitle || item.title || 'Doku',
+            coverImageUrl: item.coverImageUrl,
+            chunks: [],
+          };
+          dokuMap.set(item.parentDokuId, doku);
+        }
+        doku.chunks.push({ item, globalIndex: idx });
+      } else if (item.type === 'audio-doku') {
+        audioDokus.push({ item, globalIndex: idx });
       }
     });
 
@@ -122,24 +143,56 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
       coverImageUrl: s.coverImageUrl,
       chapters: Array.from(s.chaptersMap.values()).sort((a, b) => a.order - b.order),
     }));
+    const groupedDokus: DokuGroup[] = Array.from(dokuMap.entries()).map(([dokuId, d]) => ({
+      dokuId,
+      title: d.title,
+      coverImageUrl: d.coverImageUrl,
+      chunks: [...d.chunks].sort(
+        (a, b) =>
+          (a.item.dokuChunkOrder ?? Number.MAX_SAFE_INTEGER) -
+          (b.item.dokuChunkOrder ?? Number.MAX_SAFE_INTEGER),
+      ),
+    }));
 
-    return { storyGroups: groups, dokuItems: dokus, totalChapters: chapterCount + dokus.length };
+    return { storyGroups: groups, dokuGroups: groupedDokus, audioDokuItems: audioDokus };
   }, [playlist]);
 
-  const [activeTab, setActiveTab] = useState<'stories' | 'dokus'>(
-    storyGroups.length > 0 ? 'stories' : 'dokus',
+  const [activeTab, setActiveTab] = useState<'stories' | 'dokus' | 'audio-dokus'>(
+    storyGroups.length > 0 ? 'stories' : dokuGroups.length > 0 ? 'dokus' : 'audio-dokus',
   );
   const [expandedStories, setExpandedStories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (activeTab === 'stories' && storyGroups.length === 0 && dokuItems.length > 0) {
-      setActiveTab('dokus');
+    if (activeTab === 'stories' && storyGroups.length === 0) {
+      if (dokuGroups.length > 0) {
+        setActiveTab('dokus');
+        return;
+      }
+      if (audioDokuItems.length > 0) {
+        setActiveTab('audio-dokus');
+      }
       return;
     }
-    if (activeTab === 'dokus' && dokuItems.length === 0 && storyGroups.length > 0) {
-      setActiveTab('stories');
+    if (activeTab === 'dokus' && dokuGroups.length === 0) {
+      if (storyGroups.length > 0) {
+        setActiveTab('stories');
+        return;
+      }
+      if (audioDokuItems.length > 0) {
+        setActiveTab('audio-dokus');
+      }
+      return;
     }
-  }, [activeTab, storyGroups.length, dokuItems.length]);
+    if (activeTab === 'audio-dokus' && audioDokuItems.length === 0) {
+      if (storyGroups.length > 0) {
+        setActiveTab('stories');
+        return;
+      }
+      if (dokuGroups.length > 0) {
+        setActiveTab('dokus');
+      }
+    }
+  }, [activeTab, storyGroups.length, dokuGroups.length, audioDokuItems.length]);
 
   // ── Determine which chapter is currently playing ──
   const currentChapterKey = useMemo(() => {
@@ -330,8 +383,85 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     );
   };
 
-  // ── Render a doku item ──
-  const renderDokuItem = (item: PlaylistItem, globalIndex: number) => {
+  // ── Render a text-doku group ──
+  const renderDokuGroup = (doku: DokuGroup) => {
+    const readyCount = doku.chunks.filter((c) => c.item.conversionStatus === 'ready').length;
+    const totalCount = doku.chunks.length;
+    const hasError = doku.chunks.some((c) => c.item.conversionStatus === 'error');
+    const hasConverting = doku.chunks.some((c) => c.item.conversionStatus === 'converting');
+    const allReady = readyCount === totalCount;
+    const firstReadyChunk = doku.chunks.find((c) => c.item.conversionStatus === 'ready');
+    const canPlay = !!firstReadyChunk;
+    const isCurrent = doku.chunks.some(({ globalIndex }) => globalIndex === currentIndex);
+
+    return (
+      <motion.div
+        key={doku.dokuId}
+        initial={{ opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.2 }}
+        className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors"
+        style={{
+          background: isCurrent ? colors.hoverBg : 'transparent',
+          borderLeft: isCurrent ? '3px solid' : '3px solid transparent',
+          borderImage: isCurrent ? colors.activeBorder + ' 1' : undefined,
+        }}
+      >
+        <button
+          onClick={() => canPlay && playFromPlaylist(firstReadyChunk!.globalIndex)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+          style={{ cursor: canPlay ? 'pointer' : 'default' }}
+        >
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-slate-200/20 dark:bg-slate-700/20">
+            {doku.coverImageUrl ? (
+              <img src={doku.coverImageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <BookOpen size={14} style={{ color: colors.muted }} />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12px] font-medium leading-tight" style={{ color: isCurrent ? colors.text : colors.sub }}>
+              {doku.title}
+            </p>
+            <p className="truncate text-[10px]" style={{ color: colors.muted }}>
+              {readyCount}/{totalCount} Teile bereit
+              {hasConverting ? ' • wird konvertiert...' : ''}
+            </p>
+          </div>
+        </button>
+
+        <div className="flex-shrink-0">
+          {allReady ? (
+            <Check size={14} className="text-emerald-400" />
+          ) : hasError ? (
+            <AlertCircle size={14} className="text-red-400" />
+          ) : hasConverting ? (
+            <Loader2 size={14} className="animate-spin text-blue-400" />
+          ) : (
+            <span className="text-[10px]" style={{ color: colors.muted }}>
+              {readyCount}/{totalCount}
+            </span>
+          )}
+        </div>
+
+        <motion.button
+          initial={{ opacity: 0 }}
+          whileHover={{ scale: 1.1 }}
+          className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            removeDokuFromPlaylist(doku.dokuId);
+          }}
+          title="Doku entfernen"
+        >
+          <Trash2 size={13} style={{ color: colors.muted }} />
+        </motion.button>
+      </motion.div>
+    );
+  };
+
+  // ── Render a pre-made audio-doku item ──
+  const renderAudioDokuItem = (item: PlaylistItem, globalIndex: number) => {
     const isCurrent = globalIndex === currentIndex;
     const isReady = item.conversionStatus === 'ready';
 
@@ -429,7 +559,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
       </div>
 
       {/* Tabs */}
-      {(storyGroups.length > 0 || dokuItems.length > 0) && (
+      {(storyGroups.length > 0 || dokuGroups.length > 0 || audioDokuItems.length > 0) && (
         <div className="flex border-b px-4" style={{ borderColor: colors.border }}>
           <button
             onClick={() => setActiveTab('stories')}
@@ -450,8 +580,22 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
             className="relative px-3 py-2 text-[12px] font-medium transition-colors"
             style={{ color: activeTab === 'dokus' ? colors.text : colors.muted }}
           >
-            Audio Dokus ({dokuItems.length})
+            Dokus ({dokuGroups.length})
             {activeTab === 'dokus' && (
+              <motion.div
+                layoutId="playlist-tab-indicator"
+                className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
+                style={{ background: `linear-gradient(90deg, ${colors.accentStart}, ${colors.accentEnd})` }}
+              />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('audio-dokus')}
+            className="relative px-3 py-2 text-[12px] font-medium transition-colors"
+            style={{ color: activeTab === 'audio-dokus' ? colors.text : colors.muted }}
+          >
+            Audio Dokus ({audioDokuItems.length})
+            {activeTab === 'audio-dokus' && (
               <motion.div
                 layoutId="playlist-tab-indicator"
                 className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
@@ -478,10 +622,19 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
               </p>
             )}
           </div>
+        ) : activeTab === 'dokus' ? (
+          <div className="space-y-0.5">
+            {dokuGroups.map((doku) => renderDokuGroup(doku))}
+            {dokuGroups.length === 0 && (
+              <p className="py-4 text-center text-[12px]" style={{ color: colors.muted }}>
+                Keine Dokus in der Warteschlange
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-0.5">
-            {dokuItems.map(({ item, globalIndex }) => renderDokuItem(item, globalIndex))}
-            {dokuItems.length === 0 && (
+            {audioDokuItems.map(({ item, globalIndex }) => renderAudioDokuItem(item, globalIndex))}
+            {audioDokuItems.length === 0 && (
               <p className="py-4 text-center text-[12px]" style={{ color: colors.muted }}>
                 Keine Audio Dokus in der Warteschlange
               </p>

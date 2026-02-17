@@ -6,6 +6,7 @@ import {
   Download,
   FlaskConical,
   Globe,
+  Headphones,
   Lightbulb,
   Lock,
   Loader2,
@@ -17,6 +18,7 @@ import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import ProgressiveImage from '../common/ProgressiveImage';
 
 interface DokuCardProps {
@@ -69,14 +71,43 @@ function statusLabel(status: Doku['status']) {
   return 'Fehler';
 }
 
+type DokuNarrationInput = {
+  title?: string;
+  summary?: string;
+  topic?: string;
+  content?: {
+    sections?: Array<{
+      title?: string;
+      content?: string;
+    }>;
+  };
+};
+
+function buildDokuNarrationText(doku: DokuNarrationInput): string {
+  const blocks: string[] = [];
+  if (doku.title) blocks.push(doku.title);
+  if (doku.summary) blocks.push(doku.summary);
+  if (doku.topic) blocks.push(`Thema: ${doku.topic}.`);
+  if (doku.content?.sections?.length) {
+    for (const section of doku.content.sections) {
+      if (section.title) blocks.push(section.title);
+      if (section.content) blocks.push(section.content);
+    }
+  }
+  return blocks.join('\n\n').trim();
+}
+
 export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic }) => {
   const [hovered, setHovered] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isAddingToPlaylist, setIsAddingToPlaylist] = useState(false);
   const backend = useBackend();
   const { resolvedTheme } = useTheme();
   const { canUseOffline, isDokuSaved, isSaving, toggleDoku } = useOffline();
+  const { startDokuConversion, playlist } = useAudioPlayer();
 
   const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
+  const isInPlaylist = playlist.some((item) => item.parentDokuId === doku.id);
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -112,6 +143,23 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
       alert('Fehler beim PDF-Export. Bitte erneut versuchen.');
     } finally {
       setIsExportingPDF(false);
+    }
+  };
+
+  const handleAddToPlaylist = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (doku.status !== 'complete' || isInPlaylist) return;
+
+    try {
+      setIsAddingToPlaylist(true);
+      const fullDoku = await backend.doku.getDoku({ id: doku.id });
+      const narration = buildDokuNarrationText(fullDoku);
+      if (!narration) return;
+      startDokuConversion(doku.id, doku.title, narration, doku.coverImageUrl);
+    } catch (error) {
+      console.error('Failed to add doku to playlist:', error);
+    } finally {
+      setIsAddingToPlaylist(false);
     }
   };
 
@@ -191,6 +239,26 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
                   <BookmarkCheck className="h-4 w-4" />
                 ) : (
                   <Bookmark className="h-4 w-4" />
+                )}
+              </button>
+            )}
+
+            {doku.status === 'complete' && (
+              <button
+                type="button"
+                onClick={handleAddToPlaylist}
+                disabled={isAddingToPlaylist || isInPlaylist}
+                className="rounded-xl border p-2"
+                style={{ borderColor: palette.border, background: palette.card, color: palette.text }}
+                aria-label={isInPlaylist ? 'Bereits in der Warteschlange' : 'Doku zur Warteschlange hinzufuegen'}
+                title={isInPlaylist ? 'Bereits in der Warteschlange' : 'Zur Warteschlange hinzufuegen'}
+              >
+                {isAddingToPlaylist ? (
+                  <motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }} className="inline-flex">
+                    <Loader2 className="h-4 w-4" />
+                  </motion.span>
+                ) : (
+                  <Headphones className="h-4 w-4" />
                 )}
               </button>
             )}
