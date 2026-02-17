@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -148,6 +149,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   const backend = useBackend();
   const [searchParams] = useSearchParams();
   const dialogueEditorRef = useRef<HTMLTextAreaElement | null>(null);
+  const dialogueGutterRef = useRef<HTMLDivElement | null>(null);
   const editId = searchParams.get('edit');
   const isEditMode = Boolean(editId);
 
@@ -267,6 +269,10 @@ const CreateAudioDokuScreen: React.FC = () => {
       return nameMatch || idMatch;
     });
   }, [elevenLabsVoices, voiceSearchQuery]);
+  const dialogueLineNumbers = useMemo(() => {
+    const lineCount = Math.max(1, dialogueScript.replace(/\r\n/g, '\n').split('\n').length);
+    return Array.from({ length: lineCount }, (_, index) => index + 1);
+  }, [dialogueScript]);
 
   useEffect(() => {
     if (!speakerProfiles.some((speaker) => speaker.id === voiceTargetSpeakerId)) {
@@ -522,6 +528,34 @@ const CreateAudioDokuScreen: React.FC = () => {
       setError(message);
     } finally {
       setDialogueLoading(false);
+    }
+  };
+
+  const handleDialogueEditorScroll = (event: React.UIEvent<HTMLTextAreaElement>) => {
+    if (dialogueGutterRef.current) {
+      dialogueGutterRef.current.scrollTop = event.currentTarget.scrollTop;
+    }
+  };
+
+  const handleDialogueEditorKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const textarea = event.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const insertion = '  ';
+      const nextValue = `${dialogueScript.slice(0, start)}${insertion}${dialogueScript.slice(end)}`;
+      setDialogueScript(nextValue);
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + insertion.length, start + insertion.length);
+      });
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      void handleGenerateDialogueAudio();
     }
   };
 
@@ -810,7 +844,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                         onPress={() => void fetchElevenLabsVoices()}
                         variant="outline"
                         size="sm"
-                        icon={<RefreshCw size={14} />}
+                        icon={<RefreshCw size={14} className={voicesLoading ? 'animate-spin' : ''} />}
                         disabled={voicesLoading}
                       />
                     </div>
@@ -834,14 +868,36 @@ const CreateAudioDokuScreen: React.FC = () => {
                     <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-indigo-700">
                       Dialog-Editor
                     </label>
-                    <textarea
-                      ref={dialogueEditorRef}
-                      value={dialogueScript}
-                      onChange={(e) => setDialogueScript(e.target.value)}
-                      rows={10}
-                      placeholder={`TAVI: [excited] Willkommen zur Talea Audio-Doku!\nLUMI: [curious] Unsichtbar? Wie ein Ninja?\nTAVI: [mischievously] Genau!`}
-                      className="mt-2 w-full rounded-xl border border-indigo-200/80 bg-white/95 px-4 py-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none"
-                    />
+                    <div className="mt-2 overflow-hidden rounded-xl border border-indigo-200/80 bg-white/95">
+                      <div className="grid grid-cols-[52px_1fr]">
+                        <div
+                          ref={dialogueGutterRef}
+                          className="max-h-[320px] overflow-hidden border-r border-indigo-100 bg-indigo-50/70 py-3 text-right font-mono text-[11px] leading-6 text-indigo-500"
+                          aria-hidden
+                        >
+                          {dialogueLineNumbers.map((lineNumber) => (
+                            <div key={lineNumber} className="pr-3">
+                              {lineNumber}
+                            </div>
+                          ))}
+                        </div>
+
+                        <textarea
+                          ref={dialogueEditorRef}
+                          value={dialogueScript}
+                          onChange={(e) => setDialogueScript(e.target.value)}
+                          onScroll={handleDialogueEditorScroll}
+                          onKeyDown={handleDialogueEditorKeyDown}
+                          rows={10}
+                          spellCheck={false}
+                          placeholder={`TAVI: [excited] Willkommen zur Talea Audio-Doku!\nLUMI: [curious] Unsichtbar? Wie ein Ninja?\nTAVI: [mischievously] Genau!`}
+                          className="max-h-[320px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-1 text-[11px] text-indigo-700/70">
+                      Tab = Einruecken, Ctrl/Cmd + Enter = Audio rendern.
+                    </p>
                     <p className="mt-2 text-xs text-indigo-800/80">
                       {detectedSpeakers.length > 0
                         ? `Sprecher im Script: ${detectedSpeakers.join(', ')}`
@@ -979,14 +1035,18 @@ const CreateAudioDokuScreen: React.FC = () => {
                         onPress={() => void handleGenerateDialogueAudio()}
                         variant="secondary"
                         size="md"
-                        icon={<Mic2 size={16} />}
+                        icon={dialogueLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mic2 size={16} />}
                         disabled={dialogueLoading || detectedSpeakers.length === 0}
                       />
                     </div>
 
                     {dialogueLoading && (
                       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-indigo-100">
-                        <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400" />
+                        <motion.div
+                          className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400"
+                          animate={{ x: ['-120%', '320%'] }}
+                          transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
                       </div>
                     )}
 
@@ -1037,6 +1097,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                         : t('doku.audioCreate.uploadDescription')
                     }
                     onFileSelected={handleFileSelected}
+                    className="mx-0 max-w-none"
                   />
 
                   {audioFile && (
@@ -1137,6 +1198,15 @@ const CreateAudioDokuScreen: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    {coverLoading && (
+                      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-indigo-100">
+                        <motion.div
+                          className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-400 to-cyan-400"
+                          animate={{ x: ['-120%', '320%'] }}
+                          transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
