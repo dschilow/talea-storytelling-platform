@@ -590,7 +590,7 @@ def _enhance_story_text_for_tts(text):
     text = re.sub(r'\.{3,}', '\u2026', text)
 
     # Add a small pause before abrupt topic changes.
-    text = re.sub(r'([.!?])\s*(Doch|Aber|Pl\u00f6tzlich|Dann)\b', r'\1 \u2026 \2', text)
+    text = re.sub(r'([.!?])\s*(Doch|Aber|Plötzlich|Dann)\b', r'\1 … \2', text)
 
     return text
 
@@ -816,7 +816,7 @@ def prepare_for_tts(text):
 
     # ── 8. Trailing ellipsis for suspense sentences ──
     # "Er öffnete die Tür." at end of paragraph → add slight suspense if followed by paragraph break
-    text = re.sub(r'([.])(\n\n)', r'\1 \u2026\2', text)
+    text = re.sub(r'([.])(\n\n)', r'\1 …\2', text)
 
     # ── 9. Emphasis via repetition: stretch emphasized words ──
     # Words in ALL CAPS get slightly stretched for emphasis
@@ -840,7 +840,7 @@ def prepare_for_tts(text):
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r' *\n *', '\n', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
-    text = re.sub(r'\s+([.!?,\u2026])', r'\1', text)  # no space before punctuation
+    text = re.sub(r'\s+([.!?,…])', r'\1', text)  # no space before punctuation
 
     return text.strip()
 
