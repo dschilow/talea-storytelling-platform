@@ -272,35 +272,113 @@ function generateSpeechExample(name: string, speechStyle: string, catchphrase: s
   return "";
 }
 
-function buildChildVoiceContract(childNames: string[], isGerman: boolean): string {
+function buildChildVoiceContract(childNames: string[], _isGerman: boolean): string {
   if (childNames.length === 0) return "";
 
-  const templates = isGerman
-    ? [
-        "Impulsiv und fragend: 3-8 Woerter, oft Warum/Wieso/Wie-Fragen, schnelle Reaktion.",
-        "Ruhig und beobachtend: konkrete Details, klare Folgerung, kaum Ausrufe.",
-        "Verspielt und humorvoll: kurze Wortspiele, lockert Spannung ohne Albernheits-Loop.",
-      ]
-    : [
-        "Impulsive and questioning: 3-8 words, frequent why/how questions, quick reactions.",
-        "Calm and observant: concrete details, clear reasoning, few exclamations.",
-        "Playful and witty: short wordplay, lightens tension without gimmick loops.",
-      ];
+  const templates = [
+    "Impulsive and questioning: 3-8 words, frequent why/how questions, quick reactions.",
+    "Calm and observant: concrete details, clear reasoning, few exclamations.",
+    "Playful and witty: short wordplay, lightens tension without gimmick loops.",
+  ];
 
   const lines = childNames
     .slice(0, 3)
     .map((name, idx) => `  - ${name}: ${templates[idx] || templates[templates.length - 1]}`)
     .join("\n");
 
-  const globalRule = isGerman
-    ? "  - Global: Nicht allen Kindern dieselben Sprecher-Formeln geben (kein Serienmuster wie 'sagte ... kurz/knapp/leise')."
-    : "  - Global: Do not give all children the same speaker formulas (avoid repeated 'said ... briefly/quietly' patterns).";
+  const globalRule = "  - Global: Do not give all children the same speaker formulas (avoid repeated 'said ... briefly/quietly' patterns).";
 
   return `${lines}\n${globalRule}`;
 }
 
-// ─── Optimized Full Story Prompt (V3) ─────────────────────────────────────────
-// Kompakter, effektiver, mit dynamischen Charakter-Properties aus DB
+// ─── Golden Example & Anti-Patterns ──────────────────────────────────────────
+
+function buildGoldenExampleBlock(isGerman: boolean): string {
+  // Golden example is always in German (shows target output quality for German stories)
+  // Instructions are in English (more efficient for LLM processing)
+  const germanExample = `"""
+Als Mama den Korb auf den Kuechentisch knallte, rutschte der Deckel schief. Plopp.
+
+Adrian war sofort da. „Darf ich—"
+
+„Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
+
+Alexander beugte sich vor. „Ich riech Apfelkuchen."
+
+„Und Tee", sagte Adrian. Er schnupperte extra laut. „Und... Oma."
+
+Mama nickte. „Oma hat Schnupfen. Den grossen." Sie machte eine Handbewegung wie eine Welle. „So einen, bei dem die Gardinen denken: Oh oh."
+
+Adrian grinste. „Oma ist stark."
+
+„Oma ist LAUT", korrigierte Mama. „Und heute braucht sie euch." Sie zaehlte an den Fingern ab. „Kuchen. Tee. Huehnersuppe. Hauptweg. Keine Experimente."
+"""`;
+
+  const englishExample = `"""
+Mom slammed the basket onto the kitchen table. The lid slipped sideways. Pop.
+
+Adrian was there instantly. "Can I—"
+
+"No," said Mom. That fast, as if the lid were a crocodile's mouth.
+
+Alexander leaned forward. "I smell apple cake."
+
+"And tea," said Adrian. He sniffed extra loud. "And… Grandma."
+
+Mom nodded. "Grandma has a cold. The big kind." She made a wave motion with her hand. "The kind where the curtains think: Uh oh."
+
+Adrian grinned. "Grandma is tough."
+
+"Grandma is LOUD," Mom corrected. "And today she needs you." She counted on her fingers. "Cake. Tea. Chicken soup. Main path. No experiments."
+"""`;
+
+  return `# PROSE QUALITY REFERENCE — write EXACTLY like this
+This is how a professional children's story sounds. Match this style precisely.
+${isGerman ? germanExample : englishExample}
+
+KEY QUALITIES you MUST replicate:
+- 40-50% dialogue — dialogue IS the story
+- Action verbs: "slammed", "slipped", "leaned", "sniffed" — NOT atmosphere verbs
+- ONE comparison per scene max ("as if the lid were a crocodile's mouth") — concrete and funny
+- Humor through SITUATION, not through poetic descriptions
+- Short sentences, varied rhythm
+- Children sound like REAL children — short, direct, concrete`;
+}
+
+function buildAntiPatternBlock(isGerman: boolean): string {
+  // Instructions always in English, examples in target language
+  const badExamples = isGerman
+    ? `❌ "Der Wald fluesterte" / "Der Wind wollte sagen" → Nature has NO intentions or feelings
+❌ "Blaetter raschelten in kleinen Schlucken" → No synesthesia (mixing unrelated senses)
+❌ "als waere sie ein Geheimnis, das atmet" → No personifying objects with human traits
+❌ "Das Licht blinkte kalt" / "Metall schmeckte nach Regen" → No forced sensory mashups
+❌ "Stille fiel" / "Er spuerte" / "Innen zog sich etwas" → No tell-formulas for emotions`
+    : `❌ "The forest whispered" / "The wind wanted to say" → Nature has NO intentions or feelings
+❌ "Leaves rustled in small sips" → No synesthesia (mixing unrelated senses)
+❌ "as if it were a secret that breathes" → No personifying objects with human traits
+❌ "The light blinked coldly" / "Metal tasted like rain" → No forced sensory mashups
+❌ "Silence fell" / "She felt" / "Something inside pulled" → No tell-formulas for emotions`;
+
+  const goodExamples = isGerman
+    ? `✅ "Mama knallte den Korb auf den Tisch. Plopp." → Strong verb, clear sound, done.
+✅ "'Darf ich—' 'Nein', sagte Mama." → Quick dialogue reveals character
+✅ "Er schnupperte extra laut." → Concrete physical action shows personality`
+    : `✅ "Mom slammed the basket on the table. Pop." → Strong verb, clear sound, done.
+✅ "'Can I—' 'No,' said Mom." → Quick dialogue reveals character
+✅ "He sniffed extra loud." → Concrete physical action shows personality`;
+
+  return `# FORBIDDEN PATTERNS — NEVER write sentences like these:
+${badExamples}
+❌ Paragraphs without dialogue or action → EVERY paragraph needs action or speech
+❌ Long atmospheric descriptions without anyone doing anything → ACTION first, always
+
+INSTEAD write like this:
+${goodExamples}
+✅ Dialogue 40%. Action 40%. Description max 20%.`;
+}
+
+// ─── Optimized Full Story Prompt (V4) ─────────────────────────────────────────
+// Kompakter, effektiver, mit dynamischen Charakter-Properties aus DB + Golden Example
 
 export function buildFullStoryPrompt(input: {
   directives: SceneDirective[];
@@ -348,9 +426,9 @@ export function buildFullStoryPrompt(input: {
   const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
 
   const avatarRule = focusChildNames.length >= 2
-    ? `- Avatar-Pflicht: ${focusChildNames.join(" und ")} sind gleichwertige Hauptfiguren und in JEDEM Beat aktiv (je Beat mindestens eine Handlung + eine Dialogzeile pro Kind).`
+    ? `- Avatar requirement: ${focusChildNames.join(" and ")} are equal protagonists and must be active in EVERY beat (each beat: at least one action + one dialogue line per child).`
     : focusChildNames.length === 1
-      ? `- Hauptkind-Pflicht: ${focusChildNames[0]} ist in JEDEM Beat aktiv (Handlung oder Dialog).`
+      ? `- Protagonist requirement: ${focusChildNames[0]} must be active in EVERY beat (action or dialogue).`
       : "";
 
   const stylePackBlock = sanitizeStylePackBlock(stylePackText, isGerman);
@@ -365,9 +443,7 @@ export function buildFullStoryPrompt(input: {
       memoryTitles.push(`${avatar.displayName}: ${memories.map(m => m.storyTitle).join(", ")}`);
     }
     if (memoryTitles.length > 0) {
-      memorySection = isGerman
-        ? `\n# Fruehere Abenteuer\n${memoryTitles.join("\n")}\n- Baue GENAU EINE kurze Referenz ein: \"Das erinnert mich an ...\" (nicht nacherzaehlen).\n`
-        : `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n- Add EXACTLY one short reference: \"This reminds me of ...\" (do not retell).\n`;
+      memorySection = `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n- Add EXACTLY one short reference: "This reminds me of ..." (do not retell).\n`;
     }
   }
 
@@ -385,89 +461,84 @@ export function buildFullStoryPrompt(input: {
     return `${idx + 1}) Ort: ${trimDirectiveText(directive.setting, 56)}${artifactTag}. Kern: ${trimDirectiveText(directive.goal, 140)}. Konflikt: ${trimDirectiveText(directive.conflict, 130)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(directive.outcome, 90)}${fusionHint ? ` Hinweis: ${trimDirectiveText(fusionHint, 70)}` : ""}`;
   }).join("\n\n");
 
-  const safetyRule = isGerman
-    ? "Keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel."
-    : "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
+  const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
 
-  const titleHint = isGerman
-    ? "Max 6 Woerter, neugierig machend, kein Schema \"Objekt und Person\"."
-    : "Max 6 words, curiosity-driven, avoid \"object and person\" pattern.";
+  const titleHint = "Max 6 words, curiosity-driven, avoid 'object and person' pattern.";
 
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
-  const humorRule = isGerman
-    ? humorTarget >= 3
-      ? "Humor-Ziel hoch: mindestens 3 klare kindgerechte Lachmomente (Dialogwitz, Situationskomik, kleiner Missgriff ohne Bloßstellung)."
-      : humorTarget >= 2
-        ? "Humor-Ziel mittel: mindestens 2 klare kindgerechte Lachmomente."
-        : humorTarget >= 1
-          ? "Humor-Ziel leicht: mindestens 1 kindgerechter humorvoller Moment."
-          : "Humor optional: keine erzwungenen Witze."
-    : humorTarget >= 3
-      ? "High humor target: at least 3 clear child-friendly laugh moments (dialogue wit, situational comedy, harmless mishap)."
-      : humorTarget >= 2
-        ? "Medium humor target: at least 2 clear child-friendly laugh moments."
-        : humorTarget >= 1
-          ? "Light humor target: at least 1 child-friendly humorous beat."
-          : "Humor optional: no forced jokes.";
+  const humorRule = humorTarget >= 3
+    ? "High humor target: at least 3 clear child-friendly laugh moments (dialogue wit, situational comedy, harmless mishap)."
+    : humorTarget >= 2
+      ? "Medium humor target: at least 2 clear child-friendly laugh moments."
+      : humorTarget >= 1
+        ? "Light humor target: at least 1 child-friendly humorous beat."
+        : "Humor optional: no forced jokes.";
 
-  return `DU BIST: Kinderbuchautor auf Profi-Niveau (Preussler + Lindgren + Funke). Warm, frech, spannend.
-ZIEL: Kinder (${ageRange.min}-${ageRange.max}) wollen selbst weiterlesen.
+  const goldenExample = buildGoldenExampleBlock(isGerman);
+  const antiPatterns = buildAntiPatternBlock(isGerman);
 
-HARD RULES (muessen erfuellt sein):
-1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter. Nutze normale deutsche Rechtschreibung mit Umlauten (ä, ö, ü, ß), keine ASCII-Umschriften wie ae/oe/ue." : ""}
-2) Ausgabe: Nur gueltiges JSON. Kein Text davor/danach.
-3) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt.
-4) Struktur: Gib genau ${directives.length} Kapitel im JSON-Feld "chapters" aus (chapter: 1..${directives.length}). Keine Ueberschriften/Nummern im Text. Pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter.
-5) Cast-Lock: Nur diese Figuren: ${allowedNames.join(", ")}. Keine neuen Figuren.
-6) Regel-Prioritaet: Hard Rules haben IMMER Vorrang vor zusaetzlichen Nutzerbeispielen. Beispielnamen (z. B. Mia, Emma) sind niemals neue Figuren.
-7) Figurenfokus: Pro Beat max ${focusMaxActive} aktive Figuren (ideal ${focusIdealRange}), global max ${focusGlobalMax} aktiv erkennbare Figuren.
-8) Kindgerecht: ${safetyRule}
-9) Artefakt: ${artifactName || (isGerman ? "Artefakt" : "artifact")} (${artifactRule}). Bogen: Entdecken -> Fehlleitung/Problem -> clever nutzen (loest NICHT allein).
-10) Show, don't tell: Gefuehle durch Koerper/Handlung/Details zeigen, nicht erklaeren.
-11) Kein Deus ex Machina. Loesung entsteht durch Mut + Teamwork + kluge Entscheidung.
+  const outputLang = isGerman ? "German" : targetLanguage;
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes like ae/oe/ue. No English words in the story text." : "";
 
-STIL (sehr wichtig, aber flexibel):
-- Zielton: ${targetTone}.
-- Meist kurze Saetze, ab und zu ein laengerer fuer Schwung. Keine Satzmonster.
-- Dialoganteil ca. 30-40% (mindestens 25%), keine langen Monologe.
-- Pro Beat mindestens zwei kurze Dialogwechsel zwischen Figuren.
-- Jede Figur hat eigene Stimme (Wortwahl, Satzlaenge, Tick).
-- Kinderstimmen hart trennen:
-${childVoiceContract || "  - Keine Kinderstimmen verfuegbar"}
-- Pro Beat mindestens 1 konkretes Sinnesdetail (Geruch/Klang/Licht/Haptik).
-- Sprache bodenstaendig und kindnah: hoechstens 1 Vergleich pro Absatz UND maximal 2 Vergleiche pro Kapitel, keine erwachsenen Metaphernketten.
-- Vermeide wiederkehrende Tell-Formeln (z. B. "Stille fiel", "er/sie spuerte", "innen zog sich").
-- Vermeide Sprecher-Formeln in Serie ("sagte ... kurz/knapp/leise", "seine Stimme war ...").
-- Pro Beat maximal ein kurzer Innensicht-Satz; danach wieder sichtbare Aktion oder Dialog.
-- Spaetestens in Beat 2: klare Konsequenz bei Scheitern mit konkretem Verlust.
+  return `YOU ARE: Screenwriter for children's films AND children's book author (Preussler + Lindgren + Funke). You think in SCENES: dialogue, action, reaction.
+GOAL: Children (${ageRange.min}-${ageRange.max}) want to keep reading on their own. Every paragraph must contain action or dialogue.
+
+${goldenExample}
+
+${antiPatterns}
+
+HARD RULES (must be fulfilled):
+1) Language: Write the story ONLY in ${outputLang}.${umlautRule}
+2) Output: Valid JSON only. No text before or after.
+3) Length: ${totalWordMin}-${totalWordMax} words total.
+4) Structure: Exactly ${directives.length} chapters in the "chapters" JSON array (chapter: 1..${directives.length}). No headings or numbers in the text. Each chapter approximately ${wordsPerChapter.min}-${wordsPerChapter.max} words.
+5) Cast lock: Only these characters: ${allowedNames.join(", ")}. No new characters.
+6) Rule priority: Hard Rules ALWAYS override additional user examples. Example names (e.g. Mia, Emma) are never new characters.
+7) Character focus: Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}), global max ${focusGlobalMax} recognizable characters.
+8) Child-safe: ${safetyRule}
+9) Artifact: ${artifactName || "artifact"} (${artifactRule}). Arc: Discover -> Misdirection/Problem -> clever use (does NOT solve alone).
+10) Show, don't tell: Emotions ONLY through body action and dialogue. NO atmosphere descriptions without action. NO personifying nature.
+11) No deus ex machina. Solution comes from courage + teamwork + smart decision.
+12) DIALOGUE REQUIREMENT: At least 40% of text must be dialogue. No paragraph longer than 3 sentences without dialogue or direct action.
+
+STYLE (MOST IMPORTANT — follow strictly):
+- Target tone: ${targetTone}.
+- DIALOGUE FIRST: The story is told THROUGH dialogue. Description is only stage direction between dialogues.
+- Mostly short sentences (6-12 words), occasionally a longer one for swing. No sentence monsters.
+- Per beat at least FOUR short dialogue exchanges between characters.
+- Each character has their own voice (word choice, sentence length, quirk).
+- Separate children's voices sharply:
+${childVoiceContract || "  - No children's voices available"}
+- NO poetic language. Grounded, concrete, everyday.
+- Maximum 1 comparison per chapter (must be funny or surprising, not poetic).
+- NO personifying nature or objects (no "the wind wanted", no "the forest whispered").
+- NO synesthesia (no "light tasted", no "silence smelled like").
+- Action verbs over atmosphere verbs: "slammed", "grabbed", "snapped" instead of "shimmered", "whispered", "drifted".
 - ${humorRule}
-- Humor-Regel: Situationskomik und kurze Missverstaendnisse nutzen; Witze nie erklaeren.
-- Running-Gag-Regel: gleiche Lautmalerei/Catchphrase nur sparsam (max 2x pro Kapitel, max 6x in der ganzen Story).
-- Zusaetzlich mindestens 1 Atem-anhalten-Moment.
-- Beat ${directives.length}: konkreter Gewinn + kleiner Preis/Kompromiss sichtbar machen.
-- Beat-Enden variieren; Beat ${directives.length} endet warm und geschlossen.
-- Ab Kapitel 2 muss der erste Satz einen sichtbaren Uebergang tragen (Bewegung/Zeit/Ankunft), bevor ein neuer Ort startet.
-- Verwende niemals Meta-Labels im Fliesstext (z. B. "Der Ausblick:", "Hook:", "Szene:", "Kapitel 1").
-- Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
-- Keine Zusammenfassungs-Saetze wie "Die Konsequenz war klar", "Der Preis?" oder "Der Gewinn?".
-- Keine Lehrsatz-Saetze ueber Regeln/Funktionen (z. B. "Das Artefakt zeigt..."). Zeige Wirkung nur durch Szene + Reaktion.
+- Humor rule: Use situational comedy and short misunderstandings; never explain jokes.
+- Running gag rule: same onomatopoeia/catchphrase sparingly (max 2x per chapter, max 6x total).
+- By beat 2 at the latest: clear consequence of failure with concrete loss.
+- Beat ${directives.length}: show concrete gain + small price/compromise.
+- Vary beat endings; beat ${directives.length} ends warm and closed.
+- From chapter 2 onward, the first sentence must carry a visible transition (movement/time/arrival).
+- No meta-labels, preview sentences, summary sentences, or teaching sentences in prose.
 
-${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}FIGURENSTIMMEN:
+${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
 ${characterProfiles.join("\n\n")}
-${memorySection}${artifactName ? `\n# Artefakt-Arc\n- Name: ${artifactName}\n- Nutzen: ${artifactRule}\n- Pflichtbogen: Entdecken -> Fehlleitung -> cleverer Einsatz durch die Kinder.\n` : ""}
-# BEAT-VORGABEN
+${memorySection}${artifactName ? `\n# Artifact Arc\n- Name: ${artifactName}\n- Use: ${artifactRule}\n- Required arc: Discover -> Misdirection -> clever use by the children.\n` : ""}
+# BEAT DIRECTIVES
 ${beatLines}
 
-# INTERNER SCHREIBPROZESS (nicht ausgeben)
-- Erstelle intern zuerst eine kurze Beat-Skizze.
-- Schreibe die Geschichte kapitelweise im "chapters"-Array.
-- Fuehre internes Lektorat durch: Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Schlusswaerme.
-- Gib danach NUR das finale JSON aus.
+# INTERNAL WRITING PROCESS (do not output)
+- First create a short internal beat sketch.
+- Write the story chapter by chapter in the "chapters" array.
+- CHECK BEFORE OUTPUT: Is dialogue at least 40%? Are there paragraphs without action or dialogue? Any poetic personification of nature? If yes, revise internally.
+- Then output ONLY the final JSON.
 
-# AUSGABE-FORMAT
+# OUTPUT FORMAT
 {
   "title": "${titleHint}",
-  "description": "Ein Teaser-Satz als Frage oder kleines Raetsel",
+  "description": "${isGerman ? "Ein Teaser-Satz als Frage oder kleines Raetsel" : "A teaser sentence as question or small riddle"}",
   "chapters": [
     { "chapter": 1, "text": "..." }
   ]
@@ -505,89 +576,84 @@ export function buildFullStoryRewritePrompt(input: {
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
   const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
   const avatarRule = focusChildNames.length >= 2
-    ? `- ${focusChildNames.join(" und ")} muessen in JEDEM Beat aktiv sein (je Beat mindestens eine Handlung + eine Dialogzeile pro Kind).`
+    ? `- ${focusChildNames.join(" and ")} must be active in EVERY beat (each beat: at least one action + one dialogue line per child).`
     : focusChildNames.length === 1
-      ? `- ${focusChildNames[0]} muss in JEDEM Beat aktiv sein.`
+      ? `- ${focusChildNames[0]} must be active in EVERY beat.`
       : "";
 
   const stylePackBlock = sanitizeStylePackBlock(stylePackText, isGerman);
   const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
-  const humorRewriteLine = isGerman
-    ? humorTarget >= 3
-      ? "- Humor hoch halten: mindestens 3 klare kindgerechte Lachmomente (Dialogwitz oder Situationskomik, nie auf Kosten von Figuren)."
-      : humorTarget >= 2
-        ? "- Humor sichern: mindestens 2 klare kindgerechte Lachmomente."
-        : humorTarget >= 1
-          ? "- Mindestens 1 kurzer kindgerechter Humor-Moment."
-          : "- Humor optional, keine erzwungenen Witze."
-    : humorTarget >= 3
-      ? "- Keep humor high: at least 3 clear child-friendly laugh moments (dialogue wit or situational comedy, never humiliating)."
-      : humorTarget >= 2
-        ? "- Keep humor present: at least 2 clear child-friendly laugh moments."
-        : humorTarget >= 1
-          ? "- Include at least 1 short child-friendly humor moment."
-          : "- Humor optional, avoid forced jokes.";
+  const humorRewriteLine = humorTarget >= 3
+    ? "- Keep humor high: at least 3 clear child-friendly laugh moments (dialogue wit or situational comedy, never humiliating)."
+    : humorTarget >= 2
+      ? "- Keep humor present: at least 2 clear child-friendly laugh moments."
+      : humorTarget >= 1
+        ? "- Include at least 1 short child-friendly humor moment."
+        : "- Humor optional, avoid forced jokes.";
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
     .join("\n\n");
 
-  return `AUFGABE: Ueberarbeite die Geschichte so, dass sie wie ein echtes Kinderbuch klingt. Behalte Plot und Figurenkern, verbessere Sprache, Rhythmus und Voice.
+  const outputLang = isGerman ? "German" : targetLanguage;
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words in story text." : "";
+  const antiPatterns = buildAntiPatternBlock(isGerman);
 
-KONKRETE PROBLEME (zu beheben):
-${qualityIssues || "- Keine speziellen Issues uebergeben; optimiere trotzdem Prosa, Rhythmus und Figurenstimmen."}
+  return `TASK: Rewrite the story so it sounds like a real children's book. Keep plot and character core, improve language, rhythm, and voice.
+
+${antiPatterns}
+
+SPECIFIC PROBLEMS (to fix):
+${qualityIssues || "- No specific issues provided; optimize prose, rhythm, and character voices anyway."}
 
 HARD RULES:
-1) Sprache: Nur ${targetLanguage}.${isGerman ? " Keine englischen Woerter. Nutze normale deutsche Rechtschreibung mit Umlauten (ä, ö, ü, ß), keine ASCII-Umschriften wie ae/oe/ue." : ""}
-2) Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre, klar und kindgerecht.
-3) Cast-Lock: Nur diese Namen sind erlaubt: ${allowedNames || "(keine)"}. Keine neuen Figuren.
-4) Regel-Prioritaet: Hard Rules stehen ueber Zusatzvorgaben. Beispielnamen aus Nutzer-Texten sind keine Figurenkandidaten.
-5) Struktur: ${directives.length} Kapitel in Reihenfolge, keine Kapitel-Titel im Fliesstext.
-6) Laenge: ${totalWordMin}-${totalWordMax} Woerter gesamt; pro Kapitel etwa ${wordsPerChapter.min}-${wordsPerChapter.max}.
-7) Kindgerecht: keine explizite Gewalt, keine Waffen, kein Blut, kein Horror, kein Mobbing, keine Politik/Religion, keine Drogen/Alkohol/Gluecksspiel.
-8) Show, don't tell: Gefuehle ueber Koerpersignale, Handlung und konkrete Details.
-9) Kein Deus ex Machina.
-10) Ende klar, warm, ohne Cliffhanger.
-${artifactName ? `11) Artefakt "${artifactName}" bleibt relevant, loest aber nicht allein.` : ""}
+1) Language: Write ONLY in ${outputLang}.${umlautRule}
+2) Target audience: ${ageRange.min}-${ageRange.max} years, clear and child-appropriate.
+3) Cast lock: Only these names allowed: ${allowedNames || "(none)"}. No new characters.
+4) Rule priority: Hard Rules override additional requirements. Example names from user texts are not character candidates.
+5) Structure: ${directives.length} chapters in order, no chapter titles in prose.
+6) Length: ${totalWordMin}-${totalWordMax} words total; per chapter approximately ${wordsPerChapter.min}-${wordsPerChapter.max}.
+7) Child-safe: no explicit violence, weapons, blood, horror, bullying, politics/religion, drugs/alcohol/gambling.
+8) Show, don't tell: Emotions through body ACTION and DIALOGUE only. No atmosphere without action. No personifying nature.
+9) No deus ex machina.
+10) Clear, warm ending without cliffhanger.
+${artifactName ? `11) Artifact "${artifactName}" stays relevant but doesn't solve alone.` : ""}
 ${avatarRule || ""}
 
-STIL-ZIELE (flexibel, aber wichtig):
-- Zielton: ${targetTone}.
-- Meist kurze Saetze, ab und zu ein laengerer fuer Schwung.
-- Dialoganteil etwa 30-40% (mindestens 25%), mit klar unterscheidbaren Stimmen.
-- In jedem Beat mehrere kurze Dialogwechsel, damit die Kinderstimmen leben.
-- Kinderstimmen hart trennen:
-${childVoiceContract || "  - Keine Kinderstimmen verfuegbar"}
-- Konkrete, alltagsnahe Sprache: maximal ein Vergleich pro Absatz UND maximal zwei pro Kapitel, keine erwachsenen Metaphernbilder.
-- Wiederholte Tell-Formeln aufbrechen ("spuerte", "Stille fiel", "innen zog sich").
-- Wiederholte Sprecher-Formeln vermeiden ("sagte ... kurz/knapp/leise", "seine Stimme war ...").
-- Pro Beat maximal ein kurzer Innensicht-Satz; dann wieder sichtbare Handlung/Dialog.
-- Frueh konkrete Stakes benennen: was geht sichtbar verloren, wenn sie scheitern.
-- Pro Beat mindestens ein konkretes Sinnesdetail.
+STYLE GOALS (strictly important):
+- Target tone: ${targetTone}.
+- DIALOGUE FIRST: At least 40% dialogue. Story told THROUGH what characters say and do.
+- Mostly short sentences (6-12 words), occasionally longer for swing.
+- Multiple quick dialogue exchanges per beat — children's voices must come alive.
+- Separate children's voices sharply:
+${childVoiceContract || "  - No children's voices available"}
+- Concrete, everyday language: max ONE comparison per chapter, no adult metaphor imagery.
+- Break up tell-formulas ("felt", "silence fell", "inside something pulled").
+- Avoid speaker formula series ("said ... briefly/quietly", "his/her voice was ...").
+- Per beat max one short inner-thought sentence; then back to visible action/dialogue.
+- Name concrete stakes early: what is visibly lost if they fail.
 ${humorRewriteLine}
-- Humor-Regel: Situationskomik und kurze Missverstaendnisse nutzen; keine Witz-Erklaerungen im Nachsatz.
-- Running-Gag-Regel: gleiche Lautmalerei/Catchphrase sparsam (max 2x pro Kapitel, max 6x in der Story).
-- Mindestens ein klarer Spannungsmoment.
-- Im Finale: konkreter Gewinn plus kleiner Preis/Kompromiss.
-- Kapitelstart-Regel ab Kapitel 2: sichtbarer Uebergangssatz (Bewegung/Zeit/Ankunft) vor neuem Ort.
-- Keine Meta-Saetze oder Label-Phrasen wie "Leitfrage", "Ausblick", "Der Ausblick:", "Hook", "Beat" im Storytext.
-- Keine Vorschau-Saetze wie "Bald wuerden sie...", "Ein Ausblick blieb..." oder "Noch wussten sie nicht...".
-- Keine Zusammenfassungs-Saetze wie "Die Konsequenz war klar", "Der Preis?" oder "Der Gewinn?".
-- Keine Erklaersaetze ueber Objekt-Regeln ("X zeigt...", "X bedeutet..."): stattdessen konkrete Szene + Dialogreaktion.
+- Humor through situational comedy and short misunderstandings; never explain jokes.
+- Running gag rule: same onomatopoeia/catchphrase sparingly (max 2x per chapter, max 6x total).
+- At least one clear tension moment.
+- Finale: concrete gain plus small price/compromise.
+- From chapter 2: visible transition sentence (movement/time/arrival) before new location.
+- No meta-sentences, preview phrases, summary sentences, or teaching sentences in prose.
+- FORBIDDEN: personifying nature, mixing senses, poetic metaphors, paragraphs without action/dialogue.
 
-${stylePackBlock ? `STYLE PACK (zusaetzlich):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNES LEKTORAT (nicht ausgeben):
-- Pruefe Hard Rules, Stimmen, Rhythmus, Show-don't-tell, Wortzahl.
-- Wenn etwas bricht: intern ueberarbeiten.
-- Danach nur das finale JSON ausgeben.
+${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNAL EDITING (do not output):
+- Check hard rules, voices, rhythm, show-don't-tell, word count.
+- If anything breaks: revise internally.
+- Then output only the final JSON.
 
-ORIGINAL-TEXT:
+ORIGINAL TEXT:
 ${originalText}
 
-AUSGABE-FORMAT (nur JSON):
+OUTPUT FORMAT (JSON only):
 {
-  "title": "Story-Titel",
-  "description": "Teaser-Satz",
+  "title": "Story title",
+  "description": "Teaser sentence",
   "chapters": [
     { "chapter": 1, "text": "..." }
   ]

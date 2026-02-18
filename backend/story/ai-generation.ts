@@ -127,77 +127,77 @@ interface StylePresetMeta {
 const STYLE_PRESET_META: Record<StylePresetKey, StylePresetMeta> = {
   rhymed_playful: {
     inspiration:
-      "Inspired by 'Der Grüffelo': rhythmic, playful cadence with gentle call-and-response energy; keep lines musical yet clearly understandable.",
-    description: "Rhymed phrases, call-and-response, humorous.",
+      "Inspired by 'Der Grüffelo': rhythmic, playful cadence with call-and-response dialogue; keep lines musical. Always dialogue-driven with action.",
+    description: "Rhymed phrases, call-and-response, humorous dialogue.",
   },
   gentle_minimal: {
     inspiration:
-      "Inspired by 'Die kleine Raupe Nimmersatt': minimal, soothing structure with repeating phrases and calm sensory cues; ideal for bedtime.",
-    description: "Repetition, clear structure, calm.",
+      "Inspired by 'Die kleine Raupe Nimmersatt': minimal structure with repeating phrases; calm but always action-based. Characters DO things, not just exist.",
+    description: "Repetition, clear structure, calm actions.",
   },
   wild_imaginative: {
     inspiration:
-      "Inspired by 'Wo die wilden Kerle wohnen': bold imaginative energy with safe boundaries that celebrate curiosity and courage.",
-    description: "Rebellious imagination, safe boundaries.",
+      "Inspired by 'Wo die wilden Kerle wohnen': bold energy with safe boundaries; celebrate curiosity through concrete physical action and dialogue.",
+    description: "Rebellious imagination, safe boundaries, action-driven.",
   },
   philosophical_warm: {
     inspiration:
-      "Inspired by 'Der kleine Prinz': warm, reflective narration with small pearls of wisdom and poetic comparisons.",
-    description: "Small wisdoms, poetic imagery.",
+      "Inspired by 'Der kleine Prinz': warm, reflective tone with ONE simple wisdom per chapter — delivered through dialogue, not narration. No poetic metaphors.",
+    description: "Small wisdoms through dialogue, grounded.",
   },
   mischief_empowering: {
     inspiration:
-      "Inspired by 'Pippi Langstrumpf': mischievous, empowering tone where kids act confidently and humor drives the plot.",
-    description: "Self-efficacy, humor.",
+      "Inspired by 'Pippi Langstrumpf': mischievous, empowering tone where kids act confidently and humor drives the plot through dialogue and slapstick.",
+    description: "Self-efficacy, humor, dialogue-heavy.",
   },
   adventure_epic: {
     inspiration:
-      "Inspired by 'Harry Potter': episodic adventure feeling with clear quests and team spirit, always age-appropriate.",
-    description: "Quest feeling, age-appropriate dosage.",
+      "Inspired by 'Harry Potter': episodic adventure with clear quests and team spirit; told through character dialogue and action, not description.",
+    description: "Quest feeling, dialogue-driven action.",
   },
   quirky_dark_sweet: {
     inspiration:
-      "Inspired by 'Charlie und die Schokoladenfabrik': quirky, gently dark sweetness with surprising yet friendly twists.",
-    description: "Slightly quirky, always friendly.",
+      "Inspired by 'Charlie und die Schokoladenfabrik': quirky, gently dark sweetness with surprising twists — shown through situational comedy and dialogue.",
+    description: "Slightly quirky, always friendly, situational humor.",
   },
   cozy_friendly: {
     inspiration:
-      "Inspired by 'Winnie Puuh': cozy, dialogue-rich scenes full of friendship, snacks, and gentle warmth.",
-    description: "Cozy dialogue, friendship.",
+      "Inspired by 'Winnie Puuh': cozy, dialogue-rich scenes full of friendship and gentle warmth. At least 50% dialogue.",
+    description: "Cozy dialogue, friendship, character-driven.",
   },
   classic_fantasy: {
     inspiration:
-      "Inspired by 'Peter Pan': timeless, fairy-tale fantasy with wide-eyed heroes and classic motifs.",
-    description: "Timeless fantasy.",
+      "Inspired by 'Peter Pan': timeless fairy-tale fantasy with wide-eyed heroes; told through action sequences and character dialogue, not atmospheric description.",
+    description: "Timeless fantasy, action-driven.",
   },
   whimsical_logic: {
     inspiration:
-      "Inspired by 'Alice im Wunderland': playful logic puzzles and wordplay that remain easy to follow for kids.",
-    description: "Logic games, playful (age-appropriate).",
+      "Inspired by 'Alice im Wunderland': playful logic puzzles and wordplay delivered through character dialogue; easy to follow for kids.",
+    description: "Logic games, playful dialogue.",
   },
   mythic_allegory: {
     inspiration:
-      "Inspired by 'Die Chroniken von Narnia': mythic, softly allegorical storytelling with symbolic moments and calm heroism.",
-    description: "Symbolism, team spirit.",
+      "Inspired by 'Die Chroniken von Narnia': mythic storytelling with team spirit; symbolic moments shown through action and character choices, not poetic narration.",
+    description: "Symbolism through action, team spirit.",
   },
   road_fantasy: {
     inspiration:
-      "Inspired by 'Der Zauberer von Oz': journey-style fantasy with clear stages, memorable companions, and scenic landscapes.",
-    description: "Journey, stages, companions.",
+      "Inspired by 'Der Zauberer von Oz': journey fantasy with clear stages and memorable companions; each stage shown through dialogue and concrete encounters.",
+    description: "Journey, stages, companions, encounter-driven.",
   },
   imaginative_meta: {
     inspiration:
-      "Inspired by 'Die unendliche Geschichte': meta-fantasy celebrating imagination itself with stories inside stories.",
-    description: "Story within story (simple).",
+      "Inspired by 'Die unendliche Geschichte': meta-fantasy celebrating imagination; stories inside stories told through character interaction, not atmospheric prose.",
+    description: "Story within story, character-driven.",
   },
   pastoral_heart: {
     inspiration:
-      "Inspired by 'Heidi': pastoral warmth with nature imagery, heartfelt community, and gentle resilience.",
-    description: "Alpine feeling, comfort.",
+      "Inspired by 'Heidi': heartfelt community and gentle resilience; warmth shown through character relationships and dialogue, not nature descriptions.",
+    description: "Community feeling, dialogue-driven warmth.",
   },
   bedtime_soothing: {
     inspiration:
-      "Inspired by 'Gute Nacht, Mond': extremely soothing, near-whisper bedtime tone with long, dreamy sentences.",
+      "Inspired by 'Gute Nacht, Mond': soothing bedtime tone with calm, short sentences and gentle rhythm. Still needs character action — just slower and softer.",
     description: "Very gentle, whispering pace.",
   },
 };
@@ -1826,8 +1826,8 @@ You MUST implement this style consistently in ALL chapters!`
     .join("\n");
 
   const systemPrompt = [
-    `Du bist ein preisgekroenter Kinderbuchautor mit 30 Jahren Erfahrung, spezialisiert auf Geschichten fuer Kinder im Alter von ${config.ageGroup} Jahren.`,
-    "Dein Stil vereint Waerme, Rhythmus und klare, bildhafte Sprache wie in bekannten Kinderbuechern.",
+    `Du bist Drehbuchautor fuer Kinderfilme UND Kinderbuchautor mit 30 Jahren Erfahrung, spezialisiert auf Geschichten fuer Kinder im Alter von ${config.ageGroup} Jahren.`,
+    "Du denkst in SZENEN: Dialog, Handlung, Reaktion. Deine Geschichten werden DURCH Dialog erzaehlt, nicht durch Beschreibung.",
     "",
     "FUNDAMENTALE ERZAEHLPRINZIPIEN",
     "1) NARRATIVE ARCHITEKTUR (Drei-Akt-Struktur)",
@@ -1836,14 +1836,18 @@ You MUST implement this style consistently in ALL chapters!`
     "- Akt 3 (letztes Kapitel): Klimax und befriedigende Aufloesung. Alle Faden schliessen.",
     "",
     "2) SPRACHQUALITAET",
-    "- Saetze: 8-15 Woerter im Durchschnitt, Rhythmus durch Varianz.",
-    "- Sensorische Sprache: sehen, hoeren, riechen, fuehlen.",
+    "- Saetze: 6-12 Woerter im Durchschnitt, Rhythmus durch Varianz.",
+    "- Konkrete Handlungsverben statt Atmosphaere-Beschreibungen: 'knallte', 'riss', 'schnappte' statt 'schimmerte', 'fluesterte', 'wehte'.",
+    "- KEINE Vermenschlichung von Natur oder Objekten ('der Wald fluesterte', 'der Wind wollte').",
+    "- KEINE Synaesthesie ('Licht schmeckte', 'Stille roch nach').",
+    "- KEINE poetischen Metaphern oder Erwachsenen-Bildsprache.",
     "- Keine Passivkonstruktionen, keine abstrakten Begriffe, keine verschachtelten Nebensaetze.",
-    "- Dialoge natuerlich, kurz, maximal 2-3 Saetze am Stueck.",
+    "- Dialoge natuerlich, kurz, maximal 2-3 Saetze am Stueck. Mindestens 40% Dialog.",
     "- Keine erfundenen Woerter oder Grammatikfehler.",
     "",
     "3) SHOW, DON'T TELL",
-    "- Zeige Gefuehle durch Handlung und Details.",
+    "- Zeige Gefuehle durch Koerperaktion und Dialog, NIEMALS durch Atmosphaere oder Erklaerung.",
+    "- JEDER Absatz muss Handlung oder Dialog enthalten. Keine reinen Beschreibungs-Absaetze.",
     "",
     "4) CHARAKTER-KONSISTENZ",
     "- Jede Figur hat klare Rolle und Persoenlichkeit.",
@@ -1860,7 +1864,7 @@ You MUST implement this style consistently in ALL chapters!`
     "- Mindestens ein 'Oh nein!'-Moment und ein 'Juhu!'-Moment.",
     "",
     "KAPITELSTRUKTUR",
-    "- Hook im ersten Satz, Entwicklung, Wendepunkt/Cliffhanger (ausser letztes Kapitel).",
+    "- Hook im ersten Satz durch HANDLUNG (nicht Beschreibung), Entwicklung, Wendepunkt/Cliffhanger (ausser letztes Kapitel).",
     "- Letztes Kapitel: warmer, runder Abschluss.",
     "",
     "LANGUAGE RULES:",
@@ -1878,14 +1882,15 @@ You MUST implement this style consistently in ALL chapters!`
     "- Human characters must stay fully human (no tails, no animal ears, no fur).",
     "",
     "STYLE AND TONE:",
-    "- Warm, whimsical picture-book energy with gentle suspense.",
-    "- Show, do not tell: reveal feelings through actions, dialogue, and sensory detail.",
-    "- Respect Axel Scheffler watercolor aesthetics (soft gouache textures, hand-drawn outlines).",
+    "- Dialogreiche, handlungsgetriebene Szenen mit Humor und Spannung.",
+    "- Show through ACTION and DIALOGUE: reveal feelings through what characters DO and SAY, never through atmosphere or poetic description.",
+    "- FORBIDDEN: personifying nature, mixing senses, poetic metaphors, paragraphs without action or dialogue.",
     systemStyleAddendum,
     "",
     "QUALITY CHECK:",
     "- Continuity on items, places, supporting cast, and recurring elements.",
     "- Chapters 1-" + (chapterCount - 1) + " end with a hook; final chapter resolves the adventure.",
+    "- Dialogue must be at least 40% of all text.",
   ]
     .filter(Boolean)
     .join("\n");
