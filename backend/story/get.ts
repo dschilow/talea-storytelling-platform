@@ -14,6 +14,11 @@ export const get = api<GetStoryParams, Story>(
   { expose: true, method: "GET", path: "/story/:id", auth: true },
   async ({ id }) => {
     const auth = getAuthData()!;
+    const requestedId = String(id || "").trim();
+    const studioPrefixedEpisodeId = requestedId.startsWith("studio-")
+      ? requestedId.slice("studio-".length)
+      : null;
+
     const storyRow = await storyDB.queryRow<{
       id: string;
       user_id: string;
@@ -32,7 +37,115 @@ export const get = api<GetStoryParams, Story>(
     `;
 
     if (!storyRow) {
-      throw APIError.notFound("Story not found");
+      const studioEpisodeId = studioPrefixedEpisodeId || requestedId;
+      const studioRow = await storyDB.queryRow<{
+        id: string;
+        series_id: string;
+        user_id: string;
+        episode_number: number;
+        title: string;
+        summary: string | null;
+        approved_story_text: string | null;
+        story_text: string | null;
+        status: string;
+        created_at: Date;
+        updated_at: Date;
+        series_title: string;
+        series_logline: string | null;
+      }>`
+        SELECT
+          e.id,
+          e.series_id,
+          e.user_id,
+          e.episode_number,
+          e.title,
+          e.summary,
+          e.approved_story_text,
+          e.story_text,
+          e.status,
+          e.created_at,
+          e.updated_at,
+          s.title AS series_title,
+          s.logline AS series_logline
+        FROM studio_episodes e
+        JOIN studio_series s ON s.id = e.series_id
+        WHERE e.id = ${studioEpisodeId}
+          AND e.status = 'published'
+      `;
+
+      if (!studioRow) {
+        throw APIError.notFound("Story not found");
+      }
+
+      if (studioRow.user_id !== auth.userID && auth.role !== "admin") {
+        throw APIError.permissionDenied("You do not have permission to view this story.");
+      }
+
+      const sceneRows = await storyDB.queryAll<{
+        id: string;
+        scene_order: number;
+        title: string;
+        scene_text: string;
+        image_url: string | null;
+      }>`
+        SELECT id, scene_order, title, scene_text, image_url
+        FROM studio_episode_scenes
+        WHERE episode_id = ${studioEpisodeId}
+        ORDER BY scene_order ASC
+      `;
+
+      if (sceneRows.length === 0) {
+        throw APIError.notFound("Published studio episode has no scenes");
+      }
+
+      const coverImageUrl =
+        (await resolveImageUrlForClient(sceneRows.find((scene) => scene.image_url)?.image_url || undefined)) ||
+        undefined;
+
+      const description =
+        studioRow.summary?.trim() ||
+        studioRow.series_logline?.trim() ||
+        (studioRow.approved_story_text || studioRow.story_text || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 220) ||
+        `Talea Studio Folge ${studioRow.episode_number}`;
+
+      const chapters = await Promise.all(
+        sceneRows.map(async (scene) => ({
+          id: scene.id,
+          title: scene.title || `Szene ${scene.scene_order}`,
+          content: scene.scene_text,
+          imageUrl: (await resolveImageUrlForClient(scene.image_url || undefined)) || scene.image_url || undefined,
+          order: scene.scene_order,
+        }))
+      );
+
+      return {
+        id: `studio-${studioRow.id}`,
+        userId: studioRow.user_id,
+        title: `${studioRow.series_title} - Folge ${studioRow.episode_number}: ${studioRow.title}`,
+        summary: description,
+        description,
+        coverImageUrl,
+        config: {
+          avatarIds: [],
+          genre: "Talea Studio",
+          setting: studioRow.series_title,
+          length: sceneRows.length <= 6 ? "short" : sceneRows.length <= 10 ? "medium" : "long",
+          complexity: "medium",
+          ageGroup: "6-8",
+        },
+        chapters,
+        status: "complete",
+        metadata: {
+          model: "talea-studio",
+          processingTime: 0,
+          imagesGenerated: sceneRows.filter((scene) => Boolean(scene.image_url)).length,
+        },
+        createdAt: studioRow.created_at,
+        updatedAt: studioRow.updated_at,
+      };
     }
 
     if (storyRow.user_id !== auth.userID && auth.role !== 'admin' && !storyRow.is_public) {

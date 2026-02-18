@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { motion, useReducedMotion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
   Check,
@@ -29,6 +30,7 @@ type ComposeEpisodeResponse = EpisodeWithScenesResponse & { combinedText: string
 
 const TaleaStudioWorkspace: React.FC = () => {
   const { getToken } = useAuth();
+  const navigate = useNavigate();
   const { resolvedTheme } = useTheme();
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
@@ -548,6 +550,10 @@ const TaleaStudioWorkspace: React.FC = () => {
     }
   };
 
+  const openPublishedEpisodeReader = (episodeId: string) => {
+    navigate(`/story-reader/studio-${episodeId}`);
+  };
+
   if (loading) {
     return <div className={cn("rounded-2xl border p-6 text-sm", palette.card, palette.muted)}>Talea Studio wird geladen...</div>;
   }
@@ -696,24 +702,39 @@ const TaleaStudioWorkspace: React.FC = () => {
                   ) : (
                     <div className="mt-2 space-y-2">
                       {episodes.map((episode) => (
-                        <button
+                        <div
                           key={episode.id}
-                          type="button"
-                          onClick={() => setSelectedEpisodeId(episode.id)}
                           className={cn(
-                            "w-full rounded-lg border p-2.5 text-left text-sm",
+                            "rounded-lg border p-2.5 text-sm",
                             selectedEpisodeId === episode.id
                               ? "border-[#a88f80] bg-[#f3e8da] dark:bg-[#2a394f]"
                               : "border-[#d8cbbf] bg-white/60 dark:border-[#415676] dark:bg-[#1f2c42]"
                           )}
                         >
-                          <p className="font-semibold text-[#243246] dark:text-[#e6edf8]">
-                            Folge {episode.episodeNumber}: {episode.title}
-                          </p>
-                          <p className="mt-1 text-xs text-[#68788c] dark:text-[#9fb0c7]">
-                            {episode.status} - {episode.selectedCharacterIds?.length || 0} Charaktere
-                          </p>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEpisodeId(episode.id)}
+                            className="w-full text-left"
+                          >
+                            <p className="font-semibold text-[#243246] dark:text-[#e6edf8]">
+                              Folge {episode.episodeNumber}: {episode.title}
+                            </p>
+                            <p className="mt-1 text-xs text-[#68788c] dark:text-[#9fb0c7]">
+                              {episode.status} - {episode.selectedCharacterIds?.length || 0} Charaktere
+                            </p>
+                          </button>
+
+                          {episode.status === "published" && (
+                            <button
+                              type="button"
+                              onClick={() => openPublishedEpisodeReader(episode.id)}
+                              className="mt-2 inline-flex h-8 items-center gap-1 rounded-lg border border-[#cdb8a2] bg-[#f3eadc] px-2.5 text-xs font-semibold text-[#2f3c4f] hover:bg-[#eee2d1] dark:border-[#4e6484] dark:bg-[#2a3950] dark:text-[#dbe7f8]"
+                            >
+                              <BookOpen className="h-3.5 w-3.5" />
+                              Lesen wie Story
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -1050,9 +1071,19 @@ const TaleaStudioWorkspace: React.FC = () => {
                     </div>
 
                     {selectedEpisode.status === "published" && (
-                      <p className="rounded-xl border border-[#79a58e] bg-[#e6f2ea] px-3 py-2 text-sm text-[#2f5b46] dark:border-[#4f7f68] dark:bg-[#264335] dark:text-[#b6d8c5]">
-                        Diese Folge ist veroeffentlicht.
-                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#79a58e] bg-[#e6f2ea] px-3 py-2 dark:border-[#4f7f68] dark:bg-[#264335]">
+                        <p className="text-sm text-[#2f5b46] dark:text-[#b6d8c5]">
+                          Diese Folge ist veroeffentlicht.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openPublishedEpisodeReader(selectedEpisode.id)}
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#79a58e] bg-white/70 px-2.5 text-xs font-semibold text-[#2f5b46] hover:bg-white dark:border-[#5d8f76] dark:bg-[#1f362a] dark:text-[#b6d8c5]"
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                          Im Story Reader lesen
+                        </button>
+                      </div>
                     )}
 
                     {(combinedEpisodeText || selectedEpisode.status === "published" || selectedEpisode.status === "composed") && scenes.length > 0 && (
