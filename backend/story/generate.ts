@@ -300,13 +300,13 @@ export const generate = api<GenerateStoryRequest, Story>(
 
     const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
     const requestedAiModel = req.config.aiModel;
-    const effectiveAiModel: AIModel =
-      auth?.role === "admin" ? requestedAiModel ?? "gpt-5-mini" : "gpt-5-mini";
-    if (auth?.role !== "admin" && requestedAiModel && requestedAiModel !== "gpt-5-mini") {
-      console.log("[story.generate] Non-admin model override blocked", {
+    const defaultAiModel: AIModel = "gpt-5-mini";
+    const effectiveAiModel: AIModel = requestedAiModel ?? defaultAiModel;
+    if (requestedAiModel && requestedAiModel !== defaultAiModel) {
+      console.log("[story.generate] Model override from wizard applied", {
         userId: currentUserId,
         requestedAiModel,
-        effectiveAiModel,
+        defaultAiModel,
       });
     }
 

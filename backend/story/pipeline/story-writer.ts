@@ -111,6 +111,7 @@ export class LlmStoryWriter implements StoryWriter {
     const isGemini3 = model.startsWith("gemini-3");
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
     const allowPostEdits = !isGeminiModel || isGemini3;
+    let canRunPostEdits = allowPostEdits;
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? MAX_REWRITE_PASSES);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? MAX_EXPAND_CALLS);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? MAX_WARNING_POLISH_CALLS);
@@ -123,10 +124,10 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? 15000);
+    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? 10000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
-      ? Math.max(6000, configuredMaxStoryTokens)
-      : 15000;
+      ? Math.max(4000, configuredMaxStoryTokens)
+      : 10000;
     const humorLevel = normalizedRequest.rawConfig?.humorLevel;
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
@@ -184,6 +185,7 @@ ${storyLanguageRule}`.trim();
             totalTokens: geminiResponse.usage.totalTokens,
             model,
           },
+          finishReason: geminiResponse.finishReason,
         };
       }
 
@@ -260,6 +262,10 @@ ${storyLanguageRule}`.trim();
     if (result.usage) {
       totalUsage = mergeUsage(totalUsage, result.usage, model);
     }
+    if (result.finishReason === "length" && !String(result.content || "").trim()) {
+      console.warn("[story-writer] Full story response was empty+truncated; skipping expensive post-edits for this candidate.");
+      canRunPostEdits = false;
+    }
 
     let parsed = safeJson(result.content);
     let draft = sanitizeDraft(extractDraftFromAnyFormat({
@@ -290,11 +296,11 @@ ${storyLanguageRule}`.trim();
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
       let usage: TokenUsage | undefined;
-      let expandCallCount = 0; // Zähle Expand-Calls
+      let expandAttemptCount = 0; // Zähle Expand-Versuche
 
       for (let i = 0; i < updatedChapters.length; i++) {
         // Stoppe wenn maxExpandCalls erreicht
-        if (expandCallCount >= maxExpandCalls) {
+        if (expandAttemptCount >= maxExpandCalls) {
           console.log(`[story-writer] Max expand calls (${maxExpandCalls}) reached, skipping remaining chapters`);
           break;
         }
@@ -345,6 +351,7 @@ ${storyLanguageRule}`.trim();
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
 
+        expandAttemptCount += 1;
         try {
           const result = await callStoryModel({
             systemPrompt: editSystemPrompt,
@@ -364,10 +371,15 @@ ${storyLanguageRule}`.trim();
           }
 
           const parsed = safeJson(result.content);
+          if (result.finishReason === "length" && !String(result.content || "").trim()) {
+            console.warn(
+              `[story-writer] Empty truncated expand response in chapter ${chapter.chapter}; stopping further expand attempts for this pass.`,
+            );
+            break;
+          }
           if (parsed?.text) {
             chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
             changed = true;
-            expandCallCount++; // V2: Zähle erfolgreiche Expand-Calls
           }
         } catch (error) {
           console.warn(`[story-writer] Targeted edit failed for chapter ${chapter.chapter}`, error);
@@ -473,7 +485,7 @@ ${storyLanguageRule}`.trim();
       return { draft: { ...draftInput, chapters: updatedChapters }, usage, changed };
     };
 
-    if (allowPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
+    if (canRunPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
       const targetedBefore = await applyTargetedEdits(draft);
       if (targetedBefore.changed) {
         draft = targetedBefore.draft;
@@ -523,9 +535,11 @@ ${storyLanguageRule}`.trim();
 
     const emergencyRewriteNeeded =
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
-    const effectiveRewritePasses = emergencyRewriteNeeded
-      ? Math.max(2, maxRewritePasses)
-      : maxRewritePasses;
+    const effectiveRewritePasses = canRunPostEdits
+      ? (emergencyRewriteNeeded
+        ? (isReasoningModel ? Math.max(1, maxRewritePasses) : Math.max(2, maxRewritePasses))
+        : maxRewritePasses)
+      : 0;
 
     let rewriteAttempt = 0;
     while (rewriteAttempt < effectiveRewritePasses && !isTokenBudgetExceeded()) {
@@ -643,7 +657,7 @@ ${storyLanguageRule}`.trim();
 
     // V2: Finaler Expand-Pass nur für kritische Probleme (nicht für TEMPLATE_PHRASE)
     // Template-Phrasen werden im Rewrite behandelt, nicht mit extra API-Calls
-    if (allowPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
+    if (canRunPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
       const needsFinalTargeted = qualityReport.issues.some(issue =>
         issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "MISSING_CHARACTER"
         // V2: TEMPLATE_PHRASE entfernt - zu teuer für extra API-Calls
@@ -674,7 +688,7 @@ ${storyLanguageRule}`.trim();
         ? maxWarningPolishCalls
         : (shouldForceQualityRecovery(qualityReport, getWarningPolishIssues(qualityReport)) ? 1 : 0);
 
-    if (allowPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
+    if (canRunPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
       const warningPolish = await applyWarningPolish(draft, qualityReport, emergencyWarningPolishCalls);
       if (warningPolish.changed) {
         const polishedReport = runQualityGates({
@@ -707,7 +721,7 @@ ${storyLanguageRule}`.trim();
     if (isFallbackTitle && !isTokenBudgetExceeded()) {
       const storyText = draft.chapters.map(ch => ch.text).join("\n\n");
       try {
-        if (!allowPostEdits) {
+        if (!canRunPostEdits) {
           draft.title = normalizedRequest.language === "de" ? "Neue Geschichte" : "New Story";
           return {
             draft,

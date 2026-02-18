@@ -277,22 +277,24 @@ export class StoryPipelineOrchestrator {
       let criticReport: SemanticCriticReport | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
-      // Cost-safe default: 1 candidate. For classic tales, add candidate #2 only if #1 is weak.
+      // Cost-safe default: 1 candidate. Optional adaptive 2nd candidate is opt-in.
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
       const defaultCandidateCount = 1;
       const releaseCandidateCount = releaseEnabled
         ? Math.max(1, Math.min(2, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
         : 1;
+      const enableAdaptiveSecondCandidate = Boolean((normalized.rawConfig as any)?.enableAdaptiveSecondCandidate);
       const adaptiveSecondCandidate =
         releaseEnabled &&
         !Number.isFinite(explicitCandidateCount) &&
-        normalized.category === "Klassische Märchen";
-      const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-5-mini");
+        normalized.category === "Klassische Märchen" &&
+        enableAdaptiveSecondCandidate;
+      const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-4.1-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // For 6-8 stories, default to one edit unless explicitly overridden.
       const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
-      const implicitSurgeryEdits = normalized.ageMax <= 8 ? 1 : 0;
+      const implicitSurgeryEdits = 0;
       const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
         : implicitSurgeryEdits;
@@ -424,18 +426,23 @@ export class StoryPipelineOrchestrator {
           );
 
           let candidateUsage = writeResult.usage;
-          let candidateCritic = await runSemanticCritic({
-            storyId: normalized.storyId,
-            draft: candidateDraft,
-            directives,
-            cast: castSet,
-            language: normalized.language,
-            ageRange: { min: normalized.ageMin, max: normalized.ageMax },
-            humorLevel,
-            model: criticModel,
-            targetMinScore: criticMinScore,
-          });
-          candidateUsage = mergeTokenUsage(candidateUsage, candidateCritic.usage);
+          let candidateCritic: SemanticCriticReport;
+          if (shouldSkipSemanticCritic(candidateQuality)) {
+            candidateCritic = buildSkippedCriticReport(criticModel);
+          } else {
+            candidateCritic = await runSemanticCritic({
+              storyId: normalized.storyId,
+              draft: candidateDraft,
+              directives,
+              cast: castSet,
+              language: normalized.language,
+              ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+              humorLevel,
+              model: criticModel,
+              targetMinScore: criticMinScore,
+            });
+            candidateUsage = mergeTokenUsage(candidateUsage, candidateCritic.usage);
+          }
 
           let surgeryApplied = false;
           let editedChapters: number[] = [];
@@ -929,6 +936,33 @@ function toQualitySummary(report: any, rewriteAttempts: number): any {
     warningCount: issues.filter((i: any) => i?.severity === "WARNING").length,
     rewriteAttempts,
     issues,
+  };
+}
+
+function shouldSkipSemanticCritic(quality: any): boolean {
+  if (!quality) return false;
+  const issues = Array.isArray(quality.issues) ? quality.issues : [];
+  const hasPlaceholder = issues.some((issue: any) => issue?.code === "CHAPTER_PLACEHOLDER");
+  const hasTooShort = issues.some((issue: any) => issue?.code === "TOTAL_TOO_SHORT");
+  const errorCount = Number(quality?.errorCount ?? 0);
+  return hasPlaceholder || hasTooShort || errorCount >= 12;
+}
+
+function buildSkippedCriticReport(model: string): SemanticCriticReport {
+  return {
+    model,
+    overallScore: 0,
+    dimensionScores: {
+      craft: 0,
+      narrative: 0,
+      childFit: 0,
+      humor: 0,
+      warmth: 0,
+    },
+    releaseReady: false,
+    summary: "Semantic critic skipped for severely broken draft (cost guard).",
+    issues: [],
+    patchTasks: [],
   };
 }
 
