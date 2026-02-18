@@ -110,6 +110,13 @@ export class LlmStoryWriter implements StoryWriter {
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
+    const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
+    const storyPromptMode: "full" | "compact" =
+      requestedPromptMode === "full"
+        ? "full"
+        : requestedPromptMode === "compact"
+          ? "compact"
+          : (isReasoningModel ? "compact" : "full");
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? MAX_REWRITE_PASSES);
@@ -149,6 +156,8 @@ Your rules:
 5. Your sentences are short and rhythmic: short-short-long, like music.
 6. Write grounded and concrete like a screenplay: strong verbs, no poetry.
 7. FORBIDDEN: personifying nature ("the forest whispered"), mixing senses ("light tasted"), poetic metaphors, paragraphs without action.
+${storyLanguageRule}`.trim();
+    const compactSystemPrompt = `You write high-quality children's stories as strict JSON output. Follow hard rules from the user prompt exactly.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
     const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
@@ -222,7 +231,7 @@ ${storyLanguageRule}`.trim();
     const isTokenBudgetExceeded = () => (totalUsage?.totalTokens || 0) >= maxStoryTokens;
 
     // ─── Phase A: Generate full story in one call ────────────────────────────
-    const prompt = buildFullStoryPrompt({
+    const buildStoryPrompt = (promptMode: "full" | "compact") => buildFullStoryPrompt({
       directives,
       cast,
       dna,
@@ -239,15 +248,21 @@ ${storyLanguageRule}`.trim();
       fusionSections,
       avatarMemories,
       userPrompt: normalizedRequest.rawConfig?.customPrompt,
+      promptMode,
     });
+    const resolveSystemPrompt = (mode: "full" | "compact") => mode === "compact" ? compactSystemPrompt : systemPrompt;
+    const isEmptyTruncatedResponse = (response: { finishReason?: string; content?: string }) =>
+      response.finishReason === "length" && !String(response.content || "").trim();
+    let activePromptMode: "full" | "compact" = storyPromptMode;
+    let prompt = buildStoryPrompt(activePromptMode);
 
     // Lean token budget: enough for full story JSON, tighter cap to reduce cost spikes.
     const baseOutputTokens = Math.max(2200, Math.round(totalWordMax * 1.5));
     const reasoningMultiplier = isReasoningModel ? 1.2 : 1;
     const maxOutputTokens = Math.min(Math.max(2600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000);
 
-    const result = await callStoryModel({
-      systemPrompt,
+    let result = await callStoryModel({
+      systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,
       responseFormat: "json_object",
       maxTokens: maxOutputTokens,
@@ -256,14 +271,49 @@ ${storyLanguageRule}`.trim();
       seed: generationSeed,
       context: "story-writer-full",
       logSource: "phase6-story-llm",
-      logMetadata: { storyId: normalizedRequest.storyId, step: "full", candidateTag },
+      logMetadata: { storyId: normalizedRequest.storyId, step: "full", candidateTag, promptMode: activePromptMode },
     });
 
     if (result.usage) {
       totalUsage = mergeUsage(totalUsage, result.usage, model);
     }
-    if (result.finishReason === "length" && !String(result.content || "").trim()) {
-      console.warn("[story-writer] Full story response was empty+truncated; skipping expensive post-edits for this candidate.");
+    if (isEmptyTruncatedResponse(result) && !isTokenBudgetExceeded()) {
+      const recoveryPromptMode: "compact" = "compact";
+      activePromptMode = recoveryPromptMode;
+      prompt = buildStoryPrompt(recoveryPromptMode);
+      const recoveryMaxTokens = Math.min(Math.max(maxOutputTokens + 700, 3200), 4800);
+      console.warn(
+        `[story-writer] Full story response was empty+truncated; running one compact recovery attempt (maxTokens=${recoveryMaxTokens}).`,
+      );
+      try {
+        const recoveryResult = await callStoryModel({
+          systemPrompt: resolveSystemPrompt(recoveryPromptMode),
+          userPrompt: prompt,
+          responseFormat: "json_object",
+          maxTokens: recoveryMaxTokens,
+          temperature: strict ? 0.4 : 0.7,
+          reasoningEffort: isReasoningModel ? "low" : "medium",
+          seed: typeof generationSeed === "number" ? generationSeed + 173 : undefined,
+          context: "story-writer-full-recovery",
+          logSource: "phase6-story-llm",
+          logMetadata: {
+            storyId: normalizedRequest.storyId,
+            step: "full-recovery",
+            candidateTag,
+            promptMode: recoveryPromptMode,
+            recoveryReason: "empty-truncated",
+          },
+        });
+        if (recoveryResult.usage) {
+          totalUsage = mergeUsage(totalUsage, recoveryResult.usage, model);
+        }
+        result = recoveryResult;
+      } catch (error) {
+        console.warn("[story-writer] Full recovery attempt failed; continuing with fallback draft path.", error);
+      }
+    }
+    if (isEmptyTruncatedResponse(result)) {
+      console.warn("[story-writer] Full story response remained empty+truncated; skipping expensive post-edits for this candidate.");
       canRunPostEdits = false;
     }
 

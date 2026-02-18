@@ -100,6 +100,19 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
   return lines.join("\n");
 }
 
+function buildCompactCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string {
+  const role = sheet.roleType === "AVATAR"
+    ? (isGerman ? "Kind" : "Child")
+    : getSpeciesLabel(sheet.species || "", isGerman) || sheet.roleType || "";
+  const dominant = sheet.enhancedPersonality?.dominant
+    || sheet.personalityTags?.[0]
+    || (isGerman ? "neugierig" : "curious");
+  const speech = sheet.speechStyleHints?.[0]
+    || (isGerman ? "klar und direkt" : "clear and direct");
+  const rolePart = role ? ` (${role})` : "";
+  return `- ${sheet.displayName}${rolePart}: ${dominant}; Stimme: ${speech}.`;
+}
+
 /**
  * Gibt eine lesbare Spezies-Bezeichnung zurÃ¼ck
  */
@@ -376,8 +389,11 @@ export function buildFullStoryPrompt(input: {
   fusionSections?: Map<number, string>;
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
   userPrompt?: string;
+  promptMode?: "full" | "compact";
 }): string {
   const { directives, cast, dna, language, ageRange, tone, humorLevel, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
+  const promptMode = input.promptMode ?? "full";
+  const isCompactPrompt = promptMode === "compact";
   const isGerman = language === "de";
   const targetLanguage = isGerman ? "Deutsch" : language;
   const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
@@ -395,7 +411,11 @@ export function buildFullStoryPrompt(input: {
     if (!allowedNames.includes(sheet.displayName)) {
       allowedNames.push(sheet.displayName);
     }
-    characterProfiles.push(buildCharacterProfile(sheet as CharacterSheet, isGerman));
+    characterProfiles.push(
+      isCompactPrompt
+        ? buildCompactCharacterProfile(sheet as CharacterSheet, isGerman)
+        : buildCharacterProfile(sheet as CharacterSheet, isGerman),
+    );
   }
 
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
@@ -410,8 +430,8 @@ export function buildFullStoryPrompt(input: {
       ? `- Protagonist requirement: ${focusChildNames[0]} must be active in EVERY beat (action or dialogue).`
       : "";
 
-  const stylePackBlock = sanitizeStylePackBlock(stylePackText, isGerman);
-  const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
+  const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(stylePackText, isGerman), isCompactPrompt ? 5 : 10);
+  const customPromptBlock = trimPromptLines(formatCustomPromptBlock(userPrompt, isGerman), isCompactPrompt ? 6 : 12);
 
   let memorySection = "";
   if (avatarMemories && avatarMemories.size > 0) {
@@ -421,13 +441,17 @@ export function buildFullStoryPrompt(input: {
       if (!memories || memories.length === 0) continue;
       const topTitle = String(memories[0]?.storyTitle || "").trim();
       if (!topTitle) continue;
-      memoryTitles.push(`${avatar.displayName}: ${trimDirectiveText(topTitle, 36)}`);
+      memoryTitles.push(`${avatar.displayName}: ${trimDirectiveText(topTitle, isCompactPrompt ? 24 : 36)}`);
       if (memoryTitles.length >= 2) break;
     }
     if (memoryTitles.length > 0) {
       const memoryInstruction = isGerman
-        ? `- Ein Avatar soll GENAU EINMAL kurz an ein frÃ¼heres Abenteuer erinnern (z.B. "Das erinnert mich an..."). Nicht nacherzÃ¤hlen, nur ein Satz. Muss auf Deutsch sein.`
-        : `- One avatar should reference an earlier adventure EXACTLY ONCE (e.g. "That reminds me of..."). Do not retell, just one sentence.`;
+        ? (isCompactPrompt
+          ? `- Ein Avatar erinnert GENAU EINMAL kurz an ein frueheres Abenteuer (ein Satz).`
+          : `- Ein Avatar soll GENAU EINMAL kurz an ein frÃ¼heres Abenteuer erinnern (z.B. "Das erinnert mich an..."). Nicht nacherzÃ¤hlen, nur ein Satz. Muss auf Deutsch sein.`)
+        : (isCompactPrompt
+          ? `- One avatar references one earlier adventure exactly once (one short sentence).`
+          : `- One avatar should reference an earlier adventure EXACTLY ONCE (e.g. "That reminds me of..."). Do not retell, just one sentence.`);
       memorySection = `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n${memoryInstruction}\n`;
     }
   }
@@ -438,12 +462,18 @@ export function buildFullStoryPrompt(input: {
       .map(slot => findCharacterBySlot(cast, slot)?.displayName)
       .filter((name): name is string => Boolean(name));
     const uniqueCast = Array.from(new Set(castNames));
-    const fusionHint = fusionSections?.get(directive.chapter)?.split("\n").slice(0, 1).join(" ").trim();
+    const fusionHint = isCompactPrompt
+      ? ""
+      : fusionSections?.get(directive.chapter)?.split("\n").slice(0, 1).join(" ").trim();
     const artifactTag = artifactName && directive.artifactUsage && !directive.artifactUsage.toLowerCase().includes("nicht")
       ? ` [${artifactName}]`
       : "";
+    const settingMax = isCompactPrompt ? 28 : 44;
+    const goalMax = isCompactPrompt ? 58 : 82;
+    const conflictMax = isCompactPrompt ? 58 : 82;
+    const outcomeMax = isCompactPrompt ? 42 : 64;
 
-    return `${idx + 1}) Ort: ${trimDirectiveText(directive.setting, 44)}${artifactTag}. Kern: ${trimDirectiveText(directive.goal, 82)}. Konflikt: ${trimDirectiveText(directive.conflict, 82)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(directive.outcome, 64)}${fusionHint ? ` Hinweis: ${trimDirectiveText(fusionHint, 50)}` : ""}`;
+    return `${idx + 1}) Ort: ${trimDirectiveText(directive.setting, settingMax)}${artifactTag}. Kern: ${trimDirectiveText(directive.goal, goalMax)}. Konflikt: ${trimDirectiveText(directive.conflict, conflictMax)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(directive.outcome, outcomeMax)}${fusionHint ? ` Hinweis: ${trimDirectiveText(fusionHint, 50)}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
@@ -459,11 +489,48 @@ export function buildFullStoryPrompt(input: {
         ? "Light humor target: at least 1 child-friendly humorous beat."
         : "Humor optional: no forced jokes.";
 
-  const goldenExample = buildGoldenExampleBlock(isGerman);
-  const antiPatterns = buildAntiPatternBlock(isGerman);
-
   const outputLang = isGerman ? "German" : targetLanguage;
   const umlautRule = isGerman ? " Use proper German umlauts (Ã¤, Ã¶, Ã¼, ÃŸ), never ASCII substitutes like ae/oe/ue. No English words in the story text." : "";
+
+  if (isCompactPrompt) {
+    return `TASK: Write one complete children's story in JSON for ages ${ageRange.min}-${ageRange.max}.
+
+HARD RULES:
+1) Language: ONLY ${outputLang}.${umlautRule}
+2) Output: valid JSON only, no extra text.
+3) Length: ${totalWordMin}-${totalWordMax} words total.
+4) Structure: exactly ${directives.length} chapters (chapter 1..${directives.length}), each about ${wordsPerChapter.min}-${wordsPerChapter.max} words.
+5) Cast lock: only these names: ${allowedNames.join(", ")}.
+6) Child-safe: ${safetyRule}
+7) Dialogue/action first: target 25-45% dialogue, no narration-only blocks.
+8) No personifying nature, no synesthesia, no poetic metaphors, no deus ex machina.
+9) Keep max ${focusMaxActive} active characters per beat (ideal ${focusIdealRange}).
+10) If constraints conflict: prioritize language -> JSON format -> chapter count -> cast lock -> safety.
+
+STYLE TARGET:
+- Tone: ${targetTone}
+- Mostly short concrete sentences (6-12 words), occasional longer sentence.
+- Distinct voice per character, avoid repetitive speaker formulas.
+- ${humorRule}
+- Beat ${directives.length} ends warm and closed with concrete gain + small price.
+${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
+${characterProfiles.join("\n")}
+${memorySection}${artifactName ? `\n# Artifact Arc\n- ${artifactName}: ${artifactRule}\n- Arc required: Discover -> Misdirection -> clever use by the children.\n` : ""}
+# BEAT DIRECTIVES
+${beatLines}
+
+# OUTPUT FORMAT
+{
+  "title": "${titleHint}",
+  "description": "${isGerman ? "Ein Teaser-Satz als Frage oder kleines Raetsel" : "A teaser sentence as question or small riddle"}",
+  "chapters": [
+    { "chapter": 1, "text": "..." }
+  ]
+}`;
+  }
+
+  const goldenExample = buildGoldenExampleBlock(isGerman);
+  const antiPatterns = buildAntiPatternBlock(isGerman);
 
   return `YOU ARE: Screenwriter for children's films AND children's book author (Preussler + Lindgren + Funke). You think in SCENES: dialogue, action, reaction.
 GOAL: Children (${ageRange.min}-${ageRange.max}) want to keep reading on their own. Every paragraph must contain action or dialogue.
@@ -1077,6 +1144,17 @@ function sanitizePromptBlock(block: string | undefined, maxLen = 2400): string {
 
   const joined = deduped.join("\n");
   return joined.slice(0, maxLen).trim();
+}
+
+function trimPromptLines(block: string | undefined, maxLines: number): string {
+  if (!block || !block.trim()) return "";
+  return block
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean)
+    .slice(0, Math.max(1, maxLines))
+    .join("\n")
+    .trim();
 }
 
 function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): string {
