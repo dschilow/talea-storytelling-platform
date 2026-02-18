@@ -32,22 +32,22 @@ gsap.registerPlugin(ScrollTrigger);
 
 const characters = [
   { name: 'Fuchs', image: '/landing-assets/generated/characters/detektive.webp', mood: 'Detektiv', delay: '0s' },
-  { name: 'Drache', image: '/landing-assets/generated/characters/drache.webp', mood: 'Abenteuer', delay: '0.5s' },
-  { name: 'Goblin', image: '/landing-assets/generated/characters/goblin.webp', mood: 'Schalk', delay: '1s' },
-  { name: 'Oma', image: '/landing-assets/generated/characters/oma.webp', mood: 'Weisheit', delay: '1.5s' },
-  { name: 'König', image: '/landing-assets/generated/characters/wilhelm.webp', mood: 'Mentor', delay: '2s' },
-  { name: 'Troll', image: '/landing-assets/generated/characters/troll.webp', mood: 'Humor', delay: '2.5s' },
-  { name: 'Räuber', image: '/landing-assets/generated/characters/rauber.webp', mood: 'Spannung', delay: '3s' },
-  { name: 'Hexe', image: '/landing-assets/generated/characters/image.webp', mood: 'Magie', delay: '3.5s' },
+  { name: 'Drache', image: '/landing-assets/generated/characters/drache.webp', mood: 'Abenteuer', delay: '0.6s' },
+  { name: 'Goblin', image: '/landing-assets/generated/characters/goblin.webp', mood: 'Schalk', delay: '1.2s' },
+  { name: 'Oma', image: '/landing-assets/generated/characters/oma.webp', mood: 'Weisheit', delay: '1.8s' },
+  { name: 'König', image: '/landing-assets/generated/characters/wilhelm.webp', mood: 'Mentor', delay: '2.4s' },
+  { name: 'Troll', image: '/landing-assets/generated/characters/troll.webp', mood: 'Humor', delay: '3s' },
+  { name: 'Räuber', image: '/landing-assets/generated/characters/rauber.webp', mood: 'Spannung', delay: '3.6s' },
+  { name: 'Hexe', image: '/landing-assets/generated/characters/image.webp', mood: 'Magie', delay: '4.2s' },
 ];
 
 const cineScenes = [
   {
     num: '01',
-    tag: 'Es beginnt',
+    tag: 'Story-Engine',
     tagIcon: BookOpenText,
     title: ['Ein Buch.', 'Unendliche', 'Welten.'],
-    desc: 'Alles beginnt mit einem magischen Buch. Dein Kind öffnet es – und taucht ein in eine Welt, die nur für sie geschaffen wurde.',
+    desc: 'Dein Kind öffnet ein magisches Buch und taucht ein in eine Welt, die nur für sie geschaffen wurde. Jede Geschichte ist einzigartig.',
     points: ['KI-generierte Geschichten in Sekunden', 'Genre, Stimmung & Alter frei wählbar', 'Eigene Avatare als Hauptfiguren'],
     image: '/landing-assets/cine_1_book.png',
     charImg: '/landing-assets/generated/characters/detektive.webp',
@@ -55,10 +55,10 @@ const cineScenes = [
   },
   {
     num: '02',
-    tag: 'Story-Magie',
+    tag: 'Cinematic Reading',
     tagIcon: Sparkles,
     title: ['Magie', 'entfaltet', 'sich.'],
-    desc: 'Aus Worten werden Welten. Unser cineastischer Lesemodus verwandelt jede Geschichte in ein visuelles Erlebnis – Szene für Szene, wie ein Film.',
+    desc: 'Aus Worten werden Welten. Der cineastische Lesemodus verwandelt jede Geschichte in ein visuelles Erlebnis — Szene für Szene, wie ein Film.',
     points: ['3 Lesemodi: Cinematic, Klassisch, Scroll', 'Automatisch generierte Szenenbilder', 'Audio-Erzählung zuschaltbar'],
     image: '/landing-assets/cine_2_magic.png',
     charImg: '/landing-assets/generated/characters/drache.webp',
@@ -66,10 +66,10 @@ const cineScenes = [
   },
   {
     num: '03',
-    tag: 'Avatare',
+    tag: 'Avatar-System',
     tagIcon: Users,
     title: ['Deine Helden', 'erwachen', 'zum Leben.'],
-    desc: 'Avatare sind mehr als Bilder. Sie entwickeln Persönlichkeit, sammeln Erinnerungen, verdienen Perks und meistern Quests. Jede Story macht sie stärker.',
+    desc: 'Avatare entwickeln Persönlichkeit, sammeln Erinnerungen, verdienen Perks und meistern Quests. Jede Story macht sie stärker.',
     points: ['Avatar-Wizard mit eigenem Profil', 'Persönlichkeit, Tagebuch & Schatzkammer', 'Quest- & Perk-System für Motivation'],
     image: '/landing-assets/cine_3_avatars.png',
     charImg: '/landing-assets/generated/characters/goblin.webp',
@@ -80,7 +80,7 @@ const cineScenes = [
     tag: 'Abenteuer',
     tagIcon: Rocket,
     title: ['In jedem', 'Wald steckt', 'ein Geheimnis.'],
-    desc: 'Deine Charaktere erkunden verzauberte Wälder, lösen Rätsel und finden Schätze. Jedes Abenteuer ist einzigartig und auf dein Kind zugeschnitten.',
+    desc: 'Verzauberte Wälder, Rätsel und Schätze. Jedes Abenteuer ist einzigartig und auf dein Kind zugeschnitten.',
     points: ['50+ Story-Vorlagen aus Märchen & Sagen', 'Artefakte & Schätze zum Sammeln', 'Langfristige Questlinien & Fortschritt'],
     image: '/landing-assets/cine_4_stories.png',
     charImg: '/landing-assets/generated/characters/wilhelm.webp',
@@ -91,7 +91,7 @@ const cineScenes = [
     tag: 'Wissens-Dokus',
     tagIcon: Brain,
     title: ['Wissen wird', 'zum größten', 'Abenteuer.'],
-    desc: 'Von Dinosauriern bis Raumfahrt – unsere KI-Dokus verbinden Audio, Quiz und Struktur zu einer modernen Lernstrecke, die Kinder lieben.',
+    desc: 'Von Dinosauriern bis Raumfahrt — Audio-Dokus verbinden Quiz und Struktur zu einer Lernstrecke, die Kinder lieben.',
     points: ['Audio-Dokus für unterwegs & Schlafenszeit', 'Quiz direkt verknüpft mit Erklärungen', 'Didaktische Struktur mit Lernzielen'],
     image: '/landing-assets/cine_5_dokus.png',
     charImg: '/landing-assets/generated/characters/oma.webp',
@@ -101,9 +101,9 @@ const cineScenes = [
 
 const features = [
   { icon: Wand2, title: 'Story-Wizard', desc: 'Erstelle in 5 Schritten eine perfekte Geschichte mit KI-Unterstützung.' },
-  { icon: Headphones, title: 'Audio-Erlebnis', desc: 'Alle Inhalte als Hörgeschichte – perfekt für Autofahrten und Schlafenszeit.' },
-  { icon: MessageCircleMore, title: 'Tavi KI-Assistent', desc: 'Stelle Fragen, starte Stories und lass dir Funktionen erklären – aus dem Chat heraus.' },
-  { icon: AudioLines, title: 'Quiz & Fakten', desc: 'Interaktive Quiz-Bereiche direkt in jeder Doku – Wissen spielerisch prüfen.' },
+  { icon: Headphones, title: 'Audio-Erlebnis', desc: 'Alle Inhalte als Hörgeschichte — perfekt für Autofahrten und Schlafenszeit.' },
+  { icon: MessageCircleMore, title: 'Tavi KI-Assistent', desc: 'Stelle Fragen, starte Stories und lass dir Funktionen erklären — direkt aus dem Chat.' },
+  { icon: AudioLines, title: 'Quiz & Fakten', desc: 'Interaktive Quiz-Bereiche direkt in jeder Doku — Wissen spielerisch prüfen.' },
   { icon: ShieldCheck, title: 'Eltern-Dashboard', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern mit PIN-Schutz.' },
   { icon: Sparkles, title: 'Cinematic Reading', desc: 'Liest sich wie ein Film. Szene für Szene, mit generierten Bildern und Übergängen.' },
 ];
@@ -124,9 +124,9 @@ const pricingPlans = [
 ];
 
 const trustPoints = [
-  { icon: ShieldCheck, title: 'Eltern-Dashboard mit PIN', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern. Sicherheit fließt direkt in die KI-Generierung ein.', color: 'var(--c-accent2)' },
-  { icon: Wand2, title: 'KI-Sicherheit eingebaut', desc: 'Tabu-Wörter, Altersfilter und Lernregeln werden direkt in den Prompt eingebettet – präventiv, nicht nachträglich.', color: 'var(--c-accent)' },
-  { icon: Rocket, title: 'Wächst mit deiner Familie', desc: 'Avatar-Fortschritt, Lernkreisläufe und Quests sorgen für nachhaltige Nutzung statt kurzfristiger Unterhaltung.', color: 'var(--c-accent3)' },
+  { icon: ShieldCheck, title: 'Eltern-Dashboard mit PIN', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern. Sicherheit fließt direkt in die KI-Generierung ein.' },
+  { icon: Wand2, title: 'KI-Sicherheit eingebaut', desc: 'Tabu-Wörter, Altersfilter und Lernregeln werden direkt in den Prompt eingebettet — präventiv, nicht nachträglich.' },
+  { icon: Rocket, title: 'Wächst mit deiner Familie', desc: 'Avatar-Fortschritt, Lernkreisläufe und Quests sorgen für nachhaltige Nutzung statt kurzfristiger Unterhaltung.' },
 ];
 
 const comparisonData = [
@@ -147,25 +147,30 @@ interface Particle {
 }
 
 function spawnFirefly(w: number, h: number): Particle {
-  const colors = ['rgba(167,139,250,0.8)', 'rgba(96,212,200,0.7)', 'rgba(245,197,66,0.6)', 'rgba(249,115,112,0.6)'];
+  const colors = [
+    'rgba(232,168,56,0.6)',
+    'rgba(196,120,50,0.5)',
+    'rgba(240,216,168,0.5)',
+    'rgba(136,200,232,0.3)',
+  ];
   return {
     x: Math.random() * w, y: Math.random() * h,
-    vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
-    size: 1 + Math.random() * 2.5,
+    vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
+    size: 1 + Math.random() * 2,
     color: colors[Math.floor(Math.random() * colors.length)],
-    alpha: 0, life: 200 + Math.random() * 300, maxLife: 500,
+    alpha: 0, life: 250 + Math.random() * 350, maxLife: 600,
   };
 }
 
 function spawnCursorSparkle(x: number, y: number): Particle {
   const angle = Math.random() * Math.PI * 2;
-  const speed = 0.5 + Math.random() * 1.5;
+  const speed = 0.4 + Math.random() * 1.2;
   return {
     x, y,
-    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 0.5,
-    size: 1 + Math.random() * 2,
-    color: `hsla(${260 + Math.random() * 40}, 80%, 75%, 0.9)`,
-    alpha: 1, life: 30 + Math.random() * 30, maxLife: 60,
+    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 0.4,
+    size: 0.8 + Math.random() * 1.5,
+    color: `hsla(${35 + Math.random() * 20}, 75%, 65%, 0.85)`,
+    alpha: 1, life: 35 + Math.random() * 35, maxLife: 70,
   };
 }
 
@@ -195,17 +200,19 @@ const LandingPage: React.FC = () => {
   const particles = useRef<Particle[]>([]);
   const rafId = useRef<number>(0);
   const [navScrolled, setNavScrolled] = useState(false);
+  const [activeScene, setActiveScene] = useState(-1);
+  const [showStoryArc, setShowStoryArc] = useState(false);
+  const storyArcRef = useRef<HTMLDivElement>(null);
 
   /* ── Lenis + GSAP ScrollTrigger ── */
   useEffect(() => {
-    const lenis = new Lenis({ duration: 1.2, smoothWheel: true, touchMultiplier: 1.5 });
+    const lenis = new Lenis({ duration: 1.3, smoothWheel: true, touchMultiplier: 1.5 });
 
     lenis.on('scroll', () => { ScrollTrigger.update(); });
     gsap.ticker.add((time) => { lenis.raf(time * 1000); });
     gsap.ticker.lagSmoothing(0);
 
-    /* Nav background on scroll */
-    const handleScroll = () => { setNavScrolled(window.scrollY > 60); };
+    const handleScroll = () => { setNavScrolled(window.scrollY > 50); };
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
@@ -228,19 +235,19 @@ const LandingPage: React.FC = () => {
         });
       }
 
-      /* Hero entrance — explosive stagger with skew */
-      const heroTl = gsap.timeline({ delay: 0.2 });
+      /* Hero entrance — dramatic stagger */
+      const heroTl = gsap.timeline({ delay: 0.3 });
       heroTl
         .to('.hero-title .word', {
           opacity: 1, y: 0, rotateX: 0, skewX: 0,
-          duration: 0.75, stagger: 0.09, ease: 'expo.out',
+          duration: 0.85, stagger: 0.1, ease: 'expo.out',
         })
-        .to('.hero-sub', { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, '-=0.35')
-        .to('.hero-actions', { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, '-=0.2')
-        .to('.hero-characters', { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out' }, '-=0.3')
+        .to('.hero-sub', { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.4')
+        .to('.hero-actions', { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, '-=0.25')
+        .to('.hero-characters', { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.35')
         .to('.scroll-cue', { opacity: 1, duration: 0.5 }, '-=0.2');
 
-      /* Cinematic scenes – pinned with scrub animation */
+      /* Cinematic scenes – pinned with parallax scrub */
       mm.add('(min-width: 769px)', () => {
         sceneRefs.current.forEach((scene) => {
           if (!scene) return;
@@ -255,27 +262,39 @@ const LandingPage: React.FC = () => {
             scrollTrigger: {
               trigger: scene,
               start: 'top top',
-              end: '+=150%',
+              end: '+=160%',
               pin: true,
               scrub: 1,
               anticipatePin: 1,
             },
           });
 
-          tl.fromTo(bg, { scale: 1.3 }, { scale: 1, duration: 1, ease: 'none' })
-            .fromTo(tag, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.3 }, 0.2)
-            .fromTo(lines, { y: '110%' }, { y: '0%', duration: 0.4, stagger: 0.08, ease: 'power3.out' }, 0.3)
-            .fromTo(desc, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3 }, 0.5)
-            .fromTo(points, { opacity: 0, x: -15 }, { opacity: 1, x: 0, duration: 0.2, stagger: 0.06 }, 0.6);
+          /* Cinematic camera: slow zoom-in with vertical pan */
+          tl.fromTo(bg,
+            { scale: 1.4, y: 30, filter: 'brightness(0.6) saturate(0.5)' },
+            { scale: 1.05, y: -25, filter: 'brightness(0.9) saturate(0.85)', duration: 1, ease: 'none' }
+          )
+            /* Tag slides in from left */
+            .fromTo(tag, { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.3 }, 0.12)
+            /* Title lines reveal — dramatic stagger */
+            .fromTo(lines, { y: '130%', rotateX: 15 }, { y: '0%', rotateX: 0, duration: 0.5, stagger: 0.1, ease: 'power3.out' }, 0.2)
+            /* Description fades up */
+            .fromTo(desc, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35 }, 0.5)
+            /* Points slide in one by one */
+            .fromTo(points, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.08 }, 0.6);
 
+          /* Character pops in with dramatic entrance */
           if (charEl) {
-            tl.fromTo(charEl, { opacity: 0, scale: 0.5, rotate: -15 },
-              { opacity: 0.8, scale: 1, rotate: 0, duration: 0.4, ease: 'back.out(1.4)' }, 0.7);
+            tl.fromTo(charEl,
+              { opacity: 0, scale: 0.3, rotate: -25, y: 30 },
+              { opacity: 0.8, scale: 1, rotate: 0, y: 0, duration: 0.5, ease: 'back.out(1.6)' },
+              0.7
+            );
           }
         });
       });
 
-      /* Mobile: no pinning, just reveal animations */
+      /* Mobile: reveal animations */
       mm.add('(max-width: 768px)', () => {
         sceneRefs.current.forEach((scene) => {
           if (!scene) return;
@@ -298,7 +317,7 @@ const LandingPage: React.FC = () => {
         });
       });
 
-      /* Horizontal feature scroll (desktop only) */
+      /* Horizontal features (desktop) */
       mm.add('(min-width: 769px)', () => {
         if (featureRef.current && trackRef.current) {
           const trackWidth = trackRef.current.scrollWidth - window.innerWidth + 200;
@@ -317,28 +336,71 @@ const LandingPage: React.FC = () => {
         }
       });
 
-      /* Cinematic dividers */
+      /* Chapter cards — cinematic reveal */
+      gsap.utils.toArray<HTMLElement>('.chapter-card').forEach((card) => {
+        const num = card.querySelector('.chapter-number') as HTMLElement;
+        const title = card.querySelector('.chapter-title') as HTMLElement;
+        const sub = card.querySelector('.chapter-subtitle') as HTMLElement;
+        const line = card.querySelector('.chapter-line') as HTMLElement;
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 70%',
+            end: 'bottom 30%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+
+        if (num) tl.to(num, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0);
+        if (line) tl.to(line, { width: '80px', duration: 0.8, ease: 'expo.out' }, 0.1);
+        if (title) tl.to(title, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 0.2);
+        if (sub) tl.to(sub, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.4);
+      });
+
+      /* Story arc visibility */
+      ScrollTrigger.create({
+        trigger: '.cine-scene',
+        start: 'top center',
+        endTrigger: '.final-cta-scene',
+        end: 'top center',
+        onToggle: (self) => setShowStoryArc(self.isActive),
+      });
+
+      /* Track active scene */
+      sceneRefs.current.forEach((scene, i) => {
+        if (!scene) return;
+        ScrollTrigger.create({
+          trigger: scene,
+          start: 'top center',
+          end: 'bottom center',
+          onEnter: () => setActiveScene(i),
+          onEnterBack: () => setActiveScene(i),
+        });
+      });
+
+      /* Dividers */
       gsap.utils.toArray<HTMLElement>('.cine-divider-word').forEach((word) => {
-        gsap.fromTo(word, { opacity: 0, scale: 0.8, y: 30 }, {
-          opacity: 1, scale: 1, y: 0, duration: 0.8, ease: 'power3.out',
+        gsap.fromTo(word, { opacity: 0, scale: 0.85, y: 25 }, {
+          opacity: 1, scale: 1, y: 0, duration: 0.9, ease: 'power3.out',
           scrollTrigger: { trigger: word, start: 'top 85%' },
         });
       });
 
       /* Pricing cards */
-      gsap.fromTo('.pricing-card', { opacity: 0, y: 50, rotateX: 10 }, {
-        opacity: 1, y: 0, rotateX: 0, duration: 0.6, stagger: 0.12, ease: 'power3.out',
+      gsap.fromTo('.pricing-card', { opacity: 0, y: 55, rotateX: 8 }, {
+        opacity: 1, y: 0, rotateX: 0, duration: 0.65, stagger: 0.13, ease: 'power3.out',
         scrollTrigger: { trigger: '.pricing-grid', start: 'top 80%' },
       });
 
       /* Trust cards */
-      gsap.fromTo('.trust-card', { opacity: 0, y: 40 }, {
-        opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out',
+      gsap.fromTo('.trust-card', { opacity: 0, y: 45 }, {
+        opacity: 1, y: 0, duration: 0.55, stagger: 0.1, ease: 'power2.out',
         scrollTrigger: { trigger: '.trust-grid', start: 'top 80%' },
       });
 
-      /* Comparison table rows */
-      gsap.fromTo('.comparison-table tr', { opacity: 0, x: -20 }, {
+      /* Comparison table */
+      gsap.fromTo('.comparison-table tr', { opacity: 0, x: -15 }, {
         opacity: 1, x: 0, duration: 0.4, stagger: 0.06,
         scrollTrigger: { trigger: '.comparison-table', start: 'top 80%' },
       });
@@ -362,22 +424,19 @@ const LandingPage: React.FC = () => {
     resize();
     window.addEventListener('resize', resize);
 
-    /* Seed initial fireflies */
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < 30; i++) {
       particles.current.push(spawnFirefly(canvas.width, canvas.height));
     }
 
     const loop = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      /* Spawn cursor sparkles */
-      if (mousePos.current.x > 0 && Math.random() > 0.7) {
+      if (mousePos.current.x > 0 && Math.random() > 0.75) {
         particles.current.push(spawnCursorSparkle(mousePos.current.x, mousePos.current.y));
       }
 
-      /* Respawn fireflies */
       const fireflyCount = particles.current.filter(p => p.maxLife > 100).length;
-      if (fireflyCount < 30) {
+      if (fireflyCount < 25) {
         particles.current.push(spawnFirefly(canvas.width, canvas.height));
       }
 
@@ -387,16 +446,14 @@ const LandingPage: React.FC = () => {
         p.y += p.vy;
         p.life--;
 
-        /* Fireflies: fade in/out smoothly */
         if (p.maxLife > 100) {
           const progress = 1 - (p.life / p.maxLife);
-          p.alpha = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.67 : 0.7 + Math.sin(Date.now() * 0.003 + i) * 0.3;
-          p.vx += (Math.random() - 0.5) * 0.02;
-          p.vy += (Math.random() - 0.5) * 0.02;
+          p.alpha = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.67 : 0.6 + Math.sin(Date.now() * 0.002 + i) * 0.25;
+          p.vx += (Math.random() - 0.5) * 0.015;
+          p.vy += (Math.random() - 0.5) * 0.015;
           p.vx *= 0.99; p.vy *= 0.99;
         } else {
-          /* Cursor sparkles: gravity + fade */
-          p.vy += 0.03;
+          p.vy += 0.025;
           p.alpha = Math.max(0, p.life / p.maxLife);
         }
 
@@ -408,11 +465,10 @@ const LandingPage: React.FC = () => {
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
-        /* Firefly glow */
-        if (p.maxLife > 100 && p.alpha > 0.3) {
-          ctx.globalAlpha = p.alpha * 0.15;
+        if (p.maxLife > 100 && p.alpha > 0.25) {
+          ctx.globalAlpha = p.alpha * 0.12;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size * 4, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, p.size * 5, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -438,13 +494,13 @@ const LandingPage: React.FC = () => {
     if (cursorRing.current) {
       gsap.to(cursorRing.current, {
         left: e.clientX, top: e.clientY,
-        duration: 0.15, ease: 'power2.out',
+        duration: 0.18, ease: 'power2.out',
       });
     }
     if (cursorGlow.current) {
       gsap.to(cursorGlow.current, {
         left: e.clientX, top: e.clientY,
-        duration: 0.4, ease: 'power2.out',
+        duration: 0.45, ease: 'power2.out',
       });
     }
   }, []);
@@ -459,7 +515,6 @@ const LandingPage: React.FC = () => {
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
 
-    /* Attach hover listeners to interactive elements */
     const interactives = document.querySelectorAll('a, button, .tilt-card, .pricing-card, .trust-card, .character-figure');
     interactives.forEach((el) => {
       el.addEventListener('mouseenter', handleCursorEnter);
@@ -475,7 +530,7 @@ const LandingPage: React.FC = () => {
     };
   }, [handleMouseMove, handleCursorEnter, handleCursorLeave]);
 
-  /* ── 3D Tilt Handler ── */
+  /* ── 3D Tilt ── */
   const handleTilt = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const card = e.currentTarget;
     const inner = card.querySelector('.tilt-card-inner') as HTMLElement;
@@ -485,7 +540,7 @@ const LandingPage: React.FC = () => {
     const rect = card.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    inner.style.transform = `rotateY(${x * 12}deg) rotateX(${-y * 12}deg) translateZ(10px)`;
+    inner.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg) translateZ(12px)`;
     if (shine) {
       shine.style.setProperty('--shine-x', `${(x + 0.5) * 100}%`);
       shine.style.setProperty('--shine-y', `${(y + 0.5) * 100}%`);
@@ -503,7 +558,7 @@ const LandingPage: React.FC = () => {
     const rect = btn.getBoundingClientRect();
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
-    gsap.to(btn, { x: x * 0.25, y: y * 0.25, duration: 0.3, ease: 'power2.out' });
+    gsap.to(btn, { x: x * 0.2, y: y * 0.2, duration: 0.3, ease: 'power2.out' });
   }, []);
 
   const handleMagnetReset = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -516,7 +571,7 @@ const LandingPage: React.FC = () => {
 
   return (
     <div ref={rootRef} className="landing-root">
-      {/* Atmosphere layers */}
+      {/* Atmosphere */}
       <div className="film-grain" />
       <div className="vignette" />
       <canvas ref={canvasRef} className="particle-canvas" />
@@ -528,6 +583,20 @@ const LandingPage: React.FC = () => {
 
       {/* Scroll progress */}
       <div ref={progressRef} className="scroll-progress" style={{ transform: 'scaleX(0)' }} />
+
+      {/* Story Arc — vertical scene navigation */}
+      <div ref={storyArcRef} className={`story-arc${showStoryArc ? ' visible' : ''}`}>
+        {cineScenes.map((scene, i) => (
+          <React.Fragment key={scene.num}>
+            <div className={`story-arc-dot${activeScene === i ? ' active' : ''}${activeScene > i ? ' passed' : ''}`} />
+            {i < cineScenes.length - 1 && (
+              <div className="story-arc-line">
+                <div className="story-arc-progress" style={{ height: activeScene > i ? '100%' : activeScene === i ? '50%' : '0%' }} />
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
 
       {/* ─── NAV ─── */}
       <header ref={navRef} className={`landing-nav${navScrolled ? ' scrolled' : ''}`}>
@@ -541,7 +610,7 @@ const LandingPage: React.FC = () => {
           <a href="#pricing">Preise</a>
           <a href="#trust">Sicherheit</a>
           <button type="button" className="nav-cta" onClick={() => navigate(startTarget)}>
-            App starten <ArrowRight size={14} />
+            App starten <ArrowRight size={13} />
           </button>
         </nav>
       </header>
@@ -551,22 +620,22 @@ const LandingPage: React.FC = () => {
         <section ref={heroRef} className="hero-scene">
           <div className="hero-ambient" />
 
-          {/* Burst lines — radiate on load */}
+          {/* Burst lines */}
           <div className="hero-burst" aria-hidden="true">
-            {Array.from({ length: 12 }).map((_, i) => (
+            {Array.from({ length: 14 }).map((_, i) => (
               <div
                 key={i}
                 className="hero-burst-line"
                 style={{
-                  transform: `rotate(${i * 30}deg)`,
-                  animationDelay: `${i * 0.04}s`,
-                  opacity: 0.4 + (i % 3) * 0.15,
+                  transform: `rotate(${i * (360 / 14)}deg)`,
+                  animationDelay: `${i * 0.035}s`,
+                  opacity: 0.35 + (i % 3) * 0.12,
                 }}
               />
             ))}
           </div>
 
-          <p className="hero-kicker"><Sparkles size={14} />KI-Storytelling für Familien</p>
+          <p className="hero-kicker"><Sparkles size={13} />KI-Storytelling für Familien</p>
 
           <h1 className="hero-title">
             <span className="word">Wo&nbsp;</span>
@@ -580,7 +649,7 @@ const LandingPage: React.FC = () => {
           </h1>
 
           <p className="hero-sub gsap-hidden" style={{ transform: 'translateY(20px)' }}>
-            Personalisierte Geschichten, Wissensdokus, Quiz und Audio&#8202;–&#8202;in einer
+            Personalisierte Geschichten, Wissensdokus, Quiz und Audio&#8202;—&#8202;in einer
             magischen App. Dein Kind erlebt Abenteuer mit eigenen Avataren.
           </p>
 
@@ -588,10 +657,10 @@ const LandingPage: React.FC = () => {
             <button type="button" className="btn-magic"
               onMouseMove={handleMagnet} onMouseLeave={handleMagnetReset}
               onClick={() => navigate(startTarget)}>
-              Abenteuer starten <ArrowRight size={18} />
+              Abenteuer starten <ArrowRight size={17} />
             </button>
             <a href="#features" className="btn-ghost">
-              <ChevronDown size={16} /> Entdecken
+              <ChevronDown size={15} /> Entdecken
             </a>
           </div>
 
@@ -616,35 +685,62 @@ const LandingPage: React.FC = () => {
           </div>
         </section>
 
+        {/* ═══════════ CHAPTER I — Intro ═══════════ */}
+        <div className="chapter-card">
+          <span className="chapter-number">Kapitel I</span>
+          <div className="chapter-line" />
+          <h2 className="chapter-title">Es war einmal...</h2>
+          <p className="chapter-subtitle">Eine Geschichte, die nur für dein Kind geschrieben wird</p>
+        </div>
+
         {/* ═══════════ CINEMATIC SCENES ═══════════ */}
         {cineScenes.map((scene, idx) => {
           const TagIcon = scene.tagIcon;
+          const chapterLabels = ['', 'Kapitel II', 'Kapitel III', 'Kapitel IV', 'Kapitel V'];
+          const chapterTitles = ['', 'Die Magie erwacht', 'Helden werden geboren', 'Das Abenteuer ruft', 'Wissen ist Macht'];
           return (
-            <section key={scene.num}
-              ref={(el) => { sceneRefs.current[idx] = el; }}
-              className="cine-scene">
-              <div className="cine-scene-bg">
-                <img src={scene.image} alt={`Szene ${scene.num}`} loading="lazy" />
-              </div>
-              <div className="cine-scene-overlay" />
-              <div className="cine-scene-content">
-                <span className="cine-scene-num">{scene.num}</span>
-                <span className="cine-scene-tag"><TagIcon size={14} /> {scene.tag}</span>
-                <h2 className="cine-scene-title">
-                  {scene.title.map((line, li) => (
-                    <span key={li} className="line"><span className="line-inner">{line}</span></span>
-                  ))}
-                </h2>
-                <p className="cine-scene-desc">{scene.desc}</p>
-                <ul className="cine-scene-points">
-                  {scene.points.map((pt) => <li key={pt}>{pt}</li>)}
-                </ul>
-              </div>
-              {/* Character easter egg */}
-              <div className="scene-character" style={scene.charPos}>
-                <img src={scene.charImg} alt="Character" />
-              </div>
-            </section>
+            <React.Fragment key={scene.num}>
+              {/* Chapter transition card */}
+              {idx > 0 && (
+                <div className="chapter-card">
+                  <span className="chapter-number">{chapterLabels[idx]}</span>
+                  <div className="chapter-line" />
+                  <h2 className="chapter-title">{chapterTitles[idx]}</h2>
+                </div>
+              )}
+
+              <section
+                ref={(el) => { sceneRefs.current[idx] = el; }}
+                className="cine-scene">
+                {/* Scene counter */}
+                <div className="scene-counter">
+                  <span className="scene-counter-line" />
+                  <span><span className="scene-counter-current">{scene.num}</span> / 05</span>
+                </div>
+
+                <div className="cine-scene-bg">
+                  <img src={scene.image} alt={`Szene ${scene.num}`} loading="lazy" />
+                </div>
+                <div className="cine-scene-overlay" />
+                <div className="spotlight" />
+                <div className="cine-scene-content">
+                  <span className="cine-scene-num">{scene.num}</span>
+                  <span className="cine-scene-tag"><TagIcon size={13} /> {scene.tag}</span>
+                  <h2 className="cine-scene-title">
+                    {scene.title.map((line, li) => (
+                      <span key={li} className="line"><span className="line-inner">{line}</span></span>
+                    ))}
+                  </h2>
+                  <p className="cine-scene-desc">{scene.desc}</p>
+                  <ul className="cine-scene-points">
+                    {scene.points.map((pt) => <li key={pt}>{pt}</li>)}
+                  </ul>
+                </div>
+                <div className="scene-character" style={scene.charPos}>
+                  <img src={scene.charImg} alt="Character" />
+                </div>
+              </section>
+            </React.Fragment>
           );
         })}
 
@@ -656,7 +752,7 @@ const LandingPage: React.FC = () => {
         {/* ═══════════ HORIZONTAL FEATURES ═══════════ */}
         <section id="features" ref={featureRef} className="features-horizontal">
           <div className="features-header">
-            <span className="section-badge"><Sparkles size={12} /> Funktionen</span>
+            <span className="section-badge"><Sparkles size={11} /> Funktionen</span>
             <h2 className="section-title">Alles was deine Familie braucht</h2>
             <p className="section-sub">
               Jede Funktion fühlt sich an wie eine eigene magische Insel.
@@ -670,7 +766,7 @@ const LandingPage: React.FC = () => {
                   onMouseMove={handleTilt} onMouseLeave={handleTiltReset}>
                   <div className="tilt-card-shine" />
                   <div className="tilt-card-inner">
-                    <div className="tilt-card-icon"><FIcon size={22} /></div>
+                    <div className="tilt-card-icon"><FIcon size={21} /></div>
                     <h3>{feat.title}</h3>
                     <p>{feat.desc}</p>
                   </div>
@@ -687,9 +783,9 @@ const LandingPage: React.FC = () => {
 
         {/* ═══════════ PRICING ═══════════ */}
         <section id="pricing" className="pricing-section">
-          <span className="section-badge"><Crown size={12} /> Preise</span>
-          <h2 className="section-title">Wähle dein Abenteuer‑Paket</h2>
-          <p className="section-sub">Starte mit dem Starter‑Plan und upgrade jederzeit. Monatlich kündbar.</p>
+          <span className="section-badge"><Crown size={11} /> Preise</span>
+          <h2 className="section-title">Wähle dein Abenteuer-Paket</h2>
+          <p className="section-sub">Starte mit dem Starter-Plan und upgrade jederzeit. Monatlich kündbar.</p>
 
           <div className="pricing-grid">
             {pricingPlans.map((plan) => {
@@ -698,17 +794,17 @@ const LandingPage: React.FC = () => {
                 <div key={plan.name}
                   className={`pricing-card${plan.featured ? ' pricing-card--featured' : ''}`}>
                   {plan.featured && <span className="pricing-badge">Beliebteste Wahl</span>}
-                  <div className="pricing-icon"><PIcon size={22} /></div>
+                  <div className="pricing-icon"><PIcon size={21} /></div>
                   <h3 className="pricing-name">{plan.name}</h3>
                   <p className="pricing-price">{plan.price}€<small> / Monat</small></p>
                   <div className="pricing-divider" />
                   <ul className="pricing-features">
-                    {plan.features.map((f) => <li key={f}><Check size={14} />{f}</li>)}
+                    {plan.features.map((f) => <li key={f}><Check size={13} />{f}</li>)}
                   </ul>
                   <button type="button" className="pricing-cta"
                     onMouseMove={handleMagnet} onMouseLeave={handleMagnetReset}
                     onClick={() => navigate(startTarget)}>
-                    {plan.featured ? 'Jetzt starten' : 'Plan wählen'} <ArrowRight size={14} />
+                    {plan.featured ? 'Jetzt starten' : 'Plan wählen'} <ArrowRight size={13} />
                   </button>
                 </div>
               );
@@ -718,12 +814,12 @@ const LandingPage: React.FC = () => {
 
         {/* ═══════════ COMPARISON ═══════════ */}
         <section className="comparison-section">
-          <span className="section-badge"><Zap size={12} /> Vergleich</span>
+          <span className="section-badge"><Zap size={11} /> Vergleich</span>
           <h2 className="section-title">Warum Talea anders ist</h2>
           <div className="comparison-wrap">
             <table className="comparison-table">
               <thead>
-                <tr><th>Kriterium</th><th>Story-Apps</th><th>Lern-Apps</th><th>Talea ✦</th></tr>
+                <tr><th>Kriterium</th><th>Story-Apps</th><th>Lern-Apps</th><th>Talea</th></tr>
               </thead>
               <tbody>
                 {comparisonData.map((row) => (
@@ -741,17 +837,17 @@ const LandingPage: React.FC = () => {
 
         {/* ═══════════ TRUST ═══════════ */}
         <section id="trust" className="trust-section">
-          <span className="section-badge"><ShieldCheck size={12} /> Für Eltern</span>
+          <span className="section-badge"><ShieldCheck size={11} /> Für Eltern</span>
           <h2 className="section-title">Volle Kontrolle, volle Magie</h2>
           <p className="section-sub">
-            Talea gibt Eltern echte Werkzeuge – nicht nur einen Kindermodus‑Schalter.
+            Talea gibt Eltern echte Werkzeuge — nicht nur einen Kindermodus-Schalter.
           </p>
           <div className="trust-grid">
             {trustPoints.map((tp) => {
               const TIcon = tp.icon;
               return (
                 <div key={tp.title} className="trust-card">
-                  <div className="trust-card-icon" style={{ color: tp.color }}><TIcon size={20} /></div>
+                  <div className="trust-card-icon"><TIcon size={19} /></div>
                   <h4>{tp.title}</h4>
                   <p>{tp.desc}</p>
                 </div>
@@ -766,20 +862,20 @@ const LandingPage: React.FC = () => {
             <img src="/landing-assets/cine_6_outro.png" alt="" />
           </div>
           <div className="final-cta-content">
-            <span className="section-badge" style={{ marginBottom: '1rem' }}>
-              <Sparkles size={12} /> Bereit?
+            <span className="section-badge" style={{ marginBottom: '1.2rem' }}>
+              <Sparkles size={11} /> Bereit?
             </span>
             <h2 className="final-cta-title">
               Die Reise beginnt<br />mit einem Klick.
             </h2>
-            <p className="section-sub" style={{ margin: '1rem auto 2rem', maxWidth: 500 }}>
+            <p className="section-sub" style={{ margin: '1.2rem auto 2.5rem', maxWidth: 480 }}>
               Über 50 Charaktere warten darauf, Teil eurer Geschichte zu werden.
             </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '1.2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button type="button" className="btn-magic"
                 onMouseMove={handleMagnet} onMouseLeave={handleMagnetReset}
                 onClick={() => navigate(startTarget)}>
-                Jetzt starten <ArrowRight size={18} />
+                Jetzt starten <ArrowRight size={17} />
               </button>
               <button type="button" className="btn-ghost" onClick={() => navigate('/auth')}>
                 Login / Account
