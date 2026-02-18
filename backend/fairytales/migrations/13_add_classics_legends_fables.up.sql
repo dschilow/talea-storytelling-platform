@@ -1,4 +1,4 @@
--- Migration 13: Add 18 Tales - Literature Classics, Legends, Fables, and Classic Grimm
+/* -- Migration 13: Add 18 Tales - Literature Classics, Legends, Fables, and Classic Grimm
 -- Adds lit-001 through lit-006 (6 literature classics)
 -- Adds legend-001 through legend-005 (5 legends)
 -- Adds aesop-001 through aesop-004 (4 fables)
@@ -1196,3 +1196,5 @@ VALUES
    'Später schicken die [RÄUBER] einen Späher zurück. Im Dunkeln kratzt ihn die [KATZE], beißt ihn der [HUND], tritt ihn der [ESEL], und der [HAHN] kräht: "Kikeriki!" Der Räuber rennt weg: "Eine Hexe, ein Riese und ein Richter mit Messer!" Die [RÄUBER] kommen nie zurück. Die vier Musikanten leben glücklich im Haus - Bremen haben sie nie erreicht!',
    '{"PROTAGONIST1": "ESEL", "PROTAGONIST2": "HUND", "PROTAGONIST3": "KATZE", "PROTAGONIST4": "HAHN", "ANTAGONIST": "RÄUBER"}',
    'Räuberhaus', 'glücklich', 95);
+*/
+SELECT 1;

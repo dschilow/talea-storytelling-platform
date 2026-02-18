@@ -4,6 +4,19 @@
 -- Add complete scenes for "Die kleine Meerjungfrau" (andersen-001)
 -- This tale exists in the database but needs ALL 5 chapter descriptions
 
+INSERT INTO fairy_tales (id, title, source, culture_region, age_recommendation, duration_minutes, genre_tags, is_active)
+VALUES (
+  'andersen-001',
+  'Die kleine Meerjungfrau',
+  'andersen',
+  'danish',
+  6,
+  12,
+  '["classic", "emotional", "moral"]',
+  true
+)
+ON CONFLICT (id) DO NOTHING;
+
 DELETE FROM fairy_tale_scenes WHERE tale_id = 'andersen-001';
 
 -- Chapter 1: Die Unterwasserwelt

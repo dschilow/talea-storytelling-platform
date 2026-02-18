@@ -1,4 +1,4 @@
-﻿-- Migration 14 down: remove Story Pipeline v2 tables
+-- Migration 14 down: remove Story Pipeline v2 tables
 
 DROP TABLE IF EXISTS story_validations CASCADE;
 DROP TABLE IF EXISTS story_images CASCADE;

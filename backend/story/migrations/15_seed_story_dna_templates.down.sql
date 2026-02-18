@@ -1,4 +1,4 @@
-﻿-- Migration 15 down: remove seeded StoryDNA templates and TaleDNA
+-- Migration 15 down: remove seeded StoryDNA templates and TaleDNA
 
 DELETE FROM story_dna_templates WHERE template_id IN (
   'adventure_core_v1',

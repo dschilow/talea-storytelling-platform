@@ -20,7 +20,7 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Quality-first default: allow one global rewrite pass.
+// Cost-safe default: one global rewrite pass.
 const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
@@ -33,8 +33,8 @@ const REWRITE_ONLY_ON_ERRORS = true;
 // Keep expansion budget small by default (chapter-local surgical fixes only).
 const MAX_EXPAND_CALLS = 1;
 
-// Keep one warning-polish pass enabled by default for prose/dialogue cleanup.
-const MAX_WARNING_POLISH_CALLS = 1;
+// Keep warning-polish disabled by default; allow emergency fallback only.
+const MAX_WARNING_POLISH_CALLS = 0;
 const QUALITY_RECOVERY_SCORE_THRESHOLD = 8.2;
 const QUALITY_RECOVERY_WARNING_COUNT = 3;
 const WARNING_POLISH_CODES = new Set([
@@ -115,7 +115,7 @@ export class LlmStoryWriter implements StoryWriter {
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? MAX_EXPAND_CALLS);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? MAX_WARNING_POLISH_CALLS);
     const maxRewritePasses = allowPostEdits && Number.isFinite(configuredRewritePasses)
-      ? Math.max(0, Math.min(1, configuredRewritePasses))
+      ? Math.max(0, Math.min(2, configuredRewritePasses))
       : 0;
     const maxExpandCalls = allowPostEdits && Number.isFinite(configuredExpandCalls)
       ? Math.max(0, Math.min(5, configuredExpandCalls))
@@ -123,10 +123,10 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? 22000);
+    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? 15000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
-      ? Math.max(8000, configuredMaxStoryTokens)
-      : 22000;
+      ? Math.max(6000, configuredMaxStoryTokens)
+      : 15000;
     const humorLevel = normalizedRequest.rawConfig?.humorLevel;
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
@@ -143,8 +143,8 @@ Your secret: Children keep reading because something HAPPENS in every paragraph.
 Your rules:
 1. Every chapter's first sentence pulls a child into the ACTION — not description.
 2. Characters sound COMPLETELY different — a child can tell WHO speaks from the sentence alone.
-3. At least 40% dialogue. The story is told THROUGH dialogue.
-4. Show emotions through body action and dialogue, NEVER through explanation or atmosphere.
+3. Target roughly 25-45% dialogue (scene-dependent). The story is told THROUGH dialogue and action.
+4. Show emotions mainly through body action and dialogue; brief inner beats are allowed.
 5. Your sentences are short and rhythmic: short-short-long, like music.
 6. Write grounded and concrete like a screenplay: strong verbs, no poetry.
 7. FORBIDDEN: personifying nature ("the forest whispered"), mixing senses ("light tasted"), poetic metaphors, paragraphs without action.
@@ -239,10 +239,10 @@ ${storyLanguageRule}`.trim();
       userPrompt: normalizedRequest.rawConfig?.customPrompt,
     });
 
-    // Lean token budget: enough headroom for full story JSON, without runaway reasoning spend.
-    const baseOutputTokens = Math.max(2600, Math.round(totalWordMax * 1.8));
-    const reasoningMultiplier = isReasoningModel ? 1.4 : 1;
-    const maxOutputTokens = Math.min(Math.max(3200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000);
+    // Lean token budget: enough for full story JSON, tighter cap to reduce cost spikes.
+    const baseOutputTokens = Math.max(2200, Math.round(totalWordMax * 1.5));
+    const reasoningMultiplier = isReasoningModel ? 1.2 : 1;
+    const maxOutputTokens = Math.min(Math.max(2600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000);
 
     const result = await callStoryModel({
       systemPrompt,
@@ -524,7 +524,7 @@ ${storyLanguageRule}`.trim();
     const emergencyRewriteNeeded =
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
     const effectiveRewritePasses = emergencyRewriteNeeded
-      ? Math.max(1, maxRewritePasses)
+      ? Math.max(2, maxRewritePasses)
       : maxRewritePasses;
 
     let rewriteAttempt = 0;

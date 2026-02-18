@@ -1,4 +1,4 @@
-﻿-- Migration 15: Seed StoryDNA templates and base TaleDNA
+-- Migration 15: Seed StoryDNA templates and base TaleDNA
 
 INSERT INTO story_dna_templates (category, template_id, story_dna)
 VALUES

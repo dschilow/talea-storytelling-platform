@@ -253,6 +253,10 @@ VALUES
    'Wüste', 'erlösend', 95);
 
 -- 7. RUMPELSTILZCHEN
+INSERT INTO fairy_tales (id, title, source, culture_region, age_recommendation)
+VALUES ('grimm-055', 'Rumpelstilzchen', 'grimm', 'Deutschland', 6)
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO fairy_tale_roles (tale_id, role_type, role_name, role_count, description, required, profession_preference)
 VALUES
   ('grimm-055', 'protagonist', 'Müllerstochter', 1, 'Armes Mädchen das Stroh zu Gold spinnen muss', true, '["Kind", "Müllerstochter"]'),
@@ -274,7 +278,7 @@ VALUES (
   'Namen haben Macht, Versprechen müssen gehalten werden',
   'Ein Mädchen muss Stroh zu Gold spinnen, sonst wird sie getötet. Ein seltsamer Zwerg hilft ihr, verlangt aber dafür ihr erstes Kind.',
   true
-);
+) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO fairy_tale_scenes (tale_id, scene_number, scene_title, scene_description, character_variables, setting, mood, duration_seconds)
 VALUES
@@ -766,7 +770,7 @@ VALUES (
   'Selbstloses Opfer und unsterbliche Liebe',
   'Eine junge Meerjungfrau verliebt sich in einen Prinzen und opfert ihre Stimme und ihr Leben im Meer, um bei ihm zu sein.',
   true
-);
+) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO fairy_tale_roles (tale_id, role_type, role_name, role_count, description, required, profession_preference)
 VALUES
@@ -811,7 +815,7 @@ VALUES
   ('andersen-001', 7, 'Die letzte Entscheidung',
    'Die [SCHWESTERN] bringen ein Messer: "Töte den [PRINZ], dann wirst du wieder Meerjungfrau!" Doch sie kann es nicht. Sie wirft sich ins Meer und wird zu Meeresschaum, aber ihre Seele steigt zu den Töchtern der Luft auf.',
    '{"PROTAGONIST": "KLEINE_MEERJUNGFRAU", "LOVE_INTEREST": "PRINZ", "SUPPORTING": "SCHWESTERN"}',
-   'Schiffsdeck', 'erlösend', 100);
+   'Schiffsdeck', 'erlösend', 100) ON CONFLICT (tale_id, scene_number) DO NOTHING;
 
 -- Due to character limits, I'll continue with the remaining fairy tales in a concise but complete format...
 

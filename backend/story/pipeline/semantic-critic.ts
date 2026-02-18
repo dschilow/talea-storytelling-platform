@@ -64,16 +64,16 @@ export async function runSemanticCritic(input: {
     const directiveSummary = input.directives.map(d => ({
       chapter: d.chapter,
       setting: d.setting,
-      goal: trimText(d.goal, 140),
-      conflict: trimText(d.conflict, 140),
-      outcome: trimText(d.outcome, 140),
+      goal: trimText(d.goal, 96),
+      conflict: trimText(d.conflict, 96),
+      outcome: trimText(d.outcome, 96),
       charactersOnStage: d.charactersOnStage,
     }));
 
     const chapters = input.draft.chapters.map(ch => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 320),
+      text: compressChapter(ch.text, 220),
     }));
 
     const systemPrompt = `You are a strict senior children's-book editor and release reviewer.
@@ -98,15 +98,11 @@ Avoid generic praise. Return concise JSON exactly as requested.`;
         warmth: "emotional warmth, hopeful closure",
       },
       focusChecks: [
-        "metaphor density: no poetic overload for age 6-8, max one comparison per paragraph feel",
         "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained'",
         "meta-summary leak: reject lines like 'the consequence was clear' / 'the price?'",
         "rule-exposition tell: reject textbook statements about how artifacts/rules work",
         "voice separation: children should sound distinct in sentence rhythm and wording",
-        "voice-tag formula loop: avoid repeated 'said ... briefly/quietly' style labels",
-        "scene continuity: no abrupt new room/prop cluster without visible transition sentence",
-        "dialogue vitality: avoid narration-heavy blocks in child-facing chapters",
-        "running-gag control: avoid overusing the same onomatopoeia/catchphrase",
+        "scene continuity: no abrupt scene jumps without visible transition sentence",
       ],
       preferredIssueCodes: [
         "VOICE_BLEND",
@@ -129,7 +125,7 @@ Avoid generic praise. Return concise JSON exactly as requested.`;
           warmth: "number 0..10",
         },
         releaseReady: "boolean",
-        summary: "string max 220 chars",
+        summary: "string max 140 chars",
         issues: [
           {
             chapter: "number (0 for global)",
@@ -157,7 +153,7 @@ Avoid generic praise. Return concise JSON exactly as requested.`;
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 3000,
+      maxTokens: 1800,
       reasoningEffort: "low",
       temperature: 0.2,
       context: "story-semantic-critic",
@@ -209,8 +205,8 @@ function normalizeCriticReport(
           const chapter = normalizeChapter(issue?.chapter, chapterSet);
           const severity = issue?.severity === "ERROR" ? "ERROR" : "WARNING";
           const code = String(issue?.code || "CRITIC_ISSUE").slice(0, 80);
-          const message = trimText(String(issue?.message || ""), 220);
-          const patchInstruction = trimText(String(issue?.patchInstruction || ""), 220);
+          const message = trimText(String(issue?.message || ""), 160);
+          const patchInstruction = trimText(String(issue?.patchInstruction || ""), 160);
           if (!message) return null;
           return {
             chapter,
@@ -229,8 +225,8 @@ function normalizeCriticReport(
           .map((task: any) => {
             const chapter = normalizeChapter(task?.chapter, chapterSet);
             if (chapter <= 0) return null;
-            const objective = trimText(String(task?.objective || ""), 140);
-            const instruction = trimText(String(task?.instruction || ""), 220);
+            const objective = trimText(String(task?.objective || ""), 110);
+            const instruction = trimText(String(task?.instruction || ""), 160);
             if (!objective || !instruction) return null;
             const priorityRaw = Number(task?.priority);
             const priority: 1 | 2 | 3 = priorityRaw === 1 ? 1 : priorityRaw === 3 ? 3 : 2;
@@ -241,7 +237,7 @@ function normalizeCriticReport(
     : [];
 
   const releaseReady = Boolean(raw?.releaseReady) && overallScore >= ctx.targetMinScore;
-  const summary = trimText(String(raw?.summary || ""), 220) || defaultSummary(ctx.language, overallScore, releaseReady);
+  const summary = trimText(String(raw?.summary || ""), 140) || defaultSummary(ctx.language, overallScore, releaseReady);
 
   return {
     model: ctx.model,
@@ -265,7 +261,7 @@ function dedupePatchTasks(tasks: SemanticCriticPatchTask[]): SemanticCriticPatch
   }
   return out
     .sort((a, b) => a.priority - b.priority)
-    .slice(0, 8);
+    .slice(0, 5);
 }
 
 function buildFallbackReport(input: {

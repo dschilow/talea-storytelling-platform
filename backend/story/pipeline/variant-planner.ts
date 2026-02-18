@@ -101,15 +101,39 @@ function buildSceneOverrides(
   if (scenes.length === 0) return [];
 
   const overrides: NonNullable<StoryVariantPlan["sceneOverrides"]> = [];
+  const classic = options?.isClassicTale ?? false;
 
   const settingLabel = labelVariant(variantChoices.settingVariant, language);
-  const encounterLabel = labelVariant(variantChoices.encounterVariant, language);
+  const encounterLabelRaw = labelVariant(variantChoices.encounterVariant, language);
   const artifactLabel = labelVariant(variantChoices.artifactFunctionVariant, language);
-  const rescueLabel = labelVariant(variantChoices.rescueVariant, language);
-  const twistLabel = labelVariant(variantChoices.twistVariant, language);
+  const rescueLabelRaw = labelVariant(variantChoices.rescueVariant, language);
+  const twistLabelRaw = labelVariant(variantChoices.twistVariant, language);
+  const encounterLabel = classic
+    ? adaptClassicFairyLabel({
+      token: variantChoices.encounterVariant,
+      label: encounterLabelRaw,
+      kind: "encounter",
+      language,
+    })
+    : encounterLabelRaw;
+  const rescueLabel = classic
+    ? adaptClassicFairyLabel({
+      token: variantChoices.rescueVariant,
+      label: rescueLabelRaw,
+      kind: "rescue",
+      language,
+    })
+    : rescueLabelRaw;
+  const twistLabel = classic
+    ? adaptClassicFairyLabel({
+      token: variantChoices.twistVariant,
+      label: twistLabelRaw,
+      kind: "twist",
+      language,
+    })
+    : twistLabelRaw;
 
   const overrideChapters = rng.shuffle(scenes.map(s => s.sceneNumber)).slice(0, Math.min(3, scenes.length));
-  const classic = options?.isClassicTale ?? false;
   const settingOverrideChapters = classic
     ? new Set(rng.shuffle(overrideChapters).slice(0, 1))
     : new Set(overrideChapters);
@@ -208,6 +232,62 @@ function labelVariant(token: string, language: string): string {
     return VARIANT_LABELS_DE[token] ?? token.replace(/_/g, " ").toLowerCase();
   }
   return token.replace(/_/g, " ").toLowerCase();
+}
+
+function adaptClassicFairyLabel(input: {
+  token: string;
+  label: string;
+  kind: "encounter" | "rescue" | "twist";
+  language: string;
+}): string {
+  const { token, label, kind, language } = input;
+  const isDE = language === "de";
+
+  const encounterMapDE: Record<string, string> = {
+    FLOWERS_DISTRACTION: "eine verlockende Ablenkung",
+    RIDDLE_DISTRACTION: "eine knifflige Ablenkung",
+    FALSE_MAP: "eine irreführende Spur",
+    HELPFUL_STRANGER_ACT: "eine unerwartete Begegnung",
+  };
+  const rescueMapDE: Record<string, string> = {
+    HUNTER_RESCUE: "Hilfe im letzten Moment",
+    GRANDMA_TRICK: "ein cleverer Haus-Trick",
+    AVATAR_PLAN: "ein Plan der Kinder",
+    TEAMWORK_TRAP: "eine Teamarbeit-Falle",
+  };
+  const twistMapDE: Record<string, string> = {
+    WOLF_LEARNS_LESSON: "jemand lernt eine Lektion",
+    FAKE_WOLF: "ein falscher Verdacht",
+    DOUBLE_BLIND: "ein doppelter Bluff",
+    ARTIFACT_SECRET: "ein Artefakt-Geheimnis",
+  };
+
+  const encounterMapEN: Record<string, string> = {
+    FLOWERS_DISTRACTION: "a tempting distraction",
+    RIDDLE_DISTRACTION: "a tricky distraction",
+    FALSE_MAP: "a misleading clue",
+    HELPFUL_STRANGER_ACT: "an unexpected encounter",
+  };
+  const rescueMapEN: Record<string, string> = {
+    HUNTER_RESCUE: "last-minute help",
+    GRANDMA_TRICK: "a clever household trick",
+    AVATAR_PLAN: "a child-led plan",
+    TEAMWORK_TRAP: "a teamwork trap",
+  };
+  const twistMapEN: Record<string, string> = {
+    WOLF_LEARNS_LESSON: "someone learns a lesson",
+    FAKE_WOLF: "a false suspicion",
+    DOUBLE_BLIND: "a double bluff",
+    ARTIFACT_SECRET: "an artifact secret",
+  };
+
+  if (kind === "encounter") {
+    return isDE ? (encounterMapDE[token] ?? label) : (encounterMapEN[token] ?? label);
+  }
+  if (kind === "rescue") {
+    return isDE ? (rescueMapDE[token] ?? label) : (rescueMapEN[token] ?? label);
+  }
+  return isDE ? (twistMapDE[token] ?? label) : (twistMapEN[token] ?? label);
 }
 
 function shouldApplySettingVariant(setting: string, isClassicTale: boolean): boolean {

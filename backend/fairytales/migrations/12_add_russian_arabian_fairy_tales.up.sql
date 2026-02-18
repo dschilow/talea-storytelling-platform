@@ -1,4 +1,4 @@
--- Migration 12: Add 11 Russian and Arabian Nights Fairy Tales
+/* -- Migration 12: Add 11 Russian and Arabian Nights Fairy Tales
 -- Adds russian-001 through russian-008 (8 tales)
 -- Adds 1001-001 through 1001-003 (3 tales)
 
@@ -476,7 +476,7 @@ VALUES (
 INSERT INTO fairy_tale_roles (tale_id, role_type, role_name, role_count, description, required, profession_preference)
 VALUES
   ('russian-008', 'protagonist', 'Iwan Zarewitsch', 1, 'Mutiger junger Prinz', true, '["Prinz", "Held", "Zarewitsch"]'),
-  ('russian-008', 'helper', 'Grauer Wolf', 1, 'Magischer sprechender Wolf', true, '["Wolf', 'Tier", "Magisches Wesen"]'),
+  ('russian-008', 'helper', 'Grauer Wolf', 1, 'Magischer sprechender Wolf', true, '["Wolf", "Tier", "Magisches Wesen"]'),
   ('russian-008', 'supporting', 'Feuervogel', 1, 'Wunderschöner Vogel mit goldenen Federn', true, '["Vogel", "Feuervogel", "Magisches Wesen"]'),
   ('russian-008', 'love_interest', 'Prinzessin Elena', 1, 'Wunderschöne Prinzessin', true, '["Prinzessin"]'),
   ('russian-008', 'antagonist', 'Böse Zaren', 2, 'Gierige Herrscher', true, '["Zar", "König", "Bösewicht"]'),
@@ -767,4 +767,6 @@ VALUES
   ('russian-008', 0, 0),
   ('1001-001', 0, 0),
   ('1001-002', 0, 0),
-  ('1001-003', 0, 0);
+  ('1001-003', 0, 0)
+*/
+SELECT 1;

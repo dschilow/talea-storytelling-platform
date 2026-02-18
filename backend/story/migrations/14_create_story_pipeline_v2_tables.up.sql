@@ -1,4 +1,4 @@
-﻿-- Migration 14: Story Pipeline v2 tables
+-- Migration 14: Story Pipeline v2 tables
 
 CREATE TABLE IF NOT EXISTS story_instances (
     id TEXT PRIMARY KEY,
@@ -81,3 +81,4 @@ CREATE TABLE IF NOT EXISTS story_dna_templates (
 );
 
 CREATE INDEX IF NOT EXISTS idx_story_dna_templates_category ON story_dna_templates(category);
+

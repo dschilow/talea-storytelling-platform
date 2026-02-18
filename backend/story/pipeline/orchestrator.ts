@@ -277,12 +277,16 @@ export class StoryPipelineOrchestrator {
       let criticReport: SemanticCriticReport | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
-      // Cost-safe default: 1 candidate unless explicitly overridden per request.
-      // This prevents silent cost explosions from config defaults.
+      // Cost-safe default: 1 candidate. For classic tales, add candidate #2 only if #1 is weak.
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
+      const defaultCandidateCount = 1;
       const releaseCandidateCount = releaseEnabled
-        ? Math.max(1, Math.min(2, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : 1))
+        ? Math.max(1, Math.min(2, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
         : 1;
+      const adaptiveSecondCandidate =
+        releaseEnabled &&
+        !Number.isFinite(explicitCandidateCount) &&
+        normalized.category === "Klassische Märchen";
       const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-5-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
@@ -298,7 +302,7 @@ export class StoryPipelineOrchestrator {
         : 2;
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
-      // OPTIMIZED: Only 2 memories per avatar, short titles only – keeps prompt small
+      // OPTIMIZED: Only 1 memory per avatar, short titles only - keeps prompt small
       // for reasoning models (gpt-5-mini) where extra context → more reasoning tokens
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
@@ -309,14 +313,14 @@ export class StoryPipelineOrchestrator {
             FROM avatar_memories
             WHERE avatar_id = ${avatar.id}
             ORDER BY created_at DESC
-            LIMIT 2
+            LIMIT 1
           `;
           for await (const row of gen) {
             rows.push(row);
           }
           if (rows.length > 0) {
             avatarMemories.set(avatar.id, rows.map(r => ({
-              storyTitle: (r.story_title || "").substring(0, 42),
+              storyTitle: (r.story_title || "").substring(0, 32),
               experience: "",
               emotionalImpact: (r.emotional_impact as any) || 'neutral',
             })));
@@ -388,7 +392,8 @@ export class StoryPipelineOrchestrator {
         };
 
         const candidateBundles: CandidateBundle[] = [];
-        for (let candidateIdx = 0; candidateIdx < releaseCandidateCount; candidateIdx += 1) {
+        const targetCandidateCount = adaptiveSecondCandidate ? 2 : releaseCandidateCount;
+        for (let candidateIdx = 0; candidateIdx < targetCandidateCount; candidateIdx += 1) {
           const candidateSeed = (variantSeed + candidateIdx * 7919) >>> 0;
           const candidateTag = `cand-${candidateIdx + 1}`;
           const writeResult = await this.storyWriter.writeStory({
@@ -434,7 +439,8 @@ export class StoryPipelineOrchestrator {
 
           let surgeryApplied = false;
           let editedChapters: number[] = [];
-          if (surgeryEnabled && candidateCritic.patchTasks.length > 0) {
+          const qualityErrors = Number(candidateQuality?.errorCount ?? 0);
+          if (surgeryEnabled && candidateCritic.patchTasks.length > 0 && (!candidateCritic.releaseReady || qualityErrors > 0)) {
             const surgery = await applySelectiveSurgery({
               storyId: normalized.storyId,
               normalizedRequest: normalized,
@@ -515,6 +521,16 @@ export class StoryPipelineOrchestrator {
             surgeryApplied,
             editedChapters,
           });
+
+          if (adaptiveSecondCandidate && candidateIdx === 0) {
+            const firstCandidateStrong =
+              candidateCritic.releaseReady &&
+              candidateCritic.overallScore >= criticMinScore &&
+              Number(candidateQuality?.errorCount ?? 0) === 0;
+            if (firstCandidateStrong) {
+              break;
+            }
+          }
         }
 
         const bestCandidate = pickBestCandidate(candidateBundles);
@@ -559,7 +575,7 @@ export class StoryPipelineOrchestrator {
           chapters: storyDraft.chapters.length,
           durationMs: Date.now() - phase6Start,
           tokens: tokenUsage,
-          releaseCandidateCount,
+          releaseCandidateCount: candidateBundles.length,
           surgeryEnabled,
           maxSelectiveSurgeryEdits,
           qualityScore: qualityReport?.score,
@@ -598,6 +614,8 @@ export class StoryPipelineOrchestrator {
         "ENGLISH_LEAK",
         "FILTER_PLACEHOLDER",
         "CHAPTER_PLACEHOLDER",
+        "META_LABEL_PHRASE",
+        "META_NARRATION",
       ]);
 
       // Optional strict release gates. Disabled by default to avoid hard generation failures
