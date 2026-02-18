@@ -47,6 +47,41 @@ interface AvatarLearningWorldMapProps {
   isDark: boolean;
 }
 
+interface PathPoint {
+  y: number;
+  x: number;
+}
+
+const MAP_TILE_HEIGHT = 3072;
+const ROAD_POINTS: PathPoint[] = [
+  { y: 0, x: 65.43 },
+  { y: 0.0417, x: 39.35 },
+  { y: 0.0833, x: 49.22 },
+  { y: 0.125, x: 69.58 },
+  { y: 0.1667, x: 33.01 },
+  { y: 0.2083, x: 61.84 },
+  { y: 0.25, x: 40.43 },
+  { y: 0.2917, x: 41.47 },
+  { y: 0.3333, x: 58.25 },
+  { y: 0.375, x: 51.08 },
+  { y: 0.4167, x: 44.08 },
+  { y: 0.4583, x: 64.0 },
+  { y: 0.5, x: 47.97 },
+  { y: 0.5417, x: 34.93 },
+  { y: 0.5833, x: 63.76 },
+  { y: 0.625, x: 47.25 },
+  { y: 0.6667, x: 34.57 },
+  { y: 0.7083, x: 61.15 },
+  { y: 0.75, x: 43.1 },
+  { y: 0.7917, x: 35.42 },
+  { y: 0.8333, x: 61.96 },
+  { y: 0.875, x: 58.73 },
+  { y: 0.9167, x: 38.93 },
+  { y: 0.9583, x: 45.45 },
+  { y: 1, x: 65.43 },
+];
+const BRANCH_OFFSETS = [-15, 15, -12, 12, -16, 16];
+
 const DOMAIN_LABELS: Record<string, string> = {
   history: 'Geschichte',
   science: 'Wissenschaft',
@@ -58,10 +93,9 @@ const DOMAIN_LABELS: Record<string, string> = {
   astronomy: 'Astronomie',
 };
 
-const MAIN_X_PATTERN = [50, 34, 68, 30, 72, 36, 64, 33, 69];
-const BRANCH_OFFSET_PATTERN = [-14, 14, -12, 12, -16, 16];
-
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const toDomainLabel = (raw: string) => DOMAIN_LABELS[raw] || raw;
 
 const getNodeIcon = (kind: MapNodeKind) => {
   if (kind === 'start') return Compass;
@@ -93,7 +127,7 @@ const getNodeStatusColors = (status: MapNodeStatus, isDark: boolean) => {
   if (status === 'active') {
     return {
       border: isDark ? '#4e6a89' : '#9ab4d3',
-      bg: isDark ? 'rgba(39,52,71,0.48)' : 'rgba(227,236,248,0.7)',
+      bg: isDark ? 'rgba(39,52,71,0.5)' : 'rgba(227,236,248,0.7)',
       text: isDark ? '#d8e7fa' : '#3e5977',
     };
   }
@@ -118,30 +152,60 @@ const getMemoryDomains = (memory: AvatarMemory): string[] =>
     .map((trait) => trait.split('.')[1] || '')
     .filter((trait) => trait.length > 0);
 
-const toDomainLabel = (raw: string) => DOMAIN_LABELS[raw] || raw;
-
-const buildMainPath = (nodes: MapNode[]) => {
-  const mainNodes = nodes.filter((node) => node.lane === 'main' || node.kind === 'start');
-  if (mainNodes.length === 0) return '';
-
-  let path = `M ${mainNodes[0].x} ${mainNodes[0].y}`;
-  for (let index = 1; index < mainNodes.length; index += 1) {
-    const prev = mainNodes[index - 1];
-    const current = mainNodes[index];
-    const deltaY = current.y - prev.y;
-    const c1y = prev.y + deltaY * 0.44;
-    const c2y = current.y - deltaY * 0.44;
-    path += ` C ${prev.x} ${c1y}, ${current.x} ${c2y}, ${current.x} ${current.y}`;
+const pathXAtPercent = (percent: number) => {
+  const normalized = clamp(percent, 0, 1);
+  for (let index = 1; index < ROAD_POINTS.length; index += 1) {
+    const left = ROAD_POINTS[index - 1];
+    const right = ROAD_POINTS[index];
+    if (normalized <= right.y) {
+      const segment = Math.max(0.0001, right.y - left.y);
+      const t = clamp((normalized - left.y) / segment, 0, 1);
+      return left.x + (right.x - left.x) * t;
+    }
   }
-  return path;
+  return ROAD_POINTS[ROAD_POINTS.length - 1].x;
+};
+
+const pathXAtY = (y: number) => {
+  const local = ((y % MAP_TILE_HEIGHT) + MAP_TILE_HEIGHT) % MAP_TILE_HEIGHT;
+  return pathXAtPercent(local / MAP_TILE_HEIGHT);
+};
+
+const buildPathForHeight = (mapHeight: number) => {
+  if (mapHeight <= 0) return '';
+  const tileCount = Math.ceil(mapHeight / MAP_TILE_HEIGHT) + 1;
+  let d = '';
+
+  for (let tile = 0; tile < tileCount; tile += 1) {
+    const baseY = tile * MAP_TILE_HEIGHT;
+    for (let index = 0; index < ROAD_POINTS.length; index += 1) {
+      const point = ROAD_POINTS[index];
+      const x = point.x;
+      const y = baseY + point.y * MAP_TILE_HEIGHT;
+      if (index === 0 && tile === 0) {
+        d += `M ${x} ${y}`;
+        continue;
+      }
+      const prev = ROAD_POINTS[index - 1 >= 0 ? index - 1 : ROAD_POINTS.length - 1];
+      const prevBase = index === 0 ? (tile - 1) * MAP_TILE_HEIGHT : baseY;
+      const prevY = prevBase + prev.y * MAP_TILE_HEIGHT;
+      const prevX = prev.x;
+      const dy = y - prevY;
+      const c1y = prevY + dy * 0.45;
+      const c2y = y - dy * 0.45;
+      d += ` C ${prevX} ${c1y}, ${x} ${c2y}, ${x} ${y}`;
+    }
+  }
+
+  return d;
 };
 
 const buildBranchPath = (source: MapNode, target: MapNode) => {
   const deltaY = target.y - source.y;
-  const c1x = source.x + (target.x - source.x) * 0.6;
-  const c2x = target.x - (target.x - source.x) * 0.22;
-  const c1y = source.y + deltaY * 0.24;
-  const c2y = target.y - deltaY * 0.32;
+  const c1x = source.x + (target.x - source.x) * 0.58;
+  const c2x = target.x - (target.x - source.x) * 0.24;
+  const c1y = source.y + deltaY * 0.22;
+  const c2y = target.y - deltaY * 0.3;
   return `M ${source.x} ${source.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${target.x} ${target.y}`;
 };
 
@@ -152,7 +216,7 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
 }) => {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const reduceMotion = useReducedMotion();
-  const [futureDepth, setFutureDepth] = useState(12);
+  const [futureDepth, setFutureDepth] = useState(14);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
 
   const stats = useMemo(() => {
@@ -161,7 +225,10 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
     return {
       stories: progression?.stats?.storiesRead ?? storyCount,
       dokus: progression?.stats?.dokusRead ?? dokuCount,
-      quests: progression?.stats?.completedQuests ?? progression?.quests?.filter((quest) => quest.status === 'completed').length ?? 0,
+      quests:
+        progression?.stats?.completedQuests ??
+        progression?.quests?.filter((quest) => quest.status === 'completed').length ??
+        0,
       level: progression?.overallLevel ?? 1,
     };
   }, [memories, progression]);
@@ -188,10 +255,8 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
     );
 
     const result: MapNode[] = [];
-    let y = 112;
-    let mainIndex = 0;
-    const branchDepth = new Map<string, number>();
-    const mainNodeIds: string[] = [];
+    const mainIds: string[] = [];
+    let y = 130;
 
     const startNode: MapNode = {
       id: 'map-start',
@@ -199,23 +264,23 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
       status: 'complete',
       title: 'Startlager',
       subtitle: 'Deine Weltreise beginnt',
-      detail: 'Jede gelesene Story oder Doku oeffnet neue Regionen auf deiner Karte.',
+      detail: 'Mit jeder Story und Doku waechst die Karte automatisch weiter nach unten.',
       y,
-      x: 50,
+      x: pathXAtY(y),
       progress: 100,
       lane: 'main',
     };
     result.push(startNode);
-    mainNodeIds.push(startNode.id);
+    mainIds.push(startNode.id);
+
+    const branchDepth = new Map<string, number>();
 
     sortedMemories.forEach((memory, memoryIndex) => {
-      y += 158;
-      mainIndex += 1;
-
+      y += 180;
       const kind = getMemoryKind(memory);
       const progress = clamp(
-        28 + Math.round(Math.abs(memory.personalityChanges?.length || 1) * 14),
-        18,
+        24 + Math.round(Math.abs(memory.personalityChanges?.length || 1) * 14),
+        14,
         100
       );
 
@@ -227,45 +292,41 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
         subtitle: (memory.contentType || 'story').toUpperCase(),
         detail: memory.experience || 'Neue Erinnerung gespeichert.',
         y,
-        x: MAIN_X_PATTERN[mainIndex % MAIN_X_PATTERN.length],
+        x: pathXAtY(y),
         progress,
-        parentId: mainNodeIds[mainNodeIds.length - 1],
+        parentId: mainIds[mainIds.length - 1],
         lane: 'main',
       };
-
       result.push(mainNode);
-      mainNodeIds.push(mainNode.id);
+      mainIds.push(mainNode.id);
 
       if (kind === 'doku') {
         const domains = getMemoryDomains(memory);
         domains.forEach((domain, domainIndex) => {
-          const currentDepth = branchDepth.get(domain) || 0;
-          const nextDepth = currentDepth + 1;
+          const current = branchDepth.get(domain) || 0;
+          const nextDepth = current + 1;
           branchDepth.set(domain, nextDepth);
 
-          y += 112;
+          y += 118;
           const branchX = clamp(
-            mainNode.x + BRANCH_OFFSET_PATTERN[(memoryIndex + domainIndex) % BRANCH_OFFSET_PATTERN.length],
-            18,
-            82
+            mainNode.x + BRANCH_OFFSETS[(memoryIndex + domainIndex) % BRANCH_OFFSETS.length],
+            16,
+            84
           );
 
           result.push({
             id: `branch-${domain}-${memory.id}-${domainIndex}`,
-            kind: currentDepth === 0 ? 'branch-unlock' : 'branch-grow',
-            status: currentDepth === 0 ? 'new' : 'active',
-            title:
-              currentDepth === 0
-                ? `Neuer Zweig: ${toDomainLabel(domain)}`
-                : `${toDomainLabel(domain)} vertieft`,
+            kind: current === 0 ? 'branch-unlock' : 'branch-grow',
+            status: current === 0 ? 'new' : 'active',
+            title: current === 0 ? `Neuer Zweig: ${toDomainLabel(domain)}` : `${toDomainLabel(domain)} vertieft`,
             subtitle: `Stufe ${nextDepth}`,
             detail:
-              currentDepth === 0
-                ? 'Neue Kategorie freigeschaltet. Dieser Abzweig ist jetzt dauerhaft in deiner Karte.'
-                : 'Durch weitere Dokus in der Kategorie wird dieser Zweig weiter ausgebaut.',
+              current === 0
+                ? 'Neue Doku-Kategorie freigeschaltet: dieser Abzweig bleibt dauerhaft sichtbar.'
+                : 'Durch weitere Dokus in derselben Kategorie waechst dieser Zweig weiter.',
             y,
             x: branchX,
-            progress: clamp(nextDepth * 24, 12, 100),
+            progress: clamp(nextDepth * 24, 10, 100),
             parentId: mainNode.id,
             lane: 'branch',
           });
@@ -275,15 +336,9 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
 
     const activeQuest = progression?.quests?.find((quest) => quest.status === 'active');
     if (activeQuest) {
-      y += 152;
-      mainIndex += 1;
-      const questProgress = clamp(
-        Math.round((activeQuest.progress / Math.max(1, activeQuest.target)) * 100),
-        0,
-        100
-      );
-
-      const questNode: MapNode = {
+      y += 176;
+      const progress = clamp(Math.round((activeQuest.progress / Math.max(1, activeQuest.target)) * 100), 0, 100);
+      const node: MapNode = {
         id: `quest-${activeQuest.id}`,
         kind: 'quest',
         status: 'active',
@@ -291,60 +346,53 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
         subtitle: `${activeQuest.progress}/${activeQuest.target}`,
         detail: `${activeQuest.description} Belohnung: ${activeQuest.reward}.`,
         y,
-        x: MAIN_X_PATTERN[mainIndex % MAIN_X_PATTERN.length],
-        progress: questProgress,
-        parentId: mainNodeIds[mainNodeIds.length - 1],
+        x: pathXAtY(y),
+        progress,
+        parentId: mainIds[mainIds.length - 1],
         lane: 'main',
       };
-      result.push(questNode);
-      mainNodeIds.push(questNode.id);
+      result.push(node);
+      mainIds.push(node.id);
     }
 
     const nextPerk = progression?.perks?.find((perk) => !perk.unlocked);
     if (nextPerk) {
-      y += 150;
-      mainIndex += 1;
-      const perkProgress = clamp(
-        Math.round((nextPerk.currentValue / Math.max(1, nextPerk.requiredValue)) * 100),
-        0,
-        100
-      );
-
-      const perkNode: MapNode = {
+      y += 176;
+      const progress = clamp(Math.round((nextPerk.currentValue / Math.max(1, nextPerk.requiredValue)) * 100), 0, 100);
+      const node: MapNode = {
         id: `perk-${nextPerk.id}`,
         kind: 'perk',
         status: 'active',
         title: `Naechster Perk: ${nextPerk.title}`,
         subtitle: `${nextPerk.currentValue}/${nextPerk.requiredValue}`,
-        detail: `${nextPerk.description} Wird automatisch freigeschaltet, wenn der Wert erreicht ist.`,
+        detail: `${nextPerk.description} Wird automatisch freigeschaltet, sobald der Wert erreicht ist.`,
         y,
-        x: MAIN_X_PATTERN[mainIndex % MAIN_X_PATTERN.length],
-        progress: perkProgress,
-        parentId: mainNodeIds[mainNodeIds.length - 1],
+        x: pathXAtY(y),
+        progress,
+        parentId: mainIds[mainIds.length - 1],
         lane: 'main',
       };
-      result.push(perkNode);
-      mainNodeIds.push(perkNode.id);
+      result.push(node);
+      mainIds.push(node.id);
     }
 
     for (let index = 0; index < futureDepth; index += 1) {
-      y += 148;
-      mainIndex += 1;
-      const futureNode: MapNode = {
+      y += 176;
+      const node: MapNode = {
         id: `future-${index}`,
         kind: 'future',
         status: 'new',
         title: `Unbekannte Region ${index + 1}`,
         subtitle: 'Wird beim Weiterlesen freigeschaltet',
-        detail: 'Lies weiter Dokus und Storys, damit hier echte Stationen entstehen.',
+        detail: 'Lies mehr Dokus/Storys, damit hier echte Stationen entstehen.',
         y,
-        x: MAIN_X_PATTERN[mainIndex % MAIN_X_PATTERN.length],
+        x: pathXAtY(y),
         progress: 0,
-        parentId: mainNodeIds[mainNodeIds.length - 1],
+        parentId: mainIds[mainIds.length - 1],
         lane: 'future',
       };
-      result.push(futureNode);
-      mainNodeIds.push(futureNode.id);
+      result.push(node);
+      mainIds.push(node.id);
     }
 
     return result;
@@ -365,14 +413,14 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
   useEffect(() => {
     if (!nodes.length) return;
     if (!nodes.some((node) => node.id === selectedNodeId)) {
-      const latestRealNode = [...nodes].reverse().find((node) => node.kind !== 'future');
-      setSelectedNodeId((latestRealNode || nodes[0]).id);
+      const latestReal = [...nodes].reverse().find((node) => node.kind !== 'future');
+      setSelectedNodeId((latestReal || nodes[0]).id);
     }
   }, [nodes, selectedNodeId]);
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0];
-  const mapHeight = (nodes[nodes.length - 1]?.y || 180) + 240;
-  const mainPath = buildMainPath(nodes);
+  const mapHeight = (nodes[nodes.length - 1]?.y || 180) + 260;
+  const roadPath = buildPathForHeight(mapHeight);
 
   return (
     <section
@@ -386,14 +434,11 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p
-            className="text-xs font-semibold uppercase tracking-[0.12em]"
-            style={{ color: isDark ? '#9bb0cb' : '#6d829b' }}
-          >
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: isDark ? '#9bb0cb' : '#6d829b' }}>
             Game Lernwelt
           </p>
           <p className="text-sm font-semibold" style={{ color: isDark ? '#e6effb' : '#24374d' }}>
-            Vertikale Weltkarte mit unendlichem Scroll
+            Pfad folgt exakt der Karte
           </p>
         </div>
 
@@ -410,80 +455,58 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
         className="relative h-[74vh] min-h-[520px] overflow-y-auto rounded-3xl border"
         style={{
           borderColor: isDark ? '#365069' : '#d3c4b2',
+          backgroundImage: "url('/assets/lernpfad_high.jpg')",
+          backgroundRepeat: 'repeat-y',
+          backgroundSize: `100% ${MAP_TILE_HEIGHT}px`,
+          backgroundPosition: 'center top',
           backgroundColor: isDark ? '#1a2a3f' : '#edf2df',
+          filter: isDark ? 'saturate(0.72) brightness(0.78)' : 'none',
         }}
       >
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "url('/assets/learning-world-reference.png')",
-            backgroundRepeat: 'repeat-y',
-            backgroundSize: '100% auto',
-            backgroundPosition: 'center top',
-            opacity: isDark ? 0.28 : 0.88,
-            filter: isDark ? 'saturate(0.72) brightness(0.72)' : 'saturate(1.08)',
-          }}
-        />
-
         {!reduceMotion && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {Array.from({ length: 10 }).map((_, index) => (
               <motion.div
-                key={`cloud-${index}`}
+                key={`spark-${index}`}
                 className="absolute rounded-full"
                 style={{
-                  width: `${42 + (index % 4) * 16}px`,
-                  height: `${14 + (index % 3) * 8}px`,
+                  width: `${5 + (index % 3) * 2}px`,
+                  height: `${5 + (index % 3) * 2}px`,
                   left: `${8 + ((index * 11) % 80)}%`,
-                  top: `${6 + ((index * 9) % 88)}%`,
-                  background: isDark ? 'rgba(184,206,230,0.12)' : 'rgba(255,255,255,0.36)',
+                  top: `${7 + ((index * 9) % 88)}%`,
+                  background: isDark ? 'rgba(180,220,255,0.28)' : 'rgba(150,199,255,0.3)',
+                  boxShadow: isDark ? '0 0 12px rgba(166,211,255,0.3)' : '0 0 10px rgba(126,173,225,0.24)',
                 }}
-                animate={{ x: [0, 10, -8, 0], y: [0, -8, 6, 0], opacity: [0.12, 0.28, 0.12] }}
-                transition={{
-                  duration: 8 + index * 0.9,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
+                animate={{ y: [0, -16, 0], opacity: [0.14, 0.32, 0.14] }}
+                transition={{ duration: 3.4 + index * 0.26, repeat: Infinity, ease: 'easeInOut' }}
               />
             ))}
           </div>
         )}
 
         <div className="relative" style={{ height: `${mapHeight}px` }}>
-          <svg
-            className="pointer-events-none absolute left-0 top-0 w-full"
-            height={mapHeight}
-            viewBox={`0 0 100 ${mapHeight}`}
-            preserveAspectRatio="none"
-          >
-            <path
-              d={mainPath}
-              stroke={isDark ? 'rgba(255,248,235,0.58)' : 'rgba(255,247,232,0.95)'}
-              strokeWidth={8.6}
-              fill="none"
-              strokeLinecap="round"
-            />
+          <svg className="pointer-events-none absolute left-0 top-0 w-full" height={mapHeight} viewBox={`0 0 100 ${mapHeight}`} preserveAspectRatio="none">
             <motion.path
-              d={mainPath}
-              stroke={isDark ? 'rgba(136,169,210,0.72)' : 'rgba(128,156,194,0.7)'}
+              d={roadPath}
+              stroke={isDark ? 'rgba(150,198,255,0.82)' : 'rgba(124,174,235,0.84)'}
               strokeWidth={2.2}
               fill="none"
               strokeLinecap="round"
-              strokeDasharray="10 10"
-              animate={reduceMotion ? undefined : { strokeDashoffset: [0, -78] }}
-              transition={reduceMotion ? undefined : { duration: 3.8, repeat: Infinity, ease: 'linear' }}
+              strokeDasharray="12 11"
+              animate={reduceMotion ? undefined : { strokeDashoffset: [0, -88] }}
+              transition={reduceMotion ? undefined : { duration: 3.6, repeat: Infinity, ease: 'linear' }}
             />
             {branchPaths.map((entry) => (
               <motion.path
                 key={entry.id}
                 d={entry.path}
-                stroke={isDark ? 'rgba(141,184,143,0.65)' : 'rgba(127,170,132,0.66)'}
-                strokeWidth={2.4}
+                stroke={isDark ? 'rgba(154,214,165,0.76)' : 'rgba(125,186,138,0.8)'}
+                strokeWidth={2}
                 fill="none"
                 strokeLinecap="round"
-                strokeDasharray="6 7"
-                animate={reduceMotion ? undefined : { strokeDashoffset: [0, -36] }}
-                transition={reduceMotion ? undefined : { duration: 2.9, repeat: Infinity, ease: 'linear' }}
+                strokeDasharray="6 8"
+                animate={reduceMotion ? undefined : { strokeDashoffset: [0, -32] }}
+                transition={reduceMotion ? undefined : { duration: 2.6, repeat: Infinity, ease: 'linear' }}
               />
             ))}
           </svg>
@@ -516,7 +539,7 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
                 initial={{ opacity: 0, scale: 0.86 }}
                 animate={{
                   opacity: 1,
-                  scale: selected ? 1.06 : 1,
+                  scale: selected ? 1.07 : 1,
                   y: reduceMotion ? 0 : [0, -3, 0],
                 }}
                 transition={{
@@ -524,45 +547,30 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
                   scale: { duration: 0.2, ease: 'easeOut' },
                   y: reduceMotion
                     ? { duration: 0 }
-                    : { duration: 2.8 + (index % 3) * 0.4, repeat: Infinity, ease: 'easeInOut' },
+                    : { duration: 2.9 + (index % 3) * 0.4, repeat: Infinity, ease: 'easeInOut' },
                 }}
               >
                 {!reduceMotion && !isFuture && node.status !== 'complete' && (
                   <motion.span
                     className="pointer-events-none absolute inset-0 rounded-full"
-                    style={{
-                      border: `2px solid ${isDark ? 'rgba(159,200,238,0.44)' : 'rgba(132,169,210,0.46)'}`,
-                    }}
-                    animate={{ scale: [1, 1.22, 1], opacity: [0.62, 0.04, 0.62] }}
-                    transition={{ duration: 1.9, repeat: Infinity, ease: 'easeOut' }}
+                    style={{ border: `2px solid ${isDark ? 'rgba(159,200,238,0.44)' : 'rgba(132,169,210,0.46)'}` }}
+                    animate={{ scale: [1, 1.22, 1], opacity: [0.62, 0.05, 0.62] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
                   />
                 )}
 
                 <div className="relative z-10 flex h-full flex-col items-center justify-center">
                   <Icon className="h-4 w-4" style={{ color: colors.text }} />
-                  <span
-                    className="mt-1 line-clamp-2 text-[9px] font-semibold leading-tight"
-                    style={{ color: isDark ? '#e4edf9' : '#2f455d' }}
-                  >
+                  <span className="mt-1 line-clamp-2 text-[9px] font-semibold leading-tight" style={{ color: isDark ? '#e4edf9' : '#2f455d' }}>
                     {node.title}
                   </span>
-                  <span
-                    className="mt-0.5 rounded-full px-1.5 py-[1px] text-[8px] font-semibold uppercase tracking-[0.08em]"
-                    style={{
-                      color: colors.text,
-                      border: `1px solid ${colors.border}`,
-                      background: isDark ? 'rgba(16,25,38,0.5)' : 'rgba(255,255,255,0.72)',
-                    }}
-                  >
+                  <span className="mt-0.5 rounded-full px-1.5 py-[1px] text-[8px] font-semibold uppercase tracking-[0.08em]" style={{ color: colors.text, border: `1px solid ${colors.border}`, background: isDark ? 'rgba(16,25,38,0.5)' : 'rgba(255,255,255,0.72)' }}>
                     {getNodeStatusLabel(node.status)}
                   </span>
                 </div>
 
                 {node.status === 'complete' && (
-                  <CheckCircle2
-                    className="absolute -right-1 -top-1 h-4 w-4"
-                    style={{ color: isDark ? '#8fd5b8' : '#4f9e7f' }}
-                  />
+                  <CheckCircle2 className="absolute -right-1 -top-1 h-4 w-4" style={{ color: isDark ? '#8fd5b8' : '#4f9e7f' }} />
                 )}
               </motion.button>
             );
@@ -582,10 +590,7 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
             background: isDark ? 'rgba(20,32,47,0.9)' : 'rgba(255,251,245,0.94)',
           }}
         >
-          <p
-            className="text-[11px] uppercase tracking-[0.1em]"
-            style={{ color: isDark ? '#97abc6' : '#6c819a' }}
-          >
+          <p className="text-[11px] uppercase tracking-[0.1em]" style={{ color: isDark ? '#97abc6' : '#6c819a' }}>
             Aktuelle Station
           </p>
           <p className="text-sm font-semibold" style={{ color: isDark ? '#e7effb' : '#25374c' }}>
@@ -597,10 +602,7 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
           <p className="text-xs leading-snug" style={{ color: isDark ? '#a8bdd7' : '#607a98' }}>
             {selectedNode.detail}
           </p>
-          <div
-            className="mt-1.5 h-1.5 overflow-hidden rounded-full"
-            style={{ background: isDark ? 'rgba(71,89,110,0.62)' : 'rgba(190,204,220,0.58)' }}
-          >
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ background: isDark ? 'rgba(71,89,110,0.62)' : 'rgba(190,204,220,0.58)' }}>
             <motion.div
               className="h-full rounded-full"
               style={{ background: isDark ? '#86a9d1' : '#7f96c8' }}
