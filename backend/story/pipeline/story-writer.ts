@@ -35,6 +35,7 @@ const MAX_EXPAND_CALLS = 2;
 
 // Keep warning-polish disabled by default; allow emergency fallback only.
 const MAX_WARNING_POLISH_CALLS = 0;
+const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = false;
 const QUALITY_RECOVERY_SCORE_THRESHOLD = 8.2;
 const QUALITY_RECOVERY_WARNING_COUNT = 3;
 const WARNING_POLISH_CODES = new Set([
@@ -65,6 +66,9 @@ const WARNING_POLISH_CODES = new Set([
   "COMPARISON_CLUSTER",
   "DRAFT_NOTE_LEAK",
   "TEXT_ASCII_UMLAUT",
+  "PROTOCOL_STYLE_META",
+  "REPORT_STYLE_OVERUSE",
+  "PARAGRAPH_CHOPPY",
 ]);
 
 // Warning-driven rewrites are reserved for persistent quality misses when no hard errors remain.
@@ -91,6 +95,27 @@ const REWRITE_WARNING_CODES = new Set([
   "ABRUPT_SCENE_SHIFT",
   "DRAFT_NOTE_LEAK",
   "TEXT_ASCII_UMLAUT",
+  "PROTOCOL_STYLE_META",
+  "REPORT_STYLE_OVERUSE",
+  "PARAGRAPH_CHOPPY",
+]);
+
+const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
+  "MISSING_EXPLICIT_STAKES",
+  "STAKES_TOO_ABSTRACT",
+  "MISSING_LOWPOINT",
+  "LOWPOINT_EMOTION_THIN",
+  "LOWPOINT_TOO_SOFT",
+  "ENDING_PAYOFF_ABSTRACT",
+  "ENDING_PRICE_MISSING",
+  "ENDING_WARMTH_MISSING",
+  "GOAL_THREAD_WEAK_ENDING",
+  "VOICE_INDISTINCT",
+  "VOICE_TAG_FORMULA_OVERUSE",
+  "RULE_EXPOSITION_TELL",
+  "PROTOCOL_STYLE_META",
+  "REPORT_STYLE_OVERUSE",
+  "PARAGRAPH_CHOPPY",
 ]);
 
 export class LlmStoryWriter implements StoryWriter {
@@ -124,6 +149,10 @@ export class LlmStoryWriter implements StoryWriter {
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? MAX_REWRITE_PASSES);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? MAX_EXPAND_CALLS);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? MAX_WARNING_POLISH_CALLS);
+    const enableWarningDrivenRewrite =
+      typeof rawConfig?.enableWarningDrivenRewrite === "boolean"
+        ? rawConfig.enableWarningDrivenRewrite
+        : ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT;
     const maxRewritePasses = allowPostEdits && Number.isFinite(configuredRewritePasses)
       ? Math.max(0, Math.min(2, configuredRewritePasses))
       : 0;
@@ -489,15 +518,17 @@ ${storyLanguageRule}`.trim();
         return { draft: draftInput, changed: false };
       }
 
-      const warningIssues = (reportInput?.issues || []).filter(
-        issue => issue.severity === "WARNING" && WARNING_POLISH_CODES.has(issue.code),
-      );
-      if (warningIssues.length === 0) {
+      const polishIssues = (reportInput?.issues || []).filter(issue => {
+        if (issue.severity === "WARNING") return WARNING_POLISH_CODES.has(issue.code);
+        if (issue.severity === "ERROR") return CHAPTER_REWRITEABLE_ERROR_CODES.has(issue.code);
+        return false;
+      });
+      if (polishIssues.length === 0) {
         return { draft: draftInput, changed: false };
       }
 
       const chapterIssues = new Map<number, string[]>();
-      for (const issue of warningIssues) {
+      for (const issue of polishIssues) {
         if (issue.chapter <= 0) continue;
         const list = chapterIssues.get(issue.chapter) ?? [];
         list.push(`[${issue.code}] ${issue.message}`);
@@ -542,7 +573,9 @@ ${storyLanguageRule}`.trim();
 
         const baseMaxTokens = Math.round(Math.max(380, lengthTargets.wordMax * 1.3));
         const polishReasoningMultiplier = isReasoningModel ? 1.2 : 1;
-        const maxTokens = Math.min(1500, Math.max(450, Math.round(baseMaxTokens * polishReasoningMultiplier)));
+        const polishMinTokens = isReasoningModel ? 850 : 450;
+        const polishMaxTokensCap = isReasoningModel ? 1900 : 1500;
+        const maxTokens = Math.min(polishMaxTokensCap, Math.max(polishMinTokens, Math.round(baseMaxTokens * polishReasoningMultiplier)));
 
         try {
           const result = await callStoryModel({
@@ -622,8 +655,12 @@ ${storyLanguageRule}`.trim();
       }
     }
 
-    const emergencyRewriteNeeded =
+    const hardErrorIssuesInitial = getActionableErrorIssues(qualityReport);
+    const warningRecoveryNeededInitial =
+      enableWarningDrivenRewrite &&
+      hardErrorIssuesInitial.length === 0 &&
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
+    const emergencyRewriteNeeded = hardErrorIssuesInitial.length > 0 || warningRecoveryNeededInitial;
     const effectiveRewritePasses = canRunPostEdits
       ? (emergencyRewriteNeeded
         ? (isReasoningModel ? Math.max(1, maxRewritePasses) : Math.max(2, maxRewritePasses))
@@ -635,7 +672,9 @@ ${storyLanguageRule}`.trim();
       const actionableErrors = getActionableErrorIssues(qualityReport);
       const rewriteWarnings = getRewriteWarningIssues(qualityReport);
       const warningDrivenRewrite =
-        actionableErrors.length === 0 && shouldForceQualityRecovery(qualityReport, rewriteWarnings);
+        enableWarningDrivenRewrite &&
+        actionableErrors.length === 0 &&
+        shouldForceQualityRecovery(qualityReport, rewriteWarnings);
       const actionableIssues = warningDrivenRewrite ? rewriteWarnings : actionableErrors;
       const shouldRewrite = REWRITE_ONLY_ON_ERRORS
         ? actionableIssues.length > 0
@@ -647,7 +686,8 @@ ${storyLanguageRule}`.trim();
         `[story-writer] Rewrite pass ${rewriteAttempt}/${effectiveRewritePasses} - ${actionableErrors.length} hard errors, ${rewriteWarnings.length} rewrite-warnings, warning-driven=${warningDrivenRewrite}, failed gates: ${qualityReport.failedGates.join(", ")}`
       );
 
-      const rewriteInstructions = buildRewriteInstructions(actionableIssues, normalizedRequest.language);
+      const prioritizedIssues = prioritizeIssuesForRewrite(actionableIssues);
+      const rewriteInstructions = buildRewriteInstructions(prioritizedIssues, normalizedRequest.language);
 
       const rewritePrompt = buildFullStoryRewritePrompt({
         originalDraft: draft,
@@ -705,6 +745,12 @@ ${storyLanguageRule}`.trim();
           console.warn(`[story-writer] Token budget reached (${totalUsage?.totalTokens}/${maxStoryTokens}), stopping rewrite loop.`);
           break;
         }
+      }
+      if (rewriteResult?.finishReason === "length" && !String(rewriteResult.content || "").trim()) {
+        console.warn(
+          `[story-writer] Rewrite pass ${rewriteAttempt} returned empty+truncated output; skipping further full rewrites and using chapter-local rescue edits.`,
+        );
+        break;
       }
 
       parsed = safeJson(rewriteResult.content);
@@ -1438,6 +1484,34 @@ function getRewriteWarningIssues(report: { issues: QualityIssue[] }): QualityIss
 
 function getWarningPolishIssues(report: { issues: QualityIssue[] }): QualityIssue[] {
   return report.issues.filter(issue => issue.severity === "WARNING" && WARNING_POLISH_CODES.has(issue.code));
+}
+
+function prioritizeIssuesForRewrite(issues: QualityIssue[]): QualityIssue[] {
+  if (issues.length <= 12) return issues;
+  const criticalOrder: Record<string, number> = {
+    CHAPTER_PLACEHOLDER: 1,
+    CHAPTER_TOO_SHORT_HARD: 2,
+    MISSING_CHARACTER: 3,
+    MISSING_EXPLICIT_STAKES: 4,
+    MISSING_LOWPOINT: 5,
+    ENDING_PAYOFF_ABSTRACT: 6,
+    ENDING_PRICE_MISSING: 7,
+    VOICE_INDISTINCT: 8,
+    VOICE_TAG_FORMULA_OVERUSE: 9,
+    PROTOCOL_STYLE_META: 10,
+    REPORT_STYLE_OVERUSE: 11,
+    PARAGRAPH_CHOPPY: 12,
+  };
+
+  return [...issues]
+    .sort((a, b) => {
+      const aPrio = criticalOrder[a.code] ?? 99;
+      const bPrio = criticalOrder[b.code] ?? 99;
+      if (aPrio !== bPrio) return aPrio - bPrio;
+      if (a.chapter !== b.chapter) return a.chapter - b.chapter;
+      return a.code.localeCompare(b.code);
+    })
+    .slice(0, 12);
 }
 
 function shouldForceQualityRecovery(

@@ -657,7 +657,7 @@ export class StoryPipelineOrchestrator {
       }
 
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
-      if (releaseEnabled && criticReport && criticReport.overallScore < criticMinScore) {
+      if (releaseEnabled && criticReport && !isCriticSkipped(criticReport) && criticReport.overallScore < criticMinScore) {
         storyErrors.push({
           gate: "SEMANTIC_CRITIC",
           chapter: 0,
@@ -1048,7 +1048,8 @@ function shouldSkipSemanticCritic(quality: any): boolean {
   const hasPlaceholder = issues.some((issue: any) => issue?.code === "CHAPTER_PLACEHOLDER");
   const hasTooShort = issues.some((issue: any) => issue?.code === "TOTAL_TOO_SHORT");
   const errorCount = Number(quality?.errorCount ?? 0);
-  return hasPlaceholder || hasTooShort || errorCount >= 12;
+  const warningCount = Number(quality?.warningCount ?? 0);
+  return hasPlaceholder || hasTooShort || errorCount >= 4 || (errorCount >= 2 && warningCount >= 6);
 }
 
 function buildSkippedCriticReport(model: string): SemanticCriticReport {
@@ -1071,14 +1072,20 @@ function buildSkippedCriticReport(model: string): SemanticCriticReport {
 
 function scoreReleaseCandidate(quality: any, critic: SemanticCriticReport | undefined, releaseEnabled: boolean): number {
   const qualityScore = clampNumber(Number(quality?.score ?? 0), 0, 10);
-  const criticScore = clampNumber(Number(critic?.overallScore ?? qualityScore), 0, 10);
+  const criticSkipped = isCriticSkipped(critic);
+  const criticScore = clampNumber(Number(criticSkipped ? qualityScore : (critic?.overallScore ?? qualityScore)), 0, 10);
   const errorCount = Math.max(0, Number(quality?.errorCount ?? 0));
   const warningCount = Math.max(0, Number(quality?.warningCount ?? 0));
 
   const blend = qualityScore * 0.58 + criticScore * 0.42;
   const penalties = errorCount * 1.3 + Math.min(1.8, warningCount * 0.06);
-  const releasePenalty = releaseEnabled && critic && !critic.releaseReady ? 0.8 : 0;
+  const releasePenalty = releaseEnabled && critic && !criticSkipped && !critic.releaseReady ? 0.8 : 0;
   return Number((blend - penalties - releasePenalty).toFixed(4));
+}
+
+function isCriticSkipped(critic: SemanticCriticReport | undefined): boolean {
+  if (!critic) return false;
+  return String(critic.summary || "").toLowerCase().startsWith("semantic critic skipped");
 }
 
 function pickBestCandidate<T extends { compositeScore: number; quality: any; critic: SemanticCriticReport }>(candidates: T[]): T {

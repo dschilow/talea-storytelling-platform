@@ -200,7 +200,7 @@ function gateDialogueQuote(
         message: isDE
           ? `Kapitel ${ch.chapter}: Dialoganteil extrem hoch (${Math.round(dialogueRatio * 100)}%, max ${Math.round(extremeHighDialogueRatio * 100)}%)`
           : `Chapter ${ch.chapter}: dialogue ratio extremely high (${Math.round(dialogueRatio * 100)}%, max ${Math.round(extremeHighDialogueRatio * 100)}%)`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -665,10 +665,10 @@ function gateCharacterVoiceDistinctness(
     // Detect repeated "voice tag formulas" like "sagte ... kurz/knapp/leise"
     // that flatten speaker identity across characters.
     const voiceTagFormulaPattern = isDE
-      ? /(?:sagte|fragte|antwortete|meinte|fluesterte|fl[uü]sterte|murmelte)[^.!?\n]{0,28}\b(?:kurz|knapp|leise|ruhig|klar|fest)\b/gi
+      ? /(?:sagte|fragte|antwortete|meinte|fluesterte|fl[uü]sterte|murmelte)[^.!?\n]{0,28}\b(?:kurz|knapp|leise|ruhig|klar|fest|sachlich)\b/gi
       : /(?:said|asked|answered|replied|whispered|muttered)[^.!?\n]{0,28}\b(?:short|brief|quiet|calm|firm)\b/gi;
     const voiceLabelSentencePattern = isDE
-      ? /\b(?:seine|seiner|seinem|seinen|ihre|ihrer|ihrem|ihren|die)\s+stimme\s+war\s+(?:kurz|knapp|leise|ruhig|klar|fest)\b/gi
+      ? /\b(?:seine|seiner|seinem|seinen|ihre|ihrer|ihrem|ihren|die)\s+stimme\s+war\s+(?:kurz|knapp|leise|ruhig|klar|fest|sachlich)\b/gi
       : /\b(?:his|her|their|the)\s+voice\s+was\s+(?:short|brief|quiet|calm|firm)\b/gi;
 
     const formulaHits =
@@ -1306,11 +1306,10 @@ function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[
 function gateMetaForeshadowPhrases(
   draft: StoryDraft,
   language: string,
-  ageRange?: { min: number; max: number },
+  _ageRange?: { min: number; max: number },
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
-  const ageMax = ageRange?.max ?? 12;
 
   const patterns = isDE
     ? [
@@ -1424,6 +1423,96 @@ function gateNarrativeSummaryMeta(
         : `Chapter ${chapter.chapter}: summary-like meta phrasing detected instead of scene writing (e.g., "The consequence was clear", "The price?").`,
       severity: ageMax <= 8 ? "ERROR" : "WARNING",
     });
+  }
+
+  return issues;
+}
+
+function gateNarrativeNaturalness(
+  draft: StoryDraft,
+  language: string,
+  _ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  const protocolMetaPatterns = isDE
+    ? [
+        /\bdie\s+szene\s+endete\b/i,
+        /\bdie\s+szenerie\s+endete\b/i,
+        /\bdie\s+handlung\s+r(?:ue|ü)ckte\s+vor\b/i,
+        /\bnichts\s+mit\s+konflikt\b/i,
+        /\bkeine\s+konflikt\b/i,
+        /\bwir\s+ersetzen\s+es\b/i,
+        /\bich\s+idee\b/i,
+        /\bein\s+warmes?\s+ende\s+folgte\b/i,
+      ]
+    : [
+        /\bthe\s+scene\s+ended\b/i,
+        /\bthe\s+action\s+moved\s+forward\b/i,
+        /\bno\s+conflict\b/i,
+        /\bwe\s+replace\s+it\b/i,
+        /\ba\s+warm\s+ending\s+followed\b/i,
+      ];
+
+  const reportSentencePattern = isDE
+    ? /^(?:wir|sie|er|die\s+kinder|[A-ZÄÖÜ][a-zäöüß]+)\s+(?:ging(?:en)?|lief(?:en)?|stand(?:en)?|war(?:en)?|hatte(?:n)?|machte(?:n)?|nahm(?:en)?|legte(?:n)?|zeigte(?:n)?|sagte(?:n)?|fragte(?:n)?|nickte(?:n)?|blieb(?:en)?)\b/i
+    : /^(?:we|they|he|she|the\s+children|[A-Z][a-z]+)\s+(?:went|walked|ran|stood|was|were|had|made|took|put|said|asked|nodded|stayed)\b/i;
+
+  for (const chapter of draft.chapters) {
+    const text = chapter.text || "";
+    const metaHits = protocolMetaPatterns.filter(pattern => pattern.test(text)).length;
+    if (metaHits > 0) {
+      issues.push({
+        gate: "NARRATIVE_NATURALNESS",
+        chapter: chapter.chapter,
+        code: "PROTOCOL_STYLE_META",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: protokollartige Meta-Prosa erkannt (z. B. "Die Szene endete").`
+          : `Chapter ${chapter.chapter}: protocol-like meta prose detected (e.g. "The scene ended").`,
+        severity: "WARNING",
+      });
+    }
+
+    const sentences = splitSentences(text);
+    if (sentences.length >= 10) {
+      const reportLikeCount = sentences.filter(sentence => {
+        if (/[""„“”»«]/.test(sentence)) return false;
+        return reportSentencePattern.test(sentence.trim());
+      }).length;
+      const reportLikeRatio = reportLikeCount / sentences.length;
+      if (reportLikeRatio >= 0.58) {
+        issues.push({
+          gate: "NARRATIVE_NATURALNESS",
+          chapter: chapter.chapter,
+          code: "REPORT_STYLE_OVERUSE",
+          message: isDE
+            ? `Kapitel ${chapter.chapter}: zu viele protokollartige Erzaehlsaetze (${Math.round(reportLikeRatio * 100)}%).`
+            : `Chapter ${chapter.chapter}: too many report-like narration sentences (${Math.round(reportLikeRatio * 100)}%).`,
+          severity: "WARNING",
+        });
+      }
+    }
+
+    const paragraphs = text
+      .split(/\n\s*\n+/)
+      .map(p => p.trim())
+      .filter(Boolean);
+    if (paragraphs.length >= 5) {
+      const singleSentenceParagraphs = paragraphs.filter(p => splitSentences(p).length <= 1).length;
+      const choppedRatio = singleSentenceParagraphs / paragraphs.length;
+      if (choppedRatio >= 0.62) {
+        issues.push({
+          gate: "NARRATIVE_NATURALNESS",
+          chapter: chapter.chapter,
+          code: "PARAGRAPH_CHOPPY",
+          message: isDE
+            ? `Kapitel ${chapter.chapter}: Absatzfluss zu abgehackt (${singleSentenceParagraphs}/${paragraphs.length} Ein-Satz-Absaetze).`
+            : `Chapter ${chapter.chapter}: paragraph flow too choppy (${singleSentenceParagraphs}/${paragraphs.length} one-sentence paragraphs).`,
+          severity: "WARNING",
+        });
+      }
+    }
   }
 
   return issues;
@@ -2322,6 +2411,7 @@ export function runQualityGates(input: {
     { name: "META_FORESHADOW", fn: () => gateMetaForeshadowPhrases(draft, language, ageRange) },
     { name: "SHOW_DONT_TELL_EXPOSITION", fn: () => gateRuleExpositionTell(draft, language, ageRange) },
     { name: "NARRATIVE_META", fn: () => gateNarrativeSummaryMeta(draft, language, ageRange) },
+    { name: "NARRATIVE_NATURALNESS", fn: () => gateNarrativeNaturalness(draft, language, ageRange) },
     { name: "SCENE_CONTINUITY", fn: () => gateSceneContinuity(draft, language, ageRange) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
@@ -2357,6 +2447,7 @@ export function runQualityGates(input: {
     RHYTHM_VARIATION: 1,
     READABILITY_COMPLEXITY: 1,
     SCENE_CONTINUITY: 1,
+    NARRATIVE_NATURALNESS: 1,
     // All other gates: default cap at 2
   };
   const DEFAULT_MAX_PENALTY = 2;
@@ -2508,6 +2599,15 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       ? "- Regel-Erklaersaetze in Szene verwandeln: keine Lehrsatz-Form ('X zeigt..., X bedeutet...'). Zeige den Effekt durch konkrete Handlung + Reaktion + kurze Dialogzeile."
       : "- Convert rule-exposition into scene: no textbook lines ('X shows..., X means...'). Show effect through concrete action + reaction + short dialogue.");
   }
+  if (
+    issueCodes.has("PROTOCOL_STYLE_META") ||
+    issueCodes.has("REPORT_STYLE_OVERUSE") ||
+    issueCodes.has("PARAGRAPH_CHOPPY")
+  ) {
+    lines.push(isDE
+      ? "- Protokollstil abbauen: keine Meta-Saetze wie 'Die Szene endete', keine Telegramm-Ketten ('Sie gingen. Sie machten ...'). Stattdessen Szene mit Ursache->Reaktion->Entscheidung in normalen Absaetzen."
+      : "- Remove report style: no meta lines like 'The scene ended', no telegram chains ('They went. They did ...'). Use scene flow with cause->reaction->decision in normal paragraphs.");
+  }
   if (issueCodes.has("ABRUPT_SCENE_SHIFT")) {
     lines.push(isDE
       ? "- Kontinuitaet reparieren: bei Orts-/Szenenwechsel einen sichtbaren Uebergangssatz setzen (Zeit/Bewegung/Ankunft), bevor neue Requisiten erscheinen."
@@ -2524,15 +2624,32 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
       : "- Remove text artifacts completely: no control chars, no mojibake sequences, no spaced-out broken tokens, and no ASCII umlaut substitutions.");
   }
 
+  const MAX_ISSUES_TOTAL = 14;
+  let emittedIssues = 0;
   for (const [chapter, chIssues] of grouped) {
+    if (emittedIssues >= MAX_ISSUES_TOTAL) break;
     if (chapter === 0) {
       lines.push(isDE ? "\nGesamte Geschichte:" : "\nOverall story:");
     } else {
       lines.push(isDE ? `\nKapitel ${chapter}:` : `\nChapter ${chapter}:`);
     }
-    for (const issue of chIssues) {
-      lines.push(`  - [${issue.code}] ${issue.message}`);
+    const remaining = MAX_ISSUES_TOTAL - emittedIssues;
+    const chapterSlice = chIssues.slice(0, Math.max(1, Math.min(4, remaining)));
+    for (const issue of chapterSlice) {
+      const compactMessage = issue.message.length > 120
+        ? `${issue.message.slice(0, 117).trimEnd()}...`
+        : issue.message;
+      lines.push(`  - [${issue.code}] ${compactMessage}`);
+      emittedIssues += 1;
+      if (emittedIssues >= MAX_ISSUES_TOTAL) break;
     }
+  }
+  if (issues.length > MAX_ISSUES_TOTAL) {
+    lines.push(
+      isDE
+        ? `\nHinweis: ${issues.length - MAX_ISSUES_TOTAL} weitere Detailprobleme intern mitkorrigieren, ohne neue Regeln zu erfinden.`
+        : `\nNote: also fix ${issues.length - MAX_ISSUES_TOTAL} additional detailed issues internally, without inventing new rules.`,
+    );
   }
 
   return lines.join("\n");

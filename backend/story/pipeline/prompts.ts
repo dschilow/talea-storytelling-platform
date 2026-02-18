@@ -473,7 +473,7 @@ export function buildFullStoryPrompt(input: {
     const conflictMax = isCompactPrompt ? 58 : 82;
     const outcomeMax = isCompactPrompt ? 42 : 64;
 
-    return `${idx + 1}) Ort: ${trimDirectiveText(directive.setting, settingMax)}${artifactTag}. Kern: ${trimDirectiveText(directive.goal, goalMax)}. Konflikt: ${trimDirectiveText(directive.conflict, conflictMax)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(directive.outcome, outcomeMax)}${fusionHint ? ` Hinweis: ${trimDirectiveText(fusionHint, 50)}` : ""}`;
+    return `${idx + 1}) Ort: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}. Kern: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}. Konflikt: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? ` Hinweis: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 50)}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
@@ -512,6 +512,9 @@ STYLE TARGET:
 - Mostly short concrete sentences (6-12 words), occasional longer sentence.
 - Distinct voice per character, avoid repetitive speaker formulas.
 - After short dialogue bursts, add concrete action beats.
+- Write normal prose paragraphs (typically 2-4 sentences), not one sentence per paragraph.
+- No report-style chains like "Sie gingen. Sie nahmen. Sie machten.".
+- Never output meta lines like "Die Szene endete" / "The scene ended".
 - No diagnostic emotion formulas (e.g., "he was very nervous", "his heart pounded with fear").
 - ${humorRule}
 - Beat ${directives.length} ends warm and closed with concrete gain + small price.
@@ -561,6 +564,7 @@ STYLE (MOST IMPORTANT â€” follow strictly):
 - Mostly short sentences (6-12 words), occasionally a longer one for swing. No sentence monsters.
 - Dialogue only where it adds tension; avoid transcript-like turn-taking every line.
 - After 1-3 dialogue lines, ground with a concrete action beat.
+- Paragraph rhythm: normal prose paragraphs (mostly 2-4 sentences), no one-sentence chains.
 - Each character has their own voice (word choice, sentence length, quirk).
 - Separate children's voices sharply:
 ${childVoiceContract || "  - No children's voices available"}
@@ -570,6 +574,7 @@ ${childVoiceContract || "  - No children's voices available"}
 - NO synesthesia (no "light tasted", no "silence smelled like").
 - Action verbs over atmosphere verbs: "slammed", "grabbed", "snapped" instead of "shimmered", "whispered", "drifted".
 - No formula emotion lines ("X was scared/sad/nervous", "his heart pounded"); show it in behavior/dialogue.
+- No protocol narration chains ("Sie gingen. Sie machten ...") and no meta lines ("Die Szene endete").
 - ${humorRule}
 - HUMOR TECHNIQUES (use these!):
   * interruption + correction + short surprise reaction
@@ -656,61 +661,37 @@ export function buildFullStoryRewritePrompt(input: {
 
   const outputLang = isGerman ? "German" : targetLanguage;
   const umlautRule = isGerman ? " Use proper German umlauts (Ã¤, Ã¶, Ã¼, ÃŸ), never ASCII substitutes. No English words in story text." : "";
-  const antiPatterns = buildAntiPatternBlock(isGerman);
+  return `TASK: Rewrite the story in high-quality children's book prose. Keep plot, cast, and chapter order.
 
-  return `TASK: Rewrite the story so it reads like a real children's book prose text. Keep plot and character core, improve language, rhythm, and voice.
-
-${antiPatterns}
-
-SPECIFIC PROBLEMS (to fix):
-${qualityIssues || "- No specific issues provided; optimize prose, rhythm, and character voices anyway."}
+QUALITY ISSUES TO FIX:
+${qualityIssues || "- Improve prose quality, voice separation, pacing, and natural scene flow."}
 
 HARD RULES:
-1) Language: Write ONLY in ${outputLang}.${umlautRule}
-2) Target audience: ${ageRange.min}-${ageRange.max} years, clear and child-appropriate.
-3) Cast lock: Only these names allowed: ${allowedNames || "(none)"}. No new characters.
-4) Rule priority: Hard Rules override additional requirements. Example names from user texts are not character candidates.
-5) Structure: ${directives.length} chapters in order, no chapter titles in prose.
-6) Length: ${totalWordMin}-${totalWordMax} words total; per chapter approximately ${wordsPerChapter.min}-${wordsPerChapter.max}.
-7) Child-safe: no explicit violence, weapons, blood, horror, bullying, politics/religion, drugs/alcohol/gambling.
-8) Show, don't tell: Emotions mainly through body ACTION and DIALOGUE. Brief sensory context is allowed. No personifying nature.
-9) No deus ex machina.
-10) Clear, warm ending without cliffhanger.
-${artifactName ? `11) Artifact "${artifactName}" stays relevant but doesn't solve alone.` : ""}
+1) Language: ONLY ${outputLang}.${umlautRule}
+2) Audience: ${ageRange.min}-${ageRange.max}. Child-safe wording.
+3) Cast lock: only these names: ${allowedNames || "(none)"}.
+4) Structure: exactly ${directives.length} chapters, same order.
+5) Length: ${totalWordMin}-${totalWordMax} words total; chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}.
+6) No new characters, no headings in prose, no instruction/meta text.
+${artifactName ? `7) Artifact "${artifactName}" remains relevant but never solves alone.` : ""}
 ${avatarRule || ""}
 
-STYLE GOALS (strictly important):
-- Target tone: ${targetTone}.
-- Keep balanced prose: target roughly 20-35% dialogue. Use dialogue where conflict sharpens.
-- Mostly short sentences (6-12 words), occasionally longer for swing.
-- Avoid transcript-style ping-pong dialogue chains.
-- After short dialogue bursts, return to concrete action beats.
-- Separate children's voices sharply:
-${childVoiceContract || "  - No children's voices available"}
-- Concrete, everyday language: max ONE comparison per chapter, no adult metaphor imagery.
-- Break up tell-formulas ("felt", "silence fell", "inside something pulled", "heart pounded").
-- No diagnostic emotion labels ("he was sad/scared/nervous"); show via action and speech.
-- Avoid speaker formula series ("said ... briefly/quietly", "his/her voice was ...").
-- Per beat max one short inner-thought sentence; then back to visible action/dialogue.
-- Name concrete stakes early: what is visibly lost if they fail.
+STYLE TARGET:
+- Tone: ${targetTone}
+- Dialogue ratio roughly 20-35% where fitting.
+- Distinct character voices (wording + rhythm), avoid repeated speaker formulas.
+- Show emotions via action + dialogue, not diagnostic labels.
+- Normal prose paragraphs (mostly 2-4 sentences), no one-sentence chains.
+- No report style chains ("Sie gingen. Sie machten ...").
+- No meta lines ("Die Szene endete", "The scene ended", preview/summary labels).
+- Keep escalation visible; chapter 3/4 needs a real setback.
+- Ending: concrete gain + small price/compromise, warm closure.
 ${humorRewriteLine}
-- Humor through situational comedy and short misunderstandings; never explain jokes.
-- Running gag rule: same onomatopoeia/catchphrase sparingly (max 2x per chapter, max 6x total).
-- At least one clear tension moment.
-- Finale: concrete gain plus small price/compromise.
-- From chapter 2: visible transition sentence (movement/time/arrival) before new location.
-- No meta-sentences, preview phrases, summary sentences, or teaching sentences in prose.
-- FORBIDDEN: personifying nature, mixing senses, poetic metaphors, paragraphs without action/dialogue.
 
-${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}INTERNAL EDITING (do not output):
-- Check hard rules, voices, rhythm, show-don't-tell, word count.
-- If anything breaks: revise internally.
-- Then output only the final JSON.
-
-ORIGINAL TEXT:
+${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}ORIGINAL TEXT:
 ${originalText}
 
-OUTPUT FORMAT (JSON only):
+OUTPUT JSON ONLY:
 {
   "title": "Story title",
   "description": "Teaser sentence",
@@ -766,10 +747,10 @@ WICHTIG: Lebendige Prosa! Konkrete Details (riechen, schmecken, fÃ¼hlen), Dial
 Keine Gefuehls-Diagnosesaetze wie "er war sehr nervoes/traurig"; stattdessen Verhalten + Sprache zeigen.
 
 # Szene
-- Setting: ${chapter.setting}, Stimmung: ${chapter.mood ?? "COZY"}
-- Ziel: ${chapter.goal}
+- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Stimmung: ${chapter.mood ?? "COZY"}
+- Ziel: ${sanitizeDirectiveNarrativeText(chapter.goal)}
 - Figuren: ${allowedNames}
-${artifactName && chapter.artifactUsage ? `- Artefakt: ${artifactName} (${chapter.artifactUsage})` : ""}
+${artifactName && chapter.artifactUsage ? `- Artefakt: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
 - Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}â€“${ageRange.max}
 ${missingLine}
 
@@ -964,13 +945,13 @@ ISSUES:
 ${issueList}
 
 SCENE DIRECTIVE:
-- Setting: ${chapter.setting}
+- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}
 - Mood: ${chapter.mood ?? "COZY"}
-- Goal: ${chapter.goal}
-- Conflict: ${chapter.conflict}
-- Outcome: ${chapter.outcome}
+- Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
+- Conflict: ${sanitizeDirectiveNarrativeText(chapter.conflict)}
+- Outcome: ${sanitizeDirectiveNarrativeText(chapter.outcome)}
 - Characters (must appear): ${allowedNames || "none"}
-- Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
+- Artifact: ${sanitizeDirectiveNarrativeText(chapter.artifactUsage)}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 ${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
@@ -987,6 +968,8 @@ RULES:
 8) Keep continuity with adjacent chapters using explicit transitions where needed.
 9) Do not explain object rules as textbook statements; show via action + reaction + short dialogue.
 10) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
+11) Use normal prose paragraphs (mostly 2-4 sentences); no one-sentence report chains.
+12) No meta/report lines like "Die Szene endete" / "The scene ended".
 ORIGINAL TEXT:
 ${originalText}
 
@@ -1024,13 +1007,13 @@ TEMPLATE PHRASES TO REMOVE:
 ${phraseLabels.length ? phraseLabels.map(l => `- ${l}`).join("\n") : "- none"}
 
 SCENE DIRECTIVE:
-- Setting: ${chapter.setting}
+- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}
 - Mood: ${chapter.mood ?? "COZY"}
-- Goal: ${chapter.goal}
-- Conflict: ${chapter.conflict}
-- Outcome: ${chapter.outcome}
+- Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
+- Conflict: ${sanitizeDirectiveNarrativeText(chapter.conflict)}
+- Outcome: ${sanitizeDirectiveNarrativeText(chapter.outcome)}
 - Characters (must appear): ${allowedNames || "none"}
-- Artifact: ${chapter.artifactUsage}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
+- Artifact: ${sanitizeDirectiveNarrativeText(chapter.artifactUsage)}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 - Audience: ${ageRange.min}-${ageRange.max} years
 ${stylePackText ? `\n${stylePackText}\n` : ""}
@@ -1182,8 +1165,29 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
   return lines.join("\n").trim();
 }
 
+function sanitizeDirectiveNarrativeText(value: string | undefined): string {
+  if (!value) return "";
+  let text = String(value).replace(/\s+/g, " ").trim();
+  if (!text) return "";
+
+  const cleanupPatterns = [
+    /\b(?:wir|we)\s+(?:ersetzen|replace)\s+(?:es|it)\b/gi,
+    /\b(?:nichts|kein(?:e|en)?)\s+mit\s+konflikt\b/gi,
+    /\b(?:die\s+szene\s+endete|the\s+scene\s+ended)\b/gi,
+    /\b(?:die\s+handlung\s+r(?:ue|ü)ckte\s+vor|the\s+action\s+moved\s+forward)\b/gi,
+    /\b(?:strict\s+rules\??|output\s+format|return\s+json)\b/gi,
+    /\b(?:der\s+ausblick|the\s+outlook)\b/gi,
+  ];
+
+  for (const pattern of cleanupPatterns) {
+    text = text.replace(pattern, " ");
+  }
+
+  return text.replace(/\s+/g, " ").trim();
+}
+
 function trimDirectiveText(value: string | undefined, maxChars: number): string {
-  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  const normalized = sanitizeDirectiveNarrativeText(String(value || ""));
   if (normalized.length <= maxChars) return normalized;
   return normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd() + "...";
 }
