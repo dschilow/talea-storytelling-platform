@@ -3,11 +3,16 @@ import { useAuth } from "@clerk/clerk-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   BookOpen,
+  ChevronRight,
   Check,
   Clapperboard,
+  Edit3,
+  Eye,
   FileText,
   ImagePlus,
+  Layers3,
   Loader2,
   Plus,
   RefreshCcw,
@@ -15,6 +20,7 @@ import {
   Sparkles,
   Users,
   Wand2,
+  X,
 } from "lucide-react";
 
 import { getBackendUrl } from "@/config";
@@ -27,6 +33,34 @@ const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
 type ApiInit = { method?: "GET" | "POST" | "PUT"; body?: unknown };
 type EpisodeWithScenesResponse = { episode: StudioEpisode; scenes: StudioEpisodeScene[] };
 type ComposeEpisodeResponse = EpisodeWithScenesResponse & { combinedText: string };
+type StudioWorkspaceView = "library" | "series";
+type SeriesOverview = {
+  episodeCount: number;
+  publishedCount: number;
+  characterCount: number;
+  latestEpisodeTitle?: string;
+  latestEpisodeStatus?: StudioEpisode["status"];
+  coverImageUrl?: string;
+};
+
+const episodeStatusLabel: Record<StudioEpisode["status"], string> = {
+  draft: "Entwurf",
+  text_ready: "Text bereit",
+  text_approved: "Text akzeptiert",
+  scenes_ready: "Szenen bereit",
+  images_ready: "Bilder bereit",
+  composed: "Composed",
+  published: "Veroeffentlicht",
+};
+
+function formatDate(value: string | undefined): string {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 const TaleaStudioWorkspace: React.FC = () => {
   const { getToken } = useAuth();
@@ -37,6 +71,10 @@ const TaleaStudioWorkspace: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [series, setSeries] = useState<StudioSeries[]>([]);
+  const [workspaceView, setWorkspaceView] = useState<StudioWorkspaceView>("library");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [seriesOverview, setSeriesOverview] = useState<Record<string, SeriesOverview>>({});
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
   const [characters, setCharacters] = useState<StudioCharacter[]>([]);
   const [episodes, setEpisodes] = useState<StudioEpisode[]>([]);
@@ -49,9 +87,22 @@ const TaleaStudioWorkspace: React.FC = () => {
 
   const [seriesTitle, setSeriesTitle] = useState("");
   const [seriesLogline, setSeriesLogline] = useState("");
+  const [seriesDescription, setSeriesDescription] = useState("");
+  const [seriesCanon, setSeriesCanon] = useState("");
+  const [seriesEditTitle, setSeriesEditTitle] = useState("");
+  const [seriesEditLogline, setSeriesEditLogline] = useState("");
+  const [seriesEditDescription, setSeriesEditDescription] = useState("");
+  const [seriesEditCanon, setSeriesEditCanon] = useState("");
+  const [savingSeriesInfo, setSavingSeriesInfo] = useState(false);
   const [characterName, setCharacterName] = useState("");
   const [characterRole, setCharacterRole] = useState("");
   const [characterPrompt, setCharacterPrompt] = useState("");
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
+  const [editingCharacterName, setEditingCharacterName] = useState("");
+  const [editingCharacterRole, setEditingCharacterRole] = useState("");
+  const [editingCharacterDescription, setEditingCharacterDescription] = useState("");
+  const [editingCharacterPrompt, setEditingCharacterPrompt] = useState("");
+  const [updatingCharacter, setUpdatingCharacter] = useState(false);
   const [episodeNumber, setEpisodeNumber] = useState(1);
   const [episodeTitle, setEpisodeTitle] = useState("");
   const [episodeCharacterIds, setEpisodeCharacterIds] = useState<string[]>([]);
@@ -79,6 +130,11 @@ const TaleaStudioWorkspace: React.FC = () => {
   const selectedEpisode = useMemo(
     () => episodes.find((item) => item.id === selectedEpisodeId) || null,
     [episodes, selectedEpisodeId]
+  );
+  const selectedSeriesOverview = selectedSeriesId ? seriesOverview[selectedSeriesId] : undefined;
+  const maxEpisodeNumber = useMemo(
+    () => episodes.reduce((maxValue, item) => Math.max(maxValue, item.episodeNumber), 0),
+    [episodes]
   );
   const allSceneImagesReady = useMemo(
     () => scenes.length > 0 && scenes.every((scene) => Boolean(scene.imageUrl)),
@@ -151,6 +207,66 @@ const TaleaStudioWorkspace: React.FC = () => {
     return (await response.json()) as T;
   };
 
+  const fetchSeriesOverview = async (seriesId: string): Promise<SeriesOverview> => {
+    const [charactersResult, episodesResult] = await Promise.all([
+      apiCall<{ characters: StudioCharacter[] }>(`/story/studio/series/${seriesId}/characters`),
+      apiCall<{ episodes: StudioEpisode[] }>(`/story/studio/series/${seriesId}/episodes`),
+    ]);
+    const characterList = charactersResult.characters || [];
+    const episodeList = (episodesResult.episodes || []).sort((a, b) => a.episodeNumber - b.episodeNumber);
+    const latestEpisode = episodeList[episodeList.length - 1];
+    const publishedCount = episodeList.filter((episode) => episode.status === "published").length;
+
+    return {
+      episodeCount: episodeList.length,
+      publishedCount,
+      characterCount: characterList.length,
+      latestEpisodeTitle: latestEpisode?.title,
+      latestEpisodeStatus: latestEpisode?.status,
+      coverImageUrl: characterList.find((character) => Boolean(character.imageUrl))?.imageUrl,
+    };
+  };
+
+  const refreshAllSeriesOverview = async (seriesList: StudioSeries[]) => {
+    if (seriesList.length === 0) {
+      setSeriesOverview({});
+      return;
+    }
+
+    try {
+      setOverviewLoading(true);
+      const overviewEntries = await Promise.all(
+        seriesList.map(async (item) => {
+          try {
+            const overview = await fetchSeriesOverview(item.id);
+            return [item.id, overview] as const;
+          } catch {
+            return [
+              item.id,
+              {
+                episodeCount: 0,
+                publishedCount: 0,
+                characterCount: 0,
+              } satisfies SeriesOverview,
+            ] as const;
+          }
+        })
+      );
+      setSeriesOverview(Object.fromEntries(overviewEntries));
+    } finally {
+      setOverviewLoading(false);
+    }
+  };
+
+  const refreshSeriesOverviewItem = async (seriesId: string) => {
+    try {
+      const overview = await fetchSeriesOverview(seriesId);
+      setSeriesOverview((prev) => ({ ...prev, [seriesId]: overview }));
+    } catch {
+      // Keep previous overview data when refresh fails.
+    }
+  };
+
   const loadSeries = async () => {
     try {
       setLoading(true);
@@ -158,6 +274,7 @@ const TaleaStudioWorkspace: React.FC = () => {
       const list = result.series || [];
       setSeries(list);
       setSelectedSeriesId((current) => current ?? list[0]?.id ?? null);
+      await refreshAllSeriesOverview(list);
     } finally {
       setLoading(false);
     }
@@ -202,25 +319,31 @@ const TaleaStudioWorkspace: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedSeriesId) void loadDetails(selectedSeriesId);
-    else {
+    if (!selectedSeriesId) {
       setCharacters([]);
       setEpisodes([]);
       setSelectedEpisodeId(null);
       setScenes([]);
       setCombinedEpisodeText("");
       setWorkflowError(null);
+      return;
     }
-  }, [selectedSeriesId]);
+    if (editorOpen || workspaceView === "series") {
+      void loadDetails(selectedSeriesId);
+    }
+  }, [editorOpen, selectedSeriesId, workspaceView]);
 
   useEffect(() => {
+    if (!editorOpen) {
+      return;
+    }
     if (selectedSeriesId && selectedEpisodeId) {
       void loadScenes(selectedSeriesId, selectedEpisodeId);
       return;
     }
     setScenes([]);
     setCombinedEpisodeText("");
-  }, [selectedSeriesId, selectedEpisodeId]);
+  }, [editorOpen, selectedSeriesId, selectedEpisodeId]);
 
   useEffect(() => {
     if (!selectedEpisode) {
@@ -236,23 +359,118 @@ const TaleaStudioWorkspace: React.FC = () => {
     }
   }, [selectedEpisode?.id, selectedEpisode?.updatedAt, selectedEpisode?.storyText, selectedEpisode?.approvedStoryText, selectedEpisode?.summary, selectedEpisode?.status]);
 
+  useEffect(() => {
+    if (!selectedSeries) {
+      setSeriesEditTitle("");
+      setSeriesEditLogline("");
+      setSeriesEditDescription("");
+      setSeriesEditCanon("");
+      setEditingCharacterId(null);
+      return;
+    }
+    setSeriesEditTitle(selectedSeries.title || "");
+    setSeriesEditLogline(selectedSeries.logline || "");
+    setSeriesEditDescription(selectedSeries.description || "");
+    setSeriesEditCanon(selectedSeries.canonicalPrompt || "");
+    setEditingCharacterId(null);
+  }, [selectedSeries?.id, selectedSeries?.updatedAt]);
+
+  useEffect(() => {
+    if (!selectedSeriesId) return;
+    setEpisodeNumber(Math.max(1, maxEpisodeNumber + 1));
+  }, [maxEpisodeNumber, selectedSeriesId]);
+
+  useEffect(() => {
+    if (!showEpisodeForm) return;
+    if (characters.length === 0) return;
+    setEpisodeCharacterIds((current) => (current.length > 0 ? current : characters.map((character) => character.id)));
+  }, [characters, showEpisodeForm]);
+
+  const openSeriesView = (seriesId: string) => {
+    setSelectedSeriesId(seriesId);
+    setWorkspaceView("series");
+  };
+
+  const openEditorForSeries = (seriesId: string, options?: { newEpisode?: boolean; episodeId?: string }) => {
+    setSelectedSeriesId(seriesId);
+    setWorkspaceView("series");
+    setEditorOpen(true);
+    setShowSeriesForm(false);
+    setShowCharacterForm(false);
+    setShowEpisodeForm(Boolean(options?.newEpisode));
+    if (options?.episodeId) {
+      setSelectedEpisodeId(options.episodeId);
+    }
+  };
+
+  const openEditorForNewSeries = () => {
+    setEditorOpen(true);
+    setWorkspaceView("library");
+    setSelectedSeriesId(null);
+    setSelectedEpisodeId(null);
+    setShowSeriesForm(true);
+    setShowCharacterForm(false);
+    setShowEpisodeForm(false);
+  };
+
+  const closeEditor = () => {
+    setEditorOpen(false);
+    setShowSeriesForm(false);
+    setShowCharacterForm(false);
+    setShowEpisodeForm(false);
+  };
+
   const handleCreateSeries = async () => {
     if (!seriesTitle.trim()) return;
     try {
       setSaving(true);
       const created = await apiCall<StudioSeries>("/story/studio/series", {
         method: "POST",
-        body: { title: seriesTitle.trim(), logline: seriesLogline.trim() || undefined, status: "draft" },
+        body: {
+          title: seriesTitle.trim(),
+          logline: seriesLogline.trim() || undefined,
+          description: seriesDescription.trim() || undefined,
+          canonicalPrompt: seriesCanon.trim() || undefined,
+          status: "draft",
+        },
       });
-      setSeries((prev) => [created, ...prev]);
+      const nextSeries = [created, ...series];
+      setSeries(nextSeries);
       setSelectedSeriesId(created.id);
+      setWorkspaceView("series");
       setSeriesTitle("");
       setSeriesLogline("");
+      setSeriesDescription("");
+      setSeriesCanon("");
       setShowSeriesForm(false);
+      await refreshAllSeriesOverview(nextSeries);
     } catch {
       alert("Serie konnte nicht erstellt werden.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveSeriesInfo = async () => {
+    if (!selectedSeriesId || !seriesEditTitle.trim()) return;
+    try {
+      setSavingSeriesInfo(true);
+      const updated = await apiCall<StudioSeries>(`/story/studio/series/${selectedSeriesId}`, {
+        method: "PUT",
+        body: {
+          title: seriesEditTitle.trim(),
+          logline: seriesEditLogline.trim() || "",
+          description: seriesEditDescription.trim() || "",
+          canonicalPrompt: seriesEditCanon.trim() || "",
+        },
+      });
+
+      setSeries((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      await refreshSeriesOverviewItem(updated.id);
+    } catch {
+      alert("Serieninfos konnten nicht gespeichert werden.");
+    } finally {
+      setSavingSeriesInfo(false);
     }
   };
 
@@ -274,10 +492,57 @@ const TaleaStudioWorkspace: React.FC = () => {
       setCharacterRole("");
       setCharacterPrompt("");
       setShowCharacterForm(false);
+      await refreshSeriesOverviewItem(selectedSeriesId);
     } catch {
       alert("Story Charakter konnte nicht erstellt werden.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startCharacterEdit = (character: StudioCharacter) => {
+    setEditingCharacterId(character.id);
+    setEditingCharacterName(character.name || "");
+    setEditingCharacterRole(character.role || "");
+    setEditingCharacterDescription(character.description || "");
+    setEditingCharacterPrompt(character.generationPrompt || "");
+  };
+
+  const cancelCharacterEdit = () => {
+    setEditingCharacterId(null);
+    setEditingCharacterName("");
+    setEditingCharacterRole("");
+    setEditingCharacterDescription("");
+    setEditingCharacterPrompt("");
+  };
+
+  const handleUpdateCharacter = async () => {
+    if (!selectedSeriesId || !editingCharacterId || !editingCharacterName.trim() || !editingCharacterPrompt.trim()) {
+      return;
+    }
+
+    try {
+      setUpdatingCharacter(true);
+      const updated = await apiCall<StudioCharacter>(
+        `/story/studio/series/${selectedSeriesId}/characters/${editingCharacterId}`,
+        {
+          method: "PUT",
+          body: {
+            name: editingCharacterName.trim(),
+            role: editingCharacterRole.trim() || "",
+            description: editingCharacterDescription.trim() || "",
+            generationPrompt: editingCharacterPrompt.trim(),
+          },
+        }
+      );
+
+      setCharacters((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      cancelCharacterEdit();
+      await refreshSeriesOverviewItem(selectedSeriesId);
+    } catch {
+      alert("Charakter konnte nicht gespeichert werden.");
+    } finally {
+      setUpdatingCharacter(false);
     }
   };
 
@@ -290,7 +555,10 @@ const TaleaStudioWorkspace: React.FC = () => {
         body: {
           episodeNumber,
           title: episodeTitle.trim(),
-          selectedCharacterIds: episodeCharacterIds,
+          selectedCharacterIds:
+            episodeCharacterIds.length > 0
+              ? episodeCharacterIds
+              : characters.map((character) => character.id),
         },
       });
       setEpisodes((prev) => [...prev, created].sort((a, b) => a.episodeNumber - b.episodeNumber));
@@ -299,6 +567,7 @@ const TaleaStudioWorkspace: React.FC = () => {
       setEpisodeCharacterIds([]);
       setEpisodeNumber((prev) => prev + 1);
       setShowEpisodeForm(false);
+      await refreshSeriesOverviewItem(selectedSeriesId);
     } catch {
       alert("Folge konnte nicht erstellt werden.");
     } finally {
@@ -542,6 +811,7 @@ const TaleaStudioWorkspace: React.FC = () => {
         { method: "POST" }
       );
       replaceEpisodeInState(updated);
+      await refreshSeriesOverviewItem(selectedSeriesId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Episode konnte nicht veroeffentlicht werden.";
       setWorkflowError(message);
@@ -558,7 +828,7 @@ const TaleaStudioWorkspace: React.FC = () => {
     return <div className={cn("rounded-2xl border p-6 text-sm", palette.card, palette.muted)}>Talea Studio wird geladen...</div>;
   }
 
-  return (
+  const editorWorkspace = (
     <section className="space-y-4">
       <div className={cn("rounded-2xl border p-4 md:p-5", palette.card)}>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -591,6 +861,20 @@ const TaleaStudioWorkspace: React.FC = () => {
             <input value={seriesTitle} onChange={(e) => setSeriesTitle(e.target.value)} placeholder="Serientitel" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
             <input value={seriesLogline} onChange={(e) => setSeriesLogline(e.target.value)} placeholder="Logline (optional)" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
           </div>
+          <textarea
+            value={seriesDescription}
+            onChange={(e) => setSeriesDescription(e.target.value)}
+            placeholder="Allgemeine Serien-Infos / Vorgeschichte (optional)"
+            rows={3}
+            className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+          />
+          <textarea
+            value={seriesCanon}
+            onChange={(e) => setSeriesCanon(e.target.value)}
+            placeholder="Serien-Canon / feste Regeln fuer alle Folgen (optional)"
+            rows={3}
+            className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+          />
           <button type="button" disabled={saving || !seriesTitle.trim()} onClick={handleCreateSeries} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50">
             <Sparkles className="h-4 w-4" />
             Serie erstellen
@@ -630,6 +914,49 @@ const TaleaStudioWorkspace: React.FC = () => {
                   <button type="button" onClick={() => { setShowCharacterForm((prev) => !prev); setShowEpisodeForm(false); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f]"><Users className="h-4 w-4" /> Story Charakter</button>
                   <button type="button" onClick={() => { setShowEpisodeForm((prev) => !prev); setShowCharacterForm(false); }} className={cn("inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold", palette.sub, palette.text)}><Plus className="h-4 w-4" /> Neue Folge</button>
                 </div>
+              </div>
+
+              <div className={cn("rounded-xl border p-4", palette.sub)}>
+                <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.muted)}>
+                  Serien-Grundlagen (fuer alle Folgen)
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <input
+                    value={seriesEditTitle}
+                    onChange={(event) => setSeriesEditTitle(event.target.value)}
+                    placeholder="Serientitel"
+                    className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                  />
+                  <input
+                    value={seriesEditLogline}
+                    onChange={(event) => setSeriesEditLogline(event.target.value)}
+                    placeholder="Logline"
+                    className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                  />
+                </div>
+                <textarea
+                  value={seriesEditDescription}
+                  onChange={(event) => setSeriesEditDescription(event.target.value)}
+                  placeholder="Vorgeschichte / allgemeine Serieninfos"
+                  rows={3}
+                  className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                />
+                <textarea
+                  value={seriesEditCanon}
+                  onChange={(event) => setSeriesEditCanon(event.target.value)}
+                  placeholder="Canon / feste Regeln fuer alle Folgen"
+                  rows={3}
+                  className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveSeriesInfo}
+                  disabled={savingSeriesInfo || !seriesEditTitle.trim()}
+                  className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
+                >
+                  {savingSeriesInfo ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  Serieninfos speichern
+                </button>
               </div>
 
               {showCharacterForm && (
@@ -679,14 +1006,73 @@ const TaleaStudioWorkspace: React.FC = () => {
                   ) : (
                     <div className="mt-2 space-y-2">
                       {characters.map((character) => (
-                        <div key={character.id} className="flex items-center gap-2 rounded-lg border border-[#d8cbbf] bg-white/60 p-2 dark:border-[#415676] dark:bg-[#1f2c42]">
-                          <div className="h-10 w-10 overflow-hidden rounded-md bg-[#e6ddd0] dark:bg-[#30445f]">
-                            {character.imageUrl ? <img src={character.imageUrl} alt={character.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-[#7c7468] dark:text-[#9fb0c7]"><Users className="h-4 w-4" /></div>}
+                        <div key={character.id} className="rounded-lg border border-[#d8cbbf] bg-white/60 p-2 dark:border-[#415676] dark:bg-[#1f2c42]">
+                          <div className="flex items-center gap-2">
+                            <div className="h-10 w-10 overflow-hidden rounded-md bg-[#e6ddd0] dark:bg-[#30445f]">
+                              {character.imageUrl ? <img src={character.imageUrl} alt={character.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-[#7c7468] dark:text-[#9fb0c7]"><Users className="h-4 w-4" /></div>}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-[#243246] dark:text-[#e6edf8]">{character.name}</p>
+                              <p className="truncate text-xs text-[#68788c] dark:text-[#9fb0c7]">{character.role || "ohne Rolle"}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => startCharacterEdit(character)}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#cdb8a2] bg-[#f3eadc] px-2.5 text-xs font-semibold text-[#2f3c4f] hover:bg-[#eee2d1] dark:border-[#4e6484] dark:bg-[#2a3950] dark:text-[#dbe7f8]"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                              Bearbeiten
+                            </button>
                           </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#243246] dark:text-[#e6edf8]">{character.name}</p>
-                            <p className="truncate text-xs text-[#68788c] dark:text-[#9fb0c7]">{character.role || "ohne Rolle"}</p>
-                          </div>
+
+                          {editingCharacterId === character.id && (
+                            <div className={cn("mt-2 space-y-2 rounded-xl border p-2.5", palette.input)}>
+                              <input
+                                value={editingCharacterName}
+                                onChange={(event) => setEditingCharacterName(event.target.value)}
+                                placeholder="Name"
+                                className={cn("h-9 w-full rounded-lg border px-2.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                              />
+                              <input
+                                value={editingCharacterRole}
+                                onChange={(event) => setEditingCharacterRole(event.target.value)}
+                                placeholder="Rolle"
+                                className={cn("h-9 w-full rounded-lg border px-2.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                              />
+                              <textarea
+                                value={editingCharacterDescription}
+                                onChange={(event) => setEditingCharacterDescription(event.target.value)}
+                                placeholder="Beschreibung"
+                                rows={2}
+                                className={cn("w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                              />
+                              <textarea
+                                value={editingCharacterPrompt}
+                                onChange={(event) => setEditingCharacterPrompt(event.target.value)}
+                                placeholder="Generierungs-Prompt"
+                                rows={2}
+                                className={cn("w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleUpdateCharacter}
+                                  disabled={updatingCharacter || !editingCharacterName.trim() || !editingCharacterPrompt.trim()}
+                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-2.5 text-xs font-semibold text-[#2f3c4f] disabled:opacity-50"
+                                >
+                                  {updatingCharacter ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                                  Speichern
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelCharacterEdit}
+                                  className={cn("inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold", palette.sub, palette.text)}
+                                >
+                                  Abbrechen
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1124,6 +1510,283 @@ const TaleaStudioWorkspace: React.FC = () => {
           )}
         </div>
       </div>
+    </section>
+  );
+
+  return (
+    <section className="space-y-4">
+      {workspaceView === "library" ? (
+        <>
+          <div className={cn("rounded-2xl border p-4 md:p-5", palette.card)}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className={cn("text-xs font-semibold uppercase tracking-[0.16em]", palette.muted)}>Talea Studio</p>
+                <h2 className={cn("text-3xl md:text-4xl", palette.text)} style={{ fontFamily: headingFont }}>
+                  Studio Serien
+                </h2>
+                <p className={cn("mt-1 text-sm", palette.muted)}>
+                  Serien werden hier wie Story-Karten angezeigt. Folgen oeffnest du danach auf der Serienseite.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openEditorForNewSeries}
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f]"
+              >
+                <Plus className="h-4 w-4" />
+                Neue Talea Studio Serie
+              </button>
+            </div>
+          </div>
+
+          {series.length === 0 ? (
+            <div className={cn("rounded-2xl border p-6 text-sm", palette.card, palette.muted)}>
+              Noch keine Studio-Serie vorhanden. Lege deine erste Serie an und starte dann mit den Folgen.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {series.map((item, index) => {
+                const overview = seriesOverview[item.id];
+                const statusText = overview?.latestEpisodeStatus
+                  ? episodeStatusLabel[overview.latestEpisodeStatus]
+                  : "Noch keine Folgen";
+                return (
+                  <motion.article
+                    key={item.id}
+                    initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+                    animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                    transition={{ duration: 0.26, delay: index * 0.03 }}
+                    className={cn(
+                      "group cursor-pointer overflow-hidden rounded-2xl border shadow-[0_12px_30px_rgba(21,32,44,0.08)] transition-transform hover:-translate-y-0.5",
+                      palette.card
+                    )}
+                    onClick={() => openSeriesView(item.id)}
+                  >
+                    <div
+                      className="relative h-44 overflow-hidden"
+                      style={{
+                        background: overview?.coverImageUrl
+                          ? `linear-gradient(180deg, rgba(22,32,52,0.08), rgba(22,32,52,0.75)), url(${overview.coverImageUrl}) center/cover no-repeat`
+                          : "linear-gradient(135deg, #f0ddd9 0%, #e2deef 45%, #d8e5dc 100%)",
+                      }}
+                    >
+                      <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/35 bg-black/35 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                        <Layers3 className="h-3.5 w-3.5" />
+                        Serie
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                        <h3 className="line-clamp-2 text-2xl leading-tight" style={{ fontFamily: headingFont }}>
+                          {item.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 p-4">
+                      <p className={cn("line-clamp-2 text-sm", palette.muted)}>
+                        {item.logline || item.description || "Serie ohne Logline."}
+                      </p>
+                      <div className={cn("grid grid-cols-3 gap-2 rounded-xl border px-3 py-2 text-xs", palette.sub)}>
+                        <div>
+                          <p className={palette.muted}>Folgen</p>
+                          <p className={cn("font-semibold", palette.text)}>{overview?.episodeCount ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className={palette.muted}>Publiziert</p>
+                          <p className={cn("font-semibold", palette.text)}>{overview?.publishedCount ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className={palette.muted}>Charaktere</p>
+                          <p className={cn("font-semibold", palette.text)}>{overview?.characterCount ?? 0}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn("text-xs", palette.muted)}>
+                          {statusText}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEditorForSeries(item.id);
+                            }}
+                            className={cn(
+                              "inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold",
+                              palette.sub,
+                              palette.text
+                            )}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Bearbeiten
+                          </button>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#4f7f78]">
+                            Folgen
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </div>
+          )}
+
+          {overviewLoading && (
+            <p className={cn("text-xs", palette.muted)}>Lade Serien-Uebersicht...</p>
+          )}
+        </>
+      ) : (
+        <div className={cn("rounded-2xl border p-4 md:p-5", palette.card)}>
+          {!selectedSeries ? (
+            <div className={cn("rounded-xl border p-4 text-sm", palette.sub, palette.muted)}>
+              Serie wurde nicht gefunden.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setWorkspaceView("library")}
+                    className={cn("inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold", palette.sub, palette.text)}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Zur Serienliste
+                  </button>
+                  <h3 className={cn("text-3xl leading-tight", palette.text)} style={{ fontFamily: headingFont }}>
+                    {selectedSeries.title}
+                  </h3>
+                  <p className={cn("max-w-3xl text-sm", palette.muted)}>
+                    {selectedSeries.logline || selectedSeries.description || "Keine Serien-Beschreibung hinterlegt."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEditorForSeries(selectedSeries.id, { newEpisode: true })}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Neue Folge erstellen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditorForSeries(selectedSeries.id)}
+                    className={cn("inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold", palette.sub, palette.text)}
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    Serie bearbeiten
+                  </button>
+                </div>
+              </div>
+
+              <div className={cn("grid grid-cols-1 gap-3 rounded-xl border p-3 md:grid-cols-4", palette.sub)}>
+                <div>
+                  <p className={cn("text-xs uppercase tracking-wide", palette.muted)}>Folgen</p>
+                  <p className={cn("text-xl font-semibold", palette.text)}>{selectedSeriesOverview?.episodeCount ?? episodes.length}</p>
+                </div>
+                <div>
+                  <p className={cn("text-xs uppercase tracking-wide", palette.muted)}>Veroeffentlicht</p>
+                  <p className={cn("text-xl font-semibold", palette.text)}>{selectedSeriesOverview?.publishedCount ?? 0}</p>
+                </div>
+                <div>
+                  <p className={cn("text-xs uppercase tracking-wide", palette.muted)}>Story Charaktere</p>
+                  <p className={cn("text-xl font-semibold", palette.text)}>{selectedSeriesOverview?.characterCount ?? characters.length}</p>
+                </div>
+                <div>
+                  <p className={cn("text-xs uppercase tracking-wide", palette.muted)}>Aktualisiert</p>
+                  <p className={cn("text-xl font-semibold", palette.text)}>{formatDate(selectedSeries.updatedAt)}</p>
+                </div>
+              </div>
+
+              {detailLoading ? (
+                <p className={cn("text-sm", palette.muted)}>Lade Folgen...</p>
+              ) : episodes.length === 0 ? (
+                <div className={cn("rounded-xl border p-4 text-sm", palette.sub, palette.muted)}>
+                  Noch keine Folgen vorhanden. Erstelle die erste Folge fuer diese Serie.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {episodes.map((episode) => (
+                    <article key={episode.id} className={cn("rounded-xl border p-4", palette.sub)}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.muted)}>
+                            Folge {episode.episodeNumber}
+                          </p>
+                          <h4 className={cn("text-2xl leading-tight", palette.text)} style={{ fontFamily: headingFont }}>
+                            {episode.title}
+                          </h4>
+                        </div>
+                        <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide", palette.input)}>
+                          {episodeStatusLabel[episode.status]}
+                        </span>
+                      </div>
+
+                      <p className={cn("mt-2 line-clamp-3 text-sm", palette.muted)}>
+                        {episode.summary || "Noch keine Zusammenfassung fuer diese Folge."}
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                        <p className={cn("text-xs", palette.muted)}>
+                          Aktualisiert: {formatDate(episode.updatedAt)}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {episode.status === "published" && (
+                            <button
+                              type="button"
+                              onClick={() => openPublishedEpisodeReader(episode.id)}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#79a58e] bg-[#e6f2ea] px-2.5 text-xs font-semibold text-[#2f5b46] hover:bg-[#def0e6] dark:border-[#5d8f76] dark:bg-[#264335] dark:text-[#b6d8c5]"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Lesen
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEditorForSeries(selectedSeries.id, { episodeId: episode.id })}
+                            className={cn("inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold", palette.sub, palette.text)}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Im Editor
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {editorOpen && (
+        <div className="fixed inset-0 z-[80] bg-[#0f1a2a]/70 p-2 backdrop-blur-[2px] sm:p-4">
+          <div className={cn("mx-auto flex h-full w-full max-w-[1750px] flex-col overflow-hidden rounded-3xl border shadow-[0_30px_60px_rgba(9,16,28,0.4)]", palette.card)}>
+            <div className={cn("flex items-center justify-between border-b px-4 py-3", palette.sub)}>
+              <div>
+                <p className={cn("text-xs font-semibold uppercase tracking-[0.16em]", palette.muted)}>Talea Studio Editor</p>
+                <p className={cn("text-sm", palette.text)}>
+                  Serien, Story Charaktere und Folgen in einem separaten, breiten Bearbeitungsbereich.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditor}
+                className={cn("inline-flex h-9 w-9 items-center justify-center rounded-lg border", palette.sub, palette.text)}
+                aria-label="Editor schliessen"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 md:p-5">{editorWorkspace}</div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

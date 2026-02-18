@@ -409,6 +409,57 @@ async function getOwnedEpisodeOrThrow(
   return row;
 }
 
+async function getOwnedCharacterOrThrow(
+  seriesId: string,
+  characterId: string,
+  userId: string
+): Promise<{
+  id: string;
+  series_id: string;
+  user_id: string;
+  name: string;
+  role: string | null;
+  description: string | null;
+  generation_prompt: string;
+  image_prompt: string;
+  visual_profile: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}> {
+  const row = await storyDB.queryRow<{
+    id: string;
+    series_id: string;
+    user_id: string;
+    name: string;
+    role: string | null;
+    description: string | null;
+    generation_prompt: string;
+    image_prompt: string;
+    visual_profile: string | null;
+    image_url: string | null;
+    is_active: boolean;
+    created_at: Date;
+    updated_at: Date;
+  }>`
+    SELECT id, series_id, user_id, name, role, description, generation_prompt, image_prompt, visual_profile, image_url, is_active, created_at, updated_at
+    FROM studio_characters
+    WHERE id = ${characterId}
+  `;
+
+  if (!row) {
+    throw APIError.notFound("Studio character not found");
+  }
+  if (row.series_id !== seriesId) {
+    throw APIError.invalidArgument("Character does not belong to the requested series");
+  }
+  if (row.user_id !== userId) {
+    throw APIError.permissionDenied("You do not have access to this studio character");
+  }
+  return row;
+}
+
 async function assertCharactersBelongToSeries(
   seriesId: string,
   characterIds: string[]
@@ -1000,6 +1051,18 @@ interface StudioSeriesPathRequest {
   seriesId: string;
 }
 
+interface UpdateStudioSeriesRequest extends StudioSeriesPathRequest {
+  title?: string;
+  logline?: string;
+  description?: string;
+  canonicalPrompt?: string;
+  status?: StudioSeriesStatus;
+}
+
+interface StudioCharacterPathRequest extends StudioSeriesPathRequest {
+  characterId: string;
+}
+
 interface CreateStudioCharacterRequest extends StudioSeriesPathRequest {
   name: string;
   role?: string;
@@ -1008,6 +1071,16 @@ interface CreateStudioCharacterRequest extends StudioSeriesPathRequest {
   imagePrompt?: string;
   visualProfile?: Record<string, any>;
   autoGenerateImage?: boolean;
+}
+
+interface UpdateStudioCharacterRequest extends StudioCharacterPathRequest {
+  name?: string;
+  role?: string;
+  description?: string;
+  generationPrompt?: string;
+  imagePrompt?: string;
+  visualProfile?: Record<string, any>;
+  regenerateImage?: boolean;
 }
 
 interface CreateStudioEpisodeRequest extends StudioSeriesPathRequest {
@@ -1163,6 +1236,48 @@ export const getStudioSeries = api<StudioSeriesPathRequest, StudioSeries>(
   }
 );
 
+export const updateStudioSeries = api<UpdateStudioSeriesRequest, StudioSeries>(
+  { expose: true, method: "PUT", path: "/story/studio/series/:seriesId", auth: true },
+  async (req) => {
+    await ensureStudioTables();
+    const userId = requireUserId();
+    const existing = await getOwnedSeriesOrThrow(req.seriesId, userId);
+
+    const nextTitle = req.title !== undefined ? req.title.trim() : existing.title;
+    if (!nextTitle) {
+      throw APIError.invalidArgument("Series title is required");
+    }
+
+    const nextStatus = req.status ?? existing.status;
+    if (!["draft", "active", "archived"].includes(nextStatus)) {
+      throw APIError.invalidArgument("Invalid series status");
+    }
+
+    const nextLogline =
+      req.logline !== undefined ? req.logline.trim() || null : existing.logline;
+    const nextDescription =
+      req.description !== undefined ? req.description.trim() || null : existing.description;
+    const nextCanonicalPrompt =
+      req.canonicalPrompt !== undefined
+        ? req.canonicalPrompt.trim() || null
+        : existing.canonical_prompt;
+
+    await storyDB.exec`
+      UPDATE studio_series
+      SET title = ${nextTitle},
+          logline = ${nextLogline},
+          description = ${nextDescription},
+          canonical_prompt = ${nextCanonicalPrompt},
+          status = ${nextStatus},
+          updated_at = ${new Date()}
+      WHERE id = ${req.seriesId}
+    `;
+
+    const updated = await getOwnedSeriesOrThrow(req.seriesId, userId);
+    return mapSeriesRow(updated);
+  }
+);
+
 export const listStudioCharacters = api<StudioSeriesPathRequest, { characters: StudioCharacter[] }>(
   { expose: true, method: "GET", path: "/story/studio/series/:seriesId/characters", auth: true },
   async (req) => {
@@ -1291,6 +1406,84 @@ export const createStudioCharacter = api<CreateStudioCharacterRequest, StudioCha
       throw APIError.internal("Failed to create studio character");
     }
     return await mapCharacterRow(row);
+  }
+);
+
+export const updateStudioCharacter = api<UpdateStudioCharacterRequest, StudioCharacter>(
+  { expose: true, method: "PUT", path: "/story/studio/series/:seriesId/characters/:characterId", auth: true },
+  async (req) => {
+    await ensureStudioTables();
+    const userId = requireUserId();
+    const existing = await getOwnedCharacterOrThrow(req.seriesId, req.characterId, userId);
+
+    const nextName = req.name !== undefined ? req.name.trim() : existing.name;
+    if (!nextName) {
+      throw APIError.invalidArgument("Character name is required");
+    }
+
+    const nextRole = req.role !== undefined ? req.role.trim() || null : existing.role;
+    const nextDescription =
+      req.description !== undefined ? req.description.trim() || null : existing.description;
+    const nextGenerationPrompt =
+      req.generationPrompt !== undefined
+        ? req.generationPrompt.trim()
+        : existing.generation_prompt;
+    if (!nextGenerationPrompt) {
+      throw APIError.invalidArgument("generationPrompt is required");
+    }
+
+    const nextImagePrompt =
+      req.imagePrompt !== undefined ? req.imagePrompt.trim() || null : existing.image_prompt;
+
+    let nextImageUrl = existing.image_url;
+    if (req.regenerateImage) {
+      const regeneratedPrompt = nextImagePrompt || nextGenerationPrompt;
+      const generated = await runwareGenerateImage({
+        prompt: regeneratedPrompt,
+        negativePrompt:
+          "text, watermark, logo, blurry, distorted face, extra limbs, duplicate character",
+        width: 1024,
+        height: 1024,
+      });
+
+      const uploaded = await maybeUploadImageUrlToBucket(generated.imageUrl, {
+        prefix: "images/studio-characters",
+        filenameHint: `studio-character-${existing.id}`,
+        uploadMode: "always",
+      });
+      nextImageUrl = uploaded?.url || generated.imageUrl;
+    }
+
+    const visualProfile =
+      req.visualProfile ??
+      ({
+        ...(parseJsonObject(existing.visual_profile) || {}),
+        description: nextDescription || "",
+        imagePrompt: nextImagePrompt || nextGenerationPrompt,
+      } as Record<string, any>);
+
+    try {
+      await storyDB.exec`
+        UPDATE studio_characters
+        SET name = ${nextName},
+            role = ${nextRole},
+            description = ${nextDescription},
+            generation_prompt = ${nextGenerationPrompt},
+            image_prompt = ${nextImagePrompt || nextGenerationPrompt},
+            visual_profile = ${JSON.stringify(visualProfile)},
+            image_url = ${nextImageUrl},
+            updated_at = ${new Date()}
+        WHERE id = ${existing.id}
+      `;
+    } catch (error: any) {
+      if (String(error?.message || "").includes("idx_studio_characters_series_name_unique")) {
+        throw APIError.invalidArgument("Character name already exists in this series");
+      }
+      throw error;
+    }
+
+    const updated = await getOwnedCharacterOrThrow(req.seriesId, req.characterId, userId);
+    return await mapCharacterRow(updated);
   }
 );
 
