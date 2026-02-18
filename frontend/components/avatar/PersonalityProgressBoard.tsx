@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CircleHelp, Compass, Crown, Sparkles, Target, Trophy } from 'lucide-react';
+import { CircleHelp, Compass, Crown, GitBranch, Sparkles, Target, Trophy } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import type { AvatarProgression } from '../../types/avatar';
@@ -28,6 +28,25 @@ interface TraitCardData {
   progressToNext: number;
 }
 
+type LearningNodeStatus = 'new' | 'active' | 'done';
+
+interface LearningPathNode {
+  id: string;
+  lane: 'core' | 'domain' | 'quest' | 'perk';
+  title: string;
+  subtitle: string;
+  detail: string;
+  progress: number;
+  status: LearningNodeStatus;
+}
+
+interface LearningPathLane {
+  key: LearningPathNode['lane'];
+  title: string;
+  accent: string;
+  nodes: LearningPathNode[];
+}
+
 const TRAIT_ACCENTS: Record<string, { start: string; end: string }> = {
   creativity: { start: '#d5bdaf', end: '#e3d5ca' },
   courage: { start: '#d49782', end: '#d2a87b' },
@@ -38,6 +57,18 @@ const TRAIT_ACCENTS: Record<string, { start: string; end: string }> = {
   logic: { start: '#d6ccc2', end: '#d5bdaf' },
   vocabulary: { start: '#d6ccc2', end: '#e3d5ca' },
   knowledge: { start: '#d5bdaf', end: '#e3d5ca' },
+};
+
+const TRAIT_HINTS: Record<string, string> = {
+  knowledge: 'Steigt besonders durch Doku-Lesen und Wissensquiz.',
+  creativity: 'Steigt bei kreativen Storys mit offenen Entscheidungen.',
+  vocabulary: 'Steigt bei dialogreichen Inhalten und Begriffsquiz.',
+  courage: 'Steigt bei Abenteuerinhalten mit Risiko-Entscheidungen.',
+  curiosity: 'Steigt bei Entdecker- und Mystery-Inhalten.',
+  teamwork: 'Steigt bei Teamaufgaben und Konfliktloesung.',
+  empathy: 'Steigt bei Perspektivwechsel und emotionalen Szenen.',
+  persistence: 'Steigt bei laengeren Storyboegen und Wiederholung.',
+  logic: 'Steigt bei Raetseln, Analysen und Problemketten.',
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -96,6 +127,53 @@ const toTraitCards = (
       progressToNext: toDisplayProgress(trait.id, trait.value),
     }))
     .sort((left, right) => right.value - left.value);
+};
+
+const toTargetProgress = (progress: number, target: number) => {
+  if (target <= 0) return 0;
+  return clamp(Math.round((progress / target) * 100), 0, 100);
+};
+
+const toNodeStatus = (progress: number): LearningNodeStatus => {
+  if (progress >= 100) return 'done';
+  if (progress > 0) return 'active';
+  return 'new';
+};
+
+const getNodeStatusLabel = (status: LearningNodeStatus) => {
+  if (status === 'done') return 'Done';
+  if (status === 'active') return 'Aktiv';
+  return 'Neu';
+};
+
+const getTraitGrowthHint = (traitId: string, value: number) => {
+  const hint = TRAIT_HINTS[traitId] || 'Steigt durch passende Lernaktivitaeten.';
+  if (value <= 0) {
+    return `Warum 0? ${hint}`;
+  }
+  return `Naechster Schritt: ${hint}`;
+};
+
+const getNodeStatusColors = (status: LearningNodeStatus, isDark: boolean) => {
+  if (status === 'done') {
+    return {
+      border: isDark ? '#4f8b7a' : '#89b8a4',
+      bg: isDark ? 'rgba(37,65,58,0.34)' : 'rgba(217,240,231,0.52)',
+      text: isDark ? '#d7f2e8' : '#2f6550',
+    };
+  }
+  if (status === 'active') {
+    return {
+      border: isDark ? '#4e6a89' : '#9ab4d3',
+      bg: isDark ? 'rgba(39,52,71,0.4)' : 'rgba(227,236,248,0.62)',
+      text: isDark ? '#d8e7fa' : '#3e5977',
+    };
+  }
+  return {
+    border: isDark ? '#3b5068' : '#d7c9b7',
+    bg: isDark ? 'rgba(27,40,57,0.68)' : 'rgba(255,251,245,0.9)',
+    text: isDark ? '#b5c8df' : '#687f99',
+  };
 };
 
 const InfoHint: React.FC<{
@@ -221,6 +299,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const [selectedPathNodeId, setSelectedPathNodeId] = useState<string>('');
 
   const traitCards = useMemo(() => toTraitCards(traits, progression), [traits, progression]);
   const focusTrait = progression?.focusTrait
@@ -228,6 +307,161 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
     : traitCards[0];
   const perks = progression?.perks?.slice(0, 6) || [];
   const quests = progression?.quests?.slice(0, 4) || [];
+  const knowledgeTrait = traits.find((trait) => trait.id === 'knowledge');
+
+  const knowledgeDomains = useMemo(
+    () =>
+      progression?.topKnowledgeDomains?.length
+        ? progression.topKnowledgeDomains.map((entry) => ({
+            name: entry.name,
+            value: Math.round(entry.value),
+          }))
+        : (knowledgeTrait?.subcategories || [])
+            .slice()
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 4)
+            .map((entry) => ({
+              name: entry.name,
+              value: Math.round(entry.value),
+            })),
+    [knowledgeTrait?.subcategories, progression?.topKnowledgeDomains]
+  );
+
+  const learningPathLanes = useMemo<LearningPathLane[]>(() => {
+    const storyProgress = toTargetProgress(progression?.stats?.storiesRead || 0, 12);
+    const dokuProgress = toTargetProgress(progression?.stats?.dokusRead || 0, 8);
+    const memoryProgress = toTargetProgress(progression?.stats?.memoryCount || 0, 24);
+    const baseProgress = Math.round((storyProgress + dokuProgress + memoryProgress) / 3);
+
+    const coreLane: LearningPathLane = {
+      key: 'core',
+      title: 'Pfadkern',
+      accent: '#7f96c8',
+      nodes: [
+        {
+          id: 'path-start',
+          lane: 'core',
+          title: 'Startzone',
+          subtitle: `${progression?.stats?.storiesRead || 0} Storys / ${progression?.stats?.dokusRead || 0} Dokus`,
+          detail: 'Die Startzone sammelt Aktivitaeten. Mehr Lesen oeffnet automatisch neue Zweige im Lernpfad.',
+          progress: baseProgress,
+          status: toNodeStatus(baseProgress),
+        },
+        {
+          id: 'path-focus',
+          lane: 'core',
+          title: `Fokus: ${focusTrait?.label || 'Wissen'}`,
+          subtitle: focusTrait ? `${focusTrait.value} Punkte` : 'Noch kein Fokus',
+          detail: focusTrait
+            ? `Aktueller Fokus ist ${focusTrait.label}. Der Ring zeigt den Weg zur naechsten Rangstufe.`
+            : 'Sobald Werte wachsen, setzt das System automatisch einen Fokus.',
+          progress: focusTrait?.progressToNext || 0,
+          status: toNodeStatus(focusTrait?.progressToNext || 0),
+        },
+      ],
+    };
+
+    const domainNodes: LearningPathNode[] = knowledgeDomains.length
+      ? knowledgeDomains.map((domain) => {
+          const progress = toTargetProgress(domain.value, 45);
+          return {
+            id: `domain-${domain.name.toLowerCase().replace(/\s+/g, '-')}`,
+            lane: 'domain',
+            title: domain.name,
+            subtitle: `${domain.value} Punkte`,
+            detail: `Dieser Zweig wird automatisch erweitert, sobald neue Doku-Kategorien gelesen werden.`,
+            progress,
+            status: toNodeStatus(progress),
+          };
+        })
+      : [
+          {
+            id: 'domain-none',
+            lane: 'domain',
+            title: 'Neuer Wissenszweig',
+            subtitle: 'Noch nicht aktiv',
+            detail: 'Lies eine Doku in einer neuen Kategorie, dann erscheint hier automatisch ein neuer Abzweig.',
+            progress: 0,
+            status: 'new',
+          },
+        ];
+
+    const questNodes: LearningPathNode[] = quests.length
+      ? quests.map((quest) => {
+          const progress = toTargetProgress(quest.progress, quest.target);
+          return {
+            id: `quest-${quest.id}`,
+            lane: 'quest',
+            title: quest.title,
+            subtitle: `${quest.progress}/${quest.target}`,
+            detail: `${quest.description} Belohnung: ${quest.reward}.`,
+            progress,
+            status: quest.status === 'completed' ? 'done' : toNodeStatus(progress),
+          };
+        })
+      : [
+          {
+            id: 'quest-none',
+            lane: 'quest',
+            title: 'Quest folgt',
+            subtitle: 'Noch keine aktive Quest',
+            detail: 'Quests werden mit mehr Aktivitaet automatisch sichtbar.',
+            progress: 0,
+            status: 'new',
+          },
+        ];
+
+    const perkNodes: LearningPathNode[] = perks.length
+      ? perks.slice(0, 4).map((perk) => {
+          const progress = perk.unlocked
+            ? 100
+            : toTargetProgress(perk.currentValue, Math.max(1, perk.requiredValue));
+          return {
+            id: `perk-${perk.id}`,
+            lane: 'perk',
+            title: perk.title,
+            subtitle: perk.unlocked
+              ? 'Freigeschaltet'
+              : `${perk.currentValue}/${perk.requiredValue} Punkte`,
+            detail: `${perk.description} Trait: ${perk.trait}.`,
+            progress,
+            status: perk.unlocked ? 'done' : toNodeStatus(progress),
+          };
+        })
+      : [
+          {
+            id: 'perk-none',
+            lane: 'perk',
+            title: 'Perk-Slot',
+            subtitle: 'Noch nicht freigeschaltet',
+            detail: 'Perks werden automatisch aktiv, wenn die noetigen Punkte erreicht sind.',
+            progress: 0,
+            status: 'new',
+          },
+        ];
+
+    return [
+      coreLane,
+      { key: 'domain', title: 'Wissenszweige', accent: '#8db57f', nodes: domainNodes },
+      { key: 'quest', title: 'Missionen', accent: '#d5bdaf', nodes: questNodes },
+      { key: 'perk', title: 'Belohnungen', accent: '#b79f8e', nodes: perkNodes },
+    ];
+  }, [focusTrait, knowledgeDomains, perks, progression?.stats?.dokusRead, progression?.stats?.memoryCount, progression?.stats?.storiesRead, quests]);
+
+  const learningPathNodes = useMemo(
+    () => learningPathLanes.flatMap((lane) => lane.nodes),
+    [learningPathLanes]
+  );
+
+  useEffect(() => {
+    if (!learningPathNodes.length) return;
+    if (!learningPathNodes.some((node) => node.id === selectedPathNodeId)) {
+      setSelectedPathNodeId(learningPathNodes[0].id);
+    }
+  }, [learningPathNodes, selectedPathNodeId]);
+
+  const selectedPathNode =
+    learningPathNodes.find((node) => node.id === selectedPathNodeId) || learningPathNodes[0];
 
   return (
     <div className="space-y-4">
@@ -280,6 +514,142 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
         )}
       </section>
 
+      <section
+        className="rounded-2xl border p-3"
+        style={{
+          borderColor: isDark ? '#344b63' : '#d8ccbb',
+          background: isDark ? 'rgba(22,33,49,0.74)' : 'rgba(255,255,255,0.75)',
+        }}
+      >
+        <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: isDark ? '#97abc6' : '#6c819a' }}>
+          <GitBranch className="h-4 w-4" />
+          Interaktive Lernpfad-Karte
+          <InfoHint
+            isDark={isDark}
+            text="Neue Doku-Kategorien erzeugen automatisch neue Wissenszweige. Bestehende Zweige erweitern sich mit jedem weiteren Lese-Impuls."
+          />
+        </p>
+        <p className="mb-2 text-[11px]" style={{ color: isDark ? '#9eb4ce' : '#67819d' }}>
+          Auto-Update: Sobald neue Progress-Daten ankommen, werden Stationen und Abzweigungen neu berechnet.
+        </p>
+
+        <div className="overflow-x-auto pb-2">
+          <div className="relative flex min-w-[980px] gap-3 pr-1">
+            <div
+              className="pointer-events-none absolute left-5 right-5 top-4 h-px"
+              style={{ background: isDark ? 'rgba(110,129,154,0.36)' : 'rgba(148,163,184,0.5)' }}
+            />
+            {learningPathLanes.map((lane, laneIndex) => (
+              <motion.section
+                key={lane.key}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: laneIndex * 0.03 }}
+                className="w-[230px] shrink-0"
+              >
+                <div
+                  className="rounded-xl border px-2.5 py-2"
+                  style={{
+                    borderColor: isDark ? '#3b5168' : '#d8cab9',
+                    background: isDark ? 'rgba(29,43,61,0.72)' : 'rgba(255,251,245,0.9)',
+                  }}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: isDark ? '#a6bbd4' : '#607a98' }}>
+                    {lane.title}
+                  </p>
+                  <div
+                    className="mt-1 h-1.5 rounded-full"
+                    style={{ background: lane.accent }}
+                  />
+                </div>
+
+                <div className="mt-2 space-y-2">
+                  {lane.nodes.map((node) => {
+                    const colors = getNodeStatusColors(node.status, isDark);
+                    const selected = selectedPathNode?.id === node.id;
+
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => setSelectedPathNodeId(node.id)}
+                        className="w-full rounded-xl border px-2.5 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7f96c8]"
+                        style={{
+                          borderColor: colors.border,
+                          background: colors.bg,
+                          boxShadow: selected
+                            ? isDark
+                              ? '0 0 0 1px rgba(160,191,230,0.5)'
+                              : '0 0 0 1px rgba(108,138,176,0.45)'
+                            : 'none',
+                        }}
+                        aria-label={`Lernpfad Station ${node.title}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold" style={{ color: isDark ? '#e6eefb' : '#25374c' }}>
+                              {node.title}
+                            </p>
+                            <p className="truncate text-[10px]" style={{ color: isDark ? '#a2b7d1' : '#607a98' }}>
+                              {node.subtitle}
+                            </p>
+                          </div>
+                          <span
+                            className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]"
+                            style={{ color: colors.text, border: `1px solid ${colors.border}` }}
+                          >
+                            {getNodeStatusLabel(node.status)}
+                          </span>
+                        </div>
+                        <div
+                          className="mt-1.5 h-1.5 overflow-hidden rounded-full"
+                          style={{ background: isDark ? 'rgba(71,89,110,0.62)' : 'rgba(190,204,220,0.58)' }}
+                        >
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: lane.accent }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${node.progress}%` }}
+                            transition={{ duration: 0.34, ease: 'easeOut' }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.section>
+            ))}
+          </div>
+        </div>
+
+        {selectedPathNode && (
+          <motion.article
+            key={selectedPathNode.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="mt-2 rounded-xl border px-3 py-2"
+            style={{
+              borderColor: isDark ? '#3a5168' : '#d8cab9',
+              background: isDark ? 'rgba(21,33,48,0.86)' : 'rgba(255,251,245,0.92)',
+            }}
+          >
+            <p className="text-[11px] uppercase tracking-[0.1em]" style={{ color: isDark ? '#97abc6' : '#6c819a' }}>
+              Station Detail
+            </p>
+            <p className="text-sm font-semibold" style={{ color: isDark ? '#e7effb' : '#25374c' }}>
+              {selectedPathNode.title}
+            </p>
+            <p className="text-xs leading-snug" style={{ color: isDark ? '#a8bdd7' : '#607a98' }}>
+              {selectedPathNode.detail}
+            </p>
+            <p className="mt-1 text-[11px]" style={{ color: isDark ? '#9fb3cd' : '#68829f' }}>
+              Fortschritt: {selectedPathNode.progress}%
+            </p>
+          </motion.article>
+        )}
+      </section>
+
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {traitCards.map((trait, index) => {
           const accent = TRAIT_ACCENTS[trait.id] || TRAIT_ACCENTS.logic;
@@ -325,6 +695,21 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
               </p>
               <p className="mt-1 text-[11px]" style={{ color: isDark ? '#8ea5c4' : '#7289a2' }}>
                 Gesamtstaerke (skaliert): {trait.displayProgress}%
+              </p>
+              <p
+                className="mt-1 text-[11px] leading-snug"
+                style={{
+                  color:
+                    trait.value <= 0
+                      ? isDark
+                        ? '#d7c7ab'
+                        : '#7a5f3d'
+                      : isDark
+                        ? '#94abca'
+                        : '#67829e',
+                }}
+              >
+                {getTraitGrowthHint(trait.id, trait.value)}
               </p>
             </motion.article>
           );

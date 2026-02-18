@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import {
@@ -143,6 +143,21 @@ const AvatarDetailScreen: React.FC = () => {
   const [memoriesLoading, setMemoriesLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PersonalityTab>('personality');
 
+  const refreshAvatarProgression = useCallback(async () => {
+    if (!avatarId) {
+      return;
+    }
+
+    try {
+      const avatarData = await backend.avatar.get({ id: avatarId });
+      setAvatar(avatarData as Avatar);
+      setRawTraits(((avatarData as any).personalityTraits as Record<string, unknown>) || null);
+      setProgression((((avatarData as any).progression as AvatarProgression) || null));
+    } catch (error) {
+      console.error('Could not refresh avatar progression:', error);
+    }
+  }, [avatarId, backend.avatar]);
+
   useEffect(() => {
     if (!avatarId) {
       setLoading(false);
@@ -212,16 +227,33 @@ const AvatarDetailScreen: React.FC = () => {
       const customEvent = event as CustomEvent<{
         avatarId?: string;
         updatedTraits?: Record<string, unknown>;
+        progression?: AvatarProgression;
+        refreshProgression?: boolean;
       }>;
 
-      if (customEvent.detail?.avatarId === avatarId && customEvent.detail?.updatedTraits) {
+      const matchesAvatar =
+        !customEvent.detail?.avatarId || customEvent.detail.avatarId === avatarId;
+
+      if (!matchesAvatar) {
+        return;
+      }
+
+      if (customEvent.detail?.updatedTraits) {
         setRawTraits(customEvent.detail.updatedTraits);
+      }
+
+      if (customEvent.detail?.progression) {
+        setProgression(customEvent.detail.progression);
+      }
+
+      if (customEvent.detail?.refreshProgression) {
+        void refreshAvatarProgression();
       }
     };
 
     window.addEventListener('personalityUpdated', handler as EventListener);
     return () => window.removeEventListener('personalityUpdated', handler as EventListener);
-  }, [avatarId]);
+  }, [avatarId, refreshAvatarProgression]);
 
   const traitModels = useMemo(() => normalizeTraits(rawTraits), [rawTraits]);
   const inventoryCount = avatar?.inventory?.length || 0;
@@ -243,6 +275,7 @@ const AvatarDetailScreen: React.FC = () => {
 
       if (response.recalculatedTraits) {
         setRawTraits(response.recalculatedTraits);
+        void refreshAvatarProgression();
       }
     } catch (error) {
       console.error('Could not delete memory:', error);
@@ -452,7 +485,7 @@ const AvatarDetailScreen: React.FC = () => {
                 </span>
               </h2>
               <p className="mb-4 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
-                Dynamische Growth-Ansicht mit Ringen, Perks und Quests.
+                Klare Uebersicht mit Erklaerungen, Lernpfad und automatischer Aktualisierung nach Story- und Doku-Lesen.
               </p>
               <PersonalityProgressBoard traits={traitModels} progression={progression} />
             </div>

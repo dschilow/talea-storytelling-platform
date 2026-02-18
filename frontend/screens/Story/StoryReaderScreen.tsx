@@ -232,6 +232,15 @@ const StoryReaderScreen: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
+        window.dispatchEvent(
+          new CustomEvent('personalityUpdated', {
+            detail: {
+              refreshProgression: true,
+              source: 'story',
+              updatedAt: new Date().toISOString(),
+            },
+          })
+        );
         console.log('✅ Personality updates applied:', result);
         console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
 
@@ -641,4 +650,3 @@ const StoryReaderScreen: React.FC = () => {
 };
 
 export default StoryReaderScreen;
-

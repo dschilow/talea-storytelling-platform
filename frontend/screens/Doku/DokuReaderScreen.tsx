@@ -236,6 +236,16 @@ const DokuReaderScreen: React.FC = () => {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
 
+        window.dispatchEvent(
+          new CustomEvent('personalityUpdated', {
+            detail: {
+              refreshProgression: true,
+              source: 'doku',
+              updatedAt: new Date().toISOString(),
+            },
+          })
+        );
+
         // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           // Build compact message with trait changes
