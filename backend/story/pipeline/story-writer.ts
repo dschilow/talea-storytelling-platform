@@ -20,8 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Cost-safe default: one global rewrite pass.
-const MAX_REWRITE_PASSES = 1;
+// Quality-first default: allow a second global rewrite pass.
+const MAX_REWRITE_PASSES = 2;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -30,8 +30,8 @@ const HARD_MIN_CHAPTER_WORDS = 150;
 // Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
 const REWRITE_ONLY_ON_ERRORS = true;
 
-// Keep expansion budget small by default (chapter-local surgical fixes only).
-const MAX_EXPAND_CALLS = 1;
+// Keep expansion budget controlled but sufficient for short-chapter recovery.
+const MAX_EXPAND_CALLS = 2;
 
 // Keep warning-polish disabled by default; allow emergency fallback only.
 const MAX_WARNING_POLISH_CALLS = 0;
@@ -131,10 +131,12 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? 10000);
+    const defaultStoryTokenBudget = isReasoningModel ? 22000 : 14000;
+    const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
+    const minStoryTokenBudget = isReasoningModel ? 8000 : 5000;
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
-      ? Math.max(4000, configuredMaxStoryTokens)
-      : 10000;
+      ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
+      : defaultStoryTokenBudget;
     const humorLevel = normalizedRequest.rawConfig?.humorLevel;
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
@@ -256,10 +258,18 @@ ${storyLanguageRule}`.trim();
     let activePromptMode: "full" | "compact" = storyPromptMode;
     let prompt = buildStoryPrompt(activePromptMode);
 
-    // Lean token budget: enough for full story JSON, tighter cap to reduce cost spikes.
-    const baseOutputTokens = Math.max(2200, Math.round(totalWordMax * 1.5));
+    // Keep headroom for reasoning models so they can finish JSON output instead of truncating.
+    const baseOutputTokens = isReasoningModel
+      ? Math.max(3200, Math.round(totalWordMax * 1.75))
+      : Math.max(2200, Math.round(totalWordMax * 1.5));
     const reasoningMultiplier = isReasoningModel ? 1.2 : 1;
-    const maxOutputTokens = Math.min(Math.max(2600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000);
+    const maxOutputTokens = isReasoningModel
+      ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
+      : Math.min(Math.max(2600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000);
+    console.log(
+      `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, ` +
+      `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}`
+    );
 
     let result = await callStoryModel({
       systemPrompt: resolveSystemPrompt(activePromptMode),
@@ -281,7 +291,9 @@ ${storyLanguageRule}`.trim();
       const recoveryPromptMode: "compact" = "compact";
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
-      const recoveryMaxTokens = Math.min(Math.max(maxOutputTokens + 700, 3200), 4800);
+      const recoveryMaxTokens = isReasoningModel
+        ? Math.min(Math.max(maxOutputTokens + 1400, 5200), 9600)
+        : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
       console.warn(
         `[story-writer] Full story response was empty+truncated; running one compact recovery attempt (maxTokens=${recoveryMaxTokens}).`,
       );

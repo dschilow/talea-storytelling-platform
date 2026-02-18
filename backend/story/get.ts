@@ -175,7 +175,7 @@ export const get = api<GetStoryParams, Story>(
       const scenicResolvedUrl = scenicRawUrl ? await resolveImageUrlForClient(scenicRawUrl) : undefined;
       return {
         id: ch.id,
-        title: ch.title,
+        title: (String(ch.title || "").trim() || `Kapitel ${ch.chapter_order}`),
         content: ch.content,
         imageUrl: await buildStoryChapterImageUrlForClient(id, ch.chapter_order, ch.image_url || undefined),
         scenicImageUrl: scenicResolvedUrl || scenicRawUrl,

@@ -157,8 +157,8 @@ export interface StoryConfig {
   maxSelectiveSurgeryEdits?: number;
 
   // Cost controls for story writer post-processing.
-  // Defaults are lean (very low extra calls) to keep generation affordable.
-  maxRewritePasses?: 0 | 1;
+  // Defaults favor quality while still keeping retries bounded.
+  maxRewritePasses?: 0 | 1 | 2;
   maxExpandCalls?: number;
   maxWarningPolishCalls?: number;
   maxStoryTokens?: number;
@@ -508,7 +508,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
         const chapters = pipelineResult.storyDraft.chapters.map((ch) => ({
           id: crypto.randomUUID(),
-          title: ch.title,
+          title: (String(ch.title || "").trim() || (config.language === "en" ? `Chapter ${ch.chapter}` : `Kapitel ${ch.chapter}`)),
           content: ch.text,
           imageUrl: imageByChapter.get(ch.chapter),
           scenicImageUrl: scenicImageByChapter.get(ch.chapter),
@@ -1055,7 +1055,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     const scenicResolvedUrl = scenicRawUrl ? await resolveImageUrlForClient(scenicRawUrl) : undefined;
     return {
       id: ch.id,
-      title: ch.title,
+      title: (String(ch.title || "").trim() || `Kapitel ${ch.chapter_order}`),
       content: ch.content,
       imageUrl: await buildStoryChapterImageUrlForClient(storyId, ch.chapter_order, ch.image_url || undefined),
       scenicImageUrl: scenicResolvedUrl || scenicRawUrl,
