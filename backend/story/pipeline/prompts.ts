@@ -502,7 +502,7 @@ HARD RULES:
 4) Structure: exactly ${directives.length} chapters (chapter 1..${directives.length}), each about ${wordsPerChapter.min}-${wordsPerChapter.max} words.
 5) Cast lock: only these names: ${allowedNames.join(", ")}.
 6) Child-safe: ${safetyRule}
-7) Dialogue/action first: target 25-45% dialogue, no narration-only blocks.
+7) Keep balanced book prose: target 20-35% dialogue, avoid ping-pong line-by-line exchanges.
 8) No personifying nature, no synesthesia, no poetic metaphors, no deus ex machina.
 9) Keep max ${focusMaxActive} active characters per beat (ideal ${focusIdealRange}).
 10) If constraints conflict: prioritize language -> JSON format -> chapter count -> cast lock -> safety.
@@ -511,6 +511,8 @@ STYLE TARGET:
 - Tone: ${targetTone}
 - Mostly short concrete sentences (6-12 words), occasional longer sentence.
 - Distinct voice per character, avoid repetitive speaker formulas.
+- After short dialogue bursts, add concrete action beats.
+- No diagnostic emotion formulas (e.g., "he was very nervous", "his heart pounded with fear").
 - ${humorRule}
 - Beat ${directives.length} ends warm and closed with concrete gain + small price.
 ${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
@@ -532,8 +534,8 @@ ${beatLines}
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  return `YOU ARE: Screenwriter for children's films AND children's book author (Preussler + Lindgren + Funke). You think in SCENES: dialogue, action, reaction.
-GOAL: Children (${ageRange.min}-${ageRange.max}) want to keep reading on their own. Every paragraph must contain action or dialogue.
+  return `YOU ARE: Children's book prose author (Preussler + Lindgren + Funke) with strong scene craft.
+GOAL: Children (${ageRange.min}-${ageRange.max}) keep reading because something concrete happens in each paragraph.
 
 ${goldenExample}
 
@@ -551,13 +553,14 @@ HARD RULES (must be fulfilled):
 9) Artifact: ${artifactName || "artifact"} (${artifactRule}). Arc: Discover -> Misdirection/Problem -> clever use (does NOT solve alone).
 10) Show, don't tell: Emotions mainly through body action and dialogue. Brief sensory context is allowed. NO personifying nature.
 11) No deus ex machina. Solution comes from courage + teamwork + smart decision.
-12) DIALOGUE REQUIREMENT: Target roughly 25-45% dialogue (scene-dependent). Avoid long narration-only blocks.
+12) DIALOGUE REQUIREMENT: Target roughly 20-35% dialogue (scene-dependent). Avoid ping-pong dialogue chains.
 
 STYLE (MOST IMPORTANT â€” follow strictly):
 - Target tone: ${targetTone}.
-- DIALOGUE FIRST: The story is told THROUGH dialogue. Description is only stage direction between dialogues.
+- Narrative prose carries movement; dialogue sharpens conflict and decisions.
 - Mostly short sentences (6-12 words), occasionally a longer one for swing. No sentence monsters.
-- Per beat at least TWO lively dialogue exchanges (more in conflict scenes).
+- Dialogue only where it adds tension; avoid transcript-like turn-taking every line.
+- After 1-3 dialogue lines, ground with a concrete action beat.
 - Each character has their own voice (word choice, sentence length, quirk).
 - Separate children's voices sharply:
 ${childVoiceContract || "  - No children's voices available"}
@@ -566,6 +569,7 @@ ${childVoiceContract || "  - No children's voices available"}
 - NO personifying nature or objects (no "the wind wanted", no "the forest whispered").
 - NO synesthesia (no "light tasted", no "silence smelled like").
 - Action verbs over atmosphere verbs: "slammed", "grabbed", "snapped" instead of "shimmered", "whispered", "drifted".
+- No formula emotion lines ("X was scared/sad/nervous", "his heart pounded"); show it in behavior/dialogue.
 - ${humorRule}
 - HUMOR TECHNIQUES (use these!):
   * interruption + correction + short surprise reaction
@@ -654,7 +658,7 @@ export function buildFullStoryRewritePrompt(input: {
   const umlautRule = isGerman ? " Use proper German umlauts (Ã¤, Ã¶, Ã¼, ÃŸ), never ASCII substitutes. No English words in story text." : "";
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  return `TASK: Rewrite the story so it sounds like a real children's book. Keep plot and character core, improve language, rhythm, and voice.
+  return `TASK: Rewrite the story so it reads like a real children's book prose text. Keep plot and character core, improve language, rhythm, and voice.
 
 ${antiPatterns}
 
@@ -677,13 +681,15 @@ ${avatarRule || ""}
 
 STYLE GOALS (strictly important):
 - Target tone: ${targetTone}.
-- DIALOGUE FIRST: Target roughly 25-45% dialogue. Story told THROUGH what characters say and do.
+- Keep balanced prose: target roughly 20-35% dialogue. Use dialogue where conflict sharpens.
 - Mostly short sentences (6-12 words), occasionally longer for swing.
-- Multiple quick dialogue exchanges per beat â€” children's voices must come alive.
+- Avoid transcript-style ping-pong dialogue chains.
+- After short dialogue bursts, return to concrete action beats.
 - Separate children's voices sharply:
 ${childVoiceContract || "  - No children's voices available"}
 - Concrete, everyday language: max ONE comparison per chapter, no adult metaphor imagery.
-- Break up tell-formulas ("felt", "silence fell", "inside something pulled").
+- Break up tell-formulas ("felt", "silence fell", "inside something pulled", "heart pounded").
+- No diagnostic emotion labels ("he was sad/scared/nervous"); show via action and speech.
 - Avoid speaker formula series ("said ... briefly/quietly", "his/her voice was ...").
 - Per beat max one short inner-thought sentence; then back to visible action/dialogue.
 - Name concrete stakes early: what is visibly lost if they fail.
@@ -757,6 +763,7 @@ export function buildChapterExpansionPrompt(input: {
   return `# Aufgabe
 Erweitere das Kapitel ohne die Handlung zu Ã¤ndern. Zeigen, nicht erzÃ¤hlen.
 WICHTIG: Lebendige Prosa! Konkrete Details (riechen, schmecken, fÃ¼hlen), Dialog-Humor, Satz-Variation.
+Keine Gefuehls-Diagnosesaetze wie "er war sehr nervoes/traurig"; stattdessen Verhalten + Sprache zeigen.
 
 # Szene
 - Setting: ${chapter.setting}, Stimmung: ${chapter.mood ?? "COZY"}
@@ -861,7 +868,7 @@ STRICT RULES:
 4) Mention the artifact if required (by name).
 5) Write ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences, age-appropriate.
 6) No placeholder chapters. If the scene feels short, expand with a concrete action sequence + 2-3 short dialogue lines.
-7) Children's-book style: vivid imagery, rhythmic flow, varied sentence starts, occasional dialogue.
+7) Children's-book prose style: concrete and vivid, varied sentence starts, occasional dialogue without screenplay ping-pong.
 8) Do not state belonging explicitly; show it through actions. Avoid phrases like "always been part of this tale".
 9) Avoid stock phrases like "makes an important decision", "has a special idea", "shows a new ability", "feels the tension", "decisive clue", "important hint", "question that unties the knot".
 10) Avatars and supporting characters must be actively involved, not just present.
@@ -869,7 +876,8 @@ STRICT RULES:
 12) Avoid repetitive speaker formulas ("said ... briefly/quietly", "his/her voice was ...").
 13) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
 14) No summary-meta lines like "The consequence was clear", "Der Preis?", or "Der Gewinn?".
-${strict ? "15) Do not include any instruction text or meta commentary in the output." : ""}
+15) No diagnostic emotion labels ("he was very sad/nervous/scared"); show through actions and dialogue.
+${strict ? "16) Do not include any instruction text or meta commentary in the output." : ""}
 
 Return JSON:
 { "text": "Chapter text" }`;

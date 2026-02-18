@@ -3,14 +3,61 @@ export interface ChapterImageInsertPoints {
   scenicAfterSegment: number | null;
 }
 
+function countWords(text: string): number {
+  return text
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean).length;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function estimateReadableSegmentCount(text: string): number {
+  const words = countWords(text);
+  if (words <= 60) return 1;
+  if (words <= 130) return 2;
+  if (words <= 220) return 3;
+  if (words <= 320) return 4;
+  if (words <= 430) return 5;
+  return 6;
+}
+
 function splitParagraphs(content: string): string[] {
-  const paragraphs = String(content || "")
-    .split("\n")
-    .map((paragraph) => paragraph.trim())
+  const normalized = String(content || "")
+    .replace(/\r\n?/g, "\n")
+    .trim();
+
+  const paragraphs = normalized
+    .split(/\n{2,}/)
+    .map((paragraph) =>
+      paragraph
+        .replace(/\n+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
     .filter(Boolean);
+
   if (paragraphs.length > 0) return paragraphs;
-  const fallback = String(content || "").trim();
+
+  const fallback = normalized
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   return fallback ? [fallback] : [];
+}
+
+function normalizeParagraphDensity(paragraphs: string[], targetSegments: number): string[] {
+  if (paragraphs.length <= 1) return paragraphs;
+  const totalWords = paragraphs.reduce((sum, paragraph) => sum + countWords(paragraph), 0);
+  const averageWords = totalWords / paragraphs.length;
+  const tooFragmented = averageWords < 24 || paragraphs.length > targetSegments * 1.8;
+  if (!tooFragmented) return paragraphs;
+
+  const normalizedTarget = clamp(targetSegments, 1, 6);
+  return chunkUnits(paragraphs, normalizedTarget);
 }
 
 function chunkUnits(units: string[], targetSegments: number): string[] {
@@ -45,12 +92,16 @@ function splitWordChunks(text: string, targetSegments: number): string[] {
 }
 
 export function buildChapterTextSegments(content: string, hasPrimary: boolean, hasScenic: boolean): string[] {
-  const desiredSegments = hasPrimary && hasScenic ? 3 : (hasPrimary || hasScenic ? 2 : 1);
-  const paragraphs = splitParagraphs(content);
-  if (paragraphs.length >= desiredSegments) return paragraphs;
-
-  const joined = paragraphs.join(" ").trim();
+  const baseSegments = hasPrimary && hasScenic ? 3 : (hasPrimary || hasScenic ? 2 : 1);
+  const initialParagraphs = splitParagraphs(content);
+  const joined = initialParagraphs.join(" ").trim();
   if (!joined) return [];
+
+  const readableSegments = estimateReadableSegmentCount(joined);
+  const desiredSegments = Math.max(baseSegments, readableSegments);
+  const paragraphs = normalizeParagraphDensity(initialParagraphs, desiredSegments);
+
+  if (paragraphs.length >= desiredSegments) return paragraphs;
 
   const sentenceSegments = chunkUnits(splitSentences(joined), desiredSegments);
   if (sentenceSegments.length >= desiredSegments) return sentenceSegments;

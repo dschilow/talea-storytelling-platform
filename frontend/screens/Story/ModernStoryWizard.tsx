@@ -127,7 +127,7 @@ export default function ModernStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: '',
-    aiModel: 'gemini-3-flash-preview' // Default to Gemini (free)
+    aiModel: 'gpt-5-mini'
   });
 
   const updateState = (updates: Partial<WizardState>) => {
@@ -442,7 +442,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',  // All supported languages
-    aiModel: state.aiModel, // Pass selected AI model
+    aiModel: state.aiModel || 'gpt-5-mini',
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic'
     }

@@ -135,8 +135,9 @@ function gateDialogueQuote(
   const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
   const minDialogueRatio = ageMax <= 8 ? 0.24 : 0.16;
-  const maxDialogueRatio = ageMax <= 8 ? 0.68 : 0.75;
+  const maxDialogueRatio = ageMax <= 8 ? 0.58 : 0.75;
   const criticalDialogueRatio = ageMax <= 8 ? 0.18 : 0.1;
+  const extremeHighDialogueRatio = ageMax <= 8 ? 0.66 : 0.84;
 
   for (const ch of draft.chapters) {
     const sentenceCount = Math.max(1, splitSentences(ch.text).length);
@@ -188,6 +189,18 @@ function gateDialogueQuote(
           ? `Kapitel ${ch.chapter}: Dialoganteil zu hoch (${Math.round(dialogueRatio * 100)}%, max ${Math.round(maxDialogueRatio * 100)}%)`
           : `Chapter ${ch.chapter}: dialogue ratio too high (${Math.round(dialogueRatio * 100)}%, max ${Math.round(maxDialogueRatio * 100)}%)`,
         severity: "WARNING",
+      });
+    }
+
+    if (sentenceCount >= 8 && dialogueRatio > extremeHighDialogueRatio) {
+      issues.push({
+        gate: "DIALOGUE_QUOTE",
+        chapter: ch.chapter,
+        code: "DIALOGUE_RATIO_EXTREME",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Dialoganteil extrem hoch (${Math.round(dialogueRatio * 100)}%, max ${Math.round(extremeHighDialogueRatio * 100)}%)`
+          : `Chapter ${ch.chapter}: dialogue ratio extremely high (${Math.round(dialogueRatio * 100)}%, max ${Math.round(extremeHighDialogueRatio * 100)}%)`,
+        severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
   }

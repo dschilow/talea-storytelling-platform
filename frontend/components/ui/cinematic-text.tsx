@@ -19,7 +19,17 @@ export const CinematicText: React.FC<CinematicTextProps> = ({
     delay = 0,
     enableDropCap = false,
 }) => {
-    const paragraphs = text.split('\n').filter(p => p.trim() !== '');
+    const paragraphs = String(text || '')
+        .replace(/\r\n?/g, '\n')
+        .trim()
+        .split(/\n{2,}/)
+        .map((paragraph) =>
+            paragraph
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+        )
+        .filter((paragraph) => paragraph.length > 0);
 
     return (
         <div className={cn("space-y-8", className)}>

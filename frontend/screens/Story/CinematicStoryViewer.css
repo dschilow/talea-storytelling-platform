@@ -307,7 +307,7 @@
   margin-bottom: 1.8rem;
 }
 
-.sr-paragraph:first-child::first-letter {
+.first-paragraph-drop-cap::first-letter {
   font-family: var(--sr-font-heading);
   font-size: 3.2em;
   float: left;

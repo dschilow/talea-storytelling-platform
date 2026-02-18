@@ -20,8 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Quality-first default: allow a second global rewrite pass.
-const MAX_REWRITE_PASSES = 2;
+// Quality-first but token-safe default: one global rewrite pass.
+const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -48,6 +48,7 @@ const WARNING_POLISH_CODES = new Set([
   "TOO_FEW_DIALOGUES",
   "DIALOGUE_RATIO_LOW",
   "DIALOGUE_RATIO_HIGH",
+  "DIALOGUE_RATIO_EXTREME",
   "META_LABEL_PHRASE",
   "POETIC_LANGUAGE_OVERLOAD",
   "TELL_PATTERN_OVERUSE",
@@ -71,6 +72,7 @@ const REWRITE_WARNING_CODES = new Set([
   "TOO_FEW_DIALOGUES",
   "DIALOGUE_RATIO_LOW",
   "DIALOGUE_RATIO_HIGH",
+  "DIALOGUE_RATIO_EXTREME",
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
   "VOICE_INDISTINCT",
@@ -131,9 +133,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const defaultStoryTokenBudget = isReasoningModel ? 22000 : 14000;
+    const defaultStoryTokenBudget = isReasoningModel ? 14000 : 10000;
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isReasoningModel ? 8000 : 5000;
+    const minStoryTokenBudget = isReasoningModel ? 7000 : 4500;
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -146,20 +148,21 @@ export class LlmStoryWriter implements StoryWriter {
     const storyLanguageRule = isGerman
       ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
       : `8. Write the story in ${targetLanguage}.${languageGuard ? `\n${languageGuard}` : ""}`;
-    const systemPrompt = `You are a screenwriter for children's films AND children's book author (${isGerman ? "Preussler + Lindgren + Funke" : "Dahl + Donaldson + Gaiman"}). You think in SCENES: dialogue, action, reaction.
-
-Your secret: Children keep reading because something HAPPENS in every paragraph.
+    const systemPrompt = `You are a premium children's BOOK-PROSE writer (${isGerman ? "Preussler + Lindgren + Funke" : "Dahl + Donaldson + Gaiman"}).
+Write narrative prose with scene energy, never like a screenplay transcript.
 
 Your rules:
-1. Every chapter's first sentence pulls a child into the ACTION — not description.
-2. Characters sound COMPLETELY different — a child can tell WHO speaks from the sentence alone.
-3. Target roughly 25-45% dialogue (scene-dependent). The story is told THROUGH dialogue and action.
-4. Show emotions mainly through body action and dialogue; brief inner beats are allowed.
-5. Your sentences are short and rhythmic: short-short-long, like music.
-6. Write grounded and concrete like a screenplay: strong verbs, no poetry.
-7. FORBIDDEN: personifying nature ("the forest whispered"), mixing senses ("light tasted"), poetic metaphors, paragraphs without action.
+1. Every chapter starts with visible action or an immediate decision point.
+2. Characters sound clearly different by wording and rhythm.
+3. Target roughly 20-35% dialogue (scene-dependent). Avoid ping-pong line-per-line exchanges.
+4. Show emotions through visible action and dialogue. Avoid formula emotion labels ("he was very nervous", "his heart pounded") unless short and concrete.
+5. Sentence rhythm: mostly short/clear, sometimes longer for flow.
+6. Concrete, everyday language; strong verbs; no poetic fog.
+7. FORBIDDEN: personifying nature ("the forest whispered"), mixing senses ("light tasted"), poetic metaphors, repetitive speaker formulas ("said ... briefly/quietly").
+8. After short dialogue bursts, ground the scene with a concrete action beat.
 ${storyLanguageRule}`.trim();
-    const compactSystemPrompt = `You write high-quality children's stories as strict JSON output. Follow hard rules from the user prompt exactly.
+    const compactSystemPrompt = `You write high-quality children's book prose as strict JSON output. Follow hard rules from the user prompt exactly.
+Keep it concrete, action-led, and natural. Avoid screenplay formatting and formula emotion sentences.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
     const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
@@ -231,6 +234,14 @@ ${storyLanguageRule}`.trim();
 
     let totalUsage: TokenUsage | undefined;
     const isTokenBudgetExceeded = () => (totalUsage?.totalTokens || 0) >= maxStoryTokens;
+    const remainingTokenBudget = () => Math.max(0, maxStoryTokens - (totalUsage?.totalTokens || 0));
+    const fitTokensToBudget = (requested: number, minPreferred: number, reserveForTail: number) => {
+      const remaining = remainingTokenBudget();
+      const hardCap = remaining - reserveForTail;
+      if (hardCap <= 0) return 0;
+      if (hardCap < minPreferred) return Math.max(0, hardCap);
+      return Math.min(requested, hardCap);
+    };
 
     // ─── Phase A: Generate full story in one call ────────────────────────────
     const buildStoryPrompt = (promptMode: "full" | "compact") => buildFullStoryPrompt({
@@ -264,10 +275,15 @@ ${storyLanguageRule}`.trim();
       : Math.max(2200, Math.round(totalWordMax * 1.5));
     const reasoningMultiplier = isReasoningModel ? 1.2 : 1;
     const maxOutputTokens = isReasoningModel
-      ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
-      : Math.min(Math.max(2600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000);
+      ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 7600)
+      : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
+    const initialCallMaxTokens = fitTokensToBudget(
+      maxOutputTokens,
+      isReasoningModel ? 2200 : 1500,
+      isReasoningModel ? 900 : 550,
+    );
     console.log(
-      `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, ` +
+      `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
       `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}`
     );
 
@@ -275,7 +291,7 @@ ${storyLanguageRule}`.trim();
       systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,
       responseFormat: "json_object",
-      maxTokens: maxOutputTokens,
+      maxTokens: Math.max(700, initialCallMaxTokens),
       temperature: strict ? 0.4 : 0.7,
       reasoningEffort: isReasoningModel ? "low" : "medium",
       seed: generationSeed,
@@ -294,34 +310,45 @@ ${storyLanguageRule}`.trim();
       const recoveryMaxTokens = isReasoningModel
         ? Math.min(Math.max(maxOutputTokens + 1400, 5200), 9600)
         : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
-      console.warn(
-        `[story-writer] Full story response was empty+truncated; running one compact recovery attempt (maxTokens=${recoveryMaxTokens}).`,
+      const recoveryBudgetedMaxTokens = fitTokensToBudget(
+        recoveryMaxTokens,
+        isReasoningModel ? 2000 : 1300,
+        isReasoningModel ? 900 : 550,
       );
-      try {
-        const recoveryResult = await callStoryModel({
-          systemPrompt: resolveSystemPrompt(recoveryPromptMode),
-          userPrompt: prompt,
-          responseFormat: "json_object",
-          maxTokens: recoveryMaxTokens,
-          temperature: strict ? 0.4 : 0.7,
-          reasoningEffort: isReasoningModel ? "low" : "medium",
-          seed: typeof generationSeed === "number" ? generationSeed + 173 : undefined,
-          context: "story-writer-full-recovery",
-          logSource: "phase6-story-llm",
-          logMetadata: {
-            storyId: normalizedRequest.storyId,
-            step: "full-recovery",
-            candidateTag,
-            promptMode: recoveryPromptMode,
-            recoveryReason: "empty-truncated",
-          },
-        });
-        if (recoveryResult.usage) {
-          totalUsage = mergeUsage(totalUsage, recoveryResult.usage, model);
+      if (recoveryBudgetedMaxTokens < 600) {
+        console.warn(
+          `[story-writer] Skipping full-recovery attempt due to low remaining token budget (${remainingTokenBudget()} left).`,
+        );
+      } else {
+        console.warn(
+          `[story-writer] Full story response was empty+truncated; running one compact recovery attempt (maxTokens=${recoveryBudgetedMaxTokens}).`,
+        );
+        try {
+          const recoveryResult = await callStoryModel({
+            systemPrompt: resolveSystemPrompt(recoveryPromptMode),
+            userPrompt: prompt,
+            responseFormat: "json_object",
+            maxTokens: recoveryBudgetedMaxTokens,
+            temperature: strict ? 0.4 : 0.7,
+            reasoningEffort: isReasoningModel ? "low" : "medium",
+            seed: typeof generationSeed === "number" ? generationSeed + 173 : undefined,
+            context: "story-writer-full-recovery",
+            logSource: "phase6-story-llm",
+            logMetadata: {
+              storyId: normalizedRequest.storyId,
+              step: "full-recovery",
+              candidateTag,
+              promptMode: recoveryPromptMode,
+              recoveryReason: "empty-truncated",
+            },
+          });
+          if (recoveryResult.usage) {
+            totalUsage = mergeUsage(totalUsage, recoveryResult.usage, model);
+          }
+          result = recoveryResult;
+        } catch (error) {
+          console.warn("[story-writer] Full recovery attempt failed; continuing with fallback draft path.", error);
         }
-        result = recoveryResult;
-      } catch (error) {
-        console.warn("[story-writer] Full recovery attempt failed; continuing with fallback draft path.", error);
       }
     }
     if (isEmptyTruncatedResponse(result)) {
@@ -640,12 +667,23 @@ ${storyLanguageRule}`.trim();
       });
 
       let rewriteResult;
+      const rewriteMaxTokens = fitTokensToBudget(
+        maxOutputTokens,
+        isReasoningModel ? 1800 : 1200,
+        isReasoningModel ? 900 : 550,
+      );
+      if (rewriteMaxTokens < 700) {
+        console.warn(
+          `[story-writer] Skipping rewrite pass ${rewriteAttempt} due to low remaining token budget (${remainingTokenBudget()} left).`,
+        );
+        break;
+      }
       try {
         rewriteResult = await callStoryModel({
           systemPrompt,
           userPrompt: rewritePrompt,
           responseFormat: "json_object",
-          maxTokens: maxOutputTokens,
+          maxTokens: rewriteMaxTokens,
           temperature: 0.4,
           reasoningEffort: isReasoningModel ? "low" : "medium",
           seed: typeof generationSeed === "number" ? generationSeed + rewriteAttempt : undefined,
