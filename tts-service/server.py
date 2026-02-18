@@ -10,7 +10,6 @@ import re
 import base64
 import uuid
 import threading
-import json
 
 app = Flask(__name__)
 
@@ -118,23 +117,6 @@ _QUALITY_PRESETS = {
 }
 _QUALITY = _QUALITY_PRESETS[PIPER_QUALITY_MODE]
 
-# ── Phoneme-level silence: Piper natively pauses at punctuation ──────────────
-# When enabled, inter-chunk silence is reduced because Piper already adds
-# natural pauses at sentence-ending punctuation within synthesized audio.
-ENABLE_PHONEME_SILENCE = _get_env_bool('ENABLE_PHONEME_SILENCE', True)
-
-if ENABLE_PHONEME_SILENCE:
-    _QUALITY = dict(_QUALITY)  # copy to avoid mutating preset
-    # Piper phoneme_silence adds ~350ms at periods, ~400ms at questions, etc.
-    # Reduce inter-chunk silence to avoid double pausing.
-    _QUALITY['silence_scene'] = max(50, _QUALITY['silence_scene'] - 280)
-    _QUALITY['silence_dialogue'] = max(50, _QUALITY['silence_dialogue'] - 220)
-    _QUALITY['silence_exclaim'] = max(50, _QUALITY['silence_exclaim'] - 300)
-    _QUALITY['silence_question'] = max(50, _QUALITY['silence_question'] - 350)
-    _QUALITY['silence_period'] = max(50, _QUALITY['silence_period'] - 300)
-    _QUALITY['silence_comma'] = max(30, _QUALITY['silence_comma'] - 160)
-    _QUALITY['silence_default'] = max(50, _QUALITY['silence_default'] - 220)
-
 # Number of parallel Piper processes per request
 MAX_PARALLEL_PIPER = _get_env_int('MAX_PARALLEL_PIPER', _QUALITY['max_parallel'])
 
@@ -164,27 +146,6 @@ OUTPUT_EDGE_FADE_MS = _get_env_int('OUTPUT_EDGE_FADE_MS', 6)
 ENABLE_CHARACTER_VOICE_VARIATION = _get_env_bool('ENABLE_CHARACTER_VOICE_VARIATION', True)
 ENABLE_EMOTION_VARIATION = _get_env_bool('ENABLE_EMOTION_VARIATION', True)
 DEBUG_TTS_PROSODY = _get_env_bool('DEBUG_TTS_PROSODY', False)
-
-# ── Emotional model (Thorsten Emotional with 8 emotion speakers) ─────────────
-EMOTIONAL_MODEL_PATH = os.environ.get('EMOTIONAL_MODEL_PATH', "/app/emotional_model.onnx")
-ENABLE_EMOTIONAL_MODEL = _get_env_bool('ENABLE_EMOTIONAL_MODEL', False)
-
-# ── FFmpeg post-processing for broadcast quality ─────────────────────────────
-ENABLE_FFMPEG_POSTPROCESS = _get_env_bool('ENABLE_FFMPEG_POSTPROCESS', True)
-FFMPEG_FILTER_CHAIN = os.environ.get('FFMPEG_FILTER_CHAIN',
-    'highpass=f=60,'
-    'acompressor=threshold=0.06:ratio=2.5:attack=8:release=150:makeup=1.5,'
-    'alimiter=limit=0.95'
-)
-
-# ── Phoneme silence values (injected into model config at startup) ───────────
-PHONEME_SILENCE_COMMA = _get_env_float('PHONEME_SILENCE_COMMA', 0.20)
-PHONEME_SILENCE_PERIOD = _get_env_float('PHONEME_SILENCE_PERIOD', 0.35)
-PHONEME_SILENCE_QUESTION = _get_env_float('PHONEME_SILENCE_QUESTION', 0.42)
-PHONEME_SILENCE_EXCLAIM = _get_env_float('PHONEME_SILENCE_EXCLAIM', 0.35)
-PHONEME_SILENCE_COLON = _get_env_float('PHONEME_SILENCE_COLON', 0.18)
-PHONEME_SILENCE_SEMICOLON = _get_env_float('PHONEME_SILENCE_SEMICOLON', 0.22)
-PHONEME_SILENCE_ELLIPSIS = _get_env_float('PHONEME_SILENCE_ELLIPSIS', 0.55)
 
 # Guard rails and smoothing to avoid sudden "too fast" speech spikes.
 MIN_LENGTH_SCALE = _get_env_float('MIN_LENGTH_SCALE', 1.00)
@@ -240,65 +201,9 @@ _job_executor = ThreadPoolExecutor(max_workers=JOB_EXECUTOR_WORKERS, thread_name
 # TTL for completed jobs: 10 minutes (client has time to fetch the result)
 JOB_TTL_SECONDS = 600
 
-# ── Emotion-to-speaker-ID mapping for thorsten_emotional model ────────────────
-# Speaker IDs: amused=0, angry=1, disgusted=2, drunk=3, neutral=4,
-#              sleepy=5, surprised=6, whisper=7
-EMOTION_SPEAKER_MAP = {
-    'anger': 1,       # angry
-    'joy': 0,         # amused
-    'sadness': 5,     # sleepy (closest match)
-    'fear': 6,        # surprised
-    'calm': 4,        # neutral
-    'suspense': 7,    # whisper
-}
-
 # Check if model exists
 if not os.path.exists(MODEL_PATH):
     print(f"WARNING: Model not found at {MODEL_PATH}", file=sys.stderr)
-
-if ENABLE_EMOTIONAL_MODEL and not os.path.exists(EMOTIONAL_MODEL_PATH):
-    print(f"WARNING: Emotional model not found at {EMOTIONAL_MODEL_PATH}, disabling", file=sys.stderr)
-    ENABLE_EMOTIONAL_MODEL = False
-
-# ── Inject phoneme_silence into model configs at startup ─────────────────────
-def _inject_phoneme_silence():
-    """Inject phoneme_silence into model config JSON for punctuation-aware pausing.
-    This makes Piper natively pause at commas, periods, questions, etc."""
-    if not ENABLE_PHONEME_SILENCE:
-        return
-
-    phoneme_silence = {
-        ',': PHONEME_SILENCE_COMMA,
-        '.': PHONEME_SILENCE_PERIOD,
-        '?': PHONEME_SILENCE_QUESTION,
-        '!': PHONEME_SILENCE_EXCLAIM,
-        ':': PHONEME_SILENCE_COLON,
-        ';': PHONEME_SILENCE_SEMICOLON,
-        '\u2026': PHONEME_SILENCE_ELLIPSIS,   # Unicode ellipsis …
-    }
-
-    configs_to_update = [MODEL_PATH + '.json']
-    if ENABLE_EMOTIONAL_MODEL:
-        configs_to_update.append(EMOTIONAL_MODEL_PATH + '.json')
-
-    for config_path in configs_to_update:
-        if not os.path.exists(config_path):
-            continue
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            if 'inference' not in config:
-                config['inference'] = {}
-            config['inference']['phoneme_silence'] = {
-                k: round(v, 3) for k, v in phoneme_silence.items()
-            }
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-            print(f"Injected phoneme_silence into {config_path}: {phoneme_silence}", file=sys.stderr)
-        except Exception as e:
-            print(f"WARNING: Failed to inject phoneme_silence into {config_path}: {e}", file=sys.stderr)
-
-_inject_phoneme_silence()
 
 print(
     (
@@ -316,10 +221,7 @@ print(
         f"output_normalization={ENABLE_OUTPUT_NORMALIZATION}, "
         f"character_variation={ENABLE_CHARACTER_VOICE_VARIATION}, "
         f"emotion_variation={ENABLE_EMOTION_VARIATION}, "
-        f"custom_pronunciations={len(CUSTOM_PRONUNCIATIONS)}, "
-        f"phoneme_silence={ENABLE_PHONEME_SILENCE}, "
-        f"emotional_model={ENABLE_EMOTIONAL_MODEL}, "
-        f"ffmpeg_postprocess={ENABLE_FFMPEG_POSTPROCESS}"
+        f"custom_pronunciations={len(CUSTOM_PRONUNCIATIONS)}"
     ),
     file=sys.stderr,
 )
@@ -392,14 +294,17 @@ def _extract_speaker_hint(chunk):
 
     return None
 
-def _detect_emotion(chunk):
-    """Detect the dominant emotion from text content. Returns emotion name or None."""
+def _emotion_tuning_from_text(chunk):
+    if not ENABLE_EMOTION_VARIATION:
+        return 1.0, 0.0, 0.0
+
     text = chunk.strip()
     lower = text.lower()
 
     def contains(pattern):
         return re.search(pattern, lower, re.IGNORECASE) is not None
 
+    # Score likely emotion classes from punctuation and lexical cues.
     scores = {
         'anger': 0,
         'joy': 0,
@@ -416,78 +321,40 @@ def _detect_emotion(chunk):
         scores['joy'] += 1
     elif exclaim_count == 1:
         scores['joy'] += 1
-        scores['anger'] += 1
     if question_count >= 2:
         scores['fear'] += 1
         scores['suspense'] += 1
     elif question_count == 1:
         scores['suspense'] += 1
-    if '...' in text or '\u2026' in text:
+    if '...' in text:
         scores['suspense'] += 2
         scores['calm'] += 1
 
-    # Lexical cues — expanded German vocabulary
-    if contains(r'\b(schrie|br[üu]llte|knurrte|wut|zorn|fauchte|w[üu]tend|tobte|stampfte|donnerte)\b'):
+    if contains(r'\b(schrie|br[üu]llte|knurrte|wut|zorn|fauchte|w[üu]tend)\b'):
         scores['anger'] += 3
-    if contains(r'\b(lachte|jubelte|grinste|freute|strahlte|fr[öo]hlich|kicherte|jauchzte|hüpfte)\b'):
+    if contains(r'\b(lachte|jubelte|grinste|freute|strahlte|fr[öo]hlich)\b'):
         scores['joy'] += 3
-    if contains(r'\b(weinte|schluchzte|traurig|seufzte|leise|verzweifelt|tr[äa]ne|jammerte|klagte)\b'):
+    if contains(r'\b(weinte|schluchzte|traurig|seufzte|leise|verzweifelt)\b'):
         scores['sadness'] += 3
-    if contains(r'\b(zitterte|aengstlich|ängstlich|panik|furcht|flucht|erschrocken|bebte|schauderte)\b'):
+    if contains(r'\b(zitterte|aengstlich|ängstlich|panik|furcht|flucht|erschrocken)\b'):
         scores['fear'] += 3
-    if contains(r'\b(fluesterte|flüsterte|ruhig|sanft|behutsam|gelassen|still|friedlich|sachte)\b'):
+    if contains(r'\b(fluesterte|flüsterte|ruhig|sanft|behutsam|gelassen)\b'):
         scores['calm'] += 3
-    if contains(r'\b(pl[öo]tzlich|dunkel|schatten|geheimnis|lauerte|schlich|unheimlich|geisterhaft)\b'):
-        scores['suspense'] += 3
 
     emotion = max(scores, key=lambda key: scores[key])
     if scores[emotion] == 0:
-        return None
-    return emotion
-
-
-def _emotion_tuning_from_text(chunk):
-    """Return prosody adjustments (length_mult, noise_delta, noise_w_delta) based on emotion."""
-    if not ENABLE_EMOTION_VARIATION:
-        return 1.0, 0.0, 0.0
-
-    emotion = _detect_emotion(chunk)
-    if not emotion:
         return 1.0, 0.0, 0.0
 
     # length_multiplier, noise_delta, noise_w_delta
     profiles = {
-        'anger': (0.97, 0.10, 0.07),
-        'joy': (0.99, 0.08, 0.06),
-        'sadness': (1.10, -0.08, -0.06),
-        'fear': (1.01, 0.08, 0.06),
-        'calm': (1.06, -0.06, -0.05),
-        'suspense': (1.08, -0.05, -0.04),
+        'anger': (0.99, 0.09, 0.06),
+        'joy': (1.00, 0.07, 0.05),
+        'sadness': (1.09, -0.07, -0.05),
+        'fear': (1.02, 0.07, 0.05),
+        'calm': (1.05, -0.05, -0.04),
+        'suspense': (1.07, -0.04, -0.03),
     }
-    return profiles.get(emotion, (1.0, 0.0, 0.0))
-
-
-def _select_model_for_chunk(chunk):
-    """Select model path and optional speaker ID based on content emotion.
-    Uses thorsten_emotional model for dialogue with clear emotion,
-    thorsten-high model for narration and neutral content."""
-    if not ENABLE_EMOTIONAL_MODEL:
-        return MODEL_PATH, None
-    if not os.path.exists(EMOTIONAL_MODEL_PATH):
-        return MODEL_PATH, None
-
-    has_dialogue = '"' in chunk.strip()
-    emotion = _detect_emotion(chunk)
-
-    # Use emotional model for dialogue with a detected emotion
-    if has_dialogue and emotion and emotion in EMOTION_SPEAKER_MAP:
-        return EMOTIONAL_MODEL_PATH, EMOTION_SPEAKER_MAP[emotion]
-
-    # Narration with very strong emotion also benefits from emotional model
-    if not has_dialogue and emotion in ('anger', 'fear', 'suspense'):
-        return EMOTIONAL_MODEL_PATH, EMOTION_SPEAKER_MAP[emotion]
-
-    return MODEL_PATH, None
+    return profiles[emotion]
 
 def _split_sentences_preserve_quotes(text):
     """Split text into sentence-like units while keeping closing quotes with sentence-ending punctuation."""
@@ -578,19 +445,12 @@ def _enhance_story_text_for_tts(text):
     text = re.sub(r'\s*&\s*', ' und ', text)
 
     # Normalize punctuation bursts.
-    if ENABLE_PHONEME_SILENCE:
-        # With phoneme_silence, each punctuation mark adds its own pause.
-        # Reduce to single marks to avoid excessive pausing.
-        text = re.sub(r'!{2,}', '!', text)
-        text = re.sub(r'\?{2,}', '?', text)
-    else:
-        text = re.sub(r'!{3,}', '!!', text)
-        text = re.sub(r'\?{3,}', '??', text)
-    # Convert triple dots to Unicode ellipsis for single phoneme_silence pause
-    text = re.sub(r'\.{3,}', '\u2026', text)
+    text = re.sub(r'!{3,}', '!!', text)
+    text = re.sub(r'\?{3,}', '??', text)
+    text = re.sub(r'\.{5,}', '...', text)
 
     # Add a small pause before abrupt topic changes.
-    text = re.sub(r'([.!?])\s*(Doch|Aber|Plötzlich|Dann)\b', r'\1 … \2', text)
+    text = re.sub(r'([.!?])\s*(Doch|Aber|Plötzlich|Dann)\b', r'\1 ... \2', text)
 
     return text
 
@@ -610,7 +470,7 @@ def _derive_chunk_params(chunk, base_length, base_noise, base_noise_w):
         has_dialogue = '"' in normalized
         has_exclamation = normalized.endswith('!!') or normalized.endswith('!')
         has_question = normalized.endswith('?')
-        has_suspense = normalized.endswith('...') or normalized.endswith('\u2026') or '...' in normalized or '\u2026' in normalized
+        has_suspense = normalized.endswith('...') or normalized.count('...') > 0
         is_short = len(normalized) < 70
 
         if has_dialogue:
@@ -710,17 +570,7 @@ def preprocess_text(text):
     text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
     # ── Scene transition markers → pause ──
     text = re.sub(r'^[\*\-]{3,}\s*$', '...', text, flags=re.MULTILINE)
-    # ── Ordinal numbers: 1. → erster, 2. → zweiter (context: chapter headings) ──
-    text = re.sub(r'\bvon\s+(\d+)\s+bis\s+(\d+)\b',
-                  lambda m: f'von {number_to_german(int(m.group(1)))} bis {number_to_german(int(m.group(2)))}', text)
-    # ── Common German expressions for natural reading ──
-    text = re.sub(r'\bz\.T\.\b', 'zum Teil', text)
-    text = re.sub(r'\bv\.a\.\b', 'vor allem', text)
-    text = re.sub(r'\bi\.d\.R\.\b', 'in der Regel', text)
-    text = re.sub(r'\bsog\.\b', 'sogenannt', text)
-    text = re.sub(r'\behem\.\b', 'ehemalig', text)
-    text = re.sub(r'\babs\.\b', 'absolut', text)
-    # ── Normalize dashes to breath pauses ──
+    # ── Normalize dashes ──
     text = text.replace('\u2014', ', ')  # em-dash
     text = text.replace('\u2013', ', ')  # en-dash
     # ── Whitespace cleanup ──
@@ -758,11 +608,8 @@ def prepare_for_tts(text):
     text = re.sub(r'(\w{3,}):\s*"', r'\1: ... "', text)
 
     # ── 3. Exclamation/question emphasis ──
-    # When phoneme_silence is active, Piper handles punctuation pauses natively.
-    # Doubling would cause double pauses (e.g. !! = 2× phoneme_silence).
-    if not ENABLE_PHONEME_SILENCE:
-        text = re.sub(r'!\s', '!! ', text)
-        text = re.sub(r'\?\s', '?? ', text)
+    text = re.sub(r'!\s', '!! ', text)
+    text = re.sub(r'\?\s', '?? ', text)
 
     # ── 4. Comma breathing: add commas at natural breath points ──
     # Before subordinate conjunctions
@@ -816,31 +663,17 @@ def prepare_for_tts(text):
 
     # ── 8. Trailing ellipsis for suspense sentences ──
     # "Er öffnete die Tür." at end of paragraph → add slight suspense if followed by paragraph break
-    text = re.sub(r'([.])(\n\n)', r'\1 …\2', text)
+    text = re.sub(r'([.])(\n\n)', r'\1 ...\2', text)
 
-    # ── 9. Emphasis via repetition: stretch emphasized words ──
-    # Words in ALL CAPS get slightly stretched for emphasis
-    def stretch_caps(m):
-        word = m.group(0)
-        if len(word) < 3 or word in ('ICH', 'DU', 'ER', 'SIE', 'WIR', 'IHR', 'DAS', 'DIE', 'DER', 'UND', 'MIT'):
-            return word.capitalize()
-        return word.capitalize()
-    text = re.sub(r'\b[A-ZÄÖÜ]{3,}\b', stretch_caps, text)
-
-    # ── 10. Direct address pauses: "Komm, Leo, wir gehen" ──
-    # Add micro-pause around names in direct address
-    text = re.sub(r',\s*([A-ZÄÖÜ][a-zäöüß]+)\s*,', r', \1, ', text)
-
-    # ── 11. Clean up artifacts ──
+    # ── 9. Clean up artifacts ──
     text = re.sub(r',\s*,', ',', text)
     text = re.sub(r'\.\s*,', '.', text)
     text = re.sub(r',\s*\.', '.', text)
-    text = re.sub(r'\.{4,}', '\u2026', text)   # normalize 4+ dots to ellipsis
-    text = re.sub(r'\.{3}', '\u2026', text)     # triple dots to ellipsis
+    text = re.sub(r'\.{4,}', '...', text)   # normalize 4+ dots to 3
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r' *\n *', '\n', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
-    text = re.sub(r'\s+([.!?,…])', r'\1', text)  # no space before punctuation
+    text = re.sub(r'\s+([.!?,])', r'\1', text)  # no space before punctuation
 
     return text.strip()
 
@@ -954,22 +787,16 @@ def split_text_into_chunks(text, max_chars=MAX_CHUNK_CHARS):
     return chunks
 
 
-def generate_wav_chunk(text, length_scale=1.0, noise_scale=0.667, noise_w=0.8,
-                       model_path=None, speaker_id=None):
-    """Generate WAV audio for a single text chunk using Piper.
-    model_path: override model (e.g. emotional model for dialogue).
-    speaker_id: speaker index for multi-speaker models (emotional model).
-    """
+def generate_wav_chunk(text, length_scale=1.0, noise_scale=0.667, noise_w=0.8):
+    """Generate WAV audio for a single text chunk using Piper."""
     cmd = [
         PIPER_BINARY,
-        "--model", model_path or MODEL_PATH,
+        "--model", MODEL_PATH,
         "--output_file", "-",
         "--length_scale", str(length_scale),
         "--noise_scale", str(noise_scale),
-        "--noise_w", str(noise_w),
+        "--noise_w", str(noise_w)
     ]
-    if speaker_id is not None:
-        cmd.extend(["--speaker", str(speaker_id)])
 
     proc = subprocess.Popen(
         cmd,
@@ -1040,60 +867,7 @@ def concatenate_wav(wav_chunks):
 
     return header + fmt_chunk + data_header + combined_data
 
-def _postprocess_with_ffmpeg(wav_bytes):
-    """Apply broadcast-quality post-processing via FFmpeg.
-    Includes high-pass filter, dynamic compression, and limiter."""
-    if not ENABLE_FFMPEG_POSTPROCESS:
-        return None  # Signal caller to use fallback
-
-    try:
-        cmd = [
-            'ffmpeg', '-y',
-            '-i', 'pipe:0',
-            '-af', FFMPEG_FILTER_CHAIN,
-            '-ar', '22050',         # Preserve sample rate
-            '-ac', '1',             # Mono
-            '-acodec', 'pcm_s16le', # 16-bit PCM
-            '-f', 'wav',
-            'pipe:1'
-        ]
-        proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        stdout, stderr = proc.communicate(input=wav_bytes, timeout=30)
-
-        if proc.returncode != 0:
-            print(f"FFmpeg post-processing failed (rc={proc.returncode}): {stderr.decode('utf-8', errors='replace')[:200]}", file=sys.stderr)
-            return None
-
-        if len(stdout) < 44:
-            print("FFmpeg returned too little data, falling back", file=sys.stderr)
-            return None
-
-        return stdout
-    except FileNotFoundError:
-        print("FFmpeg not found, falling back to basic normalization", file=sys.stderr)
-        return None
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        print("FFmpeg timed out, falling back to basic normalization", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"FFmpeg error: {e}, falling back to basic normalization", file=sys.stderr)
-        return None
-
-
 def _postprocess_output_wav(wav_bytes):
-    """Post-process audio: try FFmpeg first, fall back to basic normalization."""
-    # Try FFmpeg for broadcast-quality processing
-    ffmpeg_result = _postprocess_with_ffmpeg(wav_bytes)
-    if ffmpeg_result is not None:
-        return ffmpeg_result
-
-    # Fallback: basic peak normalization + edge fade
     if not ENABLE_OUTPUT_NORMALIZATION:
         return wav_bytes
     if len(wav_bytes) < 44:
@@ -1162,7 +936,7 @@ def _get_silence_between(chunk_a, chunk_b):
         tail = tail[:-1]
 
     # Scene/paragraph boundary: longer pause
-    if tail.endswith('...') or tail.endswith('\u2026'):
+    if tail.endswith('...'):
         return generate_silence(SILENCE_SCENE_MS)
 
     # Dialogue transition
@@ -1193,7 +967,7 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
     chunks = split_text_into_chunks(text)
     print(f"Split into {len(chunks)} chunks", file=sys.stderr)
 
-    # Derive per-chunk prosody + model selection, then smooth transitions.
+    # Derive per-chunk prosody first, then smooth transitions to avoid sudden speed jumps.
     chunk_params = []
     prev_length = _clamp(length_scale, MIN_LENGTH_SCALE, MAX_LENGTH_SCALE)
     prev_noise = _clamp(noise_scale, MIN_NOISE_SCALE, MAX_NOISE_SCALE)
@@ -1203,7 +977,6 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
         target_length, target_noise, target_noise_w = _derive_chunk_params(
             chunk, length_scale, noise_scale, noise_w
         )
-        model_path, speaker_id = _select_model_for_chunk(chunk)
 
         if ENABLE_PROSODY_SMOOTHING and chunk_params:
             smoothed_length = _clamp_step(prev_length, target_length, MAX_LENGTH_SCALE_STEP)
@@ -1218,7 +991,7 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
         smoothed_noise = _clamp(smoothed_noise, MIN_NOISE_SCALE, MAX_NOISE_SCALE)
         smoothed_noise_w = _clamp(smoothed_noise_w, MIN_NOISE_W, MAX_NOISE_W)
 
-        chunk_params.append((smoothed_length, smoothed_noise, smoothed_noise_w, model_path, speaker_id))
+        chunk_params.append((smoothed_length, smoothed_noise, smoothed_noise_w))
         prev_length, prev_noise, prev_noise_w = smoothed_length, smoothed_noise, smoothed_noise_w
 
     wav_results = [None] * len(chunks)
@@ -1226,25 +999,23 @@ def _do_generate(text, length_scale, noise_scale, noise_w):
 
     if workers <= 1:
         for idx in range(len(chunks)):
-            chunk_length, chunk_noise, chunk_noise_w, m_path, s_id = chunk_params[idx]
+            chunk_length, chunk_noise, chunk_noise_w = chunk_params[idx]
             if DEBUG_TTS_PROSODY:
-                model_label = "emotional" if m_path != MODEL_PATH else "high"
                 print(
-                    f"  Prosody chunk {idx+1}/{len(chunks)}: len_scale={chunk_length:.3f}, noise={chunk_noise:.3f}, noise_w={chunk_noise_w:.3f}, model={model_label}, speaker={s_id}",
+                    f"  Prosody chunk {idx+1}/{len(chunks)}: len_scale={chunk_length:.3f}, noise={chunk_noise:.3f}, noise_w={chunk_noise_w:.3f}",
                     file=sys.stderr,
                 )
-            wav_results[idx] = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w, m_path, s_id)
+            wav_results[idx] = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w)
     else:
         def gen_chunk(idx):
             cs = time.time()
-            chunk_length, chunk_noise, chunk_noise_w, m_path, s_id = chunk_params[idx]
+            chunk_length, chunk_noise, chunk_noise_w = chunk_params[idx]
             if DEBUG_TTS_PROSODY:
-                model_label = "emotional" if m_path != MODEL_PATH else "high"
                 print(
-                    f"  Prosody chunk {idx+1}/{len(chunks)}: len_scale={chunk_length:.3f}, noise={chunk_noise:.3f}, noise_w={chunk_noise_w:.3f}, model={model_label}, speaker={s_id}",
+                    f"  Prosody chunk {idx+1}/{len(chunks)}: len_scale={chunk_length:.3f}, noise={chunk_noise:.3f}, noise_w={chunk_noise_w:.3f}",
                     file=sys.stderr,
                 )
-            data = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w, m_path, s_id)
+            data = generate_wav_chunk(chunks[idx], chunk_length, chunk_noise, chunk_noise_w)
             ct = time.time() - cs
             print(f"  Chunk {idx+1}/{len(chunks)}: {len(chunks[idx])} chars -> {len(data)} bytes ({ct:.1f}s)", file=sys.stderr)
             return idx, data
@@ -1484,8 +1255,7 @@ def generate_tts_batch():
                 chunk_length, chunk_noise, chunk_noise_w = _derive_chunk_params(
                     chunk, length_scale, noise_scale, noise_w
                 )
-                m_path, s_id = _select_model_for_chunk(chunk)
-                wav_data = generate_wav_chunk(chunk, chunk_length, chunk_noise, chunk_noise_w, m_path, s_id)
+                wav_data = generate_wav_chunk(chunk, chunk_length, chunk_noise, chunk_noise_w)
                 wav_chunks.append(wav_data)
                 if i < len(chunks) - 1:
                     wav_chunks.append(_get_silence_between(chunks[i], chunks[i + 1]))
