@@ -20,7 +20,7 @@ import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
-
+import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 
 const StoryReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -447,6 +447,19 @@ const StoryReaderScreen: React.FC = () => {
   }
 
   const currentChapter = story.chapters?.[currentChapterIndex];
+  const chapterParagraphs = buildChapterTextSegments(
+    currentChapter?.content || "",
+    Boolean(currentChapter?.imageUrl),
+    Boolean(currentChapter?.scenicImageUrl)
+  );
+  const imageInsertPoints = resolveChapterImageInsertPoints(
+    chapterParagraphs.length,
+    Boolean(currentChapter?.imageUrl),
+    Boolean(currentChapter?.scenicImageUrl)
+  );
+  const primaryChapterImage =
+    currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`;
+  const scenicChapterImage = currentChapter?.scenicImageUrl;
 
   return (
     <div className="w-screen h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
@@ -515,18 +528,33 @@ const StoryReaderScreen: React.FC = () => {
                 className="w-full h-full flex flex-col pt-20 pb-32 absolute inset-0"
               >
                 <div className="text-center px-4">
-                  <div className="w-full max-w-4xl mx-auto mb-4 rounded-lg shadow-lg bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                    <img
-                      src={currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`}
-                      alt={currentChapter?.title || ''}
-                      className="w-full h-auto max-h-[40vh] object-contain"
-                    />
-                  </div>
                   <h2 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6">{currentChapter?.title}</h2>
                 </div>
                 <div ref={contentRef} className="flex-1 overflow-y-auto px-4 md:px-12">
                   <div className="max-w-4xl mx-auto text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-loose tracking-wide space-y-6 text-justify hyphens-auto">
-                    {currentChapter?.content.split('\n').map((p, i) => <p key={i}>{p}</p>)}
+                    {chapterParagraphs.map((paragraph, i) => (
+                      <React.Fragment key={i}>
+                        <p>{paragraph}</p>
+                        {imageInsertPoints.primaryAfterSegment === i && (
+                          <div className="w-full rounded-lg shadow-lg bg-gray-200 dark:bg-gray-800 overflow-hidden my-8">
+                            <img
+                              src={primaryChapterImage}
+                              alt={`${currentChapter?.title || 'Kapitel'} - Szene`}
+                              className="w-full h-auto max-h-[40vh] object-contain"
+                            />
+                          </div>
+                        )}
+                        {imageInsertPoints.scenicAfterSegment === i && scenicChapterImage && (
+                          <div className="w-full rounded-lg shadow-lg bg-gray-200 dark:bg-gray-800 overflow-hidden my-8">
+                            <img
+                              src={scenicChapterImage}
+                              alt={`${currentChapter?.title || 'Kapitel'} - Umgebung`}
+                              className="w-full h-auto max-h-[40vh] object-contain"
+                            />
+                          </div>
+                        )}
+                      </React.Fragment>
+                    ))}
                   </div>
                 </div>
               </motion.div>

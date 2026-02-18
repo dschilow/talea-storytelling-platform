@@ -5,6 +5,8 @@ interface Chapter {
   title: string;
   content: string;
   imageUrl?: string;
+  scenicImageUrl?: string;
+  scenicImagePrompt?: string;
   order: number;
 }
 

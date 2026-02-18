@@ -103,6 +103,7 @@ function collectStoryUrls(story: Story): string[] {
   const chapters = story.chapters || story.pages || [];
   for (const chapter of chapters) {
     if (chapter.imageUrl) urls.push(chapter.imageUrl);
+    if (chapter.scenicImageUrl) urls.push(chapter.scenicImageUrl);
   }
   return urls;
 }
@@ -301,6 +302,11 @@ export async function getOfflineStory(storyId: string): Promise<Story | null> {
     if (imageUrl) {
       const blobUrl = await getBlobUrl(imageUrl);
       if (blobUrl) items[i] = { ...items[i], imageUrl: blobUrl };
+    }
+    const scenicImageUrl = items[i]?.scenicImageUrl;
+    if (scenicImageUrl) {
+      const scenicBlobUrl = await getBlobUrl(scenicImageUrl);
+      if (scenicBlobUrl) items[i] = { ...items[i], scenicImageUrl: scenicBlobUrl };
     }
   }
 

@@ -15,6 +15,7 @@ import { StoryAudioActions } from '../../components/story/StoryAudioActions';
 import { useTheme } from '../../contexts/ThemeContext';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
+import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import './CinematicStoryViewer.css';
 
 /* ── Palette ── */
@@ -537,6 +538,18 @@ const ChapterSection: React.FC<{
 }> = ({ chapter, index, total, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
+  const paragraphs = useMemo(() => buildChapterTextSegments(
+    String(chapter.content || ""),
+    Boolean(chapter.imageUrl),
+    Boolean(chapter.scenicImageUrl)
+  ), [chapter.content, chapter.imageUrl, chapter.scenicImageUrl]);
+  const insertPoints = resolveChapterImageInsertPoints(
+    paragraphs.length,
+    Boolean(chapter.imageUrl),
+    Boolean(chapter.scenicImageUrl)
+  );
+  const primaryImage = chapter.imageUrl || `https://picsum.photos/seed/chapter-${index}/1920/1080`;
+  const scenicImage = chapter.scenicImageUrl;
 
   useEffect(() => {
     if (isInView) onBecomeActive();
@@ -549,38 +562,62 @@ const ChapterSection: React.FC<{
       className="sr-chapter"
       style={{ paddingTop: '1rem', paddingBottom: '2rem' }}
     >
-      {/* Chapter Image */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.15 }}
         transition={{ duration: 0.7, ease: [0.2, 0.65, 0.3, 0.9] }}
-        className="sr-chapter-image-wrap"
+        className="mb-8 text-center"
       >
-        <img
-          src={chapter.imageUrl || `https://picsum.photos/seed/chapter-${index}/1920/1080`}
-          alt={chapter.title}
-          className="sr-chapter-image"
-        />
-        <div className="sr-chapter-image-overlay" />
-
-        <div className="sr-chapter-image-header">
-          <span className="sr-chapter-number">
+        <div className="flex flex-col items-center gap-2">
+          <span className="sr-chapter-number" style={{ color: palette.sub }}>
             Kapitel {index + 1} von {total}
           </span>
-          <h2 className="sr-chapter-title">{chapter.title}</h2>
+          <h2 className="sr-chapter-title" style={{ color: palette.title, marginTop: 0 }}>{chapter.title}</h2>
         </div>
       </motion.div>
 
       {/* Chapter Content */}
       <div className="sr-chapter-content">
-        <CinematicText
-          text={chapter.content}
-          paragraphClassName="sr-paragraph"
-          paragraphStyle={{ color: palette.title }}
-          className="space-y-0"
-          enableDropCap
-        />
+        {paragraphs.map((paragraph, paragraphIndex) => (
+          <React.Fragment key={`${chapter.id || index}-paragraph-${paragraphIndex}`}>
+            <CinematicText
+              text={paragraph}
+              paragraphClassName="sr-paragraph"
+              paragraphStyle={{ color: palette.title }}
+              className="space-y-0"
+              enableDropCap={paragraphIndex === 0}
+            />
+
+            {insertPoints.primaryAfterSegment === paragraphIndex && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.6 }}
+                className="sr-chapter-image-wrap"
+                style={{ marginTop: "1.3rem", marginBottom: "1.3rem" }}
+              >
+                <img src={primaryImage} alt={`${chapter.title} - Szene`} className="sr-chapter-image" />
+                <div className="sr-chapter-image-overlay" />
+              </motion.div>
+            )}
+
+            {insertPoints.scenicAfterSegment === paragraphIndex && scenicImage && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.6 }}
+                className="sr-chapter-image-wrap"
+                style={{ marginTop: "1.3rem", marginBottom: "1.3rem" }}
+              >
+                <img src={scenicImage} alt={`${chapter.title} - Umgebung`} className="sr-chapter-image" />
+                <div className="sr-chapter-image-overlay" />
+              </motion.div>
+            )}
+          </React.Fragment>
+        ))}
 
         {onComplete && (
           <motion.div
@@ -607,3 +644,4 @@ const ChapterSection: React.FC<{
 };
 
 export default CinematicStoryViewer;
+

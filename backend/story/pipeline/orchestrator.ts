@@ -1,5 +1,5 @@
 ﻿import crypto from "crypto";
-import type { AvatarDetail, CastSet, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan, AISceneDescription } from "./types";
+import type { AvatarDetail, CastSet, ImageSpec, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan, AISceneDescription } from "./types";
 import { normalizeRequest } from "./normalizer";
 import { loadStoryBlueprintBase } from "./dna-loader";
 import { createVariantPlan } from "./variant-planner";
@@ -13,6 +13,7 @@ import { TemplateImageDirector, buildCoverSpec } from "./image-director";
 import { RunwareImageGenerator } from "./image-generator";
 import { SimpleVisionValidator } from "./vision-validator";
 import { validateAndFixImageSpecs } from "./image-prompt-validator";
+import { buildSupplementalScenicNegatives, buildSupplementalScenicPrompt } from "./image-prompt-builder";
 // import { cleanupCollages } from "./sprite-collage"; // TEMPORARILY DISABLED for testing
 import { validateCastSet } from "./schema-validator";
 import { runQualityGates } from "./quality-gates";
@@ -22,6 +23,7 @@ import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
+import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
@@ -55,7 +57,14 @@ export interface PipelineRunResult {
   sceneDirectives: SceneDirective[];
   storyDraft: StoryDraft;
   imageSpecs: any[];
-  images: Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>;
+  images: Array<{
+    chapter: number;
+    imageUrl?: string;
+    prompt: string;
+    provider?: string;
+    scenicImageUrl?: string;
+    scenicPrompt?: string;
+  }>;
   coverImage?: { imageUrl?: string; prompt: string; provider?: string };
   validationReport?: any;
   tokenUsage?: any;
@@ -79,6 +88,51 @@ interface TaleSelectionCandidate {
   age_max: number | null;
   tone: string | null;
   tags: string[];
+}
+
+function buildSupplementalScenicImageSpecs(input: {
+  imageSpecs: ImageSpec[];
+  directives: SceneDirective[];
+  storyDraft: StoryDraft;
+  language: string;
+}): ImageSpec[] {
+  const directiveByChapter = new Map(input.directives.map((directive) => [directive.chapter, directive]));
+  const chapterTextByChapter = new Map(input.storyDraft.chapters.map((chapter) => [chapter.chapter, chapter.text]));
+
+  return input.imageSpecs.map((spec) => {
+    const directive = directiveByChapter.get(spec.chapter);
+    const chapterText = chapterTextByChapter.get(spec.chapter) || "";
+    const scenicPrompt = buildSupplementalScenicPrompt({
+      chapterText,
+      setting: directive?.setting || spec.setting,
+      mood: directive?.mood || "COZY",
+      style: spec.style,
+      chapterNumber: spec.chapter,
+      language: input.language,
+    });
+
+    return {
+      chapter: spec.chapter,
+      style: spec.style,
+      composition: "wide establishing shot, environment-only scene, no characters",
+      blocking: "Environment and props only. No characters, animals, or silhouettes.",
+      actions: "Show subtle traces of recent story action only through environment and objects.",
+      propsVisible: [],
+      lighting: spec.lighting || "soft atmospheric lighting",
+      setting: directive?.setting || spec.setting,
+      sceneDescription: directive
+        ? `${directive.goal || ""} ${directive.conflict || ""} ${directive.outcome || ""}`.trim()
+        : "",
+      refs: {},
+      negatives: buildSupplementalScenicNegatives([
+        ...GLOBAL_IMAGE_NEGATIVES,
+        ...(spec.negatives || []),
+        ...(directive?.imageAvoid || []),
+      ]),
+      onStageExact: [],
+      finalPromptText: scenicPrompt,
+    };
+  });
 }
 
 export class StoryPipelineOrchestrator {
@@ -786,7 +840,7 @@ export class StoryPipelineOrchestrator {
       const phase9Start = Date.now();
       let images = await loadStoryImages(normalized.storyId);
       if (images.length === 0) {
-        images = await this.imageGenerator.generateImages({
+        const primaryImages = await this.imageGenerator.generateImages({
           normalizedRequest: normalized,
           cast: castSet,
           directives,
@@ -794,6 +848,43 @@ export class StoryPipelineOrchestrator {
           pipelineConfig,
           logContext: { storyId: normalized.storyId, phase: "phase9-imagegen" },
         });
+
+        const supplementalSpecs = buildSupplementalScenicImageSpecs({
+          imageSpecs,
+          directives,
+          storyDraft,
+          language: normalized.language,
+        });
+
+        let supplementalImages: Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }> = [];
+        let supplementalError: string | undefined;
+        try {
+          supplementalImages = await this.imageGenerator.generateImages({
+            normalizedRequest: normalized,
+            cast: castSet,
+            directives,
+            imageSpecs: supplementalSpecs,
+            pipelineConfig,
+            logContext: { storyId: normalized.storyId, phase: "phase9-imagegen-scenic" },
+          });
+        } catch (err) {
+          supplementalError = String((err as Error)?.message || err);
+          console.warn("[pipeline] Supplemental scenic image generation failed", err);
+        }
+
+        const supplementalByChapter = new Map(supplementalImages.map((img) => [img.chapter, img]));
+        const supplementalPromptByChapter = new Map(
+          supplementalSpecs.map((spec) => [spec.chapter, spec.finalPromptText || ""])
+        );
+        images = primaryImages.map((img) => {
+          const supplemental = supplementalByChapter.get(img.chapter);
+          return {
+            ...img,
+            scenicImageUrl: supplemental?.imageUrl,
+            scenicPrompt: supplemental?.prompt || supplementalPromptByChapter.get(img.chapter),
+          };
+        });
+
         await saveStoryImages(normalized.storyId, images);
         await logPhase("phase9-imagegen", { storyId: normalized.storyId }, {
           images: images.length,
@@ -801,6 +892,9 @@ export class StoryPipelineOrchestrator {
           providers: images.map(img => img.provider).filter((v, i, a) => a.indexOf(v) === i),
           successfulImages: images.filter(img => img.imageUrl).length,
           failedImages: images.filter(img => !img.imageUrl).length,
+          supplementalImagesGenerated: images.filter(img => img.scenicImageUrl).length,
+          supplementalImagesMissing: images.filter(img => !img.scenicImageUrl).length,
+          supplementalError,
           chapters: images.map(img => img.chapter),
         });
       }
@@ -840,7 +934,16 @@ export class StoryPipelineOrchestrator {
 
           if (retryImages.length > 0) {
             const retryMap = new Map(retryImages.map(img => [img.chapter, img]));
-            images = images.map(img => retryMap.get(img.chapter) ?? img);
+            images = images.map(img => {
+              const retry = retryMap.get(img.chapter);
+              if (!retry) return img;
+              return {
+                ...img,
+                imageUrl: retry.imageUrl,
+                prompt: retry.prompt,
+                provider: retry.provider,
+              };
+            });
             await saveStoryImages(normalized.storyId, images);
           }
         }

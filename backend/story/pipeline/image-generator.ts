@@ -133,6 +133,7 @@ function resolveImageLogSource(phase?: string): string {
   if (phase === "phase8-cover") return "phase8-cover-imagegen";
   if (phase === "phase10-vision-retry-imagegen") return "phase10-vision-retry-imagegen";
   if (phase === "phase10-vision") return "phase10-vision-retry-imagegen";
+  if (phase === "phase9-imagegen-scenic") return "phase9-imagegen-scenic";
   if (phase === "phase9-imagegen") return "phase9-imagegen-runware";
   return "phase9-imagegen-runware";
 }

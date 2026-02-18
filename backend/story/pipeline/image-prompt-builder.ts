@@ -578,3 +578,138 @@ function describeIdentityClass(sheet: {
   if (gender === "female") return "human girl";
   return "human child";
 }
+
+type ScenicHintRule = {
+  pattern: RegExp;
+  environment?: string;
+  prop?: string;
+};
+
+const SCENIC_HINT_RULES: ScenicHintRule[] = [
+  { pattern: /\b(wald|forest|woods|baum|b[aä]ume|tree|trees)\b/i, environment: "dense trees and layered forest depth" },
+  { pattern: /\b(dorf|village|town|gasse|street|market)\b/i, environment: "small houses, cobblestone paths, and village details" },
+  { pattern: /\b(schloss|castle|palace|fortress|burg)\b/i, environment: "stone walls, towers, and architectural grandeur" },
+  { pattern: /\b(h[öo]hle|cave|grotto)\b/i, environment: "rock textures, cave entrance, and shadow gradients" },
+  { pattern: /\b(berg|mountain|hill|cliff)\b/i, environment: "distant ridgelines and dramatic terrain shapes" },
+  { pattern: /\b(see|lake|meer|sea|ocean|fluss|river|bach|stream)\b/i, environment: "water reflections, shoreline details, and depth cues" },
+  { pattern: /\b(nacht|night|mond|moon|stern|stars)\b/i, environment: "night sky with moonlit atmosphere" },
+  { pattern: /\b(nebel|mist|fog)\b/i, environment: "soft mist layers and atmospheric perspective" },
+  { pattern: /\b(gewitter|storm|regen|rain)\b/i, environment: "weather-driven mood with rain textures and moving clouds" },
+  { pattern: /\b(schnee|snow|winter|frost)\b/i, environment: "winter textures, cold light, and snow accumulation" },
+  { pattern: /\b(schl[üu]ssel|key)\b/i, prop: "an old key" },
+  { pattern: /\b(karte|map)\b/i, prop: "a weathered map" },
+  { pattern: /\b(schatz|treasure|truhe|chest)\b/i, prop: "a worn treasure chest" },
+  { pattern: /\b(laterne|lantern|lamp)\b/i, prop: "a softly glowing lantern" },
+  { pattern: /\b(buch|book|journal)\b/i, prop: "an open storybook or journal" },
+  { pattern: /\b(uhr|clock|hourglass)\b/i, prop: "a symbolic clockwork or hourglass detail" },
+  { pattern: /\b(t[üu]r|door|tor|gate)\b/i, prop: "a partially open doorway or gate" },
+  { pattern: /\b(spur|spuren|footprint|tracks)\b/i, prop: "subtle footprints or movement traces in the ground" },
+];
+
+export function buildSupplementalScenicPrompt(input: {
+  chapterText?: string;
+  setting?: string;
+  mood?: string;
+  style?: string;
+  chapterNumber?: number;
+  language?: string;
+}): string {
+  const chapterText = String(input.chapterText || "");
+  const setting = normalizeScenicField(input.setting || "");
+  const mood = normalizeScenicField(input.mood || "cozy");
+  const style = normalizeScenicField(input.style || "high-quality children's storybook illustration, watercolor texture");
+  const chapterNumber = Number(input.chapterNumber || 0);
+  const scenicHints = extractScenicHints(chapterText);
+
+  const environmentHints = scenicHints.environments.length > 0
+    ? scenicHints.environments.join(", ")
+    : (setting || "storybook environment with foreground, midground, and background depth");
+  const propHints = scenicHints.props.length > 0
+    ? scenicHints.props.join(", ")
+    : "small story-relevant objects in the environment";
+
+  const languageGuard = input.language && input.language !== "en"
+    ? "LANGUAGE: English-only rendering instructions."
+    : "LANGUAGE: English-only rendering instructions.";
+
+  const moodLine = mood
+    ? `MOOD: ${mood}.`
+    : "MOOD: warm and readable for children.";
+  const chapterLine = chapterNumber > 0
+    ? `CHAPTER CONTEXT: Chapter ${chapterNumber}, environment-only companion visual.`
+    : "CHAPTER CONTEXT: environment-only companion visual.";
+
+  return [
+    `STYLE: ${style}, cinematic storybook atmosphere, no text, no watermark, no logo.`,
+    chapterLine,
+    setting ? `SETTING: ${setting}.` : "SETTING: story location from the chapter.",
+    moodLine,
+    `ENVIRONMENT FOCUS: ${environmentHints}.`,
+    `PROP CLUES: ${propHints}.`,
+    "CAMERA: wide establishing shot, layered depth, clear foreground and background, immersive composition.",
+    "ACTION TRACE: show subtle traces of recent story action in the environment (e.g. movement marks, disturbed objects, glowing residue) without showing who caused them.",
+    "HARD RULES:",
+    "- Zero characters in frame: no people, no children, no humanoids, no faces, no body parts, no silhouettes.",
+    "- Zero animals or fantasy creatures in frame.",
+    "- Keep the visual child-friendly, warm, and readable.",
+    "- Single scene only, no split-screen, no collage, no panels.",
+    languageGuard,
+  ].join("\n");
+}
+
+export function buildSupplementalScenicNegatives(baseNegatives: string[] = []): string[] {
+  const scenicOnly = [
+    "person",
+    "people",
+    "human",
+    "child",
+    "children",
+    "boy",
+    "girl",
+    "man",
+    "woman",
+    "character",
+    "characters",
+    "humanoid",
+    "face",
+    "faces",
+    "head",
+    "hands",
+    "arms",
+    "legs",
+    "body",
+    "crowd",
+    "silhouette",
+    "silhouettes",
+    "animal",
+    "animals",
+    "dog",
+    "cat",
+    "bird",
+    "wolf",
+    "dragon",
+    "creature",
+    "monster",
+    "avatar",
+    "mascot",
+  ];
+  return Array.from(new Set([...(baseNegatives || []), ...scenicOnly]));
+}
+
+function extractScenicHints(chapterText: string): { environments: string[]; props: string[] } {
+  const environments: string[] = [];
+  const props: string[] = [];
+  for (const rule of SCENIC_HINT_RULES) {
+    if (!rule.pattern.test(chapterText)) continue;
+    if (rule.environment) environments.push(rule.environment);
+    if (rule.prop) props.push(rule.prop);
+  }
+  return {
+    environments: Array.from(new Set(environments)).slice(0, 5),
+    props: Array.from(new Set(props)).slice(0, 5),
+  };
+}
+
+function normalizeScenicField(value: string): string {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}

@@ -158,10 +158,24 @@ export async function saveImageSpecs(id: string, specs: ImageSpec[]): Promise<vo
 
 export async function saveStoryImages(
   id: string,
-  images: Array<{ chapter: number; imageUrl?: string; provider?: string; meta?: any; prompt?: string }>
+  images: Array<{
+    chapter: number;
+    imageUrl?: string;
+    provider?: string;
+    meta?: any;
+    prompt?: string;
+    scenicImageUrl?: string;
+    scenicPrompt?: string;
+  }>
 ): Promise<void> {
   for (const image of images) {
-    const meta = image.meta ?? (image.prompt ? { prompt: image.prompt } : {});
+    const meta: Record<string, any> = {
+      ...(parseMetaObject(image.meta) || {}),
+    };
+    if (image.prompt) meta.prompt = image.prompt;
+    if (image.scenicPrompt) meta.scenicPrompt = image.scenicPrompt;
+    if (image.scenicImageUrl) meta.scenicImageUrl = image.scenicImageUrl;
+
     await storyDB.exec`
       INSERT INTO story_images (story_instance_id, chapter, image_url, provider, meta)
       VALUES (${id}, ${image.chapter}, ${image.imageUrl ?? null}, ${image.provider ?? null}, ${JSON.stringify(meta ?? {})})
@@ -173,18 +187,30 @@ export async function saveStoryImages(
   }
 }
 
-export async function loadStoryImages(id: string): Promise<Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>> {
+export async function loadStoryImages(id: string): Promise<Array<{
+  chapter: number;
+  imageUrl?: string;
+  prompt: string;
+  provider?: string;
+  scenicImageUrl?: string;
+  scenicPrompt?: string;
+}>> {
   const rows = await storyDB.queryAll<{ chapter: number; image_url: string | null; provider: string | null; meta: any }>`
     SELECT chapter, image_url, provider, meta FROM story_images
     WHERE story_instance_id = ${id}
     ORDER BY chapter
   `;
-  return rows.map(row => ({
-    chapter: row.chapter,
-    imageUrl: row.image_url ?? undefined,
-    provider: row.provider ?? undefined,
-    prompt: row.meta ? safePrompt(row.meta) : "",
-  }));
+  return rows.map(row => {
+    const meta = parseMetaObject(row.meta);
+    return {
+      chapter: row.chapter,
+      imageUrl: row.image_url ?? undefined,
+      provider: row.provider ?? undefined,
+      prompt: meta ? safeStringField(meta.prompt) : "",
+      scenicPrompt: meta ? safeStringField(meta.scenicPrompt) : undefined,
+      scenicImageUrl: meta ? safeStringField(meta.scenicImageUrl) : undefined,
+    };
+  });
 }
 
 export async function saveValidationReport(id: string, report: any): Promise<void> {
@@ -196,17 +222,21 @@ export async function saveValidationReport(id: string, report: any): Promise<voi
   `;
 }
 
-function safePrompt(meta: any): string {
-  if (!meta) return "";
-  if (typeof meta === "object") {
-    return meta?.prompt || "";
-  }
+function parseMetaObject(meta: any): Record<string, any> | null {
+  if (!meta) return null;
+  if (typeof meta === "object") return meta as Record<string, any>;
+  if (typeof meta !== "string") return null;
   try {
     const parsed = JSON.parse(meta);
-    return parsed?.prompt || "";
+    if (parsed && typeof parsed === "object") return parsed as Record<string, any>;
   } catch {
-    return "";
+    return null;
   }
+  return null;
+}
+
+function safeStringField(value: any): string {
+  return typeof value === "string" ? value : "";
 }
 
 function parseJsonValue<T>(value: any): T | null {

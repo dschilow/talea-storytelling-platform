@@ -360,7 +360,14 @@ export interface ImageGenerator {
     imageSpecs: ImageSpec[];
     pipelineConfig?: PipelineConfig;
     logContext?: { storyId?: string; phase?: string };
-  }) => Promise<Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>>;
+  }) => Promise<Array<{
+    chapter: number;
+    imageUrl?: string;
+    prompt: string;
+    provider?: string;
+    scenicImageUrl?: string;
+    scenicPrompt?: string;
+  }>>;
 }
 
 export interface VisionValidator {
@@ -607,6 +614,8 @@ export interface PipelineOutput {
     imageSpec: ImageSpec;
     finalPrompt: string;
     imageUrl: string;
+    scenicImageUrl?: string;
+    scenicPrompt?: string;
     validationReport?: any;
   }>;
   qualityReport: any;

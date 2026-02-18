@@ -11,7 +11,7 @@ import type { Story, Chapter } from '../../types/story';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
-
+import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 
 const StoryScrollReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -260,6 +260,21 @@ const StoryScrollReaderScreen: React.FC = () => {
                 <div className="max-w-3xl mx-auto antialiased">
                   {story.chapters?.map((chapter: Chapter, index: number) => (
                     <div key={`chapter-${index}`} className="mb-16">
+                      {(() => {
+                        const normalizedParagraphs = buildChapterTextSegments(
+                          chapter.content,
+                          Boolean(chapter.imageUrl),
+                          Boolean(chapter.scenicImageUrl)
+                        );
+                        const insertPoints = resolveChapterImageInsertPoints(
+                          normalizedParagraphs.length,
+                          Boolean(chapter.imageUrl),
+                          Boolean(chapter.scenicImageUrl)
+                        );
+                        const primaryImage = chapter.imageUrl || `https://picsum.photos/seed/${story.id}-${index}/900/520`;
+                        const scenicImage = chapter.scenicImageUrl;
+                        return (
+                          <>
                       {/* Chapter Badge */}
                       <div className="bg-gradient-to-r from-stone-600 to-amber-600 text-white rounded-full text-sm w-fit px-6 py-2 mb-6 font-semibold shadow-lg">
                         Kapitel {index + 1}
@@ -272,32 +287,42 @@ const StoryScrollReaderScreen: React.FC = () => {
                         <AudioPlayer text={chapter.content} className="ml-4" />
                       </div>
 
-                      {/* Chapter Image */}
-                      {chapter.imageUrl && (
-                        <div className="rounded-2xl mb-8 w-full shadow-2xl bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                          <img
-                            src={chapter.imageUrl}
-                            alt={chapter.title}
-                            className="w-full h-auto max-h-[60vh] object-contain"
-                          />
-                        </div>
-                      )}
-
                       {/* Chapter Content with Gradient Scroll Effect */}
                       <div className="text-lg md:text-xl prose prose-lg dark:prose-invert max-w-none leading-relaxed">
-                        {chapter.content.split('\n').map((paragraph, pIndex) => (
-                          paragraph.trim() && (
-                            <div key={`p-${index}-${pIndex}`} className="mb-6">
-                              <TextGradientScroll
-                                text={paragraph}
-                                type="word"
-                                textOpacity="soft"
-                                className="text-gray-700 dark:text-gray-300"
-                              />
-                            </div>
-                          )
+                        {normalizedParagraphs.map((paragraph, pIndex) => (
+                          <div key={`p-${index}-${pIndex}`} className="mb-6">
+                            <TextGradientScroll
+                              text={paragraph}
+                              type="word"
+                              textOpacity="soft"
+                              className="text-gray-700 dark:text-gray-300"
+                            />
+
+                            {insertPoints.primaryAfterSegment === pIndex && (
+                              <div className="rounded-2xl mt-8 w-full shadow-2xl bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                                <img
+                                  src={primaryImage}
+                                  alt={`${chapter.title} - Szene`}
+                                  className="w-full h-auto max-h-[60vh] object-contain"
+                                />
+                              </div>
+                            )}
+
+                            {insertPoints.scenicAfterSegment === pIndex && scenicImage && (
+                              <div className="rounded-2xl mt-8 w-full shadow-2xl bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                                <img
+                                  src={scenicImage}
+                                  alt={`${chapter.title} - Umgebung`}
+                                  className="w-full h-auto max-h-[60vh] object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
 

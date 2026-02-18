@@ -165,14 +165,24 @@ export const get = api<GetStoryParams, Story>(
       ORDER BY chapter_order
     `;
 
+    const parsedMetadata = parseJsonObject(storyRow.metadata);
+    const chapterVisuals = (parsedMetadata?.chapterVisuals && typeof parsedMetadata.chapterVisuals === "object")
+      ? parsedMetadata.chapterVisuals as Record<string, { scenicImageUrl?: string; scenicImagePrompt?: string }>
+      : {};
     const coverImageUrl = await resolveImageUrlForClient(storyRow.cover_image_url || undefined);
-    const chapters = await Promise.all(chapterRows.map(async (ch) => ({
-      id: ch.id,
-      title: ch.title,
-      content: ch.content,
-      imageUrl: await buildStoryChapterImageUrlForClient(id, ch.chapter_order, ch.image_url || undefined),
-      order: ch.chapter_order,
-    })));
+    const chapters = await Promise.all(chapterRows.map(async (ch) => {
+      const scenicRawUrl = chapterVisuals[String(ch.chapter_order)]?.scenicImageUrl || undefined;
+      const scenicResolvedUrl = scenicRawUrl ? await resolveImageUrlForClient(scenicRawUrl) : undefined;
+      return {
+        id: ch.id,
+        title: ch.title,
+        content: ch.content,
+        imageUrl: await buildStoryChapterImageUrlForClient(id, ch.chapter_order, ch.image_url || undefined),
+        scenicImageUrl: scenicResolvedUrl || scenicRawUrl,
+        scenicImagePrompt: chapterVisuals[String(ch.chapter_order)]?.scenicImagePrompt || undefined,
+        order: ch.chapter_order,
+      };
+    }));
 
     return {
       id: storyRow.id,
@@ -183,7 +193,7 @@ export const get = api<GetStoryParams, Story>(
       coverImageUrl,
       config: JSON.parse(storyRow.config),
       avatarDevelopments: storyRow.avatar_developments ? JSON.parse(storyRow.avatar_developments) : undefined,
-      metadata: storyRow.metadata ? JSON.parse(storyRow.metadata) : undefined,
+      metadata: parsedMetadata || undefined,
       chapters,
       status: storyRow.status,
       isPublic: storyRow.is_public,
@@ -192,3 +202,14 @@ export const get = api<GetStoryParams, Story>(
     };
   }
 );
+
+function parseJsonObject(value: any): any {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
