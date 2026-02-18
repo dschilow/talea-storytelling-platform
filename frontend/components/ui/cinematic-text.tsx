@@ -8,6 +8,7 @@ interface CinematicTextProps {
     paragraphClassName?: string;
     paragraphStyle?: React.CSSProperties;
     delay?: number;
+    enableDropCap?: boolean;
 }
 
 export const CinematicText: React.FC<CinematicTextProps> = ({
@@ -16,8 +17,8 @@ export const CinematicText: React.FC<CinematicTextProps> = ({
     paragraphClassName,
     paragraphStyle,
     delay = 0,
+    enableDropCap = false,
 }) => {
-    // Split text into paragraphs
     const paragraphs = text.split('\n').filter(p => p.trim() !== '');
 
     return (
@@ -30,6 +31,7 @@ export const CinematicText: React.FC<CinematicTextProps> = ({
                     baseDelay={delay}
                     paragraphClassName={paragraphClassName}
                     paragraphStyle={paragraphStyle}
+                    isFirst={enableDropCap && index === 0}
                 />
             ))}
         </div>
@@ -42,25 +44,27 @@ const Paragraph: React.FC<{
     baseDelay: number;
     paragraphClassName?: string;
     paragraphStyle?: React.CSSProperties;
-}> = ({ text, index, baseDelay, paragraphClassName, paragraphStyle }) => {
+    isFirst?: boolean;
+}> = ({ text, index, baseDelay, paragraphClassName, paragraphStyle, isFirst }) => {
     const ref = useRef(null);
     const isInView = useInView(ref, {
         once: true,
-        margin: "0px 0px -50px 0px" // Trigger slightly before bottom
+        margin: "0px 0px -60px 0px"
     });
 
     return (
         <motion.p
             ref={ref}
-            initial={{ opacity: 0, y: 20, filter: 'blur(5px)' }}
+            initial={{ opacity: 0, y: 18, filter: 'blur(4px)' }}
             animate={isInView ? { opacity: 1, y: 0, filter: 'blur(0px)' } : {}}
             transition={{
-                duration: 0.8,
-                ease: [0.2, 0.65, 0.3, 0.9], // Elegant easing
-                delay: baseDelay + (index * 0.1)
+                duration: 0.7,
+                ease: [0.2, 0.65, 0.3, 0.9],
+                delay: baseDelay + (index * 0.08)
             }}
             className={cn(
                 "leading-relaxed text-lg md:text-xl lg:text-2xl text-gray-300 font-['Merriweather'] tracking-wide drop-shadow-sm",
+                isFirst && 'first-paragraph-drop-cap',
                 paragraphClassName
             )}
             style={paragraphStyle}
