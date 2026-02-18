@@ -1,16 +1,31 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { BookOpen, Plus, Sparkles, Users, Wand2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Clapperboard,
+  FileText,
+  ImagePlus,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Send,
+  Sparkles,
+  Users,
+  Wand2,
+} from "lucide-react";
 
 import { getBackendUrl } from "@/config";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
-import type { StudioCharacter, StudioEpisode, StudioSeries } from "@/types/studio";
+import type { StudioCharacter, StudioEpisode, StudioEpisodeScene, StudioSeries } from "@/types/studio";
 
 const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
 
-type ApiInit = { method?: "GET" | "POST"; body?: unknown };
+type ApiInit = { method?: "GET" | "POST" | "PUT"; body?: unknown };
+type EpisodeWithScenesResponse = { episode: StudioEpisode; scenes: StudioEpisodeScene[] };
+type ComposeEpisodeResponse = EpisodeWithScenesResponse & { combinedText: string };
 
 const TaleaStudioWorkspace: React.FC = () => {
   const { getToken } = useAuth();
@@ -38,10 +53,61 @@ const TaleaStudioWorkspace: React.FC = () => {
   const [episodeNumber, setEpisodeNumber] = useState(1);
   const [episodeTitle, setEpisodeTitle] = useState("");
   const [episodeCharacterIds, setEpisodeCharacterIds] = useState<string[]>([]);
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+  const [episodeEditorText, setEpisodeEditorText] = useState("");
+  const [episodeEditorSummary, setEpisodeEditorSummary] = useState("");
+  const [generationPrompt, setGenerationPrompt] = useState("");
+  const [generatingText, setGeneratingText] = useState(false);
+  const [scenes, setScenes] = useState<StudioEpisodeScene[]>([]);
+  const [sceneLoading, setSceneLoading] = useState(false);
+  const [splitPrompt, setSplitPrompt] = useState("");
+  const [splittingScenes, setSplittingScenes] = useState(false);
+  const [sceneSavingId, setSceneSavingId] = useState<string | null>(null);
+  const [sceneGeneratingId, setSceneGeneratingId] = useState<string | null>(null);
+  const [bulkGeneratingImages, setBulkGeneratingImages] = useState(false);
+  const [composingEpisode, setComposingEpisode] = useState(false);
+  const [combinedEpisodeText, setCombinedEpisodeText] = useState("");
+  const [publishingEpisode, setPublishingEpisode] = useState(false);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
 
   const selectedSeries = useMemo(
     () => series.find((item) => item.id === selectedSeriesId) || null,
     [series, selectedSeriesId]
+  );
+  const selectedEpisode = useMemo(
+    () => episodes.find((item) => item.id === selectedEpisodeId) || null,
+    [episodes, selectedEpisodeId]
+  );
+  const allSceneImagesReady = useMemo(
+    () => scenes.length > 0 && scenes.every((scene) => Boolean(scene.imageUrl)),
+    [scenes]
+  );
+  const canCompose = allSceneImagesReady && scenes.length > 0;
+  const canPublish = selectedEpisode?.status === "composed";
+  const wizardSteps = useMemo(
+    () => [
+      {
+        key: "text",
+        label: "1 Text",
+        done: Boolean((selectedEpisode?.approvedStoryText || selectedEpisode?.storyText || episodeEditorText).trim()),
+      },
+      { key: "scenes", label: "2 Szenen", done: scenes.length > 0 },
+      { key: "images", label: "3 Bilder", done: allSceneImagesReady },
+      {
+        key: "compose",
+        label: "4 Compose",
+        done: selectedEpisode?.status === "composed" || selectedEpisode?.status === "published",
+      },
+      { key: "publish", label: "5 Publish", done: selectedEpisode?.status === "published" },
+    ],
+    [
+      allSceneImagesReady,
+      episodeEditorText,
+      scenes.length,
+      selectedEpisode?.approvedStoryText,
+      selectedEpisode?.status,
+      selectedEpisode?.storyText,
+    ]
   );
 
   const palette = useMemo(
@@ -103,9 +169,29 @@ const TaleaStudioWorkspace: React.FC = () => {
         apiCall<{ episodes: StudioEpisode[] }>(`/story/studio/series/${seriesId}/episodes`),
       ]);
       setCharacters(charactersResult.characters || []);
-      setEpisodes(episodesResult.episodes || []);
+      const episodeList = episodesResult.episodes || [];
+      setEpisodes(episodeList);
+      setSelectedEpisodeId((current) =>
+        current && episodeList.some((episode) => episode.id === current)
+          ? current
+          : episodeList[0]?.id ?? null
+      );
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const loadScenes = async (seriesId: string, episodeId: string) => {
+    try {
+      setSceneLoading(true);
+      const result = await apiCall<{ scenes: StudioEpisodeScene[] }>(
+        `/story/studio/series/${seriesId}/episodes/${episodeId}/scenes`
+      );
+      setScenes(result.scenes || []);
+    } catch {
+      setScenes([]);
+    } finally {
+      setSceneLoading(false);
     }
   };
 
@@ -118,8 +204,35 @@ const TaleaStudioWorkspace: React.FC = () => {
     else {
       setCharacters([]);
       setEpisodes([]);
+      setSelectedEpisodeId(null);
+      setScenes([]);
+      setCombinedEpisodeText("");
+      setWorkflowError(null);
     }
   }, [selectedSeriesId]);
+
+  useEffect(() => {
+    if (selectedSeriesId && selectedEpisodeId) {
+      void loadScenes(selectedSeriesId, selectedEpisodeId);
+      return;
+    }
+    setScenes([]);
+    setCombinedEpisodeText("");
+  }, [selectedSeriesId, selectedEpisodeId]);
+
+  useEffect(() => {
+    if (!selectedEpisode) {
+      setEpisodeEditorText("");
+      setEpisodeEditorSummary("");
+      setCombinedEpisodeText("");
+      return;
+    }
+    setEpisodeEditorText(selectedEpisode.storyText || selectedEpisode.approvedStoryText || "");
+    setEpisodeEditorSummary(selectedEpisode.summary || "");
+    if (selectedEpisode.status !== "composed" && selectedEpisode.status !== "published") {
+      setCombinedEpisodeText("");
+    }
+  }, [selectedEpisode?.id, selectedEpisode?.updatedAt, selectedEpisode?.storyText, selectedEpisode?.approvedStoryText, selectedEpisode?.summary, selectedEpisode?.status]);
 
   const handleCreateSeries = async () => {
     if (!seriesTitle.trim()) return;
@@ -179,6 +292,7 @@ const TaleaStudioWorkspace: React.FC = () => {
         },
       });
       setEpisodes((prev) => [...prev, created].sort((a, b) => a.episodeNumber - b.episodeNumber));
+      setSelectedEpisodeId(created.id);
       setEpisodeTitle("");
       setEpisodeCharacterIds([]);
       setEpisodeNumber((prev) => prev + 1);
@@ -187,6 +301,250 @@ const TaleaStudioWorkspace: React.FC = () => {
       alert("Folge konnte nicht erstellt werden.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const replaceEpisodeInState = (updated: StudioEpisode) => {
+    setEpisodes((prev) =>
+      prev
+        .map((episode) => (episode.id === updated.id ? updated : episode))
+        .sort((a, b) => a.episodeNumber - b.episodeNumber)
+    );
+  };
+
+  const refreshSelectedEpisode = async () => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    const refreshed = await apiCall<StudioEpisode>(
+      `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}`
+    );
+    replaceEpisodeInState(refreshed);
+  };
+
+  const handleGenerateEpisodeText = async () => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setGeneratingText(true);
+      const updated = await apiCall<StudioEpisode>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/generate-text`,
+        {
+          method: "POST",
+          body: {
+            userPrompt: generationPrompt.trim() || undefined,
+            minWords: 1200,
+            maxWords: 1500,
+          },
+        }
+      );
+      replaceEpisodeInState(updated);
+      setEpisodeEditorText(updated.storyText || "");
+      setEpisodeEditorSummary(updated.summary || "");
+    } catch {
+      alert("Episodentext konnte nicht generiert werden.");
+    } finally {
+      setGeneratingText(false);
+    }
+  };
+
+  const handleSaveEpisodeText = async (approve: boolean) => {
+    if (!selectedSeriesId || !selectedEpisodeId || !episodeEditorText.trim()) return;
+    try {
+      setSaving(true);
+      setWorkflowError(null);
+      const updated = await apiCall<StudioEpisode>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/text`,
+        {
+          method: "PUT",
+          body: {
+            storyText: episodeEditorText.trim(),
+            summary: episodeEditorSummary.trim() || undefined,
+            approve,
+          },
+        }
+      );
+      replaceEpisodeInState(updated);
+      setEpisodeEditorText(updated.storyText || "");
+      setEpisodeEditorSummary(updated.summary || "");
+      if (approve) {
+        setCombinedEpisodeText("");
+      }
+    } catch {
+      alert("Text konnte nicht gespeichert werden.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const replaceSceneInState = (updated: StudioEpisodeScene) => {
+    setScenes((prev) =>
+      prev
+        .map((scene) => (scene.id === updated.id ? updated : scene))
+        .sort((a, b) => a.sceneOrder - b.sceneOrder)
+    );
+  };
+
+  const updateSceneDraft = (sceneId: string, updates: Partial<StudioEpisodeScene>) => {
+    setScenes((prev) =>
+      prev.map((scene) => (scene.id === sceneId ? { ...scene, ...updates } : scene))
+    );
+  };
+
+  const toggleSceneParticipant = (sceneId: string, characterId: string) => {
+    setScenes((prev) =>
+      prev.map((scene) => {
+        if (scene.id !== sceneId) return scene;
+        const exists = scene.participantCharacterIds.includes(characterId);
+        return {
+          ...scene,
+          participantCharacterIds: exists
+            ? scene.participantCharacterIds.filter((id) => id !== characterId)
+            : [...scene.participantCharacterIds, characterId],
+        };
+      })
+    );
+  };
+
+  const handleSplitScenes = async () => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setSplittingScenes(true);
+      setWorkflowError(null);
+      const result = await apiCall<EpisodeWithScenesResponse>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/split-scenes`,
+        {
+          method: "POST",
+          body: {
+            targetSceneCount: 10,
+            minSceneCount: 10,
+            maxSceneCount: 12,
+            userPrompt: splitPrompt.trim() || undefined,
+          },
+        }
+      );
+      replaceEpisodeInState(result.episode);
+      setScenes(result.scenes || []);
+      setCombinedEpisodeText("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Szenen konnten nicht erstellt werden.";
+      setWorkflowError(message);
+    } finally {
+      setSplittingScenes(false);
+    }
+  };
+
+  const handleSaveScene = async (scene: StudioEpisodeScene) => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setSceneSavingId(scene.id);
+      setWorkflowError(null);
+      const updated = await apiCall<StudioEpisodeScene>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/scenes/${scene.id}`,
+        {
+          method: "PUT",
+          body: {
+            title: scene.title,
+            sceneText: scene.sceneText,
+            imagePrompt: scene.imagePrompt || undefined,
+            participantCharacterIds: scene.participantCharacterIds,
+          },
+        }
+      );
+      replaceSceneInState(updated);
+      await refreshSelectedEpisode();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Szene konnte nicht gespeichert werden.";
+      setWorkflowError(message);
+    } finally {
+      setSceneSavingId(null);
+    }
+  };
+
+  const handleGenerateSceneImage = async (scene: StudioEpisodeScene) => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setSceneGeneratingId(scene.id);
+      setWorkflowError(null);
+      const result = await apiCall<{ episode: StudioEpisode; scene: StudioEpisodeScene }>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/scenes/${scene.id}/generate-image`,
+        {
+          method: "POST",
+          body: {
+            imagePrompt: scene.imagePrompt?.trim() || undefined,
+          },
+        }
+      );
+      replaceEpisodeInState(result.episode);
+      replaceSceneInState(result.scene);
+      if (result.episode.status !== "composed" && result.episode.status !== "published") {
+        setCombinedEpisodeText("");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Bild konnte nicht generiert werden.";
+      setWorkflowError(message);
+    } finally {
+      setSceneGeneratingId(null);
+    }
+  };
+
+  const handleGenerateAllSceneImages = async (forceRegenerate = false) => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setBulkGeneratingImages(true);
+      setWorkflowError(null);
+      const result = await apiCall<EpisodeWithScenesResponse>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/generate-images`,
+        {
+          method: "POST",
+          body: { forceRegenerate },
+        }
+      );
+      replaceEpisodeInState(result.episode);
+      setScenes(result.scenes || []);
+      if (result.episode.status !== "composed" && result.episode.status !== "published") {
+        setCombinedEpisodeText("");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Bilder konnten nicht generiert werden.";
+      setWorkflowError(message);
+    } finally {
+      setBulkGeneratingImages(false);
+    }
+  };
+
+  const handleComposeEpisode = async () => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setComposingEpisode(true);
+      setWorkflowError(null);
+      const result = await apiCall<ComposeEpisodeResponse>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/compose`,
+        { method: "POST" }
+      );
+      replaceEpisodeInState(result.episode);
+      setScenes(result.scenes || []);
+      setCombinedEpisodeText(result.combinedText || "");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Episode konnte nicht zusammengesetzt werden.";
+      setWorkflowError(message);
+    } finally {
+      setComposingEpisode(false);
+    }
+  };
+
+  const handlePublishEpisode = async () => {
+    if (!selectedSeriesId || !selectedEpisodeId) return;
+    try {
+      setPublishingEpisode(true);
+      setWorkflowError(null);
+      const updated = await apiCall<StudioEpisode>(
+        `/story/studio/series/${selectedSeriesId}/episodes/${selectedEpisodeId}/publish`,
+        { method: "POST" }
+      );
+      replaceEpisodeInState(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Episode konnte nicht veroeffentlicht werden.";
+      setWorkflowError(message);
+    } finally {
+      setPublishingEpisode(false);
     }
   };
 
@@ -338,14 +696,398 @@ const TaleaStudioWorkspace: React.FC = () => {
                   ) : (
                     <div className="mt-2 space-y-2">
                       {episodes.map((episode) => (
-                        <div key={episode.id} className="rounded-lg border border-[#d8cbbf] bg-white/60 p-2.5 text-sm dark:border-[#415676] dark:bg-[#1f2c42]">
-                          <p className="font-semibold text-[#243246] dark:text-[#e6edf8]">Folge {episode.episodeNumber}: {episode.title}</p>
-                          <p className="mt-1 text-xs text-[#68788c] dark:text-[#9fb0c7]">{episode.status} - {episode.selectedCharacterIds?.length || 0} Charaktere</p>
-                        </div>
+                        <button
+                          key={episode.id}
+                          type="button"
+                          onClick={() => setSelectedEpisodeId(episode.id)}
+                          className={cn(
+                            "w-full rounded-lg border p-2.5 text-left text-sm",
+                            selectedEpisodeId === episode.id
+                              ? "border-[#a88f80] bg-[#f3e8da] dark:bg-[#2a394f]"
+                              : "border-[#d8cbbf] bg-white/60 dark:border-[#415676] dark:bg-[#1f2c42]"
+                          )}
+                        >
+                          <p className="font-semibold text-[#243246] dark:text-[#e6edf8]">
+                            Folge {episode.episodeNumber}: {episode.title}
+                          </p>
+                          <p className="mt-1 text-xs text-[#68788c] dark:text-[#9fb0c7]">
+                            {episode.status} - {episode.selectedCharacterIds?.length || 0} Charaktere
+                          </p>
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
+              </div>
+
+              {selectedEpisode && (
+                <div className={cn("rounded-xl border p-4", palette.sub)}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {wizardSteps.map((step) => (
+                      <span
+                        key={step.key}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                          step.done
+                            ? "border-[#4f7f78] bg-[#4f7f78] text-white"
+                            : "border-[#cdbda9] text-[#68788c] dark:border-[#4d6382] dark:text-[#9fb0c7]"
+                        )}
+                      >
+                        {step.done ? <Check className="h-3.5 w-3.5" /> : <span className="h-3 w-3 rounded-full border border-current" />}
+                        {step.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {workflowError && (
+                <div className="rounded-xl border border-[#d1a8a8] bg-[#f8e8e8] px-3 py-2 text-sm text-[#873b3b] dark:border-[#7b4949] dark:bg-[#3d2525] dark:text-[#f1c3c3]">
+                  {workflowError}
+                </div>
+              )}
+
+              <div className={cn("rounded-xl border p-4", palette.sub)}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className={cn("text-xl", palette.text)} style={{ fontFamily: headingFont }}>
+                    Episodentext Editor
+                  </h4>
+                  {selectedEpisode && (
+                    <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.muted)}>
+                      Folge {selectedEpisode.episodeNumber} - {selectedEpisode.status}
+                    </p>
+                  )}
+                </div>
+
+                {!selectedEpisode ? (
+                  <p className={cn("mt-2 text-sm", palette.muted)}>
+                    Waehle zuerst eine Folge aus, um den Text zu bearbeiten.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+                      <input
+                        value={generationPrompt}
+                        onChange={(e) => setGenerationPrompt(e.target.value)}
+                        placeholder="Optionaler Zusatzprompt fuer KI-Generierung (z. B. Stimmung, Twist, Stil)"
+                        className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGenerateEpisodeText}
+                        disabled={generatingText || saving}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
+                      >
+                        {generatingText ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        KI generieren (GPT-5.2)
+                      </button>
+                    </div>
+
+                    <p className={cn("text-xs", palette.muted)}>
+                      Du kannst hier auch extern generierten Text direkt einfuegen und spaeter akzeptieren.
+                    </p>
+
+                    <input
+                      value={episodeEditorSummary}
+                      onChange={(e) => setEpisodeEditorSummary(e.target.value)}
+                      placeholder="Kurz-Zusammenfassung der Folge (optional)"
+                      className={cn("h-11 w-full rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                    />
+
+                    <textarea
+                      value={episodeEditorText}
+                      onChange={(e) => setEpisodeEditorText(e.target.value)}
+                      placeholder="Episodentext (1200-1500 Woerter). Hier KI-Text anpassen oder externen Text einfuegen."
+                      rows={16}
+                      className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[#a88f80]", palette.input)}
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEpisodeText(false)}
+                        disabled={saving || generatingText || !episodeEditorText.trim()}
+                        className={cn("inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold", palette.sub, palette.text, "disabled:opacity-50")}
+                      >
+                        <FileText className="h-4 w-4" />
+                        Entwurf speichern
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEpisodeText(true)}
+                        disabled={saving || generatingText || !episodeEditorText.trim()}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
+                      >
+                        <Check className="h-4 w-4" />
+                        Text akzeptieren
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={cn("rounded-xl border p-4", palette.sub)}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className={cn("text-xl", palette.text)} style={{ fontFamily: headingFont }}>
+                    Szenen und Bildprompts
+                  </h4>
+                  {selectedEpisode && (
+                    <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.muted)}>
+                      {scenes.length} Szenen
+                    </p>
+                  )}
+                </div>
+
+                {!selectedEpisode ? (
+                  <p className={cn("mt-2 text-sm", palette.muted)}>
+                    Waehle zuerst eine Folge aus.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+                      <input
+                        value={splitPrompt}
+                        onChange={(event) => setSplitPrompt(event.target.value)}
+                        placeholder="Optional: Hinweise fuer Szenen-Aufteilung und Bildstil"
+                        className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSplitScenes}
+                        disabled={splittingScenes || saving || !episodeEditorText.trim()}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
+                      >
+                        {splittingScenes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+                        KI-Szenen erzeugen
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateAllSceneImages(false)}
+                        disabled={bulkGeneratingImages || splittingScenes || scenes.length === 0}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:opacity-50",
+                          palette.sub,
+                          palette.text
+                        )}
+                      >
+                        {bulkGeneratingImages ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                        Alle fehlenden Bilder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateAllSceneImages(true)}
+                        disabled={bulkGeneratingImages || splittingScenes || scenes.length === 0}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:opacity-50",
+                          palette.sub,
+                          palette.text
+                        )}
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                        Alle neu generieren
+                      </button>
+                    </div>
+
+                    {sceneLoading ? (
+                      <p className={cn("text-sm", palette.muted)}>Lade Szenen...</p>
+                    ) : scenes.length === 0 ? (
+                      <p className={cn("text-sm", palette.muted)}>
+                        Noch keine Szenen vorhanden. Nach "Text akzeptieren" kannst du hier die automatische Aufteilung starten.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {scenes.map((scene) => (
+                          <div key={scene.id} className="rounded-xl border border-[#d8cbbf] bg-white/60 p-3 dark:border-[#415676] dark:bg-[#1f2c42]">
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                              <div className="space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-[#68788c] dark:text-[#9fb0c7]">
+                                    Szene {scene.sceneOrder}
+                                  </p>
+                                  <p className="text-[11px] text-[#68788c] dark:text-[#9fb0c7]">
+                                    {scene.imageUrl ? "Bild vorhanden" : "Noch kein Bild"}
+                                  </p>
+                                </div>
+
+                                <input
+                                  value={scene.title}
+                                  onChange={(event) => updateSceneDraft(scene.id, { title: event.target.value })}
+                                  placeholder="Szenentitel"
+                                  className={cn("h-10 w-full rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                                />
+
+                                <textarea
+                                  value={scene.sceneText}
+                                  onChange={(event) => updateSceneDraft(scene.id, { sceneText: event.target.value })}
+                                  rows={5}
+                                  placeholder="Szeneninhalt"
+                                  className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[#a88f80]", palette.input)}
+                                />
+
+                                <textarea
+                                  value={scene.imagePrompt || ""}
+                                  onChange={(event) => updateSceneDraft(scene.id, { imagePrompt: event.target.value })}
+                                  rows={3}
+                                  placeholder="Bildprompt"
+                                  className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[#a88f80]", palette.input)}
+                                />
+
+                                <div className={cn("rounded-xl border px-3 py-2", palette.input)}>
+                                  <p className={cn("mb-1 text-[11px] font-semibold uppercase tracking-wide", palette.muted)}>
+                                    Teilnehmende Charaktere
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {characters.map((character) => {
+                                      const active = scene.participantCharacterIds.includes(character.id);
+                                      return (
+                                        <button
+                                          key={character.id}
+                                          type="button"
+                                          onClick={() => toggleSceneParticipant(scene.id, character.id)}
+                                          className={cn(
+                                            "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                                            active
+                                              ? "border-[#4f7f78] bg-[#4f7f78] text-white"
+                                              : "border-[#cbbca9] text-[#6d7d8f] dark:border-[#4d6382] dark:text-[#9fb0c7]"
+                                          )}
+                                        >
+                                          {character.name}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveScene(scene)}
+                                    disabled={sceneSavingId === scene.id || sceneGeneratingId === scene.id || bulkGeneratingImages}
+                                    className={cn(
+                                      "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:opacity-50",
+                                      palette.sub,
+                                      palette.text
+                                    )}
+                                  >
+                                    {sceneSavingId === scene.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                                    Szene speichern
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateSceneImage(scene)}
+                                    disabled={sceneGeneratingId === scene.id || sceneSavingId === scene.id || bulkGeneratingImages}
+                                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
+                                  >
+                                    {sceneGeneratingId === scene.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                                    {scene.imageUrl ? "Bild neu generieren" : "Bild generieren"}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="overflow-hidden rounded-xl border border-[#d8cbbf] bg-[#ece2d4] dark:border-[#415676] dark:bg-[#2a3a52]">
+                                {scene.imageUrl ? (
+                                  <img src={scene.imageUrl} alt={scene.title} className="h-full min-h-[180px] w-full object-cover" />
+                                ) : (
+                                  <div className="flex h-full min-h-[180px] w-full items-center justify-center text-[#6d7d8f] dark:text-[#9fb0c7]">
+                                    <ImagePlus className="h-6 w-6" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className={cn("rounded-xl border p-4", palette.sub)}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className={cn("text-xl", palette.text)} style={{ fontFamily: headingFont }}>
+                    Compose und Publish
+                  </h4>
+                  {selectedEpisode && (
+                    <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.muted)}>
+                      Status: {selectedEpisode.status}
+                    </p>
+                  )}
+                </div>
+
+                {!selectedEpisode ? (
+                  <p className={cn("mt-2 text-sm", palette.muted)}>
+                    Waehle zuerst eine Folge aus.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleComposeEpisode}
+                        disabled={composingEpisode || !canCompose}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:opacity-50",
+                          canCompose
+                            ? "border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] text-[#2f3c4f]"
+                            : `${palette.sub} ${palette.text}`
+                        )}
+                      >
+                        {composingEpisode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+                        Episode zusammensetzen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePublishEpisode}
+                        disabled={publishingEpisode || !canPublish}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
+                      >
+                        {publishingEpisode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        Veroeffentlichen
+                      </button>
+                    </div>
+
+                    {selectedEpisode.status === "published" && (
+                      <p className="rounded-xl border border-[#79a58e] bg-[#e6f2ea] px-3 py-2 text-sm text-[#2f5b46] dark:border-[#4f7f68] dark:bg-[#264335] dark:text-[#b6d8c5]">
+                        Diese Folge ist veroeffentlicht.
+                      </p>
+                    )}
+
+                    {(combinedEpisodeText || selectedEpisode.status === "published" || selectedEpisode.status === "composed") && scenes.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-[#d8cbbf] bg-white/60 p-3 text-sm leading-relaxed text-[#2f3c4f] dark:border-[#415676] dark:bg-[#1f2c42] dark:text-[#e6edf8]">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-[#68788c] dark:text-[#9fb0c7]">
+                            Zusammengesetzter Lesetext
+                          </p>
+                          <p className="mt-2 whitespace-pre-wrap">
+                            {combinedEpisodeText ||
+                              scenes
+                                .map((scene) => `Szene ${scene.sceneOrder}: ${scene.title}\n\n${scene.sceneText}`)
+                                .join("\n\n")}
+                          </p>
+                        </div>
+
+                        <div className="space-y-3">
+                          {scenes.map((scene) => (
+                            <article key={scene.id} className="rounded-xl border border-[#d8cbbf] bg-white/60 p-3 dark:border-[#415676] dark:bg-[#1f2c42]">
+                              <h5 className="text-lg font-semibold text-[#243246] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
+                                Szene {scene.sceneOrder}: {scene.title}
+                              </h5>
+                              {scene.imageUrl && (
+                                <img src={scene.imageUrl} alt={scene.title} className="mt-2 max-h-[280px] w-full rounded-lg object-cover" />
+                              )}
+                              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[#425367] dark:text-[#c0cee3]">
+                                {scene.sceneText}
+                              </p>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
