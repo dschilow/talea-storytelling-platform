@@ -294,55 +294,66 @@ function buildChildVoiceContract(childNames: string[], _isGerman: boolean): stri
 // ─── Golden Example & Anti-Patterns ──────────────────────────────────────────
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
-  // Golden example is always in German (shows target output quality for German stories)
-  // Instructions are in English (more efficient for LLM processing)
-  const germanExample = `"""
+  // Two golden examples: Scene 1 = dialogue rhythm, Scene 2 = humor + comic timing + tension
+  // Instructions in English, examples in target language
+
+  const germanExamples = `"""
+SCENE A — Dialogue rhythm, character voice, grounded action:
 Als Mama den Korb auf den Kuechentisch knallte, rutschte der Deckel schief. Plopp.
-
 Adrian war sofort da. „Darf ich—"
-
 „Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
-
 Alexander beugte sich vor. „Ich riech Apfelkuchen."
-
 „Und Tee", sagte Adrian. Er schnupperte extra laut. „Und... Oma."
-
 Mama nickte. „Oma hat Schnupfen. Den grossen." Sie machte eine Handbewegung wie eine Welle. „So einen, bei dem die Gardinen denken: Oh oh."
-
 Adrian grinste. „Oma ist stark."
+„Oma ist LAUT", korrigierte Mama.
 
-„Oma ist LAUT", korrigierte Mama. „Und heute braucht sie euch." Sie zaehlte an den Fingern ab. „Kuchen. Tee. Huehnersuppe. Hauptweg. Keine Experimente."
+SCENE B — Humor through situation, comic timing, surprise:
+Der Wolf lag im Bett. Schlafhaube, Brille, Decke bis zur Nase. Er sah die drei und sein Laecheln starb.
+„Aeh", sagte der Wolf.
+„RAUS", sagte Oma.
+Der Wolf sprang auf. „Ich wollte nur— das Bett war offen— und warm—" Er schniefte. „Und ich hab Schnupfen!"
+„DU hast Schnupfen?", donnerte Oma. „ICH hab Schnupfen! Und ich leg mich nicht in FREMDE Betten!"
+Der Wolf wich zurueck. „Das ist UNFAIR!"
+„Das ist mein Haus", sagte Oma. „Und jetzt zieh meine Brille aus."
+Der Wolf zerrte die Brille ab. Die Schlafhaube hing ihm ueber ein Ohr. Er sah aus wie ein nasser Waschlappen mit Fell.
+Adrian kicherte. Er konnte nicht anders.
 """`;
 
-  const englishExample = `"""
+  const englishExamples = `"""
+SCENE A — Dialogue rhythm, character voice, grounded action:
 Mom slammed the basket onto the kitchen table. The lid slipped sideways. Pop.
-
 Adrian was there instantly. "Can I—"
-
 "No," said Mom. That fast, as if the lid were a crocodile's mouth.
-
 Alexander leaned forward. "I smell apple cake."
-
 "And tea," said Adrian. He sniffed extra loud. "And… Grandma."
-
 Mom nodded. "Grandma has a cold. The big kind." She made a wave motion with her hand. "The kind where the curtains think: Uh oh."
 
-Adrian grinned. "Grandma is tough."
-
-"Grandma is LOUD," Mom corrected. "And today she needs you." She counted on her fingers. "Cake. Tea. Chicken soup. Main path. No experiments."
+SCENE B — Humor through situation, comic timing, surprise:
+The wolf was in bed. Nightcap, glasses, blanket up to his nose. He saw the three of them and his smile died.
+"Uh," said the wolf.
+"OUT," said Grandma.
+The wolf jumped up. "I just wanted— the bed was open— and warm—" He sniffled. "And I have a cold!"
+"YOU have a cold?" Grandma thundered. "I have a cold! And I don't climb into OTHER people's beds!"
+The wolf took a step back. "That's UNFAIR!"
+"That's my house," said Grandma. "And now take off my glasses."
+The wolf tore the glasses off. The nightcap hung over one ear. He looked like a wet washcloth with fur.
+Adrian giggled. He couldn't help it.
 """`;
 
   return `# PROSE QUALITY REFERENCE — write EXACTLY like this
-This is how a professional children's story sounds. Match this style precisely.
-${isGerman ? germanExample : englishExample}
+These are examples of professional children's book prose. Match this style precisely.
+${isGerman ? germanExamples : englishExamples}
 
 KEY QUALITIES you MUST replicate:
 - 40-50% dialogue — dialogue IS the story
-- Action verbs: "slammed", "slipped", "leaned", "sniffed" — NOT atmosphere verbs
-- ONE comparison per scene max ("as if the lid were a crocodile's mouth") — concrete and funny
-- Humor through SITUATION, not through poetic descriptions
-- Short sentences, varied rhythm
-- Children sound like REAL children — short, direct, concrete`;
+- Action verbs: "slammed", "jumped", "tore" — NOT atmosphere verbs like "shimmered", "drifted"
+- ONE comparison per scene max — concrete and FUNNY ("like a wet washcloth with fur")
+- HUMOR through SITUATION and SURPRISE: characters react in unexpected, funny ways
+- Comic timing: short sentence after buildup ("He couldn't help it."), capital letters for emphasis ("RAUS")
+- Characters INTERRUPT each other, argue, correct each other — that creates life
+- Short sentences, varied rhythm: short-short-LONG, then punch
+- Every character has a DISTINCT voice (Grandma: commanding. Wolf: excuses. Adrian: cheeky. Alexander: quiet observer.)`;
 }
 
 function buildAntiPatternBlock(isGerman: boolean): string {
@@ -371,6 +382,8 @@ function buildAntiPatternBlock(isGerman: boolean): string {
 ${badExamples}
 ❌ Paragraphs without dialogue or action → EVERY paragraph needs action or speech
 ❌ Long atmospheric descriptions without anyone doing anything → ACTION first, always
+❌ Mechanical dialogue ("What is that?" "It is X." "Good.") → Dialogue must have WIT, SURPRISE, or CONFLICT
+❌ Characters carrying random props with no plot purpose → Every object must matter to the story
 
 INSTEAD write like this:
 ${goodExamples}
@@ -443,7 +456,10 @@ export function buildFullStoryPrompt(input: {
       memoryTitles.push(`${avatar.displayName}: ${memories.map(m => m.storyTitle).join(", ")}`);
     }
     if (memoryTitles.length > 0) {
-      memorySection = `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n- Add EXACTLY one short reference: "This reminds me of ..." (do not retell).\n`;
+      const memoryInstruction = isGerman
+        ? `- Ein Avatar soll GENAU EINMAL kurz an ein früheres Abenteuer erinnern (z.B. "Das erinnert mich an..."). Nicht nacherzählen, nur ein Satz. Muss auf Deutsch sein.`
+        : `- One avatar should reference an earlier adventure EXACTLY ONCE (e.g. "That reminds me of..."). Do not retell, just one sentence.`;
+      memorySection = `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n${memoryInstruction}\n`;
     }
   }
 
@@ -515,7 +531,15 @@ ${childVoiceContract || "  - No children's voices available"}
 - NO synesthesia (no "light tasted", no "silence smelled like").
 - Action verbs over atmosphere verbs: "slammed", "grabbed", "snapped" instead of "shimmered", "whispered", "drifted".
 - ${humorRule}
-- Humor rule: Use situational comedy and short misunderstandings; never explain jokes.
+- HUMOR TECHNIQUES (use these!):
+  * Characters INTERRUPT each other mid-sentence ("Can I—" "No.")
+  * Characters CORRECT each other with wit ("Grandma is tough." "Grandma is LOUD.")
+  * Unexpected reactions (a wolf who sneezes, a villain who is polite)
+  * Physical comedy: someone stumbles, drops things, gets stuck
+  * Capital letters for comedic emphasis ("RAUS!", "MEIN Bett!")
+  * Deadpan one-liners after chaos ("In my house that's called an allergy.")
+  * NEVER explain why something is funny. Just show it.
+- Every prop/object in the story MUST serve the plot. No random items that characters carry around without purpose.
 - Running gag rule: same onomatopoeia/catchphrase sparingly (max 2x per chapter, max 6x total).
 - By beat 2 at the latest: clear consequence of failure with concrete loss.
 - Beat ${directives.length}: show concrete gain + small price/compromise.

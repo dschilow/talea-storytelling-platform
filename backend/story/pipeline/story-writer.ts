@@ -133,21 +133,10 @@ export class LlmStoryWriter implements StoryWriter {
     const languageGuard = isGerman
       ? "WICHTIG: Antworte ausschließlich auf Deutsch. Keine englischen Wörter oder Sätze."
       : "";
-    const systemPrompt = isGerman
-      ? `Du bist Drehbuchautor fuer Kinderfilme UND Kinderbuchautor (Preussler + Lindgren + Funke). Du denkst in SZENEN: Dialog, Handlung, Reaktion.
-
-Dein Geheimnis: Kinder lesen SELBER weiter, weil in jedem Absatz etwas PASSIERT.
-
-Deine Regeln:
-1. Jeder erste Satz eines Kapitels muss ein Kind mitten ins Geschehen ziehen — durch HANDLUNG, nicht Beschreibung.
-2. Figuren klingen KOMPLETT unterschiedlich — ein Kind erkennt am Satz, WER spricht.
-3. Mindestens 40% Dialog. Die Geschichte wird DURCH Dialog erzaehlt.
-4. Du zeigst Gefuehle durch Koerperaktion und Dialog, NIEMALS durch Erklaerung oder Atmosphaere.
-5. Deine Saetze sind kurz und rhythmisch: kurz-kurz-lang, wie Musik.
-6. Du schreibst bodenstaendig und konkret wie ein Drehbuch: starke Verben, keine Poesie.
-7. VERBOTEN: Natur vermenschlichen ("der Wald fluesterte"), Sinne mischen ("Licht schmeckte"), poetische Metaphern, Absaetze ohne Handlung.
-8. Du schreibst NUR auf Deutsch. Kein einziges englisches Wort.`
-      : `You are a screenwriter for children's films AND children's book author (Dahl + Donaldson + Gaiman). You think in SCENES: dialogue, action, reaction.
+    const storyLanguageRule = isGerman
+      ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
+      : `8. Write the story in ${targetLanguage}.${languageGuard ? `\n${languageGuard}` : ""}`;
+    const systemPrompt = `You are a screenwriter for children's films AND children's book author (${isGerman ? "Preussler + Lindgren + Funke" : "Dahl + Donaldson + Gaiman"}). You think in SCENES: dialogue, action, reaction.
 
 Your secret: Children keep reading because something HAPPENS in every paragraph.
 
@@ -159,10 +148,9 @@ Your rules:
 5. Your sentences are short and rhythmic: short-short-long, like music.
 6. Write grounded and concrete like a screenplay: strong verbs, no poetry.
 7. FORBIDDEN: personifying nature ("the forest whispered"), mixing senses ("light tasted"), poetic metaphors, paragraphs without action.
-8. Write the story in ${targetLanguage}.\n${languageGuard}`.trim();
-    const editSystemPrompt = isGerman
-      ? `Du bist ein erfahrener Kinderbuch-Lektor. Du erweiterst und verfeinerst Kapitel, während du Handlung, Stimme und Kontinuitaet bewahrst. Schreibe ausschliesslich auf Deutsch.`
-      : `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.\n${languageGuard}`.trim();
+${storyLanguageRule}`.trim();
+    const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
+    const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);

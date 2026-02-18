@@ -157,7 +157,7 @@ Avoid generic praise. Return concise JSON exactly as requested.`;
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 1400,
+      maxTokens: 3000,
       reasoningEffort: "low",
       temperature: 0.2,
       context: "story-semantic-critic",
