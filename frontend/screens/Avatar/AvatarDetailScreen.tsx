@@ -487,7 +487,7 @@ const AvatarDetailScreen: React.FC = () => {
               <p className="mb-4 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
                 Klare Uebersicht mit Erklaerungen, Lernpfad und automatischer Aktualisierung nach Story- und Doku-Lesen.
               </p>
-              <PersonalityProgressBoard traits={traitModels} progression={progression} />
+              <PersonalityProgressBoard traits={traitModels} progression={progression} memories={memories} />
             </div>
 
             {progression?.topKnowledgeDomains?.length ? (
