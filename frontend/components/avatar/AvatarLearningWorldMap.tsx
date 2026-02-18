@@ -54,31 +54,39 @@ interface PathPoint {
 
 const MAP_TILE_HEIGHT = 3072;
 const ROAD_POINTS: PathPoint[] = [
-  { y: 0, x: 65.43 },
-  { y: 0.0417, x: 39.35 },
-  { y: 0.0833, x: 49.22 },
-  { y: 0.125, x: 69.58 },
-  { y: 0.1667, x: 33.01 },
-  { y: 0.2083, x: 61.84 },
-  { y: 0.25, x: 40.43 },
-  { y: 0.2917, x: 41.47 },
-  { y: 0.3333, x: 58.25 },
-  { y: 0.375, x: 51.08 },
-  { y: 0.4167, x: 44.08 },
-  { y: 0.4583, x: 64.0 },
-  { y: 0.5, x: 47.97 },
-  { y: 0.5417, x: 34.93 },
-  { y: 0.5833, x: 63.76 },
-  { y: 0.625, x: 47.25 },
-  { y: 0.6667, x: 34.57 },
-  { y: 0.7083, x: 61.15 },
-  { y: 0.75, x: 43.1 },
-  { y: 0.7917, x: 35.42 },
-  { y: 0.8333, x: 61.96 },
-  { y: 0.875, x: 58.73 },
-  { y: 0.9167, x: 38.93 },
-  { y: 0.9583, x: 45.45 },
-  { y: 1, x: 65.43 },
+  { y: 0, x: 65.5 },
+  { y: 0.0313, x: 49.7 },
+  { y: 0.0625, x: 52.1 },
+  { y: 0.0938, x: 54.99 },
+  { y: 0.125, x: 63.22 },
+  { y: 0.1563, x: 40.2 },
+  { y: 0.1875, x: 36.54 },
+  { y: 0.2188, x: 63.76 },
+  { y: 0.25, x: 55.35 },
+  { y: 0.2813, x: 32.33 },
+  { y: 0.3125, x: 46.03 },
+  { y: 0.3438, x: 45.61 },
+  { y: 0.375, x: 51.32 },
+  { y: 0.4063, x: 32.51 },
+  { y: 0.4375, x: 50.0 },
+  { y: 0.4688, x: 65.69 },
+  { y: 0.5, x: 48.02 },
+  { y: 0.5313, x: 32.63 },
+  { y: 0.5625, x: 50.12 },
+  { y: 0.5938, x: 65.14 },
+  { y: 0.625, x: 51.74 },
+  { y: 0.6563, x: 32.63 },
+  { y: 0.6875, x: 48.62 },
+  { y: 0.7188, x: 65.5 },
+  { y: 0.75, x: 65.5 },
+  { y: 0.7813, x: 32.93 },
+  { y: 0.8125, x: 48.32 },
+  { y: 0.8438, x: 34.74 },
+  { y: 0.875, x: 58.95 },
+  { y: 0.9063, x: 36.72 },
+  { y: 0.9375, x: 36.72 },
+  { y: 0.9688, x: 54.57 },
+  { y: 1, x: 65.5 },
 ];
 const BRANCH_OFFSETS = [-15, 15, -12, 12, -16, 16];
 
@@ -419,7 +427,7 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
   }, [nodes, selectedNodeId]);
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0];
-  const mapHeight = (nodes[nodes.length - 1]?.y || 180) + 260;
+  const mapHeight = Math.max((nodes[nodes.length - 1]?.y || 180) + 260, MAP_TILE_HEIGHT * 2);
   const roadPath = buildPathForHeight(mapHeight);
 
   return (
@@ -455,44 +463,55 @@ export const AvatarLearningWorldMap: React.FC<AvatarLearningWorldMapProps> = ({
         className="relative h-[74vh] min-h-[520px] overflow-y-auto rounded-3xl border"
         style={{
           borderColor: isDark ? '#365069' : '#d3c4b2',
-          backgroundImage: "url('/assets/lernpfad_high.jpg')",
-          backgroundRepeat: 'repeat-y',
-          backgroundSize: `100% ${MAP_TILE_HEIGHT}px`,
-          backgroundPosition: 'center top',
           backgroundColor: isDark ? '#1a2a3f' : '#edf2df',
-          filter: isDark ? 'saturate(0.72) brightness(0.78)' : 'none',
         }}
       >
-        {!reduceMotion && (
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <motion.div
-                key={`spark-${index}`}
-                className="absolute rounded-full"
-                style={{
-                  width: `${5 + (index % 3) * 2}px`,
-                  height: `${5 + (index % 3) * 2}px`,
-                  left: `${8 + ((index * 11) % 80)}%`,
-                  top: `${7 + ((index * 9) % 88)}%`,
-                  background: isDark ? 'rgba(180,220,255,0.28)' : 'rgba(150,199,255,0.3)',
-                  boxShadow: isDark ? '0 0 12px rgba(166,211,255,0.3)' : '0 0 10px rgba(126,173,225,0.24)',
-                }}
-                animate={{ y: [0, -16, 0], opacity: [0.14, 0.32, 0.14] }}
-                transition={{ duration: 3.4 + index * 0.26, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            ))}
-          </div>
-        )}
-
         <div className="relative" style={{ height: `${mapHeight}px` }}>
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage: "url('/assets/lernpfad_high.jpg')",
+              backgroundRepeat: 'repeat-y',
+              backgroundSize: `100% ${MAP_TILE_HEIGHT}px`,
+              backgroundPosition: 'center top',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: isDark ? 'rgba(13,22,35,0.42)' : 'rgba(255,255,255,0.02)',
+            }}
+          />
+
+          {!reduceMotion && (
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              {Array.from({ length: 14 }).map((_, index) => (
+                <motion.div
+                  key={`spark-${index}`}
+                  className="absolute rounded-full"
+                  style={{
+                    width: `${5 + (index % 3) * 2}px`,
+                    height: `${5 + (index % 3) * 2}px`,
+                    left: `${8 + ((index * 11) % 80)}%`,
+                    top: `${2 + ((index * 9) % 96)}%`,
+                    background: isDark ? 'rgba(180,220,255,0.28)' : 'rgba(150,199,255,0.3)',
+                    boxShadow: isDark ? '0 0 12px rgba(166,211,255,0.3)' : '0 0 10px rgba(126,173,225,0.24)',
+                  }}
+                  animate={{ y: [0, -16, 0], opacity: [0.14, 0.32, 0.14] }}
+                  transition={{ duration: 3.4 + index * 0.26, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              ))}
+            </div>
+          )}
+
           <svg className="pointer-events-none absolute left-0 top-0 w-full" height={mapHeight} viewBox={`0 0 100 ${mapHeight}`} preserveAspectRatio="none">
             <motion.path
               d={roadPath}
-              stroke={isDark ? 'rgba(150,198,255,0.82)' : 'rgba(124,174,235,0.84)'}
-              strokeWidth={2.2}
+              stroke={isDark ? 'rgba(154,198,245,0.56)' : 'rgba(120,164,220,0.52)'}
+              strokeWidth={1.8}
               fill="none"
               strokeLinecap="round"
-              strokeDasharray="12 11"
+              strokeDasharray="10 11"
               animate={reduceMotion ? undefined : { strokeDashoffset: [0, -88] }}
               transition={reduceMotion ? undefined : { duration: 3.6, repeat: Infinity, ease: 'linear' }}
             />
