@@ -384,7 +384,11 @@ META-NARRATION (VERBOTEN):
 LEHRSAETZE IM DIALOG (VERBOTEN):
 - "Wir haben gelernt, zusammen zu handeln" / "Das Amulett gibt Halt, nicht Macht"
 REPORT-STIL (VERBOTEN):
-- "Sie gingen. Sie machten. Sie legten. Sie nickten." (= Roboter-Prosa)`
+- "Sie gingen. Sie machten. Sie legten. Sie nickten." (= Roboter-Prosa)
+WORT-WIEDERHOLUNGEN & FUELLWOERTER (STRENG VERBOTEN):
+- "ploetzlich", "auf einmal", "dann", "nun", "jetzt", "schliesslich" – komplett vermeiden!
+VERGLEICHS-OVERLOAD & METAPHERN (VERBOTEN):
+- Max 1 winziger, konkreter Vergleich pro Kapitel. Keine Metaphern-Ketten oder abstrakten Bilder.`
     : `PERSONIFICATION (FORBIDDEN):
 - "The forest whispered" / "Water giggled in the well" / "Wind chimes sounded nervous"
 ATMOSPHERE FILLER (FORBIDDEN):
@@ -395,7 +399,11 @@ META-NARRATION (FORBIDDEN):
 TEACHING SENTENCES IN DIALOGUE (FORBIDDEN):
 - "We learned to work together" / "The amulet gives support, not power"
 REPORT STYLE (FORBIDDEN):
-- "They went. They did. They placed. They nodded." (= robot prose)`;
+- "They went. They did. They placed. They nodded." (= robot prose)
+FILLER WORDS & REPETITION (STRICTLY FORBIDDEN):
+- "suddenly", "all at once", "then", "now", "finally" – avoid completely!
+METAPHOR OVERLOAD (FORBIDDEN):
+- Max 1 short comparison per chapter. No chains of metaphors or abstract imagery.`;
 
   return `# FORBIDDEN PATTERNS
 ${badExamples}`;
@@ -566,8 +574,8 @@ ${antiPatterns}
 HARD RULES:
 1) Language: ONLY ${outputLang}.${umlautRule}
 2) Output: valid JSON only, no extra text.
-3) Length: ${totalWordMin}-${totalWordMax} words. ${directives.length} chapters, each ~${wordsPerChapter.min}-${wordsPerChapter.max} words.
-4) Cast lock: Only ${allowedNames.join(", ")}. No new characters.
+3) Length: ${totalWordMin}-${totalWordMax} words total. ${directives.length} chapters, each ~${wordsPerChapter.min}-${wordsPerChapter.max} words.
+4) Cast lock: EXPLICITLY ONLY ${allowedNames.join(", ")}. Do NOT invent new characters or names. Do NOT treat objects (e.g., backpacks, hats, sleeves) as named entities.
 5) Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}).
 6) Child-safe: ${safetyRule}
 7) Artifact "${artifactName || "artifact"}" (${artifactRule}). Arc: Discover -> Misdirection -> clever use (never solves alone).
@@ -582,7 +590,10 @@ ${childVoiceContract || "  - Characters need different speech patterns"}
 - Max 1 comparison per chapter (funny/surprising, NOT poetic).
 - Strong action verbs ("knallte", "riss", "packte"), NOT atmosphere verbs ("schimmerte", "wehte").
 - Show emotions through BEHAVIOR + DIALOGUE, not labels ("er war nervoes").
-- By beat 2: clear consequence if they fail. Beat ${directives.length}: concrete gain + small price, warm close.
+- NARRATIVE ARC REQUIRED: Follow this strict pacing structure:
+  * Beat 1-2: Establish EXPLICIT STAKES (show concretely what goes wrong if they fail).
+  * Beat 3-4: Include a clear LOW POINT (a real setback or moment of doubt where all seems lost) and an active Error-Correction by the children.
+  * Beat ${directives.length}: End with a concrete gain, a small tangible price/compromise, and a WARM anchor (e.g. feeling safe, going home).
 - Humor: interruption + surprise + physical comedy. Never explain jokes.
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `STYLE PACK:\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
@@ -680,8 +691,8 @@ STYLE TARGET:
 - FORBIDDEN: atmosphere-only sentences without action ("Es roch nach feuchtem Holz", "Der Wind trug...", "Windspiele klangen nervös"). Every sentence needs a character doing or saying something.
 - FORBIDDEN: personifying nature/objects ("Wasser kicherte", "der Wald flüsterte", "die Stille seufzte").
 - FORBIDDEN: teaching sentences in dialogue ("Wir haben gelernt...", "Das bedeutet...", "Die Lektion ist...").
-- Keep escalation visible; chapter 3/4 needs a real setback.
-- Ending: concrete gain + small price/compromise, warm closure.
+- Keep escalation visible: establish EXPLICIT STAKES in chapter 1/2, chapter 3/4 MUST contain a real LOW POINT (setback/doubt).
+- Ending: concrete gain + small tangible price/compromise, WARM closure (feeling safe/together).
 ${humorRewriteLine}
 
 GOOD EXAMPLE (3 lines):
@@ -1041,7 +1052,7 @@ export function buildStoryTitlePrompt(input: { storyText: string; language: stri
   return `${isGerman ? "Du bist ein preisgekrÃ¶nter Kinderbuch-Verleger" : "You are an award-winning children's book publisher"}.
 
 ${isGerman
-  ? `# Aufgabe
+      ? `# Aufgabe
 Erfinde einen MAGISCHEN Buchtitel (max 6 WÃ¶rter) und einen packenden Teaser-Satz fÃ¼r diese Kindergeschichte.
 
 # Regeln fÃ¼r gute Kinderbuch-Titel
@@ -1061,7 +1072,7 @@ Der Teaser-Satz soll eine FRAGE im Kopf des Kindes wecken.
 âŒ SCHLECHT: "Drei Kinder finden ein Amulett und retten die Stadt."
 âœ… GUT: "Wer flÃ¼stert nachts hinter den MarktstÃ¤nden â€“ und warum hat der Wind aufgehÃ¶rt zu singen?"`
 
-  : `# Task
+      : `# Task
 Create a MAGICAL book title (max 6 words) and a gripping teaser sentence for this children's story.
 
 # Rules for great titles

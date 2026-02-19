@@ -25,7 +25,7 @@ const MAX_REWRITE_PASSES = 2;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
-const HARD_MIN_CHAPTER_WORDS = 150;
+const HARD_MIN_CHAPTER_WORDS = 230;
 
 // Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
 const REWRITE_ONLY_ON_ERRORS = true;
@@ -252,10 +252,10 @@ ${storyLanguageRule}`.trim();
     const lengthTargets = normalizedRequest.wordBudget
       ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
       : resolveLengthTargets({
-          lengthHint: normalizedRequest.lengthHint,
-          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-          pacing: normalizedRequest.rawConfig?.pacing,
-        });
+        lengthHint: normalizedRequest.lengthHint,
+        ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+        pacing: normalizedRequest.rawConfig?.pacing,
+      });
 
     const totalWordTarget = normalizedRequest.wordBudget?.targetWords ?? (lengthTargets.wordMin + lengthTargets.wordMax) / 2 * directives.length;
     const totalWordMin = normalizedRequest.wordBudget?.minWords ?? lengthTargets.wordMin * directives.length;
