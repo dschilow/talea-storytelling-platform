@@ -153,10 +153,10 @@ function getSpeciesLabel(species: string, isGerman: boolean): string {
 }
 
 /**
- * Gibt berufsspezifische FÃ¤higkeiten basierend auf Archetype zurÃ¼ck
+ * Returns profession-specific abilities based on Archetype
  */
 function getArchetypeAbility(archetype: string, species: string, isGerman: boolean): string {
-  // Spezies-basierte FÃ¤higkeiten haben Vorrang
+  // Species-based abilities take precedence
   const speciesAbilities: Record<string, string> = {
     "human_baker": isGerman
       ? "backen, Teig kneten, mit Essen trÃ¶sten"
@@ -532,15 +532,26 @@ export function buildFullStoryPrompt(input: {
 
 RULES:
 1) ONLY ${outputLang}.${umlautRule} Valid JSON only.
-2) ${totalWordMin}-${totalWordMax} words. ${directives.length} chapters, each ~${wordsPerChapter.min}-${wordsPerChapter.max} words.
-3) Cast lock: ${allowedNames.join(", ")}. No new characters. Max ${focusMaxActive} per beat.
+2) ${totalWordMin}-${totalWordMax} words. ${directives.length} chapters, each MUST BE AT LEAST ${wordsPerChapter.min} words (target ${wordsPerChapter.max}). 
+   -> HOW TO REACH LENGTH: Do not summarize! Dramatize scenes using the Scene-Sequel rhythm: Goal -> Conflict -> Disaster -> Reaction -> Decision. Show the characters struggling, talking, and reacting.
+3) Cast lock: ${allowedNames.join(", ")}. No new characters. Max ${focusMaxActive} per beat. All characters on stage MUST have an active role. 
+   -> CRITICAL: Do NOT treat body parts or objects (e.g., "Adrians Beine", "Alexanders Gürtel") as named entities or characters.
 4) Child-safe: ${safetyRule}
 5) No personification, no synesthesia, no atmosphere-only sentences, no meta-narration, no teaching sentences.
-6) ${humorRule}
+6) BANNED WORDS: "plötzlich", "auf einmal", "dann", "nun", "jetzt", "schließlich". Do NOT use them.
+7) Smooth scene transitions. No abrupt shifts between chapters.
+8) ${humorRule}
 
-STYLE: Tone ${targetTone}. 25-35% dialogue. Short sentences (6-12 words). Distinct character voices.
-FORBIDDEN: "Es roch nach...", "Der Wind trug...", "Wir haben gelernt...", report-chains, formula emotions.
-Beat ${directives.length}: concrete gain + small price, warm close.
+STYLE & PACING (10.0 QUALITY):
+- Tone ${targetTone}. 25-35% dialogue. Short sentences (6-12 words). Max 14 words per sentence. Vary rhythm (short-short-long). Distinct character voices.
+- Show, Don't Tell: Dramatize the action. Don't say "they were scared", show them trembling or hiding.
+- FORBIDDEN: "Es roch nach...", "Der Wind trug...", "Wir haben gelernt...", report-chains, formula emotions, metaphor overload (max 1 per chapter).
+
+NARRATIVE ARC (STRICT PACING STRUCTURE):
+* Beat 1-2 (Setup & Stakes): Establish EXPLICIT STAKES. Show concretely what goes wrong if they fail.
+* Beat 3-4 (The Struggle): Include a clear LOW POINT (a real setback where all seems lost) and an active Error-Correction by the children (wrong decision -> active correction).
+* Beat ${directives.length} (Resolution): End with a concrete gain, a small tangible price/compromise, and a WARM anchor (e.g. feeling safe, going home). The ending MUST pick up the initial goal.
+
 ${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
 ${characterProfiles.join("\n")}
 ${memorySection}${artifactName ? `\n# Artifact Arc\n- ${artifactName}: ${artifactRule}\n- Arc required: Discover -> Misdirection -> clever use by the children.\n` : ""}
@@ -550,7 +561,7 @@ ${beatLines}
 # OUTPUT FORMAT
 {
   "title": "${titleHint}",
-  "description": "${isGerman ? "Ein Teaser-Satz als Frage oder kleines Raetsel" : "A teaser sentence as question or small riddle"}",
+  "description": "A teaser sentence as a question or small riddle",
   "chapters": [
     { "chapter": 1, "text": "..." }
   ]
@@ -560,37 +571,43 @@ ${beatLines}
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  return `YOU ARE: Children's book prose author (Preussler + Lindgren + Funke).
-GOAL: Children (${ageRange.min}-${ageRange.max}) keep reading because something CONCRETE happens every paragraph.
+  return `YOU ARE: Master Children's Book Author (Preussler + Lindgren + Funke).
+GOAL: Write a captivating story for ages ${ageRange.min}-${ageRange.max} where every paragraph drives the plot forward.
 
 ${goldenExample}
 
 ${antiPatterns}
 
-HARD RULES:
+# CRITICAL CONSTRAINTS (FAILING THESE RUINS THE STORY)
 1) Language: ONLY ${outputLang}.${umlautRule}
 2) Output: valid JSON only, no extra text.
-3) Length: ${totalWordMin}-${totalWordMax} words total. ${directives.length} chapters, each ~${wordsPerChapter.min}-${wordsPerChapter.max} words.
-4) Cast lock: EXPLICITLY ONLY ${allowedNames.join(", ")}. Do NOT invent new characters or names. Do NOT treat objects (e.g., backpacks, hats, sleeves) as named entities.
-5) Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}).
+3) Length: ${totalWordMin}-${totalWordMax} words total. ${directives.length} chapters, each MUST BE AT LEAST ${wordsPerChapter.min} words (target ${wordsPerChapter.max}). 
+   -> HOW TO REACH LENGTH: Do not summarize! Dramatize scenes using the Scene-Sequel rhythm: Goal -> Conflict -> Disaster -> Reaction -> Decision. Show the characters struggling, talking, and reacting.
+4) Cast lock: EXPLICITLY ONLY ${allowedNames.join(", ")}. Do NOT invent new characters. 
+   -> CRITICAL: Do NOT treat body parts or objects (e.g., "Adrians Beine", "Alexanders Gürtel") as named entities or characters.
+5) Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}). All characters on stage MUST have an active role (action or dialogue). No passive observers.
 6) Child-safe: ${safetyRule}
 7) Artifact "${artifactName || "artifact"}" (${artifactRule}). Arc: Discover -> Misdirection -> clever use (never solves alone).
 8) No deus ex machina. Solution from courage + teamwork + smart decision.
+9) BANNED WORDS: "plötzlich", "auf einmal", "dann", "nun", "jetzt", "schließlich". Do NOT use them.
+10) Smooth scene transitions. No abrupt shifts between chapters.
 
-STYLE:
+# PROSE STYLE & PACING (10.0 QUALITY)
 - Tone: ${targetTone}. ${humorRule}
-- 25-35% dialogue. Dialogue sharpens conflict. After 1-3 lines, ground with action beat.
-- Short sentences (6-12 words), occasionally longer for swing. Vary rhythm.
-- Each character has DISTINCT voice:
+- Show, Don't Tell: Dramatize the action. Don't say "they were scared", show them trembling or hiding.
+- Dialogue: 25-35% dialogue. Dialogue sharpens conflict. After 1-3 lines, ground with an action beat.
+- Sentences: Short and punchy (6-12 words). Max 14 words per sentence. Vary rhythm (short-short-long).
+- Verbs: Use strong action verbs ("knallte", "riss", "packte"), NOT atmosphere verbs ("schimmerte", "wehte").
+- Imagery: Max 1 comparison/metaphor per chapter (funny/surprising, NOT poetic). NO metaphor overload.
+- Each character has a DISTINCT voice:
 ${childVoiceContract || "  - Characters need different speech patterns"}
-- Max 1 comparison per chapter (funny/surprising, NOT poetic).
-- Strong action verbs ("knallte", "riss", "packte"), NOT atmosphere verbs ("schimmerte", "wehte").
-- Show emotions through BEHAVIOR + DIALOGUE, not labels ("er war nervoes").
-- NARRATIVE ARC REQUIRED: Follow this strict pacing structure:
-  * Beat 1-2: Establish EXPLICIT STAKES (show concretely what goes wrong if they fail).
-  * Beat 3-4: Include a clear LOW POINT (a real setback or moment of doubt where all seems lost) and an active Error-Correction by the children.
-  * Beat ${directives.length}: End with a concrete gain, a small tangible price/compromise, and a WARM anchor (e.g. feeling safe, going home).
-- Humor: interruption + surprise + physical comedy. Never explain jokes.
+
+# NARRATIVE ARC (STRICT PACING STRUCTURE)
+* Beat 1-2 (Setup & Stakes): Establish EXPLICIT STAKES. Show concretely what goes wrong if they fail.
+* Beat 3-4 (The Struggle): Include a clear LOW POINT (a real setback where all seems lost) and an active Error-Correction by the children (wrong decision -> active correction).
+* Beat ${directives.length} (Resolution): End with a concrete gain, a small tangible price/compromise, and a WARM anchor (e.g. feeling safe, going home). The ending MUST pick up the initial goal.
+* Humor: Interruption + surprise + physical comedy. Never explain jokes. MUST include at least 2 humorous moments.
+
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `STYLE PACK:\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
 ${characterProfiles.join("\n\n")}
@@ -601,7 +618,7 @@ ${beatLines}
 # OUTPUT FORMAT
 {
   "title": "${titleHint}",
-  "description": "${isGerman ? "Ein Teaser-Satz als Frage oder kleines Raetsel" : "A teaser sentence as question or small riddle"}",
+  "description": "A teaser sentence as a question or small riddle",
   "chapters": [
     { "chapter": 1, "text": "..." }
   ]
@@ -669,11 +686,12 @@ ${qualityIssues || "- Improve prose quality, voice separation, pacing, and natur
 HARD RULES:
 1) Language: ONLY ${outputLang}.${umlautRule}
 2) Audience: ${ageRange.min}-${ageRange.max}. Child-safe wording.
-3) Cast lock: only these names: ${allowedNames || "(none)"}.
-4) Structure: exactly ${directives.length} chapters, same order.
-5) Length: ${totalWordMin}-${totalWordMax} words total; chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}.
-6) No new characters, no headings in prose, no instruction/meta text.
+3) Cast lock: only these names: ${allowedNames || "(none)"}. Do NOT treat body parts or objects as named entities.
+4) Structure: exactly ${directives.length} chapters, same order. Smooth scene transitions.
+5) Length: ${totalWordMin}-${totalWordMax} words total; chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}. Expand scenes with concrete actions and dialogue if too short.
+6) No new characters, no headings in prose, no instruction/meta text. All characters on stage MUST have an active role.
 ${artifactName ? `7) Artifact "${artifactName}" remains relevant but never solves alone.` : ""}
+8) BANNED WORDS: "plötzlich", "auf einmal", "dann", "nun", "jetzt", "schließlich". Do NOT use them.
 ${avatarRule || ""}
 
 STYLE TARGET:
@@ -682,13 +700,15 @@ STYLE TARGET:
 - Distinct character voices (wording + rhythm), avoid repeated speaker formulas.
 - Show emotions via action + dialogue, not diagnostic labels.
 - Normal prose paragraphs (mostly 2-4 sentences), no one-sentence chains.
+- Short sentences (6-12 words). Max 14 words per sentence. Vary rhythm (short-short-long).
 - No report style chains ("Sie gingen. Sie machten ...").
 - No meta lines ("Die Szene endete", "The scene ended", preview/summary labels).
 - FORBIDDEN: atmosphere-only sentences without action ("Es roch nach feuchtem Holz", "Der Wind trug...", "Windspiele klangen nervös"). Every sentence needs a character doing or saying something.
 - FORBIDDEN: personifying nature/objects ("Wasser kicherte", "der Wald flüsterte", "die Stille seufzte").
 - FORBIDDEN: teaching sentences in dialogue ("Wir haben gelernt...", "Das bedeutet...", "Die Lektion ist...").
-- Keep escalation visible: establish EXPLICIT STAKES in chapter 1/2, chapter 3/4 MUST contain a real LOW POINT (setback/doubt).
-- Ending: concrete gain + small tangible price/compromise, WARM closure (feeling safe/together).
+- FORBIDDEN: metaphor overload. Max 1 comparison/metaphor per chapter.
+- Keep escalation visible: establish EXPLICIT STAKES in chapter 1/2, chapter 3/4 MUST contain a real LOW POINT (setback/doubt) and an active Error-Correction by the children.
+- Ending: concrete gain + small tangible price/compromise, WARM closure (feeling safe/together). The ending MUST pick up the initial goal.
 ${humorRewriteLine}
 
 GOOD EXAMPLE (3 lines):

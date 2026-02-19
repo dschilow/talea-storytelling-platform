@@ -172,7 +172,7 @@ export class LlmStoryWriter implements StoryWriter {
     const isGerman = normalizedRequest.language === "de";
     const targetLanguage = isGerman ? "German" : normalizedRequest.language;
     const languageGuard = isGerman
-      ? "WICHTIG: Antworte ausschließlich auf Deutsch. Keine englischen Wörter oder Sätze."
+      ? "IMPORTANT: Output MUST be exclusively in German. Answer with German text."
       : "";
     const storyLanguageRule = isGerman
       ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
