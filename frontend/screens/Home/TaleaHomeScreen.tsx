@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import TaleaJourneyCard from '../Journey/TaleaJourneyCard';
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
   Card,
@@ -674,6 +675,10 @@ const TaleaHomeScreen: React.FC = () => {
                       Doku schreiben
                     </button>
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <TaleaJourneyCard isDark={resolvedTheme === 'dark'} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

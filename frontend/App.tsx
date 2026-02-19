@@ -38,6 +38,7 @@ import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
 import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
+import TaleaLearningPathMapView from './screens/Journey/TaleaLearningPathMapView';
 import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
@@ -188,6 +189,7 @@ const RouterContent = () => {
               <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
               <Route path="/auth" element={<Navigate to="/" replace />} />
               <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="/map" element={<TaleaLearningPathMapView />} />
               <Route path="/_admin" element={<AdminOnlyRoute><AdminDashboard /></AdminOnlyRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
