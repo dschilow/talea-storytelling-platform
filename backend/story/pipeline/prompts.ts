@@ -409,8 +409,10 @@ METAPHOR OVERLOAD (FORBIDDEN):
 ${badExamples}`;
 }
 
-// --- Optimized Full Story Prompt (V4) -----------------------------------------
-// Compact and robust, with dynamic character properties from DB + compact style examples
+// --- Optimized Full Story Prompt (V5 for Gemini Flash) -----------------------------------------
+// Specialized for high-context models. Enforces a "Strategy/Planning" step inside the JSON
+// to ensure pacing, length, and emotional arcs are calculated BEFORE prose generation.
+
 export function buildFullStoryPrompt(input: {
   directives: SceneDirective[];
   cast: CastSet;
@@ -461,7 +463,6 @@ export function buildFullStoryPrompt(input: {
   const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
-  const focusGlobalMax = ageRange.max <= 8 ? 4 : 6;
 
   const avatarRule = focusChildNames.length >= 2
     ? `- Avatar requirement: ${focusChildNames.join(" and ")} are equal protagonists and must be active in EVERY beat (each beat: at least one action + one dialogue line per child).`
@@ -487,7 +488,7 @@ export function buildFullStoryPrompt(input: {
       const memoryInstruction = isCompactPrompt
         ? `- One avatar references one earlier adventure exactly once (one short sentence).`
         : `- One avatar should reference an earlier adventure EXACTLY ONCE (e.g. "That reminds me of..."). Do not retell, just one sentence.`;
-      memorySection = `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n${memoryInstruction}\n`;
+      memorySection = `\n::: EARLIER ADVENTURES :::\n${memoryTitles.join("\n")}\n${memoryInstruction}\n`;
     }
   }
 
@@ -503,124 +504,88 @@ export function buildFullStoryPrompt(input: {
     const artifactTag = artifactName && directive.artifactUsage && !directive.artifactUsage.toLowerCase().includes("nicht")
       ? ` [${artifactName}]`
       : "";
-    const settingMax = isCompactPrompt ? 28 : 44;
-    const goalMax = isCompactPrompt ? 58 : 82;
-    const conflictMax = isCompactPrompt ? 58 : 82;
-    const outcomeMax = isCompactPrompt ? 42 : 64;
+    // Increased context limits for beats to ensure model gets full detail
+    const settingMax = 60;
+    const goalMax = 120;
+    const conflictMax = 120;
+    const outcomeMax = 80;
 
-    return `${idx + 1}) Setting: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}. Goal: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}. Conflict: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}. Characters: ${uniqueCast.join(", ") || "none"}. Trigger: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? ` Hint: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 50)}` : ""}`;
+    return `CHAPTER ${idx + 1}:\n   Setting: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}\n   Goal: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}\n   Conflict: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}\n   Characters: ${uniqueCast.join(", ") || "none"}\n   End Trigger: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? `\n   Hint: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 60)}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
 
-  const titleHint = "Max 6 words, curiosity-driven, avoid 'object and person' pattern.";
+  const titleHint = "Max 6 words, curiosity-driven, avoid 'object and person' pattern (e.g. avoid 'Tom and the Stone').";
 
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRule = humorTarget >= 3
-    ? "High humor target: at least 3 clear child-friendly laugh moments (dialogue wit, situational comedy, harmless mishap)."
+    ? "Humor: HIGH. Needs 3+ laugh moments (slapstick, misunderstanding, witty comeback)."
     : humorTarget >= 2
-      ? "Medium humor target: at least 2 clear child-friendly laugh moments."
+      ? "Humor: MEDIUM. Needs 2+ laugh moments suitable for children."
       : humorTarget >= 1
-        ? "Light humor target: at least 1 child-friendly humorous beat."
-        : "Humor optional: no forced jokes.";
+        ? "Humor: LIGHT. One smile moment."
+        : "Humor: Optional.";
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (Ã¤, Ã¶, Ã¼, ÃŸ), never ASCII substitutes like ae/oe/ue. No English words in the story text." : "";
-
-  if (isCompactPrompt) {
-    return `TASK: Write one children's story in JSON for ages ${ageRange.min}-${ageRange.max}.
-
-RULES:
-1) ONLY ${outputLang}.${umlautRule} Valid JSON only.
-2) ${totalWordMin}-${totalWordMax} words. ${directives.length} chapters, each MUST BE AT LEAST ${wordsPerChapter.min} words (target ${wordsPerChapter.max}). 
-   -> HOW TO REACH LENGTH: Do not summarize! Dramatize scenes using the Scene-Sequel rhythm: Goal -> Conflict -> Disaster -> Reaction -> Decision. Show the characters struggling, talking, and reacting.
-3) Cast lock: ${allowedNames.join(", ")}. No new characters. Max ${focusMaxActive} per beat. All characters on stage MUST have an active role. 
-   -> CRITICAL: Do NOT treat body parts or objects (e.g., "Adrians Beine", "Alexanders Gürtel") as named entities or characters.
-4) Child-safe: ${safetyRule}
-5) No personification, no synesthesia, no atmosphere-only sentences, no meta-narration, no teaching sentences.
-6) BANNED WORDS: "plötzlich", "auf einmal", "dann", "nun", "jetzt", "schließlich". Do NOT use them.
-7) Smooth scene transitions. No abrupt shifts between chapters.
-8) ${humorRule}
-
-STYLE & PACING (10.0 QUALITY):
-- Tone ${targetTone}. 25-35% dialogue. Short sentences (6-12 words). Max 14 words per sentence. Vary rhythm (short-short-long). Distinct character voices.
-- Show, Don't Tell: Dramatize the action. Don't say "they were scared", show them trembling or hiding.
-- FORBIDDEN: "Es roch nach...", "Der Wind trug...", "Wir haben gelernt...", report-chains, formula emotions, metaphor overload (max 1 per chapter).
-
-NARRATIVE ARC (STRICT PACING STRUCTURE):
-* Beat 1-2 (Setup & Stakes): Establish EXPLICIT STAKES. Show concretely what goes wrong if they fail.
-* Beat 3-4 (The Struggle): Include a clear LOW POINT (a real setback where all seems lost) and an active Error-Correction by the children (wrong decision -> active correction).
-* Beat ${directives.length} (Resolution): End with a concrete gain, a small tangible price/compromise, and a WARM anchor (e.g. feeling safe, going home). The ending MUST pick up the initial goal.
-
-${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
-${characterProfiles.join("\n")}
-${memorySection}${artifactName ? `\n# Artifact Arc\n- ${artifactName}: ${artifactRule}\n- Arc required: Discover -> Misdirection -> clever use by the children.\n` : ""}
-# BEAT DIRECTIVES
-${beatLines}
-
-# OUTPUT FORMAT
-{
-  "title": "${titleHint}",
-  "description": "A teaser sentence as a question or small riddle",
-  "chapters": [
-    { "chapter": 1, "text": "..." }
-  ]
-}`;
-  }
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words." : "";
 
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  return `YOU ARE: Master Children's Book Author (Preussler + Lindgren + Funke).
-GOAL: Write a captivating story for ages ${ageRange.min}-${ageRange.max} where every paragraph drives the plot forward.
+  // Gemini Strategy: We ask for a "_planning" field in JSON to force Chain-of-Thought
+  return `ROLE: You are an Award-Winning Children's Book Author (Preussler + Lindgren + Funke).
+TASK: Write a 10/10 quality bedtime story for ages ${ageRange.min}-${ageRange.max}.
 
 ${goldenExample}
 
 ${antiPatterns}
 
-# CRITICAL CONSTRAINTS (FAILING THESE RUINS THE STORY)
-1) Language: ONLY ${outputLang}.${umlautRule}
-2) Output: valid JSON only, no extra text.
-3) Length: ${totalWordMin}-${totalWordMax} words total. ${directives.length} chapters, each MUST BE AT LEAST ${wordsPerChapter.min} words (target ${wordsPerChapter.max}). 
-   -> HOW TO REACH LENGTH: Do not summarize! Dramatize scenes using the Scene-Sequel rhythm: Goal -> Conflict -> Disaster -> Reaction -> Decision. Show the characters struggling, talking, and reacting.
-4) Cast lock: EXPLICITLY ONLY ${allowedNames.join(", ")}. Do NOT invent new characters. 
-   -> CRITICAL: Do NOT treat body parts or objects (e.g., "Adrians Beine", "Alexanders Gürtel") as named entities or characters.
-5) Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}). All characters on stage MUST have an active role (action or dialogue). No passive observers.
-6) Child-safe: ${safetyRule}
-7) Artifact "${artifactName || "artifact"}" (${artifactRule}). Arc: Discover -> Misdirection -> clever use (never solves alone).
-8) No deus ex machina. Solution from courage + teamwork + smart decision.
-9) BANNED WORDS: "plötzlich", "auf einmal", "dann", "nun", "jetzt", "schließlich". Do NOT use them.
-10) Smooth scene transitions. No abrupt shifts between chapters.
+::: CRITICAL CONSTRAINTS :::
+1. LANGUAGE: ${outputLang} ONLY. ${umlautRule}
+2. FORMAT: Single valid JSON object.
+3. LENGTH: Total ${totalWordMin}-${totalWordMax} words. Each chapter MUST be ${wordsPerChapter.min}-${wordsPerChapter.max} words.
+   -> FAILURE MODE: Stories under ${totalWordMin} words will be REJECTED. You MUST expand interactions to hit this target.
+4. CAST: Only ${allowedNames.join(", ")}. No new names. No "talking body parts".
+5. SAFETY: ${safetyRule}
 
-# PROSE STYLE & PACING (10.0 QUALITY)
-- Tone: ${targetTone}. ${humorRule}
-- Show, Don't Tell: Dramatize the action. Don't say "they were scared", show them trembling or hiding.
-- Dialogue: 25-35% dialogue. Dialogue sharpens conflict. After 1-3 lines, ground with an action beat.
-- Sentences: Short and punchy (6-12 words). Max 14 words per sentence. Vary rhythm (short-short-long).
-- Verbs: Use strong action verbs ("knallte", "riss", "packte"), NOT atmosphere verbs ("schimmerte", "wehte").
-- Imagery: Max 1 comparison/metaphor per chapter (funny/surprising, NOT poetic). NO metaphor overload.
-- Each character has a DISTINCT voice:
-${childVoiceContract || "  - Characters need different speech patterns"}
+::: PROSE STYLE & PACING (The "Gemini 3" Standard) :::
+- DEEP POV: Stay inside the children's heads. Describe what they feel via body sensations (e.g., "His tummy rumbled like a dryer," NOT "He was hungry").
+- ACTION-REACTION: Every line of dialogue must have a physical anchor.
+  BAD: "Hello," said Tom.
+  GOOD: Tom leaned over the fence. "Hello."
+- SENTENCE VARIATION: Mix short (3 words) and medium (10 words) sentences. Max 14 words/sentence.
+  -> RULE: No more than 2 long sentences in a row.
+- SHOW, DON'T TELL:
+  BAD: "They were happy."
+  GOOD: "Lisa jumped so high her braids danced. 'Yay!'"
+- STAKES: In Chapter 1/2, clearly show what happens if they fail. (e.g. "If we don't find the key, the dragon stays sad forever.")
+- CHILD ARC: Sometime in Ch 3-4, a child must make a mistake and fix it. E.g., "I shouldn't have touched that." -> "I know how to fix it!"
 
-# NARRATIVE ARC (STRICT PACING STRUCTURE)
-* Beat 1-2 (Setup & Stakes): Establish EXPLICIT STAKES. Show concretely what goes wrong if they fail.
-* Beat 3-4 (The Struggle): Include a clear LOW POINT (a real setback where all seems lost) and an active Error-Correction by the children (wrong decision -> active correction).
-* Beat ${directives.length} (Resolution): End with a concrete gain, a small tangible price/compromise, and a WARM anchor (e.g. feeling safe, going home). The ending MUST pick up the initial goal.
-* Humor: Interruption + surprise + physical comedy. Never explain jokes. MUST include at least 2 humorous moments.
+${avatarRule ? `::: AVATAR RULES :::\n${avatarRule}\n` : ""}
+${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
+${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
-${avatarRule ? `${avatarRule}\n` : ""}
-${stylePackBlock ? `STYLE PACK:\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
-${characterProfiles.join("\n\n")}
+::: CHARACTER VOICES :::
+${characterProfiles.join("\n")}
 ${memorySection}
-# BEAT DIRECTIVES
+${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery -> Misinterpretation -> Mastery (Child solves it, not the artifact).\n` : ""}
+
+::: STORY BEATS :::
 ${beatLines}
 
-# OUTPUT FORMAT
+::: OUTPUT FORMAT :::
+You must output a single JSON object with a "_planning" field to prove your pacing strategy.
+
 {
+  "_planning": {
+    "stakes_check": "What specifically happens if they fail?",
+    "emotional_arc": "Which child makes a mistake? How do they fix it?",
+    "length_strategy": "How will I ensure specific details to reach >${totalWordMin} words?"
+  },
   "title": "${titleHint}",
-  "description": "A teaser sentence as a question or small riddle",
+  "description": "Teaser sentence...",
   "chapters": [
-    { "chapter": 1, "text": "..." }
+    { "chapter": 1, "text": "Full prose text..." }
   ]
 }`;
 }
@@ -665,61 +630,60 @@ export function buildFullStoryRewritePrompt(input: {
   const customPromptBlock = formatCustomPromptBlock(userPrompt, isGerman);
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRewriteLine = humorTarget >= 3
-    ? "- Keep humor high: at least 3 clear child-friendly laugh moments (dialogue wit or situational comedy, never humiliating)."
+    ? "- Humor: HIGH. Add 3+ clear laugh moments (slapstick, wit, misunderstanding)."
     : humorTarget >= 2
-      ? "- Keep humor present: at least 2 clear child-friendly laugh moments."
+      ? "- Humor: MEDIUM. Add 2+ clear laugh moments."
       : humorTarget >= 1
-        ? "- Include at least 1 short child-friendly humor moment."
-        : "- Humor optional, avoid forced jokes.";
+        ? "- Humor: LIGHT. At least 1 smile moment."
+        : "- Humor: Optional.";
 
   const originalText = originalDraft.chapters
     .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
     .join("\n\n");
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (Ã¤, Ã¶, Ã¼, ÃŸ), never ASCII substitutes. No English words in story text." : "";
-  return `TASK: Rewrite the story in high-quality children's book prose. Keep plot, cast, and chapter order.
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII. No English words." : "";
 
-QUALITY ISSUES TO FIX:
-${qualityIssues || "- Improve prose quality, voice separation, pacing, and natural scene flow."}
+  return `TASK: Rewrite this story to specific quality standards. The previous draft was rejected.
 
-HARD RULES:
+::: CRITIC FEEDBACK (MUST FIX) :::
+${qualityIssues || "- General prose improvement needed. Too short, flat characters."}
+
+::: HARD RULES :::
 1) Language: ONLY ${outputLang}.${umlautRule}
-2) Audience: ${ageRange.min}-${ageRange.max}. Child-safe wording.
-3) Cast lock: only these names: ${allowedNames || "(none)"}. Do NOT treat body parts or objects as named entities.
-4) Structure: exactly ${directives.length} chapters, same order. Smooth scene transitions.
-5) Length: ${totalWordMin}-${totalWordMax} words total; chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}. Expand scenes with concrete actions and dialogue if too short.
-6) No new characters, no headings in prose, no instruction/meta text. All characters on stage MUST have an active role.
-${artifactName ? `7) Artifact "${artifactName}" remains relevant but never solves alone.` : ""}
-8) BANNED WORDS: "plötzlich", "auf einmal", "dann", "nun", "jetzt", "schließlich". Do NOT use them.
-${avatarRule || ""}
+2) Length: ${totalWordMin}-${totalWordMax} words total. Chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}. 
+   -> IF TOO SHORT: You MUST add new interactions, dialogue lines, and sensory details. Do NOT just fluff the text. Dramatize!
+3) Cast Lock: ${allowedNames || "(none)"}. No new names.
+4) Tone: ${targetTone}.
+5) Structure: Exactly ${directives.length} chapters.
+6) No BANNED words (plötzlich, auf einmal, dann, nun, jetzt, schließlich).
 
-STYLE TARGET:
-- Tone: ${targetTone}
-- Dialogue ratio roughly 20-35% where fitting.
-- Distinct character voices (wording + rhythm), avoid repeated speaker formulas.
-- Show emotions via action + dialogue, not diagnostic labels.
-- Normal prose paragraphs (mostly 2-4 sentences), no one-sentence chains.
-- Short sentences (6-12 words). Max 14 words per sentence. Vary rhythm (short-short-long).
-- No report style chains ("Sie gingen. Sie machten ...").
-- No meta lines ("Die Szene endete", "The scene ended", preview/summary labels).
-- FORBIDDEN: atmosphere-only sentences without action ("Es roch nach feuchtem Holz", "Der Wind trug...", "Windspiele klangen nervös"). Every sentence needs a character doing or saying something.
-- FORBIDDEN: personifying nature/objects ("Wasser kicherte", "der Wald flüsterte", "die Stille seufzte").
-- FORBIDDEN: teaching sentences in dialogue ("Wir haben gelernt...", "Das bedeutet...", "Die Lektion ist...").
-- FORBIDDEN: metaphor overload. Max 1 comparison/metaphor per chapter.
-- Keep escalation visible: establish EXPLICIT STAKES in chapter 1/2, chapter 3/4 MUST contain a real LOW POINT (setback/doubt) and an active Error-Correction by the children.
-- Ending: concrete gain + small tangible price/compromise, WARM closure (feeling safe/together). The ending MUST pick up the initial goal.
+::: PROSE STYLE GUIDELINES (Gemini 3 Standard) :::
+- DEEP POV: Stay inside the children's heads.
+- SHOW, DON'T TELL: No "He was sad." -> Show him looking at his feet, fighting tears.
+- SENTENCE RHYTHM: Mix short (2-5 words) and medium (8-15 words) sentences.
+  -> BAD: "Tom went to the door. He opened it. He saw a cat."
+  -> GOOD: "Tom crept to the door. Creak. He peeked out. A cat?"
+- DIALOGUE: Every speak-line needs an action beat. NO "ping-pong" dialogue without movement.
+  -> BAD: "Yes," said Tom. "No," said Lisa.
+  -> GOOD: Tom nodded. "Yes." Lisa stopped him with a hand. "No way."
+- AVATARS: ${avatarRule}
 ${humorRewriteLine}
 
-GOOD EXAMPLE (3 lines):
-"Mama nickte. 'Oma hat Schnupfen. Den großen.' Sie machte eine Handbewegung wie eine Welle. 'So einen, bei dem die Gardinen denken: Oh oh.'"
-→ Notice: Humor through dialogue + concrete gesture, no abstract feelings, no atmosphere filler.
+${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
+${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
-${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}ORIGINAL TEXT:
+::: ORIGINAL DRAFT (FOR REFERENCE ONLY - REWRITE COMPLETELY) :::
 ${originalText}
 
-OUTPUT JSON ONLY:
+::: OUTPUT FORMAT :::
+Output a single JSON object. Start with a "_planning" field where you explicitly state how you will fix the issues.
+
 {
+  "_planning": {
+    "fix_strategy": "Example: I will extend Chapter 2 by adding a scene where...",
+    "pacing_check": "How I ensure the low-point in Ch 3 hits hard..."
+  },
   "title": "Story title",
   "description": "Teaser sentence",
   "chapters": [
