@@ -73,6 +73,7 @@ export const SEED_SEGMENTS: MapSegment[] = [SEG_SPACE, SEG_FRIENDSHIP, SEG_WEATH
 export function computeNodeStates(
   segment: MapSegment,
   progress: Pick<ProgressState, 'doneNodeIds' | 'inventoryArtifacts' | 'quizResultsById'>,
+  traitValues?: Record<string, number>,
 ): { segment: MapSegment; nodesWithState: Array<{ node: MapNode; state: NodeState }> } {
   const done = new Set(progress.doneNodeIds);
   const nodesWithState = segment.nodes.map((node) => {
@@ -80,11 +81,12 @@ export function computeNodeStates(
     const rule = node.unlockRule;
     let unlocked = false;
     switch (rule.kind) {
-      case 'always':     unlocked = true; break;
-      case 'prevDone':   unlocked = done.has(rule.nodeId); break;
-      case 'quizScore':  { const r = progress.quizResultsById[rule.quizId]; unlocked = r ? r.correctCount >= rule.minCorrect : false; break; }
-      case 'hasArtifact':unlocked = progress.inventoryArtifacts.some((a) => a.id === rule.artifactId); break;
-      case 'doneCount':  unlocked = segment.nodes.filter((n) => done.has(n.nodeId)).length >= rule.min; break;
+      case 'always':        unlocked = true; break;
+      case 'prevDone':      unlocked = done.has(rule.nodeId); break;
+      case 'quizScore':     { const r = progress.quizResultsById[rule.quizId]; unlocked = r ? r.correctCount >= rule.minCorrect : false; break; }
+      case 'hasArtifact':   unlocked = progress.inventoryArtifacts.some((a) => a.id === rule.artifactId); break;
+      case 'doneCount':     unlocked = segment.nodes.filter((n) => done.has(n.nodeId)).length >= rule.min; break;
+      case 'traitMinimum':  unlocked = (traitValues?.[rule.traitId] ?? 0) >= rule.minValue; break;
     }
     return { node, state: (unlocked ? 'available' : 'locked') as NodeState };
   });

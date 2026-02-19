@@ -18,7 +18,8 @@ export type UnlockRule =
   | { kind: 'prevDone';   nodeId: string }
   | { kind: 'quizScore';  quizId: string; minCorrect: number }
   | { kind: 'hasArtifact'; artifactId: string }
-  | { kind: 'doneCount';  segment: string; min: number };
+  | { kind: 'doneCount';  segment: string; min: number }
+  | { kind: 'traitMinimum'; traitId: string; minValue: number };
 
 export type NodeAction =
   | { type: 'navigate'; to: string; params?: Record<string, string> }

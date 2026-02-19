@@ -20,6 +20,8 @@ import GameMapNode from './components/GameMapNode';
 import GameMapEdge from './components/GameMapEdge';
 import MapBackground from './components/MapBackground';
 import TaleaMapNodeSheet from './TaleaMapNodeSheet';
+import { useAvatarTraitsForMap } from './hooks/useAvatarTraitsForMap';
+import { useDailyRecommendations } from './hooks/useDailyRecommendations';
 
 // ─── Segment Label ──────────────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ const TaleaLearningPathMapView: React.FC = () => {
   const reduceMotion = useReducedMotion() ?? false;
 
   const { progress } = useLearningPathProgress();
+  const avatarTraits = useAvatarTraitsForMap();
   const [selected, setSelected] = useState<FlatNode | null>(null);
   const [heuteMode, setHeuteMode] = useState(false);
   const [showKapitel, setShowKapitel] = useState(false);
@@ -54,8 +57,8 @@ const TaleaLearningPathMapView: React.FC = () => {
     originY: string;
   }>({ scale: 1, originX: '50%', originY: '50%' });
 
-  // Compute "heute" node IDs from seed data
-  const heuteNodeIds = useMemo(() => {
+  // Fallback "heute" node IDs from seed data (used when no trait data)
+  const seedHeuteIds = useMemo(() => {
     const ids = new Set<string>();
     for (const seg of SEED_SEGMENTS) {
       if (seg.recommendedDailyStops) seg.recommendedDailyStops.forEach(id => ids.add(id));
@@ -63,12 +66,19 @@ const TaleaLearningPathMapView: React.FC = () => {
     return ids;
   }, []);
 
-  // Transform segments + progress into flat data
+  // Transform segments + progress into flat data (with trait-aware unlock rules)
   const { flatNodes, flatEdges, segmentLabels, mapHeight } = useMapFlowData(
     SEED_SEGMENTS,
     progress,
-    heuteNodeIds,
+    seedHeuteIds,
+    avatarTraits.loading ? undefined : avatarTraits.byId,
   );
+
+  // Smart daily recommendations: use trait-based when available, else seed fallback
+  const smartHeuteIds = useDailyRecommendations(flatNodes, avatarTraits.byId);
+  const heuteNodeIds = !avatarTraits.loading && Object.keys(avatarTraits.byId).length > 0
+    ? smartHeuteIds
+    : seedHeuteIds;
 
   // "Zu mir" – scroll to active/first-available node
   const scrollToActive = useCallback(() => {
@@ -433,6 +443,7 @@ const TaleaLearningPathMapView: React.FC = () => {
             state={selected.state}
             isDark={isDark}
             onClose={handleSheetClose}
+            traitValues={avatarTraits.loading ? undefined : avatarTraits.byId}
           />
         )}
       </AnimatePresence>

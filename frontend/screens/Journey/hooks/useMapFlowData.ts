@@ -127,6 +127,7 @@ export function useMapFlowData(
   segments: MapSegment[],
   progress: ProgressState,
   heuteNodeIds: Set<string>,
+  traitValues?: Record<string, number>,
 ) {
   return useMemo(() => {
     const flatNodes: FlatNode[] = [];
@@ -141,7 +142,7 @@ export function useMapFlowData(
     let y = TOP_OFFSET;
 
     for (const seg of segments) {
-      const { nodesWithState } = computeNodeStates(seg, progress);
+      const { nodesWithState } = computeNodeStates(seg, progress, traitValues);
       const segStartY = y;
       let segDone = 0;
 
@@ -206,5 +207,5 @@ export function useMapFlowData(
     );
 
     return { flatNodes, flatEdges, segmentLabels, mapHeight };
-  }, [segments, progress, heuteNodeIds]);
+  }, [segments, progress, heuteNodeIds, traitValues]);
 }

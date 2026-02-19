@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import type { MapNode, NodeState, NodeType } from './TaleaLearningPathTypes';
 import { useLearningPathProgress } from './TaleaLearningPathProgressStore';
+import { ROUTE_TO_TRAITS, ROUTE_META } from './constants/routeTraitMapping';
+import { getTraitLabel, getTraitIcon } from '../../constants/traits';
 
 const TYPE_META: Record<NodeType, { icon: React.ElementType; label: string; color: string }> = {
   DokuStop:    { icon: BookOpen,    label: 'Doku-Stop',     color: '#4f8cf5' },
@@ -34,9 +36,11 @@ interface Props {
   state: NodeState;
   isDark: boolean;
   onClose: () => void;
+  /** Avatar trait values { traitId → value } for displaying current levels */
+  traitValues?: Record<string, number>;
 }
 
-const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose }) => {
+const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, traitValues }) => {
   const navigate = useNavigate();
   const { markNodeDone } = useLearningPathProgress();
   const meta = TYPE_META[node.type];
@@ -131,6 +135,60 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose }) =>
             <p className="text-[11px] font-semibold" style={{ color: isDark ? '#c8d8ec' : '#4a6070' }}>
               {node.rewardPreview.label ?? (node.rewardPreview.stamps ? `+${node.rewardPreview.stamps} Stempel` : 'Belohnung möglich')}
             </p>
+          </div>
+        )}
+
+        {/* Trait development section */}
+        {ROUTE_TO_TRAITS[node.route] && (
+          <div
+            className="mt-3 rounded-xl border px-3 py-2.5"
+            style={{
+              borderColor: isDark ? '#2a3d52' : '#e0d1bf',
+              background: isDark ? 'rgba(20,30,45,0.5)' : 'rgba(255,249,238,0.7)',
+            }}
+          >
+            <p
+              className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em]"
+              style={{ color: ROUTE_META[node.route]?.color ?? (isDark ? '#7a9bbf' : '#8a9aaa') }}
+            >
+              {ROUTE_META[node.route]?.icon} Fördert
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {ROUTE_TO_TRAITS[node.route].map((traitId) => {
+                const val = traitValues?.[traitId] ?? 0;
+                return (
+                  <div
+                    key={traitId}
+                    className="flex items-center gap-1.5 rounded-lg border px-2 py-1"
+                    style={{
+                      borderColor: isDark ? '#1c3050' : '#d5c5b0',
+                      background: isDark ? 'rgba(14,24,40,0.7)' : 'rgba(255,254,250,0.9)',
+                    }}
+                  >
+                    <span className="text-sm">{getTraitIcon(traitId)}</span>
+                    <span
+                      className="text-[11px] font-semibold"
+                      style={{ color: isDark ? '#c8d8ec' : '#3a5060' }}
+                    >
+                      {getTraitLabel(traitId, 'de')}
+                    </span>
+                    {traitValues && (
+                      <span
+                        className="rounded-full px-1.5 py-[1px] text-[9px] font-black"
+                        style={{
+                          background: val > 0
+                            ? (isDark ? 'rgba(34,201,154,0.18)' : 'rgba(34,201,154,0.12)')
+                            : (isDark ? 'rgba(50,70,100,0.3)' : 'rgba(120,120,140,0.1)'),
+                          color: val > 0 ? '#22c99a' : (isDark ? '#5a7a98' : '#9aa0a8'),
+                        }}
+                      >
+                        {val}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

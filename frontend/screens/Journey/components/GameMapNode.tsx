@@ -16,6 +16,8 @@ import {
   Headphones, HelpCircle, Lock, Sparkles,
 } from 'lucide-react';
 import type { NodeType, MapNode, NodeState } from '../TaleaLearningPathTypes';
+import { ROUTE_TO_TRAITS, ROUTE_META } from '../constants/routeTraitMapping';
+import { getTraitIcon } from '../../../constants/traits';
 
 // ─── Icon / Color / Label mappings ──────────────────────────────────────────
 
@@ -274,6 +276,20 @@ const GameMapNode = forwardRef<HTMLDivElement, GameMapNodeProps>(({
         >
           {NODE_LABEL[node.type]}
         </span>
+
+        {/* Route trait icons (small row below type badge) */}
+        {!isLocked && (
+          <span
+            className="mt-0.5 flex items-center gap-[2px] text-[8px] leading-none opacity-70"
+            title={ROUTE_TO_TRAITS[node.route]?.map(t => getTraitIcon(t)).join(' ')}
+          >
+            {ROUTE_META[node.route] && (
+              <span style={{ color: ROUTE_META[node.route].color }}>
+                {ROUTE_TO_TRAITS[node.route]?.map(t => getTraitIcon(t)).join('')}
+              </span>
+            )}
+          </span>
+        )}
 
         {/* Fork direction badges */}
         {node.type === 'Fork' && !isLocked && node.action.type === 'fork' && (
