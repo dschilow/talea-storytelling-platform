@@ -484,13 +484,9 @@ export function buildFullStoryPrompt(input: {
       if (memoryTitles.length >= 2) break;
     }
     if (memoryTitles.length > 0) {
-      const memoryInstruction = isGerman
-        ? (isCompactPrompt
-          ? `- Ein Avatar erinnert GENAU EINMAL kurz an ein frueheres Abenteuer (ein Satz).`
-          : `- Ein Avatar soll GENAU EINMAL kurz an ein frÃ¼heres Abenteuer erinnern (z.B. "Das erinnert mich an..."). Nicht nacherzÃ¤hlen, nur ein Satz. Muss auf Deutsch sein.`)
-        : (isCompactPrompt
-          ? `- One avatar references one earlier adventure exactly once (one short sentence).`
-          : `- One avatar should reference an earlier adventure EXACTLY ONCE (e.g. "That reminds me of..."). Do not retell, just one sentence.`);
+      const memoryInstruction = isCompactPrompt
+        ? `- One avatar references one earlier adventure exactly once (one short sentence).`
+        : `- One avatar should reference an earlier adventure EXACTLY ONCE (e.g. "That reminds me of..."). Do not retell, just one sentence.`;
       memorySection = `\n# Earlier Adventures\n${memoryTitles.join("\n")}\n${memoryInstruction}\n`;
     }
   }
@@ -512,7 +508,7 @@ export function buildFullStoryPrompt(input: {
     const conflictMax = isCompactPrompt ? 58 : 82;
     const outcomeMax = isCompactPrompt ? 42 : 64;
 
-    return `${idx + 1}) Ort: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}. Kern: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}. Konflikt: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}. Figuren: ${uniqueCast.join(", ") || "keine"}. Impuls: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? ` Hinweis: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 50)}` : ""}`;
+    return `${idx + 1}) Setting: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}. Goal: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}. Conflict: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}. Characters: ${uniqueCast.join(", ") || "none"}. Trigger: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? ` Hint: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 50)}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
@@ -744,51 +740,51 @@ export function buildChapterExpansionPrompt(input: {
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const missingLine = requiredCharacters?.length
-    ? `\n**FEHLENDE FIGUREN (MUSS FOKUSSIERT EINGEBAUT WERDEN):** ${requiredCharacters.join(", ")}\nJede fehlende Figur benennen + kurze konkrete Aktion. Gesamtlimit bleibt max ${focusMaxActive} aktive Figuren.`
+    ? `\n**MISSING CHARACTERS (MUST BE INCLUDED WITH FOCUS):** ${requiredCharacters.join(", ")}\nName each missing character doing a short concrete action. Total limit remains max ${focusMaxActive} active characters.`
     : "";
 
   const contextLines = [
-    previousContext ? `Vorheriges Kapitel endete: "${previousContext}"` : "",
-    nextContext ? `NÃ¤chstes Kapitel beginnt: "${nextContext}"` : ""
+    previousContext ? `Previous chapter ended: "${previousContext}"` : "",
+    nextContext ? `Next chapter begins: "${nextContext}"` : ""
   ].filter(Boolean).join("\n");
 
-  return `# Aufgabe
-Erweitere das Kapitel ohne die Handlung zu Ã¤ndern. Zeigen, nicht erzÃ¤hlen.
-WICHTIG: Lebendige Prosa! Konkrete Details (riechen, schmecken, fÃ¼hlen), Dialog-Humor, Satz-Variation.
-Keine Gefuehls-Diagnosesaetze wie "er war sehr nervoes/traurig"; stattdessen Verhalten + Sprache zeigen.
+  return `# TASK
+Expand the chapter without changing the plot. Show, don't tell!
+IMPORTANT: Vivid prose! Concrete details (smell, taste, feel), dialogue-humor, sentence variation.
+No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
 
-# Szene
-- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Stimmung: ${chapter.mood ?? "COZY"}
-- Ziel: ${sanitizeDirectiveNarrativeText(chapter.goal)}
-- Figuren: ${allowedNames}
-${artifactName && chapter.artifactUsage ? `- Artefakt: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
-- Ton: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Alter: ${ageRange.min}â€“${ageRange.max}
+# SCENE
+- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
+- Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
+- Characters: ${allowedNames}
+${artifactName && chapter.artifactUsage ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
+- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min}-${ageRange.max}
 ${missingLine}
 
-# LÃ¤nge
-**${lengthTargets.wordMin}â€“${lengthTargets.wordMax} WÃ¶rter, ${lengthTargets.sentenceMin}â€“${lengthTargets.sentenceMax} SÃ¤tze**
+# LENGTH TARGET
+**${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences**
 
-# Regeln
-1. Nur diese Namen: ${allowedNames}
-2. Keine neuen Figuren
-3. Pro Kapitel max ${focusMaxActive} aktive Figuren, ideal ${focusIdealRange}.
-4. Keine Meta-Labels im Text.
-5. Kapitel-Rhythmus: kurz/schnell -> ruhig/emotional -> kurz/schnell.
-6. Mindestens 1 innerer Kinder-Moment von ${emotionalFocus} (Koerpersignal + Gedanke).
-7. Erweitern durch konkrete Aktion + 2-3 Dialog-Zeilen.
-8. Max 1 Vergleich pro Absatz, keine Metaphernketten.
-9. Keine Vorschau-, Meta- oder Zusammenfassungs-Saetze.
-10. Keine Erklaersaetze ueber Objektregeln.
-11. Dialoge muessen unterscheidbar klingen; keine Sprecher-Formel-Schleifen.
-12. Running gag sparsam: gleiche Lautmalerei/Catchphrase max 2x.
-13. Bei deutscher Ausgabe: echte Umlaute (Ã¤, Ã¶, Ã¼, ÃŸ), keine ae/oe/ue.
+# RULES
+1. ONLY these names: ${allowedNames}
+2. No new characters.
+3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
+4. No meta-labels in the text.
+5. Chapter rhythm: short/fast -> calm/emotional -> short/fast.
+6. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
+7. Expand via concrete action + 2-3 dialogue lines.
+8. Max 1 comparison per paragraph, no metaphor chains.
+9. No preview, meta or summary sentences.
+10. No explanatory sentences about object rules.
+11. Dialogues must sound distinguishable; no speaker-tag formula loops.
+12. Running gag sparsely: same sound-word/catchphrase max 2x.
+13. If output is German: use true umlauts (ä, ö, ü, ß), no ae/oe/ue. NO English words in output.
 
-${contextLines ? `# Kontext\n${contextLines}\n` : ""}
-# Original
+${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
+# ORIGINAL
 ${originalText}
 
-# Ausgabe
-JSON: { "text": "Kapiteltext" }`;
+# OUTPUT
+JSON: { "text": "Chapter text" }`;
 }
 
 // â”€â”€â”€ Legacy functions (fÃ¼r KompatibilitÃ¤t) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

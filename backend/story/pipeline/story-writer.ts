@@ -28,16 +28,16 @@ const MAX_REWRITE_PASSES = 2;
 const HARD_MIN_CHAPTER_WORDS = 230;
 
 // Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
-const REWRITE_ONLY_ON_ERRORS = true;
+const REWRITE_ONLY_ON_ERRORS = false;
 
 // Keep expansion budget controlled but sufficient for short-chapter recovery.
 const MAX_EXPAND_CALLS = 2;
 
 // Allow one warning-polish pass for voice/rhythm cleanup after rewrites.
 const MAX_WARNING_POLISH_CALLS = 1;
-const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = false;
-const QUALITY_RECOVERY_SCORE_THRESHOLD = 8.2;
-const QUALITY_RECOVERY_WARNING_COUNT = 3;
+const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = true;
+const QUALITY_RECOVERY_SCORE_THRESHOLD = 9.0;
+const QUALITY_RECOVERY_WARNING_COUNT = 2;
 const WARNING_POLISH_CODES = new Set([
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
