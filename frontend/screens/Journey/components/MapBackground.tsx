@@ -49,6 +49,20 @@ interface MapBackgroundProps {
 const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark, segmentBlocks }) => {
   const reduceMotion = useReducedMotion() ?? false;
   const roadPath = useMemo(() => buildRoadPath(mapHeight), [mapHeight]);
+  const TILE_IMAGE = '/assets/lernpfad_no_path.png';
+  const TILE_HEIGHT = 2048;
+  const firstTileTop = useMemo(() => {
+    const anchorTop = segmentBlocks[0]?.top ?? 0;
+    return anchorTop - (anchorTop % TILE_HEIGHT);
+  }, [segmentBlocks]);
+  const backgroundTiles = useMemo(() => {
+    const visibleHeight = Math.max(0, mapHeight - firstTileTop);
+    const tileCount = Math.max(1, Math.ceil(visibleHeight / TILE_HEIGHT) + 1);
+    return Array.from({ length: tileCount }, (_, index) => ({
+      id: index,
+      top: firstTileTop + index * TILE_HEIGHT,
+    }));
+  }, [mapHeight, firstTileTop]);
 
   const particles = useMemo(() => Array.from({ length: 22 }, (_, i) => ({
     id: i,
@@ -65,17 +79,17 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark, segmen
 
   return (
     <>
-      {segmentBlocks.map((segment) => (
+      {backgroundTiles.map((tile) => (
         <div
-          key={`bg-${segment.segmentId}`}
+          key={`bg-tile-${tile.id}`}
           className="pointer-events-none absolute left-0 right-0"
           style={{
-            top: `${segment.top}px`,
-            height: `${segment.height}px`,
-            backgroundImage: `url('${segment.backgroundImage}')`,
+            top: `${tile.top}px`,
+            height: `${TILE_HEIGHT}px`,
+            backgroundImage: `url('${TILE_IMAGE}')`,
             backgroundRepeat: 'no-repeat',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center center',
+            backgroundSize: '100% 100%',
+            backgroundPosition: 'center top',
           }}
         />
       ))}
@@ -129,4 +143,3 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark, segmen
 };
 
 export default memo(MapBackground);
-
