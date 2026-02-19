@@ -285,21 +285,32 @@ function generateSpeechExample(name: string, speechStyle: string, catchphrase: s
   return "";
 }
 
-function buildChildVoiceContract(childNames: string[], _isGerman: boolean): string {
+function buildChildVoiceContract(childNames: string[], isGerman: boolean): string {
   if (childNames.length === 0) return "";
 
-  const templates = [
-    "Impulsive and questioning: 3-8 words, frequent why/how questions, quick reactions.",
-    "Calm and observant: concrete details, clear reasoning, few exclamations.",
-    "Playful and witty: short wordplay, lightens tension without gimmick loops.",
+  const templatesDE = [
+    { label: "Frech und schnell", desc: "3-8 Woerter, unterbricht andere, stellt freche Fragen", example: '"Kann sie piepen?" / "Das ist streng-magisch."' },
+    { label: "Ruhig und schlau", desc: "konkrete Details, klare Saetze, handelt statt zu reden", example: '"Wir muessen weiter." (packt den Arm, geht schnell)' },
+    { label: "Neugierig und witzig", desc: "erfindet Woerter, stellt unerwartete Verbindungen her", example: '"Das riecht nach Abenteuer. Und nach Kaese."' },
+  ];
+  const templatesEN = [
+    { label: "Cheeky and fast", desc: "3-8 words, interrupts others, asks bold questions", example: '"Can it beep?" / "That is strict-magic."' },
+    { label: "Calm and clever", desc: "concrete details, clear sentences, acts instead of talking", example: '"We need to go." (grabs arm, walks fast)' },
+    { label: "Curious and witty", desc: "invents words, makes unexpected connections", example: '"Smells like adventure. And cheese."' },
   ];
 
+  const templates = isGerman ? templatesDE : templatesEN;
   const lines = childNames
     .slice(0, 3)
-    .map((name, idx) => `  - ${name}: ${templates[idx] || templates[templates.length - 1]}`)
+    .map((name, idx) => {
+      const t = templates[idx] || templates[templates.length - 1];
+      return `  - ${name}: ${t.label} – ${t.desc}. Beispiel: ${t.example}`;
+    })
     .join("\n");
 
-  const globalRule = "  - Global: Do not give all children the same speaker formulas (avoid repeated 'said ... briefly/quietly' patterns).";
+  const globalRule = isGerman
+    ? "  - WICHTIG: Kinder muessen KOMPLETT unterschiedlich klingen. Ein Kind erkennt am Satz WER spricht."
+    : "  - IMPORTANT: Children must sound COMPLETELY different. A child recognizes WHO speaks by the sentence alone.";
 
   return `${lines}\n${globalRule}`;
 }
@@ -308,66 +319,86 @@ function buildChildVoiceContract(childNames: string[], _isGerman: boolean): stri
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
-SZENE A:
+SZENE A (Unterbrechung + Rhythmus):
 Mama knallte den Korb auf den Tisch. Plopp.
-"Darf ich--?" fragte Adrian.
-"Nein", sagte Mama.
+"Darf ich--?" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
+Alexander beugte sich vor. "Ich riech Apfelkuchen." "Und Tee", sagte Adrian.
+Er schnupperte extra laut. "Und… Oma."
 
-SZENE B:
-Der Wolf lag im Bett. Schlafhaube, Brille, Decke bis zur Nase.
-"Raus", sagte Oma.
-Adrian kicherte. Er konnte nicht anders.
+SZENE B (Humor durch Situation):
+"Kann sie auch piepen?" "Nein." "Kann sie Stopp sagen?" "Nein."
+"Kann sie wenigstens einmal--" Mama schob die Muenze in Alexanders Tasche.
+Adrian seufzte. "Das ist streng-magisch."
+
+SZENE C (Figur-Eintritt mit Detail):
+Am Rand der Lichtung stand ein Wolf. Gross. Grau. Mit einer knallroten Nase.
+Und einem Taschentuch. Einem echten Taschentuch.
+
+SZENE D (Konfrontation + Action):
+Oma kam raus wie ein Gewitter mit Schal. Kochloeffel in der Hand. Nase rot.
+Augen gefaehrlich. "RAUS", sagte sie.
 """`;
 
   const englishExamples = `"""
-SCENE A:
+SCENE A (Interruption + Rhythm):
 Mom slammed the basket on the table. Pop.
-"Can I--?" Adrian asked.
-"No," said Mom.
+"Can I--?" "No," said Mom. Quick as a crocodile jaw.
+Alexander leaned in. "I smell apple cake." "And tea," said Adrian.
+He sniffed extra loud. "And... Grandma."
 
-SCENE B:
-The wolf was in bed. Nightcap, glasses, blanket up to his nose.
-"Out," said Grandma.
-Adrian giggled. He couldn't help it.
+SCENE B (Humor through situation):
+"Can it beep?" "No." "Can it say Stop?" "No."
+"Can it at least once--" Mom pushed the coin into Alexander's pocket.
+Adrian sighed. "That's strict-magic."
+
+SCENE C (Character entrance with detail):
+At the edge of the clearing stood a wolf. Big. Gray. With a bright red nose.
+And a tissue. A real tissue.
+
+SCENE D (Confrontation + Action):
+Grandma came out like a thunderstorm in a scarf. Wooden spoon in hand.
+Nose red. Eyes dangerous. "OUT," she said.
 """`;
 
-  return `# PROSE QUALITY REFERENCE
-Match this compact sample style:
+  return `# PROSE QUALITY REFERENCE (this is the TARGET quality)
 ${isGerman ? germanExamples : englishExamples}
 
 KEY QUALITIES:
-- 25-45% dialogue; action and dialogue carry scenes
-- strong concrete verbs, short rhythmic sentences
-- one funny comparison max per chapter
-- humor via situation/surprise, never explained
-- distinct voice per character`;
+- Dialogue carries scenes: interruptions, quick exchanges, unfinished sentences
+- Humor through SITUATION and surprise, never explained
+- Rhythm: short-short-LONG, fragments ("Gross. Grau."), then longer sentence
+- Each character sounds COMPLETELY different (word choice, length, attitude)
+- Concrete details you can SEE (red nose, wooden spoon, tissue)
+- NO atmosphere-only sentences, NO teaching sentences, NO meta-narration`;
 }
 
 function buildAntiPatternBlock(isGerman: boolean): string {
   const badExamples = isGerman
-    ? `- "Der Wald fluesterte" -> no personification
-- "Licht schmeckte..." -> no mixed senses
-- "Stille fiel..." -> no tell-formulas`
-    : `- "The forest whispered" -> no personification
-- "Light tasted..." -> no mixed senses
-- "Silence fell..." -> no tell-formulas`;
-
-  const goodExamples = isGerman
-    ? `- "Mama knallte den Korb auf den Tisch. Plopp."
-- "'Darf ich--?' 'Nein', sagte Mama."
-- "Er schnupperte extra laut."`
-    : `- "Mom slammed the basket on the table. Pop."
-- "'Can I--?' 'No,' said Mom."
-- "He sniffed extra loud."`;
+    ? `PERSONIFIZIERUNG (VERBOTEN):
+- "Der Wald fluesterte" / "Wasser kicherte im Brunnen" / "Windspiele klangen nervoes"
+ATMOSPHAERE-FUELLUNG (VERBOTEN):
+- "Es roch nach feuchtem Holz und nassem Laub" / "Der Wind trug den Duft von..."
+- Jeder Satz MUSS Handlung oder Dialog enthalten. Keine reinen Stimmungssaetze.
+META-NARRATION (VERBOTEN):
+- "Die Geschichte schliesst mit einem warmen Gefuehl" / "Die Szene endete"
+LEHRSAETZE IM DIALOG (VERBOTEN):
+- "Wir haben gelernt, zusammen zu handeln" / "Das Amulett gibt Halt, nicht Macht"
+REPORT-STIL (VERBOTEN):
+- "Sie gingen. Sie machten. Sie legten. Sie nickten." (= Roboter-Prosa)`
+    : `PERSONIFICATION (FORBIDDEN):
+- "The forest whispered" / "Water giggled in the well" / "Wind chimes sounded nervous"
+ATMOSPHERE FILLER (FORBIDDEN):
+- "It smelled of damp wood" / "The wind carried the scent of..."
+- Every sentence MUST contain action or dialogue. No pure mood sentences.
+META-NARRATION (FORBIDDEN):
+- "The story closes with a warm feeling" / "The scene ended"
+TEACHING SENTENCES IN DIALOGUE (FORBIDDEN):
+- "We learned to work together" / "The amulet gives support, not power"
+REPORT STYLE (FORBIDDEN):
+- "They went. They did. They placed. They nodded." (= robot prose)`;
 
   return `# FORBIDDEN PATTERNS
-${badExamples}
-- no dialogue-free narration blocks
-- no random props without plot purpose
-
-INSTEAD:
-${goodExamples}
-- dialogue and action should dominate`;
+${badExamples}`;
 }
 
 // --- Optimized Full Story Prompt (V4) -----------------------------------------
@@ -493,31 +524,19 @@ export function buildFullStoryPrompt(input: {
   const umlautRule = isGerman ? " Use proper German umlauts (Ã¤, Ã¶, Ã¼, ÃŸ), never ASCII substitutes like ae/oe/ue. No English words in the story text." : "";
 
   if (isCompactPrompt) {
-    return `TASK: Write one complete children's story in JSON for ages ${ageRange.min}-${ageRange.max}.
+    return `TASK: Write one children's story in JSON for ages ${ageRange.min}-${ageRange.max}.
 
-HARD RULES:
-1) Language: ONLY ${outputLang}.${umlautRule}
-2) Output: valid JSON only, no extra text.
-3) Length: ${totalWordMin}-${totalWordMax} words total.
-4) Structure: exactly ${directives.length} chapters (chapter 1..${directives.length}), each about ${wordsPerChapter.min}-${wordsPerChapter.max} words.
-5) Cast lock: only these names: ${allowedNames.join(", ")}.
-6) Child-safe: ${safetyRule}
-7) Keep balanced book prose: target 20-35% dialogue, avoid ping-pong line-by-line exchanges.
-8) No personifying nature, no synesthesia, no poetic metaphors, no deus ex machina.
-9) Keep max ${focusMaxActive} active characters per beat (ideal ${focusIdealRange}).
-10) If constraints conflict: prioritize language -> JSON format -> chapter count -> cast lock -> safety.
+RULES:
+1) ONLY ${outputLang}.${umlautRule} Valid JSON only.
+2) ${totalWordMin}-${totalWordMax} words. ${directives.length} chapters, each ~${wordsPerChapter.min}-${wordsPerChapter.max} words.
+3) Cast lock: ${allowedNames.join(", ")}. No new characters. Max ${focusMaxActive} per beat.
+4) Child-safe: ${safetyRule}
+5) No personification, no synesthesia, no atmosphere-only sentences, no meta-narration, no teaching sentences.
+6) ${humorRule}
 
-STYLE TARGET:
-- Tone: ${targetTone}
-- Mostly short concrete sentences (6-12 words), occasional longer sentence.
-- Distinct voice per character, avoid repetitive speaker formulas.
-- After short dialogue bursts, add concrete action beats.
-- Write normal prose paragraphs (typically 2-4 sentences), not one sentence per paragraph.
-- No report-style chains like "Sie gingen. Sie nahmen. Sie machten.".
-- Never output meta lines like "Die Szene endete" / "The scene ended".
-- No diagnostic emotion formulas (e.g., "he was very nervous", "his heart pounded with fear").
-- ${humorRule}
-- Beat ${directives.length} ends warm and closed with concrete gain + small price.
+STYLE: Tone ${targetTone}. 25-35% dialogue. Short sentences (6-12 words). Distinct character voices.
+FORBIDDEN: "Es roch nach...", "Der Wind trug...", "Wir haben gelernt...", report-chains, formula emotions.
+Beat ${directives.length}: concrete gain + small price, warm close.
 ${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
 ${characterProfiles.join("\n")}
 ${memorySection}${artifactName ? `\n# Artifact Arc\n- ${artifactName}: ${artifactRule}\n- Arc required: Discover -> Misdirection -> clever use by the children.\n` : ""}
@@ -537,66 +556,40 @@ ${beatLines}
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  return `YOU ARE: Children's book prose author (Preussler + Lindgren + Funke) with strong scene craft.
-GOAL: Children (${ageRange.min}-${ageRange.max}) keep reading because something concrete happens in each paragraph.
+  return `YOU ARE: Children's book prose author (Preussler + Lindgren + Funke).
+GOAL: Children (${ageRange.min}-${ageRange.max}) keep reading because something CONCRETE happens every paragraph.
 
 ${goldenExample}
 
 ${antiPatterns}
 
-HARD RULES (must be fulfilled):
-1) Language: Write the story ONLY in ${outputLang}.${umlautRule}
-2) Output: Valid JSON only. No text before or after.
-3) Length: ${totalWordMin}-${totalWordMax} words total.
-4) Structure: Exactly ${directives.length} chapters in the "chapters" JSON array (chapter: 1..${directives.length}). No headings or numbers in the text. Each chapter approximately ${wordsPerChapter.min}-${wordsPerChapter.max} words.
-5) Cast lock: Only these characters: ${allowedNames.join(", ")}. No new characters.
-6) Rule priority: Hard Rules ALWAYS override additional user examples. Example names (e.g. Mia, Emma) are never new characters.
-7) Character focus: Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}), global max ${focusGlobalMax} recognizable characters.
-8) Child-safe: ${safetyRule}
-9) Artifact: ${artifactName || "artifact"} (${artifactRule}). Arc: Discover -> Misdirection/Problem -> clever use (does NOT solve alone).
-10) Show, don't tell: Emotions mainly through body action and dialogue. Brief sensory context is allowed. NO personifying nature.
-11) No deus ex machina. Solution comes from courage + teamwork + smart decision.
-12) DIALOGUE REQUIREMENT: Target roughly 20-35% dialogue (scene-dependent). Avoid ping-pong dialogue chains.
+HARD RULES:
+1) Language: ONLY ${outputLang}.${umlautRule}
+2) Output: valid JSON only, no extra text.
+3) Length: ${totalWordMin}-${totalWordMax} words. ${directives.length} chapters, each ~${wordsPerChapter.min}-${wordsPerChapter.max} words.
+4) Cast lock: Only ${allowedNames.join(", ")}. No new characters.
+5) Per beat max ${focusMaxActive} active characters (ideal ${focusIdealRange}).
+6) Child-safe: ${safetyRule}
+7) Artifact "${artifactName || "artifact"}" (${artifactRule}). Arc: Discover -> Misdirection -> clever use (never solves alone).
+8) No deus ex machina. Solution from courage + teamwork + smart decision.
 
-STYLE (MOST IMPORTANT â€” follow strictly):
-- Target tone: ${targetTone}.
-- Narrative prose carries movement; dialogue sharpens conflict and decisions.
-- Mostly short sentences (6-12 words), occasionally a longer one for swing. No sentence monsters.
-- Dialogue only where it adds tension; avoid transcript-like turn-taking every line.
-- After 1-3 dialogue lines, ground with a concrete action beat.
-- Paragraph rhythm: normal prose paragraphs (mostly 2-4 sentences), no one-sentence chains.
-- Each character has their own voice (word choice, sentence length, quirk).
-- Separate children's voices sharply:
-${childVoiceContract || "  - No children's voices available"}
-- NO poetic language. Grounded, concrete, everyday.
-- Maximum 1 comparison per chapter (must be funny or surprising, not poetic).
-- NO personifying nature or objects (no "the wind wanted", no "the forest whispered").
-- NO synesthesia (no "light tasted", no "silence smelled like").
-- Action verbs over atmosphere verbs: "slammed", "grabbed", "snapped" instead of "shimmered", "whispered", "drifted".
-- No formula emotion lines ("X was scared/sad/nervous", "his heart pounded"); show it in behavior/dialogue.
-- No protocol narration chains ("Sie gingen. Sie machten ...") and no meta lines ("Die Szene endete").
-- ${humorRule}
-- HUMOR TECHNIQUES (use these!):
-  * interruption + correction + short surprise reaction
-  * one physical-comedy beat where fitting
-  * NEVER explain why something is funny; just show it
-- Every prop/object in the story MUST serve the plot. No random items that characters carry around without purpose.
-- Running gag rule: same onomatopoeia/catchphrase sparingly (max 2x per chapter, max 6x total).
-- By beat 2 at the latest: clear consequence of failure with concrete loss.
-- Beat ${directives.length}: show concrete gain + small price/compromise.
-- Vary beat endings; beat ${directives.length} ends warm and closed.
-- From chapter 2 onward, the first sentence must carry a visible transition (movement/time/arrival).
-- No meta-labels, preview sentences, summary sentences, or teaching sentences in prose.
-
-${avatarRule ? `${avatarRule}\n` : ""}${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
+STYLE:
+- Tone: ${targetTone}. ${humorRule}
+- 25-35% dialogue. Dialogue sharpens conflict. After 1-3 lines, ground with action beat.
+- Short sentences (6-12 words), occasionally longer for swing. Vary rhythm.
+- Each character has DISTINCT voice:
+${childVoiceContract || "  - Characters need different speech patterns"}
+- Max 1 comparison per chapter (funny/surprising, NOT poetic).
+- Strong action verbs ("knallte", "riss", "packte"), NOT atmosphere verbs ("schimmerte", "wehte").
+- Show emotions through BEHAVIOR + DIALOGUE, not labels ("er war nervoes").
+- By beat 2: clear consequence if they fail. Beat ${directives.length}: concrete gain + small price, warm close.
+- Humor: interruption + surprise + physical comedy. Never explain jokes.
+${avatarRule ? `${avatarRule}\n` : ""}
+${stylePackBlock ? `STYLE PACK:\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}CHARACTER VOICES:
 ${characterProfiles.join("\n\n")}
-${memorySection}${artifactName ? `\n# Artifact Arc\n- Name: ${artifactName}\n- Use: ${artifactRule}\n- Required arc: Discover -> Misdirection -> clever use by the children.\n` : ""}
+${memorySection}
 # BEAT DIRECTIVES
 ${beatLines}
-
-# INTERNAL WRITING PROCESS (do not output)
-- Check cast lock, chapter count, and dialogue/action balance (target 25-45% dialogue).
-- Output ONLY final JSON.
 
 # OUTPUT FORMAT
 {
@@ -684,9 +677,16 @@ STYLE TARGET:
 - Normal prose paragraphs (mostly 2-4 sentences), no one-sentence chains.
 - No report style chains ("Sie gingen. Sie machten ...").
 - No meta lines ("Die Szene endete", "The scene ended", preview/summary labels).
+- FORBIDDEN: atmosphere-only sentences without action ("Es roch nach feuchtem Holz", "Der Wind trug...", "Windspiele klangen nervös"). Every sentence needs a character doing or saying something.
+- FORBIDDEN: personifying nature/objects ("Wasser kicherte", "der Wald flüsterte", "die Stille seufzte").
+- FORBIDDEN: teaching sentences in dialogue ("Wir haben gelernt...", "Das bedeutet...", "Die Lektion ist...").
 - Keep escalation visible; chapter 3/4 needs a real setback.
 - Ending: concrete gain + small price/compromise, warm closure.
 ${humorRewriteLine}
+
+GOOD EXAMPLE (3 lines):
+"Mama nickte. 'Oma hat Schnupfen. Den großen.' Sie machte eine Handbewegung wie eine Welle. 'So einen, bei dem die Gardinen denken: Oh oh.'"
+→ Notice: Humor through dialogue + concrete gesture, no abstract feelings, no atmosphere filler.
 
 ${stylePackBlock ? `STYLE PACK (additional):\n${stylePackBlock}\n\n` : ""}${customPromptBlock ? `${customPromptBlock}\n` : ""}ORIGINAL TEXT:
 ${originalText}

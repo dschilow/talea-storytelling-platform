@@ -20,10 +20,10 @@ const DEFAULT_CONFIG: PipelineConfig = {
   storyRetryMax: 2,
   imageRetryMax: 2,
   maxPropsVisible: 7,
-  releaseCandidateCount: 1,
+  releaseCandidateCount: 2,
   criticModel: "gpt-5-mini",
-  criticMinScore: 8.2,
-  maxSelectiveSurgeryEdits: 0,
+  criticMinScore: 7.5,
+  maxSelectiveSurgeryEdits: 2,
 };
 
 let cached: PipelineConfig | null = null;

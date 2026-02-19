@@ -341,14 +341,13 @@ export class StoryPipelineOrchestrator {
       const adaptiveSecondCandidate =
         releaseEnabled &&
         !Number.isFinite(explicitCandidateCount) &&
-        normalized.category === "Klassische Märchen" &&
         enableAdaptiveSecondCandidate;
       const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-4.1-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // For 6-8 stories, default to one edit unless explicitly overridden.
       const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
-      const implicitSurgeryEdits = 0;
+      const implicitSurgeryEdits = 2;
       const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
         : implicitSurgeryEdits;

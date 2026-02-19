@@ -138,12 +138,23 @@ function buildSceneOverrides(
     ? new Set(rng.shuffle(overrideChapters).slice(0, 1))
     : new Set(overrideChapters);
 
+  // Deduplicate adjacent settings: if beat N and N+1 share the same base setting,
+  // skip the setting override for the second one so they don't feel repetitive.
+  const usedSettings = new Set<string>();
+
   for (const chapter of overrideChapters) {
     const base = scenes.find(s => s.sceneNumber === chapter);
     if (!base) continue;
 
     const allowSettingOverride = settingOverrideChapters.has(chapter) && shouldApplySettingVariant(base.setting, classic);
-    const setting = allowSettingOverride ? `${base.setting}, ${settingLabel}` : base.setting;
+    let setting = allowSettingOverride ? `${base.setting}, ${settingLabel}` : base.setting;
+
+    // If this exact setting was already used by a previous override, fall back to base
+    const settingKey = setting.toLowerCase().trim();
+    if (usedSettings.has(settingKey) && allowSettingOverride) {
+      setting = base.setting;
+    }
+    usedSettings.add(setting.toLowerCase().trim());
     const narrative = buildNarrativeOverride({
       language,
       rng,

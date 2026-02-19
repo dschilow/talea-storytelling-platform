@@ -20,8 +20,8 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Quality-first but token-safe default: one global rewrite pass.
-const MAX_REWRITE_PASSES = 1;
+// Quality-first: two rewrite passes allow meaningful recovery from weak first drafts.
+const MAX_REWRITE_PASSES = 2;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -33,8 +33,8 @@ const REWRITE_ONLY_ON_ERRORS = true;
 // Keep expansion budget controlled but sufficient for short-chapter recovery.
 const MAX_EXPAND_CALLS = 2;
 
-// Keep warning-polish disabled by default; allow emergency fallback only.
-const MAX_WARNING_POLISH_CALLS = 0;
+// Allow one warning-polish pass for voice/rhythm cleanup after rewrites.
+const MAX_WARNING_POLISH_CALLS = 1;
 const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = false;
 const QUALITY_RECOVERY_SCORE_THRESHOLD = 8.2;
 const QUALITY_RECOVERY_WARNING_COUNT = 3;
@@ -162,9 +162,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const defaultStoryTokenBudget = isReasoningModel ? 14000 : 10000;
+    const defaultStoryTokenBudget = isReasoningModel ? 22000 : 10000;
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isReasoningModel ? 7000 : 4500;
+    const minStoryTokenBudget = isReasoningModel ? 10000 : 4500;
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -304,7 +304,7 @@ ${storyLanguageRule}`.trim();
       : Math.max(2200, Math.round(totalWordMax * 1.5));
     const reasoningMultiplier = isReasoningModel ? 1.2 : 1;
     const maxOutputTokens = isReasoningModel
-      ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 7600)
+      ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 9600)
       : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
@@ -322,7 +322,7 @@ ${storyLanguageRule}`.trim();
       responseFormat: "json_object",
       maxTokens: Math.max(700, initialCallMaxTokens),
       temperature: strict ? 0.4 : 0.7,
-      reasoningEffort: isReasoningModel ? "low" : "medium",
+      reasoningEffort: isReasoningModel ? "medium" : "medium",
       seed: generationSeed,
       context: "story-writer-full",
       logSource: "phase6-story-llm",
@@ -359,7 +359,7 @@ ${storyLanguageRule}`.trim();
             responseFormat: "json_object",
             maxTokens: recoveryBudgetedMaxTokens,
             temperature: strict ? 0.4 : 0.7,
-            reasoningEffort: isReasoningModel ? "low" : "medium",
+            reasoningEffort: isReasoningModel ? "medium" : "medium",
             seed: typeof generationSeed === "number" ? generationSeed + 173 : undefined,
             context: "story-writer-full-recovery",
             logSource: "phase6-story-llm",

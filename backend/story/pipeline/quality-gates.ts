@@ -775,6 +775,18 @@ function gatePoeticDensity(
         /\b(?:moment|zeit|stille)\s+(?:war|wurde)\s+schwer\s+wie\b/gi,
         /\b(?:schuld|zweifel|angst)\s+wie\s+(?:ein|eine)\s+(?:jacke|kiesel|stein|last)\b/gi,
         /\bwie\s+(?:ein|eine|der|die|das)\s+(?:kiesel|garn|stahl|klinge|asche|gesetz)\b/gi,
+        // Personifizierung von Natur/Objekten
+        /\b(?:wasser|wind|wald|nacht|stille|sonne|mond|regen|bach|fluss|see)\s+(?:kicherte?|lachte|sang|fl[üu]sterte|rief|tanzte|seufzte|weinte|l[äa]chelte|nickte|summte|murmelte)\b/gi,
+        // "klangen nervös/traurig" = Synästhesie
+        /\b\w+(?:spiele?|glocken?|t[öo]ne?|stimmen?)\s+klangen?\s+(?:nerv[öo]s|traurig|fr[öo]hlich|m[üu]de|[äa]ngstlich|einsam|leise)\b/gi,
+        // Meta-Narration
+        /\b(?:die\s+)?(?:geschichte|szene|handlung|erz[äa]hlung)\s+(?:schlie[ßs]t|endet|schloss|endete|begann)\s+mit\b/gi,
+        // Lehrsätze im Dialog
+        /\b(?:wir\s+haben\s+gelernt|wir\s+haben\s+verstanden|das\s+bedeutet\s+dass|die\s+lektion|das\s+lehrt\s+uns)\b/gi,
+        // Atmosphärische Füllung: "roch nach feuchtem/nassem..."
+        /\broch\s+(?:es\s+)?nach\s+(?:feuchtem?|nassem?|altem?|s[üu][ßs]em?|frischem?)\s+\w+/gi,
+        // "Der Wind trug..."
+        /\b(?:der\s+)?wind\s+trug\b/gi,
       ]
     : [
         /\b(?:night|silence|time|shadow|light|house|forest)\s+breathed\b/gi,
@@ -784,6 +796,12 @@ function gatePoeticDensity(
         /\b(?:forest|night|ruin|silence)\s+held\s+its\s+breath\b/gi,
         /\b(?:moment|time|silence)\s+(?:was|became)\s+heavy\s+as\b/gi,
         /\blike\s+(?:a|an|the)\s+(?:blade|steel|ash|law)\b/gi,
+        // Personification of nature/objects
+        /\b(?:water|wind|forest|night|silence|sun|moon|rain)\s+(?:giggled|laughed|sang|whispered|called|danced|sighed|wept|smiled|nodded|hummed)\b/gi,
+        // Meta-narration
+        /\b(?:the\s+)?(?:story|scene|narrative)\s+(?:closes|ends|ended|closed)\s+with\b/gi,
+        // Teaching sentences in dialogue
+        /\b(?:we\s+(?:have\s+)?learned|we\s+(?:have\s+)?understood|the\s+lesson|this\s+teaches\s+us)\b/gi,
       ];
 
   const maxPoeticHits = ageMax <= 8 ? 2 : 3;
