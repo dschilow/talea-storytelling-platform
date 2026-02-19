@@ -1,14 +1,14 @@
 /**
  * useMapFlowData.ts
- * Transforms MapSegment[] + ProgressState into React Flow nodes/edges.
+ * Transforms MapSegment[] + ProgressState into flat node/edge lists
+ * with absolute positions for the scrollable map container.
  * Reuses ROAD_POINTS + pathXAtY layout logic from the original map.
  */
 import { useMemo } from 'react';
-import type { Node, Edge } from '@xyflow/react';
-import type { MapSegment, MapNode, NodeState, ProgressState, NodeType, RouteTag } from '../TaleaLearningPathTypes';
+import type { MapSegment, MapNode, NodeState, ProgressState } from '../TaleaLearningPathTypes';
 import { computeNodeStates } from '../TaleaLearningPathSeedData';
 
-// ─── Road path logic (from original TaleaLearningPathMapView) ───────────────
+// ─── Road path logic ────────────────────────────────────────────────────────
 
 interface PathPoint { y: number; x: number }
 
@@ -84,34 +84,33 @@ export const buildRoadPath = (mapHeight: number): string => {
 const NODE_SPACING = 190;
 const SEGMENT_GAP  = 260;
 const TOP_OFFSET   = 160;
-// React Flow uses pixel positions; we use a virtual canvas width of 600px
-// to convert the % x-positions into absolute coordinates
-const CANVAS_WIDTH = 600;
-const NODE_SIZE    = 88;
 
-// ─── Node data payload for custom GameMapNode ───────────────────────────────
+// ─── FlatNode – node with computed absolute position + state ────────────────
 
-export interface GameNodeData {
-  mapNode: MapNode;
+export interface FlatNode {
+  node: MapNode;
   state: NodeState;
   segmentTitle: string;
   segmentIndex: number;
-  isLastActive: boolean;
-  isHeuteHighlighted: boolean;
+  mapY: number;
+  /** x position as % of container width (7–89) */
+  xPercent: number;
   nodeIndex: number;
-  [key: string]: unknown;
 }
 
-export type GameFlowNode = Node<GameNodeData, 'gameNode'>;
+// ─── Edge data ──────────────────────────────────────────────────────────────
 
-export interface GameEdgeData {
+export interface FlatEdge {
+  fromNodeId: string;
+  toNodeId: string;
+  fromX: number; // % (same as node xPercent)
+  fromY: number; // px
+  toX: number;
+  toY: number;
   edgeState: 'done' | 'available' | 'locked';
-  [key: string]: unknown;
 }
 
-export type GameFlowEdge = Edge<GameEdgeData>;
-
-// ─── Segment info for labels ────────────────────────────────────────────────
+// ─── Segment label info ─────────────────────────────────────────────────────
 
 export interface SegmentLabel {
   segmentId: string;
@@ -130,42 +129,39 @@ export function useMapFlowData(
   heuteNodeIds: Set<string>,
 ) {
   return useMemo(() => {
-    const nodes: GameFlowNode[] = [];
-    const edges: GameFlowEdge[] = [];
+    const flatNodes: FlatNode[] = [];
+    const flatEdges: FlatEdge[] = [];
     const segmentLabels: SegmentLabel[] = [];
     const doneSet = new Set(progress.doneNodeIds);
+
+    // Position lookup for edges
+    const posMap = new Map<string, { x: number; y: number }>();
+
     let globalIdx = 0;
     let y = TOP_OFFSET;
 
     for (const seg of segments) {
       const { nodesWithState } = computeNodeStates(seg, progress);
       const segStartY = y;
-
       let segDone = 0;
+
       for (const { node, state } of nodesWithState) {
         if (state === 'done') segDone++;
-        const roadXPct = pathXAtY(y);
-        const rawXPct = clamp(roadXPct + (node.x - 50) * 0.16, 7, 89);
-        const pixelX = (rawXPct / 100) * CANVAS_WIDTH - NODE_SIZE / 2;
 
-        nodes.push({
-          id: node.nodeId,
-          type: 'gameNode',
-          position: { x: pixelX, y },
-          data: {
-            mapNode: node,
-            state,
-            segmentTitle: seg.title,
-            segmentIndex: seg.index,
-            isLastActive: progress.lastActiveNodeId === node.nodeId,
-            isHeuteHighlighted: heuteNodeIds.has(node.nodeId),
-            nodeIndex: globalIdx,
-          },
-          draggable: false,
-          selectable: false,
-          connectable: false,
+        const roadX = pathXAtY(y);
+        const xPercent = clamp(roadX + (node.x - 50) * 0.16, 7, 89);
+
+        flatNodes.push({
+          node,
+          state,
+          segmentTitle: seg.title,
+          segmentIndex: seg.index,
+          mapY: y,
+          xPercent,
+          nodeIndex: globalIdx,
         });
 
+        posMap.set(node.nodeId, { x: xPercent, y });
         y += NODE_SPACING;
         globalIdx++;
       }
@@ -173,7 +169,7 @@ export function useMapFlowData(
       segmentLabels.push({
         segmentId: seg.segmentId,
         title: seg.title,
-        y: segStartY - 100,
+        y: segStartY - 122,
         index: seg.index,
         doneCount: segDone,
         totalCount: seg.nodes.length,
@@ -181,25 +177,34 @@ export function useMapFlowData(
 
       // Edges
       for (const edge of seg.edges) {
+        const fromPos = posMap.get(edge.fromNodeId);
+        const toPos = posMap.get(edge.toNodeId);
+        if (!fromPos || !toPos) continue;
+
         const fromDone = doneSet.has(edge.fromNodeId);
         const toDone = doneSet.has(edge.toNodeId);
         const edgeState: 'done' | 'available' | 'locked' =
           fromDone && toDone ? 'done' : fromDone ? 'available' : 'locked';
 
-        edges.push({
-          id: `e-${edge.fromNodeId}-${edge.toNodeId}`,
-          source: edge.fromNodeId,
-          target: edge.toNodeId,
-          type: 'gamePath',
-          data: { edgeState },
+        flatEdges.push({
+          fromNodeId: edge.fromNodeId,
+          toNodeId: edge.toNodeId,
+          fromX: fromPos.x,
+          fromY: fromPos.y,
+          toX: toPos.x,
+          toY: toPos.y,
+          edgeState,
         });
       }
 
       y += SEGMENT_GAP;
     }
 
-    const mapHeight = Math.max(y + 200, MAP_TILE_HEIGHT);
+    const mapHeight = Math.max(
+      (flatNodes[flatNodes.length - 1]?.mapY ?? TOP_OFFSET) + 420,
+      MAP_TILE_HEIGHT,
+    );
 
-    return { nodes, edges, segmentLabels, mapHeight };
+    return { flatNodes, flatEdges, segmentLabels, mapHeight };
   }, [segments, progress, heuteNodeIds]);
 }

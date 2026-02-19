@@ -1,121 +1,145 @@
 /**
  * TaleaLearningPathMapView.tsx
- * Game-style learning path map with zoom/pan via React Flow.
+ * Game-style learning path map – vertically scrollable.
  *
- * Uses custom GameMapNode + GameMapEdge components for game visuals.
- * Background layer (landscape tiles, road, particles) rendered
- * inside React Flow viewport so everything zooms/pans together.
+ * Architecture: scrollable container with absolute-positioned nodes.
+ * Components extracted into GameMapNode, GameMapEdge, MapBackground.
+ * Data transformation via useMapFlowData hook.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ReactFlow,
-  ReactFlowProvider,
-  MiniMap,
-  useReactFlow,
-  type NodeMouseHandler,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowLeft, ChevronRight, List, MapPin, Sun, Trophy,
+  ArrowLeft, ChevronRight, List, MapPin, Sparkles, Sun, Trophy,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { SEED_SEGMENTS } from './TaleaLearningPathSeedData';
 import { useLearningPathProgress } from './TaleaLearningPathProgressStore';
-import type { MapNode, NodeState } from './TaleaLearningPathTypes';
-import { useMapFlowData, type GameFlowNode } from './hooks/useMapFlowData';
+import { useMapFlowData, type FlatNode } from './hooks/useMapFlowData';
 import GameMapNode from './components/GameMapNode';
 import GameMapEdge from './components/GameMapEdge';
 import MapBackground from './components/MapBackground';
 import TaleaMapNodeSheet from './TaleaMapNodeSheet';
 
-// ─── React Flow node/edge type maps (stable reference) ─────────────────────
+// ─── Segment Label ──────────────────────────────────────────────────────────
 
-const nodeTypes = { gameNode: GameMapNode };
-const edgeTypes = { gamePath: GameMapEdge };
+const segLabelVariant = {
+  hidden: { opacity: 0, y: -18, scale: 0.86 },
+  show: {
+    opacity: 1, y: 0, scale: 1,
+    transition: { type: 'spring' as const, stiffness: 260, damping: 22 },
+  },
+};
 
-// ─── MiniMap node color ─────────────────────────────────────────────────────
+// ─── Component ──────────────────────────────────────────────────────────────
 
-function miniMapNodeColor(node: GameFlowNode): string {
-  const state = node.data?.state;
-  if (state === 'done') return '#22c99a';
-  if (state === 'available') return '#4f8cf5';
-  return '#3a4a5a';
-}
-
-// ─── Inner component (needs ReactFlowProvider above) ────────────────────────
-
-const MapInner: React.FC = () => {
+const TaleaLearningPathMapView: React.FC = () => {
   const navigate = useNavigate();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const reduceMotion = useReducedMotion() ?? false;
-  const { setCenter, fitView } = useReactFlow();
 
   const { progress } = useLearningPathProgress();
-  const [selected, setSelected] = useState<{ node: MapNode; state: NodeState } | null>(null);
+  const [selected, setSelected] = useState<FlatNode | null>(null);
   const [heuteMode, setHeuteMode] = useState(false);
   const [showKapitel, setShowKapitel] = useState(false);
+  const lastActiveRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapContentRef = useRef<HTMLDivElement | null>(null);
 
-  // Compute "heute" node IDs
+  // ── Zoom state: scale + transform-origin for zoom-to-node effect ──
+  const [zoomState, setZoomState] = useState<{
+    scale: number;
+    originX: string;
+    originY: string;
+  }>({ scale: 1, originX: '50%', originY: '50%' });
+
+  // Compute "heute" node IDs from seed data
   const heuteNodeIds = useMemo(() => {
     const ids = new Set<string>();
-    if (heuteMode) {
-      for (const seg of SEED_SEGMENTS) {
-        seg.recommendedDailyStops?.forEach(id => ids.add(id));
-      }
+    for (const seg of SEED_SEGMENTS) {
+      if (seg.recommendedDailyStops) seg.recommendedDailyStops.forEach(id => ids.add(id));
     }
     return ids;
-  }, [heuteMode]);
+  }, []);
 
-  // Transform segments + progress into React Flow data
-  const { nodes, edges, segmentLabels, mapHeight } = useMapFlowData(
+  // Transform segments + progress into flat data
+  const { flatNodes, flatEdges, segmentLabels, mapHeight } = useMapFlowData(
     SEED_SEGMENTS,
     progress,
     heuteNodeIds,
   );
 
-  // Node click handler
-  const onNodeClick: NodeMouseHandler<GameFlowNode> = useCallback((_event, node) => {
-    const { mapNode, state } = node.data;
-    if (state === 'locked') return;
-    setSelected({ node: mapNode, state });
-  }, []);
-
-  // "Zu mir" - fly camera to active or first available node
+  // "Zu mir" – scroll to active/first-available node
   const scrollToActive = useCallback(() => {
-    const activeNode = nodes.find(n => n.data.isLastActive);
-    const target = activeNode ?? nodes.find(n => n.data.state === 'available');
-    if (target) {
-      setCenter(target.position.x + 44, target.position.y + 44, { duration: 800, zoom: 1.2 });
+    if (lastActiveRef.current) {
+      lastActiveRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-      fitView({ duration: 600 });
+      const firstAvail = flatNodes.find(f => f.state === 'available');
+      if (firstAvail && scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: Math.max(0, firstAvail.mapY - window.innerHeight / 2),
+          behavior: 'smooth',
+        });
+      }
     }
-  }, [nodes, setCenter, fitView]);
+  }, [flatNodes]);
 
-  // Auto-fly to active on mount
-  const mounted = useRef(false);
+  // Auto-scroll to active on mount
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      const t = setTimeout(scrollToActive, 600);
-      return () => clearTimeout(t);
-    }
+    const t = setTimeout(scrollToActive, 600);
+    return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasActive = !!progress.lastActiveNodeId;
 
-  // Kapitel scroll handler
-  const scrollToSegment = useCallback((segmentIndex: number) => {
-    const firstNode = nodes.find(n => n.data.segmentIndex === segmentIndex);
-    if (firstNode) {
-      setCenter(firstNode.position.x + 44, firstNode.position.y + 44, { duration: 600, zoom: 0.9 });
+  // ── Node click: zoom to node + open sheet ────────────────────────────────
+  const handleNodeClick = useCallback((flat: FlatNode) => {
+    const isDeselect = selected?.node.nodeId === flat.node.nodeId;
+    if (isDeselect) {
+      setSelected(null);
+      setZoomState({ scale: 1, originX: '50%', originY: '50%' });
+      return;
     }
-  }, [nodes, setCenter]);
+
+    // Zoom into the clicked node
+    setSelected(flat);
+    setZoomState({
+      scale: 1.35,
+      originX: `${flat.xPercent}%`,
+      originY: `${flat.mapY}px`,
+    });
+
+    // Scroll the node into view (center)
+    if (scrollContainerRef.current) {
+      const containerH = scrollContainerRef.current.clientHeight;
+      scrollContainerRef.current.scrollTo({
+        top: Math.max(0, flat.mapY * 1.35 - containerH / 2),
+        behavior: 'smooth',
+      });
+    }
+  }, [selected]);
+
+  // Reset zoom when sheet is closed
+  const handleSheetClose = useCallback(() => {
+    setSelected(null);
+    setZoomState({ scale: 1, originX: '50%', originY: '50%' });
+  }, []);
+
+  // ── Kapitel scroll ────────────────────────────────────────────────────────
+  const scrollToSegment = useCallback((segIdx: number) => {
+    const first = flatNodes.find(f => f.segmentIndex === segIdx);
+    if (first && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: Math.max(0, first.mapY - 200),
+        behavior: 'smooth',
+      });
+    }
+  }, [flatNodes]);
 
   return (
-    <div className="flex h-screen flex-col" style={{ background: isDark ? '#0d1521' : '#ede5d4' }}>
+    <div className="flex min-h-screen flex-col" style={{ background: isDark ? '#0d1521' : '#ede5d4' }}>
+
       {/* ── Header ── */}
       <header
         className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3"
@@ -206,45 +230,128 @@ const MapInner: React.FC = () => {
         </motion.button>
       </header>
 
-      {/* ── React Flow Canvas ── */}
-      <div className="relative flex-1" style={{ backgroundColor: isDark ? '#111a28' : '#e4dac8' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          onNodeClick={onNodeClick}
-          fitView
-          fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
-          minZoom={0.15}
-          maxZoom={2.5}
-          panOnDrag
-          zoomOnScroll
-          zoomOnPinch
-          zoomOnDoubleClick
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          proOptions={{ hideAttribution: true }}
-          style={{ background: 'transparent' }}
+      {/* ── Scrollable Map ── */}
+      <div
+        ref={scrollContainerRef}
+        className="relative flex-1 overflow-y-auto overflow-x-hidden"
+        style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: isDark ? '#111a28' : '#e4dac8' }}
+      >
+        <motion.div
+          ref={mapContentRef}
+          className="relative"
+          style={{
+            height: `${mapHeight}px`,
+            transformOrigin: `${zoomState.originX} ${zoomState.originY}`,
+          }}
+          initial={{ opacity: 0.3, scale: 0.92 }}
+          animate={{ opacity: 1, scale: zoomState.scale }}
+          transition={{
+            opacity: { duration: 1.1, ease: [0.16, 1, 0.3, 1] },
+            scale: { type: 'spring', stiffness: 200, damping: 26 },
+          }}
         >
-          {/* Background layer inside React Flow viewport */}
-          <MapBackground mapHeight={mapHeight} segmentLabels={segmentLabels} />
+          {/* Background: tiles, overlay, particles, road */}
+          <MapBackground mapHeight={mapHeight} isDark={isDark} />
 
-          {/* MiniMap */}
-          <MiniMap
-            nodeColor={miniMapNodeColor}
-            maskColor={isDark ? 'rgba(8,14,24,0.85)' : 'rgba(228,218,200,0.85)'}
-            style={{
-              border: `1px solid ${isDark ? '#1e3148' : '#d8cbb8'}`,
-              borderRadius: '12px',
-              overflow: 'hidden',
-              background: isDark ? 'rgba(15,24,38,0.92)' : 'rgba(255,252,246,0.92)',
-            }}
-            pannable
-            zoomable
-          />
-        </ReactFlow>
+          {/* Edge SVG overlay */}
+          <svg
+            className="pointer-events-none absolute left-0 top-0 w-full"
+            height={mapHeight}
+            viewBox={`0 0 100 ${mapHeight}`}
+            preserveAspectRatio="none"
+          >
+            {flatEdges.map((edge, ei) => (
+              <GameMapEdge
+                key={`e-${edge.fromNodeId}-${edge.toNodeId}`}
+                fromX={edge.fromX}
+                fromY={edge.fromY}
+                toX={edge.toX}
+                toY={edge.toY}
+                edgeState={edge.edgeState}
+                isDark={isDark}
+                edgeIndex={ei}
+              />
+            ))}
+          </svg>
+
+          {/* Segment Labels */}
+          {segmentLabels.map((seg) => (
+            <motion.div
+              key={`lbl-${seg.segmentId}`}
+              className="pointer-events-none absolute left-0 right-0 flex items-center justify-center gap-3 px-6"
+              style={{ top: `${seg.y}px`, zIndex: 3 }}
+              variants={segLabelVariant}
+              initial="hidden"
+              animate="show"
+            >
+              <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
+              <motion.span
+                className="rounded-full border px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]"
+                style={{
+                  borderColor: isDark ? '#243a54' : '#c0a888',
+                  color: isDark ? '#6aaad2' : '#6a5a48',
+                  background: isDark ? 'rgba(8,18,32,0.88)' : 'rgba(252,246,236,0.92)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: isDark
+                    ? '0 3px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)'
+                    : '0 2px 10px rgba(0,0,0,0.10)',
+                }}
+                whileHover={{ scale: 1.04 }}
+              >
+                {seg.title}
+              </motion.span>
+              <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
+            </motion.div>
+          ))}
+
+          {/* Nodes */}
+          {flatNodes.map((flat) => {
+            const isSel = selected?.node.nodeId === flat.node.nodeId;
+            const isLastAct = progress.lastActiveNodeId === flat.node.nodeId;
+
+            return (
+              <GameMapNode
+                key={flat.node.nodeId}
+                ref={isLastAct ? lastActiveRef : undefined}
+                node={flat.node}
+                state={flat.state}
+                isDark={isDark}
+                isLastActive={isLastAct}
+                isHeuteHighlighted={heuteMode && heuteNodeIds.has(flat.node.nodeId)}
+                isSelected={isSel}
+                nodeIndex={flat.nodeIndex}
+                mapY={flat.mapY}
+                xPercent={flat.xPercent}
+                onClick={() => flat.state !== 'locked' && handleNodeClick(flat)}
+              />
+            );
+          })}
+
+          {/* End-of-map message */}
+          <motion.div
+            className="absolute flex w-full items-center justify-center"
+            style={{ top: `${mapHeight - 100}px`, zIndex: 5 }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.7, ease: 'easeOut' }}
+          >
+            <motion.span
+              className="flex items-center gap-2 rounded-full border px-5 py-2.5 text-xs font-bold"
+              style={{
+                borderColor: isDark ? '#1c3050' : '#c0a888',
+                color: isDark ? '#426888' : '#7a6858',
+                background: isDark ? 'rgba(8,16,28,0.84)' : 'rgba(252,246,236,0.90)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 18px rgba(0,0,0,0.22)',
+              }}
+              animate={!reduceMotion ? { y: [0, -5, 0] } : {}}
+              transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <Sparkles className="h-3.5 w-3.5 opacity-50" />
+              Neue Abenteuer folgen bald…
+            </motion.span>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* ── Kapitel Overlay ── */}
@@ -325,20 +432,12 @@ const MapInner: React.FC = () => {
             node={selected.node}
             state={selected.state}
             isDark={isDark}
-            onClose={() => setSelected(null)}
+            onClose={handleSheetClose}
           />
         )}
       </AnimatePresence>
     </div>
   );
 };
-
-// ─── Wrapper with Provider ──────────────────────────────────────────────────
-
-const TaleaLearningPathMapView: React.FC = () => (
-  <ReactFlowProvider>
-    <MapInner />
-  </ReactFlowProvider>
-);
 
 export default TaleaLearningPathMapView;

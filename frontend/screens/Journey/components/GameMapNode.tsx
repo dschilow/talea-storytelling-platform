@@ -1,10 +1,10 @@
 /**
  * GameMapNode.tsx
- * Custom React Flow node – looks like a game station (round button with icon/title/status).
- * Contains all animations: float, pulse, squash-tap, done-burst, reward badge.
+ * Game station node – round button with icon/title/status.
+ * Absolute-positioned in the scrollable map container.
+ * All animations: float, pulse, squash-tap, done-burst, reward badge.
  */
-import React, { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import React, { memo, forwardRef } from 'react';
 import {
   AnimatePresence,
   motion,
@@ -15,9 +15,7 @@ import {
   BookOpen, CheckCircle2, Flame, GitFork,
   Headphones, HelpCircle, Lock, Sparkles,
 } from 'lucide-react';
-import { useTheme } from '../../../contexts/ThemeContext';
-import type { NodeType } from '../TaleaLearningPathTypes';
-import type { GameNodeData, GameFlowNode } from '../hooks/useMapFlowData';
+import type { NodeType, MapNode, NodeState } from '../TaleaLearningPathTypes';
 
 // ─── Icon / Color / Label mappings ──────────────────────────────────────────
 
@@ -30,7 +28,7 @@ const NODE_ICON: Record<NodeType, React.ElementType> = {
   Fork:        GitFork,
 };
 
-const NODE_COLOR: Record<NodeType, string> = {
+export const NODE_COLOR: Record<NodeType, string> = {
   DokuStop:    '#4f8cf5',
   QuizStop:    '#9b5ef5',
   StoryGate:   '#f56b9b',
@@ -51,9 +49,9 @@ const NODE_LABEL: Record<NodeType, string> = {
 // ─── Framer Variants ────────────────────────────────────────────────────────
 
 const nodeEnterVariant: Variants = {
-  hidden: { opacity: 0, scale: 0.35, y: 16 },
+  hidden: { opacity: 0, scale: 0.35, scaleY: 1.45, y: 16 },
   show: (delay: number) => ({
-    opacity: 1, scale: 1, y: 0,
+    opacity: 1, scale: 1, scaleY: 1, y: 0,
     transition: { delay, type: 'spring', stiffness: 370, damping: 17, mass: 0.72 },
   }),
 };
@@ -105,14 +103,29 @@ const DoneBurst: React.FC<{ color: string }> = memo(({ color }) => (
   </>
 ));
 
+// ─── Props ──────────────────────────────────────────────────────────────────
+
+export interface GameMapNodeProps {
+  node: MapNode;
+  state: NodeState;
+  isDark: boolean;
+  isLastActive: boolean;
+  isHeuteHighlighted: boolean;
+  isSelected: boolean;
+  nodeIndex: number;
+  mapY: number;
+  xPercent: number;
+  onClick: () => void;
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-const GameMapNode: React.FC<NodeProps<GameFlowNode>> = ({ data }) => {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+const GameMapNode = forwardRef<HTMLDivElement, GameMapNodeProps>(({
+  node, state, isDark, isLastActive, isHeuteHighlighted, isSelected,
+  nodeIndex, mapY, xPercent, onClick,
+}, ref) => {
   const reduceMotion = useReducedMotion() ?? false;
 
-  const { mapNode: node, state, isLastActive, isHeuteHighlighted, nodeIndex } = data;
   const isLocked    = state === 'locked';
   const isDone      = state === 'done';
   const isAvailable = state === 'available';
@@ -129,29 +142,55 @@ const GameMapNode: React.FC<NodeProps<GameFlowNode>> = ({ data }) => {
       ? (isDark ? 'rgba(26,55,46,0.72)' : 'rgba(205,238,220,0.82)')
       : (isDark ? 'rgba(14,24,40,0.82)' : 'rgba(255,252,244,0.90)');
 
-  const shadow = isDone
-    ? `0 0 12px ${color}44, 0 8px 22px rgba(6,12,22,0.30)`
-    : '0 8px 26px rgba(6,12,22,0.34)';
+  const shadow = isSelected
+    ? `0 0 0 5px ${color}44, 0 18px 40px rgba(6,12,22,0.56)`
+    : isDone
+      ? `0 0 12px ${color}44, 0 8px 22px rgba(6,12,22,0.30)`
+      : '0 8px 26px rgba(6,12,22,0.34)';
 
   return (
     <motion.div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        top: `${mapY - 44}px`,
+        left: `calc(${xPercent}% - 44px)`,
+        zIndex: 4,
+      }}
       custom={nodeIndex * 0.038}
       variants={nodeEnterVariant}
       initial="hidden"
       animate="show"
-      style={{ width: 88, height: 88 }}
     >
-      {/* Invisible handles for edge connections */}
-      <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 1, height: 1 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 1, height: 1 }} />
+      {/* Selection ring */}
+      <AnimatePresence>
+        {isSelected && (
+          <motion.span
+            key="selring"
+            className="pointer-events-none absolute inset-[-6px] rounded-full"
+            style={{ border: `2px dashed ${color}99` }}
+            initial={{ opacity: 0, scale: 0.75 }}
+            animate={{ opacity: 1, scale: 1, rotate: 360 }}
+            exit={{ opacity: 0, scale: 0.75, transition: { duration: 0.18 } }}
+            transition={{
+              opacity: { duration: 0.22 },
+              scale: { duration: 0.22 },
+              rotate: { duration: 9, repeat: Infinity, ease: 'linear' },
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Node button */}
-      <motion.div
-        className="relative flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 text-center"
+      <motion.button
+        type="button"
+        onClick={onClick}
+        disabled={isLocked}
+        className="relative flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         style={{
           borderColor: isLocked
             ? (isDark ? '#1c3050' : '#bbb0a4')
-            : `${color}80`,
+            : isSelected ? color : `${color}80`,
           background: bgClr,
           cursor: isLocked ? 'not-allowed' : 'pointer',
           boxShadow: shadow,
@@ -160,13 +199,19 @@ const GameMapNode: React.FC<NodeProps<GameFlowNode>> = ({ data }) => {
         animate={!reduceMotion && isAvailable ? {
           y: [0, -8, 0],
           rotate: [-0.7, 0.7, -0.7],
-        } : {}}
+          scale: isSelected ? 1.11 : 1,
+        } : { scale: isSelected ? 1.11 : 1 }}
         transition={!reduceMotion && isAvailable ? {
           y: { duration: 2.9 + (nodeIndex % 4) * 0.38, repeat: Infinity, ease: 'easeInOut' },
           rotate: { duration: 3.4 + (nodeIndex % 3) * 0.44, repeat: Infinity, ease: 'easeInOut' },
-        } : {}}
+          scale: { type: 'spring', stiffness: 280, damping: 22 },
+        } : { type: 'spring', stiffness: 300, damping: 24 }}
         whileTap={isLocked ? {} : { scaleX: 1.16, scaleY: 0.84, transition: { duration: 0.07 } }}
-        whileHover={isLocked ? {} : { scale: 1.07, transition: { type: 'spring', stiffness: 380, damping: 18 } }}
+        whileHover={isLocked ? {} : {
+          scale: isSelected ? 1.13 : 1.07,
+          transition: { type: 'spring', stiffness: 380, damping: 18 },
+        }}
+        aria-label={`${node.title} – ${state}`}
       >
         {/* Pulse rings for available */}
         {!reduceMotion && isAvailable && <PulseRings color={color} />}
@@ -272,7 +317,7 @@ const GameMapNode: React.FC<NodeProps<GameFlowNode>> = ({ data }) => {
             </motion.span>
           )}
         </AnimatePresence>
-      </motion.div>
+      </motion.button>
 
       {/* "Du bist hier!" marker */}
       {isLastActive && (
@@ -299,6 +344,8 @@ const GameMapNode: React.FC<NodeProps<GameFlowNode>> = ({ data }) => {
       )}
     </motion.div>
   );
-};
+});
+
+GameMapNode.displayName = 'GameMapNode';
 
 export default memo(GameMapNode);
