@@ -6,6 +6,8 @@ import type { MapSegment, MapNode, NodeState, ProgressState } from './TaleaLearn
 
 const SEG_SPACE: MapSegment = {
   segmentId: 'space-01', title: 'Weltraum & Sterne', index: 0,
+  backgroundImage: '/assets/lernpfad_no_path.png',
+  height: 1880,
   themeTags: ['space', 'stars'],
   recommendedDailyStops: ['sp-doku1', 'sp-quiz1', 'sp-story1'],
   edges: [
@@ -29,6 +31,8 @@ const SEG_SPACE: MapSegment = {
 
 const SEG_FRIENDSHIP: MapSegment = {
   segmentId: 'friendship-01', title: 'Freundschaft & Zusammenhalt', index: 1,
+  backgroundImage: '/assets/lernpfad_high.jpg',
+  height: 1820,
   themeTags: ['friendship', 'emotions'],
   recommendedDailyStops: ['fr-doku1', 'fr-story1'],
   edges: [
@@ -50,6 +54,8 @@ const SEG_FRIENDSHIP: MapSegment = {
 
 const SEG_WEATHER: MapSegment = {
   segmentId: 'weather-01', title: 'Wetter & Natur', index: 2,
+  backgroundImage: '/assets/learning-world-reference.png',
+  height: 1760,
   themeTags: ['weather', 'nature', 'science'],
   recommendedDailyStops: ['we-doku1', 'we-quiz1'],
   edges: [

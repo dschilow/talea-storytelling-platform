@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBackend } from "@/hooks/useBackend";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Doku, DokuSection } from "@/types/doku";
+import { emitMapProgress } from "../Journey/TaleaLearningPathProgressStore";
 
 type DeckFilter = {
   query: string;
@@ -152,6 +153,7 @@ const CommunityQuizScreen: React.FC = () => {
   const backend = useBackend();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const mapAvatarId = searchParams.get("mapAvatarId");
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
@@ -310,6 +312,13 @@ const CommunityQuizScreen: React.FC = () => {
       return;
     }
     setDeckFinished(true);
+    emitMapProgress({
+      avatarId: mapAvatarId,
+      source: "quiz",
+      quizId: `community-${deck.length}`,
+      correctCount,
+      totalCount: deck.length,
+    });
   };
 
   const goPrev = () => {

@@ -21,6 +21,7 @@ import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
+import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 
 const StoryReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -30,6 +31,7 @@ const StoryReaderScreen: React.FC = () => {
   const { getToken } = useAuth();
   const { t } = useTranslation();
   const { isAdmin } = useOptionalUserAccess();
+  const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
@@ -235,12 +237,14 @@ const StoryReaderScreen: React.FC = () => {
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
+              avatarId: mapAvatarId ?? undefined,
               refreshProgression: true,
               source: 'story',
               updatedAt: new Date().toISOString(),
             },
           })
         );
+        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
         console.log('✅ Personality updates applied:', result);
         console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
 
@@ -380,6 +384,7 @@ const StoryReaderScreen: React.FC = () => {
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
+        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
 
         // Show error notification but still show completion
         import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
@@ -390,6 +395,7 @@ const StoryReaderScreen: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Error during story completion processing:', error);
+      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
 
       // Show error notification but still show completion
       import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {

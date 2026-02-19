@@ -65,10 +65,26 @@ export interface MapSegment {
   segmentId: string;
   title: string;
   index: number;
+  /** Background image for this segment tile */
+  backgroundImage: string;
+  /** Segment height in px */
+  height: number;
   nodes: MapNode[];
   edges: MapEdge[];
   themeTags: string[];
   recommendedDailyStops?: string[];
+}
+
+export interface PendingNodeAction {
+  nodeId: string;
+  nodeType: NodeType;
+  startedAt: number;
+}
+
+export interface ForkSelection {
+  optionId: string;
+  nextSegmentId: string;
+  selectedAt: number;
 }
 
 export interface ProgressState {
@@ -78,5 +94,7 @@ export interface ProgressState {
   lastActiveNodeId: string | null;
   dailySuggestedNodeIds: string[];
   quizResultsById: Record<string, { correctCount: number; totalCount: number }>;
+  pendingNodeActions: PendingNodeAction[];
+  forkSelectionsByNodeId: Record<string, ForkSelection>;
 }
 

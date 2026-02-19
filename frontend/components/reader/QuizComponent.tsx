@@ -1,12 +1,14 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, CheckCircle2, HelpCircle, RotateCcw, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 import type { DokuSection } from '../../types/doku';
 import { useAvatarMemory } from '../../hooks/useAvatarMemory';
 import { usePersonalityAI } from '../../hooks/usePersonalityAI';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import { emitMapProgress } from '../../screens/Journey/TaleaLearningPathProgressStore';
 
 interface QuizComponentProps {
   section: DokuSection;
@@ -57,56 +59,54 @@ const normalizeText = (value: unknown): string => {
 };
 
 const normalizeQuestions = (rawQuestions: unknown[]): NormalizedQuestion[] => {
-  return rawQuestions
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') {
-        return null;
+  const normalized: NormalizedQuestion[] = [];
+
+  rawQuestions.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+
+    const source = entry as Record<string, unknown>;
+    const question = normalizeText(source.question ?? source.prompt ?? source.title);
+    const rawOptions = Array.isArray(source.options)
+      ? source.options
+      : Array.isArray(source.answers)
+        ? source.answers
+        : [];
+
+    const options = rawOptions.map(normalizeText).filter((option) => option.length > 0);
+    if (!question || options.length < 2) {
+      return;
+    }
+
+    const rawIndex = Number(
+      source.answerIndex ?? source.correctIndex ?? source.correctOption ?? source.correctAnswerIndex,
+    );
+    let answerIndex = Number.isFinite(rawIndex) ? rawIndex : -1;
+
+    if (answerIndex < 0 || answerIndex >= options.length) {
+      const answerText = normalizeText(source.correctAnswer ?? source.answer ?? source.correct);
+      if (answerText) {
+        answerIndex = options.findIndex(
+          (option) => option.toLowerCase().trim() === answerText.toLowerCase().trim(),
+        );
       }
+    }
 
-      const source = entry as Record<string, unknown>;
+    if (answerIndex < 0 || answerIndex >= options.length) {
+      answerIndex = 0;
+    }
 
-      const question = normalizeText(source.question ?? source.prompt ?? source.title);
-      const rawOptions = Array.isArray(source.options)
-        ? source.options
-        : Array.isArray(source.answers)
-          ? source.answers
-          : [];
+    const explanation = normalizeText(source.explanation ?? source.reason ?? source.hint);
+    normalized.push({
+      question,
+      options,
+      answerIndex,
+      explanation: explanation || undefined,
+    });
+  });
 
-      const options = rawOptions.map(normalizeText).filter((option) => option.length > 0);
-
-      if (!question || options.length < 2) {
-        return null;
-      }
-
-      const rawIndex = Number(
-        source.answerIndex ?? source.correctIndex ?? source.correctOption ?? source.correctAnswerIndex
-      );
-
-      let answerIndex = Number.isFinite(rawIndex) ? rawIndex : -1;
-
-      if (answerIndex < 0 || answerIndex >= options.length) {
-        const answerText = normalizeText(source.correctAnswer ?? source.answer ?? source.correct);
-        if (answerText) {
-          answerIndex = options.findIndex(
-            (option) => option.toLowerCase().trim() === answerText.toLowerCase().trim()
-          );
-        }
-      }
-
-      if (answerIndex < 0 || answerIndex >= options.length) {
-        answerIndex = 0;
-      }
-
-      const explanation = normalizeText(source.explanation ?? source.reason ?? source.hint);
-
-      return {
-        question,
-        options,
-        answerIndex,
-        explanation: explanation || undefined,
-      };
-    })
-    .filter((question): question is NormalizedQuestion => question != null);
+  return normalized;
 };
 
 const calculateScore = (questions: NormalizedQuestion[], selectedAnswers: Array<number | null>) => {
@@ -127,6 +127,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   onPersonalityChange,
   variant = 'page',
 }) => {
+  const location = useLocation();
   const quiz = section.interactive?.quiz;
   const backend = useBackend();
   const { addMemory, updatePersonality } = useAvatarMemory();
@@ -146,6 +147,9 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
     return normalizeQuestions(quiz.questions as unknown[]);
   }, [quiz]);
+
+  const mapAvatarId = useMemo(() => new URLSearchParams(location.search).get('mapAvatarId'), [location.search]);
+  const effectiveAvatarId = avatarId ?? mapAvatarId ?? undefined;
 
   useEffect(() => {
     setCurrentQuestionIndex(0);
@@ -214,6 +218,13 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
     setIsSubmitting(true);
     setQuizCompleted(true);
+    emitMapProgress({
+      avatarId: effectiveAvatarId,
+      source: 'quiz',
+      quizId: dokuId ? `${dokuId}-quiz-${section.title}` : undefined,
+      correctCount: correctAnswers,
+      totalCount: questions.length,
+    });
 
     try {
       const { showQuizCompletionToast } = await import('../../utils/toastUtils');
@@ -222,13 +233,13 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
       // Optional UI toast only
     }
 
-    if (!avatarId || !dokuTitle || !dokuId) {
+    if (!effectiveAvatarId || !dokuTitle || !dokuId) {
       setIsSubmitting(false);
       return;
     }
 
     try {
-      const avatar = await backend.avatar.get({ id: avatarId });
+      const avatar = await backend.avatar.get({ id: effectiveAvatarId });
       if (!avatar) {
         setIsSubmitting(false);
         return;
@@ -267,7 +278,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
         const experience = `Quiz zu "${section.title}" in "${dokuTitle}" mit ${percentage}% abgeschlossen.`;
 
-        await addMemory(avatarId, {
+        await addMemory(effectiveAvatarId, {
           storyId: dokuId,
           storyTitle: `Quiz: ${dokuTitle}`,
           experience,
@@ -277,7 +288,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
         });
 
         await updatePersonality(
-          avatarId,
+          effectiveAvatarId,
           personalityChanges,
           `Quiz-Auswertung "${section.title}" (${percentage}% korrekt)`,
           dokuId
@@ -461,4 +472,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     </div>
   );
 };
+
+
+
 

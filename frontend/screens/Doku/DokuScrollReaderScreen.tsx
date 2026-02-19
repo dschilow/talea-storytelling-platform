@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
@@ -13,13 +13,16 @@ import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { getOfflineDoku } from '../../utils/offlineDb';
+import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 
 const DokuScrollReaderScreen: React.FC = () => {
   const { t } = useTranslation();
   const { dokuId } = useParams<{ dokuId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
 
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +96,17 @@ const DokuScrollReaderScreen: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
+        window.dispatchEvent(
+          new CustomEvent('personalityUpdated', {
+            detail: {
+              avatarId: mapAvatarId ?? undefined,
+              refreshProgression: true,
+              source: 'doku',
+              updatedAt: new Date().toISOString(),
+            },
+          }),
+        );
+        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           let message = `📚 ${t('doku.readDoku')} ${t('common.finish')}! ${result.updatedAvatars} ${t('avatar.title')}.\n\n`;
@@ -112,6 +126,7 @@ const DokuScrollReaderScreen: React.FC = () => {
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
+        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
         import('../../utils/toastUtils').then(({ showErrorToast }) => {
           showErrorToast(t('errors.generic'));
@@ -120,6 +135,7 @@ const DokuScrollReaderScreen: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Error during doku completion processing:', error);
+      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
         showErrorToast(t('errors.networkError'));

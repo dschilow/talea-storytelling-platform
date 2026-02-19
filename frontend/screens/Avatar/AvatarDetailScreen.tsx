@@ -6,6 +6,7 @@ import {
   BookOpen,
   Brain,
   CircleHelp,
+  Compass,
   Gem,
   PencilLine,
   Trash2,
@@ -487,6 +488,21 @@ const AvatarDetailScreen: React.FC = () => {
               <p className="mb-4 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
                 Klare Uebersicht mit Erklaerungen, Lernpfad und automatischer Aktualisierung nach Story- und Doku-Lesen.
               </p>
+              {avatarId && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/map?avatarId=${encodeURIComponent(avatarId)}`)}
+                  className="mb-4 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors"
+                  style={{
+                    borderColor: isDark ? '#3c526a' : '#d6cab9',
+                    color: isDark ? '#c8d8ec' : '#3f5874',
+                    background: isDark ? 'rgba(30,45,64,0.62)' : 'rgba(255,252,247,0.9)',
+                  }}
+                >
+                  <Compass className="h-3.5 w-3.5" />
+                  Reise-Karte fuer diesen Avatar
+                </button>
+              )}
               <PersonalityProgressBoard traits={traitModels} progression={progression} memories={memories} />
             </div>
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, useScroll, useSpring, useInView } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Sparkles, BookOpen } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
@@ -13,6 +13,7 @@ import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getOfflineDoku } from '../../utils/offlineDb';
+import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import '../Story/CinematicStoryViewer.css';
 
 /* ── Palette (teal/knowledge tint over the shared warm base) ── */
@@ -73,6 +74,7 @@ const PARTICLES = Array.from({ length: 6 }, (_, i) => ({
 const CinematicDokuViewer: React.FC = () => {
   const { dokuId } = useParams<{ dokuId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
@@ -88,6 +90,10 @@ const CinematicDokuViewer: React.FC = () => {
 
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getDokuPalette(isDark), [isDark]);
+  const mapAvatarId = useMemo(
+    () => new URLSearchParams(location.search).get('mapAvatarId'),
+    [location.search],
+  );
 
   const { scrollYProgress } = useScroll({ container: containerRef });
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
@@ -140,9 +146,21 @@ const CinematicDokuViewer: React.FC = () => {
       if (response.ok) {
         const { showSuccessToast } = await import('../../utils/toastUtils');
         showSuccessToast('Doku abgeschlossen. Wissen erweitert.');
+        window.dispatchEvent(
+          new CustomEvent('personalityUpdated', {
+            detail: {
+              avatarId: mapAvatarId ?? undefined,
+              refreshProgression: true,
+              source: 'doku',
+              updatedAt: new Date().toISOString(),
+            },
+          }),
+        );
       }
+      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
     } catch (error) {
       console.error('Error completing doku:', error);
+      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
     }
   };
 

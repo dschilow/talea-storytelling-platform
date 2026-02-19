@@ -1,13 +1,9 @@
 /**
  * TaleaLearningPathMapView.tsx
- * Game-style learning path map – vertically scrollable.
- *
- * Architecture: scrollable container with absolute-positioned nodes.
- * Components extracted into GameMapNode, GameMapEdge, MapBackground.
- * Segments generated dynamically from user's real backend data (dokus, stories, memories).
+ * Game-style learning path map - vertically scrollable.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft, ChevronRight, List, Loader2, MapPin, Sparkles, Sun, Trophy,
@@ -18,125 +14,168 @@ import { useMapFlowData, type FlatNode } from './hooks/useMapFlowData';
 import { useMapSegmentGenerator } from './hooks/useMapSegmentGenerator';
 import { useAvatarTraitsForMap } from './hooks/useAvatarTraitsForMap';
 import { useDailyRecommendations } from './hooks/useDailyRecommendations';
+import type { MapNode, MapSegment } from './TaleaLearningPathTypes';
 import GameMapNode from './components/GameMapNode';
 import GameMapEdge from './components/GameMapEdge';
 import MapBackground from './components/MapBackground';
 import TaleaMapNodeSheet from './TaleaMapNodeSheet';
 import { getTraitIcon, getTraitLabel } from '../../constants/traits';
 
-// ─── Segment Label ──────────────────────────────────────────────────────────
-
 const segLabelVariant = {
   hidden: { opacity: 0, y: -18, scale: 0.86 },
   show: {
-    opacity: 1, y: 0, scale: 1,
+    opacity: 1,
+    y: 0,
+    scale: 1,
     transition: { type: 'spring' as const, stiffness: 260, damping: 22 },
   },
 };
 
-// ─── Component ──────────────────────────────────────────────────────────────
+function filterSegmentsByForkChoices(
+  segments: MapSegment[],
+  forkSelectionsByNodeId: Record<string, { nextSegmentId: string }>,
+): MapSegment[] {
+  if (segments.length <= 1) return segments;
+
+  const byId = new Map(segments.map((s) => [s.segmentId, s]));
+  const sorted = [...segments].sort((a, b) => a.index - b.index);
+  const visited = new Set<string>();
+  const result: MapSegment[] = [];
+
+  let current: MapSegment | undefined = sorted[0];
+
+  while (current && !visited.has(current.segmentId)) {
+    visited.add(current.segmentId);
+    result.push(current);
+
+    const forkNode: MapNode | undefined = current.nodes.find((n) => n.type === 'Fork' && n.action.type === 'fork');
+    const chosenNext: string | undefined = forkNode
+      ? forkSelectionsByNodeId[forkNode.nodeId]?.nextSegmentId
+      : undefined;
+    const chosenSegment: MapSegment | undefined = chosenNext ? byId.get(chosenNext) : undefined;
+
+    if (chosenNext) {
+      if (chosenSegment && !visited.has(chosenSegment.segmentId)) {
+        current = chosenSegment;
+        continue;
+      }
+      // A fork is selected, but the target segment is not loaded yet.
+      // Stop here instead of leaking into non-selected branches.
+      break;
+    }
+
+    const currentIndex: number = current.index;
+    current = sorted.find((s) => !visited.has(s.segmentId) && s.index > currentIndex);
+  }
+
+  return result;
+}
 
 const TaleaLearningPathMapView: React.FC = () => {
   const navigate = useNavigate();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const reduceMotion = useReducedMotion() ?? false;
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { progress } = useLearningPathProgress();
-  const avatarTraits = useAvatarTraitsForMap();
+  const avatarIdParam = searchParams.get('avatarId');
+  const avatarTraits = useAvatarTraitsForMap(avatarIdParam);
+  const { progress } = useLearningPathProgress(avatarTraits.avatarId);
+
   const [selected, setSelected] = useState<FlatNode | null>(null);
   const [heuteMode, setHeuteMode] = useState(false);
   const [showKapitel, setShowKapitel] = useState(false);
   const lastActiveRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapContentRef = useRef<HTMLDivElement | null>(null);
   const endOfMapRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Infinite scroll: visible segment count ──
   const [visibleSegmentCount, setVisibleSegmentCount] = useState(6);
 
-  // ── Dynamic segment generation from backend data ──
-  const { segments, backendDoneNodeIds, loading: segmentsLoading } = useMapSegmentGenerator(
-    avatarTraits.avatarId ?? null,
-    visibleSegmentCount,
-  );
+  useEffect(() => {
+    if (avatarIdParam || !avatarTraits.avatarId) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('avatarId', avatarTraits.avatarId);
+    setSearchParams(next, { replace: true });
+  }, [avatarIdParam, avatarTraits.avatarId, searchParams, setSearchParams]);
 
-  // ── Merge localStorage progress with backend-derived done IDs ──
+  const {
+    segments: rawSegments,
+    backendDoneNodeIds,
+    loading: segmentsLoading,
+  } = useMapSegmentGenerator(avatarTraits.avatarId ?? null, visibleSegmentCount);
+
   const mergedProgress = useMemo(
     () => mergeBackendDoneIds(progress, backendDoneNodeIds),
     [progress, backendDoneNodeIds],
   );
 
-  // ── Zoom state: scale + transform-origin for zoom-to-node effect ──
+  const segments = useMemo(
+    () => filterSegmentsByForkChoices(rawSegments, mergedProgress.forkSelectionsByNodeId),
+    [rawSegments, mergedProgress.forkSelectionsByNodeId],
+  );
+
   const [zoomState, setZoomState] = useState<{
     scale: number;
     originX: string;
     originY: string;
   }>({ scale: 1, originX: '50%', originY: '50%' });
 
-  // Fallback "heute" node IDs from segment data
   const seedHeuteIds = useMemo(() => {
     const ids = new Set<string>();
     for (const seg of segments) {
-      if (seg.recommendedDailyStops) seg.recommendedDailyStops.forEach(id => ids.add(id));
+      if (seg.recommendedDailyStops) seg.recommendedDailyStops.forEach((id) => ids.add(id));
     }
     return ids;
   }, [segments]);
 
-  // Transform segments + merged progress into flat data
-  const { flatNodes, flatEdges, segmentLabels, mapHeight } = useMapFlowData(
+  const { flatNodes, flatEdges, segmentLabels, segmentBlocks, mapHeight } = useMapFlowData(
     segments,
     mergedProgress,
     seedHeuteIds,
     avatarTraits.loading ? undefined : avatarTraits.byId,
   );
 
-  // Smart daily recommendations: use trait-based when available, else seed fallback
   const smartHeuteIds = useDailyRecommendations(flatNodes, avatarTraits.byId);
   const heuteNodeIds = !avatarTraits.loading && Object.keys(avatarTraits.byId).length > 0
     ? smartHeuteIds
     : seedHeuteIds;
 
-  // ── Infinite scroll observer ──
   useEffect(() => {
     const el = endOfMapRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setVisibleSegmentCount(prev => prev + 4);
+          setVisibleSegmentCount((prev) => prev + 4);
         }
       },
       { rootMargin: '400px' },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [mapHeight]); // re-attach when map grows
+  }, [mapHeight]);
 
-  // "Zu mir" – scroll to active/first-available node
   const scrollToActive = useCallback(() => {
     if (lastActiveRef.current) {
       lastActiveRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      const firstAvail = flatNodes.find(f => f.state === 'available');
-      if (firstAvail && scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({
-          top: Math.max(0, firstAvail.mapY - window.innerHeight / 2),
-          behavior: 'smooth',
-        });
-      }
+      return;
+    }
+    const firstAvail = flatNodes.find((f) => f.state === 'available');
+    if (firstAvail && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: Math.max(0, firstAvail.mapY - window.innerHeight / 2),
+        behavior: 'smooth',
+      });
     }
   }, [flatNodes]);
 
-  // Auto-scroll to active on mount
   useEffect(() => {
     const t = setTimeout(scrollToActive, 600);
     return () => clearTimeout(t);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scrollToActive]);
 
   const hasActive = !!mergedProgress.lastActiveNodeId;
 
-  // ── Node click: zoom to node + open sheet ────────────────────────────────
   const handleNodeClick = useCallback((flat: FlatNode) => {
     const isDeselect = selected?.node.nodeId === flat.node.nodeId;
     if (isDeselect) {
@@ -145,7 +184,6 @@ const TaleaLearningPathMapView: React.FC = () => {
       return;
     }
 
-    // Zoom into the clicked node
     setSelected(flat);
     setZoomState({
       scale: 1.35,
@@ -153,7 +191,6 @@ const TaleaLearningPathMapView: React.FC = () => {
       originY: `${flat.mapY}px`,
     });
 
-    // Scroll the node into view (center)
     if (scrollContainerRef.current) {
       const containerH = scrollContainerRef.current.clientHeight;
       scrollContainerRef.current.scrollTo({
@@ -163,15 +200,13 @@ const TaleaLearningPathMapView: React.FC = () => {
     }
   }, [selected]);
 
-  // Reset zoom when sheet is closed
   const handleSheetClose = useCallback(() => {
     setSelected(null);
     setZoomState({ scale: 1, originX: '50%', originY: '50%' });
   }, []);
 
-  // ── Kapitel scroll ────────────────────────────────────────────────────────
   const scrollToSegment = useCallback((segIdx: number) => {
-    const first = flatNodes.find(f => f.segmentIndex === segIdx);
+    const first = flatNodes.find((f) => f.segmentIndex === segIdx);
     if (first && scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
         top: Math.max(0, first.mapY - 200),
@@ -182,8 +217,6 @@ const TaleaLearningPathMapView: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: isDark ? '#0d1521' : '#ede5d4' }}>
-
-      {/* ── Header ── */}
       <header
         className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3"
         style={{
@@ -200,7 +233,7 @@ const TaleaLearningPathMapView: React.FC = () => {
           whileTap={{ scale: 0.88 }}
           className="flex h-9 w-9 items-center justify-center rounded-full border"
           style={{ borderColor: isDark ? '#2e4a64' : '#c0b0a0', color: isDark ? '#b0c8e4' : '#5a6a7a' }}
-          aria-label="Zurück"
+          aria-label="Zuruck"
         >
           <ArrowLeft className="h-4 w-4" />
         </motion.button>
@@ -212,30 +245,32 @@ const TaleaLearningPathMapView: React.FC = () => {
           <h1 className="text-lg font-black leading-none tracking-tight" style={{ color: isDark ? '#e8f2ff' : '#1a2a3a' }}>
             Reise-Karte
           </h1>
+          {avatarTraits.progression && (
+            <p className="mt-0.5 text-[10px] font-semibold" style={{ color: isDark ? '#7fa0c2' : '#6a7a8c' }}>
+              Stufe {avatarTraits.progression.overallLevel}
+            </p>
+          )}
         </div>
 
-        {/* Loading indicator */}
         {segmentsLoading && (
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-          >
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}>
             <Loader2 className="h-4 w-4" style={{ color: isDark ? '#4a7a9a' : '#8a9aaa' }} />
           </motion.div>
         )}
 
-        {/* "Zu mir" */}
         <motion.button
           type="button"
           onClick={scrollToActive}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scaleX: 1.14, scaleY: 0.86 }}
           animate={hasActive && !reduceMotion
-            ? { boxShadow: [
-                '0 0 0 0px rgba(80,160,255,0.0)',
-                '0 0 0 7px rgba(80,160,255,0.30)',
-                '0 0 0 0px rgba(80,160,255,0.0)',
-              ] }
+            ? {
+                boxShadow: [
+                  '0 0 0 0px rgba(80,160,255,0.0)',
+                  '0 0 0 7px rgba(80,160,255,0.30)',
+                  '0 0 0 0px rgba(80,160,255,0.0)',
+                ],
+              }
             : {}}
           transition={hasActive && !reduceMotion ? { duration: 2.6, repeat: Infinity } : {}}
           className="flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold"
@@ -249,10 +284,9 @@ const TaleaLearningPathMapView: React.FC = () => {
           Zu mir
         </motion.button>
 
-        {/* Heute */}
         <motion.button
           type="button"
-          onClick={() => setHeuteMode(m => !m)}
+          onClick={() => setHeuteMode((m) => !m)}
           whileTap={{ scale: 0.9 }}
           className="flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold"
           style={{
@@ -267,7 +301,6 @@ const TaleaLearningPathMapView: React.FC = () => {
           Heute
         </motion.button>
 
-        {/* Kapitel */}
         <motion.button
           type="button"
           onClick={() => setShowKapitel(true)}
@@ -283,14 +316,12 @@ const TaleaLearningPathMapView: React.FC = () => {
         </motion.button>
       </header>
 
-      {/* ── Scrollable Map ── */}
       <div
         ref={scrollContainerRef}
         className="relative flex-1 overflow-y-auto overflow-x-hidden"
         style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: isDark ? '#111a28' : '#e4dac8' }}
       >
         <motion.div
-          ref={mapContentRef}
           className="relative"
           style={{
             height: `${mapHeight}px`,
@@ -303,10 +334,8 @@ const TaleaLearningPathMapView: React.FC = () => {
             scale: { type: 'spring', stiffness: 200, damping: 26 },
           }}
         >
-          {/* Background: tiles, overlay, particles, road */}
-          <MapBackground mapHeight={mapHeight} isDark={isDark} />
+          <MapBackground mapHeight={mapHeight} isDark={isDark} segmentBlocks={segmentBlocks} />
 
-          {/* Edge SVG overlay */}
           <svg
             className="pointer-events-none absolute left-0 top-0 w-full"
             height={mapHeight}
@@ -327,7 +356,6 @@ const TaleaLearningPathMapView: React.FC = () => {
             ))}
           </svg>
 
-          {/* Segment Labels (with trait progress) */}
           {segmentLabels.map((seg) => (
             <motion.div
               key={`lbl-${seg.segmentId}`}
@@ -357,7 +385,6 @@ const TaleaLearningPathMapView: React.FC = () => {
                 <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
               </div>
 
-              {/* Trait progress pill below segment title */}
               {seg.dominantTraitId && !avatarTraits.loading && (
                 <span
                   className="rounded-full border px-2.5 py-0.5 text-[9px] font-bold"
@@ -373,7 +400,6 @@ const TaleaLearningPathMapView: React.FC = () => {
             </motion.div>
           ))}
 
-          {/* Nodes */}
           {flatNodes.map((flat) => {
             const isSel = selected?.node.nodeId === flat.node.nodeId;
             const isLastAct = mergedProgress.lastActiveNodeId === flat.node.nodeId;
@@ -396,7 +422,6 @@ const TaleaLearningPathMapView: React.FC = () => {
             );
           })}
 
-          {/* End-of-map sentinel (infinite scroll trigger) */}
           <div
             ref={endOfMapRef}
             className="absolute flex w-full items-center justify-center"
@@ -421,20 +446,21 @@ const TaleaLearningPathMapView: React.FC = () => {
                 className="flex items-center gap-2"
               >
                 <Sparkles className="h-3.5 w-3.5 opacity-50" />
-                Scrolle weiter für neue Abenteuer…
+                Scrolle weiter fur neue Abenteuer...
               </motion.span>
             </motion.span>
           </div>
         </motion.div>
       </div>
 
-      {/* ── Kapitel Overlay ── */}
       <AnimatePresence>
         {showKapitel && (
           <>
             <motion.div
               className="fixed inset-0 z-40 bg-black/40"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setShowKapitel(false)}
             />
             <motion.div
@@ -443,7 +469,9 @@ const TaleaLearningPathMapView: React.FC = () => {
                 background: isDark ? 'rgba(15,24,38,0.97)' : 'rgba(255,252,246,0.98)',
                 borderColor: isDark ? '#2a3d52' : '#e0d1bf',
               }}
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 32 }}
             >
               <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: isDark ? '#3a5068' : '#d5bfae' }} />
@@ -472,13 +500,21 @@ const TaleaLearningPathMapView: React.FC = () => {
                       <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
                         <svg width="48" height="48" viewBox="0 0 48 48">
                           <circle cx="24" cy="24" r="20" fill="none" stroke={isDark ? '#1c3050' : '#e0d1bf'} strokeWidth="3" />
-                          <circle cx="24" cy="24" r="20" fill="none"
-                            stroke={pct === 100 ? '#22c99a' : '#4f8cf5'} strokeWidth="3"
+                          <circle
+                            cx="24"
+                            cy="24"
+                            r="20"
+                            fill="none"
+                            stroke={pct === 100 ? '#22c99a' : '#4f8cf5'}
+                            strokeWidth="3"
                             strokeLinecap="round"
                             strokeDasharray={`${(pct / 100) * 125.6} 125.6`}
-                            transform="rotate(-90 24 24)" />
+                            transform="rotate(-90 24 24)"
+                          />
                         </svg>
-                        <span className="absolute text-[10px] font-black" style={{ color: isDark ? '#a0c0e0' : '#4a6a80' }}>{pct}%</span>
+                        <span className="absolute text-[10px] font-black" style={{ color: isDark ? '#a0c0e0' : '#4a6a80' }}>
+                          {pct}%
+                        </span>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold" style={{ color: isDark ? '#e0eaf8' : '#1e2a3a' }}>{seg.title}</p>
@@ -498,7 +534,6 @@ const TaleaLearningPathMapView: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Node Bottom Sheet ── */}
       <AnimatePresence>
         {selected && (
           <TaleaMapNodeSheet
@@ -508,6 +543,7 @@ const TaleaLearningPathMapView: React.FC = () => {
             isDark={isDark}
             onClose={handleSheetClose}
             traitValues={avatarTraits.loading ? undefined : avatarTraits.byId}
+            avatarId={avatarTraits.avatarId}
           />
         )}
       </AnimatePresence>

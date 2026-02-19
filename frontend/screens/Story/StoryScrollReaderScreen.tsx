@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
@@ -12,12 +12,15 @@ import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
+import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 
 const StoryScrollReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,6 +98,17 @@ const StoryScrollReaderScreen: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Personality updates applied:', result);
+        window.dispatchEvent(
+          new CustomEvent('personalityUpdated', {
+            detail: {
+              avatarId: mapAvatarId ?? undefined,
+              refreshProgression: true,
+              source: 'story',
+              updatedAt: new Date().toISOString(),
+            },
+          }),
+        );
+        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
 
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
@@ -114,6 +128,7 @@ const StoryScrollReaderScreen: React.FC = () => {
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
+        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
 
         import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
           showErrorToast('❌ Fehler bei der Persönlichkeitsentwicklung');
@@ -123,6 +138,7 @@ const StoryScrollReaderScreen: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Error during story completion processing:', error);
+      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
 
       import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
         showErrorToast('❌ Netzwerkfehler bei der Persönlichkeitsentwicklung');

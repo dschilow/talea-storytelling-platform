@@ -678,7 +678,7 @@ const TaleaHomeScreen: React.FC = () => {
                 </div>
 
                 <div className="mt-4">
-                  <TaleaJourneyCard isDark={resolvedTheme === 'dark'} />
+                  <TaleaJourneyCard isDark={resolvedTheme === 'dark'} avatarId={avatars[0]?.id} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

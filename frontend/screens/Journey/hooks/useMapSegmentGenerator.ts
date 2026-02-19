@@ -11,7 +11,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBackend } from '../../../hooks/useBackend';
 import type { MapSegment, MapNode, MapEdge, RouteTag } from '../TaleaLearningPathTypes';
 import { SEED_SEGMENTS } from '../TaleaLearningPathSeedData';
-import { ROUTE_TO_TRAITS, TRAIT_TO_ROUTES } from '../constants/routeTraitMapping';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +36,7 @@ interface StoryItem {
   config: {
     genre?: string;
     avatarIds?: string[];
+    avatars?: Array<{ id?: string }>;
   };
   createdAt: Date | string;
 }
@@ -100,6 +100,29 @@ function storyMatchesTopic(story: StoryItem, slug: string, topic: string): boole
   return keywords.some(kw => genre.includes(kw) || title.includes(kw));
 }
 
+function pickSegmentBackground(slug: string, index: number): string {
+  if (/space|star|planet|astro|galaxy/.test(slug)) return '/assets/lernpfad_no_path.png';
+  if (/friend|emotion|heart|team/.test(slug)) return '/assets/lernpfad_high.jpg';
+  if (/weather|nature|ocean|rain|forest/.test(slug)) return '/assets/learning-world-reference.png';
+  const pool = ['/assets/lernpfad_no_path.png', '/assets/lernpfad_high.jpg', '/assets/learning-world-reference.png'];
+  return pool[index % pool.length];
+}
+
+function segmentHeightForNodeCount(nodeCount: number): number {
+  return Math.max(1320, 860 + nodeCount * 180);
+}
+
+function storyBelongsToAvatar(story: StoryItem, avatarId: string | null): boolean {
+  if (!avatarId) return true;
+  const fromIds = story.config?.avatarIds ?? [];
+  const fromAvatars = (story.config?.avatars ?? [])
+    .map((entry) => entry.id)
+    .filter((id): id is string => Boolean(id));
+  const all = [...fromIds, ...fromAvatars];
+  if (all.length === 0) return true;
+  return all.includes(avatarId);
+}
+
 // ─── Segment Builder ────────────────────────────────────────────────────────
 
 function buildDynamicSegments(
@@ -108,6 +131,7 @@ function buildDynamicSegments(
   memories: MemoryItem[],
   audioDokus: AudioDokuItem[],
   maxSegments: number,
+  avatarId: string | null,
 ): { segments: MapSegment[]; backendDoneIds: Set<string> } {
   const backendDoneIds = new Set<string>();
 
@@ -214,7 +238,9 @@ function buildDynamicSegments(
 
     // StoryGate — always present
     const storyNodeId = `dyn-${group.slug}-story`;
-    const matchedStory = stories.find(s => storyMatchesTopic(s, group.slug, group.topic));
+    const matchedStory = stories.find((s) =>
+      storyBelongsToAvatar(s, avatarId) && storyMatchesTopic(s, group.slug, group.topic),
+    );
     if (matchedStory && doneStoryIds.has(matchedStory.id)) {
       backendDoneIds.add(storyNodeId);
     }
@@ -275,6 +301,8 @@ function buildDynamicSegments(
       segmentId: `dyn-${group.slug}`,
       title: group.topic,
       index: si,
+      backgroundImage: pickSegmentBackground(group.slug, si),
+      height: segmentHeightForNodeCount(nodes.length),
       nodes,
       edges,
       themeTags: [group.slug],
@@ -315,6 +343,8 @@ function buildDynamicSegments(
       segmentId: 'dyn-suggestions',
       title: 'Neue Entdeckungen',
       index: segments.length,
+      backgroundImage: '/assets/lernpfad.png',
+      height: segmentHeightForNodeCount(suggestNodes.length),
       nodes: suggestNodes,
       edges: suggestEdges,
       themeTags: ['suggestions'],
@@ -387,8 +417,9 @@ export function useMapSegmentGenerator(
       memories,
       audioDokus,
       visibleSegmentCount,
+      avatarId,
     );
 
     return { segments, backendDoneNodeIds: backendDoneIds, loading: false };
-  }, [dokus, stories, memories, audioDokus, loading, visibleSegmentCount]);
+  }, [dokus, stories, memories, audioDokus, loading, visibleSegmentCount, avatarId]);
 }

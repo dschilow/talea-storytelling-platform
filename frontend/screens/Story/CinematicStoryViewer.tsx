@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, useScroll, useSpring, useInView } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Sparkles, Volume2, BookOpen } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
@@ -16,6 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
+import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import './CinematicStoryViewer.css';
 
 /* ── Palette ── */
@@ -93,6 +94,7 @@ const PARTICLES = Array.from({ length: 8 }, (_, i) => ({
 const CinematicStoryViewer: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
@@ -114,6 +116,10 @@ const CinematicStoryViewer: React.FC = () => {
 
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getStoryPalette(isDark), [isDark]);
+  const mapAvatarId = useMemo(
+    () => new URLSearchParams(location.search).get('mapAvatarId'),
+    [location.search],
+  );
 
   const { scrollYProgress } = useScroll({ container: containerRef });
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
@@ -201,10 +207,21 @@ const CinematicStoryViewer: React.FC = () => {
 
       if (!response.ok) {
         showSuccessToast('Geschichte abgeschlossen.');
+        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
         return;
       }
 
       const result = await response.json();
+      window.dispatchEvent(
+        new CustomEvent('personalityUpdated', {
+          detail: {
+            avatarId: mapAvatarId ?? undefined,
+            refreshProgression: true,
+            source: 'story',
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      );
 
       if (result?.unlockedArtifact) {
         setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
@@ -238,10 +255,12 @@ const CinematicStoryViewer: React.FC = () => {
       } else {
         showSuccessToast('Geschichte abgeschlossen.');
       }
+      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
     } catch (error) {
       console.error('Error completing story:', error);
       const { showSuccessToast } = await import('../../utils/toastUtils');
       showSuccessToast('Geschichte abgeschlossen.');
+      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
     }
   };
 

@@ -12,9 +12,10 @@ interface Props {
   isDark: boolean;
   /** Anzahl offener (available) Stops heute (optional, default 3) */
   openStopsToday?: number;
+  avatarId?: string | null;
 }
 
-const TaleaJourneyCard: React.FC<Props> = ({ isDark, openStopsToday = 3 }) => {
+const TaleaJourneyCard: React.FC<Props> = ({ isDark, openStopsToday = 3, avatarId }) => {
   const navigate = useNavigate();
 
   return (
@@ -22,7 +23,7 @@ const TaleaJourneyCard: React.FC<Props> = ({ isDark, openStopsToday = 3 }) => {
       type="button"
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.97 }}
-      onClick={() => navigate('/map')}
+      onClick={() => navigate(avatarId ? `/map?avatarId=${encodeURIComponent(avatarId)}` : '/map')}
       className="group relative w-full overflow-hidden rounded-3xl border text-left"
       style={{
         borderColor: isDark ? '#2a4060' : '#d8c8b8',

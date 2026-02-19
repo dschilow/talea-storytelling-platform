@@ -1,34 +1,32 @@
 /**
- * TaleaMapNodeSheet.tsx  –  Phase A
- * Bottom-Sheet / Info-Panel beim Klicken auf eine Station.
- * Zeigt Titel, Beschreibung, Reward-Vorschau + Start-Button.
+ * TaleaMapNodeSheet.tsx
+ * Bottom sheet for map stations.
  */
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookOpen, CheckCircle2, ChevronDown, Flame, GitFork,
-  Headphones, HelpCircle, Sparkles, X,
+  BookOpen, CheckCircle2, Flame, GitFork, Headphones, HelpCircle, Sparkles, X,
 } from 'lucide-react';
 import type { MapNode, NodeState, NodeType } from './TaleaLearningPathTypes';
 import { useLearningPathProgress } from './TaleaLearningPathProgressStore';
 import { ROUTE_TO_TRAITS, ROUTE_META } from './constants/routeTraitMapping';
-import { getTraitLabel, getTraitIcon } from '../../constants/traits';
+import { getTraitIcon, getTraitLabel } from '../../constants/traits';
 
 const TYPE_META: Record<NodeType, { icon: React.ElementType; label: string; color: string }> = {
-  DokuStop:    { icon: BookOpen,    label: 'Doku-Stop',     color: '#4f8cf5' },
-  QuizStop:    { icon: HelpCircle,  label: 'Quiz-Stop',     color: '#9b5ef5' },
-  StoryGate:   { icon: Sparkles,    label: 'Story-Tor',     color: '#f56b9b' },
-  StudioStage: { icon: Headphones,  label: 'Audio-Station', color: '#22c99a' },
-  MemoryFire:  { icon: Flame,       label: 'Erinnerungs-Feuer', color: '#f5a623' },
-  Fork:        { icon: GitFork,     label: 'Abzweigung',    color: '#5eb8f5' },
+  DokuStop: { icon: BookOpen, label: 'Doku-Stop', color: '#4f8cf5' },
+  QuizStop: { icon: HelpCircle, label: 'Quiz-Stop', color: '#9b5ef5' },
+  StoryGate: { icon: Sparkles, label: 'Story-Tor', color: '#f56b9b' },
+  StudioStage: { icon: Headphones, label: 'Audio-Station', color: '#22c99a' },
+  MemoryFire: { icon: Flame, label: 'Erinnerungs-Feuer', color: '#f5a623' },
+  Fork: { icon: GitFork, label: 'Abzweigung', color: '#5eb8f5' },
 };
 
 const ROUTE_LABEL: Record<string, string> = {
-  heart:   '❤️ Herz',
-  mind:    '🧠 Wissen',
-  courage: '🛡️ Mut',
-  creative:'🎨 Kreativ',
+  heart: 'Herz',
+  mind: 'Wissen',
+  courage: 'Mut',
+  creative: 'Kreativ',
 };
 
 interface Props {
@@ -36,70 +34,87 @@ interface Props {
   state: NodeState;
   isDark: boolean;
   onClose: () => void;
-  /** Avatar trait values { traitId → value } for displaying current levels */
   traitValues?: Record<string, number>;
+  avatarId?: string | null;
 }
 
-const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, traitValues }) => {
+const TaleaMapNodeSheet: React.FC<Props> = ({
+  node,
+  state,
+  isDark,
+  onClose,
+  traitValues,
+  avatarId,
+}) => {
   const navigate = useNavigate();
-  const { markNodeDone } = useLearningPathProgress();
+  const {
+    markNodeDone,
+    registerNodeStart,
+    setForkSelection,
+  } = useLearningPathProgress(avatarId);
+
   const meta = TYPE_META[node.type];
   const Icon = state === 'done' ? CheckCircle2 : meta.icon;
 
-  // Schließen mit Escape
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
   const handleStart = () => {
     if (node.action.type === 'navigate') {
-      const params = new URLSearchParams(node.action.params ?? {}).toString();
-      navigate(`${node.action.to}${params ? `?${params}` : ''}`);
-      markNodeDone(node.nodeId);
-    } else if (node.action.type === 'sheet') {
-      // MemoryFire → TODO: öffne Mini-Reflexion (Phase D)
+      registerNodeStart(node.nodeId, node.type);
+      const query = new URLSearchParams(node.action.params ?? {});
+      if (avatarId) query.set('mapAvatarId', avatarId);
+      query.set('mapNodeId', node.nodeId);
+      navigate(`${node.action.to}${query.toString() ? `?${query.toString()}` : ''}`);
+      onClose();
+      return;
+    }
+
+    if (node.action.type === 'sheet') {
+      // MemoryFire completion currently happens inline in the map flow.
       markNodeDone(node.nodeId);
       onClose();
     }
-    // Fork → handled inline below
   };
 
-  const bg  = isDark ? 'rgba(15,24,38,0.97)' : 'rgba(255,252,246,0.98)';
+  const bg = isDark ? 'rgba(15,24,38,0.97)' : 'rgba(255,252,246,0.98)';
   const brd = isDark ? '#2a3d52' : '#e0d1bf';
 
   return (
     <AnimatePresence>
-      {/* Backdrop */}
       <motion.div
         className="fixed inset-0 z-40 bg-black/40"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         onClick={onClose}
       />
 
-      {/* Sheet */}
       <motion.div
         className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t px-5 pb-safe-area pb-8 pt-4 shadow-2xl"
         style={{ background: bg, borderColor: brd }}
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
       >
-        {/* Griff */}
         <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: isDark ? '#3a5068' : '#d5bfae' }} />
 
-        {/* Close-Button */}
         <button
           type="button"
           onClick={onClose}
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border"
           style={{ borderColor: brd, color: isDark ? '#8aa0b8' : '#8a9aaa' }}
-          aria-label="Schließen"
+          aria-label="Schliessen"
         >
           <X className="h-4 w-4" />
         </button>
 
-        {/* Icon + Typ */}
         <div className="mb-3 flex items-center gap-2">
           <div
             className="flex h-10 w-10 items-center justify-center rounded-2xl"
@@ -117,7 +132,6 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
           </div>
         </div>
 
-        {/* Titel & Subtitle */}
         <h2 className="text-xl font-bold" style={{ color: isDark ? '#e8f0fb' : '#1e2a3a' }}>
           {node.title}
         </h2>
@@ -125,20 +139,21 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
           {node.subtitle}
         </p>
 
-        {/* Reward-Vorschau */}
         {node.rewardPreview && (
           <div
             className="mt-3 flex items-center gap-2 rounded-xl border px-3 py-2"
-            style={{ borderColor: isDark ? '#2a3d52' : '#e0d1bf', background: isDark ? 'rgba(20,30,45,0.6)' : 'rgba(255,249,238,0.8)' }}
+            style={{
+              borderColor: isDark ? '#2a3d52' : '#e0d1bf',
+              background: isDark ? 'rgba(20,30,45,0.6)' : 'rgba(255,249,238,0.8)',
+            }}
           >
             {node.rewardPreview.chestPossible && <span className="text-lg">🎁</span>}
             <p className="text-[11px] font-semibold" style={{ color: isDark ? '#c8d8ec' : '#4a6070' }}>
-              {node.rewardPreview.label ?? (node.rewardPreview.stamps ? `+${node.rewardPreview.stamps} Stempel` : 'Belohnung möglich')}
+              {node.rewardPreview.label ?? (node.rewardPreview.stamps ? `+${node.rewardPreview.stamps} Stempel` : 'Belohnung moeglich')}
             </p>
           </div>
         )}
 
-        {/* Trait development section */}
         {ROUTE_TO_TRAITS[node.route] && (
           <div
             className="mt-3 rounded-xl border px-3 py-2.5"
@@ -151,7 +166,7 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
               className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em]"
               style={{ color: ROUTE_META[node.route]?.color ?? (isDark ? '#7a9bbf' : '#8a9aaa') }}
             >
-              {ROUTE_META[node.route]?.icon} Fördert
+              {ROUTE_META[node.route]?.icon} Foerdert
             </p>
             <div className="flex flex-wrap gap-2">
               {ROUTE_TO_TRAITS[node.route].map((traitId) => {
@@ -166,10 +181,7 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
                     }}
                   >
                     <span className="text-sm">{getTraitIcon(traitId)}</span>
-                    <span
-                      className="text-[11px] font-semibold"
-                      style={{ color: isDark ? '#c8d8ec' : '#3a5060' }}
-                    >
+                    <span className="text-[11px] font-semibold" style={{ color: isDark ? '#c8d8ec' : '#3a5060' }}>
                       {getTraitLabel(traitId, 'de')}
                     </span>
                     {traitValues && (
@@ -192,19 +204,24 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
           </div>
         )}
 
-        {/* Fork-Optionen */}
         {node.action.type === 'fork' && (
           <div className="mt-4 space-y-2">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: isDark ? '#7a9bbf' : '#8a9aaa' }}>
-              Welchen Weg wählst du?
+              Welchen Weg waehlst du?
             </p>
             {node.action.options.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => { markNodeDone(node.nodeId); onClose(); }}
+                onClick={() => {
+                  setForkSelection(node.nodeId, opt.id, opt.nextSegmentId);
+                  onClose();
+                }}
                 className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors"
-                style={{ borderColor: isDark ? '#2a3d52' : '#e0d1bf', background: isDark ? 'rgba(20,32,48,0.7)' : 'rgba(255,252,246,0.9)' }}
+                style={{
+                  borderColor: isDark ? '#2a3d52' : '#e0d1bf',
+                  background: isDark ? 'rgba(20,32,48,0.7)' : 'rgba(255,252,246,0.9)',
+                }}
               >
                 <span className="text-xl">{opt.icon}</span>
                 <p className="text-sm font-semibold" style={{ color: isDark ? '#e0eaf8' : '#1e2a3a' }}>{opt.label}</p>
@@ -213,7 +230,6 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
           </div>
         )}
 
-        {/* Start-Button (nicht bei Fork) */}
         {node.action.type !== 'fork' && state !== 'done' && (
           <button
             type="button"
@@ -240,3 +256,4 @@ const TaleaMapNodeSheet: React.FC<Props> = ({ node, state, isDark, onClose, trai
 };
 
 export default TaleaMapNodeSheet;
+

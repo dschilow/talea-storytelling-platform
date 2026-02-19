@@ -19,6 +19,7 @@ import { PersonalityChangeNotification } from '../../components/common/Personali
 import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { getOfflineDoku } from '../../utils/offlineDb';
+import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 
 // Define a new type for our flattened, displayable sections
 interface DisplayableSection {
@@ -35,6 +36,7 @@ const DokuReaderScreen: React.FC = () => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { isAdmin } = useOptionalUserAccess();
+  const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
 
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
@@ -239,12 +241,14 @@ const DokuReaderScreen: React.FC = () => {
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
+              avatarId: mapAvatarId ?? undefined,
               refreshProgression: true,
               source: 'doku',
               updatedAt: new Date().toISOString(),
             },
           })
         );
+        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
         // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
@@ -312,6 +316,7 @@ const DokuReaderScreen: React.FC = () => {
       } else {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
+        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
         // Show error notification
         import('../../utils/toastUtils').then(({ showErrorToast }) => {
@@ -320,6 +325,7 @@ const DokuReaderScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Error applying personality updates:', error);
+      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
       // Show error notification
       import('../../utils/toastUtils').then(({ showErrorToast }) => {

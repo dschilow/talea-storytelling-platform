@@ -1,20 +1,20 @@
 /**
  * MapBackground.tsx
  * Background layer for the scrollable map container.
- * Contains: tiled landscape image, mood overlay, decorative SVG road, floating particles.
- * Rendered as absolute layer behind the nodes.
+ * Renders per-segment landscape tiles + global overlays + decorative road.
  */
 import React, { memo, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { buildRoadPath, MAP_TILE_HEIGHT } from '../hooks/useMapFlowData';
-
-const MAP_BACKGROUND_IMAGE = '/assets/lernpfad_no_path.png';
-
-// ─── Particle ───────────────────────────────────────────────────────────────
+import { buildRoadPath, type SegmentBlock } from '../hooks/useMapFlowData';
 
 interface ParticleProps {
-  x: number; y: number; size: number; color: string;
-  delay: number; duration: number; isStar: boolean;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  delay: number;
+  duration: number;
+  isStar: boolean;
 }
 
 const Particle: React.FC<ParticleProps> = memo(({ x, y, size, color, delay, duration, isStar }) => (
@@ -40,48 +40,46 @@ const Particle: React.FC<ParticleProps> = memo(({ x, y, size, color, delay, dura
   />
 ));
 
-// ─── Main Background ────────────────────────────────────────────────────────
-
 interface MapBackgroundProps {
   mapHeight: number;
   isDark: boolean;
+  segmentBlocks: SegmentBlock[];
 }
 
-const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark }) => {
+const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark, segmentBlocks }) => {
   const reduceMotion = useReducedMotion() ?? false;
   const roadPath = useMemo(() => buildRoadPath(mapHeight), [mapHeight]);
 
-  // Stable particles (spread across the full map height)
-  const particles = useMemo(() =>
-    Array.from({ length: 22 }, (_, i) => ({
-      id: i,
-      x: 6 + ((i * 13) % 86),
-      y: 1 + ((i * 7) % 97),
-      size: 4 + (i % 4) * 2.5,
-      color: i % 2 === 0
-        ? `rgba(160,210,255,${0.18 + (i % 3) * 0.08})`
-        : `rgba(200,180,255,${0.15 + (i % 4) * 0.07})`,
-      delay: (i * 0.28) % 3.8,
-      duration: 2.6 + (i % 6) * 0.45,
-      isStar: i % 3 === 0,
-    })),
-    [],
-  );
+  const particles = useMemo(() => Array.from({ length: 22 }, (_, i) => ({
+    id: i,
+    x: 6 + ((i * 13) % 86),
+    y: 1 + ((i * 7) % 97),
+    size: 4 + (i % 4) * 2.5,
+    color: i % 2 === 0
+      ? `rgba(160,210,255,${0.18 + (i % 3) * 0.08})`
+      : `rgba(200,180,255,${0.15 + (i % 4) * 0.07})`,
+    delay: (i * 0.28) % 3.8,
+    duration: 2.6 + (i % 6) * 0.45,
+    isStar: i % 3 === 0,
+  })), []);
 
   return (
     <>
-      {/* Tiled background image */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: `url('${MAP_BACKGROUND_IMAGE}')`,
-          backgroundRepeat: 'repeat-y',
-          backgroundSize: `100% ${MAP_TILE_HEIGHT}px`,
-          backgroundPosition: 'center top',
-        }}
-      />
+      {segmentBlocks.map((segment) => (
+        <div
+          key={`bg-${segment.segmentId}`}
+          className="pointer-events-none absolute left-0 right-0"
+          style={{
+            top: `${segment.top}px`,
+            height: `${segment.height}px`,
+            backgroundImage: `url('${segment.backgroundImage}')`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center',
+          }}
+        />
+      ))}
 
-      {/* Mood overlay */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -91,19 +89,16 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark }) => {
         }}
       />
 
-      {/* Floating particles */}
       {!reduceMotion && particles.map((p) => (
         <Particle key={p.id} {...p} />
       ))}
 
-      {/* SVG decorative road (3 glow layers) */}
       <svg
         className="pointer-events-none absolute left-0 top-0 w-full"
         height={mapHeight}
         viewBox={`0 0 100 ${mapHeight}`}
         preserveAspectRatio="none"
       >
-        {/* Outer glow */}
         <path
           d={roadPath}
           stroke={isDark ? 'rgba(80,150,255,0.10)' : 'rgba(70,130,220,0.09)'}
@@ -111,7 +106,6 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark }) => {
           fill="none"
           strokeLinecap="round"
         />
-        {/* Mid glow */}
         <path
           d={roadPath}
           stroke={isDark ? 'rgba(120,185,255,0.22)' : 'rgba(100,160,230,0.20)'}
@@ -119,7 +113,6 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark }) => {
           fill="none"
           strokeLinecap="round"
         />
-        {/* Animated dash */}
         <motion.path
           d={roadPath}
           stroke={isDark ? 'rgba(170,215,255,0.72)' : 'rgba(100,165,235,0.68)'}
@@ -136,3 +129,4 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark }) => {
 };
 
 export default memo(MapBackground);
+
