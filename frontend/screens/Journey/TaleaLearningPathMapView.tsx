@@ -21,13 +21,17 @@ import {
   ArrowLeft,
   BookOpen,
   CheckCircle2,
+  ChevronRight,
   Flame,
   GitFork,
   Headphones,
   HelpCircle,
+  List,
   Lock,
   MapPin,
   Sparkles,
+  Sun,
+  Trophy,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { SEED_SEGMENTS, computeNodeStates } from './TaleaLearningPathSeedData';
@@ -263,7 +267,10 @@ const TaleaLearningPathMapView: React.FC = () => {
 
   const { progress }     = useLearningPathProgress();
   const [selected, setSelected] = useState<FlatNode | null>(null);
+  const [heuteMode, setHeuteMode] = useState(false);
+  const [showKapitel, setShowKapitel] = useState(false);
   const lastActiveRef    = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // ── Flache Node-Liste ──────────────────────────────────────────────────────
   const flatNodes = useMemo<FlatNode[]>(() => {
@@ -279,6 +286,49 @@ const TaleaLearningPathMapView: React.FC = () => {
     }
     return result;
   }, [progress]);
+
+  // ── Node-Positionen für Edge-SVG ──
+  const nodePositions = useMemo(() => {
+    const posMap = new Map<string, { x: number; y: number }>();
+    for (const flat of flatNodes) {
+      const roadX = pathXAtY(flat.mapY);
+      const rawX = clamp(roadX + (flat.node.x - 50) * 0.16, 7, 89);
+      posMap.set(flat.node.nodeId, { x: rawX, y: flat.mapY });
+    }
+    return posMap;
+  }, [flatNodes]);
+
+  // ── Kanten zwischen Nodes (done / available / locked) ──
+  const edgesWithState = useMemo(() => {
+    const doneSet = new Set(progress.doneNodeIds);
+    const result: Array<{
+      from: { x: number; y: number }; to: { x: number; y: number };
+      edgeState: 'done' | 'available' | 'locked';
+    }> = [];
+    for (const seg of SEED_SEGMENTS) {
+      for (const edge of seg.edges) {
+        const fromPos = nodePositions.get(edge.fromNodeId);
+        const toPos   = nodePositions.get(edge.toNodeId);
+        if (!fromPos || !toPos) continue;
+        const fromDone = doneSet.has(edge.fromNodeId);
+        const toDone   = doneSet.has(edge.toNodeId);
+        result.push({
+          from: fromPos, to: toPos,
+          edgeState: (fromDone && toDone) ? 'done' : fromDone ? 'available' : 'locked',
+        });
+      }
+    }
+    return result;
+  }, [nodePositions, progress.doneNodeIds]);
+
+  // ── Heute-empfohlene Nodes ──
+  const todayNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const seg of SEED_SEGMENTS) {
+      if (seg.recommendedDailyStops) seg.recommendedDailyStops.forEach(id => ids.add(id));
+    }
+    return ids;
+  }, []);
 
   const mapHeight = Math.max(
     (flatNodes[flatNodes.length - 1]?.mapY ?? TOP_OFFSET) + 420,
@@ -302,12 +352,22 @@ const TaleaLearningPathMapView: React.FC = () => {
     })),
   []);
 
-  // ── Scroll zu lastActiveNode ───────────────────────────────────────────────
+  // ── Zoom-to-Active: Game-Kamera fliegt zum aktuellen Node ──
   const scrollToActive = useCallback(() => {
-    lastActiveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, []);
+    if (lastActiveRef.current) {
+      lastActiveRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      const firstAvail = flatNodes.find(f => f.state === 'available');
+      if (firstAvail && scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: Math.max(0, firstAvail.mapY - window.innerHeight / 2),
+          behavior: 'smooth',
+        });
+      }
+    }
+  }, [flatNodes]);
   useEffect(() => {
-    const t = setTimeout(scrollToActive, 650);
+    const t = setTimeout(scrollToActive, 600);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -374,14 +434,54 @@ const TaleaLearningPathMapView: React.FC = () => {
           <MapPin className="h-3.5 w-3.5" />
           Zu mir
         </motion.button>
+
+        {/* Heute – Tages-Empfehlungen hervorheben */}
+        <motion.button
+          type="button"
+          onClick={() => setHeuteMode(m => !m)}
+          whileTap={{ scale: 0.9 }}
+          className="flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold"
+          style={{
+            borderColor: heuteMode ? '#f5a623' : (isDark ? '#2e4a64' : '#c0b0a0'),
+            color:       heuteMode ? '#f5a623' : (isDark ? '#88b8e0' : '#3a6a88'),
+            background:  heuteMode
+              ? (isDark ? 'rgba(245,166,35,0.15)' : 'rgba(245,166,35,0.12)')
+              : (isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,252,246,0.85)'),
+          }}
+        >
+          <Sun className="h-3.5 w-3.5" />
+          Heute
+        </motion.button>
+
+        {/* Kapitel – Segment-Navigation */}
+        <motion.button
+          type="button"
+          onClick={() => setShowKapitel(true)}
+          whileTap={{ scale: 0.9 }}
+          className="flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold"
+          style={{
+            borderColor: isDark ? '#2e4a64' : '#c0b0a0',
+            color:       isDark ? '#88b8e0' : '#3a6a88',
+            background:  isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,252,246,0.85)',
+          }}
+        >
+          <List className="h-3.5 w-3.5" />
+        </motion.button>
       </header>
 
       {/* ── Karte ── */}
       <div
-        className="relative flex-1 overflow-y-auto"
+        ref={scrollContainerRef}
+        className="relative flex-1 overflow-y-auto overflow-x-hidden"
         style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: isDark ? '#111a28' : '#e4dac8' }}
       >
-        <div className="relative" style={{ height: `${mapHeight}px` }}>
+        <motion.div
+          className="relative"
+          style={{ height: `${mapHeight}px`, transformOrigin: 'center top' }}
+          initial={{ opacity: 0.3, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+        >
 
           {/* ── Hintergrundbild (Landscape Tile) ── */}
           <div
@@ -443,6 +543,56 @@ const TaleaLearningPathMapView: React.FC = () => {
               animate={reduceMotion ? undefined : { strokeDashoffset: [0, -88] }}
               transition={reduceMotion ? undefined : { duration: 4.0, repeat: Infinity, ease: 'linear' }}
             />
+
+            {/* ── Kanten-Verbindungen zwischen Nodes ── */}
+            {edgesWithState.map((edge, ei) => {
+              const { from, to, edgeState } = edge;
+              const dy = Math.abs(to.y - from.y) * 0.35;
+              const d = `M ${from.x} ${from.y} C ${from.x} ${from.y + dy}, ${to.x} ${to.y - dy}, ${to.x} ${to.y}`;
+              const edgeColor = {
+                done:      isDark ? 'rgba(34,201,154,0.6)'  : 'rgba(34,180,140,0.55)',
+                available: isDark ? 'rgba(100,180,255,0.55)' : 'rgba(80,150,240,0.50)',
+                locked:    isDark ? 'rgba(50,70,100,0.18)'   : 'rgba(120,120,140,0.13)',
+              }[edgeState];
+              return (
+                <g key={`edge-${ei}`}>
+                  {edgeState !== 'locked' && (
+                    <path d={d} stroke={edgeColor} strokeWidth={edgeState === 'done' ? 4.5 : 3.5}
+                      fill="none" strokeLinecap="round" opacity={0.35} />
+                  )}
+                  <path d={d} stroke={edgeColor}
+                    strokeWidth={edgeState === 'locked' ? 0.8 : 1.8}
+                    fill="none" strokeLinecap="round"
+                    strokeDasharray={edgeState === 'locked' ? '2 5' : 'none'} />
+                  {edgeState === 'available' && !reduceMotion && (
+                    <motion.circle r={2} fill={isDark ? '#88ccff' : '#60a0e8'}
+                      animate={{
+                        cx: [from.x, (from.x + to.x) / 2, to.x],
+                        cy: [from.y, (from.y + to.y) / 2, to.y],
+                        opacity: [0, 0.85, 0],
+                      }}
+                      transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: ei * 0.35 }}
+                    />
+                  )}
+                  {edgeState === 'done' && !reduceMotion && (
+                    <motion.circle r={1.5} fill="#22c99a"
+                      animate={{
+                        cx: [from.x, (from.x + to.x) / 2, to.x],
+                        cy: [from.y, (from.y + to.y) / 2, to.y],
+                        opacity: [0, 0.55, 0],
+                      }}
+                      transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: ei * 0.4 }}
+                    />
+                  )}
+                </g>
+              );
+            })}
+
+            <defs>
+              <filter id="edgeGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" />
+              </filter>
+            </defs>
           </svg>
 
           {/* ── Segment-Labels (Staging, Prinzip 3) ── */}
@@ -585,6 +735,19 @@ const TaleaLearningPathMapView: React.FC = () => {
                   {/* Doppel-Puls für available */}
                   {!reduceMotion && isAvailable && <PulseRings color={color} />}
 
+                  {/* Heute-Highlight: goldener Puls-Ring */}
+                  {heuteMode && todayNodeIds.has(node.nodeId) && !isLocked && (
+                    <motion.span
+                      className="pointer-events-none absolute inset-[-7px] rounded-full"
+                      style={{ border: '2.5px solid #f5a623', boxShadow: '0 0 14px rgba(245,166,35,0.35)' }}
+                      animate={!reduceMotion ? {
+                        scale: [1, 1.06, 1], opacity: [0.65, 1, 0.65],
+                        boxShadow: ['0 0 6px rgba(245,166,35,0.25)', '0 0 20px rgba(245,166,35,0.5)', '0 0 6px rgba(245,166,35,0.25)'],
+                      } : {}}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  )}
+
                   {/* Done Sterne-Burst */}
                   {isDone && <DoneBurst color={color} reduceMotion={reduceMotion} />}
 
@@ -640,6 +803,27 @@ const TaleaLearningPathMapView: React.FC = () => {
                     {NODE_LABEL[node.type]}
                   </span>
 
+                  {/* Fork: Richtungs-Badges */}
+                  {node.type === 'Fork' && !isLocked && node.action.type === 'fork' && (
+                    <div className="absolute -bottom-5 left-1/2 flex -translate-x-1/2 gap-1">
+                      {node.action.options.map((opt, oi) => (
+                        <motion.span
+                          key={opt.id}
+                          className="flex h-[18px] items-center rounded-full px-1.5 text-[9px] font-bold shadow-md"
+                          style={{
+                            background: isDark ? 'rgba(14,24,40,0.92)' : 'rgba(255,252,244,0.95)',
+                            border: `1px solid ${color}55`,
+                            color: isDark ? '#b8d0e8' : '#3a5a70',
+                          }}
+                          animate={!reduceMotion && isAvailable ? { y: [0, -2.5, 0] } : {}}
+                          transition={{ duration: 1.8, delay: oi * 0.25, repeat: Infinity, ease: 'easeInOut' }}
+                        >
+                          {opt.icon}
+                        </motion.span>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Done-Check (Anticipation → Squash → Snap, Prinzip 2) */}
                   <AnimatePresence>
                     {isDone && (
@@ -662,6 +846,30 @@ const TaleaLearningPathMapView: React.FC = () => {
                     )}
                   </AnimatePresence>
                 </motion.button>
+
+                {/* Du bist hier! Marker am aktiven Node */}
+                {isLastAct && (
+                  <motion.div
+                    className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap"
+                    initial={{ opacity: 0, y: 8, scale: 0.7 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 1.0, type: 'spring', stiffness: 300, damping: 18 }}
+                  >
+                    <motion.span
+                      className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black shadow-lg"
+                      style={{
+                        background: isDark ? 'rgba(80,160,255,0.22)' : 'rgba(80,140,240,0.14)',
+                        border: `1.5px solid ${isDark ? '#4a90d0' : '#80b0e0'}`,
+                        color: isDark ? '#88ccff' : '#2a6aaa',
+                        backdropFilter: 'blur(8px)',
+                      }}
+                      animate={!reduceMotion ? { y: [0, -3, 0] } : {}}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      📍 Du bist hier!
+                    </motion.span>
+                  </motion.div>
+                )}
               </motion.div>
             );
           })}
@@ -691,8 +899,88 @@ const TaleaLearningPathMapView: React.FC = () => {
             </motion.span>
           </motion.div>
 
-        </div>
+        </motion.div>
       </div>
+
+      {/* ── Kapitel-Overlay (Segment-Navigation) ── */}
+      <AnimatePresence>
+        {showKapitel && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40 bg-black/40"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowKapitel(false)}
+            />
+            <motion.div
+              className="fixed bottom-0 left-0 right-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-3xl border-t px-5 pb-8 pt-4 shadow-2xl"
+              style={{
+                background: isDark ? 'rgba(15,24,38,0.97)' : 'rgba(255,252,246,0.98)',
+                borderColor: isDark ? '#2a3d52' : '#e0d1bf',
+              }}
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            >
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: isDark ? '#3a5068' : '#d5bfae' }} />
+              <h3 className="mb-4 text-lg font-black" style={{ color: isDark ? '#e8f0fb' : '#1e2a3a' }}>
+                📖 Kapitel
+              </h3>
+              <div className="space-y-3">
+                {SEED_SEGMENTS.map((seg) => {
+                  const total = seg.nodes.length;
+                  const done  = seg.nodes.filter(n => progress.doneNodeIds.includes(n.nodeId)).length;
+                  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+                  const firstFlat = flatNodes.find(f => f.segmentIndex === seg.index);
+                  return (
+                    <motion.button
+                      key={seg.segmentId}
+                      type="button"
+                      onClick={() => {
+                        setShowKapitel(false);
+                        if (firstFlat && scrollContainerRef.current) {
+                          setTimeout(() => {
+                            scrollContainerRef.current?.scrollTo({
+                              top: Math.max(0, firstFlat.mapY - 200),
+                              behavior: 'smooth',
+                            });
+                          }, 350);
+                        }
+                      }}
+                      className="flex w-full items-center gap-3 rounded-2xl border p-4 text-left"
+                      style={{
+                        borderColor: isDark ? '#2a3d52' : '#e0d1bf',
+                        background:  isDark ? 'rgba(20,32,48,0.6)' : 'rgba(255,252,246,0.8)',
+                      }}
+                      whileHover={{ scale: 1.015 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                        <svg width="48" height="48" viewBox="0 0 48 48">
+                          <circle cx="24" cy="24" r="20" fill="none" stroke={isDark ? '#1c3050' : '#e0d1bf'} strokeWidth="3" />
+                          <circle cx="24" cy="24" r="20" fill="none"
+                            stroke={pct === 100 ? '#22c99a' : '#4f8cf5'} strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeDasharray={`${(pct / 100) * 125.6} 125.6`}
+                            transform="rotate(-90 24 24)" />
+                        </svg>
+                        <span className="absolute text-[10px] font-black" style={{ color: isDark ? '#a0c0e0' : '#4a6a80' }}>{pct}%</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold" style={{ color: isDark ? '#e0eaf8' : '#1e2a3a' }}>{seg.title}</p>
+                        <p className="text-[11px]" style={{ color: isDark ? '#7a9bbf' : '#7a8a9a' }}>
+                          {done}/{total} Stationen · {seg.themeTags.join(', ')}
+                        </p>
+                      </div>
+                      {pct === 100
+                        ? <Trophy className="h-5 w-5 shrink-0 text-[#22c99a]" />
+                        : <ChevronRight className="h-5 w-5 shrink-0" style={{ color: isDark ? '#4a6a88' : '#aabac8' }} />}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Node Bottom Sheet ── */}
       <AnimatePresence>
