@@ -837,39 +837,56 @@ function gateTellPatternOveruse(
   const ageMax = ageRange?.max ?? 12;
   const fullText = draft.chapters.map(ch => ch.text).join(" ");
 
+  // 10/10 Quality: Strict ban on emotion labels ("Somatic Marker" Enforcement)
   const tellPatterns = isDE
     ? [
-        /\b(?:er|sie|mia|adrian|alexander)\s+sp(?:u|ue)rte\b/gi,
-        /\b(?:innen|in ihm|in ihr)\s+zog\s+sich\b/gi,
-        /\b(?:innen|im\s+inneren)\s+(?:machte|wurde|drueckte|zog)\b/gi,
+        /\b(?:er|sie|es|man)\s+sp(?:u|ue)rte\b/gi,
+        /\b(?:er|sie|es|man)\s+f(?:ue|u)hlte\s+sich\b/gi,
+        /\bwar\s+(?:traurig|gl(?:ue|u)cklich|w(?:ue|u)tend|froh|nerv(?:oe|o)s|fr(?:oe|o)hlich|begeistert|stolz|entt(?:ae|a)uscht)\b/gi,
+        /\bwurde\s+(?:traurig|gl(?:ue|u)cklich|w(?:ue|u)tend|froh|nerv(?:oe|o)s)\b/gi,
+        /\binnerlich\s+(?:zog|machte|wurde)\b/gi,
         /\bstille\s+fiel\b/gi,
-        /\b(?:er|sie|mia|adrian|alexander)\s+merkte\b/gi,
-        /\bihr\s+herz\s+(?:klopfte|pochte|haemmerte)\b/gi,
+        /\b(?:er|sie|es|man)\s+merkte\b/gi,
+        /\bherz\s+(?:klopfte|pochte|haemmerte)\s+wild\b/gi, // Cliché
+        /\b(?:traurig|w(?:ue|u)tend|nerv(?:oe|o)s|gl(?:ue|u)cklich)\s+(?:sagte|rief|fragte|antwortete)\b/gi, // Adverb tells
+        /\bpl(?:oe|o)tzlich\b/gi, // Ban "suddenly"
+        /\bauf\s+einmal\b/gi,
       ]
     : [
-        /\b(?:he|she|they)\s+felt\b/gi,
-        /\binside\s+(?:him|her|them)\s+(?:something\s+)?tightened\b/gi,
-        /\binside\s+(?:him|her|them)\s+(?:something\s+)?(?:pressed|pulled|turned)\b/gi,
+        /\b(?:he|she|it|they)\s+felt\b/gi,
+        /\b(?:he|she|it|they)\s+was\s+(?:sad|happy|angry|glad|nervous|excited|proud|disappointed|scared)\b/gi,
+        /\b(?:he|she|it|they)\s+became\s+(?:sad|happy|angry|nervous)\b/gi,
+        /\binside\s+(?:him|her|them)\s+(?:something\s+)?(?:tightened|pressed|pulled)\b/gi,
         /\bsilence\s+fell\b/gi,
-        /\b(?:he|she|they)\s+noticed\b/gi,
-        /\bheart\s+(?:pounded|raced|thumped)\b/gi,
+        /\b(?:he|she|it|they)\s+noticed\b/gi,
+        /\bheart\s+(?:pounded|raced|thumped)\b/gi, // Cliché
+        /\b(?:sadly|happily|angrily|nervously|excitedly)\s+(?:said|asked|shouted)\b/gi, // Adverb tells
+        /\bsuddenly\b/gi, // Ban "suddenly"
+        /\ball\s+of\s+a\s+sudden\b/gi,
       ];
 
   let repeatedTellHits = 0;
+  let hitExamples: string[] = [];
+
   for (const pattern of tellPatterns) {
     pattern.lastIndex = 0;
-    repeatedTellHits += fullText.match(pattern)?.length ?? 0;
+    const matches = fullText.match(pattern);
+    if (matches) {
+      repeatedTellHits += matches.length;
+      if (hitExamples.length < 3) hitExamples.push(matches[0]);
+    }
   }
 
-  if (repeatedTellHits >= 6) {
+  // Stricter Threshold for "10/10" Quality (max 3 "tells" allowed in whole story)
+  if (repeatedTellHits >= 3) {
     issues.push({
       gate: "TELL_PATTERN",
       chapter: 0,
       code: "TELL_PATTERN_OVERUSE",
       message: isDE
-        ? `Zu viele aehnliche Tell-Konstruktionen (${repeatedTellHits} Treffer). Mehr zeigen durch Dialog und konkrete Aktion.`
-        : `Too many repeated tell-style constructions (${repeatedTellHits} hits). Show more via dialogue and concrete action.`,
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        ? `Zu viele "Tell"-Konstruktionen (${repeatedTellHits} Treffer: "${hitExamples.join('", "')}"). Zeige Gefuehle durch Koerpersprache (Somatic Markers) ("Schultern sackten ab" statt "war traurig").`
+        : `Too many "Tell" constructions (${repeatedTellHits} hits: "${hitExamples.join('", "')}"). Show emotions via Somatic Markers ("shoulders stumped" instead of "was sad").`,
+      severity: "ERROR", // Always ERROR to force Rewrite
     });
   }
 

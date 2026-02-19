@@ -136,7 +136,7 @@ export class LlmStoryWriter implements StoryWriter {
     const model = rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
-    const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
+    const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
     const storyPromptMode: "full" | "compact" =
       requestedPromptMode === "full"

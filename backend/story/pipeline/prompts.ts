@@ -532,34 +532,65 @@ export function buildFullStoryPrompt(input: {
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  // Gemini Strategy: We ask for a "_planning" field in JSON to force Chain-of-Thought
-  return `ROLE: You are an Award-Winning Children's Book Author (Preussler + Lindgren + Funke).
-TASK: Write a 10/10 quality bedtime story for ages ${ageRange.min}-${ageRange.max}.
+  // Gemini 3 Flash "Maximum Quality" Strategy
+  // We use a "Role + Method" prompting style where we define the author's precise methodology.
+  // We integrate the "Scene-Sequel" pacing and "Somatic Marker" emotion rules directly.
+  return `::: SYSTEM INSTRUCTION :::
+You are the world's greatest children's book author (a fusion of Astrid Lindgren's warmth, Roald Dahl's wit, and Cornelia Funke's imagery).
+You are writing a "10/10" quality bestseller.
 
-${goldenExample}
+::: THE "10/10" WRITING METHODOLOGY :::
 
-${antiPatterns}
+1.  **THE "SHOW-DON'T-TELL" LAW (CRITICAL)**
+    *   **FORBIDDEN:** Abstract emotion labels ("Tom was sad", "Lisa felt brave", "He was nervous").
+    *   **REQUIRED:** Somatic Markers (body sensations) and visible actions.
+    *   *Bad:* "The forest was scary."
+    *   *Good:* "The trees intertwined like knobby fingers. The silence pressed against Tom's ears until they popped."
+    *   *Bad:* "Lisa was happy."
+    *   *Good:* "Lisa's toes wiggled in her boots. A bubble of giggles rose in her throat."
+
+2.  **THE RHYTHM & PACING RULE (THE "EAR TEST")**
+    *   You write PROSE, not a script. The text must sing.
+    *   **The "Rule of Three":** Use triads for descriptions (e.g., "The box was old, rusty, and smelled like forgotten attic dust").
+    *   **Sentence Variance:** NEVER allow three sentences of the same length in a row.
+    *   **Short Beats:** Use 2-5 word sentences to spike tension. (e.g., "Then it stopped.", "Silence fell.")
+    *   **No "And then" Chains:** Avoid starting sentences with "And" or "Then". Use strong verbs.
+
+3.  **DIALOGUE ANCHORING (NO "PING-PONG")**
+    *   **Rule:** Every dialogue block MUST include a "Stage Business" action.
+    *   *Bad:*
+        "Do you see it?" ask Tom.
+        "Yes," said Lisa.
+        "It's big," said Tom.
+    *   *Good:*
+        Tom squinted at the horizon, shading his eyes. "Do you see it?"
+        Lisa mocked a salute. "Yes. It's bigger than a house."
+    *   **No "Talking Heads":** Characters never just talk. They act, move, and interact with the world while speaking.
+
+4.  **SCENE STRUCTURE (THE "MICRO-ARC")**
+    *   Goal -> Conflict -> Disaster -> Reaction -> New Goal.
+    *   Chapter Start: The character wants something *specific* (not just "to explore").
+    *   Chapter Middle: Something gets in the way.
+    *   Chapter End: The situation has changed. It's not just a pause; it's a cliffhanger or a realization.
+
+5.  **CHILD-CENTRIC WORLDVIEW (DEEP POV)**
+    *   The narrator camera is INSIDE the child's eyes.
+    *   Adults are giants. Tables are roofs.
+    *   Small problems (a lost toy) feel like world-ending disasters. large problems are confusing.
+    *   Magic is treated as matter-of-fact science. 
+
+6.  **FAILURE MODES (AVOID AT ALL COSTS)**
+    *   **The "Summary Trap":** Do not summarize events ("They had a great adventure"). PLAY THE ADVENTURE OUT.
+    *   **The "Lesson Hammer":** Do not preach. The moral must be invisible.
+    *   **The "Adjective Soup":** Do not stack adjectives ("The big, red, shiny, beautiful ball"). Pick ONE perfect word ("The ruby-red ball").
 
 ::: CRITICAL CONSTRAINTS :::
 1. LANGUAGE: ${outputLang} ONLY. ${umlautRule}
 2. FORMAT: Single valid JSON object.
 3. LENGTH: Total ${totalWordMin}-${totalWordMax} words. Each chapter MUST be ${wordsPerChapter.min}-${wordsPerChapter.max} words.
-   -> FAILURE MODE: Stories under ${totalWordMin} words will be REJECTED. You MUST expand interactions to hit this target.
-4. CAST: Only ${allowedNames.join(", ")}. No new names. No "talking body parts".
+   -> FAILURE MODE: Stories under ${totalWordMin} words will be REJECTED. Expand interactions!
+4. CAST: Only ${allowedNames.join(", ")}. No new names.
 5. SAFETY: ${safetyRule}
-
-::: PROSE STYLE & PACING (The "Gemini 3" Standard) :::
-- DEEP POV: Stay inside the children's heads. Describe what they feel via body sensations (e.g., "His tummy rumbled like a dryer," NOT "He was hungry").
-- ACTION-REACTION: Every line of dialogue must have a physical anchor.
-  BAD: "Hello," said Tom.
-  GOOD: Tom leaned over the fence. "Hello."
-- SENTENCE VARIATION: Mix short (3 words) and medium (10 words) sentences. Max 14 words/sentence.
-  -> RULE: No more than 2 long sentences in a row.
-- SHOW, DON'T TELL:
-  BAD: "They were happy."
-  GOOD: "Lisa jumped so high her braids danced. 'Yay!'"
-- STAKES: In Chapter 1/2, clearly show what happens if they fail. (e.g. "If we don't find the key, the dragon stays sad forever.")
-- CHILD ARC: Sometime in Ch 3-4, a child must make a mistake and fix it. E.g., "I shouldn't have touched that." -> "I know how to fix it!"
 
 ${avatarRule ? `::: AVATAR RULES :::\n${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -570,17 +601,20 @@ ${characterProfiles.join("\n")}
 ${memorySection}
 ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery -> Misinterpretation -> Mastery (Child solves it, not the artifact).\n` : ""}
 
-::: STORY BEATS :::
+::: PROMPTED STORY BEATS :::
 ${beatLines}
 
 ::: OUTPUT FORMAT :::
-You must output a single JSON object with a "_planning" field to prove your pacing strategy.
+You must output a single JSON object with a "_planning" field. Use this field to "think" before writing.
 
 {
   "_planning": {
-    "stakes_check": "What specifically happens if they fail?",
-    "emotional_arc": "Which child makes a mistake? How do they fix it?",
-    "length_strategy": "How will I ensure specific details to reach >${totalWordMin} words?"
+    "theme_focus": "One word theme (e.g. 'Courage')",
+    "somatic_vocabulary": ["List 5 physical sensations you will use instead of emotion words"],
+    "pacing_check": "How will you ensure sentence length variety?",
+    "chapter_plans": [
+      { "chapter": 1, "goal": "Specific goal", "conflict": "Specific obstacle", "ending": "Cliffhanger/Shift" }
+    ]
   },
   "title": "${titleHint}",
   "description": "Teaser sentence...",
@@ -644,30 +678,37 @@ export function buildFullStoryRewritePrompt(input: {
   const outputLang = isGerman ? "German" : targetLanguage;
   const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII. No English words." : "";
 
-  return `TASK: Rewrite this story to specific quality standards. The previous draft was rejected.
+  return `TASK: Rewrite this story to "10/10" quality standards. The previous draft was rejected for being too flat/generic.
 
 ::: CRITIC FEEDBACK (MUST FIX) :::
 ${qualityIssues || "- General prose improvement needed. Too short, flat characters."}
 
+::: THE "10/10" WRITING STANDARD :::
+1.  **SHOW, DON'T TELL (SOMATIC MARKERS)**
+    *   **FORBIDDEN:** Abstract emotion words ("sad", "happy", "excited").
+    *   **REQUIRED:** Physical sensations. "Shoulders ignored gravity" (happy). "Stomach turned to ice" (scared).
+    *   *Fix:* Take every emotion word in the draft and replace it with a physical action.
+
+2.  **RHYTHM & PACING (EAR TEST)**
+    *   **Rule of Three:** Use triads for descriptions.
+    *   **Sentence Variance:** Combine short (2-5 words) and medium (8-15 words) sentences.
+    *   **NO:** Three sentences of the same length in a row.
+    *   **NO:** Chains of "He did this. Then he did that." Use strong verbs.
+
+3.  **DIALOGUE ANCHORING**
+    *   Every dialogue line needs a physical anchor.
+    *   *Bad:* "Hello," said Tom.
+    *   *Good:* Tom kicked the dirt. "Hello."
+
 ::: HARD RULES :::
 1) Language: ONLY ${outputLang}.${umlautRule}
-2) Length: ${totalWordMin}-${totalWordMax} words total. Chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}. 
+2) Length: ${totalWordMin}-${totalWordMax} words total. Chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}.
    -> IF TOO SHORT: You MUST add new interactions, dialogue lines, and sensory details. Do NOT just fluff the text. Dramatize!
 3) Cast Lock: ${allowedNames || "(none)"}. No new names.
 4) Tone: ${targetTone}.
 5) Structure: Exactly ${directives.length} chapters.
 6) No BANNED words (plötzlich, auf einmal, dann, nun, jetzt, schließlich).
 
-::: PROSE STYLE GUIDELINES (Gemini 3 Standard) :::
-- DEEP POV: Stay inside the children's heads.
-- SHOW, DON'T TELL: No "He was sad." -> Show him looking at his feet, fighting tears.
-- SENTENCE RHYTHM: Mix short (2-5 words) and medium (8-15 words) sentences.
-  -> BAD: "Tom went to the door. He opened it. He saw a cat."
-  -> GOOD: "Tom crept to the door. Creak. He peeked out. A cat?"
-- DIALOGUE: Every speak-line needs an action beat. NO "ping-pong" dialogue without movement.
-  -> BAD: "Yes," said Tom. "No," said Lisa.
-  -> GOOD: Tom nodded. "Yes." Lisa stopped him with a hand. "No way."
-- AVATARS: ${avatarRule}
 ${humorRewriteLine}
 
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -682,6 +723,7 @@ Output a single JSON object. Start with a "_planning" field where you explicitly
 {
   "_planning": {
     "fix_strategy": "Example: I will extend Chapter 2 by adding a scene where...",
+    "somatic_check": "List 3 emotion words I am deleting and replacing with actions...",
     "pacing_check": "How I ensure the low-point in Ch 3 hits hard..."
   },
   "title": "Story title",

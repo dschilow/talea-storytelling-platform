@@ -7,7 +7,7 @@
 
 import { secret } from "encore.dev/config";
 
-const geminiApiKey = secret("GeminiAPIKey", { optional: true });
+const geminiApiKey = secret("GeminiAPIKey");
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1500;
 const MAX_RETRY_DELAY_MS = 15000;
@@ -105,11 +105,9 @@ export async function generateWithGemini(
     ],
     generationConfig: {
       temperature: request.temperature ?? 1.0,
-      maxOutputTokens: request.maxTokens,
+      maxOutputTokens: 65536, // Force expanded output window for "Gemini 3 Flash"
       responseMimeType: "application/json",
-      thinkingConfig: {
-        thinkingLevel: "minimal",
-      },
+      // thinkingConfig removed - we strictly use "_planning" field in JSON for CoT
     },
     safetySettings: [
       {
