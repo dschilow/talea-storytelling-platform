@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
@@ -133,6 +133,7 @@ function Choice({
 
 export default function ModernDokuWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const backend = useBackend();
   const { userId } = useAuth();
   const { user } = useUser();
@@ -150,7 +151,7 @@ export default function ModernDokuWizard() {
     'Keine DokuCredits verfuegbar. Bitte den Plan in den Einstellungen wechseln.'
   );
   const [state, setState] = useState<DokuWizardState>({
-    topic: '',
+    topic: searchParams.get('topicTags') ?? '',
     ageGroup: '6-8',
     depth: 'standard',
     perspective: 'science',

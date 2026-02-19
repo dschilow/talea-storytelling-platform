@@ -16,6 +16,8 @@ export interface AvatarTraitMap {
   loading: boolean;
   /** Avatar name (for display) */
   avatarName: string | null;
+  /** Avatar ID (for segment generation) */
+  avatarId: string | null;
 }
 
 export function useAvatarTraitsForMap(): AvatarTraitMap {
@@ -23,6 +25,7 @@ export function useAvatarTraitsForMap(): AvatarTraitMap {
   const [traits, setTraits] = useState<TraitValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [avatarName, setAvatarName] = useState<string | null>(null);
+  const [avatarId, setAvatarId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +43,7 @@ export function useAvatarTraitsForMap(): AvatarTraitMap {
 
         // Use the first avatar (primary)
         const avatar = avatars[0];
+        setAvatarId(avatar.id ?? null);
         setAvatarName(avatar.name ?? null);
 
         const raw = (avatar as any).personalityTraits;
@@ -69,5 +73,5 @@ export function useAvatarTraitsForMap(): AvatarTraitMap {
     return map;
   }, [traits]);
 
-  return { byId, all: traits, loading, avatarName };
+  return { byId, all: traits, loading, avatarName, avatarId };
 }

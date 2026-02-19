@@ -72,3 +72,15 @@ export function useLearningPathProgress() {
   return { progress, markNodeDone, awardArtifact, recordQuizResult, resetProgress, updateProgress: update };
 }
 
+/** Merge localStorage progress with backend-derived done IDs (pure function, no storage mutation) */
+export function mergeBackendDoneIds(
+  localProgress: ProgressState,
+  backendDoneIds: Set<string>,
+): ProgressState {
+  if (backendDoneIds.size === 0) return localProgress;
+  const merged = new Set(localProgress.doneNodeIds);
+  for (const id of backendDoneIds) merged.add(id);
+  if (merged.size === localProgress.doneNodeIds.length) return localProgress;
+  return { ...localProgress, doneNodeIds: [...merged] };
+}
+

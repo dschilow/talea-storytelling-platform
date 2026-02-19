@@ -4,24 +4,25 @@
  *
  * Architecture: scrollable container with absolute-positioned nodes.
  * Components extracted into GameMapNode, GameMapEdge, MapBackground.
- * Data transformation via useMapFlowData hook.
+ * Segments generated dynamically from user's real backend data (dokus, stories, memories).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowLeft, ChevronRight, List, MapPin, Sparkles, Sun, Trophy,
+  ArrowLeft, ChevronRight, List, Loader2, MapPin, Sparkles, Sun, Trophy,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { SEED_SEGMENTS } from './TaleaLearningPathSeedData';
-import { useLearningPathProgress } from './TaleaLearningPathProgressStore';
+import { useLearningPathProgress, mergeBackendDoneIds } from './TaleaLearningPathProgressStore';
 import { useMapFlowData, type FlatNode } from './hooks/useMapFlowData';
+import { useMapSegmentGenerator } from './hooks/useMapSegmentGenerator';
+import { useAvatarTraitsForMap } from './hooks/useAvatarTraitsForMap';
+import { useDailyRecommendations } from './hooks/useDailyRecommendations';
 import GameMapNode from './components/GameMapNode';
 import GameMapEdge from './components/GameMapEdge';
 import MapBackground from './components/MapBackground';
 import TaleaMapNodeSheet from './TaleaMapNodeSheet';
-import { useAvatarTraitsForMap } from './hooks/useAvatarTraitsForMap';
-import { useDailyRecommendations } from './hooks/useDailyRecommendations';
+import { getTraitIcon, getTraitLabel } from '../../constants/traits';
 
 // ─── Segment Label ──────────────────────────────────────────────────────────
 
@@ -49,6 +50,22 @@ const TaleaLearningPathMapView: React.FC = () => {
   const lastActiveRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const mapContentRef = useRef<HTMLDivElement | null>(null);
+  const endOfMapRef = useRef<HTMLDivElement | null>(null);
+
+  // ── Infinite scroll: visible segment count ──
+  const [visibleSegmentCount, setVisibleSegmentCount] = useState(6);
+
+  // ── Dynamic segment generation from backend data ──
+  const { segments, backendDoneNodeIds, loading: segmentsLoading } = useMapSegmentGenerator(
+    avatarTraits.avatarId ?? null,
+    visibleSegmentCount,
+  );
+
+  // ── Merge localStorage progress with backend-derived done IDs ──
+  const mergedProgress = useMemo(
+    () => mergeBackendDoneIds(progress, backendDoneNodeIds),
+    [progress, backendDoneNodeIds],
+  );
 
   // ── Zoom state: scale + transform-origin for zoom-to-node effect ──
   const [zoomState, setZoomState] = useState<{
@@ -57,19 +74,19 @@ const TaleaLearningPathMapView: React.FC = () => {
     originY: string;
   }>({ scale: 1, originX: '50%', originY: '50%' });
 
-  // Fallback "heute" node IDs from seed data (used when no trait data)
+  // Fallback "heute" node IDs from segment data
   const seedHeuteIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const seg of SEED_SEGMENTS) {
+    for (const seg of segments) {
       if (seg.recommendedDailyStops) seg.recommendedDailyStops.forEach(id => ids.add(id));
     }
     return ids;
-  }, []);
+  }, [segments]);
 
-  // Transform segments + progress into flat data (with trait-aware unlock rules)
+  // Transform segments + merged progress into flat data
   const { flatNodes, flatEdges, segmentLabels, mapHeight } = useMapFlowData(
-    SEED_SEGMENTS,
-    progress,
+    segments,
+    mergedProgress,
     seedHeuteIds,
     avatarTraits.loading ? undefined : avatarTraits.byId,
   );
@@ -79,6 +96,22 @@ const TaleaLearningPathMapView: React.FC = () => {
   const heuteNodeIds = !avatarTraits.loading && Object.keys(avatarTraits.byId).length > 0
     ? smartHeuteIds
     : seedHeuteIds;
+
+  // ── Infinite scroll observer ──
+  useEffect(() => {
+    const el = endOfMapRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleSegmentCount(prev => prev + 4);
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mapHeight]); // re-attach when map grows
 
   // "Zu mir" – scroll to active/first-available node
   const scrollToActive = useCallback(() => {
@@ -101,7 +134,7 @@ const TaleaLearningPathMapView: React.FC = () => {
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasActive = !!progress.lastActiveNodeId;
+  const hasActive = !!mergedProgress.lastActiveNodeId;
 
   // ── Node click: zoom to node + open sheet ────────────────────────────────
   const handleNodeClick = useCallback((flat: FlatNode) => {
@@ -174,12 +207,22 @@ const TaleaLearningPathMapView: React.FC = () => {
 
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: isDark ? '#3a6a8a' : '#8a9aaa' }}>
-            Talea
+            {avatarTraits.avatarName ?? 'Talea'}
           </p>
           <h1 className="text-lg font-black leading-none tracking-tight" style={{ color: isDark ? '#e8f2ff' : '#1a2a3a' }}>
             Reise-Karte
           </h1>
         </div>
+
+        {/* Loading indicator */}
+        {segmentsLoading && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+          >
+            <Loader2 className="h-4 w-4" style={{ color: isDark ? '#4a7a9a' : '#8a9aaa' }} />
+          </motion.div>
+        )}
 
         {/* "Zu mir" */}
         <motion.button
@@ -284,40 +327,56 @@ const TaleaLearningPathMapView: React.FC = () => {
             ))}
           </svg>
 
-          {/* Segment Labels */}
+          {/* Segment Labels (with trait progress) */}
           {segmentLabels.map((seg) => (
             <motion.div
               key={`lbl-${seg.segmentId}`}
-              className="pointer-events-none absolute left-0 right-0 flex items-center justify-center gap-3 px-6"
+              className="pointer-events-none absolute left-0 right-0 flex flex-col items-center gap-1 px-6"
               style={{ top: `${seg.y}px`, zIndex: 3 }}
               variants={segLabelVariant}
               initial="hidden"
               animate="show"
             >
-              <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
-              <motion.span
-                className="rounded-full border px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]"
-                style={{
-                  borderColor: isDark ? '#243a54' : '#c0a888',
-                  color: isDark ? '#6aaad2' : '#6a5a48',
-                  background: isDark ? 'rgba(8,18,32,0.88)' : 'rgba(252,246,236,0.92)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: isDark
-                    ? '0 3px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)'
-                    : '0 2px 10px rgba(0,0,0,0.10)',
-                }}
-                whileHover={{ scale: 1.04 }}
-              >
-                {seg.title}
-              </motion.span>
-              <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
+              <div className="flex w-full items-center gap-3">
+                <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
+                <motion.span
+                  className="rounded-full border px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]"
+                  style={{
+                    borderColor: isDark ? '#243a54' : '#c0a888',
+                    color: isDark ? '#6aaad2' : '#6a5a48',
+                    background: isDark ? 'rgba(8,18,32,0.88)' : 'rgba(252,246,236,0.92)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: isDark
+                      ? '0 3px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)'
+                      : '0 2px 10px rgba(0,0,0,0.10)',
+                  }}
+                  whileHover={{ scale: 1.04 }}
+                >
+                  {seg.title}
+                </motion.span>
+                <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
+              </div>
+
+              {/* Trait progress pill below segment title */}
+              {seg.dominantTraitId && !avatarTraits.loading && (
+                <span
+                  className="rounded-full border px-2.5 py-0.5 text-[9px] font-bold"
+                  style={{
+                    borderColor: isDark ? '#1c3050' : '#d5c5b0',
+                    color: isDark ? '#8aa8c8' : '#5a7080',
+                    background: isDark ? 'rgba(14,24,40,0.8)' : 'rgba(255,254,250,0.85)',
+                  }}
+                >
+                  {getTraitIcon(seg.dominantTraitId)} {getTraitLabel(seg.dominantTraitId, 'de')}: {seg.dominantTraitValue ?? 0} Pkt
+                </span>
+              )}
             </motion.div>
           ))}
 
           {/* Nodes */}
           {flatNodes.map((flat) => {
             const isSel = selected?.node.nodeId === flat.node.nodeId;
-            const isLastAct = progress.lastActiveNodeId === flat.node.nodeId;
+            const isLastAct = mergedProgress.lastActiveNodeId === flat.node.nodeId;
 
             return (
               <GameMapNode
@@ -337,13 +396,11 @@ const TaleaLearningPathMapView: React.FC = () => {
             );
           })}
 
-          {/* End-of-map message */}
-          <motion.div
+          {/* End-of-map sentinel (infinite scroll trigger) */}
+          <div
+            ref={endOfMapRef}
             className="absolute flex w-full items-center justify-center"
             style={{ top: `${mapHeight - 100}px`, zIndex: 5 }}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.7, ease: 'easeOut' }}
           >
             <motion.span
               className="flex items-center gap-2 rounded-full border px-5 py-2.5 text-xs font-bold"
@@ -354,13 +411,20 @@ const TaleaLearningPathMapView: React.FC = () => {
                 backdropFilter: 'blur(10px)',
                 boxShadow: '0 4px 18px rgba(0,0,0,0.22)',
               }}
-              animate={!reduceMotion ? { y: [0, -5, 0] } : {}}
-              transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9, duration: 0.7, ease: 'easeOut' }}
             >
-              <Sparkles className="h-3.5 w-3.5 opacity-50" />
-              Neue Abenteuer folgen bald…
+              <motion.span
+                animate={!reduceMotion ? { y: [0, -5, 0] } : {}}
+                transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+                className="flex items-center gap-2"
+              >
+                <Sparkles className="h-3.5 w-3.5 opacity-50" />
+                Scrolle weiter für neue Abenteuer…
+              </motion.span>
             </motion.span>
-          </motion.div>
+          </div>
         </motion.div>
       </div>
 

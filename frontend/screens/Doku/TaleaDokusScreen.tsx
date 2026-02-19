@@ -20,7 +20,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
@@ -448,6 +448,7 @@ const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => (
 const TaleaDokusScreen: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
   const { isSignedIn, isLoaded, user } = useUser();
@@ -474,8 +475,8 @@ const TaleaDokusScreen: React.FC = () => {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
   const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<DokuTab>('mine');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('tags') ?? '');
+  const [activeTab, setActiveTab] = useState<DokuTab>(searchParams.get('mode') === 'audio' ? 'audio' : 'mine');
   const [sortMode, setSortMode] = useState<DokuSortMode>('newest');
   const [topicFilter, setTopicFilter] = useState('all');
   const [ageGroupFilter, setAgeGroupFilter] = useState('all');

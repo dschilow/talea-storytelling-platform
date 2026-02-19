@@ -12,7 +12,7 @@ import {
   Search,
   XCircle,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useBackend } from "@/hooks/useBackend";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -151,11 +151,12 @@ const matchesFilter = (doku: Doku, filters: DeckFilter) => {
 const CommunityQuizScreen: React.FC = () => {
   const backend = useBackend();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
   const [filters, setFilters] = useState<DeckFilter>({
-    query: "",
+    query: searchParams.get("tags") ?? "",
     ageGroup: "all",
     depth: "all",
     perspective: "all",

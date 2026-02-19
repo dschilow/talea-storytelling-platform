@@ -5,8 +5,9 @@
  * Reuses ROAD_POINTS + pathXAtY layout logic from the original map.
  */
 import { useMemo } from 'react';
-import type { MapSegment, MapNode, NodeState, ProgressState } from '../TaleaLearningPathTypes';
+import type { MapSegment, MapNode, NodeState, ProgressState, RouteTag } from '../TaleaLearningPathTypes';
 import { computeNodeStates } from '../TaleaLearningPathSeedData';
+import { ROUTE_TO_TRAITS } from '../constants/routeTraitMapping';
 
 // ─── Road path logic ────────────────────────────────────────────────────────
 
@@ -119,6 +120,10 @@ export interface SegmentLabel {
   index: number;
   doneCount: number;
   totalCount: number;
+  /** Dominant trait for this segment (derived from node routes) */
+  dominantTraitId?: string;
+  /** Current avatar value for the dominant trait */
+  dominantTraitValue?: number;
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
@@ -167,6 +172,14 @@ export function useMapFlowData(
         globalIdx++;
       }
 
+      // Determine dominant trait from node routes
+      const routeCounts: Record<string, number> = {};
+      for (const n of seg.nodes) {
+        routeCounts[n.route] = (routeCounts[n.route] ?? 0) + 1;
+      }
+      const topRoute = Object.entries(routeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] as RouteTag | undefined;
+      const dominantTraitId = topRoute ? ROUTE_TO_TRAITS[topRoute]?.[0] : undefined;
+
       segmentLabels.push({
         segmentId: seg.segmentId,
         title: seg.title,
@@ -174,6 +187,8 @@ export function useMapFlowData(
         index: seg.index,
         doneCount: segDone,
         totalCount: seg.nodes.length,
+        dominantTraitId,
+        dominantTraitValue: dominantTraitId && traitValues ? traitValues[dominantTraitId] ?? 0 : undefined,
       });
 
       // Edges

@@ -13,7 +13,7 @@ import {
   Users,
   Wand2,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
@@ -231,6 +231,7 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palet
 
 export default function TaleaStoryWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const backend = useBackend();
   const { userId } = useAuth();
   const { isAdmin } = useOptionalUserAccess();
@@ -249,6 +250,12 @@ export default function TaleaStoryWizard() {
     t('wizard.steps.summary'),
   ];
 
+  const VALID_CATEGORIES = ['fairy-tales', 'adventure', 'magic', 'animals', 'scifi', 'modern'] as const;
+  const tagParam = searchParams.get('tags');
+  const initialCategory = VALID_CATEGORIES.includes(tagParam as any)
+    ? (tagParam as WizardState['mainCategory'])
+    : null;
+
   const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<GenerationStep>('profiles');
@@ -265,7 +272,7 @@ export default function TaleaStoryWizard() {
 
   const [state, setState] = useState<WizardState>({
     selectedAvatars: [],
-    mainCategory: null,
+    mainCategory: initialCategory,
     subCategory: null,
     ageGroup: null,
     length: null,
