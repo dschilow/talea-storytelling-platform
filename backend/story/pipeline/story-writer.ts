@@ -299,12 +299,14 @@ ${storyLanguageRule}`.trim();
     let prompt = buildStoryPrompt(activePromptMode);
 
     // Keep headroom for reasoning models so they can finish JSON output instead of truncating.
+    // gpt-5-mini uses ~3000-5000 internal reasoning tokens before producing visible output,
+    // so we need a much higher floor and multiplier to avoid empty responses.
     const baseOutputTokens = isReasoningModel
-      ? Math.max(3200, Math.round(totalWordMax * 1.75))
+      ? Math.max(5000, Math.round(totalWordMax * 2.0))
       : Math.max(2200, Math.round(totalWordMax * 1.5));
-    const reasoningMultiplier = isReasoningModel ? 1.2 : 1;
+    const reasoningMultiplier = isReasoningModel ? 1.6 : 1;
     const maxOutputTokens = isReasoningModel
-      ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 9600)
+      ? Math.min(Math.max(7000, Math.round(baseOutputTokens * reasoningMultiplier)), 12000)
       : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
@@ -337,7 +339,7 @@ ${storyLanguageRule}`.trim();
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
       const recoveryMaxTokens = isReasoningModel
-        ? Math.min(Math.max(maxOutputTokens + 1400, 5200), 9600)
+        ? Math.min(Math.max(maxOutputTokens + 2000, 9000), 14000)
         : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
       const recoveryBudgetedMaxTokens = fitTokensToBudget(
         recoveryMaxTokens,
