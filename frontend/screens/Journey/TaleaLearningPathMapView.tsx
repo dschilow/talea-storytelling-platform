@@ -20,6 +20,10 @@ import GameMapEdge from './components/GameMapEdge';
 import MapBackground from './components/MapBackground';
 import TaleaMapNodeSheet from './TaleaMapNodeSheet';
 import { getTraitIcon, getTraitLabel } from '../../constants/traits';
+import { ROUTE_TO_TRAITS } from './constants/routeTraitMapping';
+import { getNextRankProgress } from '../../utils/TaleaProgressionUtils';
+import TaleaChestReward from './components/TaleaChestReward';
+import type { MapProgressEventDetail } from './TaleaLearningPathProgressStore';
 
 const segLabelVariant = {
   hidden: { opacity: 0, y: -18, scale: 0.86 },
@@ -59,8 +63,6 @@ function filterSegmentsByForkChoices(
         current = chosenSegment;
         continue;
       }
-      // A fork is selected, but the target segment is not loaded yet.
-      // Stop here instead of leaking into non-selected branches.
       break;
     }
 
@@ -77,6 +79,19 @@ const TaleaLearningPathMapView: React.FC = () => {
   const isDark = resolvedTheme === 'dark';
   const reduceMotion = useReducedMotion() ?? false;
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const [activeReward, setActiveReward] = useState<{ id: string; rarity: 'common' | 'rare' | 'epic' } | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<MapProgressEventDetail>;
+      if (ev.detail.artifactId && ev.detail.rarity) {
+        setActiveReward({ id: ev.detail.artifactId, rarity: ev.detail.rarity });
+      }
+    };
+    window.addEventListener('talea:mapProgress', handler as EventListener);
+    return () => window.removeEventListener('talea:mapProgress', handler as EventListener);
+  }, []);
 
   const avatarIdParam = searchParams.get('avatarId');
   const avatarTraits = useAvatarTraitsForMap(avatarIdParam);
@@ -139,6 +154,14 @@ const TaleaLearningPathMapView: React.FC = () => {
   const heuteNodeIds = !avatarTraits.loading && Object.keys(avatarTraits.byId).length > 0
     ? smartHeuteIds
     : seedHeuteIds;
+
+  const heuteDoneCount = useMemo(() => {
+    let count = 0;
+    heuteNodeIds.forEach((id) => {
+      if (mergedProgress.doneNodeIds.includes(id)) count++;
+    });
+    return count;
+  }, [heuteNodeIds, mergedProgress.doneNodeIds]);
 
   useEffect(() => {
     const el = endOfMapRef.current;
@@ -217,109 +240,106 @@ const TaleaLearningPathMapView: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: isDark ? '#0d1521' : '#ede5d4' }}>
+      {/* Premium Header */}
       <header
-        className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3"
+        className="sticky top-0 z-30 flex flex-col gap-3 border-b px-4 py-4 backdrop-blur-xl"
         style={{
-          borderColor: isDark ? '#1e3148' : '#d8cbb8',
-          background: isDark ? 'rgba(10,17,28,0.92)' : 'rgba(253,247,238,0.94)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
+          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+          background: isDark ? 'rgba(10,20,32,0.85)' : 'rgba(253,247,238,0.92)',
         }}
       >
-        <motion.button
-          type="button"
-          onClick={() => navigate(-1)}
-          whileHover={{ scale: 1.10, rotate: -4 }}
-          whileTap={{ scale: 0.88 }}
-          className="flex h-9 w-9 items-center justify-center rounded-full border"
-          style={{ borderColor: isDark ? '#2e4a64' : '#c0b0a0', color: isDark ? '#b0c8e4' : '#5a6a7a' }}
-          aria-label="Zuruck"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </motion.button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <motion.button
+              type="button"
+              onClick={() => navigate(-1)}
+              whileHover={{ scale: 1.10, rotate: -4 }}
+              whileTap={{ scale: 0.88 }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border"
+              style={{
+                borderColor: isDark ? '#2e4a64' : '#c0b0a0',
+                color: isDark ? '#b0c8e4' : '#5a6a7a',
+                background: isDark ? 'rgba(30,45,65,0.4)' : 'rgba(255,255,255,0.6)',
+              }}
+              aria-label="Zuruck"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </motion.button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-black leading-none tracking-tight" style={{ color: isDark ? '#e8f2ff' : '#1a2a3a' }}>
+                Reise-Karte
+              </h1>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.18em] opacity-50" style={{ color: isDark ? '#3a6a8a' : '#8a9aaa' }}>
+                {avatarTraits.avatarName ?? 'Talea Explorer'}
+              </p>
+            </div>
+          </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: isDark ? '#3a6a8a' : '#8a9aaa' }}>
-            {avatarTraits.avatarName ?? 'Talea'}
-          </p>
-          <h1 className="text-lg font-black leading-none tracking-tight" style={{ color: isDark ? '#e8f2ff' : '#1a2a3a' }}>
-            Reise-Karte
-          </h1>
-          {avatarTraits.progression && (
-            <p className="mt-0.5 text-[10px] font-semibold" style={{ color: isDark ? '#7fa0c2' : '#6a7a8c' }}>
-              Stufe {avatarTraits.progression.overallLevel}
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            <motion.button
+              type="button"
+              onClick={() => setHeuteMode((m) => !m)}
+              whileTap={{ scale: 0.9 }}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold transition-colors"
+              style={{
+                borderColor: heuteMode ? '#f5a623' : (isDark ? '#2e4a64' : '#c0b0a0'),
+                color: heuteMode ? '#ffffff' : (isDark ? '#88b8e0' : '#3a6a88'),
+                background: heuteMode
+                  ? '#f5a623'
+                  : (isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,255,255,0.8)'),
+              }}
+            >
+              <Sun className={`h-3.5 w-3.5 ${heuteMode ? 'animate-spin-slow' : ''}`} />
+              Heute
+            </motion.button>
+
+            <motion.button
+              type="button"
+              onClick={() => setShowKapitel(true)}
+              whileTap={{ scale: 0.9 }}
+              className="flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold"
+              style={{
+                borderColor: isDark ? '#2e4a64' : '#c0b0a0',
+                color: isDark ? '#88b8e0' : '#3a6a88',
+                background: isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,255,255,0.8)',
+              }}
+            >
+              <List className="h-3.5 w-3.5" />
+            </motion.button>
+          </div>
         </div>
 
-        {segmentsLoading && (
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}>
-            <Loader2 className="h-4 w-4" style={{ color: isDark ? '#4a7a9a' : '#8a9aaa' }} />
-          </motion.div>
-        )}
-
-        <motion.button
-          type="button"
-          onClick={scrollToActive}
-          whileHover={{ scale: 1.06 }}
-          whileTap={{ scaleX: 1.14, scaleY: 0.86 }}
-          animate={hasActive && !reduceMotion
-            ? {
-                boxShadow: [
-                  '0 0 0 0px rgba(80,160,255,0.0)',
-                  '0 0 0 7px rgba(80,160,255,0.30)',
-                  '0 0 0 0px rgba(80,160,255,0.0)',
-                ],
-              }
-            : {}}
-          transition={hasActive && !reduceMotion ? { duration: 2.6, repeat: Infinity } : {}}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold"
+        {/* Daily Progress Bar */}
+        <div
+          className="flex flex-col gap-1.5 rounded-xl border px-3 py-2"
           style={{
-            borderColor: isDark ? '#2e4a64' : '#c0b0a0',
-            color: isDark ? '#88b8e0' : '#3a6a88',
-            background: isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,252,246,0.85)',
+            borderColor: isDark ? 'rgba(34,201,154,0.2)' : 'rgba(34,201,154,0.15)',
+            background: isDark ? 'rgba(34,201,154,0.06)' : 'rgba(34,201,154,0.03)'
           }}
         >
-          <MapPin className="h-3.5 w-3.5" />
-          Zu mir
-        </motion.button>
-
-        <motion.button
-          type="button"
-          onClick={() => setHeuteMode((m) => !m)}
-          whileTap={{ scale: 0.9 }}
-          className="flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold"
-          style={{
-            borderColor: heuteMode ? '#f5a623' : (isDark ? '#2e4a64' : '#c0b0a0'),
-            color: heuteMode ? '#f5a623' : (isDark ? '#88b8e0' : '#3a6a88'),
-            background: heuteMode
-              ? (isDark ? 'rgba(245,166,35,0.15)' : 'rgba(245,166,35,0.12)')
-              : (isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,252,246,0.85)'),
-          }}
-        >
-          <Sun className="h-3.5 w-3.5" />
-          Heute
-        </motion.button>
-
-        <motion.button
-          type="button"
-          onClick={() => setShowKapitel(true)}
-          whileTap={{ scale: 0.9 }}
-          className="flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold"
-          style={{
-            borderColor: isDark ? '#2e4a64' : '#c0b0a0',
-            color: isDark ? '#88b8e0' : '#3a6a88',
-            background: isDark ? 'rgba(20,36,56,0.65)' : 'rgba(255,252,246,0.85)',
-          }}
-        >
-          <List className="h-3.5 w-3.5" />
-        </motion.button>
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#22c99a]">
+              <Sparkles className="h-3 w-3" /> Deine Route
+            </span>
+            <span className="text-[10px] font-black text-[#22c99a]">
+              {heuteDoneCount} / {Math.max(3, heuteNodeIds.size)} Stationen
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200/20">
+            <motion.div
+              className="h-full bg-[#22c99a] shadow-[0_0_12px_rgba(34,201,154,0.5)]"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (heuteDoneCount / Math.max(3, heuteNodeIds.size)) * 100)}%` }}
+              transition={{ duration: 1.2, ease: 'easeOut' }}
+            />
+          </div>
+        </div>
       </header>
 
       <div
         ref={scrollContainerRef}
         className="relative flex-1 overflow-y-auto overflow-x-hidden"
-        style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: isDark ? '#111a28' : '#e4dac8' }}
+        style={{ minHeight: 'calc(100vh - 120px)', backgroundColor: isDark ? '#0d1521' : '#ede5d4' }}
       >
         <motion.div
           className="relative"
@@ -359,50 +379,59 @@ const TaleaLearningPathMapView: React.FC = () => {
           {segmentLabels.map((seg) => (
             <motion.div
               key={`lbl-${seg.segmentId}`}
-              className="pointer-events-none absolute left-0 right-0 flex flex-col items-center gap-1 px-6"
+              className="pointer-events-none absolute left-0 right-0 flex flex-col items-center gap-1.5"
               style={{ top: `${seg.y}px`, zIndex: 3 }}
               variants={segLabelVariant}
               initial="hidden"
               animate="show"
             >
-              <div className="flex w-full items-center gap-3">
-                <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
-                <motion.span
-                  className="rounded-full border px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]"
+              <div className="relative flex w-full max-w-sm flex-col items-center">
+                <div
+                  className="absolute h-px w-full -translate-y-1/2 opacity-30"
+                  style={{ top: '50%', background: `linear-gradient(90deg, transparent, ${isDark ? '#5a8ab0' : '#9a8878'}, transparent)` }}
+                />
+
+                <motion.div
+                  className="relative flex flex-col items-center rounded-2xl border px-6 py-2 text-center shadow-xl"
                   style={{
                     borderColor: isDark ? '#243a54' : '#c0a888',
-                    color: isDark ? '#6aaad2' : '#6a5a48',
-                    background: isDark ? 'rgba(8,18,32,0.88)' : 'rgba(252,246,236,0.92)',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: isDark
-                      ? '0 3px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)'
-                      : '0 2px 10px rgba(0,0,0,0.10)',
+                    color: isDark ? '#e0f0ff' : '#4a3a2a',
+                    background: isDark ? 'rgba(10,22,38,0.95)' : 'rgba(252,248,242,0.98)',
+                    backdropFilter: 'blur(12px)',
                   }}
-                  whileHover={{ scale: 1.04 }}
+                  whileHover={{ scale: 1.02 }}
                 >
-                  {seg.title}
-                </motion.span>
-                <div className="h-px flex-1 opacity-20" style={{ background: isDark ? '#5a8ab0' : '#9a8878' }} />
-              </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.25em] opacity-60">
+                    Gebiet {seg.index + 1}
+                  </span>
+                  <h2 className="text-sm font-black tracking-tight">
+                    {seg.title}
+                  </h2>
 
-              {seg.dominantTraitId && !avatarTraits.loading && (
-                <span
-                  className="rounded-full border px-2.5 py-0.5 text-[9px] font-bold"
-                  style={{
-                    borderColor: isDark ? '#1c3050' : '#d5c5b0',
-                    color: isDark ? '#8aa8c8' : '#5a7080',
-                    background: isDark ? 'rgba(14,24,40,0.8)' : 'rgba(255,254,250,0.85)',
-                  }}
-                >
-                  {getTraitIcon(seg.dominantTraitId)} {getTraitLabel(seg.dominantTraitId, 'de')}: {seg.dominantTraitValue ?? 0} Pkt
-                </span>
-              )}
+                  {seg.dominantTraitId && !avatarTraits.loading && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-bold">
+                        {getTraitIcon(seg.dominantTraitId)} {getTraitLabel(seg.dominantTraitId, 'de')}
+                      </span>
+                      <div className="h-3 w-px bg-current opacity-10" />
+                      <span className="text-[9px] font-black italic opacity-70">
+                        {seg.doneCount} / {seg.totalCount} Fertig
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
             </motion.div>
           ))}
 
           {flatNodes.map((flat) => {
             const isSel = selected?.node.nodeId === flat.node.nodeId;
             const isLastAct = mergedProgress.lastActiveNodeId === flat.node.nodeId;
+
+            const routeTraits = ROUTE_TO_TRAITS[flat.node.route] || [];
+            const primaryTrait = routeTraits[0];
+            const traitVal = (primaryTrait && avatarTraits.byId?.[primaryTrait]) || 0;
+            const { progress: rankProg } = getNextRankProgress(traitVal);
 
             return (
               <GameMapNode
@@ -417,6 +446,7 @@ const TaleaLearningPathMapView: React.FC = () => {
                 nodeIndex={flat.nodeIndex}
                 mapY={flat.mapY}
                 xPercent={flat.xPercent}
+                progressToNextRank={rankProg}
                 onClick={() => flat.state !== 'locked' && handleNodeClick(flat)}
               />
             );
@@ -425,7 +455,7 @@ const TaleaLearningPathMapView: React.FC = () => {
           <div
             ref={endOfMapRef}
             className="absolute flex w-full items-center justify-center"
-            style={{ top: `${mapHeight - 100}px`, zIndex: 5 }}
+            style={{ top: `${mapHeight - 120}px`, zIndex: 5 }}
           >
             <motion.span
               className="flex items-center gap-2 rounded-full border px-5 py-2.5 text-xs font-bold"
@@ -434,20 +464,10 @@ const TaleaLearningPathMapView: React.FC = () => {
                 color: isDark ? '#426888' : '#7a6858',
                 background: isDark ? 'rgba(8,16,28,0.84)' : 'rgba(252,246,236,0.90)',
                 backdropFilter: 'blur(10px)',
-                boxShadow: '0 4px 18px rgba(0,0,0,0.22)',
               }}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9, duration: 0.7, ease: 'easeOut' }}
             >
-              <motion.span
-                animate={!reduceMotion ? { y: [0, -5, 0] } : {}}
-                transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
-                className="flex items-center gap-2"
-              >
-                <Sparkles className="h-3.5 w-3.5 opacity-50" />
-                Scrolle weiter fur neue Abenteuer...
-              </motion.span>
+              <Sparkles className="h-3.5 w-3.5 opacity-50" />
+              Entdecke mehr...
             </motion.span>
           </div>
         </motion.div>
@@ -457,27 +477,31 @@ const TaleaLearningPathMapView: React.FC = () => {
         {showKapitel && (
           <>
             <motion.div
-              className="fixed inset-0 z-40 bg-black/40"
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowKapitel(false)}
             />
             <motion.div
-              className="fixed bottom-0 left-0 right-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-3xl border-t px-5 pb-8 pt-4 shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-[32px] border-t px-6 pb-12 pt-4 shadow-2xl"
               style={{
-                background: isDark ? 'rgba(15,24,38,0.97)' : 'rgba(255,252,246,0.98)',
+                background: isDark ? 'rgba(15,24,38,0.98)' : 'rgba(255,252,246,0.98)',
                 borderColor: isDark ? '#2a3d52' : '#e0d1bf',
               }}
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-              <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: isDark ? '#3a5068' : '#d5bfae' }} />
-              <h3 className="mb-4 text-lg font-black" style={{ color: isDark ? '#e8f0fb' : '#1e2a3a' }}>
-                Kapitel
-              </h3>
+              <div className="mx-auto mb-6 h-1.5 w-12 rounded-full opacity-20" style={{ background: isDark ? '#ffffff' : '#000000' }} />
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-xl font-black" style={{ color: isDark ? '#e8f0fb' : '#1e2a3a' }}>
+                  Kartenabschnitte
+                </h3>
+                <Loader2 className={`h-4 w-4 opacity-50 ${segmentsLoading ? 'animate-spin' : 'hidden'}`} />
+              </div>
+
               <div className="space-y-3">
                 {segmentLabels.map((seg) => {
                   const pct = seg.totalCount > 0 ? Math.round((seg.doneCount / seg.totalCount) * 100) : 0;
@@ -489,42 +513,42 @@ const TaleaLearningPathMapView: React.FC = () => {
                         setShowKapitel(false);
                         setTimeout(() => scrollToSegment(seg.index), 350);
                       }}
-                      className="flex w-full items-center gap-3 rounded-2xl border p-4 text-left"
+                      className="flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition-colors"
                       style={{
-                        borderColor: isDark ? '#2a3d52' : '#e0d1bf',
-                        background: isDark ? 'rgba(20,32,48,0.6)' : 'rgba(255,252,246,0.8)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                        background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                       }}
-                      whileHover={{ scale: 1.015 }}
+                      whileHover={{ scale: 1.01, background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
-                        <svg width="48" height="48" viewBox="0 0 48 48">
-                          <circle cx="24" cy="24" r="20" fill="none" stroke={isDark ? '#1c3050' : '#e0d1bf'} strokeWidth="3" />
-                          <circle
-                            cx="24"
-                            cy="24"
-                            r="20"
+                      <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
+                        <svg width="56" height="56" viewBox="0 0 56 56">
+                          <circle cx="28" cy="28" r="24" fill="none" stroke={isDark ? '#1c3050' : '#e0d1bf'} strokeWidth="3.5" />
+                          <motion.circle
+                            cx="28"
+                            cy="28"
+                            r="24"
                             fill="none"
                             stroke={pct === 100 ? '#22c99a' : '#4f8cf5'}
-                            strokeWidth="3"
+                            strokeWidth="3.5"
                             strokeLinecap="round"
-                            strokeDasharray={`${(pct / 100) * 125.6} 125.6`}
-                            transform="rotate(-90 24 24)"
+                            initial={{ strokeDasharray: "0 150.8" }}
+                            animate={{ strokeDasharray: `${(pct / 100) * 150.8} 150.8` }}
+                            transition={{ duration: 1, delay: 0.2 }}
+                            transform="rotate(-90 28 28)"
                           />
                         </svg>
-                        <span className="absolute text-[10px] font-black" style={{ color: isDark ? '#a0c0e0' : '#4a6a80' }}>
+                        <span className="absolute text-[11px] font-black" style={{ color: isDark ? '#a0c0e0' : '#4a6a80' }}>
                           {pct}%
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold" style={{ color: isDark ? '#e0eaf8' : '#1e2a3a' }}>{seg.title}</p>
-                        <p className="text-[11px]" style={{ color: isDark ? '#7a9bbf' : '#7a8a9a' }}>
-                          {seg.doneCount}/{seg.totalCount} Stationen
+                        <p className="text-base font-black" style={{ color: isDark ? '#e0eaf8' : '#1e2a3a' }}>{seg.title}</p>
+                        <p className="text-xs font-bold opacity-50" style={{ color: isDark ? '#7a9bbf' : '#7a8a9a' }}>
+                          {seg.doneCount} von {seg.totalCount} Stationen
                         </p>
                       </div>
-                      {pct === 100
-                        ? <Trophy className="h-5 w-5 shrink-0 text-[#22c99a]" />
-                        : <ChevronRight className="h-5 w-5 shrink-0" style={{ color: isDark ? '#4a6a88' : '#aabac8' }} />}
+                      {pct === 100 && <Trophy className="h-5 w-5 shrink-0 text-[#22c99a]" />}
                     </motion.button>
                   );
                 })}
@@ -544,6 +568,17 @@ const TaleaLearningPathMapView: React.FC = () => {
             onClose={handleSheetClose}
             traitValues={avatarTraits.loading ? undefined : avatarTraits.byId}
             avatarId={avatarTraits.avatarId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeReward && (
+          <TaleaChestReward
+            artifactId={activeReward.id}
+            rarity={activeReward.rarity}
+            isDark={isDark}
+            onClose={() => setActiveReward(null)}
           />
         )}
       </AnimatePresence>

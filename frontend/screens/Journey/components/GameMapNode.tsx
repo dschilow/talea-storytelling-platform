@@ -22,30 +22,30 @@ import { getTraitIcon } from '../../../constants/traits';
 // ─── Icon / Color / Label mappings ──────────────────────────────────────────
 
 const NODE_ICON: Record<NodeType, React.ElementType> = {
-  DokuStop:    BookOpen,
-  QuizStop:    HelpCircle,
-  StoryGate:   Sparkles,
+  DokuStop: BookOpen,
+  QuizStop: HelpCircle,
+  StoryGate: Sparkles,
   StudioStage: Headphones,
-  MemoryFire:  Flame,
-  Fork:        GitFork,
+  MemoryFire: Flame,
+  Fork: GitFork,
 };
 
 export const NODE_COLOR: Record<NodeType, string> = {
-  DokuStop:    '#4f8cf5',
-  QuizStop:    '#9b5ef5',
-  StoryGate:   '#f56b9b',
+  DokuStop: '#4f8cf5',
+  QuizStop: '#9b5ef5',
+  StoryGate: '#f56b9b',
   StudioStage: '#22c99a',
-  MemoryFire:  '#f5a623',
-  Fork:        '#5eb8f5',
+  MemoryFire: '#f5a623',
+  Fork: '#5eb8f5',
 };
 
 const NODE_LABEL: Record<NodeType, string> = {
-  DokuStop:    'Doku',
-  QuizStop:    'Quiz',
-  StoryGate:   'Story',
+  DokuStop: 'Doku',
+  QuizStop: 'Quiz',
+  StoryGate: 'Story',
   StudioStage: 'Audio',
-  MemoryFire:  'Feuer',
-  Fork:        'Weg',
+  MemoryFire: 'Feuer',
+  Fork: 'Weg',
 };
 
 // ─── Framer Variants ────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ const DoneBurst: React.FC<{ color: string }> = memo(({ color }) => (
         className="pointer-events-none absolute h-1.5 w-1.5 rounded-sm"
         style={{
           background: color,
-          top:  `calc(50% - 3px + ${Math.sin((deg * Math.PI) / 180) * 34}px)`,
+          top: `calc(50% - 3px + ${Math.sin((deg * Math.PI) / 180) * 34}px)`,
           left: `calc(50% - 3px + ${Math.cos((deg * Math.PI) / 180) * 34}px)`,
           rotate: `${deg}deg`,
         }}
@@ -118,25 +118,62 @@ export interface GameMapNodeProps {
   mapY: number;
   xPercent: number;
   onClick: () => void;
+  progressToNextRank?: number; // 0-100
 }
+
+// ─── Progress Ring Sub-component ─────────────────────────────────────────────
+
+const ProgressRing: React.FC<{ progress: number; color: string; size: number }> = ({
+  progress, color, size
+}) => {
+  const radius = (size - 4) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <svg width={size} height={size} className="pointer-events-none absolute inset-0">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="rgba(148,163,184,0.12)"
+        strokeWidth="3"
+      />
+      <motion.circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        initial={{ strokeDashoffset: circumference }}
+        animate={{ strokeDashoffset }}
+        transition={{ duration: 1.2, ease: 'easeOut' }}
+        style={{ strokeDasharray: circumference, rotate: -90, transformOrigin: 'center' }}
+      />
+    </svg>
+  );
+};
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 const GameMapNode = forwardRef<HTMLDivElement, GameMapNodeProps>(({
   node, state, isDark, isLastActive, isHeuteHighlighted, isSelected,
-  nodeIndex, mapY, xPercent, onClick,
+  nodeIndex, mapY, xPercent, onClick, progressToNextRank = 0,
 }, ref) => {
   const reduceMotion = useReducedMotion() ?? false;
 
-  const isLocked    = state === 'locked';
-  const isDone      = state === 'done';
+  const isLocked = state === 'locked';
+  const isDone = state === 'done';
   const isAvailable = state === 'available';
 
-  const Icon  = isLocked ? Lock : isDone ? CheckCircle2 : NODE_ICON[node.type];
+  const Icon = isLocked ? Lock : isDone ? CheckCircle2 : NODE_ICON[node.type];
   const color = isLocked
     ? (isDark ? '#2a4060' : '#b0bcc8')
     : isDone ? '#22c99a'
-    : NODE_COLOR[node.type];
+      : NODE_COLOR[node.type];
 
   const bgClr = isLocked
     ? (isDark ? 'rgba(16,26,42,0.84)' : 'rgba(232,225,214,0.88)')
@@ -215,6 +252,13 @@ const GameMapNode = forwardRef<HTMLDivElement, GameMapNodeProps>(({
         }}
         aria-label={`${node.title} – ${state}`}
       >
+        {/* Progress ring around icon */}
+        {!isLocked && (
+          <div className="absolute inset-[15px] flex items-center justify-center">
+            <ProgressRing progress={progressToNextRank} color={color} size={58} />
+          </div>
+        )}
+
         {/* Pulse rings for available */}
         {!reduceMotion && isAvailable && <PulseRings color={color} />}
 
