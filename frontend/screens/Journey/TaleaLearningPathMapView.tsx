@@ -3,7 +3,7 @@
  * Phase A – Reise-Karte Screen (/map)
  *
  * Visuelle Sprache 1:1 von AvatarLearningWorldMap:
- *  - Hintergrund: /assets/lernpfad_high.jpg (repeat-y)
+ *  - Hintergrund: /assets/lernpfad_no_path.png (repeat-y, 2048px Tile)
  *  - SVG-Straße mit ROAD_POINTS + Bezier (animierter Dash)
  *  - Runde schwebende Buttons: locked / available / done
  *
@@ -30,23 +30,34 @@ import { useLearningPathProgress } from './TaleaLearningPathProgressStore';
 import type { MapNode, NodeState, NodeType } from './TaleaLearningPathTypes';
 import TaleaMapNodeSheet from './TaleaMapNodeSheet';
 
-// ─── Straßen-Punkte (identisch zu AvatarLearningWorldMap) ────────────────────
+// ─── Straßen-Punkte (1:1 aus AvatarLearningWorldMap) ────────────────────────
 interface PathPoint { y: number; x: number }
 
-const MAP_TILE_HEIGHT = 3072;
+const MAP_BACKGROUND_IMAGE = '/assets/lernpfad_no_path.png';
+const MAP_TILE_HEIGHT = 2048;
 
 const ROAD_POINTS: PathPoint[] = [
-  { y: 0,      x: 65.5  }, { y: 0.0313, x: 49.7  }, { y: 0.0625, x: 52.1  },
-  { y: 0.0938, x: 54.99 }, { y: 0.125,  x: 63.22 }, { y: 0.1563, x: 40.2  },
-  { y: 0.1875, x: 36.54 }, { y: 0.2188, x: 63.76 }, { y: 0.25,   x: 55.35 },
-  { y: 0.2813, x: 32.33 }, { y: 0.3125, x: 46.03 }, { y: 0.3438, x: 45.61 },
-  { y: 0.375,  x: 51.32 }, { y: 0.4063, x: 32.51 }, { y: 0.4375, x: 50.0  },
-  { y: 0.4688, x: 65.69 }, { y: 0.5,    x: 48.02 }, { y: 0.5313, x: 32.63 },
-  { y: 0.5625, x: 50.12 }, { y: 0.5938, x: 65.14 }, { y: 0.625,  x: 51.74 },
-  { y: 0.6563, x: 32.63 }, { y: 0.6875, x: 48.62 }, { y: 0.7188, x: 65.5  },
-  { y: 0.75,   x: 65.5  }, { y: 0.7813, x: 32.93 }, { y: 0.8125, x: 48.32 },
-  { y: 0.8438, x: 34.74 }, { y: 0.875,  x: 58.95 }, { y: 0.9063, x: 36.72 },
-  { y: 0.9375, x: 36.72 }, { y: 0.9688, x: 54.57 }, { y: 1,      x: 65.5  },
+  { y: 0,     x: 61 },
+  { y: 0.045, x: 52 },
+  { y: 0.09,  x: 40 },
+  { y: 0.14,  x: 33 },
+  { y: 0.19,  x: 45 },
+  { y: 0.24,  x: 60 },
+  { y: 0.29,  x: 67 },
+  { y: 0.34,  x: 57 },
+  { y: 0.39,  x: 44 },
+  { y: 0.44,  x: 33 },
+  { y: 0.49,  x: 31 },
+  { y: 0.54,  x: 43 },
+  { y: 0.59,  x: 58 },
+  { y: 0.64,  x: 66 },
+  { y: 0.69,  x: 57 },
+  { y: 0.74,  x: 45 },
+  { y: 0.79,  x: 34 },
+  { y: 0.84,  x: 33 },
+  { y: 0.89,  x: 47 },
+  { y: 0.94,  x: 61 },
+  { y: 1,     x: 57 },
 ];
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -84,7 +95,7 @@ const buildRoadPath = (mapHeight: number): string => {
       const prevBase = i === 0 ? (tile - 1) * MAP_TILE_HEIGHT : base;
       const py = prevBase + prev.y * MAP_TILE_HEIGHT;
       const dy = y - py;
-      d += ` C ${prev.x} ${py + dy * 0.45}, ${x} ${y - dy * 0.45}, ${x} ${y}`;
+      d += ` C ${prev.x} ${py + dy * 0.46}, ${x} ${y - dy * 0.46}, ${x} ${y}`;
     }
   }
   return d;
@@ -222,7 +233,7 @@ const TaleaLearningPathMapView: React.FC = () => {
           <div
             className="pointer-events-none absolute inset-0"
             style={{
-              backgroundImage: "url('/assets/lernpfad_high.jpg')",
+              backgroundImage: `url('${MAP_BACKGROUND_IMAGE}')`,
               backgroundRepeat: 'repeat-y',
               backgroundSize: `100% ${MAP_TILE_HEIGHT}px`,
               backgroundPosition: 'center top',
