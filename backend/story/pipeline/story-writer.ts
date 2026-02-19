@@ -301,17 +301,21 @@ ${storyLanguageRule}`.trim();
     // Keep headroom for reasoning models so they can finish JSON output instead of truncating.
     // gpt-5-mini uses ~3000-5000 internal reasoning tokens before producing visible output,
     // so we need a much higher floor and multiplier to avoid empty responses.
+    // GEMINI 3 FLASH NEEDS MASSIVE OUTPUT BUDGET FOR "_planning" + STORY (Often > 8k tokens)
     const baseOutputTokens = isReasoningModel
-      ? Math.max(5000, Math.round(totalWordMax * 2.0))
+      ? Math.max(8000, Math.round(totalWordMax * 3.0)) // Gemini 3 needs ~8k minimum for plan+story
       : Math.max(2200, Math.round(totalWordMax * 1.5));
-    const reasoningMultiplier = isReasoningModel ? 1.6 : 1;
+    
+    const reasoningMultiplier = isReasoningModel ? 2.0 : 1; // More headroom
+    
     const maxOutputTokens = isReasoningModel
-      ? Math.min(Math.max(7000, Math.round(baseOutputTokens * reasoningMultiplier)), 12000)
+      ? Math.min(Math.max(12000, Math.round(baseOutputTokens * reasoningMultiplier)), 24000) // Cap at 24k for Gemini 3
       : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
+      
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
-      isReasoningModel ? 2200 : 1500,
-      isReasoningModel ? 900 : 550,
+      isReasoningModel ? 6000 : 1500, // Reserve 6k for Gemini 3 initial call
+      isReasoningModel ? 2000 : 550,
     );
     console.log(
       `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
