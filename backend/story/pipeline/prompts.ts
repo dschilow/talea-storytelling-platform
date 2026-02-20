@@ -304,7 +304,7 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
     .slice(0, 3)
     .map((name, idx) => {
       const t = templates[idx] || templates[templates.length - 1];
-      return `  - ${name}: ${t.label} – ${t.desc}. Beispiel: ${t.example}`;
+      return `  - ${name}: ${t.label} ï¿½ ${t.desc}. Beispiel: ${t.example}`;
     })
     .join("\n");
 
@@ -323,7 +323,7 @@ SZENE A (Unterbrechung + Rhythmus):
 Mama knallte den Korb auf den Tisch. Plopp.
 "Darf ich--?" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
 Alexander beugte sich vor. "Ich riech Apfelkuchen." "Und Tee", sagte Adrian.
-Er schnupperte extra laut. "Und… Oma."
+Er schnupperte extra laut. "Undï¿½ Oma."
 
 SZENE B (Humor durch Situation):
 "Kann sie auch piepen?" "Nein." "Kann sie Stopp sagen?" "Nein."
@@ -386,7 +386,7 @@ LEHRSAETZE IM DIALOG (VERBOTEN):
 REPORT-STIL (VERBOTEN):
 - "Sie gingen. Sie machten. Sie legten. Sie nickten." (= Roboter-Prosa)
 WORT-WIEDERHOLUNGEN & FUELLWOERTER (STRENG VERBOTEN):
-- "ploetzlich", "auf einmal", "dann", "nun", "jetzt", "schliesslich" – komplett vermeiden!
+- "ploetzlich", "auf einmal", "dann", "nun", "jetzt", "schliesslich" ï¿½ komplett vermeiden!
 VERGLEICHS-OVERLOAD & METAPHERN (VERBOTEN):
 - Max 1 winziger, konkreter Vergleich pro Kapitel. Keine Metaphern-Ketten oder abstrakten Bilder.`
     : `PERSONIFICATION (FORBIDDEN):
@@ -401,7 +401,7 @@ TEACHING SENTENCES IN DIALOGUE (FORBIDDEN):
 REPORT STYLE (FORBIDDEN):
 - "They went. They did. They placed. They nodded." (= robot prose)
 FILLER WORDS & REPETITION (STRICTLY FORBIDDEN):
-- "suddenly", "all at once", "then", "now", "finally" – avoid completely!
+- "suddenly", "all at once", "then", "now", "finally" ï¿½ avoid completely!
 METAPHOR OVERLOAD (FORBIDDEN):
 - Max 1 short comparison per chapter. No chains of metaphors or abstract imagery.`;
 
@@ -527,7 +527,7 @@ export function buildFullStoryPrompt(input: {
         : "Humor: Optional.";
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words." : "";
+  const umlautRule = isGerman ? " Use proper German umlauts (ï¿½, ï¿½, ï¿½, ï¿½), never ASCII substitutes. No English words." : "";
 
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
@@ -691,7 +691,7 @@ export function buildFullStoryRewritePrompt(input: {
     .join("\n\n");
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII. No English words." : "";
+  const umlautRule = isGerman ? " Use proper German umlauts (ï¿½, ï¿½, ï¿½, ï¿½), never ASCII. No English words." : "";
 
   return `TASK: Rewrite this story to "10.0/10.0" quality standards. The previous draft was rejected for being too flat/generic.
 
@@ -830,7 +830,7 @@ ${missingLine}
 10. No explanatory sentences about object rules.
 11. Dialogues must sound distinguishable; no speaker-tag formula loops.
 12. Running gag sparsely: same sound-word/catchphrase max 2x.
-13. If output is German: use true umlauts (ä, ö, ü, ß), no ae/oe/ue. NO English words in output.
+13. If output is German: use true umlauts (ï¿½, ï¿½, ï¿½, ï¿½), no ae/oe/ue. NO English words in output.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -1286,7 +1286,7 @@ function sanitizeDirectiveNarrativeText(value: string | undefined): string {
     /\b(?:wir|we)\s+(?:ersetzen|replace)\s+(?:es|it)\b/gi,
     /\b(?:nichts|kein(?:e|en)?)\s+mit\s+konflikt\b/gi,
     /\b(?:die\s+szene\s+endete|the\s+scene\s+ended)\b/gi,
-    /\b(?:die\s+handlung\s+r(?:ue|ü)ckte\s+vor|the\s+action\s+moved\s+forward)\b/gi,
+    /\b(?:die\s+handlung\s+r(?:ue|ï¿½)ckte\s+vor|the\s+action\s+moved\s+forward)\b/gi,
     /\b(?:strict\s+rules\??|output\s+format|return\s+json)\b/gi,
     /\b(?:der\s+ausblick|the\s+outlook)\b/gi,
   ];
