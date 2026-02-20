@@ -177,21 +177,19 @@ export class LlmStoryWriter implements StoryWriter {
     const storyLanguageRule = isGerman
       ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
       : `8. Write the story in ${targetLanguage}.${languageGuard ? `\n${languageGuard}` : ""}`;
-    const systemPrompt = `You are a premium children's BOOK-PROSE writer (${isGerman ? "Preussler + Lindgren + Funke" : "Dahl + Donaldson + Gaiman"}).
-Write narrative prose with scene energy, never like a screenplay transcript.
+    const systemPrompt = `You are a world-class children's book author. You write prose that sounds like a REAL PUBLISHED BOOK by ${isGerman ? "Preussler, Lindgren, or Funke" : "Dahl, Donaldson, or Gaiman"} — warm, witty, and alive.
 
-Your rules:
-1. Every chapter starts with visible action or an immediate decision point.
-2. Characters sound clearly different by wording and rhythm.
-3. Target roughly 20-35% dialogue (scene-dependent). Avoid ping-pong line-per-line exchanges.
-4. Show emotions through visible action and dialogue. Avoid formula emotion labels ("he was very nervous", "his heart pounded") unless short and concrete.
-5. Sentence rhythm: mostly short/clear, sometimes longer for flow.
-6. Concrete, everyday language; strong verbs; no poetic fog.
-7. FORBIDDEN: personifying nature ("the forest whispered"), mixing senses ("light tasted"), poetic metaphors, repetitive speaker formulas ("said ... briefly/quietly").
-8. After short dialogue bursts, ground the scene with a concrete action beat.
+Critical prose rules:
+1. Write in flowing PARAGRAPHS (2-5 sentences), never single-sentence chains.
+2. Show emotions through BODY and OBJECTS, never labels ("he was sad").
+3. Each character sounds different by sentence length, word choice, and attitude.
+4. 25-40% dialogue, anchored to physical action. No talking heads.
+5. Rhythm: short-short-LONG. Mix fragments with flowing sentences.
+6. BANNED: "plötzlich", nature personification, meta-narration, moral lectures.
 ${storyLanguageRule}`.trim();
-    const compactSystemPrompt = `You write high-quality children's book prose as strict JSON output. Follow hard rules from the user prompt exactly.
-Keep it concrete, action-led, and natural. Avoid screenplay formatting and formula emotion sentences.
+    const compactSystemPrompt = `You are a world-class children's book author writing prose as JSON output.
+Write flowing paragraphs, not single-sentence chains. Show emotions through body language, not labels.
+Each character must sound different. 25-40% dialogue anchored to action.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
     const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
@@ -305,13 +303,13 @@ ${storyLanguageRule}`.trim();
     const baseOutputTokens = isReasoningModel
       ? Math.max(8000, Math.round(totalWordMax * 3.0)) // Gemini 3 needs ~8k minimum for plan+story
       : Math.max(2200, Math.round(totalWordMax * 1.5));
-    
+
     const reasoningMultiplier = isReasoningModel ? 2.0 : 1; // More headroom
-    
+
     const maxOutputTokens = isReasoningModel
       ? Math.min(Math.max(12000, Math.round(baseOutputTokens * reasoningMultiplier)), 24000) // Cap at 24k for Gemini 3
       : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
-      
+
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
       isReasoningModel ? 6000 : 1500, // Reserve 6k for Gemini 3 initial call
@@ -322,13 +320,16 @@ ${storyLanguageRule}`.trim();
       `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}`
     );
 
+    // V6: Higher temperature (0.85) for Gemini to unlock creative prose.
+    // Higher reasoning effort ("high") for initial call — this is the most important generation.
+    const storyTemperature = strict ? 0.4 : (isGeminiModel ? 0.85 : 0.7);
     let result = await callStoryModel({
       systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,
       responseFormat: "json_object",
       maxTokens: Math.max(700, initialCallMaxTokens),
-      temperature: strict ? 0.4 : 0.7,
-      reasoningEffort: isReasoningModel ? "medium" : "medium",
+      temperature: storyTemperature,
+      reasoningEffort: isReasoningModel ? "high" : "medium",
       seed: generationSeed,
       context: "story-writer-full",
       logSource: "phase6-story-llm",
@@ -364,8 +365,8 @@ ${storyLanguageRule}`.trim();
             userPrompt: prompt,
             responseFormat: "json_object",
             maxTokens: recoveryBudgetedMaxTokens,
-            temperature: strict ? 0.4 : 0.7,
-            reasoningEffort: isReasoningModel ? "medium" : "medium",
+            temperature: storyTemperature,
+            reasoningEffort: isReasoningModel ? "high" : "medium",
             seed: typeof generationSeed === "number" ? generationSeed + 173 : undefined,
             context: "story-writer-full-recovery",
             logSource: "phase6-story-llm",

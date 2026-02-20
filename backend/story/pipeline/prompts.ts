@@ -319,99 +319,140 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
-SZENE A (Unterbrechung + Rhythmus):
+SZENE A – Rhythmus + Unterbrechung:
 Mama knallte den Korb auf den Tisch. Plopp.
-"Darf ich--?" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
+"Darf ich–" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
 Alexander beugte sich vor. "Ich riech Apfelkuchen." "Und Tee", sagte Adrian.
-Er schnupperte extra laut. "Und� Oma."
+Er schnupperte extra laut. "Und… Oma."
 
-SZENE B (Humor durch Situation):
+SZENE B – Humor durch Situation:
 "Kann sie auch piepen?" "Nein." "Kann sie Stopp sagen?" "Nein."
-"Kann sie wenigstens einmal--" Mama schob die Muenze in Alexanders Tasche.
+"Kann sie wenigstens einmal–" Mama schob die Muenze in Alexanders Tasche.
 Adrian seufzte. "Das ist streng-magisch."
 
-SZENE C (Figur-Eintritt mit Detail):
+SZENE C – Figur-Eintritt mit Detail:
 Am Rand der Lichtung stand ein Wolf. Gross. Grau. Mit einer knallroten Nase.
 Und einem Taschentuch. Einem echten Taschentuch.
+Er putzte sich, ohne aufzusehen. "Allergie", murmelte er.
 
-SZENE D (Konfrontation + Action):
+SZENE D – Konfrontation + Action:
 Oma kam raus wie ein Gewitter mit Schal. Kochloeffel in der Hand. Nase rot.
 Augen gefaehrlich. "RAUS", sagte sie.
-"""`;
+Der Wolf stolperte rueckwaerts ueber den Zaun. Das Taschentuch wehte hinterher.
+
+SZENE E – Innerer Moment (Somatic Marker):
+Adrian drueckte die Haende in die Taschen. Der Stoff war warm vom Rennen.
+Sein Bauch machte dieses komische Ziehen, wenn etwas Grosses gleich passiert.
+Er schluckte. "Okay", sagte er. Ganz leise. Nur fuer sich.
+
+SZENE F – Szene mit Dreier-Rhythmus:
+Der Stein war glatt. Kalt. Und viel zu schwer fuer einen allein.
+"Ich heb an", sagte Adrian. "Ich halte", sagte Alexander.
+Sie zogen gleichzeitig. Der Stein rutschte eine Handbreit. Dann noch eine.
+Kapitaen Blubbert verschraenkte die Arme. "Ihr habt vergessen, mich zu fragen."
+Er packte den Stein mit einer Hand. Hob ihn hoch.
+Adrian starrte. Alexander auch.
+"Ihr koennt jetzt klatschen", sagte Kapitaen Blubbert.
+
+SZENE G – Absaetze, die atmen (Prosa-Rhythmus):
+Der Laden roch nach altem Holz und Zimtschnecken. Bruno wischte die Theke mit einem Lappen,
+der frueher mal weiss gewesen war. Jetzt war er braun. Und ein bisschen klebrig.
+"Ich brauch Mehl", sagte er, ohne aufzusehen. "Drei Saecke. Und Glueck."
+Adrian legte den Kopf schief. "Glueck kann man nicht kaufen."
+"Doch", sagte Bruno. "Es kostet nur mehr als Mehl."
+"""` ;
 
   const englishExamples = `"""
-SCENE A (Interruption + Rhythm):
+SCENE A – Rhythm + interruption:
 Mom slammed the basket on the table. Pop.
-"Can I--?" "No," said Mom. Quick as a crocodile jaw.
+"Can I–" "No," said Mom. Quick as a crocodile jaw.
 Alexander leaned in. "I smell apple cake." "And tea," said Adrian.
 He sniffed extra loud. "And... Grandma."
 
-SCENE B (Humor through situation):
+SCENE B – Humor through situation:
 "Can it beep?" "No." "Can it say Stop?" "No."
-"Can it at least once--" Mom pushed the coin into Alexander's pocket.
+"Can it at least once–" Mom pushed the coin into Alexander's pocket.
 Adrian sighed. "That's strict-magic."
 
-SCENE C (Character entrance with detail):
+SCENE C – Character entrance with detail:
 At the edge of the clearing stood a wolf. Big. Gray. With a bright red nose.
 And a tissue. A real tissue.
+He blew his nose without looking up. "Allergies," he muttered.
 
-SCENE D (Confrontation + Action):
+SCENE D – Confrontation + Action:
 Grandma came out like a thunderstorm in a scarf. Wooden spoon in hand.
 Nose red. Eyes dangerous. "OUT," she said.
+The wolf stumbled backwards over the fence. The tissue fluttered after him.
+
+SCENE E – Inner Moment (Somatic Marker):
+Adrian pressed his hands into his pockets. The fabric was warm from running.
+His belly did that weird pull-thing when something big is about to happen.
+He swallowed. "Okay," he said. Very quietly. Just for himself.
+
+SCENE F – Scene with trio-rhythm:
+The stone was smooth. Cold. And far too heavy for one person alone.
+"I'll lift," said Adrian. "I'll hold," said Alexander.
+They pulled at the same time. The stone moved an inch. Then another.
+Captain Blubbert crossed his arms. "You forgot to ask me."
+He grabbed the stone with one hand. Lifted it.
+Adrian stared. Alexander too.
+"You can clap now," said Captain Blubbert.
+
+SCENE G – Paragraphs that breathe (prose rhythm):
+The shop smelled of old wood and cinnamon rolls. Bruno wiped the counter with a cloth
+that used to be white. Now it was brown. And a little sticky.
+"I need flour," he said, without looking up. "Three sacks. And luck."
+Adrian tilted his head. "You can't buy luck."
+"You can," said Bruno. "It just costs more than flour."
 """`;
 
-  return `# PROSE QUALITY REFERENCE (this is the TARGET quality)
+  return `# PROSE QUALITY REFERENCE – THIS IS THE TARGET LEVEL
+(Study these examples. Your prose must match this quality. Not the rules – THE EXAMPLES.)
 ${isGerman ? germanExamples : englishExamples}
 
-KEY QUALITIES:
-- Dialogue carries scenes: interruptions, quick exchanges, unfinished sentences
-- Humor through SITUATION and surprise, never explained
-- Rhythm: short-short-LONG, fragments ("Gross. Grau."), then longer sentence
-- Each character sounds COMPLETELY different (word choice, length, attitude)
-- Concrete details you can SEE (red nose, wooden spoon, tissue)
-- NO atmosphere-only sentences, NO teaching sentences, NO meta-narration`;
+WHAT MAKES THESE EXAMPLES GREAT:
+1. PARAGRAPHS that breathe: 2-4 sentences grouped, not single-line machine-gun
+2. DIALOGUE anchored to physical action EVERY TIME (no talking heads)
+3. HUMOR through surprise and character, never explained
+4. RHYTHM: short-short-LONG pattern, fragments mixed with flowing sentences
+5. CONCRETE sensory details (sticky cloth, warm pockets, cinnamon smell)
+6. EACH character recognizable by their sentence structure alone
+7. INNER MOMENTS shown through body sensations, never emotion labels`;
 }
 
 function buildAntiPatternBlock(isGerman: boolean): string {
+  // Shortened to the 4 most critical anti-patterns. Long lists cause Gemini to write "avoidance prose".
   const badExamples = isGerman
-    ? `PERSONIFIZIERUNG (VERBOTEN):
-- "Der Wald fluesterte" / "Wasser kicherte im Brunnen" / "Windspiele klangen nervoes"
-ATMOSPHAERE-FUELLUNG (VERBOTEN):
-- "Es roch nach feuchtem Holz und nassem Laub" / "Der Wind trug den Duft von..."
-- Jeder Satz MUSS Handlung oder Dialog enthalten. Keine reinen Stimmungssaetze.
-META-NARRATION (VERBOTEN):
-- "Die Geschichte schliesst mit einem warmen Gefuehl" / "Die Szene endete"
-LEHRSAETZE IM DIALOG (VERBOTEN):
-- "Wir haben gelernt, zusammen zu handeln" / "Das Amulett gibt Halt, nicht Macht"
-REPORT-STIL (VERBOTEN):
-- "Sie gingen. Sie machten. Sie legten. Sie nickten." (= Roboter-Prosa)
-WORT-WIEDERHOLUNGEN & FUELLWOERTER (STRENG VERBOTEN):
-- "ploetzlich", "auf einmal", "dann", "nun", "jetzt", "schliesslich" � komplett vermeiden!
-VERGLEICHS-OVERLOAD & METAPHERN (VERBOTEN):
-- Max 1 winziger, konkreter Vergleich pro Kapitel. Keine Metaphern-Ketten oder abstrakten Bilder.`
-    : `PERSONIFICATION (FORBIDDEN):
-- "The forest whispered" / "Water giggled in the well" / "Wind chimes sounded nervous"
-ATMOSPHERE FILLER (FORBIDDEN):
-- "It smelled of damp wood" / "The wind carried the scent of..."
-- Every sentence MUST contain action or dialogue. No pure mood sentences.
-META-NARRATION (FORBIDDEN):
-- "The story closes with a warm feeling" / "The scene ended"
-TEACHING SENTENCES IN DIALOGUE (FORBIDDEN):
-- "We learned to work together" / "The amulet gives support, not power"
-REPORT STYLE (FORBIDDEN):
-- "They went. They did. They placed. They nodded." (= robot prose)
-FILLER WORDS & REPETITION (STRICTLY FORBIDDEN):
-- "suddenly", "all at once", "then", "now", "finally" � avoid completely!
-METAPHOR OVERLOAD (FORBIDDEN):
-- Max 1 short comparison per chapter. No chains of metaphors or abstract imagery.`;
+    ? `🚫 REPORT-STIL (SCHLIMMSTER FEHLER):
+"Er ging. Sie sagte. Er nickte. Sie lief." → Niemals Einzelsatz-Ketten! Gruppiere 2-4 Saetze in Absaetze.
+🚫 EMOTION-LABELS:
+"Er war nervoes" / "Sie fuehlte sich mutig" → Zeige es: "Seine Finger krallten sich in den Stoff."
+🚫 PROMPT-KOPIE:
+Niemals den Goal/Conflict/Setting-Text woertlich in die Story uebernehmen. Dramatisiere!
+🚫 MORAL-HAMMER:
+"Wir haben gelernt, zusammen zu handeln" → Die Moral muss UNSICHTBAR sein.`
+    : `🚫 REPORT STYLE (WORST FAILURE MODE):
+"He went. She said. He nodded. She ran." → Never single-sentence chains! Group 2-4 sentences into paragraphs.
+🚫 EMOTION LABELS:
+"He was nervous" / "She felt brave" → Show it: "His fingers dug into the fabric."
+🚫 PROMPT COPYING:
+Never copy the Goal/Conflict/Setting text verbatim into the story. Dramatize!
+🚫 MORAL HAMMER:
+"We learned to work together" → The moral must be INVISIBLE.`;
 
-  return `# FORBIDDEN PATTERNS
+  return `# CRITICAL FAILURES TO AVOID
 ${badExamples}`;
 }
 
-// --- Optimized Full Story Prompt (V5 for Gemini Flash) -----------------------------------------
-// Specialized for high-context models. Enforces a "Strategy/Planning" step inside the JSON
-// to ensure pacing, length, and emotional arcs are calculated BEFORE prose generation.
+// --- Optimized Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------
+// KEY INSIGHT: Gemini Flash responds best to EXAMPLES, not to rule lists.
+// V6 changes:
+//   - Shorter system instruction (author persona, not rule engine)
+//   - Expanded golden examples (7 scenes covering all prose patterns)
+//   - "PROSE DNA" section teaching rhythm through patterns, not rules
+//   - Expanded _planning field forcing concrete voice signatures + somatic markers
+//   - Anti-patterns shortened to 4 critical items (long lists cause "avoidance prose")
+//   - Added PARAGRAPH STRUCTURE rule (the #1 quality killer was single-sentence chains)
 
 export function buildFullStoryPrompt(input: {
   directives: SceneDirective[];
@@ -504,7 +545,6 @@ export function buildFullStoryPrompt(input: {
     const artifactTag = artifactName && directive.artifactUsage && !directive.artifactUsage.toLowerCase().includes("nicht")
       ? ` [${artifactName}]`
       : "";
-    // Increased context limits for beats to ensure model gets full detail
     const settingMax = 60;
     const goalMax = 120;
     const conflictMax = 120;
@@ -527,93 +567,58 @@ export function buildFullStoryPrompt(input: {
         : "Humor: Optional.";
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (�, �, �, �), never ASCII substitutes. No English words." : "";
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words." : "";
 
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
 
-  // Gemini 3 Flash "Maximum Quality" Strategy
-  // We use a "Role + Method" prompting style where we define the author's precise methodology.
-  // We integrate the "Scene-Sequel" pacing and "Somatic Marker" emotion rules directly.
-  return `::: SYSTEM INSTRUCTION :::
-You are the world's greatest children's book author (a fusion of Astrid Lindgren's warmth, Roald Dahl's wit, and Cornelia Funke's imagery).
-You are writing a "10.0/10.0" quality bestseller.
+  // V6: Gemini 3 Flash "Maximum Quality" – Example-driven, not rule-driven.
+  // The key insight: Gemini Flash writes EXACTLY like the examples. So we give it
+  // the best possible examples and minimal rules.
+  return `You are a world-class children's book author. You write prose that sounds like a REAL PUBLISHED BOOK,
+not like AI-generated text. Your writing is warm, witty, and alive.
 
-::: THE "10.0/10.0" QUALITY BENCHMARK :::
-A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
-A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
-YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+${goldenExample}
 
-::: THE "10/10" WRITING METHODOLOGY :::
+${antiPatterns}
 
-1.  **THE "SHOW-DON'T-TELL" LAW (CRITICAL)**
-    *   **FORBIDDEN:** Abstract emotion labels ("Tom was sad", "Lisa felt brave", "He was nervous").
-    *   **REQUIRED:** Somatic Markers (body sensations) and visible actions. Show emotions ONLY through body language or objects.
-    *   *Bad:* "The forest was scary."
-    *   *Good:* "The trees intertwined like knobby fingers. The silence pressed against Tom's ears until they popped."
-    *   *Bad:* "Lisa was happy."
-    *   *Good:* "Lisa's toes wiggled in her boots. A bubble of giggles rose in her throat."
-    *   *Bad:* "Mia was angry."
-    *   *Good:* "Mia's knee trembled. She bit her lip. The band-aid stuck crookedly."
-    *   **Imagery Limit:** Maximum ONE comparison ("like a...", "as if...") per paragraph. Do not over-decorate.
+::: PROSE DNA – HOW TO WRITE LIKE A REAL AUTHOR :::
 
-2.  **THE RHYTHM & PACING RULE (THE "EAR TEST")**
-    *   You write PROSE, not a script. The text must sing.
-    *   **The "Rule of Three":** Use triads for descriptions (e.g., "The box was old, rusty, and smelled like forgotten attic dust").
-    *   **Sentence Variance:** NEVER allow three sentences of the same length in a row. Keep sentences short and punchy for 6-8 year olds. NO long, winding sentences (Schachtelsätze).
-    *   **Short Beats:** Use 2-5 word sentences to spike tension. (e.g., "Then it stopped.", "Silence fell.")
-    *   **No "And then" Chains:** Avoid starting sentences with "And" or "Then". Use strong verbs.
-    *   **Max 1 "Plan" Sentence:** Per scene, allow ONLY ONE sentence like "We must..." or "The plan is...". The rest MUST be action, sensory details, and dialogue.
-    *   **BANNED WORD:** NEVER use the word "plötzlich" (suddenly). Find a better way to show sudden action.
+**PARAGRAPH STRUCTURE (CRITICAL – this is what separates real books from AI text):**
+NEVER write single-sentence-per-line chains like: "He ran. She jumped. He looked. She nodded."
+INSTEAD, write flowing paragraphs of 2-5 sentences where action, dialogue, and detail BLEND:
 
-3.  **DIALOGUE ANCHORING & DISTINCT VOICES (NO "PING-PONG")**
-    *   **Dialogue Ratio:** At least 25% of the total text MUST be dialogue. Characters must talk to each other frequently.
-    *   **Active Presence:** Every character present in a chapter MUST actively do something or speak. No passive observers.
-    *   **Rule:** Every dialogue block MUST include a "Stage Business" action.
-    *   **Distinct Voices (Audio-Test):** Characters MUST sound different. Give each character 2 typical words they use exclusively.
-        *   *Example:* Adrian: short, brave ("Ich mach das!", "zack", "easy"). Alexander: short, smart but childish ("Warte—erst gucken!", "Moment", "logisch"). Mia: emotional, direct ("Aua! Hör auf!", "echt jetzt", "mega").
-    *   *Bad:*
-        "Do you see it?" ask Tom.
-        "Yes," said Lisa.
-        "It's big," said Tom.
-    *   *Good:*
-        Tom squinted at the horizon, shading his eyes. "Do you see it?"
-        Lisa mocked a salute. "Yes. It's bigger than a house."
-    *   **No "Talking Heads":** Characters never just talk. They act, move, and interact with the world while speaking.
+"Der Laden roch nach altem Holz. Bruno wischte die Theke mit einem Lappen, der frueher mal weiss
+gewesen war. 'Ich brauch Mehl', sagte er, ohne aufzusehen. 'Drei Saecke. Und Glueck.'"
 
-4.  **SCENE STRUCTURE (THE "MICRO-ARC")**
-    *   Goal -> Conflict -> Disaster -> Reaction -> New Goal.
-    *   **Early Stakes:** In Chapter 1 or 2, explicitly show what happens if the characters fail (the stakes).
-    *   **The Lowpoint:** In Chapter 4, show a strong, physical emotional reaction to a major setback.
-    *   **The Payoff:** The ending (Chapter 5) must be concrete. Show exactly what was won/secured. Include a small, tangible price or compromise (e.g., a torn shirt, a lost button, being late for dinner).
-    *   **Artifact Arc:** Introduce the magical artifact early (Chapter 1 or 2) and use it actively in at least TWO different scenes.
-    *   **Setpiece-Upgrade:** Include 1 mini-puzzle (max 3 sentences) that kids can guess. End the story with a callback (e.g., a recurring sound or object) as a final laugh.
-    *   **Magic Mechanics:** Explain how magic or artifacts work simply and clearly (e.g., "The eye glowed blue, cooling the overheated hive").
-    *   **Active NPCs:** Companions (like a goblin or fairy) MUST actively help solve problems, not just stand around.
+**SENTENCE RHYTHM PATTERNS:**
+- Short. Short. Looooong flowing sentence with a surprise at the end.
+- Dialogue interrupted by action: "Ich kann–" Er stolperte. "–das schaffen!"
+- Trio-rhythm for descriptions: Glatt. Kalt. Und viel zu schwer.
+- BANNED: "ploetzlich", "auf einmal", "dann" as sentence starters
 
-5.  **CHILD-CENTRIC WORLDVIEW (DEEP POV)**
-    *   The narrator camera is INSIDE the child's eyes.
-    *   Adults are giants. Tables are roofs.
-    *   Small problems (a lost toy) feel like world-ending disasters. large problems are confusing.
-    *   Magic is treated as matter-of-fact science.
-    *   **Vocabulary Filter (Ages 6-8):** AVOID office/tech words ("Konditionen", "präzise", "justieren", "schriftlich", "Ordnungs...", "thermisch", "Protokoll"). REPLACE with child-friendly words ("Abmachung", "genau", "zurechtrücken", "aufgeschrieben", "Regel", "warm/kalt", "Notiz").
+**EMOTION = BODY, NEVER LABELS:**
+- NEVER: "Er war nervoes" → INSTEAD: "Seine Finger krallten sich in den Stoff."
+- NEVER: "Sie war gluecklich" → INSTEAD: "Ihre Zehen wackelten in den Stiefeln."
+- Each chapter gets ONE somatic-marker moment (belly tightening, hands sweating, etc.)
 
-6.  **FAILURE MODES (AVOID AT ALL COSTS)**
-    *   **The "Summary Trap":** Do not summarize events ("They had a great adventure"). PLAY THE ADVENTURE OUT.
-    *   **The "Lesson Hammer":** Do not preach. The moral must be invisible.
-    *   **The "Adjective Soup":** Do not stack adjectives ("The big, red, shiny, beautiful ball"). Pick ONE perfect word ("The ruby-red ball").
-    *   **The "Prompt Leak":** NEVER copy the Goal, Conflict, or Setting text directly into the story. NEVER use meta-phrases like "The scene leads to the next beat" or "A new beat started". Dramatize the instructions into natural prose.
+**DIALOGUE = CHARACTER IDENTITY:**
+- Each character must have a UNIQUE speech pattern (sentence length, vocabulary, attitude)
+- EVERY dialogue line must be anchored to a physical action (no talking heads)
+- Quick exchanges (3+ back-and-forth) create energy and humor
+- At least 25% of total text must be dialogue
 
-::: CRITICAL CONSTRAINTS :::
-1. LANGUAGE: ${outputLang} ONLY. ${umlautRule}
+::: HARD CONSTRAINTS :::
+1. LANGUAGE: ${outputLang} ONLY.${umlautRule}
 2. FORMAT: Single valid JSON object.
-3. LENGTH: Total ${totalWordMin}-${totalWordMax} words. Each chapter MUST be ${wordsPerChapter.min}-${wordsPerChapter.max} words.
-   -> FAILURE MODE: Stories under ${totalWordMin} words will be REJECTED. Expand interactions!
-4. CAST: Only ${allowedNames.join(", ")}. No new names.
+3. LENGTH: Total ${totalWordMin}-${totalWordMax} words. Each chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
+   → Stories under ${totalWordMin} words = REJECTED. Expand dialogue and interactions!
+4. CAST LOCK: Only ${allowedNames.join(", ")}. No new character names. Ever.
 5. SAFETY: ${safetyRule}
-6. HUMOR: ${humorRule}
+6. ${humorRule}
+7. NEVER copy Goal/Conflict/Setting text into the story. Dramatize the instructions into natural prose.
 
-${avatarRule ? `::: AVATAR RULES :::\n${avatarRule}\n` : ""}
+${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
 ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
@@ -621,34 +626,40 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 ${characterProfiles.join("\n")}
 ${childVoiceContract ? `\n${childVoiceContract}` : ""}
 ${memorySection}
-${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery -> Misinterpretation -> Mastery (Child solves it, not the artifact).\n` : ""}
+${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery → Misuse → Mastery (the CHILD solves the problem, not the artifact).\n` : ""}
 
-::: PROMPTED STORY BEATS :::
-(DRAMATIZE THESE BEATS. DO NOT COPY THE TEXT LITERALLY. NO META-LANGUAGE.)
+::: STORY BEATS (DRAMATIZE – DO NOT COPY) :::
 ${beatLines}
 
-${goldenExample}
-
-${antiPatterns}
+::: STORY STRUCTURE REQUIREMENTS :::
+- Chapter 1-2: Show CONCRETE STAKES (what is physically lost if they fail?)
+- Chapter 3: Rising action with a complication
+- Chapter 3-4: LOWPOINT – a real setback with physical emotional reaction (somatic marker!)
+- Chapter 5: Resolution – show what was WON + a small PRICE paid (torn shirt, late for dinner, etc.)
 
 ::: OUTPUT FORMAT :::
-You must output a single JSON object with a "_planning" field. Use this field to "think" before writing.
+Write a JSON object. Start with "_planning" to think before writing.
 
 {
   "_planning": {
-    "theme_focus": "One word theme (e.g. 'Courage')",
-    "somatic_vocabulary": ["List 5 physical sensations you will use instead of emotion words"],
-    "pacing_check": "How will you ensure sentence length variety?",
-    "anti_leak_check": "Confirm you will NOT use meta-phrases like 'next beat' or copy the prompt text.",
-    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)",
+    "theme": "One word (e.g. 'Mut')",
+    "voice_signatures": {
+      "[child1]": "2 typical words + sentence style (e.g. 'short, impulsive, uses zack/los!')",
+      "[child2]": "2 typical words + sentence style (e.g. 'measured, uses Moment/logisch')"
+    },
+    "somatic_markers": ["5 physical sensations I will use instead of emotion words"],
+    "humor_beats": ["2 concrete funny moments I will include (situation, not wordplay)"],
+    "paragraph_commitment": "I will write flowing paragraphs of 2-5 sentences, NEVER single-sentence chains.",
     "chapter_plans": [
-      { "chapter": 1, "goal": "Specific goal", "conflict": "Specific obstacle", "ending": "Cliffhanger/Shift" }
+      { "ch": 1, "stakes": "What is lost if they fail?", "ending_hook": "Cliffhanger/shift" },
+      { "ch": 3, "lowpoint": "What goes wrong?" },
+      { "ch": 5, "payoff": "What is won?", "price": "What small thing is lost?" }
     ]
   },
   "title": "${titleHint}",
-  "description": "Teaser sentence...",
+  "description": "Teaser sentence that plants a QUESTION in the reader's mind",
   "chapters": [
-    { "chapter": 1, "text": "Full prose text..." }
+    { "chapter": 1, "text": "Full prose text in flowing paragraphs..." }
   ]
 }`;
 }
@@ -707,78 +718,69 @@ export function buildFullStoryRewritePrompt(input: {
   const outputLang = isGerman ? "German" : targetLanguage;
   const umlautRule = isGerman ? " Use proper German umlauts (�, �, �, �), never ASCII. No English words." : "";
 
-  return `TASK: Rewrite this story to "10.0/10.0" quality standards. The previous draft was rejected for being too flat/generic.
+  const goldenExampleRef = buildGoldenExampleBlock(isGerman);
+
+  return `TASK: Rewrite this story so it sounds like a REAL PUBLISHED children's book. The draft was rejected for sounding AI-generated.
 
 ::: CRITIC FEEDBACK (MUST FIX) :::
-${qualityIssues || "- General prose improvement needed. Too short, flat characters."}
+${qualityIssues || "- General prose improvement needed. Too flat, robot-style prose."}
 
-::: THE "10.0/10.0" QUALITY BENCHMARK :::
-A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
-A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
-YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+${goldenExampleRef}
 
-::: THE "10/10" WRITING STANDARD :::
-1.  **SHOW, DON'T TELL (SOMATIC MARKERS)**
-    *   **FORBIDDEN:** Abstract emotion words ("sad", "happy", "excited").
-    *   **REQUIRED:** Physical sensations. "Shoulders ignored gravity" (happy). "Stomach turned to ice" (scared).
-    *   *Fix:* Take every emotion word in the draft and replace it with a physical action.
-    *   **Imagery Limit:** Maximum ONE comparison ("like a...", "as if...") per paragraph.
+::: THE REWRITE RULES (focus on these 4 things) :::
 
-2.  **RHYTHM & PACING (EAR TEST)**
-    *   **Rule of Three:** Use triads for descriptions.
-    *   **Sentence Variance:** Combine short (2-5 words) and medium (8-15 words) sentences. Keep sentences short for 6-8 year olds.
-    *   **NO:** Three sentences of the same length in a row.
-    *   **NO:** Chains of "He did this. Then he did that." Use strong verbs.
-    *   **BANNED WORD:** NEVER use the word "plötzlich" (suddenly).
+1. **PARAGRAPH STRUCTURE (THE #1 PROBLEM)**
+   The draft likely has single-sentence chains: "He ran. She said. He nodded."
+   FIX: Rewrite into flowing paragraphs of 2-5 sentences where action, dialogue, and detail blend:
+   "Der Laden roch nach altem Holz. Bruno wischte die Theke, ohne aufzusehen. 'Drei Saecke Mehl', sagte er. 'Und Glueck.'"
 
-3.  **DIALOGUE ANCHORING & ACTIVE PRESENCE**
-    *   **Dialogue Ratio:** At least 25% of the total text MUST be dialogue.
-    *   **Active Presence:** Every character present in a chapter MUST actively do something or speak.
-    *   Every dialogue line needs a physical anchor.
-    *   *Bad:* "Hello," said Tom.
-    *   *Good:* Tom kicked the dirt. "Hello."
+2. **EMOTION = BODY, NEVER LABELS**
+   Find every "he was nervous/happy/sad" and replace with physical sensation:
+   - "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
+   - "Sie war gluecklich" → "Ihre Zehen wackelten in den Stiefeln."
 
-4.  **SCENE STRUCTURE & STAKES**
-    *   **Early Stakes:** In Chapter 1 or 2, explicitly show what happens if the characters fail.
-    *   **The Lowpoint:** In Chapter 4, show a strong, physical emotional reaction to a major setback.
-    *   **The Payoff:** The ending (Chapter 5) must be concrete. Show exactly what was won/secured. Include a small, tangible price or compromise.
-    *   **Artifact Arc:** Ensure the magical artifact is introduced early and used actively in at least TWO different scenes.
+3. **DISTINCT VOICES**
+   Each character must sound different by sentence length, word choice, and attitude.
+   If you can swap two characters' dialogue lines without it sounding wrong → FIX IT.
 
-5.  **PROMPT LEAK PREVENTION**
-    *   NEVER copy the Goal, Conflict, or Setting text directly into the story.
-    *   NEVER use meta-phrases like "The scene leads to the next beat" or "A new beat started".
+4. **DIALOGUE ANCHORING**
+   Every dialogue line needs a physical action anchor. No talking heads.
+   Bad: "Hallo", sagte Tom.  Good: Tom trat gegen den Dreck. "Hallo."
 
 ::: HARD RULES :::
 1) Language: ONLY ${outputLang}.${umlautRule}
-2) Length: ${totalWordMin}-${totalWordMax} words total. Chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}.
-   -> IF TOO SHORT: You MUST add new interactions, dialogue lines, and sensory details. Do NOT just fluff the text. Dramatize!
-  3) Cast Lock: ${allowedNames || "(none)"}. No new names. NEVER invent new characters, names, or entities.
+2) Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
+   → IF TOO SHORT: Add dialogue exchanges and sensory details, not filler.
+3) Cast Lock: ${allowedNames || "(none)"}. No new names.
 ${humorRewriteLine}
+5) NEVER copy Goal/Conflict/Setting text into the story. Dramatize!
+6) BANNED: "plötzlich", emotion labels, single-sentence chains, moral lectures.
 
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
 ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
-::: ORIGINAL DRAFT (FOR REFERENCE ONLY - REWRITE COMPLETELY) :::
+::: ORIGINAL DRAFT (REWRITE COMPLETELY) :::
 ${originalText}
 
 ::: OUTPUT FORMAT :::
-Output a single JSON object. Start with a "_planning" field where you explicitly state how you will fix the issues.
-
 {
   "_planning": {
-    "fix_strategy": "Example: I will extend Chapter 2 by adding a scene where...",
-    "somatic_check": "List 3 emotion words I am deleting and replacing with actions...",
-    "pacing_check": "How I ensure the low-point in Ch 3 hits hard...",
-    "anti_leak_check": "Confirm you will NOT use meta-phrases like 'next beat' or copy the prompt text.",
-    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
+    "paragraph_fix": "I will merge single-sentence chains into flowing paragraphs of 2-5 sentences.",
+    "emotion_replacements": ["3 specific emotion words I found and will replace with body actions"],
+    "voice_signatures": {
+      "[character1]": "sentence style + 2 typical words",
+      "[character2]": "sentence style + 2 typical words"
+    },
+    "fix_strategy": "How I will fix the critic feedback issues"
   },
   "title": "Story title",
   "description": "Teaser sentence",
   "chapters": [
-    { "chapter": 1, "text": "..." }
+    { "chapter": 1, "text": "Full prose in flowing paragraphs..." }
   ]
 }`;
 }
+
 
 // --- Chapter Expansion Prompt (V2 - kompakter) --------------------------------
 
